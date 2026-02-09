@@ -65,42 +65,6 @@
     <color name="error_red">#FF3366</color>
     <color name="warning_yellow">#FFB800</color>
     
-    <!-- Premium Companion Colors -->
-    <color name="gold_primary">#FFD700</color>
-    <color name="gold_secondary">#FF8C00</color>
-    <color name="velvet_black">#050505</color>
-    <color name="charcoal_surface">#121212</color>
-    
-    <!-- Cinematic & MC Design System Colors -->
-    <color name="cinematic_gold">#FFD700</color>
-    <color name="cinematic_card_bg">#1A1A1A</color>
-    <color name="mc_bg_card">#1A1A1A</color>
-    <color name="mc_bg_primary">#0D0D0D</color>
-    <color name="mc_bg_secondary">#151515</color>
-    <color name="mc_glass_border">#33FFFFFF</color>
-    <color name="mc_glass_surface">#1AFFFFFF</color>
-    
-    <!-- Selector Colors -->
-    <color name="selector_sidebar_text_selected">#FFD700</color>
-    <color name="selector_sidebar_text_default">#888888</color>
-    <color name="selector_key_bg">#33FFFFFF</color>
-    
-    <!-- Design System Neutral Colors -->
-    <color name="neutral_900">#0D0D0D</color>
-    <color name="neutral_800">#1A1A1A</color>
-    <color name="gold_accent">#FFD700</color>
-    
-    <!-- Additional MC/Cinematic Focus Effects -->
-    <color name="mc_bg_card_focus">#2A2A2A</color>
-    <color name="mc_focus_border">#FFD700</color>
-    <color name="mc_focus">#FFD700</color>
-    <color name="mc_glass_border_focus">#80FFFFFF</color>
-    <color name="cinematic_card_bg_focus">#262626</color>
-    
-    <!-- Sidebar Premium Colors -->
-    <color name="sidebar_glass">#1AFFFFFF</color>
-    <color name="sidebar_glass_stroke">#33FFFFFF</color>
-    
     <!-- Overlay Colors (with transparency) -->
     <color name="overlay_dark">#E6000000</color>
     <color name="overlay_medium">#B3000000</color>

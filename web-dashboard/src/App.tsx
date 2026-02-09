@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Tv, Cloud, Save, CheckCircle, AlertCircle, Laptop, Smartphone } from 'lucide-react';
+import { Tv, Cloud, Save, CheckCircle, AlertCircle, Laptop, Smartphone, Globe } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -16,7 +16,7 @@ function cn(...inputs: ClassValue[]) {
  * IPTV and Debrid settings on the Android TV app.
  */
 export default function App() {
-    const [activeTab, setActiveTab] = useState<string>('iptv');
+    const [activeTab, setActiveTab] = useState<'iptv' | 'debrid' | 'remote'>('iptv');
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
     const [message, setMessage] = useState('');
 
@@ -28,66 +28,21 @@ export default function App() {
     const [serverAddress, setServerAddress] = useState('');
     const [remoteCode, setRemoteCode] = useState('');
 
-    // State for the 2-step flow
-    const [isPaired, setIsPaired] = useState(false);
-    const [pairLoading, setPairLoading] = useState(false);
-    const FIREBASE_BASE_URL = "https://debridxtream-default-rtdb.firebaseio.com";
-
     useEffect(() => {
+        // Attempt to auto-detect server IP from the URL (provided by TV's QR code)
         const params = new URLSearchParams(window.location.search);
         const server = params.get('server') || window.location.host;
         setServerAddress(server.startsWith('http') ? server : `http://${server}`);
 
+        // Attempt to load previous session data from localStorage
         const savedIptv = localStorage.getItem('iptv_config');
         if (savedIptv) setIptv(JSON.parse(savedIptv));
     }, []);
 
     /**
-     * Step 1: Validate the device key against Firebase
-     */
-    const handlePairDevice = async () => {
-        if (remoteCode.length !== 6) {
-            setStatus('error');
-            setMessage("Please enter a valid 6-digit code from your TV.");
-            return;
-        }
-
-        setPairLoading(true);
-        setStatus('loading');
-        try {
-            const response = await fetch(`${FIREBASE_BASE_URL}/pairings/${remoteCode}.json`);
-            const data = await response.json();
-
-            if (data && data.status === 'pairing') {
-                setIsPaired(true);
-                setStatus('success');
-                setMessage("✅ Device Connected! Please enter your configurations below.");
-                setActiveTab('iptv'); // Switch to first config tab
-
-                // Haptic feedback
-                if ('vibrate' in navigator) navigator.vibrate([50, 30, 50]);
-            } else {
-                throw new Error("Invalid or expired code. Please check your TV screen.");
-            }
-        } catch (err: any) {
-            console.error(err);
-            setStatus('error');
-            setMessage(err.message || "Failed to verify device. Is your TV online?");
-        } finally {
-            setPairLoading(false);
-            if (!isPaired) setTimeout(() => setStatus('idle'), 3000);
-        }
-    };
-
-    /**
-     * Step 2: Sends the current configuration to Firebase (synced status)
+     * Sends the current configuration to the Android TV's Ktor server OR Relay.
      */
     const handleSync = async () => {
-        if (!isPaired && activeTab === 'remote') {
-            handlePairDevice();
-            return;
-        }
-
         setStatus('loading');
         try {
             const payload = {
@@ -95,51 +50,73 @@ export default function App() {
                 debrid: debrid.token ? debrid : null,
             };
 
+            // Save to local storage for convenience on next visit
             localStorage.setItem('iptv_config', JSON.stringify(iptv));
 
-            // Remote Sync via Firebase
-            if (isPaired || activeTab === 'remote') {
-                const syncPayload = {
-                    status: 'synced',
-                    config: payload,
-                    syncTime: Date.now()
+            let endpoint = `${serverAddress}/api/config`; // Default local
+
+            // If in remote mode, use the Relay Server
+            if (activeTab === 'remote' || (activeTab !== 'remote' && remoteCode.length === 6)) {
+                if (remoteCode.length !== 6) throw new Error("Please enter a valid 6-digit pairing code in the Remote tab.");
+                // PLACEHOLDER RELAY - User needs to deploy this!
+                // For now, we can use a mock or prompt them.
+                // In production: https://relay.debridxtream.com/api/pair/config
+                endpoint = `https://relay.debridxtream.com/api/pair/config`;
+
+                // We need to wrap payload with the code
+                const remotePayload = {
+                    code: remoteCode,
+                    config: payload
                 };
 
-                const response = await fetch(`${FIREBASE_BASE_URL}/pairings/${remoteCode}.json`, {
-                    method: 'PATCH',
+                const response = await fetch(endpoint, {
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(syncPayload),
+                    body: JSON.stringify(remotePayload),
                 });
 
-                if (response.ok) {
+                if (!response.ok) throw new Error("Relay Server not accessible. Have you deployed it?");
+
+                const data = await response.json();
+                if (data.success) {
                     setStatus('success');
-                    setMessage(`🚀 Config pushed to TV! (Code: ${remoteCode})`);
+                    setMessage(`Sent to TV! (Code: ${remoteCode})`);
                     if ('vibrate' in navigator) navigator.vibrate(100);
                     setTimeout(() => setStatus('idle'), 4000);
+                    return;
                 } else {
-                    throw new Error("Failed to push config. Try again.");
+                    throw new Error(data.message || "Remote sync failed");
                 }
-                return;
             }
 
-            // Fallback Local Sync (Legacy)
+            // Fallback to Local Sync (Original Logic)
             const response = await fetch(`${serverAddress}/api/config`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
 
-            if (response.ok) {
+            // Try to parse JSON even if status is not OK (to get error message)
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                if (!response.ok) throw new Error(`TV Server Error (${response.status})`);
+            }
+
+            if (response.ok && data?.success) {
                 setStatus('success');
-                setMessage("Synced to local TV!");
+                setMessage(data.message);
+                // Reset haptic feedback if mobile
+                if ('vibrate' in navigator) navigator.vibrate(100);
                 setTimeout(() => setStatus('idle'), 4000);
             } else {
-                throw new Error("Local sync failed. Check IP.");
+                throw new Error(data?.message || `Sync failed: ${response.statusText}`);
             }
         } catch (err: any) {
             console.error(err);
             setStatus('error');
-            setMessage(err.message || 'Sync failed.');
+            setMessage(err.message || 'Unable to connect. Check WiFi or Relay.');
         }
     };
 
@@ -149,6 +126,7 @@ export default function App() {
             <motion.header
                 initial={{ y: -20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.6 }}
                 className="text-center mb-10 mt-6"
             >
                 <div className="inline-block p-1 rounded-2xl bg-gradient-to-tr from-gold-primary to-gold-secondary mb-4 shadow-xl">
@@ -157,122 +135,215 @@ export default function App() {
                     </div>
                 </div>
                 <h1 className="text-4xl md:text-5xl font-bold text-gold-primary mb-3 tracking-tight">
-                    DX Companion <span className="text-xs align-top opacity-50">v2.0</span>
+                    DX Companion
                 </h1>
                 <p className="text-white/50 text-base md:text-lg max-w-sm mx-auto leading-relaxed">
-                    Premium Setup Portal for DebridXtream
+                    The ultimate control center for your IPTV & Debrid setup
                 </p>
             </motion.header>
 
-            {/* Main Card */}
+            {/* Main Configuration Card */}
             <motion.main
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2, duration: 0.6 }}
                 className="w-full max-w-lg glass rounded-[2.5rem] overflow-hidden shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] relative z-10"
             >
-                {/* Step Indicator */}
-                <div className="flex bg-black/40 p-4 justify-around border-b border-white/5">
-                    <div className={cn("flex flex-col items-center gap-1", !isPaired ? "text-gold-primary" : "text-emerald-400")}>
-                        <div className={cn("w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold", !isPaired ? "border-gold-primary" : "border-emerald-400 bg-emerald-400/20")}>
-                            {isPaired ? "✓" : "1"}
-                        </div>
-                        <span className="text-[10px] font-black uppercase">Device</span>
-                    </div>
-                    <div className="w-12 h-[2px] bg-white/10 mt-4" />
-                    <div className={cn("flex flex-col items-center gap-1", isPaired ? "text-gold-primary" : "text-white/20")}>
-                        <div className={cn("w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold", isPaired ? "border-gold-primary shadow-[0_0_15px_rgba(255,215,0,0.2)]" : "border-white/10")}>
-                            2
-                        </div>
-                        <span className="text-[10px] font-black uppercase">Setup</span>
-                    </div>
+                {/* Tab Selection */}
+                <div className="flex bg-black/40 p-2 gap-2 border-b border-white/5">
+                    <TabButton
+                        active={activeTab === 'iptv'}
+                        onClick={() => setActiveTab('iptv')}
+                        icon={<Tv size={20} />}
+                        label="IPTV"
+                    />
+                    <TabButton
+                        active={activeTab === 'debrid'}
+                        onClick={() => setActiveTab('debrid')}
+                        icon={<Cloud size={20} />}
+                        label="Debrid"
+                    />
+                    <TabButton
+                        active={activeTab === 'remote'}
+                        onClick={() => setActiveTab('remote')}
+                        icon={<Globe size={20} />}
+                        label="Remote"
+                    />
                 </div>
 
-                {!isPaired ? (
-                    /* Step 1: Pair Device */
-                    <div className="p-10 space-y-8">
-                        <div className="text-center space-y-3">
-                            <Laptop className="mx-auto text-gold-primary mb-2" size={48} />
-                            <h2 className="text-2xl font-bold">Connect to TV</h2>
-                            <p className="text-white/40 text-sm">Enter the 6-digit code shown on your TV screen to begin secure pairing.</p>
-                        </div>
+                {/* Dynamic Form Area */}
+                <div className="p-8 md:p-10">
+                    <AnimatePresence mode="wait">
+                        {activeTab === 'iptv' ? (
+                            <motion.div
+                                key="iptv-form"
+                                initial={{ x: -10, opacity: 0 }}
+                                animate={{ x: 0, opacity: 1 }}
+                                exit={{ x: 10, opacity: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="space-y-6"
+                            >
+                                <div className="flex items-center gap-4 mb-2">
+                                    <div className="w-10 h-10 rounded-full bg-gold-primary/10 flex items-center justify-center text-gold-primary">
+                                        <Tv size={24} />
+                                    </div>
+                                    <h2 className="text-xl font-bold">XCodes Credentials</h2>
+                                </div>
 
-                        <div className="flex justify-center flex-col items-center gap-6">
-                            <div className="w-full max-w-xs transition-all duration-300 focus-within:scale-105">
-                                <input
-                                    type="text"
-                                    maxLength={6}
+                                <InputField
+                                    label="Portal URL"
+                                    placeholder="https://example.tv:8080"
+                                    value={iptv.serverUrl}
+                                    onChange={(e: any) => setIptv({ ...iptv, serverUrl: e.target.value })}
+                                />
+                                <InputField
+                                    label="Username"
+                                    placeholder="Your username"
+                                    value={iptv.username}
+                                    onChange={(e: any) => setIptv({ ...iptv, username: e.target.value })}
+                                />
+                                <InputField
+                                    label="Password"
+                                    type="password"
+                                    placeholder="Your password"
+                                    value={iptv.password}
+                                    onChange={(e: any) => setIptv({ ...iptv, password: e.target.value })}
+                                />
+                            </motion.div>
+                        ) : activeTab === 'debrid' ? (
+                            <motion.div
+                                key="debrid-form"
+                                initial={{ x: 10, opacity: 0 }}
+                                animate={{ x: 0, opacity: 1 }}
+                                exit={{ x: -10, opacity: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="space-y-6"
+                            >
+                                <div className="flex items-center gap-4 mb-2">
+                                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                                        <Cloud size={24} />
+                                    </div>
+                                    <h2 className="text-xl font-bold">Premium Services</h2>
+                                </div>
+
+                                <InputField
+                                    label="Real-Debrid API Token"
+                                    placeholder="Paste token here"
+                                    type="password"
+                                    value={debrid.token}
+                                    onChange={(e: any) => setDebrid({ ...debrid, token: e.target.value })}
+                                    helperText={<a href="https://real-debrid.com/apitoken" target="_blank" rel="noreferrer" className="underline hover:text-white">Get yours from my-account page</a>}
+                                />
+                                <InputField
+                                    label="MediaFusion Addon URL"
+                                    placeholder="stremio://mediafusion..."
+                                    value={debrid.mediaFusionUrl}
+                                    onChange={(e: any) => setDebrid({ ...debrid, mediaFusionUrl: e.target.value })}
+                                    helperText="Supports stremio:// or https:// formats"
+                                />
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="remote-form"
+                                initial={{ x: 10, opacity: 0 }}
+                                animate={{ x: 0, opacity: 1 }}
+                                exit={{ x: -10, opacity: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="space-y-6"
+                            >
+                                <div className="flex items-center gap-4 mb-2">
+                                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400">
+                                        <Globe size={24} />
+                                    </div>
+                                    <h2 className="text-xl font-bold">Remote Pairing</h2>
+                                </div>
+
+                                <p className="text-white/50 text-sm">
+                                    Enter the 6-digit code displayed on your TV to pair from anywhere.
+                                </p>
+
+                                <InputField
+                                    label="TV Pairing Code"
                                     placeholder="123456"
                                     value={remoteCode}
-                                    onChange={(e) => setRemoteCode(e.target.value.toUpperCase())}
-                                    className="w-full bg-black/40 border-2 border-white/5 rounded-3xl py-6 text-center text-4xl font-black text-gold-primary tracking-[0.5em] outline-none focus:border-gold-primary shadow-inner"
+                                    onChange={(e: any) => setRemoteCode(e.target.value.toUpperCase())}
+                                    helperText="Found on Login Screen or Settings > Companion"
                                 />
-                            </div>
 
-                            <button
-                                onClick={handlePairDevice}
-                                disabled={pairLoading || remoteCode.length !== 6}
-                                className="w-full max-w-xs py-5 rounded-2xl bg-gradient-to-r from-gold-primary to-gold-secondary text-velvet-black font-black text-lg transition-all active:scale-95 disabled:opacity-30 flex items-center justify-center gap-3"
-                            >
-                                {pairLoading ? <div className="w-6 h-6 border-4 border-velvet-black/20 border-t-velvet-black rounded-full animate-spin" /> : <><span>CONNECT TV</span><Smartphone size={20} /></>}
-                            </button>
-                        </div>
-                    </div>
-                ) : (
-                    /* Step 2: Configure */
-                    <div className="p-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        {/* Tab Selection */}
-                        <div className="flex bg-black/20 p-2 gap-2 border-b border-white/5">
-                            <TabButton active={activeTab === 'iptv'} onClick={() => setActiveTab('iptv')} icon={<Tv size={20} />} label="IPTV" />
-                            <TabButton active={activeTab === 'debrid'} onClick={() => setActiveTab('debrid')} icon={<Cloud size={20} />} label="Debrid" />
-                        </div>
+                                <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                                    <h3 className="text-gold-primary text-sm font-bold mb-2">How it works:</h3>
+                                    <ol className="list-decimal list-inside text-xs text-white/60 space-y-1">
+                                        <li>Enter the code from your TV</li>
+                                        <li>Fill in IPTV/Debrid details in other tabs</li>
+                                        <li>Click <b>SAVE TO TV</b> to push settings via cloud</li>
+                                    </ol>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                        <div className="p-8 md:p-10 space-y-8">
-                            <AnimatePresence mode="wait">
-                                {activeTab === 'iptv' ? (
-                                    <motion.div key="iptv" initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 20, opacity: 0 }} className="space-y-6">
-                                        <InputField label="Portal URL" placeholder="https://example.tv:8080" value={iptv.serverUrl} onChange={(e: any) => setIptv({ ...iptv, serverUrl: e.target.value })} />
-                                        <InputField label="Username" placeholder="Enter username" value={iptv.username} onChange={(e: any) => setIptv({ ...iptv, username: e.target.value })} />
-                                        <InputField label="Password" type="password" placeholder="••••••••" value={iptv.password} onChange={(e: any) => setIptv({ ...iptv, password: e.target.value })} />
-                                    </motion.div>
-                                ) : (
-                                    <motion.div key="debrid" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-6">
-                                        <InputField label="Real-Debrid API Token" placeholder="Paste token here" type="password" value={debrid.token} onChange={(e: any) => setDebrid({ ...debrid, token: e.target.value })} helperText={<a href="https://real-debrid.com/apitoken" target="_blank" className="underline">Get your token</a>} />
-                                        <InputField label="MediaFusion URL" placeholder="stremio://..." value={debrid.mediaFusionUrl} onChange={(e: any) => setDebrid({ ...debrid, mediaFusionUrl: e.target.value })} />
-                                    </motion.div>
+                    {/* Action Trigger */}
+                    <button
+                        onClick={handleSync}
+                        disabled={status === 'loading'}
+                        className={cn(
+                            "w-full mt-10 py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-3 transition-all active:scale-[0.98] shadow-[0_20px_40px_-10px_rgba(255,215,0,0.3)] group overflow-hidden relative",
+                            status === 'loading'
+                                ? "bg-gold-primary/40 cursor-not-allowed"
+                                : "bg-gradient-to-r from-gold-primary to-gold-secondary text-velvet-black hover:shadow-gold-primary/50"
+                        )}
+                    >
+                        <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                        {status === 'loading' ? (
+                            <div className="w-6 h-6 border-4 border-velvet-black/20 border-t-velvet-black rounded-full animate-spin" />
+                        ) : (
+                            <>
+                                <Save size={22} className="group-hover:rotate-12 transition-transform" />
+                                <span>SAVE TO TV</span>
+                            </>
+                        )}
+                    </button>
+
+                    {/* Feedback Overlay */}
+                    <AnimatePresence>
+                        {status !== 'idle' && status !== 'loading' && (
+                            <motion.div
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                exit={{ y: -20, opacity: 0 }}
+                                className={cn(
+                                    "mt-8 p-5 rounded-2xl flex items-center gap-4",
+                                    status === 'success' ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                                 )}
-                            </AnimatePresence>
-
-                            <button
-                                onClick={handleSync}
-                                disabled={status === 'loading'}
-                                className="w-full py-5 rounded-2xl bg-gradient-to-r from-gold-primary to-gold-secondary text-velvet-black font-black text-lg transition-all active:scale-[0.98] flex items-center justify-center gap-3 group"
                             >
-                                {status === 'loading' ? (
-                                    <div className="w-6 h-6 border-4 border-velvet-black/20 border-t-velvet-black rounded-full animate-spin" />
-                                ) : (
-                                    <>
-                                        <Save size={22} className="group-hover:rotate-12 transition-transform" />
-                                        <span>SAVE TO TV</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Status Toast Overlay */}
-                <AnimatePresence>
-                    {status !== 'idle' && status !== 'loading' && (
-                        <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className={cn("absolute bottom-6 left-6 right-6 p-4 rounded-xl flex items-center gap-3 backdrop-blur-xl border z-50", status === 'success' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20")}>
-                            {status === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-                            <span className="text-xs font-bold">{message}</span>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                                {status === 'success' ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
+                                <p className="font-bold text-sm">{message}</p>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
             </motion.main>
 
-            <footer className="mt-8 text-center text-white/20 text-[10px] font-black uppercase tracking-[0.2em]">
-                {isPaired ? <span className="text-emerald-400/50 flex items-center justify-center gap-1"><Smartphone size={10} /> Linked to Terminal: {remoteCode}</span> : "Waiting for Authorization"}
+            {/* Information Footer */}
+            <footer className="mt-auto py-10 w-full max-w-lg">
+                <div className="flex flex-col items-center gap-6 text-white/30">
+                    <div className="flex items-center gap-5 glass p-3 px-6 rounded-full text-xs font-bold uppercase tracking-widest">
+                        <div className="flex items-center gap-2">
+                            <Smartphone size={14} />
+                            <span>Portal Active</span>
+                        </div>
+                        <div className="w-1.5 h-1.5 bg-gold-primary/40 rounded-full" />
+                        <div className="flex items-center gap-2">
+                            <Laptop size={14} />
+                            <span>Connected TV</span>
+                        </div>
+                    </div>
+
+                    <div className="text-center space-y-2">
+                        <p className="text-sm font-medium">Device: {serverAddress.replace('http://', '')}</p>
+                        <p className="text-[10px] uppercase tracking-widest font-black opacity-50">Powered by DebridXtream Elite</p>
+                    </div>
+                </div>
             </footer>
         </div>
     );
