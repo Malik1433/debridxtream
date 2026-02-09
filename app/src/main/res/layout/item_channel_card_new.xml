@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Netflix Style Flat Card - No Elevation -->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="220dp"
+    android:layout_height="220dp"
+    android:layout_marginStart="4dp"
+    android:layout_marginEnd="4dp"
+    android:layout_marginTop="10dp"
+    android:layout_marginBottom="15dp"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:background="@drawable/card_flat_background"
+    android:stateListAnimator="@animator/card_focus_flat">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- Channel Logo/Image -->
+        <ImageView
+            android:id="@+id/iv_channel_logo"
+            android:layout_width="match_parent"
+            android:layout_height="140dp"
+            android:scaleType="centerCrop"
+            android:contentDescription="Channel logo"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Gradient Overlay at Bottom -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:background="@drawable/gradient_card_bottom"
+            app:layout_constraintBottom_toBottomOf="@id/iv_channel_logo" />
+        
+        <!-- Hidden channel number badge for compatibility -->
+        <TextView
+            android:id="@+id/tv_channel_number_badge"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone" />
+
+        <!-- Info Container - Full Name Visible -->
+        <LinearLayout
+            android:id="@+id/layout_name_container"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:orientation="vertical"
+            android:padding="12dp"
+            android:gravity="center"
+            android:background="@drawable/name_area_background"
+            app:layout_constraintTop_toBottomOf="@id/iv_channel_logo"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <!-- Channel Name - Full Visibility -->
+            <TextView
+                android:id="@+id/tv_channel_number_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="BBC News HD"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary_new"
+                android:maxLines="3"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:lineSpacingMultiplier="1.3"
+                android:shadowColor="#80000000"
+                android:shadowRadius="2"
+                android:shadowDy="1" />
+
+            <!-- Hidden fields for compatibility -->
+            <TextView
+                android:id="@+id/tv_current_program"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tv_viewer_count"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</FrameLayout>
+

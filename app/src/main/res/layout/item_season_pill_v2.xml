@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tv_season_name"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/background_season_pill_modern"
+    android:clickable="true"
+    android:focusable="true"
+    android:paddingStart="20dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="10dp"
+    android:text="Season 1"
+    android:textColor="@color/color_selector_season_text"
+    android:textStyle="bold"
+    android:fontFamily="sans-serif-medium"
+    android:layout_marginEnd="12dp"
+    android:textSize="15sp" />

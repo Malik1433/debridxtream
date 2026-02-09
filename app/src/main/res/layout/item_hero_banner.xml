@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="400dp"
+    android:focusable="true"
+    android:focusableInTouchMode="true">
+
+    <!-- Background Image (Backdrop) -->
+    <ImageView
+        android:id="@+id/iv_hero_backdrop"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/placeholder_banner"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:ignore="ContentDescription" />
+
+    <!-- Gradient Overlay (Bottom-up and Left-right for readability) -->
+    <View
+        android:id="@+id/view_gradient_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/gradient_home_hero" />
+
+    <!-- Content Container -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="48dp"
+        android:paddingBottom="48dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintWidth_percent="0.6">
+
+        <!-- Tags / Metadata -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+            
+            <TextView
+                android:id="@+id/tv_hero_type"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="MOVIE"
+                android:textColor="@color/brand_orange"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:letterSpacing="0.1"
+                android:layout_marginEnd="12dp"/>
+
+            <TextView
+                android:id="@+id/tv_hero_rating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⭐ 8.5"
+                android:textColor="#E0E0E0"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tv_hero_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Example Movie Title"
+            android:textColor="@android:color/white"
+            android:textSize="48sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-black"
+            android:shadowColor="#FF000000"
+            android:shadowDx="4"
+            android:shadowDy="4"
+            android:shadowRadius="8"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Description -->
+        <TextView
+            android:id="@+id/tv_hero_description"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="This is a brief description of the movie or show. It creates interest and provides context for the viewer."
+            android:textColor="#E6FFFFFF"
+            android:textSize="18sp"
+            android:maxLines="3"
+            android:ellipsize="end"
+            android:lineSpacingExtra="6dp"
+            android:layout_marginBottom="32dp" />
+
+        <!-- Actions -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_hero_play"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Play Now"
+                android:backgroundTint="@color/brand_orange"
+                android:textColor="@color/black"
+                android:textStyle="bold"
+                android:paddingHorizontal="32dp"
+                android:paddingVertical="12dp"
+                android:layout_marginEnd="20dp"
+                app:cornerRadius="8dp" />
+
+            <Button
+                android:id="@+id/btn_hero_details"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="More Info"
+                android:textColor="@android:color/white"
+                android:paddingHorizontal="32dp"
+                android:paddingVertical="12dp"
+                app:strokeColor="@android:color/white"
+                app:strokeWidth="2dp"
+                app:cornerRadius="8dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Focus Border (Hidden by default, shown when focused) -->
+    <View
+        android:id="@+id/view_focus_border"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/selector_item_focus_v2"
+        android:visibility="invisible" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

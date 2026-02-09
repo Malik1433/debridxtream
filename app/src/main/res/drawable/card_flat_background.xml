@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flat Card Background - Netflix Style -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Focused State: Bold cyan border -->
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/surface_dark" />
+            <corners android:radius="8dp" />
+            <stroke
+                android:width="4dp"
+                android:color="@color/brand_cyan" />
+        </shape>
+    </item>
+    
+    <!-- Normal State: No border, just background -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/surface_dark" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+</selector>
+

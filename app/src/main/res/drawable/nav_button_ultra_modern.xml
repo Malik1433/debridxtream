@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ultra-Modern 2025 Navigation Button -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- FOCUSED STATE: The "Wow" Factor -->
+    <!-- Gradient Gold Fill + Glow Effect -->
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <!-- Vibrant Gradient -->
+            <gradient
+                android:angle="45"
+                android:startColor="#FFD700"
+                android:centerColor="#FDB931"
+                android:endColor="#FFD700"
+                android:type="linear" />
+            
+            <!-- Fully Rounded Corners (Pill Shape) -->
+            <corners android:radius="50dp" />
+            
+            <!-- Bright Border to define edges -->
+            <stroke android:width="2dp" android:color="#FFFFFF" />
+        </shape>
+    </item>
+    
+    <!-- SELECTED STATE (Active Tab but not focused) -->
+    <!-- Subtle Gold Tint -->
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#33FFD700" /> <!-- 20% Gold -->
+            <corners android:radius="50dp" />
+            <stroke android:width="1dp" android:color="#FFD700" />
+        </shape>
+    </item>
+    
+    <!-- DEFAULT STATE -->
+    <!-- Clean Glassmorphism -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#1AFFFFFF" /> <!-- 10% White Glass -->
+            <corners android:radius="50dp" />
+            <stroke android:width="1dp" android:color="#40FFFFFF" /> <!-- Subtle Border -->
+        </shape>
+    </item>
+</selector>

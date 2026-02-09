@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Selected: Black text on Gold background -->
+    <item android:state_selected="true" android:color="#000000" />
+    
+    <!-- Focused: Primary text on Transparent background -->
+    <item android:state_focused="true" android:color="@color/ds_text_primary" />
+    
+    <!-- Default: Secondary text -->
+    <item android:color="@color/ds_text_secondary" />
+</selector>
+

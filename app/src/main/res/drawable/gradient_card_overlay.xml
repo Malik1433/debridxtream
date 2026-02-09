@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Card Bottom Gradient Overlay - For title/info section -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="90"
+        android:startColor="@color/gradient_overlay_transparent"
+        android:endColor="@color/gradient_overlay_solid"
+        android:type="linear" />
+</shape>
+

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Glass Card State Selector - Gold Version -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Focused State -->
+    <item android:state_focused="true" android:drawable="@drawable/glass_card_focused_gold" />
+    
+    <!-- Selected State -->
+    <item android:state_selected="true" android:drawable="@drawable/glass_card_focused_gold" />
+    
+    <!-- Default State -->
+    <item android:drawable="@drawable/glass_card_bg" />
+    
+</selector>

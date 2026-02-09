@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Background Gradient (Left to Right, Gold to Transparent) -->
+    <item>
+        <shape>
+            <gradient
+                android:startColor="#26FFD700"
+                android:endColor="#00FFD700"
+                android:angle="0"
+                android:type="linear"/>
+            <corners android:radius="8dp"/>
+        </shape>
+    </item>
+    
+    <!-- Vertical Gold Bar on Left using Gravity -->
+    <item android:gravity="left"> 
+        <shape>
+            <size android:width="4dp" />
+            <solid android:color="@color/gold_primary"/>
+            <corners 
+                android:topLeftRadius="8dp"
+                android:bottomLeftRadius="8dp"/>
+        </shape>
+    </item>
+</layer-list>

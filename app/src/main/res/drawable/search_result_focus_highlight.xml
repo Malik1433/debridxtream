@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Search results focus ring (TV). Supports focus + selected/activated fallbacks. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Foreground/overlay-safe ring: stroke-only (no center fill). -->
+    <item android:state_focused="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@android:color/transparent" />
+                    <corners android:radius="12dp" />
+                    <stroke
+                        android:width="10dp"
+                        android:color="@color/border_cyan_glow" />
+                </shape>
+            </item>
+            <item android:top="3dp" android:bottom="3dp" android:left="3dp" android:right="3dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="@android:color/transparent" />
+                    <corners android:radius="12dp" />
+                    <stroke
+                        android:width="4dp"
+                        android:color="@color/brand_cyan" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+    <item android:state_selected="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@android:color/transparent" />
+                    <corners android:radius="12dp" />
+                    <stroke
+                        android:width="10dp"
+                        android:color="@color/border_cyan_glow" />
+                </shape>
+            </item>
+            <item android:top="3dp" android:bottom="3dp" android:left="3dp" android:right="3dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="@android:color/transparent" />
+                    <corners android:radius="12dp" />
+                    <stroke
+                        android:width="4dp"
+                        android:color="@color/brand_cyan" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+    <item android:state_activated="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@android:color/transparent" />
+                    <corners android:radius="12dp" />
+                    <stroke
+                        android:width="10dp"
+                        android:color="@color/border_cyan_glow" />
+                </shape>
+            </item>
+            <item android:top="3dp" android:bottom="3dp" android:left="3dp" android:right="3dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="@android:color/transparent" />
+                    <corners android:radius="12dp" />
+                    <stroke
+                        android:width="4dp"
+                        android:color="@color/brand_cyan" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+            <corners android:radius="12dp" />
+            <stroke
+                android:width="1dp"
+                android:color="#30FFFFFF" />
+        </shape>
+    </item>
+</selector>

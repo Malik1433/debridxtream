@@ -1,0 +1,800 @@
+{
+  "designSystem": {
+    "metadata": {
+      "name": "IPTV Media Streaming Design System",
+      "version": "1.0.0",
+      "description": "A comprehensive dark-themed design system for IPTV and media streaming applications, emphasizing modern aesthetics, clear hierarchy, and immersive content presentation.",
+      "platform": "Multi-platform (TV, Web, Mobile)",
+      "lastUpdated": "2025-11-05"
+    },
+
+    "theme": {
+      "mode": "dark",
+      "aesthetic": ["modern", "minimalist", "cinematic", "clean", "content-focused", "immersive"],
+      "designPrinciples": [
+        "Content-first approach with minimal UI distraction",
+        "Clear visual hierarchy through typography and spacing",
+        "Consistent interaction patterns across all components",
+        "High contrast for readability in various lighting conditions",
+        "Smooth transitions and subtle animations for premium feel"
+      ]
+    },
+
+    "colorSystem": {
+      "backgrounds": {
+        "primary": {
+          "solid": ["#000000", "#0A0A1A", "#1A1A1A", "#1A1A2E", "#1A2B3C", "#1A2B40", "#28282E"],
+          "gradient": [
+            {
+              "type": "linear",
+              "direction": ["to bottom right", "to right", "top left to bottom right"],
+              "colors": ["#0A0A1A to #2A0A3A", "#1A1A33 to #331A4D", "#2A2A4A to #1A1A3A", "#3A2B6A to #1A1A3A"]
+            }
+          ],
+          "usage": "Main application background, full-screen containers"
+        },
+        "secondary": {
+          "solid": ["#152433", "#28283C", "#2C2C2C", "#3A3A42", "#3A3A4E", "#3A506B"],
+          "usage": "Cards, panels, sidebar backgrounds, elevated surfaces"
+        },
+        "tertiary": {
+          "solid": ["#333333", "#3A3A4E", "#4A4A52", "#4A4A5E"],
+          "usage": "Interactive elements, buttons, hover states"
+        },
+        "overlay": {
+          "transparent": ["rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.6)", "rgba(0, 0, 0, 0.85)"],
+          "frostedGlass": ["rgba(255, 255, 255, 0.15)", "rgba(255, 255, 255, 0.3)"],
+          "usage": "Video overlays, modal backgrounds, blur effects"
+        }
+      },
+
+      "text": {
+        "primary": {
+          "color": "#FFFFFF",
+          "usage": "Main headings, active items, primary information, high-emphasis text"
+        },
+        "secondary": {
+          "color": ["#A0A0A0", "#AAAAAA", "#B0B0B0", "#CCCCCC", "#E0E0E0"],
+          "usage": "Secondary information, inactive states, descriptions, metadata"
+        },
+        "tertiary": {
+          "color": ["#666666", "#777777", "#888888"],
+          "usage": "Disabled states, subtle labels, timestamps"
+        }
+      },
+
+      "accents": {
+        "primary": {
+          "red": ["#E50914", "#FF0000", "#FF3333", "#FF4545"],
+          "usage": "Primary CTAs, live indicators, critical status, active states"
+        },
+        "secondary": {
+          "orange": ["#FF6666", "#FF8C00", "#FFA500"],
+          "usage": "New badges, secondary highlights, warnings"
+        },
+        "tertiary": {
+          "blue": ["#007BFF", "#00BFFF", "#2A6090", "#4A90E2", "#4CAF50"],
+          "usage": "Links, selection indicators, progress bars, info states"
+        },
+        "quaternary": {
+          "purple": ["#8A2BE2", "#8E44AD"],
+          "usage": "Premium features, gradients, special highlights"
+        },
+        "gold": {
+          "color": ["#FFD700", "#FFC107"],
+          "usage": "Ratings, stars, premium indicators, favorites"
+        }
+      },
+
+      "functional": {
+        "success": "#50E3C2",
+        "warning": "#F5A623",
+        "error": "#FF4545",
+        "info": "#4A90E2"
+      }
+    },
+
+    "typography": {
+      "fontFamilies": {
+        "primary": "Sans-serif stack (Inter, Roboto, Open Sans, Helvetica Neue, Arial, sans-serif)",
+        "fallback": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+      },
+
+      "scale": {
+        "extraLarge": {
+          "size": ["48px", "56px", "64px"],
+          "lineHeight": "1.1",
+          "usage": "Hero titles, main feature headings"
+        },
+        "large": {
+          "size": ["32px", "36px", "40px"],
+          "lineHeight": "1.2",
+          "usage": "Section headers, page titles, category names"
+        },
+        "medium": {
+          "size": ["20px", "24px", "28px"],
+          "lineHeight": "1.3",
+          "usage": "Card titles, channel names, program titles"
+        },
+        "base": {
+          "size": ["16px", "18px"],
+          "lineHeight": "1.5",
+          "usage": "Body text, descriptions, default text"
+        },
+        "small": {
+          "size": ["12px", "14px"],
+          "lineHeight": "1.4",
+          "usage": "Metadata, timestamps, secondary info, labels"
+        }
+      },
+
+      "weights": {
+        "light": "300",
+        "regular": "400",
+        "medium": "500",
+        "semiBold": "600",
+        "bold": "700",
+        "extraBold": "800"
+      },
+
+      "styles": {
+        "heroTitle": {
+          "size": "extraLarge",
+          "weight": "bold",
+          "color": "text.primary",
+          "textTransform": "uppercase",
+          "letterSpacing": "0.02em"
+        },
+        "sectionHeader": {
+          "size": "large",
+          "weight": "semiBold",
+          "color": "text.primary"
+        },
+        "cardTitle": {
+          "size": "medium",
+          "weight": "bold",
+          "color": "text.primary"
+        },
+        "bodyText": {
+          "size": "base",
+          "weight": "regular",
+          "color": "text.secondary",
+          "lineHeight": "1.6"
+        },
+        "metadata": {
+          "size": "small",
+          "weight": "regular",
+          "color": "text.secondary"
+        },
+        "label": {
+          "size": "small",
+          "weight": "bold",
+          "color": "text.primary",
+          "textTransform": "uppercase",
+          "letterSpacing": "0.05em"
+        }
+      }
+    },
+
+    "spacing": {
+      "baseUnit": "8px",
+      "scale": {
+        "xxs": "4px",
+        "xs": "8px",
+        "sm": "16px",
+        "md": "24px",
+        "lg": "32px",
+        "xl": "48px",
+        "xxl": "64px",
+        "xxxl": "96px"
+      },
+
+      "application": {
+        "containerPadding": ["20px", "30px", "40px"],
+        "sectionSpacing": ["48px", "64px", "96px"],
+        "componentGap": ["16px", "24px"],
+        "cardPadding": ["16px", "20px", "24px"],
+        "buttonPadding": ["10px 20px", "12px 24px"],
+        "listItemPadding": ["10px 15px", "12px 16px", "15px 20px"]
+      }
+    },
+
+    "borderRadius": {
+      "none": "0px",
+      "small": "4px",
+      "medium": "8px",
+      "large": "12px",
+      "extraLarge": "16px",
+      "pill": "999px",
+      "circle": "50%",
+
+      "componentMapping": {
+        "cards": "medium",
+        "buttons": "medium to large",
+        "searchBars": "large to pill",
+        "thumbnails": "small to medium",
+        "modals": "medium to large",
+        "badges": "small to pill",
+        "avatars": "circle",
+        "tags": "small to medium"
+      }
+    },
+
+    "shadows": {
+      "none": "none",
+      "subtle": "0px 2px 4px rgba(0, 0, 0, 0.2)",
+      "card": "0px 4px 10px rgba(0, 0, 0, 0.3)",
+      "elevated": "0px 6px 15px rgba(0, 0, 0, 0.5)",
+      "focus": "0px 0px 0px 3px rgba(74, 144, 226, 0.5)",
+      "glow": "0px 4px 15px rgba(138, 43, 226, 0.5)",
+      "cardFocusGlow": "0px 0px 15px rgba(0, 123, 255, 0.7)",
+
+      "usage": {
+        "cards": "card",
+        "selectedCards": "elevated",
+        "buttons": "subtle",
+        "focusStates": "focus",
+        "accentElements": "glow"
+      }
+    },
+
+    "layoutPatterns": {
+      "gridSystems": [
+        {
+          "type": "sidebarWithMainContent",
+          "structure": "Fixed left sidebar + fluid main content area",
+          "sidebarWidth": ["60-80px", "200-250px"],
+          "gridTemplate": "Fixed width | 1fr"
+        },
+        {
+          "type": "threeColumn",
+          "structure": "Navigation sidebar | Content list | Detail view",
+          "gridTemplate": "1fr 2fr 2.5fr",
+          "usage": "Channel browsers, EPG views"
+        },
+        {
+          "type": "heroWithGrid",
+          "structure": "Large hero section + content grid below",
+          "heroHeight": "40-60vh",
+          "usage": "Landing pages, feature highlights"
+        },
+        {
+          "type": "overlayOnVideo",
+          "structure": "Full-screen video with UI overlay panels",
+          "panelPositions": ["top-left", "top-right", "bottom-left", "bottom-right", "bottom-center"],
+          "usage": "Video players, live TV"
+        }
+      ],
+
+      "contentGrids": {
+        "poster": {
+          "columns": ["3-6 columns responsive"],
+          "aspectRatio": "2:3 (portrait)",
+          "gap": "16-24px"
+        },
+        "landscape": {
+          "columns": ["2-4 columns responsive"],
+          "aspectRatio": "16:9",
+          "gap": "20-30px"
+        },
+        "channelList": {
+          "layout": "vertical list with horizontal program timeline",
+          "itemHeight": "60-80px",
+          "gap": "0-2px with separators"
+        }
+      }
+    },
+
+    "components": {
+      "buttons": {
+        "primary": {
+          "background": ["#FFFFFF", "#E50914", "linear-gradient(to right, #FF00FF to #8A2BE2)"],
+          "textColor": ["#000000", "#FFFFFF"],
+          "padding": "10px 20px to 12px 24px",
+          "borderRadius": "medium to large",
+          "fontWeight": "medium to semiBold",
+          "fontSize": "16-18px",
+          "states": {
+            "hover": "Brightness increase or slight shadow",
+            "active": "Scale down 0.98",
+            "disabled": "Opacity 0.5"
+          }
+        },
+        "secondary": {
+          "background": "transparent",
+          "border": "1px solid #FFFFFF",
+          "textColor": "#FFFFFF",
+          "padding": "10px 20px to 12px 24px",
+          "borderRadius": "medium to large",
+          "states": {
+            "hover": "Background rgba(255, 255, 255, 0.1)"
+          }
+        },
+        "icon": {
+          "shape": "circle or square with rounded corners",
+          "size": "36-48px",
+          "background": ["rgba(255, 255, 255, 0.3)", "#3A3A4E", "#4A4A5E"],
+          "iconColor": "#FFFFFF",
+          "states": {
+            "active": "Background #FFFFFF, iconColor #333333"
+          }
+        }
+      },
+
+      "cards": {
+        "content": {
+          "aspectRatio": ["2:3", "16:9", "4:3", "1:1"],
+          "borderRadius": "small to medium",
+          "overflow": "hidden",
+          "states": {
+            "default": {
+              "imageSaturation": "normal or slightly desaturated",
+              "overlay": "rgba(0, 0, 0, 0.6) optional",
+              "shadow": "card"
+            },
+            "hover": {
+              "border": "2-3px solid accent color",
+              "shadow": "elevated or cardFocusGlow",
+              "scale": "1.05",
+              "imageSaturation": "full"
+            },
+            "selected": {
+              "border": "2-3px solid accent color",
+              "shadow": "elevated",
+              "bottomBar": {
+                "height": "50-60px",
+                "background": "accent color",
+                "diagonalCut": "optional on right edge",
+                "content": ["title", "metadata"]
+              }
+            }
+          },
+          "overlay": {
+            "position": "bottom or full",
+            "gradient": "linear-gradient(transparent to rgba(0, 0, 0, 0.9))",
+            "content": ["title", "metadata", "playIcon"]
+          }
+        },
+        "channel": {
+          "layout": "horizontal (logo + details)",
+          "height": "60-80px",
+          "padding": "12-16px",
+          "background": "#28283C",
+          "borderRadius": "medium",
+          "elements": {
+            "logo": {
+              "size": "40-50px square",
+              "position": "left",
+              "marginRight": "12-16px"
+            },
+            "details": {
+              "layout": "vertical stack",
+              "title": "medium size, bold",
+              "metadata": "small size, secondary color"
+            },
+            "tags": {
+              "badges": ["HD", "4K", "EPG", "$"],
+              "style": "small pill shape",
+              "spacing": "4-8px gap"
+            }
+          },
+          "states": {
+            "default": "background secondary",
+            "selected": "background tertiary, left vertical bar accent color, star icon bottom-right",
+            "inactive": "opacity 0.5"
+          }
+        },
+        "info": {
+          "background": "rgba(0, 0, 0, 0.7) with blur",
+          "borderRadius": "medium",
+          "padding": "16-24px",
+          "layout": "flexible content stack",
+          "usage": "Video overlays, channel info, program details"
+        }
+      },
+
+      "navigation": {
+        "sidebar": {
+          "width": ["60-80px", "200-250px"],
+          "background": "backgrounds.secondary",
+          "padding": "16-24px vertical",
+          "items": {
+            "layout": "vertical stack",
+            "spacing": "16-25px",
+            "iconSize": "24-32px",
+            "fontSize": "14-18px",
+            "states": {
+              "default": {
+                "color": "text.secondary",
+                "background": "transparent"
+              },
+              "active": {
+                "color": "text.primary",
+                "background": "backgrounds.tertiary or accent color",
+                "fontWeight": "semiBold or bold",
+                "indicator": "left vertical bar or icon fill"
+              }
+            }
+          }
+        },
+        "topBar": {
+          "height": "60-80px",
+          "background": "backgrounds.primary or transparent",
+          "padding": "0 20-40px",
+          "layout": "space-between horizontal",
+          "elements": ["logo", "searchBar", "userActions", "timeWeather"]
+        }
+      },
+
+      "searchBar": {
+        "width": ["full", "70-80% of container", "300-500px"],
+        "height": "40-50px",
+        "background": ["rgba(255, 255, 255, 0.15)", "rgba(58, 58, 78, 0.8)"],
+        "borderRadius": "large to pill",
+        "backdropFilter": "blur(10px) optional",
+        "padding": "0 16-20px",
+        "iconPosition": "left",
+        "iconSize": "20-24px",
+        "fontSize": "14-16px",
+        "placeholderColor": "text.secondary"
+      },
+
+      "badges": {
+        "status": {
+          "live": {
+            "background": "#FF0000 or #FF4545",
+            "textColor": "#FFFFFF",
+            "shape": "pill or rounded rectangle",
+            "padding": "4px 12px",
+            "fontSize": "small",
+            "fontWeight": "bold",
+            "textTransform": "uppercase"
+          },
+          "new": {
+            "background": "#FF8C00",
+            "textColor": "#FFFFFF",
+            "position": "top-right corner of card",
+            "shape": "small rounded rectangle",
+            "padding": "2px 8px",
+            "fontSize": "small"
+          }
+        },
+        "feature": {
+          "background": "backgrounds.tertiary",
+          "textColor": "text.primary",
+          "shape": "small pill",
+          "padding": "4px 8px",
+          "fontSize": "small",
+          "fontWeight": "bold",
+          "textTransform": "uppercase",
+          "examples": ["HD", "4K", "EPG", "$"]
+        }
+      },
+
+      "progressBars": {
+        "player": {
+          "height": "3-6px",
+          "trackColor": "rgba(255, 255, 255, 0.3)",
+          "fillColor": ["#FFC107", "#4A90E2", "accent color"],
+          "borderRadius": "pill",
+          "thumb": {
+            "size": "12-16px circle",
+            "color": "same as fill or white",
+            "showOnHover": true
+          }
+        },
+        "signal": {
+          "height": "8-12px",
+          "trackColor": "backgrounds.secondary",
+          "fillColor": {
+            "signal": "#4A90E2",
+            "quality": "#50E3C2"
+          },
+          "borderRadius": "small",
+          "label": "Left aligned with value",
+          "valueDisplay": "percentage on right"
+        }
+      },
+
+      "lists": {
+        "program": {
+          "itemHeight": "auto with padding",
+          "padding": "12-16px vertical",
+          "separator": "1px solid rgba(255, 255, 255, 0.1)",
+          "layout": "horizontal (time | title | metadata)",
+          "states": {
+            "default": "background transparent",
+            "current": "background accent color",
+            "upcoming": "background transparent, text secondary"
+          }
+        },
+        "episode": {
+          "itemPadding": "15-20px vertical",
+          "separator": "1px solid #333333",
+          "layout": "vertical stack or horizontal",
+          "elements": ["episodeNumber", "title", "metadata", "thumbnail optional"]
+        }
+      },
+
+      "icons": {
+        "style": "line-art, outline, minimalist",
+        "strokeWidth": "1.5-2px",
+        "color": "#FFFFFF",
+        "sizes": {
+          "small": "16-20px",
+          "medium": "24-28px",
+          "large": "32-40px"
+        },
+        "states": {
+          "default": "color text.primary or text.secondary",
+          "active": "color accent or filled version",
+          "hover": "opacity 0.8 or scale 1.1"
+        },
+        "commonIcons": [
+          "search", "home", "movies", "tv", "settings", "user",
+          "play", "pause", "heart", "bookmark", "plus", "star",
+          "microphone", "gear", "radio", "cloud", "chevron"
+        ]
+      },
+
+      "avatars": {
+        "shape": "circle",
+        "sizes": ["32px", "40px", "48px"],
+        "border": "optional 2-3px solid accent color",
+        "placeholder": "User initials or icon on accent background"
+      },
+
+      "overlays": {
+        "modal": {
+          "background": "rgba(0, 0, 0, 0.85)",
+          "backdropFilter": "blur(5px)",
+          "contentBackground": "backgrounds.secondary",
+          "borderRadius": "large",
+          "padding": "32-48px",
+          "maxWidth": "600-800px"
+        },
+        "video": {
+          "background": "rgba(0, 0, 0, 0.6) with blur",
+          "panels": {
+            "positions": ["top-left", "top-right", "bottom-left", "bottom-right", "bottom-center"],
+            "background": "rgba(26, 26, 30, 0.85)",
+            "backdropFilter": "blur(20px)",
+            "borderRadius": "medium",
+            "padding": "16-24px"
+          }
+        }
+      },
+
+      "carousels": {
+        "horizontal": {
+          "itemSpacing": "16-24px",
+          "scrollBehavior": "smooth",
+          "showScrollbar": false,
+          "navigation": "arrows on hover or always visible",
+          "activeIndicator": {
+            "type": "underline or dot",
+            "color": "accent color",
+            "thickness": "2-4px",
+            "width": "matches item width or 30-40px"
+          }
+        },
+        "vertical": {
+          "itemSpacing": "8-16px",
+          "scrollBehavior": "smooth",
+          "fadeEdges": "top and bottom gradient masks"
+        }
+      },
+
+      "epg": {
+        "header": {
+          "height": "50-60px",
+          "background": "backgrounds.primary",
+          "elements": {
+            "date": "left-aligned, medium size",
+            "timeSlots": "horizontally distributed, small size",
+            "currentIndicator": "vertical line accent color"
+          }
+        },
+        "channelColumn": {
+          "width": "150-200px fixed",
+          "items": "same as channel cards"
+        },
+        "programGrid": {
+          "rowHeight": "60-80px",
+          "cellBackgrounds": "backgrounds.primary",
+          "programBlocks": {
+            "background": {
+              "default": "backgrounds.secondary",
+              "active": "backgrounds.tertiary or accent"
+            },
+            "widthBehavior": "dynamic based on duration",
+            "padding": "8-12px",
+            "borderRadius": "small"
+          }
+        }
+      },
+
+      "tags": {
+        "shape": "rounded rectangle or pill",
+        "padding": "4px 12px",
+        "fontSize": "small",
+        "fontWeight": "medium to bold",
+        "background": "backgrounds.tertiary or accent",
+        "textColor": "text.primary",
+        "gap": "8px when multiple"
+      }
+    },
+
+    "interactionStates": {
+      "hover": {
+        "cards": "border glow, scale 1.03-1.05, shadow elevated",
+        "buttons": "brightness 1.1-1.2, background lighten",
+        "listItems": "background lighten, subtle scale",
+        "icons": "opacity 0.8 or color change",
+        "transition": "all 0.2s ease"
+      },
+      "active": {
+        "buttons": "scale 0.98, shadow reduced",
+        "cards": "border accent, background change",
+        "listItems": "background accent color, bold text",
+        "navigation": "background change, indicator visible"
+      },
+      "focus": {
+        "all": "outline or box-shadow focus ring",
+        "color": "accent.tertiary.blue with opacity",
+        "width": "2-3px",
+        "offset": "2px"
+      },
+      "disabled": {
+        "opacity": "0.4-0.5",
+        "cursor": "not-allowed",
+        "interaction": "none"
+      },
+      "loading": {
+        "skeleton": "animated gradient shimmer",
+        "spinner": "accent color, 24-40px",
+        "pulseAnimation": "opacity 0.5 to 1.0, 1.5s ease-in-out infinite"
+      }
+    },
+
+    "animations": {
+      "transitions": {
+        "default": "all 0.2s ease",
+        "smooth": "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        "bounce": "all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)"
+      },
+      "pageTransitions": {
+        "fadeIn": "opacity 0 to 1, 0.3s ease",
+        "slideUp": "translateY(20px) to 0, 0.3s ease",
+        "slideIn": "translateX(20px) to 0, 0.3s ease"
+      },
+      "microInteractions": {
+        "buttonPress": "scale 0.98, 0.1s ease",
+        "cardHover": "scale 1.05, 0.2s ease",
+        "iconPulse": "scale 1.0 to 1.2 to 1.0, 0.6s ease"
+      }
+    },
+
+    "visualEffects": {
+      "blur": {
+        "frostedGlass": "backdrop-filter: blur(10-20px)",
+        "backgroundImage": "filter: blur(2-5px)",
+        "edgeFade": "mask-image: linear-gradient(to bottom, black 80%, transparent)"
+      },
+      "gradients": {
+        "backgroundAmbient": "subtle dark gradient for depth",
+        "overlayText": "linear-gradient(transparent to rgba(0,0,0,0.9))",
+        "buttonAccent": "linear-gradient(to right, purple to pink)",
+        "shimmer": "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)"
+      },
+      "transparency": {
+        "glassEffect": "rgba(255, 255, 255, 0.1-0.2)",
+        "overlay": "rgba(0, 0, 0, 0.3-0.85)",
+        "inactive": "opacity 0.5-0.7"
+      },
+      "desaturation": {
+        "unselectedCards": "filter: saturate(0.3-0.5)",
+        "backgroundImages": "filter: saturate(0.7) brightness(0.7)"
+      },
+      "textShadows": {
+        "readabilityOnImages": "0px 1px 3px rgba(0,0,0,0.5)",
+        "glow": "0px 0px 10px rgba(255,255,255,0.5)"
+      }
+    },
+
+    "responsiveBreakpoints": {
+      "mobile": {
+        "maxWidth": "767px",
+        "layout": "single column, bottom navigation",
+        "fontSize": "scale down 10-20%",
+        "spacing": "reduce by 25-30%",
+        "cardColumns": "2-3"
+      },
+      "tablet": {
+        "minWidth": "768px",
+        "maxWidth": "1023px",
+        "layout": "adapt to 2-column where appropriate",
+        "cardColumns": "3-4"
+      },
+      "desktop": {
+        "minWidth": "1024px",
+        "maxWidth": "1439px",
+        "layout": "full multi-column layouts",
+        "cardColumns": "4-5"
+      },
+      "largeDesktop": {
+        "minWidth": "1440px",
+        "layout": "optimized for large screens",
+        "cardColumns": "5-6",
+        "maxContentWidth": "1920px centered"
+      },
+      "tv": {
+        "minWidth": "1920px",
+        "layout": "optimized for 10-foot UI",
+        "fontSize": "scale up 20-30%",
+        "focusStates": "extra prominent",
+        "spacing": "increased for readability"
+      }
+    },
+
+    "accessibilityGuidelines": {
+      "contrast": {
+        "textOnBackground": "minimum 4.5:1 for normal text, 7:1 preferred",
+        "largeText": "minimum 3:1",
+        "interactiveElements": "minimum 3:1"
+      },
+      "focusIndicators": {
+        "visibility": "always visible",
+        "color": "high contrast against background",
+        "thickness": "2-3px minimum",
+        "style": "solid outline or box-shadow"
+      },
+      "keyboardNavigation": {
+        "allInteractive": "fully keyboard accessible",
+        "tabOrder": "logical flow",
+        "shortcuts": "clearly documented"
+      },
+      "screenReaders": {
+        "altText": "descriptive for all images",
+        "ariaLabels": "for icon buttons and interactive elements",
+        "landmarks": "proper semantic HTML5 elements"
+      },
+      "motion": {
+        "respectPrefersReducedMotion": true,
+        "alternatives": "instant transitions when motion reduced"
+      }
+    },
+
+    "consistencyRules": [
+      "All interactive elements use consistent border-radius values based on component type",
+      "Typography hierarchy is strictly maintained across all views",
+      "Spacing adheres to 8px base unit system with defined scale",
+      "Shadows are applied consistently: cards use 'card', selected use 'elevated'",
+      "Accent colors are reserved for active states, CTAs, and status indicators",
+      "Background colors maintain dark theme with subtle variations for hierarchy",
+      "Icons are monochromatic (white) unless in active state",
+      "All cards have consistent hover/focus states with scale and glow effects",
+      "Navigation uses consistent active state indicators (vertical bar, background, or underline)",
+      "Loading states use skeleton screens with shimmer animation",
+      "Error states use red accent with clear messaging",
+      "Success states use green/teal accent",
+      "All text overlays on images include shadow or gradient for readability",
+      "Content grids maintain consistent gaps and aspect ratios",
+      "Buttons have consistent padding ratios and hover effects",
+      "All transitions use defined easing functions for smooth animations"
+    ],
+
+    "implementationNotes": {
+      "cssVariables": "Use CSS custom properties for all color, spacing, and typography values",
+      "themeToggle": "System supports light mode variant (invert background/text, adjust accents)",
+      "componentLibrary": "Build reusable components following this system strictly",
+      "designTokens": "Export as JSON/YAML for design tools and code synchronization",
+      "iconLibrary": "Use consistent icon set (e.g., Feather Icons, Lucide, Heroicons)",
+      "imageOptimization": "Lazy load images, use WebP format, provide multiple resolutions",
+      "performance": "Minimize repaints, use CSS transforms for animations, debounce scroll events",
+      "testing": "Test all components in dark rooms (primary use case) and verify contrast ratios",
+      "documentation": "Maintain living style guide with interactive component examples"
+    }
+  }
+}
+

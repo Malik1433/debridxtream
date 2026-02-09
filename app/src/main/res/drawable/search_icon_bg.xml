@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Search Icon Circular Background - Professional Design -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Focused State - Brighter background with blue border -->
+    <item android:state_focused="true">
+        <layer-list>
+            <!-- Blue focus border -->
+            <item>
+                <shape android:shape="oval">
+                    <solid android:color="@color/focus_border_color" />
+                    <size 
+                        android:width="@dimen/icon_search_size" 
+                        android:height="@dimen/icon_search_size" />
+                </shape>
+            </item>
+            <!-- Inner hover background -->
+            <item 
+                android:top="2dp" 
+                android:left="2dp" 
+                android:right="2dp" 
+                android:bottom="2dp">
+                <shape android:shape="oval">
+                    <solid android:color="@color/icon_bg_hover" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    
+    <!-- Pressed/Hover State -->
+    <item android:state_pressed="true">
+        <shape android:shape="oval">
+            <solid android:color="@color/icon_bg_hover" />
+            <size 
+                android:width="@dimen/icon_search_size" 
+                android:height="@dimen/icon_search_size" />
+        </shape>
+    </item>
+    
+    <!-- Default State -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="@color/icon_bg_default" />
+            <size 
+                android:width="@dimen/icon_search_size" 
+                android:height="@dimen/icon_search_size" />
+        </shape>
+    </item>
+    
+</selector>
+

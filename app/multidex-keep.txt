@@ -1,0 +1,1 @@
+com/tvonnet/debridxtreamiptv/App.class

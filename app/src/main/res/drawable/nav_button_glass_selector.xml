@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MI IPTV Style Navigation Button -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Selected/Active State - Solid Red -->
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/nav_button_active_bg" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    
+    <!-- Focused State - Light border with hover bg -->
+    <item android:state_focused="true">
+        <layer-list>
+            <!-- Blue glow border -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="#60a5fa" />
+                    <corners android:radius="12dp" />
+                </shape>
+            </item>
+            <!-- Inner background -->
+            <item android:top="2dp" android:left="2dp" android:right="2dp" android:bottom="2dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/nav_button_hover_bg" />
+                    <corners android:radius="10dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    
+    <!-- Default State - Dark grey with border -->
+    <item>
+        <layer-list>
+            <!-- Border -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/nav_button_default_border" />
+                    <corners android:radius="12dp" />
+                </shape>
+            </item>
+            <!-- Inner background -->
+            <item android:top="2dp" android:left="2dp" android:right="2dp" android:bottom="2dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/nav_button_default_bg" />
+                    <corners android:radius="10dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    
+</selector>
+

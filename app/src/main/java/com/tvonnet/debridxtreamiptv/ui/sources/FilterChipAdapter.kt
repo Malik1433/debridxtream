@@ -1,0 +1,66 @@
+package com.tvonnet.debridxtreamiptv.ui.sources
+
+import android.view.LayoutInflater
+import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
+import com.tvonnet.debridxtreamiptv.databinding.ItemFilterChipBinding
+
+class FilterChipAdapter<T : Any>(
+    private val idProvider: (T) -> String,
+    private val labelProvider: (T) -> String,
+    private val onOptionSelected: (T) -> Unit
+) : ListAdapter<T, FilterChipAdapter<T>.FilterChipViewHolder>(
+    object : DiffUtil.ItemCallback<T>() {
+        override fun areItemsTheSame(oldItem: T, newItem: T): Boolean {
+            return idProvider(oldItem) == idProvider(newItem)
+        }
+
+        override fun areContentsTheSame(oldItem: T, newItem: T): Boolean {
+            return oldItem == newItem
+        }
+    }
+) {
+
+    private var selectedId: String? = null
+
+    fun updateSelection(option: T?) {
+        selectedId = option?.let(idProvider)
+        notifyDataSetChanged()
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FilterChipViewHolder {
+        val binding = ItemFilterChipBinding.inflate(
+            LayoutInflater.from(parent.context),
+            parent,
+            false
+        )
+        return FilterChipViewHolder(binding)
+    }
+
+    override fun onBindViewHolder(holder: FilterChipViewHolder, position: Int) {
+        holder.bind(getItem(position))
+    }
+
+    inner class FilterChipViewHolder(
+        private val binding: ItemFilterChipBinding
+    ) : RecyclerView.ViewHolder(binding.root) {
+
+        fun bind(option: T) {
+            binding.tvFilterLabel.text = labelProvider(option)
+            val optionId = idProvider(option)
+            val isSelected = optionId == selectedId
+            binding.root.isSelected = isSelected
+
+            binding.root.setOnClickListener {
+                onOptionSelected(option)
+            }
+
+            binding.root.setOnFocusChangeListener { _, hasFocus ->
+                binding.root.isSelected = hasFocus || isSelected
+            }
+        }
+    }
+
+}

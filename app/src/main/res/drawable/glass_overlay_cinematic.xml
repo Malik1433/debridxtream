@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- Sophisticated semi-transparent dark glass -->
+    <solid android:color="#99000000" />
+    <!-- Bottom rounded corners to match card, but top corners are square for integration -->
+    <corners 
+        android:bottomLeftRadius="12dp"
+        android:bottomRightRadius="12dp" />
+</shape>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginBottom="24dp"
+    android:focusable="false"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:descendantFocusability="afterDescendants">
+
+    <TextView
+        android:id="@+id/tv_row_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Category Title"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginStart="48dp"
+        android:layout_marginBottom="12dp"
+        android:fontFamily="sans-serif-medium" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_horizontal_list"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="48dp"
+        android:paddingEnd="48dp"
+        android:clipToPadding="false"
+        android:clipChildren="false"
+        android:orientation="horizontal"
+        tools:listitem="@layout/item_movie_card" 
+        tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+</LinearLayout>

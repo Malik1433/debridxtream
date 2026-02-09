@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="tag_series_id" type="id" />
+    <item name="tag_category_id" type="id" />
+    <item name="tag_vod_id" type="id" />
+</resources>

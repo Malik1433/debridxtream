@@ -1,0 +1,398 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/gradient_hero_backdrop"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- Immersive Backdrop -->
+    <ImageView
+        android:id="@+id/iv_backdrop"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:contentDescription="@string/movie_detail_backdrop_content_desc"
+        android:scaleType="centerCrop"
+        android:alpha="0.8"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <View
+        android:id="@+id/view_backdrop_overlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@drawable/gradient_poster_overlay"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Left Guideline for alignment -->
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_left"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_begin="56dp" />
+
+    <!-- Top Guideline -->
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_top"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_begin="48dp" />
+
+    <!-- Tab / Segmented Control -->
+    <LinearLayout
+        android:id="@+id/tab_button_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_toggle_group"
+        android:orientation="horizontal"
+        android:padding="4dp"
+        app:layout_constraintStart_toStartOf="@id/guideline_left"
+        app:layout_constraintTop_toTopOf="@id/guideline_top">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_tab_details"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:background="@drawable/bg_tab_button_selector"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:minWidth="100dp"
+            android:nextFocusRight="@id/btn_tab_trailer"
+            android:nextFocusDown="@id/btn_watch_now"
+            android:text="Details"
+            android:textAllCaps="false"
+            android:textColor="@color/tab_button_text_selector"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_tab_trailer"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_tab_button_selector"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:minWidth="100dp"
+            android:nextFocusLeft="@id/btn_tab_details"
+            android:nextFocusDown="@id/btn_watch_now"
+            android:text="Trailer"
+            android:textAllCaps="false"
+            android:textColor="@color/tab_button_text_selector"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <!-- Main Content Container -->
+    <FrameLayout
+        android:id="@+id/layout_content"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="32dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="@id/guideline_left"
+        app:layout_constraintTop_toBottomOf="@id/tab_button_group">
+
+        <!-- DETAILS VIEW (Left + Right Columns) -->
+        <LinearLayout
+            android:id="@+id/group_details"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+
+            <!-- LEFT COLUMN: Info & Actions (45% Width) -->
+            <ScrollView
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="0.45"
+                android:fillViewport="true"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- Movie Title -->
+                    <TextView
+                        android:id="@+id/tv_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Movie Title"
+                        android:textColor="@color/ds_text_primary"
+                        android:textSize="38sp"
+                        android:textStyle="bold"
+                        android:shadowColor="#80000000"
+                        android:shadowDx="2"
+                        android:shadowDy="2"
+                        android:shadowRadius="4" />
+
+                    <!-- Metadata Row -->
+                    <LinearLayout
+                        android:id="@+id/layout_metadata_row"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/tv_genre_year"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_badge_chip"
+                            android:paddingStart="8dp"
+                            android:paddingTop="4dp"
+                            android:paddingEnd="8dp"
+                            android:paddingBottom="4dp"
+                            android:text="2024"
+                            android:textColor="@color/ds_text_secondary"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <Space
+                            android:layout_width="12dp"
+                            android:layout_height="wrap_content" />
+
+                        <TextView
+                            android:id="@+id/tv_duration"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_badge_chip"
+                            android:paddingStart="8dp"
+                            android:paddingTop="4dp"
+                            android:paddingEnd="8dp"
+                            android:paddingBottom="4dp"
+                            android:text="1h 45m"
+                            android:textColor="@color/ds_text_secondary"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <Space
+                            android:layout_width="12dp"
+                            android:layout_height="wrap_content" />
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_badge_chip"
+                            android:gravity="center_vertical"
+                            android:paddingStart="8dp"
+                            android:paddingTop="4dp"
+                            android:paddingEnd="8dp"
+                            android:paddingBottom="4dp">
+                            
+                            <TextView
+                                android:id="@+id/tv_rating_percentage"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="7.5"
+                                android:textColor="@color/ds_accent_gold"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tv_rating_stars"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="4dp"
+                                android:text="★"
+                                android:textColor="@color/ds_accent_gold"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                    <!-- Description -->
+                    <TextView
+                        android:id="@+id/tv_description"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
+                        android:lineSpacingMultiplier="1.4"
+                        android:text="Movie description goes here..."
+                        android:textColor="@color/ds_text_secondary"
+                        android:textSize="16sp"
+                        android:maxLines="6"
+                        android:ellipsize="end" />
+                    
+                    <TextView
+                        android:id="@+id/tv_director"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:textSize="14sp"
+                        android:textColor="@color/ds_text_tertiary"
+                        android:visibility="gone"
+                        tools:visibility="visible"
+                        tools:text="Directed by: Jalmari Helander" />
+                        
+                    <TextView
+                        android:id="@+id/tv_cast"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textSize="14sp"
+                        android:textColor="@color/ds_text_tertiary"
+                        android:visibility="gone"
+                        tools:visibility="visible"
+                        tools:text="Cast: Jorma Tommila, Aksel Hennie" />
+
+
+
+                </LinearLayout>
+            </ScrollView>
+
+            <Space
+                android:layout_width="48dp"
+                android:layout_height="match_parent" />
+
+            <!-- RIGHT COLUMN: Sources & Filters (55% Width) -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="0.55"
+                android:orientation="vertical">
+
+                <!-- Source Filters (Header) -->
+                <LinearLayout
+                    android:id="@+id/layout_source_filters"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:orientation="vertical"
+                    android:visibility="visible">
+
+                    <TextView
+                        android:id="@+id/tv_sources_header"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:text="@string/movie_detail_sources_header"
+                        android:textColor="@color/ds_text_primary"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+                        
+                        <TextView
+                            android:id="@+id/btn_cached_only"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_tab_button_selector"
+                            android:focusable="true"
+                            android:focusableInTouchMode="true"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:paddingTop="6dp"
+                            android:paddingBottom="6dp"
+                            android:text="@string/source_filter_cached_only"
+                            android:textColor="@color/tab_button_text_selector"
+                            android:textSize="12sp"
+                            android:nextFocusDown="@id/rv_sources"
+                            android:nextFocusLeft="@id/btn_add_favorite" />
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/rv_size_filters"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:orientation="horizontal"
+                            tools:itemCount="3"
+                            tools:listitem="@layout/item_filter_chip" />
+                    </LinearLayout>
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_language_filters"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal"
+                        tools:itemCount="4"
+                        tools:listitem="@layout/item_language_chip" />
+
+                </LinearLayout>
+
+                <!-- Source List -->
+                <TextView
+                    android:id="@+id/tv_sources_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:textColor="@color/ds_text_secondary"
+                    android:textSize="14sp"
+                    android:visibility="gone"
+                    tools:text="Loading reliable sources..." />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_sources"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:clipToPadding="false"
+                    android:paddingBottom="24dp"
+                    android:scrollbars="vertical"
+                    android:fadeScrollbars="true"
+                    android:nextFocusLeft="@id/btn_watch_now" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+
+        <!-- TRAILER VIEW -->
+        <FrameLayout
+            android:id="@+id/group_trailer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/black"
+            android:visibility="gone"
+            android:clipToOutline="true">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/trailer_container"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <WebView
+                    android:id="@+id/webview_trailer"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    app:layout_constraintDimensionRatio="16:9"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <TextView
+                android:id="@+id/tv_trailer_unavailable"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="@string/movie_detail_trailer_unavailable"
+                android:textColor="@color/ds_text_secondary"
+                android:textSize="16sp"
+                android:visibility="gone" />
+        </FrameLayout>
+
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

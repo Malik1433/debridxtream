@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="480dp"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    android:background="@drawable/tv_dialog_background"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:orientation="vertical"
+    android:padding="32dp"
+    tools:ignore="SpUsage">
+
+    <!-- Error Icon -->
+    <ImageView
+        android:id="@+id/errorIcon"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="24dp"
+        android:contentDescription="Error"
+        android:src="@drawable/ic_error_generic"
+        android:scaleType="centerInside" />
+
+    <!-- Error Title -->
+    <TextView
+        android:id="@+id/errorTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"
+        android:text="Error Title"
+        android:textColor="@android:color/white"
+        android:textSize="28sp"
+        android:textStyle="bold" />
+
+    <!-- Error Message -->
+    <TextView
+        android:id="@+id/errorMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"
+        android:lineSpacingExtra="8dp"
+        android:text="Error message description here"
+        android:textColor="@android:color/white"
+        android:textSize="20sp" />
+
+    <!-- Error Details (Optional) -->
+    <TextView
+        android:id="@+id/errorDetails"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"
+        android:text="Error details here"
+        android:textColor="@android:color/darker_gray"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
+    <!-- Buttons Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <!-- Positive Action Button -->
+        <Button
+            android:id="@+id/btnPositive"
+            style="@style/TVDialogButton.Primary"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="16dp"
+            android:layout_weight="1"
+            android:text="Retry"
+            android:visibility="visible" />
+
+        <!-- Negative Action Button -->
+        <Button
+            android:id="@+id/btnNegative"
+            style="@style/TVDialogButton.Secondary"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="16dp"
+            android:layout_weight="1"
+            android:text="Cancel"
+            android:visibility="gone" />
+
+        <!-- Settings/Tertiary Button -->
+        <Button
+            android:id="@+id/btnSettings"
+            style="@style/TVDialogButton.Tertiary"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:text="Settings"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</LinearLayout>

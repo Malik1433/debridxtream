@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Phase 3.2: Advanced TV Features - Picture-in-Picture Support -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+
+    <application
+        android:name=".App"
+        android:allowBackup="false"
+        android:icon="@drawable/app_logo"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:taskAffinity="${applicationId}"
+        android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:targetApi="31">
+        
+        <!-- Week 13: Disable default WorkManager initialization (using custom Configuration.Provider) -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+        
+        <activity
+            android:name=".ui.MainActivity"
+            android:label="@string/app_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+        
+        <activity
+            android:name=".player.PlayerActivity"
+            android:label="Player"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|uiMode"
+            android:exported="false"
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="true"
+            android:launchMode="singleTop"
+            android:taskAffinity="${applicationId}" />
+        
+        <activity
+            android:name=".ui.vod.MovieDetailActivity"
+            android:label="Movie Details"
+            android:theme="@style/AppTheme"
+            android:parentActivityName=".ui.MainActivity"
+            android:exported="false" />
+        
+        <activity
+            android:name=".ui.series.SeriesDetailActivity"
+            android:label="Series Details"
+            android:theme="@style/AppTheme"
+            android:parentActivityName=".ui.MainActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.compose.ComposeMovieDetailActivity"
+            android:label="Movie Details (Compose)"
+            android:theme="@style/AppTheme"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.trailer.TrailerActivity"
+            android:label="@string/movie_detail_tab_trailer"
+            android:theme="@style/AppTheme"
+            android:parentActivityName=".ui.MainActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.debrid.search.DebridSearchActivity"
+            android:label="Search Debrid Content"
+            android:theme="@style/AppTheme"
+            android:exported="false"
+            android:windowSoftInputMode="stateVisible|adjustResize" />
+
+        <activity
+            android:name=".ui.TestActivity"
+            android:label="TEST ACTIVITY"
+            android:theme="@style/AppTheme"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.settings.MediaFusionConfigActivity"
+            android:label="Connect MediaFusion"
+            android:theme="@style/AppTheme"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+    </application>
+
+</manifest>

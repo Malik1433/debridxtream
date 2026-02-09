@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ========== MODERN TV UI COLOR PALETTE (From Screenshot) ========== -->
+    
+    <!-- Primary Backgrounds -->
+    <color name="tv_bg_main">#141321</color>                    <!-- Deep indigo base -->
+    <color name="tv_bg_sidebar">#191827</color>                 <!-- Sidebar surface -->
+    <color name="tv_bg_card">#2A2A40</color>                    <!-- Card background -->
+    <color name="tv_bg_card_hover">#33334B</color>              <!-- Card hover state -->
+    <color name="tv_bg_card_selected">#35354D</color>           <!-- Card selected state -->
+    <color name="tv_bg_elevated">#2C2C44</color>                <!-- Elevated surfaces -->
+    <color name="tv_bg_gradient_start">#1E1E33</color>          <!-- Background gradient start -->
+    <color name="tv_bg_gradient_end">#141421</color>            <!-- Background gradient end -->
+    <color name="tv_sidebar_gradient_start">#1D1D30</color>     <!-- Sidebar gradient start -->
+    <color name="tv_sidebar_gradient_end">#171729</color>       <!-- Sidebar gradient end -->
+    
+    <!-- Preview Panel Colors -->
+    <color name="tv_preview_bg">#1B1B2B</color>                 <!-- Preview panel background -->
+    <color name="tv_preview_overlay">#CC000000</color>          <!-- Dark overlay on preview -->
+    <color name="tv_preview_gradient_start">#D9000000</color>   <!-- Gradient top -->
+    <color name="tv_preview_gradient_end">#00000000</color>     <!-- Gradient bottom -->
+    
+    <!-- Text Colors -->
+    <color name="tv_text_primary">#F5F6FA</color>               <!-- Primary text -->
+    <color name="tv_text_secondary">#B5B9C9</color>             <!-- Secondary text -->
+    <color name="tv_text_tertiary">#8F93A7</color>              <!-- Tertiary text -->
+    <color name="tv_text_disabled">#5E6174</color>              <!-- Disabled text -->
+    <color name="tv_text_highlight">#FFFFFF</color>             <!-- Highlighted text -->
+    
+    <!-- Accent Colors -->
+    <color name="tv_accent_yellow">#FFB24A</color>              <!-- Selected highlight, star icon -->
+    <color name="tv_accent_orange">#FF8A3D</color>              <!-- Orange accents -->
+    <color name="tv_accent_cyan">#7B8CFF</color>                <!-- Soft blue accent -->
+    <color name="tv_accent_cyan_light">#9CB0FF</color>          <!-- Lighter blue -->
+    <color name="tv_accent_blue">#7B8CFF</color>                <!-- Primary blue accent -->
+    
+    <!-- Selection & Focus Colors -->
+    <color name="tv_selection_glow">#33FFFFFF</color>           <!-- Soft glow around selected -->
+    <color name="tv_selection_bar">#FFFFFF</color>              <!-- Selection bar -->
+    <color name="tv_selection_bg">#1AFFFFFF</color>             <!-- Selection background tint -->
+    <color name="tv_focus_border">#C7CCE0</color>               <!-- Focus border -->
+    
+    <!-- Badge Colors -->
+    <color name="tv_badge_bg">#34344C</color>                   <!-- Badge background -->
+    <color name="tv_badge_text">#E6E8F2</color>                 <!-- Badge text -->
+    <color name="tv_badge_hd">#E9ECF5</color>                   <!-- HD badge -->
+    <color name="tv_badge_4k">#FFB24A</color>                   <!-- 4K badge -->
+    <color name="tv_badge_live">#F44336</color>                 <!-- Live indicator red -->
+    
+    <!-- Progress & Status -->
+    <color name="tv_progress_bg">#33FFFFFF</color>              <!-- Progress bar background -->
+    <color name="tv_progress_fill">#E6E9F4</color>              <!-- Progress bar fill -->
+    <color name="tv_progress_buffer">#80FFFFFF</color>          <!-- Buffer indicator -->
+    
+    <!-- Borders & Dividers -->
+    <color name="tv_border_subtle">#1AFFFFFF</color>            <!-- Subtle borders -->
+    <color name="tv_border_normal">#33FFFFFF</color>            <!-- Normal borders -->
+    <color name="tv_border_focus">#C7CCE0</color>               <!-- Focus borders -->
+    <color name="tv_divider">#20FFFFFF</color>                  <!-- Dividers -->
+    
+    <!-- Sidebar Colors -->
+    <color name="tv_sidebar_item_normal">#00FFFFFF</color>      <!-- Normal item transparent -->
+    <color name="tv_sidebar_item_hover">#18FFFFFF</color>       <!-- Hover item -->
+    <color name="tv_sidebar_item_selected">#12FFFFFF</color>    <!-- Selected item subtle -->
+    <color name="tv_sidebar_text_normal">#A4A9BD</color>        <!-- Normal text gray -->
+    <color name="tv_sidebar_text_selected">#FFFFFF</color>      <!-- Selected text white -->
+    
+    <!-- Status Colors -->
+    <color name="tv_status_live">#F44336</color>                <!-- Live red dot -->
+    <color name="tv_status_recording">#F44336</color>           <!-- Recording red -->
+    <color name="tv_status_scheduled">#FFB800</color>           <!-- Scheduled yellow -->
+    <color name="tv_status_buffering">#00BCD4</color>           <!-- Buffering cyan -->
+    
+    <!-- Overlay Colors -->
+    <color name="tv_overlay_dark">#CC000000</color>             <!-- Dark overlay -->
+    <color name="tv_overlay_medium">#99000000</color>           <!-- Medium overlay -->
+    <color name="tv_overlay_light">#66000000</color>            <!-- Light overlay -->
+    <color name="tv_scrim">#B3000000</color>                    <!-- Scrim overlay -->
+    
+    <!-- Glassmorphism (Premium Effect) -->
+    <color name="tv_glass_bg">#40252530</color>                 <!-- Glass background -->
+    <color name="tv_glass_border">#60FFFFFF</color>             <!-- Glass border -->
+</resources>

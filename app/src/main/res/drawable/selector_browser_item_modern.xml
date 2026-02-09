@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Focused State -->
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <!-- Professional Soft Gradient: Gold (left) to Clear (right) -->
+            <gradient
+                android:startColor="#33FFB300"
+                android:endColor="#05FFB300"
+                android:angle="0"
+                android:type="linear" />
+            
+            <!-- Thinner, Softer Border -->
+            <stroke android:width="1dp" android:color="#B3FFB300" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    
+    <!-- Pressed State -->
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#4D64FFDA" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    
+    <!-- Selected State -->
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#1AFFFFFF" />
+            <stroke android:width="1dp" android:color="#80FFFFFF" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+
+    <!-- Default State (Unselected Card) -->
+    <item>
+        <shape android:shape="rectangle">
+            <!-- Darker, distinct Glass Card background -->
+            <solid android:color="#991A1A1A" />
+            <stroke android:width="1dp" android:color="#1AFFFFFF" /> <!-- Subtle border -->
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+</selector>

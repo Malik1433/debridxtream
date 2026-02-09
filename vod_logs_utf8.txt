@@ -1,0 +1,6 @@
+﻿01-25 20:56:17.522 25568 25621 E XtreamRepository: Error fetching series for category 2677
+01-25 20:56:17.522 25568 25621 E XtreamRepository: kotlinx.coroutines.JobCancellationException: Job was cancelled; job=SupervisorJobImpl{Cancelling}@dd0557f
+01-25 20:56:17.525 25568 25620 E XtreamRepository: Error fetching series for category 921
+01-25 20:56:17.525 25568 25620 E XtreamRepository: kotlinx.coroutines.JobCancellationException: Job was cancelled; job=SupervisorJobImpl{Cancelling}@dd0557f
+01-25 20:56:17.545 25568 25621 W XtreamRepository: Fallback all-series fetch returned empty for category 2677
+01-25 20:56:17.558 25568 25620 W XtreamRepository: Fallback all-series fetch returned empty for category 921

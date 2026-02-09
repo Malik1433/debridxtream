@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Focused & Pressed: "Pushed In" 3D Effect -->
+    <item android:state_focused="true" android:state_pressed="true">
+        <layer-list>
+            <!-- Deep Inner Shadow -->
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="12dp" />
+                    <solid android:color="#4D000000" />
+                </shape>
+            </item>
+            <!-- Inset Surface for Depressed Look -->
+            <item android:bottom="3dp" android:left="3dp" android:right="3dp" android:top="3dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="10dp" />
+                    <gradient
+                        android:angle="225"
+                        android:endColor="#8A6D3B"
+                        android:centerColor="#D4AF37"
+                        android:startColor="#B8860B" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+    <!-- Focused: "Popped Out" Ultra-Luxury Gold 3D -->
+    <item android:state_focused="true">
+        <layer-list>
+            <!-- 1. Deep Outer Shadow (Bottom-Right) -->
+            <item android:left="4dp" android:top="4dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="12dp" />
+                    <solid android:color="#99000000" />
+                </shape>
+            </item>
+            <!-- 2. Soft Shadow Spread -->
+            <item android:left="2dp" android:top="2dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="12dp" />
+                    <solid android:color="#4D000000" />
+                </shape>
+            </item>
+            <!-- 3. Top-Left Light Highlight (Bevel Effect) -->
+            <item android:bottom="4dp" android:right="4dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="12dp" />
+                    <solid android:color="#33FFFFFF" />
+                </shape>
+            </item>
+            <!-- 4. Metallic Gold Surface Gradient -->
+            <item android:bottom="2dp" android:left="2dp" android:right="2dp" android:top="2dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="12dp" />
+                    <gradient
+                        android:angle="45"
+                        android:startColor="#8A6D3B"
+                        android:centerColor="#D4AF37"
+                        android:endColor="#FFE294"
+                        android:type="linear" />
+                    <!-- Bright Metallic Edge -->
+                    <stroke
+                        android:width="2dp"
+                        android:color="#FFFFFF" />
+                </shape>
+            </item>
+            <!-- 5. Internal Gloss/Highlight Overlay -->
+            <item android:bottom="10dp" android:left="2dp" android:right="2dp" android:top="2dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="12dp" />
+                    <gradient
+                        android:angle="90"
+                        android:startColor="#00FFFFFF"
+                        android:endColor="#26FFFFFF" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+    <!-- Default State: Glassmorphism-style Neomorphic (Soft UI) -->
+    <item>
+        <layer-list>
+            <!-- Dark Shadow (Bottom Right) -->
+            <item android:left="3dp" android:top="3dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="12dp" />
+                    <solid android:color="#4D000000" />
+                </shape>
+            </item>
+            <!-- Light Highlight (Top Left) -->
+            <item android:bottom="3dp" android:right="3dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="12dp" />
+                    <solid android:color="#1AFFFFFF" />
+                </shape>
+            </item>
+            <!-- Main Surface (Translucent Multi-Layer) -->
+            <item android:bottom="1.5dp" android:left="1.5dp" android:right="1.5dp" android:top="1.5dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="12dp" />
+                    <solid android:color="#26FFFFFF" />
+                    <stroke
+                        android:width="1dp"
+                        android:color="#33FFFFFF" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</selector>

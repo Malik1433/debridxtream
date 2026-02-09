@@ -1,0 +1,1 @@
+-keep class com.tvonnet.debridxtreamiptv.App { *; }

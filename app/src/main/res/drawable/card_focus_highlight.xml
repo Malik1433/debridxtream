@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Card Focus with Bold Highlight Border -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Focused State: Bold cyan border + shadow -->
+    <item android:state_focused="true">
+        <layer-list>
+            <!-- Shadow layer -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/border_cyan_glow" />
+                    <corners android:radius="12dp" />
+                </shape>
+            </item>
+            <!-- Main border -->
+            <item android:top="2dp" android:bottom="2dp" android:left="2dp" android:right="2dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="@android:color/transparent" />
+                    <corners android:radius="12dp" />
+                    <stroke
+                        android:width="4dp"
+                        android:color="@color/brand_cyan" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    
+    <!-- Normal State: Subtle border -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+            <corners android:radius="12dp" />
+            <stroke
+                android:width="1dp"
+                android:color="#30FFFFFF" />
+        </shape>
+    </item>
+</selector>
+

@@ -1,0 +1,93 @@
+{
+    "workflow_version": "1.2.0",
+    "timestamps": {
+        "started": "2025-12-07T23:24:13Z",
+        "last_updated": "2025-12-07T23:28:55Z"
+    },
+    "mode": "initial_scan",
+    "scan_level": "deep",
+    "project_root": "e:\\running project baxkups\\lmsd working but loading issues\\debxtrem",
+    "output_folder": "e:\\running project baxkups\\lmsd working but loading issues\\debxtrem\\docs",
+    "completed_steps": [
+        {
+            "step": "step_1",
+            "status": "completed",
+            "timestamp": "2025-12-07T23:25:30Z",
+            "summary": "Classified as monolith with 1 parts"
+        },
+        {
+            "step": "step_2",
+            "status": "completed",
+            "timestamp": "2025-12-07T23:26:45Z",
+            "summary": "Found 123 existing docs (extensive weekly reports, roadmaps, bug fixes)"
+        },
+        {
+            "step": "step_3",
+            "status": "completed",
+            "timestamp": "2025-12-07T23:28:55Z",
+            "summary": "Tech stack: Kotlin, MVVM, Hilt, Media3, Room, Compose"
+        }
+    ],
+    "current_step": "step_4",
+    "findings": {
+        "project_classification": "Monolith mobile project (Android)",
+        "project_types": [
+            {
+                "part_id": "app",
+                "project_type_id": "mobile",
+                "display_name": "Mobile App"
+            }
+        ],
+        "existing_docs_count": 123,
+        "user_context": "Android TV app",
+        "technology_stack": {
+            "app": [
+                {
+                    "category": "Language",
+                    "technology": "Kotlin",
+                    "version": "1.9.25"
+                },
+                {
+                    "category": "Framework",
+                    "technology": "Android SDK",
+                    "version": "Compile/Target 35, Min 26"
+                },
+                {
+                    "category": "DI",
+                    "technology": "Hilt",
+                    "version": "2.51.1"
+                },
+                {
+                    "category": "UI",
+                    "technology": "ViewBinding + Compose",
+                    "version": "Hybrid"
+                },
+                {
+                    "category": "Networking",
+                    "technology": "Retrofit + OkHttp",
+                    "version": "2.9.0"
+                },
+                {
+                    "category": "Database",
+                    "technology": "Room",
+                    "version": "2.6.1"
+                },
+                {
+                    "category": "Media",
+                    "technology": "Media3 (ExoPlayer)",
+                    "version": "1.4.1"
+                },
+                {
+                    "category": "Async",
+                    "technology": "Coroutines + WorkManager",
+                    "version": "1.9.0 / 2.9.1"
+                }
+            ]
+        },
+        "architecture_pattern": "MVVM with Repository Pattern and Reactive UI (StateFlow)"
+    },
+    "outputs_generated": [
+        "project-scan-report.json"
+    ],
+    "resume_instructions": "Starting from step 4"
+}

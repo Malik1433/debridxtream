@@ -1,0 +1,30 @@
+CURRENT CHECKPOINT - Live TV UI Polish
+Date: December 20, 2025
+
+===========================================
+CHECKPOINT: LIVE TV 3-COLUMN UI + FOCUS FIXES
+===========================================
+
+Tag: checkpoint_20251220_live_ui
+Branch: new-test
+Git State: Working tree clean (untracked: logs/)
+
+---
+
+WHAT WAS INCLUDED:
+  - Sidebar flags and selection visuals aligned with reference design
+  - Channel cards focus glow/spacing improvements
+  - Focus clipping fixes (padding + margins + focus bar inset)
+  - Preview/EPG typography spacing and minor polish
+  - Glide thumbnail optimizations for smoother logo loading
+
+Build Status:
+  - :app:compileDebugKotlin --no-daemon (passed)
+  - :app:installDebug --no-daemon (passed)
+
+---
+
+TO RESTORE THIS CHECKPOINT:
+  - Commit changes and create a git tag if you need a rollback point.
+  - Suggested tag name: checkpoint_20251220_live_ui
+---

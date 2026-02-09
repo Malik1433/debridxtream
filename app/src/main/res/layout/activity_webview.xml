@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/app_background"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- Header -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="MediaFusion Configuration"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:gravity="center_horizontal"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="To enable premium streams, follow these steps:"
+            android:textSize="14sp"
+            android:textColor="@color/grey_400"
+            android:gravity="center_horizontal"
+            android:layout_marginBottom="24dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:baselineAligned="false"
+            android:weightSum="2">
+
+            <!-- Step 1: Configure on Mobile -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:background="@drawable/bg_movie_card"
+                android:padding="16dp"
+                android:layout_marginEnd="12dp"
+                android:gravity="center_horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Step 1: Configure"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/brand_accent"
+                    android:layout_marginBottom="8dp"/>
+
+                <ImageView
+                    android:id="@+id/qrCodeImage"
+                    android:layout_width="160dp"
+                    android:layout_height="160dp"
+                    android:background="@android:color/white"
+                    android:padding="4dp"
+                    android:layout_marginBottom="12dp"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Scan this code with your phone to open the configuration page."
+                    android:textSize="13sp"
+                    android:textColor="@color/white"
+                    android:gravity="center"
+                    android:layout_marginBottom="4dp"/>
+                
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="• Select 'Real-Debrid'\n• Authorize your account\n• Select catalogs (Movies/Series)\n• Click 'Install' or copy link"
+                    android:textSize="12sp"
+                    android:textColor="@color/grey_400"
+                    android:gravity="center_horizontal"
+                    android:lineSpacingExtra="2dp"/>
+            </LinearLayout>
+
+            <!-- Step 2: Connect -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:background="@drawable/bg_movie_card"
+                android:padding="16dp"
+                android:layout_marginStart="12dp"
+                android:gravity="center_horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Step 2: Connect"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/brand_accent"
+                    android:layout_marginBottom="16dp"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Enter the Manifest URL from Step 1:"
+                    android:textSize="14sp"
+                    android:textColor="@color/white"
+                    android:layout_marginBottom="8dp"
+                    android:layout_gravity="start"/>
+
+                <EditText
+                    android:id="@+id/et_manual_link"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="https://.../manifest.json"
+                    android:textColor="@color/white"
+                    android:textColorHint="@color/grey_600"
+                    android:background="@drawable/bg_input_field"
+                    android:padding="12dp"
+                    android:textSize="14sp"
+                    android:inputType="textUri"
+                    android:imeOptions="actionDone"
+                    android:layout_marginBottom="16dp"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_connect_manual"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Connect"
+                    app:backgroundTint="@color/brand_primary"
+                    android:textColor="@color/white"
+                    android:layout_marginBottom="24dp"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="24dp">
+                    
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1"
+                        android:background="@color/grey_800"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text=" OR "
+                        android:textColor="@color/grey_600"
+                        android:textSize="12sp"/>
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1"
+                        android:background="@color/grey_800"/>
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/scanQrButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Scan Result QR Code"
+                    app:backgroundTint="@color/grey_800"
+                    android:textColor="@color/white"
+                    app:icon="@android:drawable/ic_menu_camera"
+                    app:iconTint="@color/white"/>
+
+            </LinearLayout>
+        </LinearLayout>
+        
+        <!-- Hidden WebView for legacy compatibility if needed -->
+        <WebView
+            android:id="@+id/webView"
+            android:layout_width="1dp"
+            android:layout_height="1dp"
+            android:visibility="gone"/>
+
+    </LinearLayout>
+</ScrollView>

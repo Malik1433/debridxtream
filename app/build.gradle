@@ -1,0 +1,167 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'dagger.hilt.android.plugin'
+    id 'kotlin-kapt'
+    id 'kotlin-parcelize'
+}
+
+android {
+    namespace 'com.tvonnet.debridxtreamiptv'
+    compileSdk 35  // Updated to latest API level for better TV support
+
+    defaultConfig {
+        // Align with the installed TV app package on device so `adb install -r` updates the same app.
+        applicationId "com.debridxtream.tv"
+        minSdk 25
+        targetSdk 35  // Updated to match compileSdk for latest Android features
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        Properties properties = new Properties()
+        if (project.rootProject.file('local.properties').exists()) {
+            properties.load(project.rootProject.file('local.properties').newDataInputStream())
+        }
+        def tmdbKey = properties.getProperty("TMDB_API_KEY") ?: ""
+        buildConfigField "String", "TMDB_API_KEY", "\"${tmdbKey}\""
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = '11'
+    }
+
+    buildFeatures {
+        viewBinding true
+        buildConfig true  // Week 7: Enable BuildConfig generation
+        compose true
+    }
+    
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.5.15'
+    }
+    
+    lint {
+        abortOnError false  // Don't fail build on lint errors (for now)
+        checkReleaseBuilds false
+    }
+    
+    // Performance optimizations
+    packagingOptions {
+        resources {
+            excludes += ['META-INF/*.kotlin_module']
+        }
+    }
+}
+
+dependencies {
+    // AndroidX Core - Updated to latest stable versions
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.activity:activity-ktx:1.9.3'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.2.0'
+    implementation 'androidx.fragment:fragment-ktx:1.8.5'
+    // ViewModel & Lifecycle (MVVM Architecture) - Updated to latest stable
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.8.7'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+    
+    // Paging 3 (Week 5: Performance Optimization) - Updated to latest
+    implementation 'androidx.paging:paging-runtime-ktx:3.3.2'
+
+    // Room Database (Week 6: Room Database Integration) - Updated to latest stable
+    implementation 'androidx.room:room-runtime:2.6.1'
+    implementation 'androidx.room:room-ktx:2.6.1'
+    kapt 'androidx.room:room-compiler:2.6.1'
+    implementation 'androidx.room:room-paging:2.6.1' // Required for PagingSource in DAOs
+    
+    // Retrofit & Networking
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-scalars:2.9.0' // Week 14: For XML/String responses
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    
+    // Media3 (ExoPlayer replacement) - Updated to latest stable for TV performance
+    implementation 'androidx.media3:media3-exoplayer:1.4.1'
+    implementation 'androidx.media3:media3-exoplayer-hls:1.4.1'
+    implementation 'androidx.media3:media3-ui:1.4.1'
+    implementation 'androidx.media3:media3-common:1.4.1'
+    implementation 'androidx.media3:media3-datasource-okhttp:1.4.1' // Phase 0: Connection Pooling
+    implementation 'androidx.media3:media3-extractor:1.4.1' // Phase 5: V2 TS Tuning
+
+    // QR Code for Support Dialog
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+    implementation 'com.google.zxing:core:3.5.2'
+
+    // Glide for image loading - Updated to latest stable
+    implementation 'com.github.bumptech.glide:glide:4.16.0'
+    kapt 'com.github.bumptech.glide:compiler:4.16.0'
+
+    // Coroutines - Updated to latest stable
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
+
+    // Hilt Dependency Injection - Updated to latest
+    implementation 'com.google.dagger:hilt-android:2.51.1'
+    kapt 'com.google.dagger:hilt-compiler:2.51.1'
+    kapt 'com.google.dagger:dagger-compiler:2.51.1'
+    
+    // WorkManager (Week 13: Background EPG Sync) - Updated to latest stable
+    implementation 'androidx.work:work-runtime-ktx:2.9.1'
+    implementation 'androidx.hilt:hilt-work:1.2.0'
+    kapt 'androidx.hilt:hilt-compiler:1.2.0'
+
+    // Preferences (Week 14: Settings Screen) - Updated to latest
+    implementation 'androidx.preference:preference-ktx:1.2.1'
+    
+    // Testing
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3'
+    testImplementation 'androidx.arch.core:core-testing:2.2.0'
+    testImplementation 'io.mockk:mockk:1.13.8'
+    testImplementation 'app.cash.turbine:turbine:1.0.0'
+    testImplementation 'androidx.test:core:1.5.0'
+    testImplementation 'org.robolectric:robolectric:4.11.1'
+    testImplementation 'org.jetbrains.kotlin:kotlin-test:1.9.0'
+    testImplementation 'androidx.work:work-testing:2.9.1'
+    
+    // Jetpack Compose
+    def composeBom = platform('androidx.compose:compose-bom:2024.02.01')
+    implementation composeBom
+    androidTestImplementation composeBom
+    
+    implementation 'androidx.activity:activity-compose:1.8.2'
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    
+    // Compose Integration
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7'
+    
+    // Image Loading
+    implementation 'io.coil-kt:coil-compose:2.6.0'
+
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}

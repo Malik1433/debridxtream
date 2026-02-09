@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Standard Content Card Background - Professional Design -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Focused State - Blue border -->
+    <item android:state_focused="true">
+        <layer-list>
+            <!-- Blue focus border -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/card_border_focus" />
+                    <corners android:radius="@dimen/content_card_corner_radius" />
+                </shape>
+            </item>
+            <!-- Inner card background -->
+            <item 
+                android:top="@dimen/content_card_border_width_focus" 
+                android:left="@dimen/content_card_border_width_focus" 
+                android:right="@dimen/content_card_border_width_focus" 
+                android:bottom="@dimen/content_card_border_width_focus">
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/ds_background_secondary" />
+                    <corners android:radius="@dimen/content_card_corner_radius" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    
+    <!-- Selected/Pressed State - Red border -->
+    <item android:state_selected="true">
+        <layer-list>
+            <!-- Red hover border -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/card_border_hover" />
+                    <corners android:radius="@dimen/content_card_corner_radius" />
+                </shape>
+            </item>
+            <!-- Inner card background -->
+            <item 
+                android:top="@dimen/content_card_border_width_hover" 
+                android:left="@dimen/content_card_border_width_hover" 
+                android:right="@dimen/content_card_border_width_hover" 
+                android:bottom="@dimen/content_card_border_width_hover">
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/ds_background_secondary" />
+                    <corners android:radius="@dimen/content_card_corner_radius" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    
+    <!-- Default State - Subtle border -->
+    <item>
+        <layer-list>
+            <!-- Default subtle border -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/card_border_default" />
+                    <corners android:radius="@dimen/content_card_corner_radius" />
+                </shape>
+            </item>
+            <!-- Inner card background -->
+            <item 
+                android:top="@dimen/content_card_border_width_default" 
+                android:left="@dimen/content_card_border_width_default" 
+                android:right="@dimen/content_card_border_width_default" 
+                android:bottom="@dimen/content_card_border_width_default">
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/ds_background_secondary" />
+                    <corners android:radius="@dimen/content_card_corner_radius" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    
+</selector>
+

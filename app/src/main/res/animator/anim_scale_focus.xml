@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Smooth Scale Up Animation for Focus State -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Focused State: Scale Up to 105% -->
+    <item android:state_focused="true">
+        <set>
+            <objectAnimator
+                android:propertyName="scaleX"
+                android:valueTo="1.05"
+                android:duration="200"
+                android:interpolator="@android:anim/decelerate_interpolator" />
+            <objectAnimator
+                android:propertyName="scaleY"
+                android:valueTo="1.05"
+                android:duration="200"
+                android:interpolator="@android:anim/decelerate_interpolator" />
+            <objectAnimator
+                android:propertyName="translationZ"
+                android:valueTo="8dp"
+                android:duration="200" />
+        </set>
+    </item>
+    
+    <!-- Default State: Scale Back to 100% -->
+    <item>
+        <set>
+            <objectAnimator
+                android:propertyName="scaleX"
+                android:valueTo="1.0"
+                android:duration="200"
+                android:interpolator="@android:anim/accelerate_interpolator" />
+            <objectAnimator
+                android:propertyName="scaleY"
+                android:valueTo="1.0"
+                android:duration="200"
+                android:interpolator="@android:anim/accelerate_interpolator" />
+            <objectAnimator
+                android:propertyName="translationZ"
+                android:valueTo="0dp"
+                android:duration="200" />
+        </set>
+    </item>
+</selector>

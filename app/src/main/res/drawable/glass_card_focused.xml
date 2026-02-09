@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MI IPTV Focus State - Blue Glow -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Blue Glow Border -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#60a5fa" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    
+    <!-- Inner Card -->
+    <item android:top="2dp" android:left="2dp" android:right="2dp" android:bottom="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/mi_card_bg_elevated" />
+            <stroke 
+                android:width="1dp" 
+                android:color="@color/glass_card_border_focus" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+    
+</layer-list>
+

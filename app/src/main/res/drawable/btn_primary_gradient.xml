@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Primary Button with Orange Gradient -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    
+    <gradient
+        android:type="linear"
+        android:angle="45"
+        android:startColor="@color/brand_orange"
+        android:endColor="@color/brand_orange_light" />
+    
+    <corners android:radius="12dp" />
+    
+    <stroke
+        android:width="0dp"
+        android:color="@android:color/transparent" />
+</shape>
+

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:play.google.com)",
+      "WebFetch(domain:www.smartersiptv.com)",
+      "WebFetch(domain:flex-iptv.com)",
+      "WebFetch(domain:material.io)",
+      "WebFetch(domain:m3.material.io)",
+      "Bash(.gradlew:*)",
+      "Bash(./gradlew:*)",
+      "Bash(adb:*)",
+      "Bash(\"C:\\Users\\Malik\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe\" -s 192.168.0.54:5555 install -r \"./app/build/outputs/apk/debug/app-debug.apk\")",
+      "Bash(\"C:\\Users\\Malik\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe\":*)",
+      "Bash(\"C:\\Users\\Malik\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe\" -s 192.168.0.54:5555 shell am start -n com.tvonnet.debridxtreamiptv/com.tvonnet.debridxtreamiptv.ui.MainActivity)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

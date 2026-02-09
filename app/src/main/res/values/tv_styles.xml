@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- TV-Optimized Dialog Button Styles -->
+    <style name="TVDialogButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:layout_height">48dp</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:focusable">true</item>
+        <item name="android:focusableInTouchMode">true</item>
+        <item name="android:background">@drawable/tv_button_selector</item>
+        <item name="android:paddingStart">24dp</item>
+        <item name="android:paddingEnd">24dp</item>
+        <item name="android:elevation">4dp</item>
+    </style>
+
+    <style name="TVDialogButton.Primary" parent="TVDialogButton">
+        <item name="android:background">@drawable/button_primary_red</item>
+        <item name="android:textColor">@android:color/white</item>
+    </style>
+
+    <style name="TVDialogButton.Secondary" parent="TVDialogButton">
+        <item name="android:background">@drawable/button_secondary_white_outline</item>
+        <item name="android:textColor">@android:color/white</item>
+    </style>
+
+    <style name="TVDialogButton.Tertiary" parent="TVDialogButton">
+        <item name="android:background">@drawable/tv_button_selector</item>
+        <item name="android:textColor">@android:color/darker_gray</item>
+    </style>
+
+    <!-- TV Button Selector -->
+    <style name="TVButtonSelector">
+        <item name="android:background">@drawable/tv_button_selector</item>
+        <item name="android:focusable">true</item>
+        <item name="android:focusableInTouchMode">true</item>
+    </style>
+
+    <style name="ChannelBadgeText">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">9sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/tv_badge_text</item>
+        <item name="android:paddingStart">3dp</item>
+        <item name="android:paddingEnd">3dp</item>
+        <item name="android:paddingTop">1dp</item>
+        <item name="android:paddingBottom">1dp</item>
+        <item name="android:layout_marginEnd">3dp</item>
+    </style>
+
+    <style name="FlagCircleShapeOverlay">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+</resources>

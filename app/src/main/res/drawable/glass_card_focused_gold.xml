@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Premium Gold Focus State - Recessed Glass Design -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Gold Glow Border (External) -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#33FFD700" /> <!-- Gold Glow Tint -->
+            <stroke android:width="3dp" android:color="@color/gold_primary" /> <!-- Gold Border -->
+            <corners android:radius="14dp" />
+        </shape>
+    </item>
+    
+    <!-- Inner Card Container -->
+    <item android:top="4dp" android:left="4dp" android:right="4dp" android:bottom="4dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/mi_card_bg_elevated" />
+            <stroke 
+                android:width="1dp" 
+                android:color="#4DFFD700" /> <!-- Subtle Gold Inner Edge -->
+            <corners android:radius="10dp" /> <!-- Reduced radius to fit inside -->
+        </shape>
+    </item>
+    
+</layer-list>

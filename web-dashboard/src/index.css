@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+:root {
+  --color-gold-primary: #FFD700;
+  --color-gold-secondary: #FDB931;
+  --color-velvet-black: #120820;
+  --color-charcoal-surface: #1A0B2E;
+}
+
+@theme {
+  --color-gold-primary: #FFD700;
+  --color-gold-secondary: #FDB931;
+  --color-velvet-black: #120820;
+  --color-charcoal-surface: #1A0B2E;
+}
+
+body {
+  @apply bg-velvet-black text-white antialiased;
+  background: radial-gradient(circle at center, #1A0B2E 0%, #120820 100%);
+  min-height: 100vh;
+}
+
+/* Glassmorphism utility */
+.glass {
+  @apply bg-white/5 backdrop-blur-lg border border-white/10;
+}
+
+.glass-gold {
+  @apply bg-gold-primary/5 backdrop-blur-lg border border-gold-primary/20;
+}
+
+/* Custom Scrollbar for premium feel */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 215, 0, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 215, 0, 0.4);
+}

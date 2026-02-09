@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Enhanced Card Focus with Highlight Effect -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Focused State: Subtle scale + brightness -->
+    <item android:state_focused="true">
+        <set>
+            <objectAnimator
+                android:duration="200"
+                android:interpolator="@android:interpolator/fast_out_slow_in"
+                android:propertyName="scaleX"
+                android:valueTo="1.06"
+                android:valueType="floatType" />
+            <objectAnimator
+                android:duration="200"
+                android:interpolator="@android:interpolator/fast_out_slow_in"
+                android:propertyName="scaleY"
+                android:valueTo="1.06"
+                android:valueType="floatType" />
+            <objectAnimator
+                android:duration="200"
+                android:interpolator="@android:interpolator/fast_out_slow_in"
+                android:propertyName="translationZ"
+                android:valueTo="16dp"
+                android:valueType="floatType" />
+        </set>
+    </item>
+    
+    <!-- Normal State -->
+    <item>
+        <set>
+            <objectAnimator
+                android:duration="200"
+                android:interpolator="@android:interpolator/fast_out_slow_in"
+                android:propertyName="scaleX"
+                android:valueTo="1.0"
+                android:valueType="floatType" />
+            <objectAnimator
+                android:duration="200"
+                android:interpolator="@android:interpolator/fast_out_slow_in"
+                android:propertyName="scaleY"
+                android:valueTo="1.0"
+                android:valueType="floatType" />
+            <objectAnimator
+                android:duration="200"
+                android:interpolator="@android:interpolator/fast_out_slow_in"
+                android:propertyName="translationZ"
+                android:valueTo="6dp"
+                android:valueType="floatType" />
+        </set>
+    </item>
+</selector>
+

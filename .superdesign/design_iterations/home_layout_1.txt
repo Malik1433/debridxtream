@@ -1,0 +1,128 @@
+# HOME SCREEN LAYOUT - MI IPTV STYLE
+# Optimized to fit on ONE screen without scrolling
+
+═══════════════════════════════════════════════════════════════════════════════
+                              ANDROID TV HOME SCREEN
+                        (1920×1080 Reference - All Visible)
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  [24dp padding all sides]                                                   │
+│                                                                             │
+│  DebridXtream                                                    🔍    ⚙   │
+│  (28sp Gold)                                                     (36dp)     │
+│                                                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        [16dp gap] │
+│  │ LIVE TV  │  │  MOVIES  │  │  SERIES  │  │  DEBRID  │                   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘                   │
+│  120×48dp      120×48dp      120×48dp      120×48dp         [16dp spacing] │
+│  Glass BG      Glass BG      Glass BG      Glass BG                        │
+│  [Active=Red]  [Inactive]    [Inactive]    [Inactive]                      │
+│                                                                             │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━    [16dp gap]   │
+│                                                                             │
+│  FEATURED CONTENT                                              [12dp gap]  │
+│  (20sp Bold)                                                                │
+│  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐                           │
+│  │ [IMG]  │  │ [IMG]  │  │ [IMG]  │  │ [IMG]  │  →                        │
+│  │        │  │        │  │        │  │        │                            │
+│  └────────┘  └────────┘  └────────┘  └────────┘                           │
+│  200×112dp   200×112dp   200×112dp   200×112dp      [12dp spacing]         │
+│  Movie 1     Series 1    Channel     Movie 2                               │
+│                                                                             │
+│  NEW ARRIVALS                                                  [12dp gap]  │
+│  (20sp Bold)                                                                │
+│  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐             │
+│  │ NEW  │  │ NEW  │  │ NEW  │  │ NEW  │  │ NEW  │  │ NEW  │  →           │
+│  │[IMG] │  │[IMG] │  │[IMG] │  │[IMG] │  │[IMG] │  │[IMG] │             │
+│  └──────┘  └──────┘  └──────┘  └──────┘  └──────┘  └──────┘             │
+│  110×160dp  110×160dp (Compact poster cards)            [12dp spacing]     │
+│  Title       Title                                                          │
+│                                                                             │
+│  CONTINUE WATCHING                                             [12dp gap]  │
+│  (20sp Bold)                                                                │
+│  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐                        │
+│  │[IMG] │  │[IMG] │  │[IMG] │  │[IMG] │  │[IMG] │  →                     │
+│  │█████░│  │████░░│  │██░░░░│  │█████░│  │███░░░│                        │
+│  └──────┘  └──────┘  └──────┘  └──────┘  └──────┘                        │
+│  110×160dp  65%      80%      25%      70%                                  │
+│  Title      Title    Title    Title    Title                               │
+│                                                                             │
+│  RECENTLY WATCHED                                              [12dp gap]  │
+│  (20sp Bold)                                                                │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐                  │
+│  │[LOGO]│ │[LOGO]│ │[LOGO]│ │[LOGO]│ │[LOGO]│ │[LOGO]│  →                │
+│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘                  │
+│  100×100dp (Square channel logos)                     [12dp spacing]       │
+│  BBC      ESPN     HBO      CNN      FOX      SKY                          │
+│                                                                             │
+│  MY FAVORITES                                                  [12dp gap]  │
+│  (20sp Bold)                                                                │
+│  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐                        │
+│  │  ❤   │  │  ❤   │  │  ❤   │  │  ❤   │  │  ❤   │  →                     │
+│  │[IMG] │  │[IMG] │  │[IMG] │  │[IMG] │  │[IMG] │                        │
+│  └──────┘  └──────┘  └──────┘  └──────┘  └──────┘                        │
+│  110×160dp  Title    Title    Title    Title                               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+## LAYOUT SPECIFICATIONS
+
+### Container
+- Padding: 24dp all sides
+- Background: Dark charcoal gradient
+- No scrolling - all content visible
+
+### Header (60dp height)
+- Logo: Left aligned, 28sp
+- Icons: Right aligned, 36×36dp
+
+### Navigation Buttons (70dp total height with margins)
+- Size: 120×48dp each
+- Spacing: 16dp between
+- Total width: 4×120 + 3×16 = 528dp (centered)
+
+### Featured Section (140dp total)
+- Header: 20sp, 12dp margin bottom
+- Cards: 200×112dp (16:9 ratio, compact)
+- Spacing: 12dp between cards
+
+### New Arrivals Section (190dp total)
+- Header: 20sp, 12dp margin bottom
+- Cards: 110×160dp (2:3 poster, compact)
+- Spacing: 12dp between cards
+
+### Continue Watching Section (190dp total)
+- Header: 20sp, 12dp margin bottom
+- Cards: 110×160dp with progress bars
+- Spacing: 12dp between cards
+
+### Recently Watched Section (130dp total)
+- Header: 20sp, 12dp margin bottom
+- Cards: 100×100dp square logos
+- Spacing: 12dp between cards
+
+### Favorites Section (190dp total)
+- Header: 20sp, 12dp margin bottom
+- Cards: 110×160dp with heart icon
+- Spacing: 12dp between cards
+
+### TOTAL HEIGHT CALCULATION:
+- Padding top: 24dp
+- Header: 60dp
+- Nav buttons: 70dp
+- Divider: 16dp
+- Featured: 140dp
+- New Arrivals: 190dp
+- Continue: 190dp
+- Recent: 130dp
+- Favorites: 190dp
+- Padding bottom: 24dp
+**TOTAL: ~1034dp (fits in 1080p screen!)**
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Does this layout work for you? Everything fits on one screen now!
+

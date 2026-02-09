@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_pure_black">
+
+    <!-- Hero Background Image (Underneath everything) -->
+    <!-- We might want the hero image to be part of the RecyclerView header, 
+         OR fixed at the top. Putting it in the Adapter is better for scrolling. 
+         So the RecyclerView handles the content. -->
+
+    <!-- Sidebar (Left) -->
+    <LinearLayout
+        android:id="@+id/sidebar"
+        android:layout_width="80dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="#E6000000"
+        android:gravity="center_horizontal"
+        android:paddingTop="32dp"
+        android:elevation="10dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <ImageView
+            android:id="@+id/btn_nav_search"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_search"
+            android:layout_marginBottom="32dp"
+            android:focusable="true"
+            android:background="@drawable/selector_menu_item"
+            android:padding="6dp"
+            app:tint="@color/white" />
+
+        <ImageView
+            android:id="@+id/btn_nav_home"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_home"
+            android:layout_marginBottom="32dp"
+            android:focusable="true"
+            android:background="@drawable/selector_menu_item"
+            android:padding="6dp"
+            app:tint="@color/brand_orange" />
+
+        <ImageView
+            android:id="@+id/btn_nav_live"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_live_tv"
+            android:layout_marginBottom="32dp"
+            android:focusable="true"
+            android:background="@drawable/selector_menu_item"
+            android:padding="6dp"
+            app:tint="@color/white" />
+
+        <ImageView
+            android:id="@+id/btn_nav_movies"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_movie"
+            android:layout_marginBottom="32dp"
+            android:focusable="true"
+            android:background="@drawable/selector_menu_item"
+            android:padding="6dp"
+            app:tint="@color/white" />
+
+        <ImageView
+            android:id="@+id/btn_nav_series"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_series"
+            android:layout_marginBottom="32dp"
+            android:focusable="true"
+            android:background="@drawable/selector_menu_item"
+            android:padding="6dp"
+            app:tint="@color/white" />
+            
+        <ImageView
+            android:id="@+id/btn_nav_debrid"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_dns"
+            android:layout_marginBottom="32dp"
+            android:focusable="true"
+            android:background="@drawable/selector_menu_item"
+            android:padding="6dp"
+            app:tint="@color/white" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <ImageView
+            android:id="@+id/btn_nav_settings"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_settings"
+            android:layout_marginBottom="32dp"
+            android:focusable="true"
+            android:background="@drawable/selector_menu_item"
+            android:padding="6dp"
+            app:tint="@color/white" />
+
+    </LinearLayout>
+
+    <!-- Main Content List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_home_sections"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingBottom="48dp"
+        app:layout_constraintStart_toEndOf="@+id/sidebar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <!-- Loading Indicator -->
+    <ProgressBar
+        android:id="@+id/pb_home_loading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/sidebar"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

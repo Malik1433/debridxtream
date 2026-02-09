@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 3D Button Selector -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true" android:drawable="@drawable/button_3d_active" />
+    <item android:state_focused="true" android:drawable="@drawable/button_3d_focused" />
+    <item android:drawable="@drawable/button_3d_default" />
+</selector>
+

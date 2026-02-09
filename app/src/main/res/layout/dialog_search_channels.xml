@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Search Dialog for Live Channels -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="800dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/surface_elevated"
+    android:padding="32dp">
+
+    <!-- Title -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Search Channels"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary_new"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Search Input -->
+    <EditText
+        android:id="@+id/et_search"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Type channel name or number..."
+        android:textSize="18sp"
+        android:textColor="@color/text_primary_new"
+        android:textColorHint="@color/text_tertiary"
+        android:background="@color/surface_dark"
+        android:padding="16dp"
+        android:inputType="text"
+        android:imeOptions="actionSearch"
+        android:focusable="true"
+        android:focusableInTouchMode="true" />
+
+    <!-- Quick Suggestions -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Quick tips: Type channel name (e.g., 'BBC', 'CNN') or number (e.g., '001')"
+        android:textSize="12sp"
+        android:textColor="@color/text_tertiary"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btn_clear"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Clear"
+            android:textColor="@color/text_primary_new"
+            android:background="@drawable/btn_secondary_outline"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:layout_marginEnd="16dp"
+            android:focusable="true" />
+
+        <Button
+            android:id="@+id/btn_close"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Close"
+            android:textColor="@color/text_primary_new"
+            android:background="@drawable/btn_primary_gradient"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:focusable="true" />
+    </LinearLayout>
+
+</LinearLayout>
+

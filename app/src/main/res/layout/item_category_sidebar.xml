@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="4dp"
+    android:layout_marginBottom="4dp"
+    android:layout_marginStart="0dp"
+    android:layout_marginEnd="0dp"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:background="@drawable/category_sidebar_selector">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingStart="24dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:gravity="center_vertical"
+        android:minHeight="56dp">
+
+        <!-- Active Indicator (Vertical Bar) -->
+        <View
+            android:id="@+id/v_active_indicator"
+            android:layout_width="4dp"
+            android:layout_height="32dp"
+            android:background="@color/ds_accent"
+            android:layout_marginEnd="16dp"
+            android:visibility="invisible" />
+
+        <!-- Category Name -->
+        <TextView
+            android:id="@+id/tv_category_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Category Name"
+            android:textColor="@color/ds_text_secondary"
+            android:textSize="18sp"
+            android:textStyle="normal"
+            android:fontFamily="sans-serif"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <!-- Count (Optional) -->
+        <TextView
+            android:id="@+id/tv_item_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="123"
+            android:textColor="@color/ds_text_tertiary"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</FrameLayout>

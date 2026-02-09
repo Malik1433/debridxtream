@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Focused State -->
+    <item android:state_focused="true" android:drawable="@drawable/bg_nav_item_professional" />
+    
+    <!-- Selected State -->
+    <item android:state_selected="true">
+        <shape>
+            <solid android:color="#1AFFD700" /> <!-- 10% Gold -->
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    
+    <!-- Pressed State -->
+    <item android:state_pressed="true">
+        <shape>
+            <solid android:color="#4DFFD700" /> <!-- 30% Gold -->
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+
+    <!-- Default State -->
+    <item>
+        <shape>
+            <solid android:color="@android:color/transparent" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+</selector>

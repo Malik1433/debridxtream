@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Selected State (Currently Playing) - PRIORITIZED -->
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFC107" /> <!-- Solid Gold -->
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+
+    <!-- Focused State (Navigation) -->
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#1AFFFFFF" /> <!-- Slight tint -->
+            <stroke
+                android:width="2dp"
+                android:color="#FFC107" /> <!-- Gold Border -->
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+
+    <!-- Pressed State (Touch) -->
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#26FFFFFF" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+
+    <!-- Default State (Idle) -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+            <stroke
+                android:width="1dp"
+                android:color="#1AFFFFFF" /> <!-- Subtle Border -->
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+
+</selector>
+

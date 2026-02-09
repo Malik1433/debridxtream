@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cinematic Background - Deep Purple to Dark Charcoal -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="315"
+        android:startColor="#1A1A2E"
+        android:centerColor="#16213E"
+        android:endColor="#0F3460"
+        android:type="linear" />
+    
+    <!-- Subtle overlay to add depth -->
+    <padding
+        android:left="0dp"
+        android:top="0dp"
+        android:right="0dp"
+        android:bottom="0dp" />
+</shape>

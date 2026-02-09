@@ -1,0 +1,271 @@
+package com.tvonnet.debridxtreamiptv.data.local.migrations
+
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+
+/**
+ * Database Migrations for Room
+ * Week 12: QA Recommendation - Proper migrations to preserve user data
+ */
+object DatabaseMigrations {
+    
+    /**
+     * Migration from version 4 to 5
+     * Week 12: Added name and iconUrl fields to favorites table
+     * 
+     * Changes:
+     * - Added 'name' column (TEXT NOT NULL with default empty string)
+     * - Added 'iconUrl' column (TEXT nullable)
+     * 
+     * This preserves existing user favorites while adding new fields
+     */
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add 'name' column with default empty string
+            // Note: Existing favorites will have empty name, but app will continue to work
+            db.execSQL(
+                "ALTER TABLE favorites ADD COLUMN name TEXT NOT NULL DEFAULT ''"
+            )
+            
+            // Add 'iconUrl' column (nullable)
+            db.execSQL(
+                "ALTER TABLE favorites ADD COLUMN iconUrl TEXT"
+            )
+            
+            android.util.Log.d("DatabaseMigration", "Successfully migrated database from version 4 to 5")
+        }
+    }
+    
+    /**
+     * Migration from version 5 to 6
+     * Phase 1: Database Infrastructure for VOD and Series
+     * 
+     * Changes:
+     * - Create 'vod_v2' table
+     * - Create 'series_v2' table
+     */
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create vod_v2 table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `vod_v2` (
+                    `streamId` TEXT NOT NULL,
+                    `name` TEXT,
+                    `streamIcon` TEXT,
+                    `rating` TEXT,
+                    `rating5based` REAL,
+                    `added` TEXT,
+                    `categoryId` TEXT,
+                    `category_ids` TEXT NOT NULL,
+                    `containerExtension` TEXT,
+                    `customSid` TEXT,
+                    `directSource` TEXT,
+                    `releaseDate` TEXT,
+                    `duration` TEXT,
+                    `plot` TEXT,
+                    `cast` TEXT,
+                    `director` TEXT,
+                    `genre` TEXT,
+                    `youtubeTrailer` TEXT,
+                    `cover` TEXT,
+                    `ratingImdb` TEXT,
+                    `num` INTEGER,
+                    `cachedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`streamId`)
+                )
+            """)
+            
+            // Create series_v2 table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `series_v2` (
+                    `seriesId` TEXT NOT NULL,
+                    `name` TEXT,
+                    `cover` TEXT,
+                    `plot` TEXT,
+                    `cast` TEXT,
+                    `director` TEXT,
+                    `genre` TEXT,
+                    `releaseDate` TEXT,
+                    `rating` TEXT,
+                    `rating5based` REAL,
+                    `categoryId` TEXT,
+                    `category_ids` TEXT NOT NULL,
+                    `backdrop_path` TEXT NOT NULL,
+                    `youtube_trailer` TEXT,
+                    `num` INTEGER,
+                    `cachedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`seriesId`)
+                )
+            """)
+            
+            android.util.Log.d("DatabaseMigration", "Successfully migrated database from version 5 to 6")
+        }
+    }
+    
+    /**
+     * Migration from version 6 to 7
+     * Phase 2: Series Architecture (Seasons & Episodes)
+     *
+     * Changes:
+     * - Create 'seasons' table
+     * - Create 'episodes' table
+     */
+    val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create seasons table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `seasons` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `seriesId` TEXT NOT NULL,
+                    `seasonNumber` INTEGER NOT NULL,
+                    `name` TEXT,
+                    `overview` TEXT,
+                    `airDate` TEXT,
+                    `cover` TEXT,
+                    FOREIGN KEY(`seriesId`) REFERENCES `series_v2`(`seriesId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """)
+            
+            // Create index on seriesId for seasons
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_seasons_seriesId` ON `seasons` (`seriesId`)")
+
+            // Create episodes table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `episodes` (
+                    `episodeId` TEXT NOT NULL,
+                    `seriesId` TEXT NOT NULL,
+                    `seasonNumber` INTEGER NOT NULL,
+                    `episodeNumber` INTEGER NOT NULL,
+                    `title` TEXT,
+                    `containerExtension` TEXT,
+                    `streamType` TEXT,
+                    `durationSecs` TEXT,
+                    `added` TEXT,
+                    `customSid` TEXT,
+                    `directSource` TEXT,
+                    `thumbnail` TEXT,
+                    `plot` TEXT,
+                    `cast` TEXT,
+                    `director` TEXT,
+                    `genre` TEXT,
+                    `releaseDate` TEXT,
+                    `rating` TEXT,
+                    PRIMARY KEY(`episodeId`),
+                    FOREIGN KEY(`seriesId`) REFERENCES `series_v2`(`seriesId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """)
+            
+            // Create index on seriesId for episodes
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_episodes_seriesId` ON `episodes` (`seriesId`)")
+            
+            android.util.Log.d("DatabaseMigration", "Successfully migrated database from version 6 to 7")
+        }
+    }
+
+    /**
+     * Get all available migrations
+     * Add new migrations here as they are created
+     */
+    fun getAllMigrations(): Array<Migration> {
+        return arrayOf(
+            MIGRATION_4_5,
+            MIGRATION_5_6,
+            MIGRATION_6_7,
+            MIGRATION_7_8,
+            MIGRATION_8_9,
+            MIGRATION_9_10
+        )
+    }
+
+    /**
+     * Migration from version 7 to 8
+     * Phase 3: Episode Tracking
+     *
+     * Changes:
+     * - Add 'is_watched' (INTEGER/BOOLEAN)
+     * - Add 'resume_position' (INTEGER)
+     * - Add 'duration' (INTEGER)
+     */
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE episodes ADD COLUMN is_watched INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE episodes ADD COLUMN resume_position INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE episodes ADD COLUMN duration INTEGER NOT NULL DEFAULT 0")
+            android.util.Log.d("DatabaseMigration", "Successfully migrated database from version 7 to 8")
+        }
+    }
+    
+    /**
+     * Migration from version 8 to 9
+     * Phase 3: High Performance Series Engine (V2)
+     *
+     * Changes:
+     * - Create 'series_v2_core' table strict schema
+     */
+    val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+             db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `series_v2_core` (
+                    `series_id` TEXT NOT NULL,
+                    `num` INTEGER,
+                    `name` TEXT,
+                    `title` TEXT,
+                    `year` TEXT,
+                    `stream_type` TEXT,
+                    `cover` TEXT,
+                    `plot` TEXT,
+                    `cast` TEXT,
+                    `director` TEXT,
+                    `genre` TEXT,
+                    `release_date` TEXT,
+                    `rating` TEXT,
+                    `rating_5based` REAL,
+                    `backdrop_path` TEXT NOT NULL,
+                    `youtube_trailer` TEXT,
+                    `episode_run_time` TEXT,
+                    `category_id` TEXT,
+                    `last_modified` TEXT,
+                    `cached_at` INTEGER NOT NULL,
+                    PRIMARY KEY(`series_id`)
+                )
+            """)
+            android.util.Log.d("DatabaseMigration", "Successfully migrated database from version 8 to 9")
+        }
+    }
+
+    val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+             db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `episodes_v2_core` (
+                    `episode_id` TEXT NOT NULL,
+                    `series_id` TEXT NOT NULL,
+                    `season_number` INTEGER NOT NULL,
+                    `episode_number` INTEGER NOT NULL,
+                    `title` TEXT,
+                    `container_extension` TEXT,
+                    `stream_type` TEXT,
+                    `duration_secs` TEXT,
+                    `added` TEXT,
+                    `custom_sid` TEXT,
+                    `direct_source` TEXT,
+                    `thumbnail` TEXT,
+                    `plot` TEXT,
+                    `cast` TEXT,
+                    `director` TEXT,
+                    `genre` TEXT,
+                    `release_date` TEXT,
+                    `rating` TEXT,
+                    `is_watched` INTEGER NOT NULL DEFAULT 0,
+                    `resume_position` INTEGER NOT NULL DEFAULT 0,
+                    `duration` INTEGER NOT NULL DEFAULT 0,
+                    `cached_at` INTEGER NOT NULL,
+                    PRIMARY KEY(`episode_id`),
+                    FOREIGN KEY(`series_id`) REFERENCES `series_v2_core`(`series_id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """)
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_episodes_v2_core_series_id` ON `episodes_v2_core` (`series_id`)")
+            android.util.Log.d("DatabaseMigration", "Successfully migrated database from version 9 to 10")
+        }
+    }
+}
+

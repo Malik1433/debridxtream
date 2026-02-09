@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Intense outer glow -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="16dp" />
+            <gradient
+                android:startColor="#803A7BFF"
+                android:centerColor="#663A7BFF"
+                android:endColor="#003A7BFF"
+                android:angle="270" />
+        </shape>
+    </item>
+
+    <!-- Deep shadow for lifted effect -->
+    <item android:bottom="12dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="14dp" />
+            <gradient
+                android:startColor="#66000000"
+                android:endColor="#00000000"
+                android:angle="90" />
+        </shape>
+    </item>
+
+    <!-- Primary surface with accent border -->
+    <item android:left="2dp" android:right="2dp" android:top="2dp" android:bottom="6dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="12dp" />
+            <gradient
+                android:startColor="#FF3F445E"
+                android:centerColor="#FF2B2F49"
+                android:endColor="#FF1D1E30"
+                android:angle="270" />
+            <stroke
+                android:width="2dp"
+                android:color="@color/ds_accent_blue" />
+        </shape>
+    </item>
+
+    <!-- Inner highlight for glass effect -->
+    <item android:left="8dp" android:right="8dp" android:top="8dp" android:bottom="12dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="8dp" />
+            <gradient
+                android:startColor="#40FFFFFF"
+                android:endColor="#00000000"
+                android:angle="270" />
+        </shape>
+    </item>
+
+</layer-list>
+

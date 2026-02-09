@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DebridXtream - MI IPTV Style Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif !important;
+            background: linear-gradient(135deg, #1E1E1E 0%, #252525 50%, #2A2A2A 100%);
+            color: #FFFFFF;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            padding: 32px 24px 28px;
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ========== HEADER ========== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .app-title {
+            font-size: 28px;
+            font-weight: 900;
+            color: #FFC107;
+            letter-spacing: 0.05em;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.6);
+        }
+
+        .header-icons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 200ms ease;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        /* ========== NAVIGATION BUTTONS ========== */
+        .nav-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+
+        .nav-btn {
+            position: relative;
+            min-width: 160px;
+            height: 56px;
+            padding: 0 28px;
+            border-radius: 18px;
+            border: 1.5px solid rgba(119, 92, 255, 0.6);
+            background: linear-gradient(180deg, #291d48 0%, #1c1832 55%, #121021 100%);
+            backdrop-filter: blur(24px);
+            color: #f4f8ff;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: all 260ms cubic-bezier(0.37, 0, 0.63, 1);
+            box-shadow: none;
+                        overflow: hidden;
+        }
+
+        .nav-btn::before {
+            content: "";
+            position: absolute;
+            inset: 1px;
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.14) 48%, rgba(255,255,255,0.02) 100%);
+            opacity: 0.9;
+            transition: inherit;
+        }
+
+        .nav-btn::after {
+            content: "";
+            position: absolute;
+            top: -120%;
+            left: -30%;
+            width: 60%;
+            height: 220%;
+            background: linear-gradient(120deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.75) 50%, rgba(255, 255, 255, 0) 100%);
+            transform: skewX(-20deg);
+            opacity: 0;
+            transition: opacity 280ms ease, transform 400ms ease;
+        }
+
+        .nav-btn:hover::after,
+        .nav-btn:focus::after {
+            opacity: 1;
+            transform: translateX(220%) skewX(-20deg);
+        }
+
+        .nav-btn:hover,
+        .nav-btn:focus {
+            transform: none;
+            box-shadow: none;
+            border-color: rgba(79, 140, 246, 0.65); background: linear-gradient(180deg, #2a4bbf 0%, #1f3a9a 100%);
+        }
+
+        .nav-btn:active,
+        .nav-btn.active {
+            transform: none;
+            box-shadow: none;
+            border-color: rgba(59, 130, 246, 0.65); background: linear-gradient(180deg, #3b6cf4 0%, #2857d1 100%);
+            color: #f4f8ff;
+        }
+
+        /* ========== DIVIDER ========== */
+        .divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 16px 0;
+        }
+
+        /* ========== CONTENT SECTIONS ========== */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .content::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .section {
+            margin-bottom: 12px;
+        }
+
+        .section-header {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .cards-row {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        .cards-row::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .cards-row::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+
+        .cards-row::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        /* ========== FEATURED CARDS (16:9) ========== */
+        .featured-card {
+            min-width: 200px;
+            height: 112px;
+            background: #2C2C2C;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            transition: all 250ms ease-out;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .featured-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.08);
+            pointer-events: none;
+        }
+
+        .featured-card:hover,
+        .featured-card:focus {
+            transform: scale(1.08);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 20px rgba(96, 165, 250, 0.5);
+        }
+
+        .featured-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.9;
+        }
+
+        .featured-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+            padding: 8px 12px;
+        }
+
+        .featured-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .featured-meta {
+            font-size: 11px;
+            color: #CCCCCC;
+        }
+
+        /* ========== CONTENT CARDS (2:3 Poster) ========== */
+        .content-card {
+            min-width: 110px;
+            height: 160px;
+            background: #2C2C2C;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            transition: all 250ms ease-out;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+        }
+
+        .content-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.08);
+            pointer-events: none;
+        }
+
+        .content-card:hover,
+        .content-card:focus {
+            transform: scale(1.08);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 16px rgba(96, 165, 250, 0.5);
+        }
+
+        .content-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.9;
+        }
+
+        .badge-new {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: #FF8C00;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 4px;
+                        animation: pulse 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+
+        .card-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+            padding: 8px;
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-meta {
+            font-size: 11px;
+            color: #CCCCCC;
+        }
+
+        /* ========== CHANNEL CARDS (Square) ========== */
+        .channel-card {
+            min-width: 100px;
+            height: 100px;
+            background: #2C2C2C;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 250ms ease-out;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+            position: relative;
+        }
+
+        .channel-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            pointer-events: none;
+        }
+
+        .channel-card:hover,
+        .channel-card:focus {
+            transform: scale(1.08);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 16px rgba(96, 165, 250, 0.5);
+        }
+
+        .channel-logo {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            filter: brightness(1.1);
+        }
+
+        /* ========== PROGRESS BAR ========== */
+        .progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #FFC107;
+            transition: width 400ms ease-out;
+        }
+
+        .progress-text {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #FFC107;
+            font-weight: 500;
+        }
+
+        /* ========== HEART ICON ========== */
+        .heart-icon {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            color: #E50914;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="app-title">DebridXtream</div>
+            <div class="header-icons">
+                <div class="icon-btn">
+                    <i data-lucide="search" size="20" stroke-width="2"></i>
+                </div>
+                <div class="icon-btn">
+                    <i data-lucide="settings" size="20" stroke-width="2"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="nav-buttons">
+            <button class="nav-btn active">LIVE TV</button>
+            <button class="nav-btn">MOVIES</button>
+            <button class="nav-btn">SERIES</button>
+            <button class="nav-btn">DEBRID</button>
+        </div>
+
+        <!-- Divider -->
+        <div class="divider"></div>
+
+        <!-- Content Sections -->
+        <div class="content">
+            <!-- Featured Content -->
+            <div class="section">
+                <div class="section-header">FEATURED CONTENT</div>
+                <div class="cards-row">
+                    <div class="featured-card">
+                        <img src="https://placehold.co/200x112/2C2C2C/FFFFFF?text=Movie+1" alt="Featured 1">
+                        <div class="featured-info">
+                            <div class="featured-title">Action Thriller</div>
+                            <div class="featured-meta">⭐ 8.5 | 2h 15m</div>
+                        </div>
+                    </div>
+                    <div class="featured-card">
+                        <img src="https://placehold.co/200x112/2C2C2C/FFFFFF?text=Series+1" alt="Featured 2">
+                        <div class="featured-info">
+                            <div class="featured-title">Sci-Fi Series</div>
+                            <div class="featured-meta">⭐ 9.1 | S01E05</div>
+                        </div>
+                    </div>
+                    <div class="featured-card">
+                        <img src="https://placehold.co/200x112/2C2C2C/FFFFFF?text=Channel" alt="Featured 3">
+                        <div class="featured-info">
+                            <div class="featured-title">Sports Channel</div>
+                            <div class="featured-meta">🔴 LIVE</div>
+                        </div>
+                    </div>
+                    <div class="featured-card">
+                        <img src="https://placehold.co/200x112/2C2C2C/FFFFFF?text=Movie+2" alt="Featured 4">
+                        <div class="featured-info">
+                            <div class="featured-title">Adventure</div>
+                            <div class="featured-meta">⭐ 7.9 | 2h 05m</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Arrivals -->
+            <div class="section">
+                <div class="section-header">NEW ARRIVALS</div>
+                <div class="cards-row">
+                    <div class="content-card">
+                        <span class="badge-new">NEW</span>
+                        <img src="https://placehold.co/110x160/2C2C2C/FFFFFF?text=New+1" alt="New 1">
+                        <div class="card-info">
+                            <div class="card-title">The Avenger</div>
+                            <div class="card-meta">2024 | HD</div>
+                        </div>
+                    </div>
+                    <div class="content-card">
+                        <span class="badge-new">NEW</span>
+                        <img src="https://placehold.co/110x160/2C2C2C/FFFFFF?text=New+2" alt="New 2">
+                        <div class="card-info">
+                            <div class="card-title">Breaking Now</div>
+                            <div class="card-meta">2024 | 4K</div>
+                        </div>
+                    </div>
+                    <div class="content-card">
+                        <span class="badge-new">NEW</span>
+                        <img src="https://placehold.co/110x160/2C2C2C/FFFFFF?text=New+3" alt="New 3">
+                        <div class="card-info">
+                            <div class="card-title">Dark Knight</div>
+                            <div class="card-meta">2024 | HD</div>
+                        </div>
+                    </div>
+                    <div class="content-card">
+                        <span class="badge-new">NEW</span>
+                        <img src="https://placehold.co/110x160/2C2C2C/FFFFFF?text=New+4" alt="New 4">
+                        <div class="card-info">
+                            <div class="card-title">Stranger</div>
+                            <div class="card-meta">2024 | 4K</div>
+                        </div>
+                    </div>
+                    <div class="content-card">
+                        <span class="badge-new">NEW</span>
+                        <img src="https://placehold.co/110x160/2C2C2C/FFFFFF?text=New+5" alt="New 5">
+                        <div class="card-info">
+                            <div class="card-title">Lost in Time</div>
+                            <div class="card-meta">2024 | HD</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Continue Watching -->
+            <div class="section">
+                <div class="section-header">CONTINUE WATCHING</div>
+                <div class="cards-row">
+                    <div class="content-card">
+                        <img src="https://placehold.co/110x160/2C2C2C/FFFFFF?text=Movie" alt="Continue 1">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 65%"></div>
+                        </div>
+                        <div class="progress-text">65% • 45m left</div>
+                        <div class="card-info">
+                            <div class="card-title">Action Film</div>
+                            <div class="card-meta">2023 | HD</div>
+                        </div>
+                    </div>
+                    <div class="content-card">
+                        <img src="https://placehold.co/110x160/2C2C2C/FFFFFF?text=Series" alt="Continue 2">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 85%"></div>
+                        </div>
+                        <div class="progress-text">85% • 10m left</div>
+                        <div class="card-info">
+                            <div class="card-title">Drama S01E05</div>
+                            <div class="card-meta">2023 | HD</div>
+                        </div>
+                    </div>
+                    <div class="content-card">
+                        <img src="https://placehold.co/110x160/2C2C2C/FFFFFF?text=Movie" alt="Continue 3">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 25%"></div>
+                        </div>
+                        <div class="progress-text">25% • 1h left</div>
+                        <div class="card-info">
+                            <div class="card-title">Thriller</div>
+                            <div class="card-meta">2022 | 4K</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recently Watched -->
+            <div class="section">
+                <div class="section-header">RECENTLY WATCHED</div>
+                <div class="cards-row">
+                    <div class="channel-card">
+                        <div class="channel-logo" style="background: #E50914; color: white; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: 900; font-size: 20px;">BBC</div>
+                    </div>
+                    <div class="channel-card">
+                        <div class="channel-logo" style="background: #FF8C00; color: white; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: 900; font-size: 18px;">ESPN</div>
+                    </div>
+                    <div class="channel-card">
+                        <div class="channel-logo" style="background: #8A2BE2; color: white; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: 900; font-size: 20px;">HBO</div>
+                    </div>
+                    <div class="channel-card">
+                        <div class="channel-logo" style="background: #4A90E2; color: white; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: 900; font-size: 20px;">CNN</div>
+                    </div>
+                    <div class="channel-card">
+                        <div class="channel-logo" style="background: #50E3C2; color: black; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: 900; font-size: 20px;">FOX</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- My Favorites -->
+            <div class="section">
+                <div class="section-header">MY FAVORITES</div>
+                <div class="cards-row">
+                    <div class="content-card">
+                        <i data-lucide="heart" class="heart-icon" fill="#E50914" size="20"></i>
+                        <img src="https://placehold.co/110x160/2C2C2C/FFFFFF?text=Fav+1" alt="Favorite 1">
+                        <div class="card-info">
+                            <div class="card-title">Inception</div>
+                            <div class="card-meta">Movie • 2010</div>
+                        </div>
+                    </div>
+                    <div class="content-card">
+                        <i data-lucide="heart" class="heart-icon" fill="#E50914" size="20"></i>
+                        <img src="https://placehold.co/110x160/2C2C2C/FFFFFF?text=Fav+2" alt="Favorite 2">
+                        <div class="card-info">
+                            <div class="card-title">Game of Thrones</div>
+                            <div class="card-meta">Series • 2011</div>
+                        </div>
+                    </div>
+                    <div class="content-card">
+                        <i data-lucide="heart" class="heart-icon" fill="#E50914" size="20"></i>
+                        <img src="https://placehold.co/110x160/2C2C2C/FFFFFF?text=Fav+3" alt="Favorite 3">
+                        <div class="card-info">
+                            <div class="card-title">Breaking Bad</div>
+                            <div class="card-meta">Series • 2008</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Button interactions
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // Card focus simulation
+        document.querySelectorAll('.featured-card, .content-card, .channel-card').forEach(card => {
+            card.setAttribute('tabindex', '0');
+        });
+    </script>
+</body>
+</html>
+

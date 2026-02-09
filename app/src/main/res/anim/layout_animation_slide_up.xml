@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Week 13: Layout animation for RecyclerView items - slide up on appear -->
+<layoutAnimation xmlns:android="http://schemas.android.com/apk/res/android"
+    android:animation="@anim/item_animation_slide_up"
+    android:animationOrder="normal"
+    android:delay="0.1" />
+

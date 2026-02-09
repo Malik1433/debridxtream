@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Focused State -->
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <!-- Thinner, cleaner Gold Border -->
+            <stroke android:width="1.5dp" android:color="#FFD700" />
+            <corners android:radius="12dp" />
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+    
+    <!-- Pressed State -->
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <stroke android:width="2dp" android:color="@color/cinematic_gold" />
+            <corners android:radius="12dp" />
+            <solid android:color="@color/cinematic_card_bg_focus" />
+        </shape>
+    </item>
+    
+    <!-- Default State -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="12dp" />
+            <solid android:color="@color/cinematic_card_bg" />
+            <!-- Subtle border to define shape typically handled by elevation, but added here for contrast -->
+            <stroke android:width="0.5dp" android:color="#33FFFFFF" />
+        </shape>
+    </item>
+</selector>

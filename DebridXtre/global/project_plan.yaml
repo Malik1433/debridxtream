@@ -1,0 +1,62 @@
+# PROJECT PLAN (Android TV IPTV, multi-agent, TV-first)
+
+step-01: init android tv project
+  - create kotlin android tv / leanback project
+  - appId: com.tvonnet.debridxtreamiptv
+  - main activity + fragment container
+  - build once
+
+step-02: add core deps
+  - retrofit, okhttp logging, gson
+  - exoplayer (core + ui)
+  - glide
+  - (optional) room
+  - re-sync / re-build
+
+step-03: login ui (tv)
+  - tv-friendly login fragment (server, username, password)
+  - D-pad focusable fields
+  - on success -> go to home shell
+
+step-04: base shell ui
+  - left vertical menu: Live TV, Movies, Series, Settings
+  - right content area = fragment container
+  - 4 fragments with placeholder text
+  - focus map defined (nextFocusLeft/Right/Up/Down)
+
+step-05: xtream data layer
+  - data/remote/XtreamApiService
+  - XtreamRetrofitClient
+  - XtreamRepository (DEFENSIVE)
+
+step-06: fetch + cache + epg
+  - get_live_categories
+  - get_vod_categories
+  - get_series_categories
+  - get_epg
+  - write all to /files/iptv_cache.json
+  - if epg fails -> continue
+  - read helper
+
+step-07: bind ui to cache
+  - Live fragment loads from cache
+  - VOD fragment loads from cache
+  - Series fragment loads from cache
+
+step-08: player activity
+  - standalone ExoPlayer activity
+  - receive STREAM_URL, STREAM_TITLE
+  - release onBackPressed
+
+step-09: settings + refresh
+  - manual refresh button
+  - refresh interval: 12h / 24h / 48h
+
+step-10: gradle validation
+  - run gradle validator agent
+  - fix missing imports
+
+FUTURE-PHASES:
+  - phase-2: multi-playlist / multi-account selector at startup
+  - phase-3: TMDB metadata enrichment and artwork fallback
+  - phase-4: Debrid (Real-Debrid/AllDebrid) integration for VOD/Series

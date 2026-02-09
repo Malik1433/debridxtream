@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Enhanced Category Pill with Icon -->
+<LinearLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="56dp"
+    android:orientation="horizontal"
+    android:gravity="center"
+    android:background="@drawable/category_pill_selector"
+    android:paddingStart="24dp"
+    android:paddingEnd="24dp"
+    android:layout_marginEnd="12dp"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:clickable="true"
+    android:stateListAnimator="@animator/category_pill_animator"
+    android:nextFocusDown="@+id/rv_channels">
+
+    <!-- Category Icon -->
+    <TextView
+        android:id="@+id/tv_category_icon"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="📺"
+        android:textSize="20sp"
+        android:layout_marginEnd="8dp" />
+
+    <!-- Category Name -->
+    <TextView
+        android:id="@+id/tv_category_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="All"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary_new" />
+
+</LinearLayout>
+
