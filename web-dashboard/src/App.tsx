@@ -157,7 +157,7 @@ export default function App() {
                     </div>
                 </div>
                 <h1 className="text-4xl md:text-5xl font-bold text-gold-primary mb-3 tracking-tight">
-                    DX Companion
+                    DX Companion <span className="text-xs align-top opacity-50">v2.0</span>
                 </h1>
                 <p className="text-white/50 text-base md:text-lg max-w-sm mx-auto leading-relaxed">
                     Premium Setup Portal for DebridXtream
