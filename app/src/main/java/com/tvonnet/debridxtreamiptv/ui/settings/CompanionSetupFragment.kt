@@ -107,15 +107,19 @@ class CompanionSetupFragment : Fragment() {
     }
 
     private fun setupUI() {
+        // Use the deployed Vercel Dashboard URL
+        val dashboardUrl = "https://web-dashboard-five-iota.vercel.app"
+        tvServerUrl.text = "Visit: $dashboardUrl"
+        generateQrCode(dashboardUrl)
+        
+        // Optional: Show local IP as backup or status
         val ipAddress = getLocalIpAddress()
         if (ipAddress != null) {
-            val fullUrl = "http://$ipAddress:8085"
-            tvServerUrl.text = fullUrl
-            generateQrCode(fullUrl)
+            tvStatus.text = "TV IP: $ipAddress (Server Running)"
+            vStatusIndicator.setBackgroundColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.success_green))
         } else {
-            tvServerUrl.text = "WiFi Disconnected"
-            tvStatus.text = "Please connect to WiFi"
-            vStatusIndicator.setBackgroundColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.error_red))
+            tvStatus.text = "WiFi Disconnected (Remote Pair Only)"
+             vStatusIndicator.setBackgroundColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.error_red))
         }
     }
 

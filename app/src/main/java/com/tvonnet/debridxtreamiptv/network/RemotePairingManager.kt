@@ -8,8 +8,10 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,9 +27,9 @@ class RemotePairingManager @Inject constructor(
 
     private var pollingJob: Job? = null
     
-    // Placeholder relay server - this should ideally be your own hosted relay
-    // For demonstration, we'll use a conceptual endpoint.
-    private val RELAY_URL = "https://relay.debridxtream.com/api"
+    // Firebase Realtime Database URL (REST API)
+    // NOTE: User should ideally replace this with their own Firebase URL
+    private val FIREBASE_BASE_URL = "https://debridxtream-default-rtdb.firebaseio.com"
 
     sealed class PairingState {
         object Idle : PairingState()
@@ -38,26 +40,57 @@ class RemotePairingManager @Inject constructor(
     }
 
     /**
-     * Generates a unique 6-digit alphanumeric pairing code based on the Device ID.
-     * Use Math.abs() to ensure we don't get 000000 for negative hashes.
+     * Generates a pairing code and REGISTERS it in Firebase.
      */
-    fun generatePairingCode(): String {
+    fun generateAndRegisterCode(): String {
         val deviceId = credentialsPreferences.getDeviceId()
-        // Use the absolute value of the hash code and take the last 6 digits for variability
         val hash = kotlin.math.abs(deviceId.hashCode())
         val code = hash.toString().padStart(6, '0').takeLast(6)
+        
         _pairingState.value = PairingState.Generated(code)
+        
+        // Register in Firebase so Web Dashboard can validate it
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val registrationPayload = mapOf(
+                    "status" to "pairing",
+                    "deviceId" to deviceId,
+                    "timestamp" to System.currentTimeMillis()
+                )
+                
+                val body = gson.toJson(registrationPayload).toRequestBody("application/json".toMediaType())
+                val request = Request.Builder()
+                    .url("$FIREBASE_BASE_URL/pairings/$code.json")
+                    .put(body)
+                    .build()
+
+                val response = okHttpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    Log.d("RemotePairing", "Pairing code $code registered in Firebase")
+                } else {
+                    Log.e("RemotePairing", "Firebase registration failed: ${response.code}")
+                }
+            } catch (e: Exception) {
+                Log.e("RemotePairing", "Error registering code", e)
+            }
+        }
+        
         return code
     }
 
     /**
-     * Starts polling the relay server for configuration associated with this device.
+     * Backward compatibility or default method name used in fragments
+     */
+    fun generatePairingCode(): String = generateAndRegisterCode()
+
+    /**
+     * Starts listening (via polling) for a "synced" status in Firebase.
      */
     fun startPolling() {
+        // If already polling, don't start another
         if (_pairingState.value is PairingState.Polling) return
         
-        val deviceId = credentialsPreferences.getDeviceId()
-        val code = (_pairingState.value as? PairingState.Generated)?.code ?: generatePairingCode()
+        val code = (_pairingState.value as? PairingState.Generated)?.code ?: generateAndRegisterCode()
         
         _pairingState.value = PairingState.Polling
         
@@ -65,45 +98,57 @@ class RemotePairingManager @Inject constructor(
         pollingJob = CoroutineScope(Dispatchers.IO).launch {
             while (isActive) {
                 try {
-                    Log.d("RemotePairing", "Polling relay for code: $code")
+                    Log.d("RemotePairing", "Checking Firebase for sync: $code")
                     
                     val request = Request.Builder()
-                        .url("$RELAY_URL/pair/poll?code=$code")
+                        .url("$FIREBASE_BASE_URL/pairings/$code.json")
+                        .get()
                         .build()
 
                     val response = okHttpClient.newCall(request).execute()
                     
                     if (response.isSuccessful) {
                         val body = response.body?.string()
-                        if (!body.isNullOrBlank()) {
-                            // Check if we got a waiting status or actual config
-                            if (body.contains("\"status\":\"waiting\"")) {
-                                // Still waiting, do nothing
-                            } else {
-                                // Try to parse config
-                                try {
-                                    val payload = gson.fromJson(body, CompanionConfigPayload::class.java)
-                                    withContext(Dispatchers.Main) {
-                                        handleConfigPayload(payload)
-                                        stopPolling() // Stop after success
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("RemotePairing", "Failed to parse payload", e)
+                        if (!body.isNullOrBlank() && body != "null") {
+                            val data = gson.fromJson(body, Map::class.java)
+                            
+                            // Check if status transitioned to "synced"
+                            if (data["status"] == "synced") {
+                                val configStr = gson.toJson(data["config"])
+                                val payload = gson.fromJson(configStr, CompanionConfigPayload::class.java)
+                                
+                                withContext(Dispatchers.Main) {
+                                    handleConfigPayload(payload)
+                                    // Cleanup Firebase node after successful sync
+                                    deletePairingNode(code)
+                                    stopPolling()
                                 }
+                                break
                             }
                         }
-                    } else {
-                        Log.w("RemotePairing", "Poll failed: ${response.code}")
                     }
                     
-                    // Delay for 5 seconds between polls
-                    delay(5000)
+                    // Frequent poll for "real-time" feel (2 seconds)
+                    delay(2000)
                     
                 } catch (e: Exception) {
-                    Log.e("RemotePairing", "Polling error", e)
-                    // Don't stop on network error, just wait and retry
-                    delay(10000) 
+                    Log.e("RemotePairing", "Firebase poll error", e)
+                    delay(5000) 
                 }
+            }
+        }
+    }
+
+    private fun deletePairingNode(code: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val request = Request.Builder()
+                    .url("$FIREBASE_BASE_URL/pairings/$code.json")
+                    .delete()
+                    .build()
+                okHttpClient.newCall(request).execute()
+            } catch (e: Exception) {
+                Log.e("RemotePairing", "Failed to delete pairing node", e)
             }
         }
     }
@@ -113,12 +158,7 @@ class RemotePairingManager @Inject constructor(
         _pairingState.value = PairingState.Idle
     }
 
-    /**
-     * Directly injects a payload into the app's preferences.
-     * This is called when the polling (or a hypothetical push) receives data.
-     */
     fun handleConfigPayload(payload: CompanionConfigPayload) {
-        // reuse the logic from CompanionConfigServer
         payload.iptv?.let { iptv ->
             if (iptv.serverUrl.isNotBlank() && iptv.username.isNotBlank()) {
                 credentialsPreferences.saveCredentials(
@@ -141,3 +181,4 @@ class RemotePairingManager @Inject constructor(
         _pairingState.value = PairingState.Success("Credentials synced remotely!")
     }
 }
+

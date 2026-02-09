@@ -8,10 +8,10 @@
     <!-- Logo -->
     <ImageView
         android:id="@+id/iv_logo"
-        android:layout_width="300dp"
-        android:layout_height="120dp"
-        android:layout_marginTop="64dp"
-        android:layout_marginBottom="32dp"
+        android:layout_width="260dp"
+        android:layout_height="100dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="16dp"
         android:src="@drawable/ic_login_logo"
         android:contentDescription="App Logo"
         android:scaleType="fitCenter"
@@ -21,129 +21,199 @@
         app:layout_constraintBottom_toTopOf="@+id/card_login_container"
         app:layout_constraintVertical_chainStyle="packed" />
 
-    <!-- Glassmorphism Container -->
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
         android:id="@+id/card_login_container"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="128dp"
-        android:background="@drawable/bg_glass_panel"
-        android:padding="32dp"
+        android:layout_marginHorizontal="64dp"
+        android:orientation="horizontal"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/iv_logo"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintWidth_max="600dp">
+        app:layout_constraintWidth_max="900dp">
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/til_server_url"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-            android:layout_width="match_parent"
+        <!-- Left Column: Manual Login -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:hint="Server URL"
-            app:startIconDrawable="@drawable/ic_dns"
-            app:startIconTint="#FFFFFF"
-            android:textColorHint="#B3FFFFFF"
-            app:boxStrokeColor="#FFFFFF"
-            app:boxStrokeWidth="1dp"
-            app:hintTextColor="#FFFFFF"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            android:layout_weight="1"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/bg_glass_panel"
+            android:padding="16dp">
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/et_server_url"
+            <TextView
+                android:id="@+id/tv_manual_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Manual Login"
+                android:textColor="#FFD700"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_server_url"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="textUri"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
-                android:nextFocusDown="@id/et_username" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:layout_marginTop="24dp"
+                android:hint="Server URL"
+                app:startIconDrawable="@drawable/ic_dns"
+                app:layout_constraintTop_toBottomOf="@id/tv_manual_title">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_server_url"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textUri"
+                    android:textColor="#FFFFFF" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/til_username"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:hint="Username"
-            app:startIconDrawable="@drawable/ic_person"
-            app:startIconTint="#FFFFFF"
-            android:textColorHint="#B3FFFFFF"
-            app:boxStrokeColor="#FFFFFF"
-            app:boxStrokeWidth="1dp"
-            app:hintTextColor="#FFFFFF"
-            app:layout_constraintTop_toBottomOf="@id/til_server_url"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/et_username"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_username"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="text"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
-                android:nextFocusDown="@id/et_password" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:layout_marginTop="16dp"
+                android:hint="Username"
+                app:startIconDrawable="@drawable/ic_person"
+                app:layout_constraintTop_toBottomOf="@id/til_server_url">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_username"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:textColor="#FFFFFF" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/til_password"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:hint="Password"
-            app:startIconDrawable="@drawable/ic_lock"
-            app:startIconTint="#FFFFFF"
-            android:textColorHint="#B3FFFFFF"
-            app:boxStrokeColor="#FFFFFF"
-            app:boxStrokeWidth="1dp"
-            app:hintTextColor="#FFFFFF"
-            app:endIconMode="password_toggle"
-            app:endIconTint="#FFFFFF"
-            app:layout_constraintTop_toBottomOf="@id/til_username"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/et_password"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_password"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="textPassword"
+                android:layout_marginTop="16dp"
+                android:hint="Password"
+                app:startIconDrawable="@drawable/ic_lock"
+                app:endIconMode="password_toggle"
+                app:layout_constraintTop_toBottomOf="@id/til_username">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_password"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPassword"
+                    android:textColor="#FFFFFF" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_login"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:background="@drawable/btn_login_modern"
+                android:text="Login"
                 android:textColor="#FFFFFF"
-                android:textSize="16sp"
-                android:imeOptions="actionDone"
-                android:nextFocusDown="@id/btn_login" />
-        </com.google.android.material.textfield.TextInputLayout>
+                app:layout_constraintTop_toBottomOf="@id/til_password" />
 
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btn_login"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="48dp"
-            android:background="@drawable/btn_login_modern"
-            android:text="Login"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textAllCaps="true"
-            app:layout_constraintTop_toBottomOf="@id/til_password"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <ProgressBar
-            android:id="@+id/progress_bar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:indeterminateTint="#FFFFFF"
-            android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/btn_login"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-            
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        <!-- Right Column: Remote Pairing -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/panel_remote_setup"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/bg_glass_panel"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/tv_remote_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Setup from Anywhere"
+                android:textColor="#FFD700"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_remote_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Visit: web-dashboard-five-iota.vercel.app\nAnd enter the code below:"
+                android:textColor="#B3FFFFFF"
+                android:textSize="14sp"
+                app:layout_constraintTop_toBottomOf="@id/tv_remote_title" />
+
+            <!-- Pairing Code Display -->
+            <TextView
+                android:id="@+id/tv_pairing_code"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_code_box"
+                android:paddingHorizontal="24dp"
+                android:paddingVertical="8dp"
+                android:text="------"
+                android:textColor="#FFFFFF"
+                android:textSize="32sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.2"
+                app:layout_constraintTop_toBottomOf="@id/tv_remote_hint"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_or_scan"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="— OR SCAN QR —"
+                android:textColor="#66FFFFFF"
+                android:textSize="11sp"
+                app:layout_constraintTop_toBottomOf="@id/tv_pairing_code"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+            <ImageView
+                android:id="@+id/iv_qr_code"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:layout_marginTop="8dp"
+                android:background="#FFFFFF"
+                android:padding="8dp"
+                app:layout_constraintTop_toBottomOf="@id/tv_or_scan"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_server_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Initializing server..."
+                android:textColor="#FFD700"
+                android:textSize="11sp"
+                app:layout_constraintTop_toBottomOf="@id/iv_qr_code"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:indeterminateTint="#FFD700"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/card_login_container"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

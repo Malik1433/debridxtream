@@ -97,6 +97,10 @@
     <color name="mc_glass_border_focus">#80FFFFFF</color>
     <color name="cinematic_card_bg_focus">#262626</color>
     
+    <!-- Sidebar Premium Colors -->
+    <color name="sidebar_glass">#1AFFFFFF</color>
+    <color name="sidebar_glass_stroke">#33FFFFFF</color>
+    
     <!-- Overlay Colors (with transparency) -->
     <color name="overlay_dark">#E6000000</color>
     <color name="overlay_medium">#B3000000</color>

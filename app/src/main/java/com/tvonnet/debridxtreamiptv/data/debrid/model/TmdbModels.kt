@@ -143,5 +143,22 @@ object TmdbImageUrl {
     fun getBackdropUrl(path: String?, size: String = BACKDROP_SIZE_W780): String? {
         return if (!path.isNullOrBlank()) "$BASE_URL$size$path" else null
     }
+
+    fun getProfileUrl(path: String?, size: String = POSTER_SIZE_W185): String? {
+        return if (!path.isNullOrBlank()) "$BASE_URL$size$path" else null
+    }
 }
+
+data class TmdbCreditsResponse(
+    @SerializedName("id") val id: Int?,
+    @SerializedName("cast") val cast: List<TmdbCast>?
+)
+
+data class TmdbCast(
+    @SerializedName("id") val id: Int?,
+    @SerializedName("name") val name: String?,
+    @SerializedName("character") val character: String?,
+    @SerializedName("profile_path") val profilePath: String?,
+    @SerializedName("order") val order: Int?
+)
 
