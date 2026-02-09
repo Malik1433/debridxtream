@@ -16,7 +16,7 @@ function cn(...inputs: ClassValue[]) {
  * IPTV and Debrid settings on the Android TV app.
  */
 export default function App() {
-    const [activeTab, setActiveTab] = useState<'iptv' | 'debrid' | 'remote'>('iptv');
+    const [activeTab, setActiveTab] = useState<string>('iptv');
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
     const [message, setMessage] = useState('');
 
