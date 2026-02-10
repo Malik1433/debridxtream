@@ -52,7 +52,10 @@ export default function App() {
     /**
      * Step 1: Validate Code and Move to Config
      */
-    const handleConnect = () => {
+    /**
+     * Step 1: Validate Code and Move to Config
+     */
+    const handleConnect = async () => {
         if (remoteCode.length !== 6) {
             setStatus('error');
             setMessage('Please enter a valid 6-digit code');
@@ -60,10 +63,33 @@ export default function App() {
             return;
         }
 
-        // In the future, we could validate against the API here before moving forward
-        localStorage.setItem('device_code', remoteCode);
-        setStatus('idle');
-        setStep('config');
+        setStatus('loading');
+
+        try {
+            // Real Server-Side Validation
+            const response = await fetch(`https://relay.debridxtream.com/api/pair/validate?code=${remoteCode}`);
+            const data = await response.json();
+
+            if (response.ok && data.valid) {
+                setStatus('success');
+                setMessage('Device Found!');
+                if ('vibrate' in navigator) navigator.vibrate([50, 50, 50]);
+
+                // Store and advance after short delay
+                localStorage.setItem('device_code', remoteCode);
+                setTimeout(() => {
+                    setStatus('idle');
+                    setStep('config');
+                }, 1000);
+            } else {
+                throw new Error(data.message || "Invalid or expired code.");
+            }
+        } catch (err: any) {
+            setStatus('error');
+            setMessage(err.message || "Connection failed");
+            // Reset status after delay to allow retry
+            setTimeout(() => setStatus('idle'), 4000);
+        }
     };
 
     /**
