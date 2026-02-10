@@ -130,16 +130,16 @@ export default function App() {
                 transition={{ duration: 0.6 }}
                 className="text-center mb-10 mt-6"
             >
-                <div className="inline-block p-1 rounded-2xl bg-gradient-to-tr from-gold-primary to-gold-secondary mb-4 shadow-xl">
-                    <div className="bg-velvet-black rounded-xl p-2 px-4 flex items-center gap-2">
-                        <span className="text-gold-primary font-black text-xl italic tracking-tighter">DX</span>
+                <div className="inline-block p-[2px] rounded-2xl bg-gradient-to-tr from-gold-primary via-white/50 to-gold-secondary mb-6 shadow-[0_0_30px_rgba(255,215,0,0.3)]">
+                    <div className="bg-black rounded-xl p-3 px-5 flex items-center gap-2">
+                        <span className="text-gold-primary font-display font-black text-2xl italic tracking-tighter">DX</span>
                     </div>
                 </div>
-                <h1 className="text-4xl md:text-5xl font-bold text-gold-primary mb-3 tracking-tight">
+                <h1 className="text-5xl md:text-6xl font-display font-black text-transparent bg-clip-text bg-gradient-to-b from-gold-primary to-gold-secondary mb-4 tracking-tight drop-shadow-sm">
                     DX Companion v2.1
                 </h1>
-                <p className="text-white/50 text-base md:text-lg max-w-sm mx-auto leading-relaxed">
-                    The ultimate control center for your IPTV & Debrid setup
+                <p className="text-white/60 text-lg md:text-xl max-w-md mx-auto leading-relaxed font-light">
+                    The ultimate control center for your <span className="text-gold-primary font-bold">IPTV & Debrid</span> setup
                 </p>
             </motion.header>
 
@@ -148,10 +148,10 @@ export default function App() {
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.2, duration: 0.6 }}
-                className="w-full max-w-lg glass rounded-[2.5rem] overflow-hidden shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] relative z-10"
+                className="w-full max-w-lg glass rounded-[2rem] overflow-hidden relative z-10 border-t border-white/10"
             >
                 {/* Tab Selection */}
-                <div className="flex bg-black/40 p-2 gap-2 border-b border-white/5">
+                <div className="flex bg-black/20 p-2 gap-2 border-b border-white/5 backdrop-blur-md">
                     <TabButton
                         active={activeTab === 'iptv'}
                         onClick={() => setActiveTab('iptv')}

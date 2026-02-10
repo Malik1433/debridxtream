@@ -3,46 +3,73 @@
 :root {
   --color-gold-primary: #FFD700;
   --color-gold-secondary: #FDB931;
-  --color-velvet-black: #120820;
-  --color-charcoal-surface: #1A0B2E;
+  --color-velvet-black: #0A0A0A;
+  --color-charcoal-surface: #121212;
 }
 
 @theme {
   --color-gold-primary: #FFD700;
   --color-gold-secondary: #FDB931;
-  --color-velvet-black: #120820;
-  --color-charcoal-surface: #1A0B2E;
+  --color-velvet-black: #0A0A0A;
+  --color-charcoal-surface: #121212;
+
+  --font-display: "Outfit", sans-serif;
+  --font-body: "Inter", sans-serif;
 }
+
+/* Import Premium Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700;800;900&display=swap');
 
 body {
-  @apply bg-velvet-black text-white antialiased;
-  background: radial-gradient(circle at center, #1A0B2E 0%, #120820 100%);
+  @apply bg-velvet-black text-white antialiased font-body;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(253, 185, 49, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(26, 11, 46, 1) 0%, #000000 100%);
   min-height: 100vh;
+  selection: bg-gold-primary selection:text-black;
 }
 
-/* Glassmorphism utility */
+/* Enhanced Glassmorphism */
 .glass {
-  @apply bg-white/5 backdrop-blur-lg border border-white/10;
+  @apply bg-white/[0.03] backdrop-blur-xl border border-white/[0.08] shadow-2xl;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
 }
 
 .glass-gold {
-  @apply bg-gold-primary/5 backdrop-blur-lg border border-gold-primary/20;
+  @apply bg-gold-primary/10 backdrop-blur-xl border border-gold-primary/20 shadow-[0_0_15px_rgba(255, 215, 0, 0.1)];
 }
 
-/* Custom Scrollbar for premium feel */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 215, 0, 0.2);
-  border-radius: 10px;
+  @apply bg-white/10 rounded-full hover:bg-gold-primary/50 transition-colors;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 215, 0, 0.4);
+/* Animation Utilities */
+@keyframes glow {
+
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+.animate-glow {
+  animation: glow 3s ease-in-out infinite;
 }
