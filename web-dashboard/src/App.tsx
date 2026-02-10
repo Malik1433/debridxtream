@@ -16,7 +16,8 @@ function cn(...inputs: ClassValue[]) {
  * IPTV and Debrid settings on the Android TV app.
  */
 export default function App() {
-    const [activeTab, setActiveTab] = useState<string>('iptv'); // Fix for Vercel TS build error
+    // FIX: Using string type to prevent TS union errors during loose type checking
+    const [activeTab, setActiveTab] = useState<string>('iptv');
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
     const [message, setMessage] = useState('');
 
@@ -135,7 +136,7 @@ export default function App() {
                     </div>
                 </div>
                 <h1 className="text-4xl md:text-5xl font-bold text-gold-primary mb-3 tracking-tight">
-                    DX Companion
+                    DX Companion v2.1
                 </h1>
                 <p className="text-white/50 text-base md:text-lg max-w-sm mx-auto leading-relaxed">
                     The ultimate control center for your IPTV & Debrid setup
