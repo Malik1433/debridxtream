@@ -1,11 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700;800;900&display=swap');
 @import "tailwindcss";
-
-:root {
-  --color-gold-primary: #FFD700;
-  --color-gold-secondary: #FDB931;
-  --color-velvet-black: #0A0A0A;
-  --color-charcoal-surface: #121212;
-}
 
 @theme {
   --color-gold-primary: #FFD700;
@@ -17,16 +11,17 @@
   --font-body: "Inter", sans-serif;
 }
 
-/* Import Premium Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700;800;900&display=swap');
-
 body {
   @apply bg-velvet-black text-white antialiased font-body;
   background:
     radial-gradient(circle at 50% 0%, rgba(253, 185, 49, 0.15) 0%, transparent 50%),
     radial-gradient(circle at 0% 100%, rgba(26, 11, 46, 1) 0%, #000000 100%);
   min-height: 100vh;
-  selection: bg-gold-primary selection:text-black;
+}
+
+::selection {
+  background-color: var(--color-gold-primary);
+  color: var(--color-velvet-black);
 }
 
 /* Enhanced Glassmorphism */
@@ -39,7 +34,8 @@ body {
 }
 
 .glass-gold {
-  @apply bg-gold-primary/10 backdrop-blur-xl border border-gold-primary/20 shadow-[0_0_15px_rgba(255, 215, 0, 0.1)];
+  @apply bg-gold-primary/10 backdrop-blur-xl border border-gold-primary/20;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.1);
 }
 
 /* Custom Scrollbar */
