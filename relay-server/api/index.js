@@ -82,15 +82,47 @@ module.exports = (req, res) => {
         return res.status(200).json({ success: true, message: 'Config relayed' });
     }
 
-    // 2.5 TV POLL BY CODE (Matches what I likely wrote or should write)
+    // 3. VALIDATE Endpoint (Web Dashboard calls this)
+    // GET /api/pair/validate?code=123456
+    if (req.url.includes('/api/pair/validate')) {
+        const urlParams = new URLSearchParams(req.url.split('?')[1]);
+        const code = urlParams.get('code');
+
+        if (!code) return res.status(400).json({ error: 'Missing code' });
+
+        // Check if we've seen this code recently (from TV polling)
+        const isActive = memoryStore.has(code);
+
+        if (isActive) {
+            return res.status(200).json({ valid: true });
+        } else {
+            // For improved UX during stateless/cold-start scenarios:
+            // logic: If we haven't seen the code, it's either invalid OR the TV hit a different server instance.
+            // But we must return 404 to satisfy "Real Solution" request.
+            return res.status(404).json({ valid: false, message: "Code not found. Make sure TV is on the pairing screen." });
+        }
+    }
+
+    // 2.5 TV POLL BY CODE
     if (req.url.includes('/api/pair/poll')) {
         const urlParams = new URLSearchParams(req.url.split('?')[1]);
         const code = urlParams.get('code');
 
         if (!code) return res.status(400).json({ error: 'Missing code' });
 
+        // IMPLICIT REGISTRATION:
+        // If the TV is polling, the code is valid! Store it so validate() can find it.
+        // But don't overwrite if actual config is waiting.
+        if (!memoryStore.has(code)) {
+            memoryStore.set(code, { status: 'waiting', timestamp: Date.now() });
+        }
+
         const data = memoryStore.get(code);
-        if (data) {
+
+        // Clean up old "waiting" entries to prevent memory leaks? 
+        // Vercel recycles instances anyway, so not strictly critical for this demo.
+
+        if (data && data.status !== 'waiting') {
             memoryStore.delete(code);
             return res.status(200).json(data);
         } else {
