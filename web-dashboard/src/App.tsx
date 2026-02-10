@@ -129,13 +129,16 @@ export default function App() {
                     </div>
                 </div>
                 <h1 className="text-4xl md:text-6xl font-display font-black text-transparent bg-clip-text bg-gradient-to-b from-gold-primary to-gold-secondary mb-4 tracking-tight drop-shadow-sm">
-                    {step === 'pairing' ? "Connect Device" : "Configure Setup"}
+                    {step === 'pairing' ? "Connect Device (Wizard Mode)" : "Configure Setup"}
                 </h1>
                 <p className="text-white/60 text-lg md:text-xl max-w-md mx-auto leading-relaxed font-light">
                     {step === 'pairing'
                         ? "Enter the 6-digit code displayed on your TV"
                         : `Connected to device ${remoteCode}`}
                 </p>
+                <div className="mt-4 px-3 py-1 bg-gold-primary/20 rounded-full inline-block border border-gold-primary/30">
+                    <p className="text-gold-primary text-xs font-bold tracking-widest uppercase">v2.3 Active</p>
+                </div>
             </motion.header>
 
             {/* Main Card */}
