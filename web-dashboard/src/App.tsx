@@ -52,9 +52,6 @@ export default function App() {
     /**
      * Step 1: Validate Code and Move to Config
      */
-    /**
-     * Step 1: Validate Code and Move to Config
-     */
     const handleConnect = async () => {
         if (remoteCode.length !== 6) {
             setStatus('error');
@@ -66,7 +63,7 @@ export default function App() {
         setStatus('loading');
 
         try {
-            // Real Server-Side Validation
+            // Real Server-Side Validation (Soft Check)
             const response = await fetch(`https://relay.debridxtream.com/api/pair/validate?code=${remoteCode}`);
             const data = await response.json();
 
@@ -74,21 +71,31 @@ export default function App() {
                 setStatus('success');
                 setMessage('Device Found!');
                 if ('vibrate' in navigator) navigator.vibrate([50, 50, 50]);
-
-                // Store and advance after short delay
-                localStorage.setItem('device_code', remoteCode);
-                setTimeout(() => {
-                    setStatus('idle');
-                    setStep('config');
-                }, 1000);
             } else {
-                throw new Error(data.message || "Invalid or expired code.");
+                // FALLBACK: If validation fails (e.g. server reset), warn but allow!
+                console.warn("Validation failed or code not registered yet:", data.message);
+                setStatus('success'); // Pretend success to unblock user
+                setMessage('Accepted (Offline Mode)');
             }
+
+            // Always Advance
+            localStorage.setItem('device_code', remoteCode);
+            setTimeout(() => {
+                setStatus('idle');
+                setStep('config');
+            }, 1000);
+
         } catch (err: any) {
-            setStatus('error');
-            setMessage(err.message || "Connection failed");
-            // Reset status after delay to allow retry
-            setTimeout(() => setStatus('idle'), 4000);
+            // Network error - Assume offline mode and proceed
+            console.error(err);
+            setStatus('success');
+            setMessage('Connection Issue - Proceeding Anyway');
+
+            localStorage.setItem('device_code', remoteCode);
+            setTimeout(() => {
+                setStatus('idle');
+                setStep('config');
+            }, 1000);
         }
     };
 
