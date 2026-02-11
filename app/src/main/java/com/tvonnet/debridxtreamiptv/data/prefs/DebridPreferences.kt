@@ -136,7 +136,23 @@ class DebridPreferences @Inject constructor(
         private const val KEY_TUNNELING_MODE = "pref_tunneling_mode"
         private const val KEY_AUTO_PLAY_NEXT = "pref_auto_play_next"
         private const val KEY_UI_SCALE_ANIMATION = "pref_ui_scale_animation"
+        private const val KEY_ADDON_REGISTRY_URL = "pref_addon_registry_url"
+        
+        const val DEFAULT_REGISTRY_URL = "https://raw.githubusercontent.com/DebridXtream/registry/main/addons.json"
+        const val PUREFIRE_REGISTRY_URL = "https://raw.githubusercontent.com/PureFireHindi/registry/main/addons.json"
     }
+
+    fun getAddonRegistryUrl(): String {
+        return sharedPreferences.getString(KEY_ADDON_REGISTRY_URL, DEFAULT_REGISTRY_URL) ?: DEFAULT_REGISTRY_URL
+    }
+
+    fun setAddonRegistryUrl(url: String) {
+        sharedPreferences.edit().putString(KEY_ADDON_REGISTRY_URL, url).apply()
+    }
+
+    // Aliases to match legacy usage in some ViewModels
+    fun saveAddonRegistryUrl(url: String) = setAddonRegistryUrl(url)
+    fun getAddonRegistryUrlLegacy(): String = getAddonRegistryUrl()
 
     fun getMediaFusionUrl(): String? {
         return sharedPreferences.getString(KEY_MEDIA_FUSION_URL, null)

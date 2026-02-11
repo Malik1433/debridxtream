@@ -212,5 +212,28 @@
     <color name="brand_primary">@color/brand_purple</color>
     <color name="brand_accent">@color/brand_cyan</color>
     <color name="color_accent">@color/accent</color>
+    
+    <!-- Focus Colors for Overlays -->
+    <color name="mc_bg_card_focus">#99000000</color>
+    <color name="cinematic_gold">#FFC107</color>
+    <color name="cinematic_card_bg">#1A1A1A</color>
+    <color name="cinematic_card_bg_focus">#2A2A2A</color>
+    <color name="gold_primary">#D4AF37</color>
+    <color name="gold_glow">#4DD4AF37</color>
+    <color name="gold_secondary">#AA8A2E</color>
+    <color name="mc_focus_border">#FFD700</color>
+    <color name="mc_glass_surface">#1AFFFFFF</color>
+    <color name="mc_card_bg">#2A2A2A</color>
+    <color name="mc_bg_card">#1A1A1A</color>
+    <color name="mc_glass_border">#33FFFFFF</color>
+    <color name="mc_bg_primary">#121212</color>
+    <color name="mc_bg_secondary">#1E1E1E</color>
+    
+    <!-- Sidebar & Glass Effects -->
+    <color name="sidebar_glass">#26FFFFFF</color>
+    <color name="sidebar_glass_stroke">#4DFFFFFF</color>
+    <color name="selector_sidebar_text_default">#A4A9BD</color>
+    <color name="selector_sidebar_text_selected">#FFFFFF</color>
+    <color name="onyx">#0F0F0F</color>
 </resources>
 

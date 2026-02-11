@@ -4,6 +4,7 @@ plugins {
     id 'dagger.hilt.android.plugin'
     id 'kotlin-kapt'
     id 'kotlin-parcelize'
+    id 'com.google.gms.google-services'
 }
 
 android {
@@ -13,10 +14,13 @@ android {
     defaultConfig {
         // Align with the installed TV app package on device so `adb install -r` updates the same app.
         applicationId "com.debridxtream.tv"
-        minSdk 25
+        minSdk 21
         targetSdk 35  // Updated to match compileSdk for latest Android features
         versionCode 1
         versionName "1.0"
+        multiDexEnabled true
+        multiDexKeepFile file('multidex-keep.txt')
+        multiDexKeepProguard file('multidex-keep.pro')
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
@@ -58,6 +62,7 @@ android {
         abortOnError false  // Don't fail build on lint errors (for now)
         checkReleaseBuilds false
     }
+
     
     // Performance optimizations
     packagingOptions {
@@ -72,8 +77,9 @@ dependencies {
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.activity:activity-ktx:1.9.3'
+    implementation 'androidx.multidex:multidex:2.0.1'
     implementation 'com.google.android.material:material:1.12.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.2.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.fragment:fragment-ktx:1.8.5'
     // ViewModel & Lifecycle (MVVM Architecture) - Updated to latest stable
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7'
@@ -164,4 +170,9 @@ dependencies {
 
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+
+    // Firebase (Magic Link System)
+    implementation platform('com.google.firebase:firebase-bom:33.1.2')
+    implementation 'com.google.firebase:firebase-firestore-ktx'
+    implementation 'com.google.firebase:firebase-analytics-ktx'
 }

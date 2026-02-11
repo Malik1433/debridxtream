@@ -32,6 +32,11 @@ class DebridAuthFragment : Fragment() {
     private lateinit var btnStartAuth: Button
     private lateinit var btnCancel: Button
     private lateinit var cardDeviceCode: CardView
+    private lateinit var btnShowManual: Button
+    private lateinit var llManualEntry: android.view.View
+    private lateinit var etApiKey: android.widget.EditText
+    private lateinit var btnSubmitManual: Button
+    private lateinit var llAuthButtons: android.view.View
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -64,6 +69,28 @@ class DebridAuthFragment : Fragment() {
         btnCancel.setOnClickListener {
             viewModel.cancelAuth()
             parentFragmentManager.popBackStack()
+        }
+
+        btnShowManual = view.findViewById(R.id.btn_show_manual)
+        llManualEntry = view.findViewById(R.id.ll_manual_entry)
+        etApiKey = view.findViewById(R.id.et_api_key)
+        btnSubmitManual = view.findViewById(R.id.btn_submit_manual)
+        llAuthButtons = view.findViewById(R.id.ll_auth_buttons)
+
+        btnShowManual.setOnClickListener {
+            llManualEntry.visibility = if (llManualEntry.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            if (llManualEntry.visibility == View.VISIBLE) {
+                etApiKey.requestFocus()
+            }
+        }
+
+        btnSubmitManual.setOnClickListener {
+            val key = etApiKey.text.toString().trim()
+            if (key.isNotEmpty()) {
+                viewModel.loginWithStaticToken(key)
+            } else {
+                Toast.makeText(requireContext(), "Please enter API Key", Toast.LENGTH_SHORT).show()
+            }
         }
     }
     
@@ -129,8 +156,20 @@ class DebridAuthFragment : Fragment() {
                 tvInstructions.setTextColor(resources.getColor(android.R.color.holo_red_light, null))
                 btnStartAuth.visibility = View.VISIBLE
                 btnStartAuth.isEnabled = true
+                llAuthButtons.visibility = View.VISIBLE
+                btnShowManual.visibility = View.VISIBLE
                 android.util.Log.e("DebridAuthFragment", "Authentication error: ${state.message}")
             }
+        }
+        
+        // Hide manual entry during active OAuth or Fetching
+        if (state is DebridAuthState.FetchingCode || state is DebridAuthState.ShowingCode) {
+            btnShowManual.visibility = View.GONE
+            llManualEntry.visibility = View.GONE
+            llAuthButtons.visibility = if (state is DebridAuthState.ShowingCode) View.VISIBLE else View.GONE
+        } else if (state is DebridAuthState.Idle) {
+            btnShowManual.visibility = View.VISIBLE
+            llAuthButtons.visibility = View.VISIBLE
         }
     }
 

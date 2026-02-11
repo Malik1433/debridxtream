@@ -43,6 +43,13 @@
         </provider>
         
         <activity
+            android:name=".ui.companion.CompanionSetupActivity"
+            android:label="Connect Companion App"
+            android:theme="@style/AppTheme"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
+        <activity
             android:name=".ui.MainActivity"
             android:label="@string/app_name"
             android:exported="true">

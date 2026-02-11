@@ -17,7 +17,8 @@ data class SettingsUiState(
     val isAutoPlayEnabled: Boolean = true,
     val isUiScaleEnabled: Boolean = true,
     val selectedCategory: SettingCategory = SettingCategory.GENERAL,
-    val isDebridAuthenticated: Boolean = false
+    val isDebridAuthenticated: Boolean = false,
+    val addonRegistryUrl: String = ""
 )
 
 enum class SettingCategory {
@@ -45,7 +46,8 @@ class SettingsViewModel @Inject constructor(
                 isTunnelingEnabled = prefs.isTunnelingModeEnabled(),
                 isAutoPlayEnabled = prefs.isAutoPlayNextEnabled(),
                 isUiScaleEnabled = prefs.isUiScaleAnimationEnabled(),
-                isDebridAuthenticated = prefs.getRealDebridToken() != null
+                isDebridAuthenticated = prefs.getRealDebridToken() != null,
+                addonRegistryUrl = prefs.getAddonRegistryUrl()
             )
         }
     }
@@ -77,6 +79,11 @@ class SettingsViewModel @Inject constructor(
     fun logoutDebrid() {
         prefs.clearRealDebridToken()
         _uiState.update { it.copy(isDebridAuthenticated = false) }
+    }
+
+    fun setAddonRegistryUrl(url: String) {
+        prefs.saveAddonRegistryUrl(url)
+        _uiState.update { it.copy(addonRegistryUrl = url) }
     }
 
     suspend fun getCategories(type: String): List<com.tvonnet.debridxtreamiptv.data.model.XtreamCategory> {

@@ -167,6 +167,12 @@
     <string name="player_control_rewind">Rewind</string>
     <string name="player_control_play_pause">Play or pause</string>
     <string name="player_control_fast_forward">Fast forward</string>
+    <string name="player_audio_title">Audio Tracks</string>
+    <string name="player_subtitles_loading">Loading subtitles…</string>
+    <string name="player_subtitles_none">None</string>
+    <string name="player_settings_subtitles">Subtitles</string>
+    <string name="player_settings_audio">Audio Selection</string>
+    <string name="player_settings_title">Player Settings</string>
     
     <!-- Home Screen Redesign (Week 14) -->
     <string name="nav_debrid">DEBRID</string>
@@ -222,4 +228,6 @@
     <!-- Player Browser Overlay -->
     <string name="player_browser_title">Channels</string>
     <string name="player_browser_no_channels">No channels in this category</string>
+    <!-- Companion Setup -->
+    <string name="companion_setup_url">https://debxtrem-companion.vercel.app/setup</string>
 </resources>

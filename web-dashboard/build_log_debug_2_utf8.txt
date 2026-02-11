@@ -1,0 +1,56 @@
+﻿[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32mΓ£ô[39m 4 modules transformed.
+node.exe : [31mΓ£ù[39m Build failed in 
+209ms
+At line:1 char:1
++ & "D:\Program Files\nodejs/node.exe" 
+"C:\Users\Malik\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecifi 
+   ed: ([31mΓ£ù[39m Build failed in 2  
+  09ms:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeComm 
+   andError
+ 
+[31merror during build:
+[31m[@tailwindcss/vite:generate:build] 
+Cannot apply unknown utility class 
+`shadow-[0_0_20px_rgba(212,`[31m
+file: [36mD:/cursor working/debxtrem/web
+-dashboard/src/index.css[31m
+    at onInvalidCandidate (file:///D:/cur
+sor%20working/debxtrem/web-dashboard/node
+_modules/tailwindcss/dist/chunk-CT46QCH7.
+mjs:21:1511)
+    at Ce (file:///D:/cursor%20working/de
+bxtrem/web-dashboard/node_modules/tailwin
+dcss/dist/chunk-CT46QCH7.mjs:16:36326)
+    at file:///D:/cursor%20working/debxtr
+em/web-dashboard/node_modules/tailwindcss
+/dist/chunk-CT46QCH7.mjs:21:355
+    at br (file:///D:/cursor%20working/de
+bxtrem/web-dashboard/node_modules/tailwin
+dcss/dist/chunk-CT46QCH7.mjs:3:1718)
+    at I (file:///D:/cursor%20working/deb
+xtrem/web-dashboard/node_modules/tailwind
+css/dist/chunk-CT46QCH7.mjs:3:1377)
+    at Ae (file:///D:/cursor%20working/de
+bxtrem/web-dashboard/node_modules/tailwin
+dcss/dist/chunk-CT46QCH7.mjs:21:172)
+    at Wi (file:///D:/cursor%20working/de
+bxtrem/web-dashboard/node_modules/tailwin
+dcss/dist/chunk-CT46QCH7.mjs:38:294)
+    at async Za (file:///D:/cursor%20work
+ing/debxtrem/web-dashboard/node_modules/t
+ailwindcss/dist/chunk-CT46QCH7.mjs:38:631
+)
+    at async rf (file:///D:/cursor%20work
+ing/debxtrem/web-dashboard/node_modules/t
+ailwindcss/dist/chunk-CT46QCH7.mjs:38:140
+6)
+    at async lu (file:///D:/cursor%20work
+ing/debxtrem/web-dashboard/node_modules/@
+tailwindcss/node/dist/index.mjs:10:3458)
+[39m

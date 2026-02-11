@@ -103,6 +103,17 @@ class DebridAuthViewModel @Inject constructor(
         }
     }
     
+    fun loginWithStaticToken(token: String) {
+        viewModelScope.launch {
+            _authState.value = DebridAuthState.FetchingCode
+            debridAccountRepo.loginWithStaticToken(token).onSuccess {
+                _authState.value = DebridAuthState.Success
+            }.onFailure { error ->
+                _authState.value = DebridAuthState.Error(error.message ?: "Failed to save token")
+            }
+        }
+    }
+
     fun cancelAuth() {
         android.util.Log.d("DebridAuth", "Authentication cancelled by user")
         pollingJob?.cancel()

@@ -63,8 +63,36 @@
         android:visibility="gone"
         android:layout_marginBottom="32dp" />
     
+    <!-- Manual API Key Entry -->
+    <LinearLayout
+        android:id="@+id/ll_manual_entry"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:layout_marginBottom="24dp">
+
+        <EditText
+            android:id="@+id/et_api_key"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Real-Debrid API Key"
+            android:inputType="textPassword"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary" />
+
+        <Button
+            android:id="@+id/btn_submit_manual"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Submit Key"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="8dp" />
+    </LinearLayout>
+
     <!-- Buttons -->
     <LinearLayout
+        android:id="@+id/ll_auth_buttons"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal">
@@ -96,5 +124,14 @@
             android:focusable="true"
             android:focusableInTouchMode="true" />
     </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_show_manual"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Manual Entry"
+        android:layout_marginTop="16dp"
+        style="@style/Widget.AppCompat.Button.Borderless"
+        android:textColor="@color/ds_accent_orange" />
 </LinearLayout>
 

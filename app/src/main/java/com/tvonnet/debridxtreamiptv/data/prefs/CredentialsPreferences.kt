@@ -15,6 +15,20 @@ class CredentialsPreferences(private val context: Context) {
             apply()
         }
     }
+
+    /**
+     * Saves credentials received from Companion Sync without marking as logged in.
+     * This allows the LoginFragment to perform a fresh validation before proceeding.
+     */
+    fun saveSyncedCredentials(serverUrl: String, username: String, password: String) {
+        prefs.edit().apply {
+            putString(KEY_SERVER_URL, serverUrl)
+            putString(KEY_USERNAME, username)
+            putString(KEY_PASSWORD, password)
+            putBoolean(KEY_LOGGED_IN, false) // Will be set to true after repository.login()
+            apply()
+        }
+    }
     
     fun getServerUrl(): String? {
         return prefs.getString(KEY_SERVER_URL, null)
@@ -35,13 +49,28 @@ class CredentialsPreferences(private val context: Context) {
     fun clearCredentials() {
         prefs.edit().clear().apply()
     }
+
+    fun getSyncCode(): String? {
+        return prefs.getString(KEY_SYNC_CODE, null)
+    }
+
+    fun saveSyncCode(code: String) {
+        prefs.edit().putString(KEY_SYNC_CODE, code).apply()
+    }
+
+
+    // Expose for specialized cases
+    fun getPrefs(): SharedPreferences = prefs
     
     companion object {
-        private const val PREFS_NAME = "iptv_credentials"
-        private const val KEY_SERVER_URL = "server_url"
-        private const val KEY_USERNAME = "username"
-        private const val KEY_PASSWORD = "password"
-        private const val KEY_LOGGED_IN = "logged_in"
+        const val PREFS_NAME = "iptv_credentials"
+        const val KEY_SERVER_URL = "server_url"
+        const val KEY_USERNAME = "username"
+        const val KEY_PASSWORD = "password"
+        const val KEY_LOGGED_IN = "logged_in"
+        const val KEY_SYNC_CODE = "sync_code"
     }
+
+
 }
 

@@ -77,7 +77,5 @@
     <color name="tv_overlay_light">#66000000</color>            <!-- Light overlay -->
     <color name="tv_scrim">#B3000000</color>                    <!-- Scrim overlay -->
     
-    <!-- Glassmorphism (Premium Effect) -->
-    <color name="tv_glass_bg">#40252530</color>                 <!-- Glass background -->
-    <color name="tv_glass_border">#60FFFFFF</color>             <!-- Glass border -->
+    <color name="tv_glass_border">#60FFFFFF</color>
 </resources>

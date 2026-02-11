@@ -43,6 +43,45 @@ class SettingsPreferences(private val context: Context) {
     fun getSupportUrl(): String {
         return prefs.getString(KEY_SUPPORT_URL, "https://example.com/support") ?: "https://example.com/support"
     }
+
+    fun getPreferredAudioLanguage(): String? {
+        return prefs.getString(KEY_PREFERRED_AUDIO, null)
+    }
+
+    fun savePreferredAudioLanguage(lang: String) {
+        prefs.edit().putString(KEY_PREFERRED_AUDIO, lang).apply()
+    }
+
+    fun getPreferredSubtitleLanguage(): String? {
+        return prefs.getString(KEY_PREFERRED_SUBTITLE, null)
+    }
+
+    fun savePreferredSubtitleLanguage(lang: String) {
+        prefs.edit().putString(KEY_PREFERRED_SUBTITLE, lang).apply()
+    }
+
+    fun saveLastTrackSelection(hash: String?, audioIndex: Int, textIndex: Int) {
+        if (hash == null) return
+        prefs.edit()
+            .putString(KEY_LAST_SELECTION_HASH, hash)
+            .putInt(KEY_LAST_AUDIO_INDEX + hash, audioIndex)
+            .putInt(KEY_LAST_TEXT_INDEX + hash, textIndex)
+            .apply()
+    }
+
+    fun getLastSelectionHash(): String? {
+        return prefs.getString(KEY_LAST_SELECTION_HASH, null)
+    }
+
+    fun getLastAudioIndex(): Int {
+        val hash = getLastSelectionHash() ?: return -1
+        return prefs.getInt(KEY_LAST_AUDIO_INDEX + hash, -1)
+    }
+
+    fun getLastTextIndex(): Int {
+        val hash = getLastSelectionHash() ?: return -1
+        return prefs.getInt(KEY_LAST_TEXT_INDEX + hash, -1)
+    }
     
     companion object {
         private const val PREFS_NAME = "iptv_settings"
@@ -51,6 +90,11 @@ class SettingsPreferences(private val context: Context) {
         private const val KEY_NETWORK_QUALITY = "network_quality"
         private const val KEY_AUTO_RECONNECT = "auto_reconnect_enabled"
         private const val KEY_SUPPORT_URL = "support_url"
+        private const val KEY_PREFERRED_AUDIO = "pref_audio_lang"
+        private const val KEY_PREFERRED_SUBTITLE = "pref_subtitle_lang"
+        private const val KEY_LAST_SELECTION_HASH = "last_selection_hash"
+        private const val KEY_LAST_AUDIO_INDEX = "last_audio_idx_"
+        private const val KEY_LAST_TEXT_INDEX = "last_text_idx_"
     }
 }
 

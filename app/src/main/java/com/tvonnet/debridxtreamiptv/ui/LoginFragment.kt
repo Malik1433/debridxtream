@@ -25,6 +25,7 @@ class LoginFragment : Fragment() {
     private lateinit var etUsername: com.google.android.material.textfield.TextInputEditText
     private lateinit var etPassword: com.google.android.material.textfield.TextInputEditText
     private lateinit var btnLogin: View
+    private lateinit var btnSetupPhone: View
     private lateinit var progressBar: ProgressBar
     private lateinit var logoView: View
     private lateinit var loginContainer: View
@@ -52,6 +53,7 @@ class LoginFragment : Fragment() {
         etUsername = view.findViewById(R.id.et_username)
         etPassword = view.findViewById(R.id.et_password)
         btnLogin = view.findViewById(R.id.btn_login)
+        btnSetupPhone = view.findViewById(R.id.btn_setup_phone)
         progressBar = view.findViewById(R.id.progress_bar)
         logoView = view.findViewById(R.id.iv_logo)
         loginContainer = view.findViewById(R.id.card_login_container)
@@ -59,9 +61,41 @@ class LoginFragment : Fragment() {
         btnLogin.setOnClickListener {
             onLoginClick()
         }
+        
+        btnSetupPhone.setOnClickListener {
+            onSetupPhoneClick()
+        }
 
         startEntranceAnimations()
     }
+
+    override fun onResume() {
+        super.onResume()
+        checkAutoSyncCredentials()
+    }
+
+    /**
+     * Checks if credentials were saved via Companion Sync and triggers auto-login
+     */
+    private fun checkAutoSyncCredentials() {
+        val server = credentialsPrefs.getServerUrl()
+        val user = credentialsPrefs.getUsername()
+        val pass = credentialsPrefs.getPassword()
+        val loggedIn = credentialsPrefs.isLoggedIn()
+
+        if (!loggedIn && !server.isNullOrEmpty() && !user.isNullOrEmpty() && !pass.isNullOrEmpty()) {
+            android.util.Log.i("LoginFragment", "Auto-sync credentials detected! Triggering login...")
+            
+            // Fill UI fields so user sees what's happening
+            etServerUrl.setText(server)
+            etUsername.setText(user)
+            etPassword.setText(pass)
+            
+            // Trigger login
+            performLogin(server, user, pass)
+        }
+    }
+
 
     private fun startEntranceAnimations() {
         // Initial state
@@ -146,6 +180,12 @@ class LoginFragment : Fragment() {
             } finally {
                 progressBar.visibility = View.GONE
             }
+        }
+    }
+    
+    private fun onSetupPhoneClick() {
+        android.content.Intent(requireContext(), com.tvonnet.debridxtreamiptv.ui.companion.CompanionSetupActivity::class.java).also {
+            startActivity(it)
         }
     }
     

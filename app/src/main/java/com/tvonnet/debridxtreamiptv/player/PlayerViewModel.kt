@@ -26,6 +26,19 @@ import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
 
+sealed class DebridResolutionState {
+    object Idle : DebridResolutionState()
+    object Loading : DebridResolutionState()
+    data class Success(
+        val url: String,
+        val season: Int? = null,
+        val episode: Int? = null,
+        val title: String? = null,
+        val infoHash: String? = null
+    ) : DebridResolutionState()
+    data class Error(val message: String) : DebridResolutionState()
+}
+
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     private val repository: XtreamRepository,
@@ -47,6 +60,9 @@ class PlayerViewModel @Inject constructor(
     // Series Playlist State (Plan C: Dynamic Queue)
     private val _seriesPlaylistState = MutableStateFlow<SeriesPlaylistState?>(null)
     val seriesPlaylistState: StateFlow<SeriesPlaylistState?> = _seriesPlaylistState.asStateFlow()
+
+    private val _debridResolutionState = MutableStateFlow<DebridResolutionState>(DebridResolutionState.Idle)
+    val debridResolutionState: StateFlow<DebridResolutionState> = _debridResolutionState.asStateFlow()
 
     fun loadSeriesPlaylist(seriesId: String, seasonNum: Int, startEpisodeId: String) {
         viewModelScope.launch {
@@ -84,6 +100,28 @@ class PlayerViewModel @Inject constructor(
             hasPrev = true
         )
         return nextEpisode
+    }
+
+    fun loadNextDebridEpisode(
+        seriesId: String,
+        currentSeason: Int,
+        currentEpisode: Int,
+        seriesTitle: String?,
+        infoHash: String?
+    ) {
+        // Stub for now to allow build to pass
+        _debridResolutionState.value = DebridResolutionState.Error("Next Debrid Episode logic not yet implemented")
+    }
+
+    fun reResolveDebridUrl(
+        infoHash: String?,
+        magnet: String?,
+        season: Int?,
+        episode: Int?,
+        title: String?
+    ) {
+        // Stub for now to allow build to pass
+        _debridResolutionState.value = DebridResolutionState.Error("Re-resolve logic not yet implemented")
     }
 
     fun getPrevEpisode(): EpisodeEntityV2? {

@@ -1,5 +1,7 @@
 package com.tvonnet.debridxtreamiptv.ui.settings
 
+import com.tvonnet.debridxtreamiptv.ui.settings.MediaFusionConfigActivity
+
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -180,7 +182,7 @@ class SettingsFragment : Fragment() {
                         }
                     }
                 ),
-                 SettingItem.Action(
+                SettingItem.Action(
                     key = "config_mediafusion",
                     title = "Configure MediaFusion",
                     description = "Setup catalogs via Companion App",
@@ -188,6 +190,12 @@ class SettingsFragment : Fragment() {
                         val intent = Intent(context, MediaFusionConfigActivity::class.java)
                         startActivity(intent)
                     }
+                ),
+                SettingItem.Selection(
+                    key = "addon_source",
+                    title = "Addon Source (Registry)",
+                    currentValue = getRegistryName(state.addonRegistryUrl),
+                    onClick = { showRegistrySelector(state.addonRegistryUrl) }
                 )
             )
             SettingCategory.ABOUT -> listOf(
@@ -210,6 +218,65 @@ class SettingsFragment : Fragment() {
             "mx" -> "MX Player"
             else -> "ExoPlayer"
         }
+    }
+
+    private fun getRegistryName(url: String): String {
+        return when (url) {
+            com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences.DEFAULT_REGISTRY_URL -> "DebridXtream Default"
+            com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences.PUREFIRE_REGISTRY_URL -> "PureFire Optimized (Hindi)"
+            else -> "Custom Source"
+        }
+    }
+
+    private fun showRegistrySelector(current: String) {
+        val options = arrayOf("DebridXtream Default", "PureFire Optimized (Hindi)", "Custom URL...")
+        val values = arrayOf(
+            com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences.DEFAULT_REGISTRY_URL,
+            com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences.PUREFIRE_REGISTRY_URL,
+            "custom"
+        )
+        val checkedItem = when {
+            current == values[0] -> 0
+            current == values[1] -> 1
+            else -> 2
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Select Addon Source")
+            .setSingleChoiceItems(options, checkedItem) { dialog, which ->
+                if (values[which] == "custom") {
+                    showCustomRegistryInput(current)
+                } else {
+                    viewModel.setAddonRegistryUrl(values[which])
+                    Toast.makeText(context, "Addon Source Updated", Toast.LENGTH_SHORT).show()
+                }
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun showCustomRegistryInput(current: String) {
+        val input = android.widget.EditText(requireContext()).apply {
+            setText(if (current.startsWith("http")) current else "")
+            setHint("https://your-url.json")
+            setTextColor(android.graphics.Color.WHITE)
+        }
+        
+        AlertDialog.Builder(requireContext())
+            .setTitle("Enter Custom Registry URL")
+            .setView(input)
+            .setPositiveButton("Save") { dialog, _ ->
+                val url = input.text.toString().trim()
+                if (url.startsWith("http")) {
+                    viewModel.setAddonRegistryUrl(url)
+                    Toast.makeText(context, "Custom Source Saved", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Invalid URL", Toast.LENGTH_SHORT).show()
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
+            .show()
     }
 
     private fun showEngineSelector(current: String) {

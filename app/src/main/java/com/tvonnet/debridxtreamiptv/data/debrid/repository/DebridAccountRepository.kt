@@ -186,6 +186,12 @@ class DebridAccountRepository @Inject constructor(
         }
     }
 
+    suspend fun loginWithStaticToken(token: String): Result<Unit> {
+        Log.d("DebridRepo", "Logging in with static token")
+        preferences.saveRealDebridToken(token)
+        return Result.Success(Unit)
+    }
+
     suspend fun getUser(): Result<RealDebridUserResponse> {
         return fetchUserProfile()
     }

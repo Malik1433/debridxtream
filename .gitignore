@@ -88,7 +88,3 @@ vcs.xml
 # Build outputs
 app/build/
 **/build/
-
-# Backups
-backups/
-*.zip
