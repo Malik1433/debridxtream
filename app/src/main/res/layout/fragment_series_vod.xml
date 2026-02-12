@@ -1,8 +1,22 @@
-<?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/ds_background_primary">
+
+    <!-- Immersive Background Backdrop -->
+    <ImageView
+        android:id="@+id/iv_background_backdrop"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:alpha="0.6"
+        android:contentDescription="Series Backdrop" />
+
+    <!-- Gradient Overlay for Readability -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/gradient_backdrop_overlay" />
 
     <!-- Main content: Sidebar + Series Grid -->
     <LinearLayout
@@ -10,20 +24,24 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="horizontal"
-        android:padding="24dp">
+        android:paddingStart="0dp"
+        android:paddingEnd="0dp"
+        android:paddingTop="0dp"
+        android:paddingBottom="0dp">
 
         <!-- Left Sidebar: Categories -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_categories_sidebar"
-            android:layout_width="240dp"
+            android:layout_width="280dp"
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:focusable="true"
             android:focusableInTouchMode="true"
+            android:background="#99000000"
             android:nextFocusRight="@id/rv_series_grid"
             android:clipToPadding="false"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp" />
+            android:paddingTop="24dp"
+            android:paddingBottom="24dp" />
 
         <!-- Right Content Area: Series Grid -->
         <LinearLayout
@@ -31,19 +49,26 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:orientation="vertical"
-            android:layout_marginStart="32dp">
+            android:paddingStart="32dp"
+            android:paddingEnd="32dp"
+            android:clipChildren="false">
 
             <!-- Category Title Header -->
             <TextView
                 android:id="@+id/tv_category_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginTop="32dp"
+                android:layout_marginBottom="24dp"
                 android:text="All Series"
-                android:textSize="24sp"
+                android:textSize="32sp"
                 android:textColor="@color/ds_text_primary"
                 android:textStyle="bold"
-                android:fontFamily="sans-serif-medium" />
+                android:shadowColor="#80000000"
+                android:shadowDx="2"
+                android:shadowDy="2"
+                android:shadowRadius="4"
+                android:fontFamily="sans-serif-black" />
 
             <!-- Series Grid -->
             <androidx.recyclerview.widget.RecyclerView
@@ -53,7 +78,9 @@
                 android:focusable="true"
                 android:focusableInTouchMode="true"
                 android:nextFocusLeft="@id/rv_categories_sidebar"
-                android:clipToPadding="false" />
+                android:clipToPadding="false"
+                android:clipChildren="false"
+                android:paddingBottom="48dp" />
 
         </LinearLayout>
 
@@ -71,8 +98,8 @@
 
         <ProgressBar
             android:id="@+id/progress_bar"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
             android:indeterminate="true"
             android:indeterminateDrawable="@drawable/progress_indeterminate_modern" />
 
@@ -101,7 +128,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/series_empty_state_title"
-            android:textSize="20sp"
+            android:textSize="22sp"
+            android:textStyle="bold"
             android:textColor="@color/ds_text_secondary"
             android:gravity="center" />
 

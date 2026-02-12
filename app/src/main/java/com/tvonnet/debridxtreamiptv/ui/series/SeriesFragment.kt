@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -27,6 +28,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import androidx.core.app.ActivityOptionsCompat
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 
 @AndroidEntryPoint
 class SeriesFragment : Fragment() {
@@ -45,6 +48,7 @@ class SeriesFragment : Fragment() {
     private lateinit var rvCategoriesSidebar: RecyclerView
     private lateinit var rvSeriesGrid: RecyclerView
     private lateinit var tvCategoryTitle: TextView
+    private lateinit var ivBackgroundBackdrop: ImageView
     private var llEmptyState: LinearLayout? = null
     private var llLoadingState: LinearLayout? = null
     private var tvEmptyMessage: TextView? = null
@@ -155,6 +159,7 @@ class SeriesFragment : Fragment() {
         rvCategoriesSidebar = view.findViewById(R.id.rv_categories_sidebar)
         rvSeriesGrid = view.findViewById(R.id.rv_series_grid)
         tvCategoryTitle = view.findViewById(R.id.tv_category_title)
+        ivBackgroundBackdrop = view.findViewById(R.id.iv_background_backdrop)
         llEmptyState = view.findViewById(R.id.ll_empty_state)
         llLoadingState = view.findViewById(R.id.ll_loading_state)
         tvEmptyMessage = view.findViewById(R.id.tv_empty_message)
@@ -163,7 +168,7 @@ class SeriesFragment : Fragment() {
 
     private fun setupRecyclerViews() {
         // Setup Grid
-        rvSeriesGrid.layoutManager = GridLayoutManager(requireContext(), 5)
+        rvSeriesGrid.layoutManager = GridLayoutManager(requireContext(), 4)
         rvSeriesGrid.adapter = seriesPagingAdapter
         // RecyclerViewAnimations.applySpringAnimation(rvSeriesGrid)
 
@@ -194,6 +199,19 @@ class SeriesFragment : Fragment() {
                         lastFocusTarget = FocusTarget.SERIES
                         lastFocusedSeriesPosition = rvSeriesGrid.getChildAdapterPosition(v)
                         lastFocusedSeriesId = (v.getTag(R.id.tag_series_id) as? String)
+
+                        // Update backdrop on focus
+                        val position = lastFocusedSeriesPosition
+                        if (position != RecyclerView.NO_POSITION) {
+                            try {
+                                val series = seriesPagingAdapter.peek(position)
+                                if (series != null) {
+                                    updateBackdrop(series)
+                                }
+                            } catch (e: Exception) {
+                                // Ignore
+                            }
+                        }
                     }
                 }
             }
@@ -457,6 +475,18 @@ class SeriesFragment : Fragment() {
             "Error: ${error.message}"
         } else {
             "Unable to load series. Please try again."
+        }
+    }
+
+    private fun updateBackdrop(series: XtreamSeriesInfo) {
+        val imageUrl = series.cover
+        if (!imageUrl.isNullOrBlank()) {
+            Glide.with(this)
+                .load(imageUrl)
+                .transition(DrawableTransitionOptions.withCrossFade(500))
+                .placeholder(android.R.color.transparent)
+                .error(android.R.color.transparent)
+                .into(ivBackgroundBackdrop)
         }
     }
 }
