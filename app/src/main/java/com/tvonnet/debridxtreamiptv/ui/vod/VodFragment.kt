@@ -159,8 +159,8 @@ class VodFragment : Fragment() {
         // Setup sidebar layout (vertical)
         rvCategoriesSidebar.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
         
-        // Setup movies grid layout (5 columns)
-        rvMoviesGrid.layoutManager = GridLayoutManager(context, 5)
+        // Setup movies grid layout (4 columns for professional look)
+        rvMoviesGrid.layoutManager = GridLayoutManager(context, 4)
         rvMoviesGrid.adapter = vodAdapter
 
         // Track focus for restore on back navigation
@@ -582,24 +582,8 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         itemView.setTag(R.id.tag_vod_id, movie.stream_id?.toString())
         tvMovieTitle.text = movie.name ?: "Unknown Movie"
         bindStarRating(movie.rating)
-
-        // val yearText = movie.releaseDate?.trim().orEmpty()
-        // val extractedYear = Regex("""(19|20)\d{2}""").find(yearText)?.value
-        // tvMovieYear.text = extractedYear ?: yearText.ifBlank { "N/A" }
-
-        // Legacy rating UI (replaced by star row in layout)
-        // val ratingText = movie.rating?.trim().orEmpty()
-        // if (ratingText.isBlank() || ratingText.equals("N/A", true)) {
-        //     tvMovieRating.text = ""
-        //     tvMovieRating.visibility = View.GONE
-        //     tvMovieDot.visibility = View.GONE
-        // } else {
-        //     tvMovieRating.text = "★ $ratingText"
-        //     tvMovieRating.visibility = View.VISIBLE
-        //     tvMovieDot.visibility = View.VISIBLE
-        // }
         
-        // Week 13: Show/hide favorite heart icon
+        // Show/hide favorite heart icon
         ivFavoriteIndicator?.visibility = if (isFavorite) {
             View.VISIBLE
         } else {
@@ -625,7 +609,7 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             onClick(movie)
         }
         
-        // Week 13: Long press to add/remove favorites
+        // Long press to add/remove favorites
         itemView.setOnLongClickListener {
             onLongClick?.invoke(movie)
             true
@@ -660,3 +644,4 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         tvMovieRatingValue.visibility = View.VISIBLE
     }
 }
+

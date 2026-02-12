@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="400dp"
+    android:layout_height="320dp"
     android:focusable="true"
     android:focusableInTouchMode="true">
 
@@ -73,14 +73,14 @@
             android:layout_height="wrap_content"
             android:text="Example Movie Title"
             android:textColor="@android:color/white"
-            android:textSize="48sp"
+            android:textSize="34sp"
             android:textStyle="bold"
             android:fontFamily="sans-serif-black"
             android:shadowColor="#FF000000"
             android:shadowDx="4"
             android:shadowDy="4"
             android:shadowRadius="8"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="12dp" />
 
         <!-- Description -->
         <TextView
@@ -89,11 +89,11 @@
             android:layout_height="wrap_content"
             android:text="This is a brief description of the movie or show. It creates interest and provides context for the viewer."
             android:textColor="#E6FFFFFF"
-            android:textSize="18sp"
+            android:textSize="15sp"
             android:maxLines="3"
             android:ellipsize="end"
-            android:lineSpacingExtra="6dp"
-            android:layout_marginBottom="32dp" />
+            android:lineSpacingExtra="4dp"
+            android:layout_marginBottom="24dp" />
 
         <!-- Actions -->
         <LinearLayout
