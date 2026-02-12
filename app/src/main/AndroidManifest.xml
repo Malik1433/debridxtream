@@ -50,6 +50,14 @@
             android:screenOrientation="landscape" />
 
         <activity
+            android:name=".ui.trailer.TrailerActivity"
+            android:label="Trailer Player"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <activity
             android:name=".ui.MainActivity"
             android:label="@string/app_name"
             android:exported="true">
@@ -89,12 +97,6 @@
             android:theme="@style/AppTheme"
             android:exported="false" />
 
-        <activity
-            android:name=".ui.trailer.TrailerActivity"
-            android:label="@string/movie_detail_tab_trailer"
-            android:theme="@style/AppTheme"
-            android:parentActivityName=".ui.MainActivity"
-            android:exported="false" />
 
         <activity
             android:name=".ui.debrid.search.DebridSearchActivity"

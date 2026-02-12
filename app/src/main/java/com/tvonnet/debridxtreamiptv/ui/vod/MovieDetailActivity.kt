@@ -84,11 +84,9 @@ class MovieDetailActivity : AppCompatActivity() {
     private lateinit var tvDescription: TextView
     private lateinit var tvDuration: TextView
     private lateinit var btnWatchNow: Button
+    private lateinit var btnWatchTrailer: Button
     private lateinit var btnAddFavorite: Button
     private lateinit var detailsGroup: View
-    private lateinit var trailerGroup: View
-    private lateinit var webViewTrailer: WebView
-    private lateinit var tvTrailerUnavailable: TextView
     private lateinit var tvSourcesHeader: TextView
     private lateinit var tvSourcesStatus: TextView
     private lateinit var rvSources: RecyclerView
@@ -264,11 +262,11 @@ class MovieDetailActivity : AppCompatActivity() {
         tvCast = findViewById(R.id.tv_cast)
         tvDescription = findViewById(R.id.tv_description)
         tvDuration = findViewById(R.id.tv_duration)
+        btnWatchNow = findViewById(R.id.btn_watch_now)
+        btnWatchTrailer = findViewById(R.id.btn_watch_trailer)
+        btnAddFavorite = findViewById(R.id.btn_add_favorite)
 
         detailsGroup = findViewById(R.id.group_details)
-        trailerGroup = findViewById(R.id.group_trailer)
-        webViewTrailer = findViewById(R.id.webview_trailer)
-        tvTrailerUnavailable = findViewById(R.id.tv_trailer_unavailable)
         tvSourcesHeader = findViewById(R.id.tv_sources_header)
         tvSourcesStatus = findViewById(R.id.tv_sources_status)
         layoutSourceFilters = findViewById(R.id.layout_source_filters)
@@ -314,18 +312,20 @@ class MovieDetailActivity : AppCompatActivity() {
         btnCachedOnly.setOnFocusChangeListener { _, hasFocus ->
             btnCachedOnly.isSelected = hasFocus || filterState.cachedOnly
         }
-        setupWebView()
+
+        btnWatchNow.setOnClickListener {
+            selectedSource?.let { playMovie(it) } ?: playMovie()
+        }
+
+        btnWatchTrailer.setOnClickListener {
+            launchTrailer()
+        }
+
+        btnAddFavorite.setOnClickListener {
+            toggleFavorite()
+        }
     }
 
-    private fun setupWebView() {
-        webViewTrailer.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            mediaPlaybackRequiresUserGesture = false
-            cacheMode = WebSettings.LOAD_DEFAULT
-        }
-        webViewTrailer.webChromeClient = WebChromeClient()
-    }
 
     private fun getMovieDataFromIntent() {
         movieId = intent.getStringExtra(EXTRA_MOVIE_ID)
@@ -397,7 +397,15 @@ class MovieDetailActivity : AppCompatActivity() {
                 .into(ivBackdrop)
         }
 
+        // Update Trailer button visibility/state
+        val trailerAvailable = !movieTrailerUrl.isNullOrBlank() || hasTmdbTrailer()
+        btnWatchTrailer.isEnabled = trailerAvailable
+        btnWatchTrailer.alpha = if (trailerAvailable) 1f else 0.5f
+    }
 
+    private fun hasTmdbTrailer(): Boolean {
+        // We'll check this once we have TMDB details
+        return false // Placeholder, will be improved
     }
 
     private fun displayRating(rating: Double) {
@@ -423,9 +431,8 @@ class MovieDetailActivity : AppCompatActivity() {
     }
 
     private fun configureTabs() {
-        selectDetailsTab()
-        btnTabDetails.setOnClickListener { selectDetailsTab() }
-        btnTabTrailer.setOnClickListener { selectTrailerTab() }
+        // No-op for now as we are using buttons instead of tabs for main actions
+        // But we keep the function if you want to restore tabs later
     }
 
 
@@ -630,80 +637,37 @@ class MovieDetailActivity : AppCompatActivity() {
 
     private fun currentStreamTitle(): String? = currentStream()?.name ?: movieName
 
-    private fun showDetails() {
-        detailsGroup.visibility = View.VISIBLE
-        trailerGroup.visibility = View.GONE
-    }
-
-    private fun showTrailer() {
-        detailsGroup.visibility = View.GONE
-        trailerGroup.visibility = View.VISIBLE
-        loadTrailer()
-    }
-
-    private fun selectDetailsTab() {
-        btnTabDetails.isSelected = true
-        btnTabTrailer.isSelected = false
-        btnTabDetails.alpha = 1f
-        btnTabTrailer.alpha = if (hasTrailer) 0.85f else 0.6f
-        showDetails()
-    }
-
-    private fun selectTrailerTab() {
-        btnTabDetails.isSelected = false
-        btnTabTrailer.isSelected = true
-        btnTabDetails.alpha = 0.85f
-        btnTabTrailer.alpha = 1f
-        showTrailer()
-    }
-
-    private fun loadTrailer() {
+    private fun launchTrailer() {
         val trailerUrl = movieTrailerUrl
-        if (trailerUrl.isNullOrBlank()) {
-            webViewTrailer.visibility = View.GONE
-            tvTrailerUnavailable.visibility = View.VISIBLE
+        if (!trailerUrl.isNullOrBlank()) {
+            startActivity(com.tvonnet.debridxtreamiptv.ui.trailer.TrailerActivity.createIntent(this, trailerUrl))
             return
         }
 
-        val embedUrl = buildYoutubeEmbedUrl(trailerUrl)
-        if (embedUrl == null) {
-            webViewTrailer.visibility = View.GONE
-            tvTrailerUnavailable.visibility = View.VISIBLE
-            return
+        // If no intent trailer, check stored TMDB data (this is where Phase 2 re-wiring happens)
+        // We'll see if the detail fetch populated any videos
+        lifecycleScope.launch {
+            val tmdbId = movieId?.toIntOrNull() ?: return@launch
+            val result = withContext(Dispatchers.IO) {
+                tmdbRemoteDataSource.getMovieDetails(tmdbId)
+            }
+            
+            result.onSuccess { details ->
+                val trailer = details.videos?.results?.firstOrNull { 
+                    it.site?.lowercase() == "youtube" && it.type?.lowercase() == "trailer" 
+                } ?: details.videos?.results?.firstOrNull { 
+                    it.site?.lowercase() == "youtube" 
+                }
+                
+                if (trailer?.key != null) {
+                    startActivity(com.tvonnet.debridxtreamiptv.ui.trailer.TrailerActivity.createIntent(this@MovieDetailActivity, trailer.key))
+                } else {
+                    Toast.makeText(this@MovieDetailActivity, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
+                }
+            }.onFailure {
+                Toast.makeText(this@MovieDetailActivity, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
+            }
         }
-
-        val html = """
-            <html>
-            <head>
-                <style>
-                    body, html { margin:0; padding:0; background-color: transparent; }
-                    iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:0; }
-                </style>
-            </head>
-            <body>
-                <iframe src="$embedUrl" frameborder="0" allowfullscreen allow="autoplay"></iframe>
-            </body>
-            </html>
-        """
-
-        webViewTrailer.visibility = View.VISIBLE
-        tvTrailerUnavailable.visibility = View.GONE
-        webViewTrailer.loadDataWithBaseURL(null, html.trimIndent(), "text/html", "utf-8", null)
-    }
-
-    private fun buildYoutubeEmbedUrl(rawUrl: String): String? {
-        val trimmed = rawUrl.trim()
-        if (trimmed.isBlank()) return null
-
-        val videoId = when {
-            trimmed.contains("youtube.com/watch") -> Uri.parse(trimmed).getQueryParameter("v")
-            trimmed.contains("youtube.com/embed") -> trimmed.substringAfterLast("/")
-            trimmed.contains("youtu.be/") -> trimmed.substringAfterLast("/").substringBefore('?')
-            trimmed.matches(Regex("^[A-Za-z0-9_-]{11}$")) -> trimmed
-            else -> null
-        }
-
-        return videoId?.let { "https://www.youtube.com/embed/$it?rel=0&autoplay=1" }
     }
 
     private fun playMovie(sourceOverride: MovieSource? = null) {
@@ -1077,22 +1041,17 @@ class MovieDetailActivity : AppCompatActivity() {
         btnAddFavorite.setText(textRes)
     }
 
+
     override fun onResume() {
         super.onResume()
-        webViewTrailer.onResume()
     }
 
     override fun onPause() {
-        webViewTrailer.onPause()
         super.onPause()
     }
 
     override fun onDestroy() {
         sourcesLoadJob?.cancel()
-        webViewTrailer.loadUrl("about:blank")
-        webViewTrailer.stopLoading()
-        webViewTrailer.webChromeClient = null
-        webViewTrailer.destroy()
         super.onDestroy()
     }
 

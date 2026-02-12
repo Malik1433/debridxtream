@@ -62,7 +62,8 @@ data class TmdbMovieDetails(
     @SerializedName("runtime") val runtime: Int?,
     @SerializedName("vote_average") val voteAverage: Double?,
     @SerializedName("genres") val genres: List<TmdbGenre>?,
-    @SerializedName("tagline") val tagline: String?
+    @SerializedName("tagline") val tagline: String?,
+    @SerializedName("videos") val videos: TmdbVideoResponse? = null
 )
 
 data class TmdbTvShowDetails(
@@ -77,7 +78,8 @@ data class TmdbTvShowDetails(
     @SerializedName("vote_average") val voteAverage: Double?,
     @SerializedName("genres") val genres: List<TmdbGenre>?,
     @SerializedName("external_ids") val externalIds: TmdbExternalIds?,
-    @SerializedName("seasons") val seasons: List<TmdbSeason>?
+    @SerializedName("seasons") val seasons: List<TmdbSeason>?,
+    @SerializedName("videos") val videos: TmdbVideoResponse? = null
 )
 
 data class TmdbSeason(

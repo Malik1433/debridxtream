@@ -94,6 +94,7 @@ class SeriesDetailActivity : AppCompatActivity() {
     private lateinit var rvEpisodes: RecyclerView
     private lateinit var tvEmptyEpisodes: TextView
     private lateinit var btnWatchNow: Button
+    private lateinit var btnWatchTrailer: Button
     private lateinit var btnAddFavorite: Button
     private lateinit var btnRefresh: ImageButton
     private lateinit var loadingOverlay: View
@@ -184,6 +185,7 @@ class SeriesDetailActivity : AppCompatActivity() {
         tvEmptyEpisodes = findViewById(R.id.tv_empty_episodes)
         tvEmptyEpisodes.visibility = View.GONE
         btnWatchNow = findViewById(R.id.btn_watch_now)
+        btnWatchTrailer = findViewById(R.id.btn_watch_trailer)
         btnAddFavorite = findViewById(R.id.btn_add_favorite)
         btnRefresh = findViewById(R.id.btn_refresh)
         loadingOverlay = findViewById(R.id.layout_loading_overlay)
@@ -254,6 +256,10 @@ class SeriesDetailActivity : AppCompatActivity() {
     private fun setupClickListeners() {
         btnWatchNow.setOnClickListener {
             selectedEpisode?.let { playEpisode(it) }
+        }
+
+        btnWatchTrailer.setOnClickListener {
+            launchTrailer()
         }
 
         btnAddFavorite.setOnClickListener {
@@ -1036,6 +1042,38 @@ class SeriesDetailActivity : AppCompatActivity() {
             getString(R.string.series_detail_remove_from_favorites)
         } else {
             getString(R.string.series_detail_add_to_favorites)
+        }
+    }
+
+    private fun launchTrailer() {
+        val seriesIdStr = seriesId ?: return
+        
+        // Phase 2: Check for TMDB trailer (Since Xtream rarely provides series trailers)
+        lifecycleScope.launch {
+            try {
+                val tmdbId = seriesIdStr.toIntOrNull() ?: return@launch
+                val result = withContext(Dispatchers.IO) {
+                    tmdbRemoteDataSource.getSeriesDetails(tmdbId)
+                }
+                
+                result.onSuccess { details ->
+                    val trailer = details.videos?.results?.firstOrNull { 
+                        it.site?.lowercase() == "youtube" && it.type?.lowercase() == "trailer" 
+                    } ?: details.videos?.results?.firstOrNull { 
+                        it.site?.lowercase() == "youtube" 
+                    }
+                    
+                    if (trailer?.key != null) {
+                        startActivity(com.tvonnet.debridxtreamiptv.ui.trailer.TrailerActivity.createIntent(this@SeriesDetailActivity, trailer.key))
+                    } else {
+                        Toast.makeText(this@SeriesDetailActivity, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
+                    }
+                }.onFailure {
+                    Toast.makeText(this@SeriesDetailActivity, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@SeriesDetailActivity, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

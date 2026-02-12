@@ -61,6 +61,20 @@ class CredentialsPreferences(private val context: Context) {
 
     // Expose for specialized cases
     fun getPrefs(): SharedPreferences = prefs
+
+    /**
+     * Returns a persistent unique device ID for pairing purposes.
+     * Generates and stores a UUID on first access.
+     *
+     * @return A stable device identifier string.
+     */
+    fun getDeviceId(): String {
+        val existing = prefs.getString(KEY_DEVICE_ID, null)
+        if (existing != null) return existing
+        val newId = java.util.UUID.randomUUID().toString()
+        prefs.edit().putString(KEY_DEVICE_ID, newId).apply()
+        return newId
+    }
     
     companion object {
         const val PREFS_NAME = "iptv_credentials"
@@ -69,6 +83,7 @@ class CredentialsPreferences(private val context: Context) {
         const val KEY_PASSWORD = "password"
         const val KEY_LOGGED_IN = "logged_in"
         const val KEY_SYNC_CODE = "sync_code"
+        const val KEY_DEVICE_ID = "device_id"
     }
 
 

@@ -252,6 +252,70 @@
                         tools:text="Cast: Jorma Tommila, Aksel Hennie" />
 
 
+                    <!-- Actions Row -->
+                    <LinearLayout
+                        android:id="@+id/layout_actions"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="24dp"
+                        android:orientation="horizontal">
+
+                        <Button
+                            android:id="@+id/btn_watch_now"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/button_primary_red"
+                            android:drawableStart="@android:drawable/ic_media_play"
+                            android:drawablePadding="8dp"
+                            android:drawableTint="@color/white"
+                            android:text="@string/movie_detail_watch_now"
+                            android:textColor="@color/white"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textAllCaps="false"
+                            android:focusable="true"
+                            android:nextFocusRight="@id/btn_watch_trailer" />
+
+                        <Space
+                            android:layout_width="12dp"
+                            android:layout_height="match_parent" />
+
+                        <Button
+                            android:id="@+id/btn_watch_trailer"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/button_secondary_white_outline"
+                            android:drawableStart="@android:drawable/ic_menu_slideshow"
+                            android:drawablePadding="8dp"
+                            android:drawableTint="@color/ds_accent_gold"
+                            android:text="Watch Trailer"
+                            android:textColor="@color/ds_text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textAllCaps="false"
+                            android:focusable="true"
+                            android:nextFocusLeft="@id/btn_watch_now"
+                            android:nextFocusRight="@id/btn_add_favorite" />
+
+                        <Space
+                            android:layout_width="12dp"
+                            android:layout_height="match_parent" />
+
+                        <Button
+                            android:id="@+id/btn_add_favorite"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:background="@drawable/button_secondary_white_outline"
+                            android:drawableStart="@drawable/ic_favorite_border"
+                            android:drawableTint="@color/ds_text_primary"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="0dp"
+                            android:focusable="true"
+                            android:nextFocusLeft="@id/btn_watch_trailer" />
+
+                    </LinearLayout>
 
                 </LinearLayout>
             </ScrollView>
@@ -356,42 +420,6 @@
 
         </LinearLayout>
 
-
-        <!-- TRAILER VIEW -->
-        <FrameLayout
-            android:id="@+id/group_trailer"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@color/black"
-            android:visibility="gone"
-            android:clipToOutline="true">
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/trailer_container"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-                <WebView
-                    android:id="@+id/webview_trailer"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    app:layout_constraintDimensionRatio="16:9"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent" />
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <TextView
-                android:id="@+id/tv_trailer_unavailable"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="@string/movie_detail_trailer_unavailable"
-                android:textColor="@color/ds_text_secondary"
-                android:textSize="16sp"
-                android:visibility="gone" />
-        </FrameLayout>
 
     </FrameLayout>
 
