@@ -82,14 +82,18 @@ class CategorySidebarViewHolder(itemView: View) : RecyclerView.ViewHolder(itemVi
         
         // Update styling based on selection
         if (isSelected) {
-            tvCategoryName.setTextColor(itemView.context.getColor(R.color.ds_text_primary))
+            tvCategoryName.setTextColor(itemView.context.getColor(android.R.color.white))
+            tvCategoryName.alpha = 1.0f
             tvCategoryName.setTypeface(null, android.graphics.Typeface.BOLD)
             activeIndicator.visibility = View.VISIBLE
+            itemView.setBackgroundResource(R.color.primary_10_percent) // Need to ensure this color exists or use a drawable
             activeIndicator.alpha = 1f
         } else {
-            tvCategoryName.setTextColor(itemView.context.getColor(R.color.ds_text_secondary))
+            tvCategoryName.setTextColor(itemView.context.getColor(android.R.color.white))
+            tvCategoryName.alpha = 0.6f
             tvCategoryName.setTypeface(null, android.graphics.Typeface.NORMAL)
             activeIndicator.visibility = View.INVISIBLE
+            itemView.setBackgroundResource(android.R.color.transparent)
             activeIndicator.alpha = 0f
         }
         

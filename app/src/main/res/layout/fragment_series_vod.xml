@@ -1,7 +1,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/ds_background_primary">
+    android:background="@color/background_pure_black">
 
     <!-- Immersive Background Backdrop -->
     <ImageView
@@ -9,7 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
-        android:alpha="0.6"
+        android:alpha="0.4"
         android:contentDescription="Series Backdrop" />
 
     <!-- Gradient Overlay for Readability -->
@@ -23,21 +23,17 @@
         android:id="@+id/ll_main_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="horizontal"
-        android:paddingStart="0dp"
-        android:paddingEnd="0dp"
-        android:paddingTop="0dp"
-        android:paddingBottom="0dp">
+        android:orientation="horizontal">
 
         <!-- Left Sidebar: Categories -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_categories_sidebar"
-            android:layout_width="280dp"
+            android:layout_width="260dp"
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:focusable="true"
             android:focusableInTouchMode="true"
-            android:background="#99000000"
+            android:background="@color/surface_dark"
             android:nextFocusRight="@id/rv_series_grid"
             android:clipToPadding="false"
             android:paddingTop="24dp"

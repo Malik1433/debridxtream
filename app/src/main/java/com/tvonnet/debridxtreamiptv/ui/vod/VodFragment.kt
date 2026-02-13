@@ -76,6 +76,7 @@ class VodFragment : Fragment() {
     private var llEmptyState: LinearLayout? = null
     private var tvEmptyMessage: TextView? = null
     private var tvLoadingMessage: TextView? = null
+    private var tvOfflineLabel: TextView? = null
     private var selectedCategoryId: String = ""
 
     private var isMoviesLoadingFromViewModel: Boolean = false
@@ -137,6 +138,7 @@ class VodFragment : Fragment() {
         llEmptyState = view.findViewById(R.id.ll_empty_state)
         tvEmptyMessage = view.findViewById(R.id.tv_empty_message)
         tvLoadingMessage = view.findViewById(R.id.tv_loading_message)
+        tvOfflineLabel = view.findViewById(R.id.tv_offline_label)
 
         savedInstanceState?.let { state ->
             lastFocusedCategoryPosition = state.getInt(STATE_LAST_CATEGORY_POS, RecyclerView.NO_POSITION)
@@ -159,8 +161,8 @@ class VodFragment : Fragment() {
         // Setup sidebar layout (vertical)
         rvCategoriesSidebar.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
         
-        // Setup movies grid layout (4 columns for professional look)
-        rvMoviesGrid.layoutManager = GridLayoutManager(context, 4)
+        // Setup movies grid layout (5 columns for a professional TiviMate look)
+        rvMoviesGrid.layoutManager = GridLayoutManager(context, 5)
         rvMoviesGrid.adapter = vodAdapter
 
         // Track focus for restore on back navigation
@@ -171,6 +173,19 @@ class VodFragment : Fragment() {
                         lastFocusTarget = FocusTarget.CATEGORIES
                         lastFocusedCategoryPosition = rvCategoriesSidebar.getChildAdapterPosition(v)
                         lastFocusedCategoryId = (v.getTag(R.id.tag_category_id) as? String)
+                        
+                        // TiviMate Sidebar Scale (Subtle 1.05x)
+                        v.animate()
+                            .scaleX(1.05f)
+                            .scaleY(1.05f)
+                            .setDuration(120)
+                            .start()
+                    } else {
+                        v.animate()
+                            .scaleX(1.0f)
+                            .scaleY(1.0f)
+                            .setDuration(120)
+                            .start()
                     }
                 }
             }
@@ -189,6 +204,19 @@ class VodFragment : Fragment() {
                         lastFocusedMoviePosition = position
                         lastFocusedMovieId = (v.getTag(R.id.tag_vod_id) as? String)
                         
+        
+                        // TiviMate Scale Animation (1.1x)
+                        v.animate()
+                            .scaleX(1.1f)
+                            .scaleY(1.1f)
+                            .setDuration(150)
+                            .setInterpolator(android.view.animation.DecelerateInterpolator())
+                            .start()
+                        v.z = 10f // Lift up
+                        
+                        // Show blue border on focus (handled by selector in XML or manually here if needed)
+                        // XML background bg_movie_focus_cyan handles the border
+
                         // Update background on focus
                         if (position != RecyclerView.NO_POSITION) {
                             try {
@@ -200,6 +228,15 @@ class VodFragment : Fragment() {
                                 // Ignore padding issues
                             }
                         }
+                    } else {
+                        // Restore scale on focus loss
+                        v.animate()
+                            .scaleX(1.0f)
+                            .scaleY(1.0f)
+                            .setDuration(150)
+                            .setInterpolator(android.view.animation.DecelerateInterpolator())
+                            .start()
+                        v.z = 0f
                     }
                 }
             }
@@ -293,6 +330,9 @@ class VodFragment : Fragment() {
                     }
                     tvCategoryTitle.text = title
                 }
+
+                // Update Offline Label
+                tvOfflineLabel?.visibility = if (state.error?.contains("network", true) == true) View.VISIBLE else View.GONE
 
                 // Extra guard: if load states aren't available yet, never show empty while VM says loading.
                 if (state.isLoadingMovies && vodAdapter.itemCount == 0) {
@@ -567,12 +607,12 @@ class VodDiffCallback : androidx.recyclerview.widget.DiffUtil.ItemCallback<Xtrea
 
 class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private val tvMovieTitle = itemView.findViewById<TextView>(R.id.tv_movie_title)
-    private val tvMovieStars = itemView.findViewById<TextView>(R.id.tv_movie_stars)
     private val tvMovieRatingValue = itemView.findViewById<TextView>(R.id.tv_movie_rating_value)
-    private val ivMoviePoster = itemView.findViewById<android.widget.ImageView>(R.id.iv_movie_poster)
-    private val ivFavoriteIndicator = itemView.findViewById<android.widget.ImageView>(R.id.iv_favorite_indicator)
-    private val tvNewBadge = itemView.findViewById<TextView>(R.id.tv_new_badge)
-    
+    private val tvMovieYear = itemView.findViewById<TextView>(R.id.tv_movie_year)
+    private val tvQualityValue = itemView.findViewById<TextView>(R.id.tv_quality_value)
+    private val ivMoviePoster = itemView.findViewById<ImageView>(R.id.iv_movie_poster)
+    private val ivFavoriteIndicator = itemView.findViewById<ImageView>(R.id.iv_favorite_indicator)
+
     fun bind(
         movie: XtreamVodInfo,
         isFavorite: Boolean,
@@ -581,7 +621,30 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     ) {
         itemView.setTag(R.id.tag_vod_id, movie.stream_id?.toString())
         tvMovieTitle.text = movie.name ?: "Unknown Movie"
-        bindStarRating(movie.rating)
+        
+        // Bind Rating
+        val rating = movie.rating?.trim()?.replace(",", ".")?.toFloatOrNull()
+        if (rating != null && rating > 0) {
+            val starsValue = if (rating > 5f) rating / 2f else rating
+            tvMovieRatingValue.text = String.format(Locale.US, "%.1f", starsValue.coerceIn(0f, 5f))
+        } else {
+            tvMovieRatingValue.text = "N/A"
+        }
+        
+        // Bind Year (Extract from releaseDate or name if needed, assuming valid date string)
+        // releaseDate often format: "2024-05-20" or just "2024"
+        tvMovieYear.text = movie.releaseDate?.take(4) ?: ""
+
+        // Bind Quality (Placeholder logic, can be real data if available)
+        // Check if name contains quality indicators
+        val nameLower = movie.name?.lowercase(Locale.ROOT) ?: ""
+        val quality = when {
+            nameLower.contains("4k") || nameLower.contains("uhd") -> "4K"
+            nameLower.contains("1080p") || nameLower.contains("fhd") -> "FHD"
+            nameLower.contains("720p") || nameLower.contains("hd") -> "HD"
+            else -> "HD" // Default to HD for aesthetics
+        }
+        tvQualityValue.text = quality
         
         // Show/hide favorite heart icon
         ivFavoriteIndicator?.visibility = if (isFavorite) {
@@ -590,10 +653,7 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             View.GONE
         }
         
-        // Show NEW badge for recent movies (optional logic)
-        tvNewBadge?.visibility = View.GONE
-        
-        // Load poster using Glide with 2:3 aspect ratio
+        // Load poster using Glide with 2:3 aspect ratio and 14dp corners (handled by CardView clip)
         if (!movie.stream_icon.isNullOrBlank()) {
             Glide.with(itemView.context)
                 .load(movie.stream_icon)
@@ -614,34 +674,6 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             onLongClick?.invoke(movie)
             true
         }
-    }
-
-    private fun bindStarRating(rawRating: String?) {
-        val ratingValue = rawRating?.trim()?.replace(",", ".")?.toFloatOrNull()
-        if (ratingValue == null) {
-            tvMovieStars.visibility = View.GONE
-            tvMovieRatingValue.visibility = View.GONE
-            return
-        }
-
-        // Normalize to 0-5 stars.
-        val starsValue = if (ratingValue > 5f) ratingValue / 2f else ratingValue
-        val clamped = starsValue.coerceIn(0f, 5f)
-        val filled = kotlin.math.round(clamped).toInt().coerceIn(0, 5)
-
-        val starsText = "★★★★★"
-        val spannable = SpannableString(starsText)
-        val gold = itemView.context.getColor(R.color.ds_accent_gold)
-        val dim = itemView.context.getColor(R.color.ds_text_tertiary)
-        spannable.setSpan(ForegroundColorSpan(gold), 0, filled, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        if (filled < 5) {
-            spannable.setSpan(ForegroundColorSpan(dim), filled, 5, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        }
-
-        tvMovieStars.text = spannable
-        tvMovieRatingValue.text = String.format(Locale.US, "%.1f", clamped)
-        tvMovieStars.visibility = View.VISIBLE
-        tvMovieRatingValue.visibility = View.VISIBLE
     }
 }
 

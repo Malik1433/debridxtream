@@ -180,11 +180,10 @@ class HomeRowAdapter(
             binding.tvMovieRatingValue.text = rating.removePrefix("⭐ ").trim()
             
             // Toggle rating visibility
+            // Toggle rating visibility
             if (binding.tvMovieRatingValue.text.isBlank()) {
-                binding.tvMovieStars.visibility = android.view.View.GONE
                 binding.tvMovieRatingValue.visibility = android.view.View.GONE
             } else {
-                 binding.tvMovieStars.visibility = android.view.View.VISIBLE
                  binding.tvMovieRatingValue.visibility = android.view.View.VISIBLE
             }
 

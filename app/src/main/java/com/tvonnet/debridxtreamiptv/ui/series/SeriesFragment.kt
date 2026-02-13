@@ -168,7 +168,7 @@ class SeriesFragment : Fragment() {
 
     private fun setupRecyclerViews() {
         // Setup Grid
-        rvSeriesGrid.layoutManager = GridLayoutManager(requireContext(), 4)
+        rvSeriesGrid.layoutManager = GridLayoutManager(requireContext(), 5)
         rvSeriesGrid.adapter = seriesPagingAdapter
         // RecyclerViewAnimations.applySpringAnimation(rvSeriesGrid)
 
@@ -183,6 +183,19 @@ class SeriesFragment : Fragment() {
                         lastFocusTarget = FocusTarget.CATEGORIES
                         lastFocusedCategoryPosition = rvCategoriesSidebar.getChildAdapterPosition(v)
                         lastFocusedCategoryId = (v.getTag(R.id.tag_category_id) as? String)
+
+                        // TiviMate Sidebar Scale (Subtle 1.05x)
+                        v.animate()
+                            .scaleX(1.05f)
+                            .scaleY(1.05f)
+                            .setDuration(120)
+                            .start()
+                    } else {
+                        v.animate()
+                            .scaleX(1.0f)
+                            .scaleY(1.0f)
+                            .setDuration(120)
+                            .start()
                     }
                 }
             }
@@ -200,6 +213,15 @@ class SeriesFragment : Fragment() {
                         lastFocusedSeriesPosition = rvSeriesGrid.getChildAdapterPosition(v)
                         lastFocusedSeriesId = (v.getTag(R.id.tag_series_id) as? String)
 
+                        // TiviMate Scale Animation (1.1x)
+                        v.animate()
+                            .scaleX(1.1f)
+                            .scaleY(1.1f)
+                            .setDuration(120)
+                            .setInterpolator(android.view.animation.DecelerateInterpolator())
+                            .start()
+                        v.z = 10f // Lift up
+
                         // Update backdrop on focus
                         val position = lastFocusedSeriesPosition
                         if (position != RecyclerView.NO_POSITION) {
@@ -212,6 +234,15 @@ class SeriesFragment : Fragment() {
                                 // Ignore
                             }
                         }
+                    } else {
+                        // Restore scale on focus loss
+                        v.animate()
+                            .scaleX(1.0f)
+                            .scaleY(1.0f)
+                            .setDuration(120)
+                            .setInterpolator(android.view.animation.DecelerateInterpolator())
+                            .start()
+                        v.z = 0f
                     }
                 }
             }

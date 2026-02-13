@@ -3,25 +3,25 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#121212">
+    android:background="@color/background_pure_black">
 
-    <!-- Cinematic Backdrop (Fixed Background) -->
+    <!-- Cinematic Backdrop (Immersive Background) -->
     <ImageView
         android:id="@+id/iv_backdrop"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:alpha="1.0"
+        android:alpha="0.4"
         android:importantForAccessibility="no"
         android:scaleType="centerCrop"
         tools:src="@tools:sample/backgrounds/scenic" />
 
-    <!-- Left Scrim Gradient (Fixed) -->
+    <!-- Left Scrim Gradient (Heavy on the left for text) -->
     <View
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@drawable/scrim_gradient_left" />
 
-    <!-- Bottom Gradient (Fixed - behind scroll content) -->
+    <!-- Bottom Gradient (Transition to content) -->
     <View
         android:layout_width="match_parent"
         android:layout_height="300dp"
@@ -34,49 +34,47 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fillViewport="true"
-        android:overScrollMode="ifContentScrolls"
         android:scrollbars="none">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingBottom="48dp">
+            android:paddingBottom="64dp">
 
-            <!-- Content Block (Left Aligned) -->
+            <!-- Content Block -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/container_info"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="120dp"
-                android:paddingStart="48dp"
+                android:paddingStart="64dp"
+                android:paddingEnd="32dp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintWidth_percent="0.6">
+                app:layout_constraintWidth_percent="0.65">
 
-                <!-- Title -->
+                <!-- Title (Cinematic Scale) -->
                 <TextView
                     android:id="@+id/tv_title"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-black"
-                    android:shadowColor="#000000"
-                    android:shadowDx="4"
-                    android:shadowDy="4"
-                    android:shadowRadius="8"
                     android:textColor="#FFFFFF"
-                    android:textSize="56sp"
+                    android:textSize="64sp"
                     android:textStyle="bold"
-                    tools:text="Movie Title"
+                    android:lineHeight="72sp"
+                    tools:text="Dune: Part Two"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
-                <!-- Metadata Pills -->
+                <!-- Metadata Pills (Modern Chips) -->
                 <LinearLayout
                     android:id="@+id/container_meta"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="20dp"
                     android:orientation="horizontal"
+                    android:gravity="center_vertical"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/tv_title">
 
@@ -84,66 +82,49 @@
                         android:id="@+id/tv_rating"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/bg_meta_pill"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
+                        android:background="@drawable/bg_rating_badge"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp"
                         android:paddingTop="6dp"
                         android:paddingBottom="6dp"
-                        android:textColor="#FFFFFF"
-                        android:textSize="14sp"
+                        android:textColor="@color/ds_accent_gold"
+                        android:textSize="15sp"
                         android:textStyle="bold"
-                        tools:text="★ 7.9" />
+                        tools:text="★ 8.9" />
 
                     <TextView
                         android:id="@+id/tv_year"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
-                        android:background="@drawable/bg_meta_pill"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:paddingTop="6dp"
-                        android:paddingBottom="6dp"
-                        android:textColor="#FFFFFF"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
+                        android:layout_marginStart="16dp"
+                        android:textColor="#CCCCCC"
+                        android:textSize="18sp"
+                        android:fontFamily="sans-serif-medium"
                         tools:text="2024" />
+
+                    <View
+                        android:layout_width="4dp"
+                        android:layout_height="4dp"
+                        android:layout_marginStart="12dp"
+                        android:background="#66FFFFFF" />
 
                     <TextView
                         android:id="@+id/tv_genre"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:background="@drawable/bg_meta_pill"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:paddingTop="6dp"
-                        android:paddingBottom="6dp"
-                        android:textColor="#FFFFFF"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        tools:text="Action" />
-
-                    <TextView
-                        android:id="@+id/tv_quality"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
-                        android:background="@drawable/bg_meta_pill"
-                        android:paddingStart="4dp"
-                        android:paddingEnd="4dp"
-                        android:text="HD"
-                        android:textColor="#FFFFFF"
-                        android:textSize="10sp"
-                        android:textStyle="bold" />
+                        android:textColor="#CCCCCC"
+                        android:textSize="18sp"
+                        android:fontFamily="sans-serif-medium"
+                        tools:text="Sci-Fi • Action" />
                 </LinearLayout>
 
-                <!-- Action Buttons -->
+                <!-- Action Buttons (Modern Horizontal Group) -->
                 <LinearLayout
                     android:id="@+id/container_actions"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
+                    android:layout_marginTop="40dp"
                     android:orientation="horizontal"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/container_meta">
@@ -151,61 +132,56 @@
                     <Button
                         android:id="@+id/btn_play"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_height="64dp"
                         android:background="@drawable/btn_primary_action"
-                        android:drawablePadding="8dp"
+                        android:drawablePadding="12dp"
                         android:drawableStart="@android:drawable/ic_media_play"
                         android:drawableTint="#FFFFFF"
                         android:focusable="true"
-                        android:nextFocusRight="@id/btn_trailer"
-                        android:nextFocusUp="@id/btn_back"
-                        android:paddingStart="24dp"
-                        android:paddingEnd="24dp"
-                        android:text="Play"
+                        android:paddingStart="32dp"
+                        android:paddingEnd="40dp"
+                        android:text="WATCH NOW"
                         android:textColor="#FFFFFF"
-                        android:textStyle="bold" />
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:elevation="8dp" />
 
                     <Button
                         android:id="@+id/btn_trailer"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
+                        android:layout_height="64dp"
+                        android:layout_marginStart="20dp"
                         android:background="@drawable/btn_secondary_action"
                         android:focusable="true"
-                        android:nextFocusLeft="@id/btn_play"
-                        android:nextFocusRight="@id/btn_favorite"
-                        android:paddingStart="24dp"
-                        android:paddingEnd="24dp"
-                        android:text="Trailer"
-                        android:textColor="#FFFFFF" />
+                        android:paddingStart="32dp"
+                        android:paddingEnd="32dp"
+                        android:text="TRAILER"
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp" />
 
-                    <Button
+                    <ImageButton
                         android:id="@+id/btn_favorite"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:layout_marginStart="20dp"
                         android:background="@drawable/btn_secondary_action"
                         android:focusable="true"
-                        android:nextFocusLeft="@id/btn_trailer"
-                        android:paddingStart="24dp"
-                        android:paddingEnd="24dp"
-                        android:text="Favorite"
-                        android:textColor="#FFFFFF" />
+                        android:src="@drawable/ic_favorite"
+                        app:tint="#FFFFFF"
+                        android:padding="16dp" />
                 </LinearLayout>
 
-                <!-- Plot -->
+                <!-- Plot (Readable & Clean) -->
                 <TextView
                     android:id="@+id/tv_plot"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
-                    android:layout_marginBottom="24dp"
-                    android:ellipsize="end"
-                    android:lineSpacingMultiplier="1.2"
-                    android:maxLines="3"
-                    android:textColor="#CCCCCC"
-                    android:textSize="16sp"
-                    tools:text="Movie plot goes here..."
+                    android:layout_marginTop="32dp"
+                    android:lineSpacingExtra="6dp"
+                    android:textColor="#BBBBBB"
+                    android:textSize="19sp"
+                    android:fontFamily="sans-serif"
+                    tools:text="Paul Atreides unites with Chani and the Fremen while on a warpath of revenge against the conspirators who destroyed his family."
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/container_actions" />
 
@@ -214,30 +190,27 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Fixed Buttons -->
+    <!-- Top Left Back Navigation -->
     <ImageButton
         android:id="@+id/btn_back"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
         android:layout_margin="32dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
+        android:background="@drawable/bg_circle_dark_translucent"
         android:contentDescription="Back"
         android:focusable="true"
-        android:nextFocusDown="@id/btn_play"
-        android:nextFocusRight="@id/btn_favorite"
+        android:padding="16dp"
         android:src="@android:drawable/ic_menu_close_clear_cancel"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:tint="#FFFFFF" />
 
-    <!-- Central Loader (Fixed & Modern) -->
+    <!-- Progress Loader -->
     <ProgressBar
         android:id="@+id/pb_loading_central"
         android:layout_width="64dp"
         android:layout_height="64dp"
-        android:elevation="50dp"
-        android:indeterminateDrawable="@drawable/progress_indeterminate_modern"
-        android:layout_gravity="center"
+        android:indeterminateTint="@color/ds_accent"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

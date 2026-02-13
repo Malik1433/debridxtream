@@ -53,11 +53,9 @@ class SeriesPagingViewHolder(itemView: android.view.View) : RecyclerView.ViewHol
     // ... existing fields ...
     private val tvTitle = itemView.findViewById<android.widget.TextView>(R.id.tv_series_title)
     private val tvYear = itemView.findViewById<android.widget.TextView>(R.id.tv_series_year)
-    private val tvSeparator = itemView.findViewById<android.widget.TextView>(R.id.tv_series_separator)
     private val tvRating = itemView.findViewById<android.widget.TextView>(R.id.tv_series_rating)
     private val ivPoster = itemView.findViewById<android.widget.ImageView>(R.id.iv_series_poster)
     private val ivFavoriteIndicator = itemView.findViewById<android.widget.ImageView>(R.id.iv_favorite_indicator)
-    private val tvNewBadge = itemView.findViewById<android.widget.TextView>(R.id.tv_series_new_badge)
 
     fun bind(
         series: XtreamSeriesInfo,
@@ -86,19 +84,11 @@ class SeriesPagingViewHolder(itemView: android.view.View) : RecyclerView.ViewHol
             tvRating.visibility = android.view.View.GONE
         }
 
-        tvSeparator.visibility = if (tvYear.visibility == android.view.View.VISIBLE && tvRating.visibility == android.view.View.VISIBLE) {
-            android.view.View.VISIBLE
-        } else {
-            android.view.View.GONE
-        }
-
         ivFavoriteIndicator?.visibility = if (isFavorite) {
             android.view.View.VISIBLE
         } else {
             android.view.View.GONE
         }
-
-        tvNewBadge?.visibility = android.view.View.GONE
 
         val posterUrl = series.cover
         if (!posterUrl.isNullOrBlank()) {

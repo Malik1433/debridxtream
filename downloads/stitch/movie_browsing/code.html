@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Premium IPTV Movie Browser</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2962ff",
+                        "background-light": "#f5f6f8",
+                        "background-dark": "#0f1423",
+                        "tv-surface": "#151515",
+                    },
+                    fontFamily: {
+                        "display": ["Spline Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px",
+                        "poster": "14px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Spline Sans', sans-serif;
+            background-color: #0f1423;
+            color: white;
+            overflow: hidden;
+        }
+        .sidebar-focus-strip {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background-color: #2962ff;
+            border-radius: 0 4px 4px 0;
+        }
+        .focused-card {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px 5px rgba(41, 98, 255, 0.4);
+            z-index: 10;
+            border: 2px solid #2962ff;
+        }
+        .focused-sidebar-item {
+            transform: scale(1.05);
+            background-color: rgba(41, 98, 255, 0.1);
+        }
+        .safe-area {
+            padding: 5% 5% 2% 5%;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-white font-display h-screen flex">
+<!-- Left Sidebar (260dp approx 320px for high res displays) -->
+<aside class="w-[320px] bg-tv-surface h-full flex flex-col border-r border-white/5 z-20">
+<div class="px-8 pt-12 pb-10">
+<h1 class="text-primary text-3xl font-bold tracking-tighter flex items-center gap-2">
+<span class="material-symbols-outlined text-4xl">movie</span>
+                CINEMA
+            </h1>
+</div>
+<nav class="flex-1 px-4 space-y-2">
+<div class="relative group flex items-center h-16 px-6 rounded-lg transition-all duration-300 hover:bg-white/5 cursor-pointer">
+<p class="text-white/60 text-xl font-medium">All Movies</p>
+</div>
+<!-- Focused Item: Recently Added -->
+<div class="relative flex items-center h-16 px-6 rounded-lg bg-primary/10 focused-sidebar-item transition-all duration-300 cursor-pointer">
+<div class="sidebar-focus-strip"></div>
+<p class="text-white text-xl font-bold">Recently Added</p>
+</div>
+<div class="relative group flex items-center h-16 px-6 rounded-lg transition-all duration-300 hover:bg-white/5 cursor-pointer">
+<p class="text-white/60 text-xl font-medium">Trending</p>
+</div>
+<div class="relative group flex items-center h-16 px-6 rounded-lg transition-all duration-300 hover:bg-white/5 cursor-pointer">
+<p class="text-white/60 text-xl font-medium">Action</p>
+</div>
+<div class="relative group flex items-center h-16 px-6 rounded-lg transition-all duration-300 hover:bg-white/5 cursor-pointer">
+<p class="text-white/60 text-xl font-medium">Drama</p>
+</div>
+<div class="relative group flex items-center h-16 px-6 rounded-lg transition-all duration-300 hover:bg-white/5 cursor-pointer">
+<p class="text-white/60 text-xl font-medium">Sci-Fi</p>
+</div>
+</nav>
+<div class="p-8 mt-auto">
+<div class="flex items-center gap-3 text-white/40">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</div>
+</div>
+</aside>
+<!-- Right Content Area -->
+<main class="flex-1 flex flex-col overflow-hidden relative">
+<!-- Header Utility Bar (Safe Zone) -->
+<header class="flex justify-end items-center gap-6 pt-10 px-12 pb-6 z-30">
+<div class="flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-full">
+<span class="material-symbols-outlined text-primary text-lg">cloud_off</span>
+<span class="text-white/80 text-sm font-bold tracking-wide uppercase">Offline Mode</span>
+</div>
+<button class="w-12 h-12 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-primary transition-colors">
+<span class="material-symbols-outlined">search</span>
+</button>
+<div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-blue-800 flex items-center justify-center border-2 border-white/20">
+<span class="text-sm font-bold">JD</span>
+</div>
+</header>
+<!-- Movie Grid Section -->
+<section class="flex-1 overflow-y-auto px-12 pb-12">
+<div class="mb-8">
+<h2 class="text-3xl font-bold text-white mb-2">Recently Added</h2>
+<div class="h-1 w-20 bg-primary rounded-full"></div>
+</div>
+<!-- Responsive Movie Grid (4-5 columns) -->
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+<!-- Card 1 (Focused State) -->
+<div class="flex flex-col gap-4">
+<div class="relative aspect-[2/3] w-full rounded-poster overflow-hidden focused-card transition-all duration-300 bg-tv-surface">
+<img class="w-full h-full object-cover" data-alt="Cinematic movie poster with neon lights and futuristic city" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDmJgEAT55Qtfpl25hmpqVvJxFGm22CxfYb7aInlr9vtlSj_gWJEnAC9Wnfh7tLM_5KyX9-Qb5TBbkF22k107WR-NXywB8j8b9TfnqdfJ2PHi8PHyGv3D_QQNrQErZiU64hCsoMJjDsVaQCN7mac3oeXkYFPBr5WBya_cFjufljqTUJtCy8pL7sGIg4tmnDxHMc2yPoTjcQzDaLCiRocn6azLEh_-zPonpY8k5aX2g_QUJc8X-qDnRocsCrbiiSzSSulMBEzfeAnxw"/>
+<div class="absolute top-3 right-3 bg-primary px-2 py-1 rounded text-[10px] font-bold">4K</div>
+<div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 to-transparent">
+<p class="text-white font-bold truncate">Neon Genesis</p>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-yellow-500 text-xs">star</span>
+<span class="text-[10px] text-white/80">8.9 | 2024</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="flex flex-col gap-4">
+<div class="relative aspect-[2/3] w-full rounded-poster overflow-hidden bg-tv-surface hover:scale-105 transition-all duration-300 border-2 border-transparent">
+<img class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" data-alt="Modern thriller movie poster with dark silhouette and dramatic lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSCgTHAbcPgfAI5Xy6Eeu4uJOwJDRQpMsSYRVCgHBEkUGikD-T0MHOV_Q-4rgiOaXANwWFQ9RJ-vs03qVjn86xZ_BO3e3ntXHzgEccDAbTq8mBy7IFsRcfBY74fyLbRQOdeK4yGzoOMBXUMXU3BC9mMfZNpyT4T4--78TWut3Altz2X16Z22suCsInOte7j3BIJpPNTcgtEbzEsI2lBdEVrzSVALf_fhV21vxOZzSvvoG9w5PFwh6pSIDE0emLfy9fm6gi-1Jvl-0"/>
+<div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 to-transparent">
+<p class="text-white/90 font-bold truncate">The Silent Echo</p>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-yellow-500 text-xs">star</span>
+<span class="text-[10px] text-white/60">7.5 | 2023</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="flex flex-col gap-4">
+<div class="relative aspect-[2/3] w-full rounded-poster overflow-hidden bg-tv-surface hover:scale-105 transition-all duration-300 border-2 border-transparent">
+<img class="w-full h-full object-cover opacity-80 transition-opacity" data-alt="Action movie poster showing a high speed car chase" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9ohVyl76B-h9JDmbxBEDUK3TszTDuVKW85PigsUdmF1_va9kGoOoInp0Q5UF-Whxnv6szNStOtPtG_9Rqvn59k3W78zs8t2_EkGUHROEp4zvbE1vsE7Gl6hwKXK_w8EVk0eJj0_meUDuAj-72PVmgp_Wa8i6RtuaE9PwiNagFIeLU2otjd9kwf8vdYoALs8Znca7AZsCN5WZDZKsltOUeWiJ3N2aR5T8YwRjpBKCKtb3FfH63eQ0ryJk6JcPkNCGRwZdNTmUf-vk"/>
+<div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 to-transparent">
+<p class="text-white/90 font-bold truncate">Midnight Drive</p>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-yellow-500 text-xs">star</span>
+<span class="text-[10px] text-white/60">8.1 | 2024</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="flex flex-col gap-4">
+<div class="relative aspect-[2/3] w-full rounded-poster overflow-hidden bg-tv-surface hover:scale-105 transition-all duration-300 border-2 border-transparent">
+<img class="w-full h-full object-cover opacity-80 transition-opacity" data-alt="Sci-fi space exploration movie poster with colorful nebula" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBAag1eFp6Ifv8rsS3aUmF8MdIFJheReEgYe6MBNV40gtp13sEBoSta8tbAslphXt3Z8SVku-Bejv4e2Rq4BpUF4c2DiU2jIf16pPdkSvRn65PdYKMYCfIWH1d9tRTtlXfUWoZf76EaqIu8d27QE3dolABDDKLTSDzpqtlObf3naJJTI61wqjb90x2iX91YyWNCU-VGpIr4-bBeQQNDbpf4R6zFTwmuWbdDWw0yMhmZFcSC2Sw6PKtgnVUt_rbyVE9-W9s8Yy_zDtI"/>
+<div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 to-transparent">
+<p class="text-white/90 font-bold truncate">Outer Realms</p>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-yellow-500 text-xs">star</span>
+<span class="text-[10px] text-white/60">9.2 | 2024</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 5 -->
+<div class="flex flex-col gap-4">
+<div class="relative aspect-[2/3] w-full rounded-poster overflow-hidden bg-tv-surface hover:scale-105 transition-all duration-300 border-2 border-transparent">
+<img class="w-full h-full object-cover opacity-80 transition-opacity" data-alt="Vintage drama movie poster with classic cinematography style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbxX02ftjYPP3v-KCFFglleyW7uNB8xRfk7qNUq1AKVjobkqUI14WuWBB_Ju56oAt8jHwR3D6m2mZ-EBSqtv0rdmE8x4Ot5v4A6eixEemn1FCfqwNSVzEdLSBDPVQ7NCUNvsjcXGkY8_07errlxFrjLas24GizjvTS2MHgZYdkVVWDz2KzUvzvUuIYEeSOoX8rdxIKSp1aYezH7Q4XTGrasCew5gwxBtwP8yi5RhCQKrnEss2OoVYsrkVMZzBpYojjT8FhjFSphZs"/>
+<div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 to-transparent">
+<p class="text-white/90 font-bold truncate">Yesterday's Dreams</p>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-yellow-500 text-xs">star</span>
+<span class="text-[10px] text-white/60">8.4 | 2023</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Second Row (Partial Visibility to encourage scrolling) -->
+<div class="flex flex-col gap-4 opacity-50">
+<div class="relative aspect-[2/3] w-full rounded-poster overflow-hidden bg-tv-surface">
+<div class="w-full h-full bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-white/20">movie</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-4 opacity-50">
+<div class="relative aspect-[2/3] w-full rounded-poster overflow-hidden bg-tv-surface">
+<div class="w-full h-full bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-white/20">movie</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-4 opacity-50">
+<div class="relative aspect-[2/3] w-full rounded-poster overflow-hidden bg-tv-surface">
+<div class="w-full h-full bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-white/20">movie</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Ambient background glow (Simulating screen lighting) -->
+<div class="absolute -bottom-40 -right-40 w-[600px] h-[600px] bg-primary/10 blur-[120px] rounded-full pointer-events-none"></div>
+<div class="absolute -top-40 -left-40 w-[400px] h-[400px] bg-primary/5 blur-[100px] rounded-full pointer-events-none"></div>
+</main>
+</body></html>

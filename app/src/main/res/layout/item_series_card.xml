@@ -4,27 +4,28 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="6dp"
-    android:layout_marginVertical="10dp"
+    android:layout_marginHorizontal="8dp"
+    android:layout_marginVertical="12dp"
     android:clickable="true"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    android:background="@drawable/movie_card_selector_modern"
-    android:foreground="@drawable/selector_border_focused_animated"
-    android:elevation="4dp">
+    android:background="@drawable/bg_movie_focus_cyan"
+    android:elevation="6dp"
+    android:clipToPadding="false"
+    android:clipChildren="false">
 
     <androidx.cardview.widget.CardView
         android:id="@+id/card_container"
-        android:layout_width="155dp"
+        android:layout_width="165dp"
         android:layout_height="0dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintDimensionRatio="2:3"
-        app:cardCornerRadius="8dp"
+        app:cardCornerRadius="14dp"
         app:cardElevation="0dp"
-        app:cardBackgroundColor="@color/ds_background_secondary">
+        app:cardBackgroundColor="@color/surface_dark">
 
         <!-- Series Poster -->
         <ImageView
@@ -37,44 +38,45 @@
         <!-- Gradient Overlay -->
         <View
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="85dp"
+            android:layout_gravity="bottom"
             android:background="@drawable/gradient_poster_overlay_v3" />
 
-        <!-- Top Badges Container -->
-        <FrameLayout
-            android:layout_width="match_parent"
+        <!-- Top Right Rating Badge -->
+        <LinearLayout
+            android:id="@+id/ll_rating_container"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:padding="8dp">
+            android:layout_gravity="top|end"
+            android:layout_margin="8dp"
+            android:background="@drawable/bg_rating_badge"
+            android:orientation="horizontal"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="3dp"
+            android:gravity="center_vertical">
 
-            <!-- Favorite Icon -->
-            <ImageView
-                android:id="@+id/iv_favorite_indicator"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="start"
-                android:src="@drawable/ic_favorite"
-                android:padding="4dp"
-                android:background="@drawable/bg_circle_dark_translucent"
-                android:tint="@color/ds_accent_red"
-                android:visibility="gone" />
-
-            <!-- New Badge -->
             <TextView
-                android:id="@+id/tv_series_new_badge"
+                android:id="@+id/tv_series_rating"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:background="@drawable/bg_badge_accent"
-                android:paddingStart="6dp"
-                android:paddingEnd="6dp"
-                android:paddingTop="2dp"
-                android:paddingBottom="2dp"
-                android:text="NEW"
-                android:textColor="@android:color/white"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                android:visibility="gone" />
-        </FrameLayout>
+                android:text="8.5"
+                android:textColor="@color/ds_accent_gold"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Top Left Favorite Heart -->
+        <ImageView
+            android:id="@+id/iv_favorite_indicator"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="top|start"
+            android:layout_margin="6dp"
+            android:padding="6dp"
+            android:src="@drawable/ic_favorite"
+            app:tint="@color/ds_accent_red"
+            android:background="@drawable/bg_circle_dark_translucent"
+            android:visibility="gone" />
 
         <!-- Bottom Content -->
         <LinearLayout
@@ -82,55 +84,28 @@
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
             android:orientation="vertical"
-            android:padding="10dp">
+            android:padding="12dp">
 
             <TextView
                 android:id="@+id/tv_series_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:maxLines="2"
+                android:maxLines="1"
                 android:text="Series Title"
                 android:textColor="@android:color/white"
-                android:textSize="13sp"
+                android:textSize="14sp"
                 android:textStyle="bold"
-                android:shadowColor="#B3000000"
-                android:shadowDx="1"
-                android:shadowDy="1"
-                android:shadowRadius="2" />
+                android:fontFamily="sans-serif-medium" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/tv_series_year"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginTop="4dp">
-
-                <TextView
-                    android:id="@+id/tv_series_year"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="2024"
-                    android:textColor="#CCFFFFFF"
-                    android:textSize="11sp" />
-
-                <TextView
-                    android:id="@+id/tv_series_separator"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text=" • "
-                    android:textColor="#80FFFFFF"
-                    android:textSize="11sp" />
-
-                <TextView
-                    android:id="@+id/tv_series_rating"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="8.5"
-                    android:textColor="@color/ds_accent_gold"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
+                android:layout_marginTop="2dp"
+                android:text="2024"
+                android:textColor="#CCFFFFFF"
+                android:textSize="11sp" />
 
         </LinearLayout>
 
