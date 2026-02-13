@@ -1,0 +1,65 @@
+﻿
+> Task :app:kaptDebugKotlin
+./gradlew : D:\cursor working\debxtrem\ap
+p\build\tmp\kapt3\stubs\debug\com\tvonnet
+\debridxtreamiptv\ui\vod\MovieDetailActiv
+ity.java:129: error: incompatible types: 
+NonExistentClass cannot be converted to 
+Annotation
+At line:1 char:1
++ ./gradlew clean assembleDebug 
+--stacktrace > build_debug_output.txt 2 
+...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecifi 
+   ed: (D:\cursor worki...d to Annotati  
+  on:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeComm 
+   andError
+ 
+    @error.NonExistentClass()
+          ^
+D:\cursor working\debxtrem\app\build\tmp\
+kapt3\stubs\debug\com\tvonnet\debridxtrea
+miptv\ui\vod\MovieDetailActivity.java:143
+: error: incompatible types: 
+NonExistentClass cannot be converted to 
+Annotation
+    @error.NonExistentClass()
+          ^
+D:\cursor working\debxtrem\app\build\tmp\
+kapt3\stubs\debug\com\tvonnet\debridxtrea
+miptv\ui\vod\MovieDetailActivity.java:157
+: error: incompatible types: 
+NonExistentClass cannot be converted to 
+Annotation
+    @error.NonExistentClass()
+          ^
+D:\cursor working\debxtrem\app\build\tmp\
+kapt3\stubs\debug\com\tvonnet\debridxtrea
+miptv\ui\vod\MovieDetailActivity.java:171
+: error: incompatible types: 
+NonExistentClass cannot be converted to 
+Annotation
+    @error.NonExistentClass()
+          ^
+D:\cursor working\debxtrem\app\build\tmp\
+kapt3\stubs\debug\com\tvonnet\debridxtrea
+miptv\ui\vod\MovieDetailActivity.java:185
+: error: incompatible types: 
+NonExistentClass cannot be converted to 
+Annotation
+    @error.NonExistentClass()
+          ^
+D:\cursor working\debxtrem\app\build\tmp\
+kapt3\stubs\debug\com\tvonnet\debridxtrea
+miptv\ui\vod\MovieDetailActivity.java:199
+: error: incompatible types: 
+NonExistentClass cannot be converted to 
+Annotation
+    @error.NonExistentClass()
+          ^
+
+> Task :app:kaptDebugKotlin FAILED
+Kotlin build report is written to file:///D:/cursor%20working/debxtrem/build/reports/kotlin-build/DebridXtreamIPTV-build-2026-02-13-18-55-45-0.txt

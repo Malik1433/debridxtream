@@ -240,16 +240,32 @@
                         tools:visibility="visible"
                         tools:text="Directed by: Jalmari Helander" />
                         
+                    <!-- rv_cast -->
                     <TextView
-                        android:id="@+id/tv_cast"
+                        android:id="@+id/tv_cast_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="24dp"
+                        android:text="Cast"
+                        android:textColor="@color/white"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:visibility="gone"
+                        tools:visibility="visible" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_cast"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textSize="14sp"
-                        android:textColor="@color/ds_text_tertiary"
+                        android:layout_marginTop="8dp"
+                        android:clipToPadding="false"
+                        android:orientation="horizontal"
+                        android:paddingEnd="16dp"
+                        android:scrollbars="none"
                         android:visibility="gone"
-                        tools:visibility="visible"
-                        tools:text="Cast: Jorma Tommila, Aksel Hennie" />
+                        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                        tools:listitem="@layout/item_cast_member"
+                        tools:visibility="visible" />
 
 
                     <!-- Actions Row -->

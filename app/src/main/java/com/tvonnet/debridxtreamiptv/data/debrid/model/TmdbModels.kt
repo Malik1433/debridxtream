@@ -63,7 +63,8 @@ data class TmdbMovieDetails(
     @SerializedName("vote_average") val voteAverage: Double?,
     @SerializedName("genres") val genres: List<TmdbGenre>?,
     @SerializedName("tagline") val tagline: String?,
-    @SerializedName("videos") val videos: TmdbVideoResponse? = null
+    @SerializedName("videos") val videos: TmdbVideoResponse? = null,
+    @SerializedName("credits") val credits: TmdbCredits? = null
 )
 
 data class TmdbTvShowDetails(

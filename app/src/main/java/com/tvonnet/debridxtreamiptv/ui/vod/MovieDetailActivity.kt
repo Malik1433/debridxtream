@@ -21,6 +21,8 @@ import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
+import com.tvonnet.debridxtreamiptv.data.onSuccess
+import com.tvonnet.debridxtreamiptv.data.onFailure
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
@@ -46,8 +48,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider
 import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
-import com.tvonnet.debridxtreamiptv.data.onSuccess
-import com.tvonnet.debridxtreamiptv.data.onFailure
 
 @AndroidEntryPoint
 class MovieDetailActivity : AppCompatActivity() {
@@ -79,9 +79,13 @@ class MovieDetailActivity : AppCompatActivity() {
     private lateinit var tvRatingStars: TextView
     private lateinit var tvRatingPercentage: TextView
     private lateinit var tvGenreYear: TextView
+
     private lateinit var tvDirector: TextView
-    private lateinit var tvCast: TextView
     private lateinit var tvDescription: TextView
+    private lateinit var tvCastTitle: TextView
+    private lateinit var rvCast: RecyclerView
+    private lateinit var castAdapter: CastAdapter
+
     private lateinit var tvDuration: TextView
     private lateinit var btnWatchNow: Button
     private lateinit var btnWatchTrailer: Button
@@ -221,7 +225,17 @@ class MovieDetailActivity : AppCompatActivity() {
                             movieYear = details.releaseDate?.take(4)
                             movieDuration = details.runtime?.let { (it * 60).toString() } // Convert mins to seconds for formatDuration
                             movieGenre = details.genres?.joinToString(", ") { it.name ?: "" }
-                            
+
+                            // Cast
+                            val castList = details.credits?.cast
+                            if (!castList.isNullOrEmpty()) {
+                                castAdapter.submitList(castList)
+                                tvCastTitle.visibility = View.VISIBLE
+                                rvCast.visibility = View.VISIBLE
+                            } else {
+                                tvCastTitle.visibility = View.GONE
+                                rvCast.visibility = View.GONE
+                            }
                             // Update views
                             displayMovieDetails()
                         }
@@ -259,7 +273,8 @@ class MovieDetailActivity : AppCompatActivity() {
         tvRatingPercentage = findViewById(R.id.tv_rating_percentage)
         tvGenreYear = findViewById(R.id.tv_genre_year)
         tvDirector = findViewById(R.id.tv_director)
-        tvCast = findViewById(R.id.tv_cast)
+        tvCastTitle = findViewById(R.id.tv_cast_title)
+        rvCast = findViewById(R.id.rv_cast)
         tvDescription = findViewById(R.id.tv_description)
         tvDuration = findViewById(R.id.tv_duration)
         btnWatchNow = findViewById(R.id.btn_watch_now)
@@ -303,6 +318,12 @@ class MovieDetailActivity : AppCompatActivity() {
         rvLanguageFilters.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         rvLanguageFilters.setHasFixedSize(true)
         rvLanguageFilters.adapter = languageFilterAdapter
+
+        castAdapter = CastAdapter()
+        rvCast.apply {
+            layoutManager = LinearLayoutManager(this@MovieDetailActivity, LinearLayoutManager.HORIZONTAL, false)
+            adapter = castAdapter
+        }
 
         btnCachedOnly.setOnClickListener {
             filterState = filterState.copy(cachedOnly = !filterState.cachedOnly)
@@ -376,12 +397,7 @@ class MovieDetailActivity : AppCompatActivity() {
             tvDirector.visibility = View.GONE
         }
 
-        if (!movieCast.isNullOrBlank()) {
-            tvCast.text = getString(R.string.movie_detail_cast, movieCast)
-            tvCast.visibility = View.VISIBLE
-        } else {
-            tvCast.visibility = View.GONE
-        }
+
 
         tvDescription.text = moviePlot?.takeIf { it.isNotBlank() }
             ?: getString(R.string.movie_detail_description_unavailable)

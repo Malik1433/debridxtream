@@ -1,40 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Focused State: Premium Gold Gradient -->
+    <!-- Focused state: Premium Gold Gradient + Glowing Border -->
     <item android:state_focused="true">
         <shape android:shape="rectangle">
-            <corners android:radius="12dp" />
             <gradient
+                android:startColor="#4DFFD700"
+                android:centerColor="#26FFD700"
+                android:endColor="#0DFFD700"
                 android:angle="45"
-                android:startColor="#E0E0E0"
-                android:centerColor="#F5F5F5"
-                android:endColor="#E0E0E0" 
                 android:type="linear"/>
-            <stroke
-                android:width="2dp"
-                android:color="#40C4FF" /> <!-- Soft Electric Blue Glow -->
+            <corners android:radius="14dp" />
+            <stroke 
+                android:width="2.5dp" 
+                android:color="#FFD700" /> <!-- Solid Gold Border -->
+            <padding 
+                android:bottom="2dp" 
+                android:top="2dp" 
+                android:left="2dp" 
+                android:right="2dp"/>
         </shape>
     </item>
     
-    <!-- Pressed State: Darker Gold -->
-    <item android:state_pressed="true">
-        <shape android:shape="rectangle">
-            <corners android:radius="12dp" />
-            <solid android:color="#8A6D3B" />
-            <stroke
-                android:width="1dp"
-                android:color="#D4AF37" />
+    <!-- Selected state: Subtle Gold Glow -->
+    <item android:state_selected="true">
+         <shape android:shape="rectangle">
+            <solid android:color="#33FFD700" />
+            <corners android:radius="14dp" />
+            <stroke 
+                android:width="1.5dp" 
+                android:color="#80FFD700" />
         </shape>
     </item>
-
-    <!-- Default State: Glass Card -->
+    
+    <!-- Normal state: Glass-morphic surface (Subtle White Alpha) -->
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="#1AFFFFFF" />
-            <corners android:radius="12dp" />
-            <stroke
-                android:width="1dp"
-                android:color="#33FFFFFF" />
+            <solid android:color="#1AFFFFFF" /> <!-- 10% White Glass -->
+            <corners android:radius="14dp" />
+            <stroke 
+                android:width="1dp" 
+                android:color="#16FFFFFF" /> <!-- Subtle white border -->
         </shape>
     </item>
 </selector>
