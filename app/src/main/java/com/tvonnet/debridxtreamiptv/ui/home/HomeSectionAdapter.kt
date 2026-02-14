@@ -101,12 +101,16 @@ class HomeSectionAdapter(
         init {
             binding.rvHorizontalList.apply {
                 layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+                
+                // Add explicit horizontal spacing (matching grid gaps)
+                val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_standard)
+                addItemDecoration(com.tvonnet.debridxtreamiptv.utils.HorizontalSpacingItemDecoration(spacingPx))
+                
                 adapter = rowAdapter
                 setHasFixedSize(true)
                 setRecycledViewPool(viewPool) // Share pool for performance
                 itemAnimator = null 
-                
-                // Snap to start
+                // Standard LinearSnapHelper is good for rows.
                 val snapHelper = androidx.recyclerview.widget.LinearSnapHelper() // Or PagerSnapHelper for one-by-one
                 // OnItemTouchHelper to prevent focus loss?
                 // Standard LinearSnapHelper is good for rows.

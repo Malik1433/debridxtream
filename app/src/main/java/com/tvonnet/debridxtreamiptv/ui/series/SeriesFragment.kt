@@ -167,8 +167,13 @@ class SeriesFragment : Fragment() {
     }
 
     private fun setupRecyclerViews() {
-        // Setup Grid
-        rvSeriesGrid.layoutManager = GridLayoutManager(requireContext(), 5)
+        // Setup Grid (4 columns for cinematic look)
+        rvSeriesGrid.layoutManager = GridLayoutManager(requireContext(), 4)
+        
+        // Add explicit spacing decoration (32dp margins)
+        val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_standard)
+        rvSeriesGrid.addItemDecoration(com.tvonnet.debridxtreamiptv.utils.GridSpacingItemDecoration(4, spacingPx, true))
+        
         rvSeriesGrid.adapter = seriesPagingAdapter
         // RecyclerViewAnimations.applySpringAnimation(rvSeriesGrid)
 

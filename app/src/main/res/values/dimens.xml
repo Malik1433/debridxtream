@@ -127,11 +127,8 @@
     <dimen name="divider_height">1dp</dimen>
     <dimen name="divider_margin_vertical">32dp</dimen>
     
-    <!-- Dialog Dimensions -->
-    <dimen name="dialog_padding">32dp</dimen>
-    <dimen name="dialog_corner_radius">12dp</dimen>
-    <dimen name="dialog_button_height">48dp</dimen>
-    <dimen name="dialog_button_min_width">120dp</dimen>
+    <!-- Spacing for Grid/List Items (Total gap between items = 40dp) -->
+    <dimen name="grid_spacing_standard">40dp</dimen>
 
     <!-- Player -->
     <dimen name="player_overlay_control_spacing">72dp</dimen>

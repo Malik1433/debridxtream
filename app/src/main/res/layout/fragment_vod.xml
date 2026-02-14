@@ -28,7 +28,7 @@
 
         <!-- Left Sidebar -->
         <LinearLayout
-            android:layout_width="320dp"
+            android:layout_width="200dp"
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:background="@color/surface_dark"
@@ -79,13 +79,14 @@
                 android:nextFocusRight="@id/rv_movies_grid"
                 android:descendantFocusability="afterDescendants"/>
 
-            <!-- Bottom Settings Item -->
+            <!-- Bottom Settings Item (Hidden per user request) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:padding="32dp"
                 android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:visibility="gone">
                 
                 <ImageView
                     android:layout_width="24dp"
@@ -171,12 +172,13 @@
                         xmlns:app="http://schemas.android.com/apk/res-auto"/>
                 </FrameLayout>
 
-                <!-- Profile Avatar -->
+                <!-- Profile Avatar (Hidden per user request) -->
                  <FrameLayout
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="24dp"
-                    android:background="@drawable/bg_circle_gradient_blue">
+                    android:background="@drawable/bg_circle_gradient_blue"
+                    android:visibility="gone">
                     
                     <TextView
                         android:layout_width="wrap_content"

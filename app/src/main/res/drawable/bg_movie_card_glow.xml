@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Layer 1: Extreme Soft Outer Aura -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <stroke
+                android:width="24dp"
+                android:color="#0D00FFFF" />
+            <solid android:color="#00000000" />
+        </shape>
+    </item>
+
+    <!-- Layer 2: Mid Diffusion -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="20dp" />
+            <stroke
+                android:width="16dp"
+                android:color="#2600FFFF" />
+            <solid android:color="#00000000" />
+        </shape>
+    </item>
+
+    <!-- Layer 3: Inner Glow Intensity -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="16dp" />
+            <stroke
+                android:width="8dp"
+                android:color="#6600FFFF" />
+            <solid android:color="#00000000" />
+        </shape>
+    </item>
+
+    <!-- Layer 4: Sharp Soft Edge -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="14dp" />
+            <stroke
+                android:width="3dp"
+                android:color="#CC00FFFF" />
+            <solid android:color="#00000000" />
+        </shape>
+    </item>
+</layer-list>

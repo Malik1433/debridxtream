@@ -161,8 +161,13 @@ class VodFragment : Fragment() {
         // Setup sidebar layout (vertical)
         rvCategoriesSidebar.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
         
-        // Setup movies grid layout (5 columns for a professional TiviMate look)
-        rvMoviesGrid.layoutManager = GridLayoutManager(context, 5)
+        // Setup movies grid layout (4 columns for the spacious cinema look)
+        rvMoviesGrid.layoutManager = GridLayoutManager(context, 4)
+        
+        // Add explicit spacing decoration (32dp margins)
+        val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_standard)
+        rvMoviesGrid.addItemDecoration(com.tvonnet.debridxtreamiptv.utils.GridSpacingItemDecoration(4, spacingPx, true))
+        
         rvMoviesGrid.adapter = vodAdapter
 
         // Track focus for restore on back navigation
@@ -174,18 +179,26 @@ class VodFragment : Fragment() {
                         lastFocusedCategoryPosition = rvCategoriesSidebar.getChildAdapterPosition(v)
                         lastFocusedCategoryId = (v.getTag(R.id.tag_category_id) as? String)
                         
-                        // TiviMate Sidebar Scale (Subtle 1.05x)
+                        // Enhanced Professional Animation: Scale + Slide
                         v.animate()
                             .scaleX(1.05f)
                             .scaleY(1.05f)
-                            .setDuration(120)
+                            .translationX(12f) // Slide slightly right
+                            .setDuration(150)
+                            .setInterpolator(android.view.animation.DecelerateInterpolator())
                             .start()
+                            
+                        v.elevation = 8f
                     } else {
                         v.animate()
                             .scaleX(1.0f)
                             .scaleY(1.0f)
-                            .setDuration(120)
+                            .translationX(0f)
+                            .setDuration(150)
+                            .setInterpolator(android.view.animation.DecelerateInterpolator())
                             .start()
+                            
+                        v.elevation = 0f
                     }
                 }
             }
@@ -212,7 +225,7 @@ class VodFragment : Fragment() {
                             .setDuration(150)
                             .setInterpolator(android.view.animation.DecelerateInterpolator())
                             .start()
-                        v.z = 10f // Lift up
+                        v.z = 15f // Lift up more for glow visibility
                         
                         // Show blue border on focus (handled by selector in XML or manually here if needed)
                         // XML background bg_movie_focus_cyan handles the border

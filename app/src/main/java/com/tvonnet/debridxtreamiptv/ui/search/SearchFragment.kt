@@ -291,6 +291,8 @@ class SearchFragment : Fragment() {
         }
         rvLiveResults.apply {
             layoutManager = GridLayoutManager(context, 4)
+            val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_standard)
+            addItemDecoration(com.tvonnet.debridxtreamiptv.utils.GridSpacingItemDecoration(4, spacingPx, true))
             adapter = liveResultsAdapter
         }
         
@@ -301,6 +303,8 @@ class SearchFragment : Fragment() {
         }
         rvVodResults.apply {
             layoutManager = GridLayoutManager(context, 4)
+            val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_standard)
+            addItemDecoration(com.tvonnet.debridxtreamiptv.utils.GridSpacingItemDecoration(4, spacingPx, true))
             adapter = vodResultsAdapter
         }
         
@@ -312,6 +316,8 @@ class SearchFragment : Fragment() {
         }
         rvSeriesResults.apply {
             layoutManager = GridLayoutManager(context, 4)
+            val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_standard)
+            addItemDecoration(com.tvonnet.debridxtreamiptv.utils.GridSpacingItemDecoration(4, spacingPx, true))
             adapter = seriesResultsAdapter
         }
 
@@ -323,6 +329,8 @@ class SearchFragment : Fragment() {
         }
         rvEpgResults.apply {
             layoutManager = GridLayoutManager(context, 4)
+            val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_standard)
+            addItemDecoration(com.tvonnet.debridxtreamiptv.utils.GridSpacingItemDecoration(4, spacingPx, true))
             adapter = epgResultsAdapter
         }
         
