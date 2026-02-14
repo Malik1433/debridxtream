@@ -18,6 +18,9 @@ import com.tvonnet.debridxtreamiptv.data.onSuccess
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.widget.ImageView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 
 /**
  * Debrid section fragment - main hub for Real-Debrid content browsing
@@ -47,6 +50,7 @@ class DebridFragment : Fragment() {
     private lateinit var loginPrompt: View
     private lateinit var contentArea: View
     private lateinit var rvDebridRows: RecyclerView
+    private lateinit var ivBackgroundBackdrop: ImageView
     
     // Adapter
     private lateinit var debridRowsAdapter: DebridRowsAdapter
@@ -80,6 +84,7 @@ class DebridFragment : Fragment() {
         loginPrompt = view.findViewById(R.id.login_prompt_container)
         contentArea = view.findViewById(R.id.content_area)
         rvDebridRows = view.findViewById(R.id.rv_debrid_rows)
+        ivBackgroundBackdrop = view.findViewById(R.id.iv_background_backdrop)
         
         // Setup login button
         view.findViewById<View>(R.id.btn_login_debrid)?.setOnClickListener {
@@ -99,6 +104,7 @@ class DebridFragment : Fragment() {
     private fun setupRecyclerView() {
         debridRowsAdapter = DebridRowsAdapter(
             onItemClick = { item -> onContentItemClick(item) },
+            onItemFocused = { item -> updateBackdrop(item) },
             onRowLoadMore = { rowId -> viewModel.loadNextPage(rowId) }
         )
         
@@ -297,6 +303,18 @@ class DebridFragment : Fragment() {
                 refreshProgress.visibility = View.GONE
                 refreshText.text = getString(R.string.debrid_refresh_failed)
             }
+        }
+    }
+
+    private fun updateBackdrop(item: DebridContentItem) {
+        val imageUrl = item.backdropUrl ?: item.posterUrl
+        if (!imageUrl.isNullOrBlank()) {
+            Glide.with(this)
+                .load(imageUrl)
+                .transition(DrawableTransitionOptions.withCrossFade(500))
+                .placeholder(android.R.color.transparent)
+                .error(android.R.color.transparent)
+                .into(ivBackgroundBackdrop)
         }
     }
 }

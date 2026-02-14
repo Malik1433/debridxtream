@@ -18,6 +18,7 @@ import com.tvonnet.debridxtreamiptv.R
  */
 class DebridRowsAdapter(
     private val onItemClick: (DebridContentItem) -> Unit,
+    private val onItemFocused: (DebridContentItem) -> Unit,
     private val onRowLoadMore: (String) -> Unit
 ) : ListAdapter<DebridRow, DebridRowViewHolder>(DebridRowDiffCallback()) {
     
@@ -28,7 +29,7 @@ class DebridRowsAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DebridRowViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_debrid_row, parent, false)
-        return DebridRowViewHolder(view, onItemClick)
+        return DebridRowViewHolder(view, onItemClick, onItemFocused)
     }
     
     override fun onBindViewHolder(holder: DebridRowViewHolder, position: Int) {
@@ -52,12 +53,13 @@ class DebridRowDiffCallback : DiffUtil.ItemCallback<DebridRow>() {
  */
 class DebridRowViewHolder(
     itemView: View,
-    private val onItemClick: (DebridContentItem) -> Unit
+    private val onItemClick: (DebridContentItem) -> Unit,
+    private val onItemFocused: (DebridContentItem) -> Unit
 ) : RecyclerView.ViewHolder(itemView) {
     
     private val tvRowTitle: TextView = itemView.findViewById(R.id.tv_row_title)
     private val rvRowItems: RecyclerView = itemView.findViewById(R.id.rv_row_items)
-    private val itemsAdapter = DebridItemsAdapter(onItemClick) { currentLoadMoreCallback?.invoke() }
+    private val itemsAdapter = DebridItemsAdapter(onItemClick, onItemFocused) { currentLoadMoreCallback?.invoke() }
     private var currentLoadMoreCallback: (() -> Unit)? = null
     
     init {
@@ -86,6 +88,7 @@ class DebridRowViewHolder(
 
 class DebridItemsAdapter(
     private val onItemClick: (DebridContentItem) -> Unit,
+    private val onItemFocused: (DebridContentItem) -> Unit,
     private val onPrefetch: () -> Unit
 ) : ListAdapter<DebridContentItem, RecyclerView.ViewHolder>(DebridItemDiffCallback()) {
     
@@ -136,7 +139,7 @@ class DebridItemsAdapter(
             // Safe check for index
             if (position < super.getItemCount()) {
                 val item = getItem(position)
-                holder.bind(item, onItemClick)
+                holder.bind(item, onItemClick, onItemFocused)
             }
         } else if (holder is DebridLoadingViewHolder) {
             holder.bind()
@@ -172,8 +175,13 @@ class DebridItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private val progressWatch: android.widget.ProgressBar =
         itemView.findViewById(R.id.progress_watch)
     private val tvProgress: TextView = itemView.findViewById(R.id.tv_progress)
+    private val glowFocus: View? = itemView.findViewById(R.id.glow_focus)
     
-    fun bind(item: DebridContentItem, onItemClick: (DebridContentItem) -> Unit) {
+    fun bind(
+        item: DebridContentItem,
+        onItemClick: (DebridContentItem) -> Unit,
+        onItemFocused: (DebridContentItem) -> Unit
+    ) {
         tvTitle.text = item.title
         val subtitle = when {
             !item.episodeTitle.isNullOrBlank() -> item.episodeTitle
@@ -203,25 +211,27 @@ class DebridItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         itemView.isFocusable = true
         itemView.isFocusableInTouchMode = true
         
-        // Cinematic Focus Animation
+        // Cinematic Focus Animation (Sync with Movies/Series)
         itemView.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
             if (hasFocus) {
                 v.animate()
-                    .scaleX(1.15f)
-                    .scaleY(1.15f)
-                    .translationZ(16f)
-                    .setDuration(200)
-                    .setInterpolator(android.view.animation.OvershootInterpolator())
+                    .scaleX(1.1f)
+                    .scaleY(1.1f)
+                    .setDuration(150)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
                     .start()
-                v.setBackgroundResource(R.drawable.card_border_gold_selector)
+                v.z = 15f // Lift up for glow visibility
+                glowFocus?.animate()?.alpha(1f)?.setDuration(150)?.start()
+                onItemFocused(item)
             } else {
                 v.animate()
                     .scaleX(1f)
                     .scaleY(1f)
-                    .translationZ(0f)
-                    .setDuration(200)
+                    .setDuration(150)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
                     .start()
-                v.setBackgroundResource(0)
+                v.z = 0f
+                glowFocus?.animate()?.alpha(0f)?.setDuration(150)?.start()
             }
         }
     }
