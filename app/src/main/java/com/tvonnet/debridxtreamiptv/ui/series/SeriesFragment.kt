@@ -190,17 +190,26 @@ class SeriesFragment : Fragment() {
                         lastFocusedCategoryId = (v.getTag(R.id.tag_category_id) as? String)
 
                         // TiviMate Sidebar Scale (Subtle 1.05x)
+                        // Enhanced Professional Animation: Scale + Slide
                         v.animate()
                             .scaleX(1.05f)
                             .scaleY(1.05f)
-                            .setDuration(120)
+                            .translationX(12f) // Slide slightly right
+                            .setDuration(150)
+                            .setInterpolator(android.view.animation.DecelerateInterpolator())
                             .start()
+                            
+                        v.elevation = 8f
                     } else {
                         v.animate()
                             .scaleX(1.0f)
                             .scaleY(1.0f)
-                            .setDuration(120)
+                            .translationX(0f)
+                            .setDuration(150)
+                            .setInterpolator(android.view.animation.DecelerateInterpolator())
                             .start()
+                            
+                        v.elevation = 0f
                     }
                 }
             }
@@ -222,10 +231,10 @@ class SeriesFragment : Fragment() {
                         v.animate()
                             .scaleX(1.1f)
                             .scaleY(1.1f)
-                            .setDuration(120)
+                            .setDuration(150)
                             .setInterpolator(android.view.animation.DecelerateInterpolator())
                             .start()
-                        v.z = 10f // Lift up
+                        v.z = 15f // Lift up more for glow visibility
 
                         // Update backdrop on focus
                         val position = lastFocusedSeriesPosition
@@ -244,7 +253,7 @@ class SeriesFragment : Fragment() {
                         v.animate()
                             .scaleX(1.0f)
                             .scaleY(1.0f)
-                            .setDuration(120)
+                            .setDuration(150)
                             .setInterpolator(android.view.animation.DecelerateInterpolator())
                             .start()
                         v.z = 0f
