@@ -817,11 +817,11 @@ class LiveFragment : Fragment() {
             streamUrl = streamUrl,
             title = stream.name ?: getString(R.string.player_epg_channel_unknown),
             channelName = stream.name,
-            channelLogo = stream.stream_icon,
+            channelLogo = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
             epgChannelId = stream.epg_channel_id?.takeIf { it.isNotBlank() } ?: stream.stream_id?.toString(),
             contentId = stream.stream_id ?: streamUrl,
             contentType = ContentType.LIVE_TV,
-            posterUrl = stream.stream_icon,
+            posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
             liveCategoryId = categoryId,
             liveChannelIds = channelIds.takeIf { it.isNotEmpty() },
             baseServerUrl = serverUrl

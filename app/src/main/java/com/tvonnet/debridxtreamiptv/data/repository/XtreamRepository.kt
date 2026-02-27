@@ -148,6 +148,7 @@ class XtreamRepository @Inject constructor(
             this.username = username
             this.password = password
             this.baseUrl = baseUrl.trimEnd('/') + "/"
+            com.tvonnet.debridxtreamiptv.util.GlobalConfig.baseUrl = this.baseUrl
             val normalizedUrl = this.baseUrl
             // Week 8: Pass context for HTTP caching support
             apiService = XtreamRetrofitClient.create(normalizedUrl, context)

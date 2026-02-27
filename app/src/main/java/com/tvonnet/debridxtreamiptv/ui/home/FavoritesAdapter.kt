@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import android.widget.Toast
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.util.loadPosterOrPlaceholder
 import com.tvonnet.debridxtreamiptv.data.model.FavoriteItem
@@ -39,6 +40,8 @@ class FavoritesAdapter(
         
         fun bind(item: FavoriteItem, onClick: (FavoriteItem) -> Unit) {
             tvFavoriteTitle.text = item.title
+            
+            // Debug Toast as requested
             
             // Load poster image, fallback to placeholder when URL missing
             ivFavoritePoster.loadPosterOrPlaceholder(item.posterUrl)

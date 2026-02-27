@@ -41,15 +41,16 @@ object GlideUtils {
         placeholder: android.graphics.drawable.Drawable?,
         error: android.graphics.drawable.Drawable?
     ) {
-        if (!logoUrl.isNullOrBlank()) {
+        val glideUrl = getGlideUrl(logoUrl)
+        if (glideUrl != null) {
             Glide.with(imageView.context)
-                .load(logoUrl)
+                .load(glideUrl)
+                .addErrorListener(imageView.context)
                 .apply(getChannelLogoOptions(placeholder, error))
                 .thumbnail(0.25f)
                 .dontAnimate()
                 .into(imageView)
         } else {
-            // Load placeholder if no URL
             imageView.setImageDrawable(placeholder)
         }
     }
@@ -63,15 +64,16 @@ object GlideUtils {
         placeholder: Int = R.drawable.tv_card_placeholder,
         error: Int = R.drawable.tv_card_placeholder
     ) {
-        if (!logoUrl.isNullOrBlank()) {
+        val glideUrl = getGlideUrl(logoUrl)
+        if (glideUrl != null) {
             Glide.with(imageView.context)
-                .load(logoUrl)
+                .load(glideUrl)
+                .addErrorListener(imageView.context)
                 .apply(getChannelLogoOptions(placeholder, error))
                 .thumbnail(0.25f)
                 .dontAnimate()
                 .into(imageView)
         } else {
-            // Load placeholder if no URL
             Glide.with(imageView.context)
                 .load(placeholder)
                 .dontAnimate()
@@ -89,10 +91,12 @@ object GlideUtils {
         error: Int = R.drawable.tv_card_placeholder,
         useRoundedCorners: Boolean = true
     ) {
-        if (!posterUrl.isNullOrBlank()) {
+        val glideUrl = getGlideUrl(posterUrl)
+        if (glideUrl != null) {
             val options = getPosterOptions(placeholder, error, useRoundedCorners)
             Glide.with(imageView.context)
-                .load(posterUrl)
+                .load(glideUrl)
+                .addErrorListener(imageView.context)
                 .apply(options)
                 .thumbnail(0.25f)
                 .dontAnimate()
@@ -121,10 +125,12 @@ object GlideUtils {
         placeholder: Int = R.drawable.tv_card_placeholder,
         error: Int = R.drawable.tv_card_placeholder
     ) {
-        if (!imageUrl.isNullOrBlank()) {
+        val glideUrl = getGlideUrl(imageUrl)
+        if (glideUrl != null) {
             // Create a RequestBuilder that respects fragment lifecycle
             val requestBuilder = Glide.with(fragment)
-                .load(imageUrl)
+                .load(glideUrl)
+                .addErrorListener(fragment.requireContext())
                 .apply(getDefaultOptions(placeholder, error))
 
             requestBuilder.into(imageView)
@@ -142,9 +148,11 @@ object GlideUtils {
         placeholder: Int = R.drawable.tv_card_placeholder,
         error: Int = R.drawable.tv_card_placeholder
     ) {
-        if (!thumbnailUrl.isNullOrBlank()) {
+        val glideUrl = getGlideUrl(thumbnailUrl)
+        if (glideUrl != null) {
             Glide.with(imageView.context)
-                .load(thumbnailUrl)
+                .load(glideUrl)
+                .addErrorListener(imageView.context)
                 .apply(getThumbnailOptions(placeholder, error))
                 .thumbnail(0.25f)
                 .dontAnimate()
@@ -183,14 +191,62 @@ object GlideUtils {
      * Preload critical images (like main category logos)
      */
     fun preloadImage(context: Context, imageUrl: String?) {
-        if (!imageUrl.isNullOrBlank()) {
+        val glideUrl = getGlideUrl(imageUrl)
+        if (glideUrl != null) {
             Glide.with(context)
-                .load(imageUrl)
+                .load(glideUrl)
                 .preload()
         }
     }
 
     // Private helper methods for request options
+    
+    private fun <T : Any> RequestBuilder<T>.addErrorListener(context: Context): RequestBuilder<T> {
+        return this.listener(object : com.bumptech.glide.request.RequestListener<T> {
+            override fun onLoadFailed(
+                e: com.bumptech.glide.load.engine.GlideException?,
+                model: Any?,
+                target: com.bumptech.glide.request.target.Target<T>,
+                isFirstResource: Boolean
+            ): Boolean {
+                val errorMsg = "Glide Error: ${e?.message?.take(80)}"
+                android.util.Log.e("GLIDE_DEBUG", "FAILED loading IPTV Picture: $model | Error: ${e?.message}")
+                e?.logRootCauses("GLIDE_DEBUG")
+                return false
+            }
+
+            override fun onResourceReady(
+                resource: T,
+                model: Any,
+                target: com.bumptech.glide.request.target.Target<T>?,
+                dataSource: com.bumptech.glide.load.DataSource,
+                isFirstResource: Boolean
+            ): Boolean {
+                var width = -1
+                var height = -1
+                if (resource is android.graphics.drawable.Drawable) {
+                    width = resource.intrinsicWidth
+                    height = resource.intrinsicHeight
+                }
+                val msg = "Glide Success! ${width}x${height}"
+                android.util.Log.d("GLIDE_DEBUG", "SUCCESS loading IPTV Picture: $model | Size: ${width}x${height} | Type: ${resource.javaClass.simpleName}")
+                return false
+            }
+        })
+    }
+    
+    private fun getGlideUrl(url: String?): com.bumptech.glide.load.model.GlideUrl? {
+        val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(url)
+        if (resolved.isNullOrBlank()) return null
+        
+        return com.bumptech.glide.load.model.GlideUrl(
+            resolved,
+            com.bumptech.glide.load.model.LazyHeaders.Builder()
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .addHeader("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+                .build()
+        )
+    }
 
     private fun getChannelLogoOptions(placeholder: Int, error: Int): RequestOptions {
         return RequestOptions()

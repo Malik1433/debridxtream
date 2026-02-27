@@ -9,9 +9,19 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
+import android.util.Log
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.*
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
@@ -23,6 +33,10 @@ import com.tvonnet.debridxtreamiptv.ui.series.SeriesFragment
 import com.tvonnet.debridxtreamiptv.ui.search.SearchFragment
 import com.tvonnet.debridxtreamiptv.ui.settings.SettingsFragmentNew
 import com.tvonnet.debridxtreamiptv.player.PlayerActivity
+import com.tvonnet.debridxtreamiptv.util.FocusEffects
+import com.tvonnet.debridxtreamiptv.data.local.entity.FavoriteEntity
+import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
+import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -35,463 +49,288 @@ class HomeFragment : Fragment() {
     
     @Inject
     lateinit var repository: XtreamRepository
+    private val viewModel: HomeViewModel by viewModels()
     private lateinit var watchHistoryPrefs: WatchHistoryPreferences
     private lateinit var credentialsPrefs: CredentialsPreferences
     
-    // Navigation buttons
-    private lateinit var btnNavLiveTv: TextView
-    private lateinit var btnNavMovies: TextView
-    private lateinit var btnNavSeries: TextView
-    private lateinit var btnNavSearch: TextView
-    private lateinit var btnSettings: ImageView
-    
-    // RecyclerViews
-    private lateinit var rvFeatured: RecyclerView
-    private lateinit var rvRecentLive: RecyclerView
-    private lateinit var rvContinueWatching: RecyclerView
-    private lateinit var rvFavorites: RecyclerView
+    // UI Components
+    private lateinit var ivHeroBackground: ImageView
+    private lateinit var tvHeroTitle: TextView
+    private lateinit var tvHeroDescription: TextView
+    private lateinit var rvSidebar: RecyclerView
+    private lateinit var rvTop10Movies: RecyclerView
+    private lateinit var rvTop10Series: RecyclerView
+
     
     // Adapters
-    private lateinit var featuredAdapter: FeaturedAdapter
-    private lateinit var recentLiveAdapter: RecentLiveChannelsAdapter
-    private lateinit var continueWatchingAdapter: ContinueWatchingAdapter
-    private lateinit var favoritesAdapter: FavoritesAdapter
-    private var favoritesJob: Job? = null
+    private lateinit var sidebarAdapter: SidebarAdapter
+    private lateinit var top10MoviesAdapter: Top10Adapter
+    private lateinit var top10SeriesAdapter: Top10Adapter
+
     
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        return inflater.inflate(R.layout.fragment_new_home, container, false)
+        // Use the new Cinematic layout
+        return inflater.inflate(R.layout.fragment_home_cinematic, container, false)
     }
     
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        // Initialize preferences (repository already injected by Hilt)
         watchHistoryPrefs = WatchHistoryPreferences(requireContext())
         credentialsPrefs = CredentialsPreferences(requireContext())
         
-        // Initialize credentials for repository
+        initializeRepository()
+        initializeViews(view)
+        setupSidebar()
+        setupObservers()
+        loadData()
+    }
+    
+    private fun setupObservers() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    if (!state.isLoading) {
+                        top10MoviesAdapter.updateItems(state.top10Movies)
+                        top10SeriesAdapter.updateItems(state.top10Series)
+                        
+                        // Update Hero with first available item
+                        (state.top10Movies.firstOrNull() ?: state.top10Series.firstOrNull())?.let { 
+                            updateHeroSection(it) 
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private fun initializeRepository() {
         val serverUrl = credentialsPrefs.getServerUrl()
         val username = credentialsPrefs.getUsername()
         val password = credentialsPrefs.getPassword()
         if (serverUrl != null && username != null && password != null) {
             repository.initialize(serverUrl, username, password)
         }
-        
-        // Initialize views
-        initializeViews(view)
-        
-        // Setup navigation buttons
-        setupNavigationButtons()
-        
-        // Load data for all sections asynchronously
-        lifecycleScope.launch {
-            withContext(Dispatchers.IO) {
-                // Load cache in background
-                val cache = repository.readCache()
-                val featuredItems = generateFeaturedItems(cache)
-                
-                withContext(Dispatchers.Main) {
-                    // Update UI on main thread
-                    featuredAdapter.updateItems(featuredItems.take(4))
-                    loadRecentLiveChannels()
-                    loadContinueWatching()
-                    loadFavorites()
-                }
-            }
-        }
     }
     
     private fun initializeViews(view: View) {
-        // Navigation buttons
-        btnNavLiveTv = view.findViewById(R.id.btn_nav_live_tv)
-        btnNavMovies = view.findViewById(R.id.btn_nav_movies)
-        btnNavSeries = view.findViewById(R.id.btn_nav_series)
-        btnNavSearch = view.findViewById(R.id.btn_nav_search)
-        btnSettings = view.findViewById(R.id.btn_settings)
+        ivHeroBackground = view.findViewById(R.id.iv_hero_background)
+        tvHeroTitle = view.findViewById(R.id.tv_hero_title)
+        tvHeroDescription = view.findViewById(R.id.tv_hero_description)
         
-        // RecyclerViews
-        rvFeatured = view.findViewById(R.id.rv_featured)
-        rvRecentLive = view.findViewById(R.id.rv_recent_live)
-        rvContinueWatching = view.findViewById(R.id.rv_continue_watching)
-        rvFavorites = view.findViewById(R.id.rv_favorites)
-        
-        // Setup RecyclerViews with optimization
-        rvFeatured.apply {
-            layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-            setHasFixedSize(true)
-            setItemViewCacheSize(4)
-        }
-        rvRecentLive.apply {
-            layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-            setHasFixedSize(true)
-            setItemViewCacheSize(6)
-        }
-        rvContinueWatching.apply {
-            layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-            setHasFixedSize(true)
-            setItemViewCacheSize(5)
-        }
-        rvFavorites.apply {
-            layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-            setHasFixedSize(true)
-            setItemViewCacheSize(5)
-        }
-        
-        // Initialize adapters
-        featuredAdapter = FeaturedAdapter(emptyList()) { item ->
-            onFeaturedItemClick(item)
-        }
-        recentLiveAdapter = RecentLiveChannelsAdapter(emptyList()) { item ->
-            onRecentLiveChannelClick(item)
-        }
-        continueWatchingAdapter = ContinueWatchingAdapter(emptyList()) { item ->
-            onContinueWatchingItemClick(item)
-        }
-        favoritesAdapter = FavoritesAdapter(emptyList()) { item ->
-            onFavoriteItemClick(item)
-        }
-        
-        rvFeatured.adapter = featuredAdapter
-        rvRecentLive.adapter = recentLiveAdapter
-        rvContinueWatching.adapter = continueWatchingAdapter
-        rvFavorites.adapter = favoritesAdapter
+        rvSidebar = view.findViewById(R.id.rv_sidebar)
+        rvTop10Movies = view.findViewById(R.id.rv_top_10_movies)
+        rvTop10Series = view.findViewById(R.id.rv_top_10_series)
+
+        setupRecyclerViews()
     }
     
-    private fun generateFeaturedItems(cache: IptvCache?): List<FeaturedItem> {
-        val featuredItems = mutableListOf<FeaturedItem>()
-        val serverUrl = credentialsPrefs.getServerUrl() ?: ""
-        val username = credentialsPrefs.getUsername() ?: ""
-        val password = credentialsPrefs.getPassword() ?: ""
+    private fun setupRecyclerViews() {
+        // Sidebar
+        rvSidebar.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
         
-        // Get featured content from different sources
-        cache?.live?.streams?.take(2)?.forEach { stream ->
-            featuredItems.add(stream.toFeaturedItem(serverUrl, username, password))
-        }
+        // Top 10s (Horizontal)
+        rvTop10Movies.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+        rvTop10Movies.setHasFixedSize(true)
         
-        cache?.vod?.streams?.take(3)?.forEach { vod ->
-            featuredItems.add(vod.toFeaturedItem(serverUrl, username, password))
-        }
+        rvTop10Series.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+        rvTop10Series.setHasFixedSize(true)
         
-        cache?.series?.streams?.take(2)?.forEach { series ->
-            featuredItems.add(series.toFeaturedItem())
-        }
-        
-        featuredItems.shuffle()
-        return featuredItems
+
     }
     
-    private fun setupNavigationButtons() {
-        btnNavLiveTv.setOnClickListener {
-            selectNavButton(0)
-            navigateToSection("live")
-        }
+    private fun setupSidebar() {
+        val menuItems = listOf(
+            SidebarItem(0, "Search", R.drawable.ic_search),
+            SidebarItem(1, "Home", R.drawable.ic_home),
+            SidebarItem(2, "Live TV", R.drawable.ic_live_tv),
+            SidebarItem(3, "Movies", R.drawable.ic_movie),
+            SidebarItem(4, "Series", R.drawable.ic_series),
+            SidebarItem(5, "Debrid", R.drawable.ic_dns),
+            SidebarItem(6, "Settings", R.drawable.ic_settings)
+        )
         
-        btnNavMovies.setOnClickListener {
-            selectNavButton(1)
-            navigateToSection("movies")
+        sidebarAdapter = SidebarAdapter(menuItems, onFocusChange = { hasFocus ->
+            animateSidebarWidth(hasFocus)
+        }) { position ->
+            when (position) {
+                0 -> navigateToSection("search")
+                1 -> { /* Already home */ }
+                2 -> navigateToSection("live")
+                3 -> navigateToSection("movies")
+                4 -> navigateToSection("series")
+                5 -> navigateToSection("debrid")
+                6 -> navigateToSection("settings")
+            }
         }
-        
-        btnNavSeries.setOnClickListener {
-            selectNavButton(2)
-            navigateToSection("series")
-        }
-        
-        btnNavSearch.setOnClickListener {
-            selectNavButton(3)
-            navigateToSection("search")
-        }
-        
-        btnSettings.setOnClickListener {
-            navigateToSection("settings")
-        }
-        
-        // Set Live TV as selected by default
-        selectNavButton(0)
+        rvSidebar.adapter = sidebarAdapter
     }
     
-    private fun selectNavButton(index: Int) {
-        // Reset all buttons
-        btnNavLiveTv.isSelected = false
-        btnNavMovies.isSelected = false
-        btnNavSeries.isSelected = false
-        btnNavSearch.isSelected = false
+    private fun loadData() {
+        // Initialize Adapters with empty lists first
+        top10MoviesAdapter = Top10Adapter(
+            items = emptyList(),
+            onItemFocused = { item -> updateHeroSection(item) },
+            onItemClick = { item -> onFeaturedItemClick(item) }
+        )
+        rvTop10Movies.adapter = top10MoviesAdapter
         
-        // Select the clicked button
-        when (index) {
-            0 -> btnNavLiveTv.isSelected = true
-            1 -> btnNavMovies.isSelected = true
-            2 -> btnNavSeries.isSelected = true
-            3 -> btnNavSearch.isSelected = true
+        top10SeriesAdapter = Top10Adapter(
+            items = emptyList(),
+            onItemFocused = { item -> updateHeroSection(item) },
+            onItemClick = { item -> onFeaturedItemClick(item) }
+        )
+        rvTop10Series.adapter = top10SeriesAdapter
+        
+
+    }
+
+    private var sidebarAnimator: android.animation.ValueAnimator? = null
+    
+    private fun animateSidebarWidth(expand: Boolean) {
+        if (!expand) {
+            // Delay collapse to check if focus moves to another sidebar item
+            rvSidebar.postDelayed({
+                if (!rvSidebar.hasFocus()) {
+                    performSidebarAnimation(false)
+                }
+            }, 100) // 100ms grace period for focus transitions
+        } else {
+            performSidebarAnimation(true)
+        }
+    }
+
+    private fun performSidebarAnimation(expand: Boolean) {
+        val startWidth = rvSidebar.width
+        val endWidth = if (expand) {
+            (240f * resources.displayMetrics.density).toInt()
+        } else {
+            (80f * resources.displayMetrics.density).toInt()
+        }
+        
+        if (startWidth == endWidth) return
+        
+        sidebarAnimator?.cancel()
+        sidebarAnimator = android.animation.ValueAnimator.ofInt(startWidth, endWidth).apply {
+            duration = 300
+            interpolator = android.view.animation.DecelerateInterpolator()
+            addUpdateListener { animator ->
+                val width = animator.animatedValue as Int
+                val params = rvSidebar.layoutParams
+                params.width = width
+                rvSidebar.layoutParams = params
+                
+                // Ensure RV re-layouts its children to fit the new width
+                rvSidebar.requestLayout()
+            }
+            start()
         }
     }
     
+    private fun updateHeroSection(item: FeaturedItem) {
+        tvHeroTitle.text = item.title
+        tvHeroDescription.text = item.description ?: "Watch this amazing content on DebridXtream. Cinematic experience." 
+        
+        val heroUrl = item.backdropUrl ?: item.posterUrl
+
+        Glide.with(this)
+            .load(heroUrl)
+            .transition(DrawableTransitionOptions.withCrossFade())
+            .listener(object : RequestListener<android.graphics.drawable.Drawable> {
+                override fun onLoadFailed(
+                    e: GlideException?,
+                    model: Any?,
+                    target: Target<android.graphics.drawable.Drawable>,
+                    isFirstResource: Boolean
+                ): Boolean {
+                    return false
+                }
+
+                override fun onResourceReady(
+                    resource: android.graphics.drawable.Drawable,
+                    model: Any,
+                    target: Target<android.graphics.drawable.Drawable>?,
+                    dataSource: DataSource,
+                    isFirstResource: Boolean
+                ): Boolean {
+                    return false
+                }
+            })
+            .into(ivHeroBackground)
+    }
+    
+
+    // Navigation and Click Handlers
+    fun handleBackPress(): Boolean {
+        val scrollContent = view?.findViewById<androidx.core.widget.NestedScrollView>(R.id.scroll_content)
+        if (scrollContent != null && scrollContent.scrollY > 0) {
+            scrollContent.smoothScrollTo(0, 0)
+            return true
+        }
+        return false
+    }
+
     private fun navigateToSection(section: String) {
-        // Navigate to different sections by replacing this fragment
         val fragment = when (section) {
             "live" -> LiveFragment()
             "movies" -> VodFragment()
             "series" -> SeriesFragment()
+            "debrid" -> com.tvonnet.debridxtreamiptv.ui.debrid.DebridFragment()
             "search" -> SearchFragment()
-            "settings" -> SettingsFragmentNew()
+            "settings" -> com.tvonnet.debridxtreamiptv.ui.settings.SettingsFragment()
             else -> return
         }
-        
-        // Replace current fragment with the selected one
         parentFragmentManager.commit {
             replace(R.id.content_container, fragment)
-            addToBackStack(null) // Allow back navigation to home
+            addToBackStack(null)
         }
     }
-    
-    private fun generateSampleContinueWatching(): List<ContinueWatchingItem> {
-        return listOf(
-            ContinueWatchingItem(
-                contentId = "sample_movie_1",
-                contentType = ContentType.MOVIE,
-                title = "Action Movie",
-                posterUrl = null,
-                backdropUrl = null,
-                currentPosition = 900000L, // 15 min
-                totalDuration = 5400000L, // 90 min
-                lastWatchedTimestamp = System.currentTimeMillis(),
-                streamUrl = null
-            ),
-            ContinueWatchingItem(
-                contentId = "sample_series_1",
-                contentType = ContentType.SERIES,
-                title = "Drama Series S01E03",
-                posterUrl = null,
-                backdropUrl = null,
-                currentPosition = 1200000L, // 20 min
-                totalDuration = 2700000L, // 45 min
-                lastWatchedTimestamp = System.currentTimeMillis() - 3600000,
-                streamUrl = null
-            ),
-            ContinueWatchingItem(
-                contentId = "sample_movie_2",
-                contentType = ContentType.MOVIE,
-                title = "Comedy Movie",
-                posterUrl = null,
-                backdropUrl = null,
-                currentPosition = 600000L, // 10 min
-                totalDuration = 7200000L, // 120 min
-                lastWatchedTimestamp = System.currentTimeMillis() - 7200000,
-                streamUrl = null
-            ),
-            ContinueWatchingItem(
-                contentId = "sample_movie_3",
-                contentType = ContentType.MOVIE,
-                title = "Thriller Movie",
-                posterUrl = null,
-                backdropUrl = null,
-                currentPosition = 3000000L, // 50 min
-                totalDuration = 6300000L, // 105 min
-                lastWatchedTimestamp = System.currentTimeMillis() - 86400000,
-                streamUrl = null
-            ),
-            ContinueWatchingItem(
-                contentId = "sample_series_2",
-                contentType = ContentType.SERIES,
-                title = "Sci-Fi Series S02E05",
-                posterUrl = null,
-                backdropUrl = null,
-                currentPosition = 1800000L, // 30 min
-                totalDuration = 3600000L, // 60 min
-                lastWatchedTimestamp = System.currentTimeMillis() - 172800000,
-                streamUrl = null
-            )
-        )
-    }
-    
-    private fun generateSampleRecentLiveChannels(): List<RecentLiveChannelItem> {
-        return listOf(
-            RecentLiveChannelItem(
-                channelId = "live_sample_1",
-                channelName = "News Channel",
-                channelLogo = null,
-                lastWatchedTimestamp = System.currentTimeMillis(),
-                streamUrl = null,
-                epgChannelId = "live_sample_1"
-            ),
-            RecentLiveChannelItem(
-                channelId = "live_sample_2",
-                channelName = "Sports TV",
-                channelLogo = null,
-                lastWatchedTimestamp = System.currentTimeMillis() - 3600000,
-                streamUrl = null,
-                epgChannelId = "live_sample_2"
-            ),
-            RecentLiveChannelItem(
-                channelId = "live_sample_3",
-                channelName = "Entertainment",
-                channelLogo = null,
-                lastWatchedTimestamp = System.currentTimeMillis() - 7200000,
-                streamUrl = null,
-                epgChannelId = "live_sample_3"
-            ),
-            RecentLiveChannelItem(
-                channelId = "live_sample_4",
-                channelName = "Kids Channel",
-                channelLogo = null,
-                lastWatchedTimestamp = System.currentTimeMillis() - 86400000,
-                streamUrl = null,
-                epgChannelId = "live_sample_4"
-            ),
-            RecentLiveChannelItem(
-                channelId = "live_sample_5",
-                channelName = "Music Channel",
-                channelLogo = null,
-                lastWatchedTimestamp = System.currentTimeMillis() - 172800000,
-                streamUrl = null,
-                epgChannelId = "live_sample_5"
-            ),
-            RecentLiveChannelItem(
-                channelId = "live_sample_6",
-                channelName = "Movies 24/7",
-                channelLogo = null,
-                lastWatchedTimestamp = System.currentTimeMillis() - 259200000,
-                streamUrl = null,
-                epgChannelId = "live_sample_6"
-            )
-        )
-    }
-    
-    private fun loadRecentLiveChannels() {
-        val items = watchHistoryPrefs.getRecentLiveChannelsList()
-            .sortedByDescending { it.lastWatchedTimestamp }
-            .take(6)
-
-        recentLiveAdapter.updateItems(items)
-        view?.findViewById<View>(R.id.section_recent_live)?.visibility =
-            if (items.isNotEmpty()) View.VISIBLE else View.GONE
-    }
-    
-    private fun loadContinueWatching() {
-        val items = watchHistoryPrefs.getContinueWatchingList()
-            .sortedByDescending { it.lastWatchedTimestamp }
-            .take(5)
-
-        continueWatchingAdapter.updateItems(items)
-        view?.findViewById<View>(R.id.section_continue_watching)?.visibility =
-            if (items.isNotEmpty()) View.VISIBLE else View.GONE
-    }
-    
-    private fun loadFavorites() {
-        favoritesJob?.cancel()
-        val favoritesFlow = kotlin.runCatching { repository.getAllFavorites() }.getOrNull()
-        if (favoritesFlow == null) {
-            favoritesAdapter.updateItems(emptyList())
-            view?.findViewById<View>(R.id.section_favorites)?.visibility = View.GONE
-            return
-        }
-
-        val serverUrl = credentialsPrefs.getServerUrl()
-        val username = credentialsPrefs.getUsername()
-        val password = credentialsPrefs.getPassword()
-        favoritesJob = viewLifecycleOwner.lifecycleScope.launch {
-            favoritesFlow.collect { entities ->
-                val items = withContext(Dispatchers.Default) {
-                    entities.mapNotNull { favorite ->
-                        HomeFavoriteMapper.mapToFavoriteItem(favorite, repository, serverUrl, username, password)
-                    }
-                }.take(10)
-                favoritesAdapter.updateItems(items)
-                view?.findViewById<View>(R.id.section_favorites)?.visibility =
-                    if (items.isNotEmpty()) View.VISIBLE else View.GONE
-            }
-        }
-    }
-    
     
     private fun onFeaturedItemClick(item: FeaturedItem) {
-        when (item.contentType) {
-            ContentType.LIVE_TV -> launchLiveStream(
-                streamId = item.contentId,
-                fallbackTitle = item.title,
-                fallbackLogo = item.posterUrl,
-                fallbackUrl = item.streamUrl
-            )
-            ContentType.MOVIE -> item.streamUrl?.let { url ->
-                val intent = PlayerActivity.createIntent(
-                    context = requireContext(),
-                    streamUrl = url,
-                    title = item.title,
-                    contentId = item.contentId,
-                    contentType = item.contentType,
-                    posterUrl = item.posterUrl,
-                    backdropUrl = item.backdropUrl
-                )
+        // Update Hero immediately on click as well
+        updateHeroSection(item)
+        
+        if (item.sourceType == SourceType.TMDB) {
+            if (item.contentType == ContentType.MOVIE) {
+                val intent = android.content.Intent(requireContext(), MovieDetailActivity::class.java).apply {
+                    putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.contentId)
+                    putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
+                    putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
+                    putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
+                    putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
+                }
+                startActivity(intent)
+            } else if (item.contentType == ContentType.SERIES) {
+                val intent = android.content.Intent(requireContext(), SeriesDetailActivity::class.java).apply {
+                    putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, item.contentId)
+                    putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.title)
+                    putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
+                    putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
+                    putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
+                }
                 startActivity(intent)
             }
-            else -> {
-                // Series and others require detail screen
-            }
-        }
-    }
-    
-    private fun onContinueWatchingItemClick(item: com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem) {
-        item.streamUrl?.let { url ->
-            val playbackSource = if (item.source == "debrid") {
-                com.tvonnet.debridxtreamiptv.player.PlaybackSource.DEBRID
-            } else {
-                com.tvonnet.debridxtreamiptv.player.PlaybackSource.IPTV
-            }
-            val intent = PlayerActivity.createIntent(
-                context = requireContext(),
-                streamUrl = url,
-                title = item.title,
-                startPositionMs = item.currentPosition,
-                contentId = item.contentId,
-                contentType = item.contentType,
-                playbackSource = playbackSource,
-                posterUrl = item.posterUrl,
-                backdropUrl = item.backdropUrl,
-                tmdbId = item.tmdbId,
-                imdbId = item.imdbId,
-                seriesTitle = item.seriesTitle,
-                episodeTitle = item.episodeTitle,
-                seasonNumber = item.seasonNumber,
-                episodeNumber = item.episodeNumber,
-                debridInfoHash = item.debridInfoHash,
-                debridMagnet = item.debridMagnet
-            )
-            startActivity(intent)
-        }
-    }
-    
-    private fun onRecentLiveChannelClick(item: com.tvonnet.debridxtreamiptv.data.model.RecentLiveChannelItem) {
-        launchLiveStream(
-            streamId = item.channelId,
-            fallbackTitle = item.channelName,
-            fallbackLogo = item.channelLogo,
-            fallbackUrl = item.streamUrl,
-            epgChannelId = item.epgChannelId
-        )
-    }
-    
-    private fun onFavoriteItemClick(item: com.tvonnet.debridxtreamiptv.data.model.FavoriteItem) {
-        when (item.contentType) {
-            ContentType.LIVE_TV -> launchLiveStream(
-                streamId = item.contentId,
-                fallbackTitle = item.title,
-                fallbackLogo = item.posterUrl,
-                fallbackUrl = item.streamUrl
-            )
-            else -> item.streamUrl?.let { url ->
-                val intent = PlayerActivity.createIntent(
-                    context = requireContext(),
-                    streamUrl = url,
-                    title = item.title,
-                    contentId = item.contentId,
-                    contentType = item.contentType,
-                    posterUrl = item.posterUrl,
-                    backdropUrl = item.backdropUrl
-                )
-                startActivity(intent)
+        } else {
+            // Legacy IPTV logic
+            if (item.contentType == ContentType.MOVIE) {
+                 item.streamUrl?.let { url ->
+                    val intent = PlayerActivity.createIntent(
+                        context = requireContext(),
+                        streamUrl = url,
+                        title = item.title,
+                        contentId = item.contentId,
+                        contentType = item.contentType,
+                        posterUrl = item.posterUrl,
+                        backdropUrl = item.backdropUrl
+                    )
+                    startActivity(intent)
+                }
+            } else if (item.contentType == ContentType.LIVE_TV) {
+                 launchLiveStream(item.contentId, item.title, item.posterUrl, item.streamUrl)
             }
         }
     }
@@ -515,31 +354,29 @@ class HomeFragment : Fragment() {
             return
         }
 
+        val finalServerUrl = serverUrl ?: ""
+        val absoluteIcon = (stream?.stream_icon ?: fallbackLogo).toAbsoluteUrl(finalServerUrl)
+
         val intent = PlayerActivity.createIntent(
             context = requireContext(),
             streamUrl = resolvedUrl,
             title = fallbackTitle ?: stream?.name ?: getString(R.string.player_epg_channel_unknown),
             channelName = stream?.name ?: fallbackTitle,
-            channelLogo = stream?.stream_icon ?: fallbackLogo,
+            channelLogo = absoluteIcon,
             epgChannelId = stream?.epg_channel_id?.takeIf { it.isNotBlank() } ?: epgChannelId ?: streamId,
             contentId = stream?.stream_id ?: streamId ?: resolvedUrl,
             contentType = ContentType.LIVE_TV,
-            posterUrl = stream?.stream_icon ?: fallbackLogo
+            posterUrl = absoluteIcon
         )
         startActivity(intent)
     }
 
+
     override fun onDestroyView() {
-        favoritesJob?.cancel()
-        favoritesJob = null
         super.onDestroyView()
     }
-
+    
     override fun onResume() {
         super.onResume()
-        // Refresh data when returning to this screen
-        loadRecentLiveChannels()
-        loadContinueWatching()
-        loadFavorites()
     }
 }

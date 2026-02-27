@@ -147,6 +147,15 @@ class RealDebridRemoteDataSource @Inject constructor(
         Log.e("RealDebridRemote", "Failed to select files for torrent $torrentId", error)
     }
 
+    suspend fun deleteTorrent(torrentId: String): Result<Unit> = resultOf {
+        Log.d("RealDebridRemote", "Deleting torrent $torrentId")
+        authorizedService.deleteTorrent(torrentId)
+    }.onSuccess {
+        Log.i("RealDebridRemote", "Torrent $torrentId deleted successfully")
+    }.onFailure { error ->
+        Log.e("RealDebridRemote", "Failed to delete torrent $torrentId", error)
+    }
+
     private fun maskCode(value: String?): String {
         val trimmed = value?.trim().orEmpty()
         if (trimmed.isEmpty()) return "n/a"

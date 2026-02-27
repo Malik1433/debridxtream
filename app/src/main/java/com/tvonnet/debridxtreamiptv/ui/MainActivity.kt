@@ -14,7 +14,7 @@ import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
-import com.tvonnet.debridxtreamiptv.ui.home.HomeFragmentRedesign
+import com.tvonnet.debridxtreamiptv.util.GlobalConfig
 import com.tvonnet.debridxtreamiptv.ui.live.LiveFragment
 import com.tvonnet.debridxtreamiptv.ui.vod.VodFragment
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesFragment
@@ -80,12 +80,16 @@ class MainActivity : AppCompatActivity() {
         
         if (serverUrl != null && username != null && password != null) {
             repository.initialize(serverUrl, username, password)
+            // Phase 3.3: Initialize GlobalConfig for system-wide access
+            GlobalConfig.baseUrl = serverUrl
+            GlobalConfig.username = username
+            GlobalConfig.password = password
         }
         
-        // Load beautiful home screen by default
+        // Load beautiful cinematic home screen by default
         if (savedInstanceState == null) {
             supportFragmentManager.commit {
-                replace(R.id.content_container, com.tvonnet.debridxtreamiptv.ui.home.HomeFragmentModern())
+                replace(R.id.content_container, com.tvonnet.debridxtreamiptv.ui.home.HomeFragment())
             }
         }
 
@@ -183,7 +187,7 @@ class MainActivity : AppCompatActivity() {
         }
         
         // Priority 2: Root Level Handling
-        if (currentFragment is com.tvonnet.debridxtreamiptv.ui.home.HomeFragmentModern) {
+        if (currentFragment is com.tvonnet.debridxtreamiptv.ui.home.HomeFragment) {
             // 2a. If at Home, check scroll first
             val handled = currentFragment.handleBackPress()
             if (handled) return
@@ -195,7 +199,7 @@ class MainActivity : AppCompatActivity() {
             // 3. We are at a root fragment that is NOT Home (e.g. Live TV, Debrid).
             // Navigate back to Home.
             supportFragmentManager.commit {
-                replace(R.id.content_container, com.tvonnet.debridxtreamiptv.ui.home.HomeFragmentModern())
+                replace(R.id.content_container, com.tvonnet.debridxtreamiptv.ui.home.HomeFragment())
             }
         }
     }

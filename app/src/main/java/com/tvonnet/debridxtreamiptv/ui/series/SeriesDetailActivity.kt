@@ -472,7 +472,7 @@ class SeriesDetailActivity : AppCompatActivity() {
         seriesGenre = info.genre ?: seriesGenre
         seriesReleaseDate = info.releaseDate ?: seriesReleaseDate
         seriesRating = info.rating ?: seriesRating
-        seriesCover = info.cover ?: seriesCover
+        seriesCover = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(info.cover) ?: seriesCover
         seriesBackdrop = info.backdropPathString ?: seriesBackdrop
 
         displaySeriesInfo()
@@ -598,8 +598,8 @@ class SeriesDetailActivity : AppCompatActivity() {
         seriesGenre = seriesInfo.genre ?: seriesGenre
         seriesReleaseDate = seriesInfo.releaseDate ?: seriesReleaseDate
         seriesRating = seriesInfo.rating ?: seriesRating
-        seriesCover = seriesInfo.cover ?: seriesCover
-        seriesBackdrop = seriesInfo.cover ?: seriesBackdrop
+        seriesCover = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(seriesInfo.cover) ?: seriesCover
+        seriesBackdrop = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(seriesInfo.cover) ?: seriesBackdrop
 
         displaySeriesInfo()
 
@@ -659,8 +659,8 @@ class SeriesDetailActivity : AppCompatActivity() {
             releaseDate = seriesInfo.releaseDate,
             rating = seriesInfo.rating,
             rating_5based = seriesInfo.rating_5based,
-            cover = seriesInfo.cover,
-            backdrop_path = seriesInfo.cover,
+            cover = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(seriesInfo.cover),
+            backdrop_path = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(seriesInfo.cover),
             youtube_trailer = null
         )
 

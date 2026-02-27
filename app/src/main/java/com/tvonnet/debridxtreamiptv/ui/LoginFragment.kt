@@ -17,6 +17,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.tvonnet.debridxtreamiptv.util.GlobalConfig
 
 @AndroidEntryPoint
 class LoginFragment : Fragment() {
@@ -91,6 +92,11 @@ class LoginFragment : Fragment() {
             etUsername.setText(user)
             etPassword.setText(pass)
             
+            // Initialize GlobalConfig immediately
+            GlobalConfig.baseUrl = server
+            GlobalConfig.username = user
+            GlobalConfig.password = pass
+            
             // Trigger login
             performLogin(server, user, pass)
         }
@@ -155,6 +161,11 @@ class LoginFragment : Fragment() {
                     android.util.Log.d("LoginFragment", "Login successful, saving credentials")
                     // Save credentials
                     credentialsPrefs.saveCredentials(server, username, password)
+                    
+                    // Initialize GlobalConfig for session
+                    GlobalConfig.baseUrl = server
+                    GlobalConfig.username = username
+                    GlobalConfig.password = password
                     
                     progressBar.visibility = View.GONE
                     android.util.Log.d("LoginFragment", "Navigating to initial sync")

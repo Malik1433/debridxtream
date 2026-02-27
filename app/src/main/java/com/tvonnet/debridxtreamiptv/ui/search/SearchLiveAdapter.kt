@@ -52,11 +52,10 @@ class SearchLiveAdapter(
             tvType.text = "Live TV"
             
             // Load icon with Glide
-            Glide.with(itemView.context)
-                .load(stream.stream_icon)
-                .placeholder(R.drawable.ic_live_tv)
-                .error(R.drawable.ic_live_tv)
-                .into(ivIcon)
+            val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon)
+            // Diagnostic Toast
+
+            com.tvonnet.debridxtreamiptv.util.GlideUtils.loadChannelLogo(ivIcon, resolved)
             
             itemView.setOnClickListener {
                 onStreamClick(stream)

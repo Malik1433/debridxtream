@@ -291,7 +291,7 @@ class LiveViewModel @Inject constructor(
         val categoryId = uiState.value.selectedCategoryId
         savedStateHandle[KEY_LAST_PLAYED_CHANNEL_ID] = streamId
         savedStateHandle[KEY_LAST_PLAYED_CHANNEL_NAME] = stream.name
-        savedStateHandle[KEY_LAST_PLAYED_CHANNEL_LOGO] = stream.stream_icon
+        savedStateHandle[KEY_LAST_PLAYED_CHANNEL_LOGO] = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon)
         savedStateHandle[KEY_LAST_PLAYED_EPG_CHANNEL_ID] = stream.epg_channel_id
         savedStateHandle[KEY_LAST_FOCUSED_CHANNEL_ID] = streamId
         savedStateHandle[KEY_LAST_FOCUSED_CHANNEL_CATEGORY_ID] = categoryId
@@ -301,7 +301,7 @@ class LiveViewModel @Inject constructor(
             copy(
                 lastPlayedChannelId = streamId,
                 lastPlayedChannelName = stream.name,
-                lastPlayedChannelLogo = stream.stream_icon,
+                lastPlayedChannelLogo = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
                 lastPlayedEpgChannelId = stream.epg_channel_id,
                 lastFocusedChannelId = streamId,
                 lastFocusedChannelCategoryId = categoryId,
@@ -316,7 +316,7 @@ class LiveViewModel @Inject constructor(
         val categoryId = uiState.value.selectedCategoryId
         savedStateHandle[KEY_LAST_PLAYED_CHANNEL_ID] = streamId
         savedStateHandle[KEY_LAST_PLAYED_CHANNEL_NAME] = stream.name
-        savedStateHandle[KEY_LAST_PLAYED_CHANNEL_LOGO] = stream.stream_icon
+        savedStateHandle[KEY_LAST_PLAYED_CHANNEL_LOGO] = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon)
         savedStateHandle[KEY_LAST_PLAYED_EPG_CHANNEL_ID] = stream.epg_channel_id
         savedStateHandle[KEY_LAST_FOCUSED_CHANNEL_ID] = streamId
         savedStateHandle[KEY_LAST_FOCUSED_CHANNEL_CATEGORY_ID] = categoryId
@@ -326,7 +326,7 @@ class LiveViewModel @Inject constructor(
             copy(
                 lastPlayedChannelId = streamId,
                 lastPlayedChannelName = stream.name,
-                lastPlayedChannelLogo = stream.stream_icon,
+                lastPlayedChannelLogo = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
                 lastPlayedEpgChannelId = stream.epg_channel_id,
                 lastFocusedChannelId = streamId,
                 lastFocusedChannelCategoryId = categoryId,

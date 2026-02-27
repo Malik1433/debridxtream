@@ -60,7 +60,13 @@ class WatchHistoryPreferences(private val context: Context) {
         val json = prefs.getString(KEY_CONTINUE_WATCHING, null) ?: return emptyList()
         return try {
             val type = object : TypeToken<List<ContinueWatchingItem>>() {}.type
-            gson.fromJson<List<ContinueWatchingItem>>(json, type) ?: emptyList()
+            val list = gson.fromJson<List<ContinueWatchingItem>>(json, type) ?: emptyList()
+            // Heal stale relative poster URLs on read
+            list.map { item ->
+                val healed = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(item.posterUrl)
+                android.util.Log.d("IPTV_POSTER", "Healing Continue Watching [${item.title}]: ${item.posterUrl} -> $healed")
+                item.copy(posterUrl = healed)
+            }
         } catch (e: Exception) {
             emptyList()
         }
@@ -194,7 +200,13 @@ class WatchHistoryPreferences(private val context: Context) {
         val json = prefs.getString(KEY_RECENT_LIVE_CHANNELS, null) ?: return emptyList()
         return try {
             val type = object : TypeToken<List<RecentLiveChannelItem>>() {}.type
-            gson.fromJson<List<RecentLiveChannelItem>>(json, type) ?: emptyList()
+            val list = gson.fromJson<List<RecentLiveChannelItem>>(json, type) ?: emptyList()
+            // Heal stale relative logo URLs on read
+            list.map { item ->
+                val healed = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(item.channelLogo)
+                android.util.Log.d("IPTV_POSTER", "Healing Recent Live [${item.channelName}]: ${item.channelLogo} -> $healed")
+                item.copy(channelLogo = healed)
+            }
         } catch (e: Exception) {
             emptyList()
         }

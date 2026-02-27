@@ -13,6 +13,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.DELETE
 
 /**
  * Retrofit interface for Real-Debrid REST + OAuth endpoints.
@@ -77,6 +78,9 @@ interface RealDebridApiService {
         @Path("id") torrentId: String,
         @Field("files") files: String
     )
+
+    @DELETE("rest/1.0/torrents/delete/{id}")
+    suspend fun deleteTorrent(@Path("id") torrentId: String)
 }
 
 

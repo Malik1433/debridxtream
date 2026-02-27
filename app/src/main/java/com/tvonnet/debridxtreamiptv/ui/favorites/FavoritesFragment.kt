@@ -198,11 +198,11 @@ class FavoritesFragment : Fragment() {
                                 streamUrl = streamUrl,
                                 title = favorite.name,
                                 channelName = stream.name ?: favorite.name,
-                                channelLogo = stream.stream_icon,
+                                channelLogo = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
                                 epgChannelId = epgId,
                                 contentId = favorite.streamId,
                                 contentType = ContentType.LIVE_TV,
-                                posterUrl = stream.stream_icon
+                                posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon)
                             )
                         } else {
                             showError("Live channel not found in cache")
@@ -218,7 +218,7 @@ class FavoritesFragment : Fragment() {
                             title = favorite.name,
                             contentId = favorite.streamId,
                             contentType = ContentType.MOVIE,
-                            posterUrl = vod.stream_icon,
+                            posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(vod.stream_icon),
                             backdropUrl = vod.cover
                         )
                         } else {

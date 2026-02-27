@@ -136,4 +136,15 @@
     <!-- Live TV Sidebar -->
     <dimen name="live_sidebar_icon_size">36dp</dimen>
     <dimen name="live_sidebar_icon_size_selected">44dp</dimen>
+
+    <!-- ========== HOME REDESIGN (PHASE 1) ========== -->
+    <dimen name="spacing_proximity_tight">4dp</dimen>
+    <dimen name="spacing_section_distinct">32dp</dimen>
+    <dimen name="poster_top_10_width">140dp</dimen>
+    <dimen name="poster_top_10_height">210dp</dimen> <!-- 2:3 Ratio -->
+    <dimen name="sidebar_width_collapsed">80dp</dimen>
+    <dimen name="sidebar_width_expanded">240dp</dimen>
+    <dimen name="number_text_size">120sp</dimen>
+    <dimen name="number_offset_x">-20dp</dimen>
+    <dimen name="number_offset_y">30dp</dimen>
 </resources>

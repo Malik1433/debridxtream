@@ -25,6 +25,9 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
+import com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridPlaybackRepository
+import com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider
+
 
 sealed class DebridResolutionState {
     object Idle : DebridResolutionState()
@@ -44,6 +47,8 @@ class PlayerViewModel @Inject constructor(
     private val repository: XtreamRepository,
     private val seriesRepository: XtreamSeriesRepositoryV2,
     private val cacheManager: CacheManager,
+    private val debridPlaybackRepository: DebridPlaybackRepository,
+    private val unifiedSourceProvider: UnifiedSourceProvider,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -109,8 +114,81 @@ class PlayerViewModel @Inject constructor(
         seriesTitle: String?,
         infoHash: String?
     ) {
-        // Stub for now to allow build to pass
-        _debridResolutionState.value = DebridResolutionState.Error("Next Debrid Episode logic not yet implemented")
+        viewModelScope.launch {
+            _debridResolutionState.value = DebridResolutionState.Loading
+            try {
+                val sources = withContext(Dispatchers.IO) {
+                    unifiedSourceProvider.getSeriesEpisodeSources(
+                        seriesId = seriesId,
+                        seasonNumber = currentSeason,
+                        episodeNumber = currentEpisode,
+                        title = seriesTitle ?: "",
+                        yearHint = null
+                    )
+                }
+
+                if (sources.isEmpty()) {
+                    _debridResolutionState.value = DebridResolutionState.Error("No sources found for the next episode.")
+                    return@launch
+                }
+
+                val matchingSource = infoHash?.let { hash -> 
+                    sources.firstOrNull { it.stream.stream_id == hash } 
+                }
+                
+                val targetSource = matchingSource ?: sources.firstOrNull { it.isCached == true } ?: sources.first()
+                val magnet = targetSource.stream.direct_source
+                val hashToResolve = targetSource.stream.stream_id
+
+                if (magnet.isNullOrBlank() && hashToResolve.isNullOrBlank()) {
+                    _debridResolutionState.value = DebridResolutionState.Error("Invalid source data.")
+                    return@launch
+                }
+
+                if (magnet?.startsWith("http") == true && !magnet.endsWith(".torrent", ignoreCase = true)) {
+                     _debridResolutionState.value = DebridResolutionState.Success(
+                         url = magnet,
+                         season = currentSeason,
+                         episode = currentEpisode,
+                         title = seriesTitle,
+                         infoHash = hashToResolve
+                     )
+                     return@launch
+                }
+
+                val result = withContext(Dispatchers.IO) {
+                    debridPlaybackRepository.resolveDebridUrl(
+                        infoHash = hashToResolve,
+                        magnet = magnet,
+                        seasonNumber = currentSeason,
+                        episodeNumber = currentEpisode,
+                        episodeTitle = seriesTitle
+                    )
+                }
+
+                when (result) {
+                    is Result.Success -> {
+                        _debridResolutionState.value = DebridResolutionState.Success(
+                            url = result.data,
+                            season = currentSeason,
+                            episode = currentEpisode,
+                            title = seriesTitle,
+                            infoHash = hashToResolve
+                        )
+                    }
+                    is Result.Error -> {
+                        _debridResolutionState.value = DebridResolutionState.Error(
+                            result.exception.message ?: "Failed to resolve next Debrid link"
+                        )
+                    }
+                    else -> {
+                        _debridResolutionState.value = DebridResolutionState.Error("Unknown error resolving link")
+                    }
+                }
+            } catch (e: Exception) {
+                _debridResolutionState.value = DebridResolutionState.Error("Failed to fetch sources: ${e.message}")
+            }
+        }
     }
 
     fun reResolveDebridUrl(
@@ -120,8 +198,53 @@ class PlayerViewModel @Inject constructor(
         episode: Int?,
         title: String?
     ) {
-        // Stub for now to allow build to pass
-        _debridResolutionState.value = DebridResolutionState.Error("Re-resolve logic not yet implemented")
+        viewModelScope.launch {
+            _debridResolutionState.value = DebridResolutionState.Loading
+            try {
+                if (magnet?.startsWith("http") == true && !magnet.endsWith(".torrent", ignoreCase = true)) {
+                     _debridResolutionState.value = DebridResolutionState.Success(
+                         url = magnet,
+                         season = season,
+                         episode = episode,
+                         title = title,
+                         infoHash = infoHash
+                     )
+                     return@launch
+                }
+
+                val result = withContext(Dispatchers.IO) {
+                    debridPlaybackRepository.resolveDebridUrl(
+                        infoHash = infoHash,
+                        magnet = magnet,
+                        seasonNumber = season,
+                        episodeNumber = episode,
+                        episodeTitle = title
+                    )
+                }
+
+                when (result) {
+                    is Result.Success -> {
+                        _debridResolutionState.value = DebridResolutionState.Success(
+                            url = result.data,
+                            season = season,
+                            episode = episode,
+                            title = title,
+                            infoHash = infoHash
+                        )
+                    }
+                    is Result.Error -> {
+                        _debridResolutionState.value = DebridResolutionState.Error(
+                            result.exception.message ?: "Failed to retry Debrid link"
+                        )
+                    }
+                    else -> {
+                        _debridResolutionState.value = DebridResolutionState.Error("Unknown error resolving retry link")
+                    }
+                }
+            } catch (e: Exception) {
+                _debridResolutionState.value = DebridResolutionState.Error("Failed to re-resolve: ${e.message}")
+            }
+        }
     }
 
     fun getPrevEpisode(): EpisodeEntityV2? {
@@ -364,7 +487,7 @@ class PlayerViewModel @Inject constructor(
                     ZapChannel(
                         streamId = stream.stream_id!!,
                         name = stream.name ?: context.getString(R.string.player_epg_channel_unknown),
-                        logoUrl = stream.stream_icon,
+                        logoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
                         epgChannelId = stream.epg_channel_id,
                         streamUrl = repository.buildLiveStreamUrl(stream, baseServerUrl)
                     )

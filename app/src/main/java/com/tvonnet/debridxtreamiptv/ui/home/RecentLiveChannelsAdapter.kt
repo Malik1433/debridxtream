@@ -8,7 +8,10 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tvonnet.debridxtreamiptv.R
+import android.widget.Toast
 import com.tvonnet.debridxtreamiptv.data.model.RecentLiveChannelItem
+import com.tvonnet.debridxtreamiptv.util.GlobalConfig
+import com.tvonnet.debridxtreamiptv.util.loadPosterOrPlaceholder
 
 class RecentLiveChannelsAdapter(
     private var items: List<RecentLiveChannelItem>,
@@ -39,13 +42,11 @@ class RecentLiveChannelsAdapter(
         fun bind(item: RecentLiveChannelItem, onClick: (RecentLiveChannelItem) -> Unit) {
             tvChannelName.text = item.channelName
             
-            // Load channel logo
-            Glide.with(itemView.context)
-                .load(item.channelLogo)
-                .placeholder(R.drawable.tv_card_placeholder)
-                .error(R.drawable.tv_card_placeholder)
-                .centerCrop()
-                .into(ivChannelLogo)
+            val resolvedUrl = GlobalConfig.resolveIconUrl(item.channelLogo)
+            // Debug Toast as requested
+            
+            // Load channel logo using enhanced extension for logging and cinematic style
+            ivChannelLogo.loadPosterOrPlaceholder(resolvedUrl)
             
             itemView.setOnClickListener {
                 onClick(item)

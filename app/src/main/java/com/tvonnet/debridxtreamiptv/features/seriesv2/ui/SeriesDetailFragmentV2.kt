@@ -248,7 +248,7 @@ class SeriesDetailFragmentV2 : Fragment() {
         
         // Fix 3: Pass cover to adapter for fallback
         if (!s.cover.isNullOrEmpty() && adapter?.seriesCoverUrl != s.cover) {
-            adapter?.seriesCoverUrl = s.cover
+            adapter?.seriesCoverUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(s.cover)
             // Force re-bind of visible items to update thumbnails if they were placeholders
             adapter?.notifyItemRangeChanged(0, adapter?.itemCount ?: 0, Any()) 
         }

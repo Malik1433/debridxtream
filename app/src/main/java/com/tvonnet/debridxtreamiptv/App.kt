@@ -29,6 +29,8 @@ class App : Application(), Configuration.Provider {
         // Initialize Global Crash Handler
         com.tvonnet.debridxtreamiptv.util.GlobalCrashHandler.init(this)
 
+
+
         // Align WorkManager with the latest user preference snapshot
         val preferences = PreferenceManager.getDefaultSharedPreferences(this)
         EpgSyncController().syncFromPreferences(this, preferences)

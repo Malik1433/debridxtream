@@ -497,7 +497,7 @@ class SeriesFragment : Fragment() {
                         streamId = streamId,
                         type = "series",
                         name = series.name ?: "Unknown Series",
-                        iconUrl = series.cover
+                        iconUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(series.cover)
                     )
                     Toast.makeText(requireContext(), "Added to favorites", Toast.LENGTH_SHORT).show()
                     android.util.Log.d("SeriesFragment", "Added to favorites: ${series.name}")
@@ -524,7 +524,7 @@ class SeriesFragment : Fragment() {
     }
 
     private fun updateBackdrop(series: XtreamSeriesInfo) {
-        val imageUrl = series.cover
+        val imageUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(series.cover)
         if (!imageUrl.isNullOrBlank()) {
             Glide.with(this)
                 .load(imageUrl)

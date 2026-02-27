@@ -123,7 +123,7 @@ class InitialSyncFragment : Fragment() {
         if (hasNavigated) return
         hasNavigated = true
         requireActivity().supportFragmentManager.commit {
-            replace(R.id.content_container, com.tvonnet.debridxtreamiptv.ui.home.HomeFragmentModern())
+            replace(R.id.content_container, com.tvonnet.debridxtreamiptv.ui.home.HomeFragment())
         }
     }
 }

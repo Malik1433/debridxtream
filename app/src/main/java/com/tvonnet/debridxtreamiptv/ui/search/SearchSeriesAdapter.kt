@@ -68,11 +68,10 @@ class SearchSeriesAdapter(
             tvType.text = typeText
             
             // Load cover with Glide
-            Glide.with(itemView.context)
-                .load(series.cover)
-                .placeholder(R.drawable.ic_series)
-                .error(R.drawable.ic_series)
-                .into(ivIcon)
+            val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(series.cover)
+            // Diagnostic Toast
+
+            com.tvonnet.debridxtreamiptv.util.GlideUtils.loadMoviePoster(ivIcon, resolved, useRoundedCorners = true)
             
             itemView.setOnClickListener {
                 onSeriesClick(series)

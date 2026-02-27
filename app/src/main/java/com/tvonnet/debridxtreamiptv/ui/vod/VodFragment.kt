@@ -558,7 +558,7 @@ class VodFragment : Fragment() {
                         streamId = streamId,
                         type = "vod",
                         name = movie.name ?: "Unknown Movie",
-                        iconUrl = movie.stream_icon
+                        iconUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.stream_icon)
                     )
                     Toast.makeText(requireContext(), "Added to favorites", Toast.LENGTH_SHORT).show()
                     android.util.Log.d("VodFragment", "Added to favorites: ${movie.name}")
@@ -574,7 +574,7 @@ class VodFragment : Fragment() {
     }
 
     private fun updateBackdrop(movie: XtreamVodInfo) {
-        val imageUrl = movie.cover ?: movie.stream_icon
+        val imageUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.cover) ?: com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.stream_icon)
         if (!imageUrl.isNullOrBlank()) {
              Glide.with(this)
                 .load(imageUrl)
@@ -667,13 +667,11 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         }
         
         // Load poster using Glide with 2:3 aspect ratio and 14dp corners (handled by CardView clip)
-        if (!movie.stream_icon.isNullOrBlank()) {
-            Glide.with(itemView.context)
-                .load(movie.stream_icon)
-                .placeholder(R.drawable.tv_card_placeholder)
-                .error(R.drawable.tv_card_placeholder)
-                .centerCrop()
-                .into(ivMoviePoster)
+        val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.stream_icon)
+        // Diagnostic Toast
+
+        if (!resolved.isNullOrBlank()) {
+            com.tvonnet.debridxtreamiptv.util.GlideUtils.loadMoviePoster(ivMoviePoster, resolved, useRoundedCorners = true)
         } else {
             ivMoviePoster.setImageResource(R.drawable.tv_card_placeholder)
         }

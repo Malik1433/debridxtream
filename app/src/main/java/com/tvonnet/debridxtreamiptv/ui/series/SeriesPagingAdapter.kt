@@ -90,14 +90,11 @@ class SeriesPagingViewHolder(itemView: android.view.View) : RecyclerView.ViewHol
             android.view.View.GONE
         }
 
-        val posterUrl = series.cover
-        if (!posterUrl.isNullOrBlank()) {
-            Glide.with(itemView.context)
-                .load(posterUrl)
-                .placeholder(R.drawable.tv_card_placeholder)
-                .error(R.drawable.tv_card_placeholder)
-                .centerCrop()
-                .into(ivPoster)
+        val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(series.cover)
+        // Diagnostic Toast
+
+        if (!resolved.isNullOrBlank()) {
+            com.tvonnet.debridxtreamiptv.util.GlideUtils.loadMoviePoster(ivPoster, resolved, useRoundedCorners = true)
         } else {
             ivPoster.setImageResource(R.drawable.tv_card_placeholder)
         }

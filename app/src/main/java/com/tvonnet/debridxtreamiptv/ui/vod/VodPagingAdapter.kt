@@ -85,8 +85,10 @@ class VodPagingViewHolder(itemView: android.view.View) : RecyclerView.ViewHolder
         // I'll skip updating VodPagingAdapter for now to avoid breaking it if it uses a different layout.
         
         // Phase 2.4: Load poster with optimized GlideUtils
-        val posterUrl = movie.stream_icon
-        GlideUtils.loadMoviePoster(ivLogo, posterUrl, useRoundedCorners = true)
+        val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.stream_icon)
+        // Diagnostic Toast
+        
+        com.tvonnet.debridxtreamiptv.util.GlideUtils.loadMoviePoster(ivLogo, resolved, useRoundedCorners = true)
         
         itemView.setOnClickListener {
             onClick(movie)

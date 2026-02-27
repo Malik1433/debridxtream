@@ -50,6 +50,7 @@ import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem
 import com.tvonnet.debridxtreamiptv.data.model.RecentLiveChannelItem
+import com.tvonnet.debridxtreamiptv.data.model.toAbsoluteUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
 import kotlinx.coroutines.launch
@@ -397,14 +398,14 @@ class PlayerActivity : AppCompatActivity() {
                         } else if (pauseBtn?.isVisible == true) {
                             pauseBtn.requestFocus()
                         } else {
-                            playerView.findViewById<View>(R.id.btn_settings_player)?.requestFocus()
+                            playerView.findViewById<View>(R.id.btn_player_shuffle)?.requestFocus()
                         }
                     }
                 }
             })
             
-            // Custom Settings Button
-            playerView.findViewById<View>(R.id.btn_settings_player)?.setOnClickListener {
+            // Custom Settings Button (Shuffle icon in redesign)
+            playerView.findViewById<View>(R.id.btn_player_shuffle)?.setOnClickListener {
                 showPlayerSettings()
             }
 
@@ -434,9 +435,11 @@ class PlayerActivity : AppCompatActivity() {
             // Initial sync
             player?.let { updatePlayPauseVisibility(it.isPlaying) }
             
-            // New Redesign: Top Title
-            val topTitle = playerView.findViewById<TextView>(R.id.tv_top_title)
-            topTitle?.text = streamTitle ?: "Playing"
+            // New Redesign: Bind Metadata
+            bindModernMetadata(streamTitle)
+            
+            // New Redesign: Initialize interactive animations
+            setupInteractiveAnimations()
 
             // New Redesign: Next Episode Button
             val btnNext = playerView.findViewById<View>(R.id.btn_next_episode)
@@ -867,7 +870,7 @@ class PlayerActivity : AppCompatActivity() {
         currentUrl = url
         val title = episode.title ?: "Episode ${episode.episodeNumber}"
         originalTitle = title
-        tvVodTitle?.text = title
+        bindModernMetadata(title)
         supportActionBar?.title = title
         
         // Reset Prompt State
@@ -878,6 +881,88 @@ class PlayerActivity : AppCompatActivity() {
         playUrl(url)
     }
 
+    private fun bindModernMetadata(title: String?) {
+        val titleView = playerView.findViewById<TextView>(R.id.tv_player_title)
+        val subtitleView = playerView.findViewById<TextView>(R.id.tv_player_subtitle)
+        
+        // CLEANUP: If it's a long cluttered file name, clean it up
+        val displayTitle = if (playbackSource == PlaybackSource.DEBRID) {
+            cleanTitle(title ?: getString(R.string.app_name))
+        } else {
+            title ?: getString(R.string.app_name)
+        }
+        
+        titleView?.text = displayTitle
+        
+        val contentLabel = when (contentType) {
+            ContentType.MOVIE -> getString(R.string.label_movie)
+            ContentType.SERIES -> getString(R.string.label_series)
+            ContentType.EPISODE -> getString(R.string.label_episode)
+            else -> getString(R.string.label_video)
+        }
+        val sourceLabel = when (playbackSource) {
+            PlaybackSource.DEBRID -> getString(R.string.label_debrid)
+            PlaybackSource.IPTV -> getString(R.string.label_iptv)
+        }
+        
+        // For episodes, show "Season X • Episode Y"
+        val subtitle = if (contentType == ContentType.EPISODE || contentType == ContentType.SERIES) {
+            val season = seasonNumberExtra
+            val episode = episodeNumberExtra
+            if (season != null && episode != null) {
+                "S${season} • E${episode} • $sourceLabel"
+            } else {
+                "$contentLabel • $sourceLabel"
+            }
+        } else {
+            "$contentLabel • $sourceLabel"
+        }
+        
+        subtitleView?.text = subtitle
+    }
+
+    /**
+     * Cleans up messy torrent-style titles for a more professional look.
+     * E.g. "The.Bluff.2026.2160p.AMZN..." -> "The Bluff (2026)"
+     */
+    private fun cleanTitle(raw: String): String {
+        var clean = raw.replace(".", " ").replace("_", " ")
+        
+        // Remove common resolution/codec patterns and everything after
+        val patterns = listOf(
+            "\\d{3,4}p", "2160p", "1080p", "720p", "480p",
+            "WEB-DL", "WEBRip", "BluRay", "HDRip", "DV", "HDR",
+            "H264", "H265", "x264", "x265", "HEVC",
+            "DDP5.1", "DTS", "AAC", "AC3",
+            "Hybrid", "MULTI", "BTM"
+        )
+        
+        patterns.forEach { pattern ->
+            val regex = Regex("(?i)\\b$pattern\\b")
+            val match = regex.find(clean)
+            if (match != null) {
+                clean = clean.substring(0, match.range.first).trim()
+            }
+        }
+        
+        // Try to keep the year if it was removed by patterns above, 
+        // but if it's there, format it nicely: "Title (Year)"
+        val yearRegex = Regex("(\\d{4})")
+        val yearMatch = yearRegex.find(raw) // Search in raw to be sure
+        if (yearMatch != null) {
+            val year = yearMatch.groupValues[1]
+            if (!clean.contains(year)) {
+                // If the cleaned title doesn't have the year, add it if it makes sense
+                // (Only if the year isn't part of a sequence we cut off)
+            } else {
+                // Format: Title (Year)
+                clean = clean.replace(year, "($year)").replace("  ", " ").trim()
+            }
+        }
+        
+        return clean.trim()
+    }
+
     private fun playNextEpisode() {
         nextEpisodeTimer?.cancel()
 
@@ -886,15 +971,27 @@ class PlayerActivity : AppCompatActivity() {
              val currentEpisode = episodeNumberExtra ?: -1
              val tmdbId = tmdbIdExtra
              
-             if (tmdbId != null && currentSeason != -1 && currentEpisode != -1) {
+              if (tmdbId != null && currentSeason != -1 && currentEpisode != -1) {
                   // Manually advance playlist index so "Up Next" will be correct for the *following* episode
-                  viewModel.getNextEpisode() 
-                  
-                  // Trigger Debrid Resolution
+                  val nextEp = viewModel.getNextEpisode()
+
+                  // Decide next season/episode. Prefer the synced playlist, but fallback to incrementing manually.
+                  // Since Debrid streams often fail to sync `contentId` to local XTREAM ids, we MUST check if nextEp
+                  // actually moved forward. If nextEp is stuck or missing, just increment currentEpisode.
+                  val targetSeason = nextEp?.seasonNumber?.takeIf { it >= currentSeason } ?: currentSeason
+                  val targetEpisode = if (nextEp != null && nextEp.seasonNumber == currentSeason && nextEp.episodeNumber > currentEpisode) {
+                      nextEp.episodeNumber
+                  } else if (nextEp != null && nextEp.seasonNumber > currentSeason) {
+                      nextEp.episodeNumber
+                  } else {
+                      currentEpisode + 1
+                  }
+
+                  // Trigger Debrid Resolution for the NEW episode
                   viewModel.loadNextDebridEpisode(
                       seriesId = tmdbId,
-                      currentSeason = currentSeason,
-                      currentEpisode = currentEpisode,
+                      currentSeason = targetSeason,
+                      currentEpisode = targetEpisode,
                       seriesTitle = seriesTitleExtra,
                       infoHash = debridInfoHashExtra // Critical for binge consistency
                   )
@@ -1293,7 +1390,10 @@ class PlayerActivity : AppCompatActivity() {
                              // Phase 5: Auto-Next on End
                              if (contentType == ContentType.SERIES || contentType == ContentType.EPISODE) {
                                   val state = viewModel.seriesPlaylistState.value
-                                  if (state?.hasNext == true) {
+                                  if (playbackSource == PlaybackSource.DEBRID) {
+                                       playNextEpisode()
+                                       return
+                                  } else if (state?.hasNext == true) {
                                        playNextEpisode()
                                        return
                                   }
@@ -1731,7 +1831,7 @@ class PlayerActivity : AppCompatActivity() {
                 // 3. Update internal state
                 contentId = id
                 currentUrl = newUrl
-                channelLogoUrl = stream.stream_icon
+                channelLogoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon)
                 currentEpgChannelId = stream.epg_channel_id ?: id
                 
                 // 4. Update UI
@@ -2205,7 +2305,8 @@ class PlayerActivity : AppCompatActivity() {
             ?: originalTitle
             ?: getString(R.string.player_epg_channel_unknown)
         val epgId = currentEpgChannelId
-        val logo = channelLogoUrl ?: posterUrlExtra
+        val rawLogo = channelLogoUrl ?: posterUrlExtra
+        val logo = rawLogo.toAbsoluteUrl(ContentType.LIVE_TV, baseServerUrl)
 
         watchHistoryPrefs.addRecentLiveChannel(
             RecentLiveChannelItem(
@@ -2258,8 +2359,8 @@ class PlayerActivity : AppCompatActivity() {
             contentId = stableContentId,
             contentType = type,
             title = title,
-            posterUrl = posterUrlExtra ?: channelLogoUrl,
-            backdropUrl = backdropUrlExtra,
+            posterUrl = (posterUrlExtra ?: channelLogoUrl).toAbsoluteUrl(type, baseServerUrl),
+            backdropUrl = backdropUrlExtra.toAbsoluteUrl(type, baseServerUrl),
             currentPosition = position,
             totalDuration = duration,
             lastWatchedTimestamp = System.currentTimeMillis(),
@@ -2356,10 +2457,10 @@ class PlayerActivity : AppCompatActivity() {
                             seasonNumberExtra = state.season
                             episodeNumberExtra = state.episode
                             episodeTitleExtra = state.title
-                            // Update UI immediately
+                            startPositionMs = 0L // FIX: Start next episode from beginning
+                            // Update UI immediately (Redesign: use modern binding)
                             val newTitle = "${seriesTitleExtra ?: ""} - S${state.season}:E${state.episode}"
-                            val topTitle = playerView.findViewById<TextView>(R.id.tv_top_title)
-                            topTitle?.text = newTitle
+                            bindModernMetadata(newTitle)
                             
                             // Update infoHash for source consistency in next "Next" click
                             if (state.infoHash != null) {
@@ -2510,6 +2611,69 @@ class PlayerActivity : AppCompatActivity() {
 
             if (modified) {
                 p.trackSelectionParameters = params.build()
+            }
+        }
+    }
+
+    private fun setupInteractiveAnimations() {
+        val buttons = listOf(
+            R.id.btn_player_shuffle,
+            R.id.exo_rew,
+            R.id.exo_play,
+            R.id.exo_pause,
+            R.id.exo_ffwd,
+            R.id.btn_aspect_ratio,
+            R.id.btn_next_episode
+        )
+        
+        buttons.forEach { id ->
+            playerView.findViewById<View>(id)?.let { view ->
+                // Start state: Subtle opacity, standard scale
+                view.alpha = 0.7f
+                view.scaleX = 1.0f
+                view.scaleY = 1.0f
+                
+                view.setOnFocusChangeListener { v, hasFocus ->
+                    if (hasFocus) {
+                        // Focus Interaction: Scale up + Full Brightness
+                        v.animate()
+                            .scaleX(1.15f)
+                            .scaleY(1.15f)
+                            .alpha(1.0f)
+                            .setDuration(200)
+                            .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+                            .start()
+                            
+                        // Special Gear Spin for Settings
+                        if (v.id == R.id.btn_player_shuffle) {
+                            v.animate().rotationBy(90f).setDuration(400).start()
+                        }
+                    } else {
+                        // Unfocused: Restore state
+                        v.animate()
+                            .scaleX(1.0f)
+                            .scaleY(1.0f)
+                            .alpha(0.7f)
+                            .setDuration(200)
+                            .start()
+                    }
+                }
+                
+                // Pressed Interaction: Subtle shrink to simulate physical push
+                // For TV, this provides visual feedback for the D-pad "Center" click
+                view.setOnTouchListener { v, event ->
+                    when (event.action) {
+                        android.view.MotionEvent.ACTION_DOWN -> {
+                            v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).start()
+                        }
+                        android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                            v.animate().scaleX(if (v.hasFocus()) 1.15f else 1.0f)
+                                .scaleY(if (v.hasFocus()) 1.15f else 1.0f)
+                                .setDuration(100).start()
+                        }
+                    }
+                    false
+                }
             }
         }
     }

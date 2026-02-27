@@ -1,50 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext traffic for IPTV servers and development -->
     <base-config cleartextTrafficPermitted="true">
-        <trust-anchors>
-            <certificates src="system" />
-        </trust-anchors>
-    </base-config>
-
-    <!-- IPTV/Streaming providers with enhanced security -->
-    <domain-config>
-        <domain includeSubdomains="true">xtream-codes.com</domain>
-        <domain includeSubdomains="true">xtream-ui.com</domain>
-        <domain includeSubdomains="true">xui-one.com</domain>
-        <!-- Remove placeholder certificate pins - implement real ones in production -->
-        <trust-anchors>
-            <certificates src="system" />
-        </trust-anchors>
-    </domain-config>
-
-    <!-- Debrid services with secure configuration -->
-    <domain-config>
-        <domain includeSubdomains="true">real-debrid.com</domain>
-        <domain includeSubdomains="true">alldebrid.com</domain>
-        <domain includeSubdomains="true">premiumize.me</domain>
-        <domain includeSubdomains="true">debrid-link.com</domain>
-        <!-- Enforce HTTPS only with system certificates -->
-        <trust-anchors>
-            <certificates src="system" />
-        </trust-anchors>
-    </domain-config>
-
-    <!-- TMDB API service -->
-    <domain-config>
-        <domain includeSubdomains="true">api.themoviedb.org</domain>
-        <domain includeSubdomains="true">www.themoviedb.org</domain>
-        <trust-anchors>
-            <certificates src="system" />
-        </trust-anchors>
-    </domain-config>
-
-    <!-- Debug configuration for development builds only -->
-    <debug-overrides>
         <trust-anchors>
             <certificates src="system" />
             <certificates src="user" />
         </trust-anchors>
-    </debug-overrides>
+    </base-config>
 </network-security-config>
-

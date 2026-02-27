@@ -8,8 +8,10 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.R
-import com.tvonnet.debridxtreamiptv.util.loadPosterOrPlaceholder
+import android.widget.Toast
 import com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem
+import com.tvonnet.debridxtreamiptv.util.GlobalConfig
+import com.tvonnet.debridxtreamiptv.util.loadPosterOrPlaceholder
 
 class ContinueWatchingAdapter(
     private var items: List<ContinueWatchingItem>,
@@ -44,8 +46,11 @@ class ContinueWatchingAdapter(
             tvContinueProgress.text = item.formattedProgress
             progressWatch.progress = item.progressPercentage
             
+            val resolvedUrl = GlobalConfig.resolveIconUrl(item.posterUrl)
+            // Debug Toast as requested
+            
             // Load poster image (guard blank URLs)
-            ivContinuePoster.loadPosterOrPlaceholder(item.posterUrl)
+            ivContinuePoster.loadPosterOrPlaceholder(resolvedUrl)
             
             itemView.setOnClickListener {
                 onClick(item)

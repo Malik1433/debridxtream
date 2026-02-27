@@ -104,7 +104,7 @@ class DebridPlaybackRepository @Inject constructor(
         }
 
         val addResult = realDebridRemote.addMagnet(magnetLink)
-        val torrentId = when (addResult) {
+        var torrentId = when (addResult) {
             is Success -> addResult.data.id
             is Error -> {
                 val msg = addResult.exception.message ?: ""
@@ -122,8 +122,10 @@ class DebridPlaybackRepository @Inject constructor(
         var attempts = 0
         val maxAttempts = 30 // 30 * 2s = 60s timeout
         var torrentInfo: com.tvonnet.debridxtreamiptv.data.debrid.model.RealDebridTorrentInfoResponse? = null
+        var hasReAddedTorrent = false
+        var finalVideoLink: String? = null
 
-        while (attempts < maxAttempts) {
+        pollLoop@ while (attempts < maxAttempts) {
             val infoResult = realDebridRemote.getTorrentInfo(torrentId)
             when (infoResult) {
                 is Success -> {
@@ -131,7 +133,26 @@ class DebridPlaybackRepository @Inject constructor(
                     val status = torrentInfo.status?.lowercase()
                     
                     when (status) {
-                        "downloaded", "ready" -> break // Ready to unrestrict
+                        "downloaded", "ready" -> {
+                            finalVideoLink = pickVideoLink(torrentInfo, episodeHint)
+                            if (finalVideoLink != null) {
+                                break@pollLoop // Ready to unrestrict
+                            } else if (!hasReAddedTorrent) {
+                                android.util.Log.w("DebridPlayback", "Episode not found in selected files. Deleting and re-adding torrent.")
+                                realDebridRemote.deleteTorrent(torrentId)
+                                val reAddResult = realDebridRemote.addMagnet(magnetLink)
+                                if (reAddResult is Success) {
+                                    torrentId = reAddResult.data.id ?: return Error(Exception("No torrent ID returned on re-add"))
+                                    hasReAddedTorrent = true
+                                    attempts = 0
+                                    continue@pollLoop
+                                } else {
+                                    return Error(Exception("Failed to re-add magnet after deletion"))
+                                }
+                            } else {
+                                return Error(Exception("Desired episode not found in torrent after re-adding"))
+                            }
+                        }
                         "downloading", "queued", "waiting_files_selection" -> {
                             if (status == "waiting_files_selection") {
                                 val fileIds = selectFileIds(torrentInfo.files, episodeHint)
@@ -160,8 +181,8 @@ class DebridPlaybackRepository @Inject constructor(
         }
 
         // Step 3: Get video link
-        val videoLink = pickVideoLink(torrentInfo, episodeHint)
-            ?: return Error(Exception("No links available in torrent"))
+        val videoLink = finalVideoLink ?: pickVideoLink(torrentInfo, episodeHint)
+            ?: return Error(Exception("No links available in torrent for requested episode"))
 
         // Step 4: Unrestrict the link with retry
         return unrestrictLinkWithRetry(videoLink, 3)
@@ -285,7 +306,7 @@ class DebridPlaybackRepository @Inject constructor(
         return if (best != null && best.score > 0) {
             links.getOrNull(best.index) ?: links.firstOrNull()
         } else {
-            links.firstOrNull()
+            null
         }
     }
 

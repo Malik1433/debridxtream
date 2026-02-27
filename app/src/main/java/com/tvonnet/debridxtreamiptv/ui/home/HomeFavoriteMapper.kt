@@ -3,6 +3,7 @@ package com.tvonnet.debridxtreamiptv.ui.home
 import com.tvonnet.debridxtreamiptv.data.local.entity.FavoriteEntity
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.model.FavoriteItem
+import com.tvonnet.debridxtreamiptv.data.model.toAbsoluteUrl
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 
 object HomeFavoriteMapper {
@@ -20,7 +21,9 @@ object HomeFavoriteMapper {
         return when (type) {
             "live" -> {
                 val stream = repository.getLiveStreamById(entity.streamId)
-                val poster = stream?.stream_icon ?: entity.iconUrl
+                val rawPoster = stream?.stream_icon ?: entity.iconUrl
+                val absolutePoster = rawPoster.toAbsoluteUrl(ContentType.LIVE_TV, finalServerUrl)
+                
                 val streamUrl = if (stream != null && !serverUrl.isNullOrBlank()) {
                     repository.buildLiveStreamUrl(stream, serverUrl)
                 } else if (!serverUrl.isNullOrBlank() && !username.isNullOrBlank() && !password.isNullOrBlank()) {
@@ -32,8 +35,8 @@ object HomeFavoriteMapper {
                     contentId = entity.streamId,
                     contentType = ContentType.LIVE_TV,
                     title = stream?.name ?: entity.name,
-                    posterUrl = poster,
-                    backdropUrl = stream?.stream_icon ?: poster,
+                    posterUrl = absolutePoster,
+                    backdropUrl = absolutePoster,
                     addedTimestamp = entity.addedAt,
                     streamUrl = streamUrl
                 )
@@ -41,8 +44,12 @@ object HomeFavoriteMapper {
 
             "vod" -> {
                 val vod = repository.getVodById(entity.streamId)
-                val poster = vod?.stream_icon ?: entity.iconUrl
-                val backdrop = vod?.cover ?: poster
+                val rawPoster = vod?.stream_icon ?: entity.iconUrl
+                val rawBackdrop = vod?.cover ?: rawPoster
+                
+                val absolutePoster = rawPoster.toAbsoluteUrl(ContentType.MOVIE, finalServerUrl)
+                val absoluteBackdrop = rawBackdrop.toAbsoluteUrl(ContentType.MOVIE, finalServerUrl)
+                
                 val streamUrl = if (vod != null && !serverUrl.isNullOrBlank()) {
                     repository.buildVodStreamUrl(vod, serverUrl)
                 } else if (!serverUrl.isNullOrBlank() && !username.isNullOrBlank() && !password.isNullOrBlank()) {
@@ -54,8 +61,8 @@ object HomeFavoriteMapper {
                     contentId = entity.streamId,
                     contentType = ContentType.MOVIE,
                     title = vod?.name ?: entity.name,
-                    posterUrl = poster,
-                    backdropUrl = backdrop,
+                    posterUrl = absolutePoster,
+                    backdropUrl = absoluteBackdrop,
                     addedTimestamp = entity.addedAt,
                     streamUrl = streamUrl
                 )
@@ -63,13 +70,15 @@ object HomeFavoriteMapper {
 
             "series" -> {
                 val series = repository.getSeriesById(entity.streamId)
-                val artwork = series?.cover ?: entity.iconUrl
+                val rawArtwork = series?.cover ?: entity.iconUrl
+                val absoluteArtwork = rawArtwork.toAbsoluteUrl(ContentType.SERIES, finalServerUrl)
+                
                 FavoriteItem(
                     contentId = entity.streamId,
                     contentType = ContentType.SERIES,
                     title = series?.name ?: entity.name,
-                    posterUrl = artwork,
-                    backdropUrl = artwork,
+                    posterUrl = absoluteArtwork,
+                    backdropUrl = absoluteArtwork,
                     addedTimestamp = entity.addedAt,
                     streamUrl = null
                 )

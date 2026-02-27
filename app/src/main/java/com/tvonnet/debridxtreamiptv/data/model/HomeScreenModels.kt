@@ -1,5 +1,11 @@
 package com.tvonnet.debridxtreamiptv.data.model
 
+import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbImageUrl
+import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbMovie
+import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbTvShow
+import com.tvonnet.debridxtreamiptv.util.GlobalConfig
+
+
 /**
  * Model for content that user is currently watching
  */
@@ -59,6 +65,28 @@ data class FavoriteItem(
 )
 
 /**
+ * Model for Sidebar navigation
+ */
+data class SidebarItem(
+    val id: Int,
+    val title: String,
+    val iconRes: Int,
+    var isSelected: Boolean = false
+)
+
+/**
+ * Featured content item for Hero section
+ */
+data class HeroContent(
+    val title: String,
+    val description: String,
+    val imageUrl: String?,
+    val rating: String,
+    val type: String, // "MOVIE" or "SERIES"
+    val streamId: String
+)
+
+/**
  * Model for recently watched LIVE channels only (not VOD/Series)
  */
 data class RecentLiveChannelItem(
@@ -93,7 +121,9 @@ data class FeaturedItem(
     val backdropUrl: String?,
     val posterUrl: String?,
     val description: String?,
-    val streamUrl: String?
+    val rating: String? = null,
+    val streamUrl: String?,
+    val sourceType: SourceType = SourceType.IPTV
 )
 
 /**
@@ -122,16 +152,41 @@ enum class ContentType {
 }
 
 /**
- * Helper extensions to convert Xtream models to home screen models
+ * Data Source Type
  */
+enum class SourceType {
+    IPTV,
+    TMDB
+}
+
+/**
+ * Enhanced Extension: Reconstructs absolute URLs using GlobalConfig for centralized logic.
+ * Falls back to passed serverUrl if GlobalConfig is not initialized yet.
+ */
+// Enhanced Extension with manual fallback support if GlobalConfig is missing
+fun String?.toAbsoluteUrl(type: ContentType = ContentType.LIVE_TV, fallbackServerUrl: String? = null): String? {
+    if (this == null || this.isBlank()) return null
+    if (this.startsWith("http")) return this
+    
+    val base = GlobalConfig.baseUrl.takeIf { it.isNotBlank() } ?: fallbackServerUrl?.trimEnd('/')?.let { "$it/" }
+    if (base == null) return null
+    
+    val cleanPath = if (this.startsWith("/")) this.substring(1) else this
+    return "$base$cleanPath"
+}
+
+// Deprecated version now correctly passes the serverUrl as a fallback
+fun String?.toAbsoluteUrl(serverUrl: String): String? = this.toAbsoluteUrl(ContentType.LIVE_TV, serverUrl)
+
 fun XtreamStream.toFeaturedItem(serverUrl: String, username: String, password: String): FeaturedItem {
     val streamUrl = "$serverUrl/live/$username/$password/${stream_id ?: ""}.ts"
+    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.LIVE_TV, name)
     return FeaturedItem(
         contentId = stream_id ?: "",
         contentType = ContentType.LIVE_TV,
         title = name ?: "Unknown Channel",
-        backdropUrl = stream_icon,
-        posterUrl = stream_icon,
+        backdropUrl = absoluteIcon,
+        posterUrl = absoluteIcon,
         description = null,
         streamUrl = streamUrl
     )
@@ -139,24 +194,28 @@ fun XtreamStream.toFeaturedItem(serverUrl: String, username: String, password: S
 
 fun XtreamVodInfo.toFeaturedItem(serverUrl: String, username: String, password: String): FeaturedItem {
     val streamUrl = "$serverUrl/movie/$username/$password/${stream_id ?: ""}.${container_extension ?: "mp4"}"
+    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.MOVIE, name)
+    val absoluteCover = cover.toAbsoluteUrl(ContentType.MOVIE, name)
+    
     return FeaturedItem(
         contentId = stream_id ?: "",
         contentType = ContentType.MOVIE,
         title = name ?: "Unknown Movie",
-        backdropUrl = cover ?: stream_icon, // Fallback to icon if cover missing
-        posterUrl = stream_icon ?: cover,   // Fallback to cover if icon missing
+        backdropUrl = absoluteCover ?: absoluteIcon,
+        posterUrl = absoluteIcon ?: absoluteCover,
         description = plot,
         streamUrl = streamUrl
     )
 }
 
-fun XtreamSeriesInfo.toFeaturedItem(): FeaturedItem {
+fun XtreamSeriesInfo.toFeaturedItem(serverUrl: String): FeaturedItem {
+    val absoluteCover = cover.toAbsoluteUrl(ContentType.SERIES, name)
     return FeaturedItem(
         contentId = series_id ?: "",
         contentType = ContentType.SERIES,
         title = name ?: "Unknown Series",
-        backdropUrl = cover,
-        posterUrl = cover,
+        backdropUrl = absoluteCover,
+        posterUrl = absoluteCover,
         description = plot,
         streamUrl = null // Series need episode selection
     )
@@ -164,12 +223,13 @@ fun XtreamSeriesInfo.toFeaturedItem(): FeaturedItem {
 
 fun XtreamStream.toFavoriteItem(serverUrl: String, username: String, password: String, addedTimestamp: Long): FavoriteItem {
     val streamUrl = "$serverUrl/live/$username/$password/${stream_id ?: ""}.ts"
+    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.LIVE_TV, name)
     return FavoriteItem(
         contentId = stream_id ?: "",
         contentType = ContentType.LIVE_TV,
         title = name ?: "Unknown Channel",
-        posterUrl = stream_icon,
-        backdropUrl = stream_icon,
+        posterUrl = absoluteIcon,
+        backdropUrl = absoluteIcon,
         addedTimestamp = addedTimestamp,
         streamUrl = streamUrl
     )
@@ -177,24 +237,27 @@ fun XtreamStream.toFavoriteItem(serverUrl: String, username: String, password: S
 
 fun XtreamVodInfo.toFavoriteItem(serverUrl: String, username: String, password: String, addedTimestamp: Long): FavoriteItem {
     val streamUrl = "$serverUrl/movie/$username/$password/${stream_id ?: ""}.${container_extension ?: "mp4"}"
+    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.MOVIE, name)
+    val absoluteCover = cover.toAbsoluteUrl(ContentType.MOVIE, name)
     return FavoriteItem(
         contentId = stream_id ?: "",
         contentType = ContentType.MOVIE,
         title = name ?: "Unknown Movie",
-        posterUrl = stream_icon,
-        backdropUrl = cover,
+        posterUrl = absoluteIcon,
+        backdropUrl = absoluteCover,
         addedTimestamp = addedTimestamp,
         streamUrl = streamUrl
     )
 }
 
-fun XtreamSeriesInfo.toFavoriteItem(addedTimestamp: Long): FavoriteItem {
+fun XtreamSeriesInfo.toFavoriteItem(serverUrl: String, addedTimestamp: Long): FavoriteItem {
+    val absoluteCover = cover.toAbsoluteUrl(ContentType.SERIES, name)
     return FavoriteItem(
         contentId = series_id ?: "",
         contentType = ContentType.SERIES,
         title = name ?: "Unknown Series",
-        posterUrl = cover,
-        backdropUrl = cover,
+        posterUrl = absoluteCover,
+        backdropUrl = absoluteCover,
         addedTimestamp = addedTimestamp,
         streamUrl = null
     )
@@ -203,11 +266,14 @@ fun XtreamSeriesInfo.toFavoriteItem(addedTimestamp: Long): FavoriteItem {
 fun XtreamVodInfo.toNewAddedItem(serverUrl: String, username: String, password: String): NewAddedItem {
     val streamUrl = "$serverUrl/movie/$username/$password/${stream_id ?: ""}.${container_extension ?: "mp4"}"
     val addedTime = try { added?.toLong() ?: 0L } catch (e: Exception) { 0L }
+    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.MOVIE, name)
+    val absoluteCover = cover.toAbsoluteUrl(ContentType.MOVIE, name)
+    
     return NewAddedItem(
         contentId = stream_id ?: "",
         contentType = ContentType.MOVIE,
         title = name ?: "Unknown Movie",
-        posterUrl = stream_icon ?: cover, // Fallback to cover
+        posterUrl = absoluteIcon ?: absoluteCover,
         addedDate = added,
         addedTimestamp = addedTime,
         year = releaseDate?.take(4),
@@ -216,18 +282,48 @@ fun XtreamVodInfo.toNewAddedItem(serverUrl: String, username: String, password: 
     )
 }
 
-fun XtreamSeriesInfo.toNewAddedItem(): NewAddedItem {
-    // Series usually don't have 'added' timestamp in the same way, or it might be null
-    // We'll use 0L or try to parse if available
+fun XtreamSeriesInfo.toNewAddedItem(serverUrl: String): NewAddedItem {
+    val absoluteCover = cover.toAbsoluteUrl(ContentType.SERIES, name)
     return NewAddedItem(
         contentId = series_id ?: "",
         contentType = ContentType.SERIES,
         title = name ?: "Unknown Series",
-        posterUrl = cover,
+        posterUrl = absoluteCover,
         addedDate = null,
         addedTimestamp = 0L,
         year = releaseDate?.take(4),
         quality = "HD", // Default
         streamUrl = null
+    )
+}
+
+/**
+ * TMDB Model to Home Screen Model Converters
+ */
+fun TmdbMovie.toFeaturedItem(): FeaturedItem {
+    return FeaturedItem(
+        contentId = id?.toString() ?: "",
+        contentType = ContentType.MOVIE,
+        title = title ?: originalTitle ?: "Unknown Movie",
+        backdropUrl = TmdbImageUrl.getBackdropUrl(backdropPath, size = TmdbImageUrl.BACKDROP_SIZE_ORIGINAL),
+        posterUrl = TmdbImageUrl.getPosterUrl(posterPath, size = TmdbImageUrl.POSTER_SIZE_W500),
+        description = overview,
+        rating = voteAverage?.let { String.format("%.1f", it) },
+        streamUrl = null, // TMDB items always use debrid bridge
+        sourceType = SourceType.TMDB
+    )
+}
+
+fun TmdbTvShow.toFeaturedItem(): FeaturedItem {
+    return FeaturedItem(
+        contentId = id?.toString() ?: "",
+        contentType = ContentType.SERIES,
+        title = name ?: originalName ?: "Unknown Series",
+        backdropUrl = TmdbImageUrl.getBackdropUrl(backdropPath, size = TmdbImageUrl.BACKDROP_SIZE_ORIGINAL),
+        posterUrl = TmdbImageUrl.getPosterUrl(posterPath, size = TmdbImageUrl.POSTER_SIZE_W500),
+        description = overview,
+        rating = voteAverage?.let { String.format("%.1f", it) },
+        streamUrl = null, // TMDB items always use debrid bridge
+        sourceType = SourceType.TMDB
     )
 }

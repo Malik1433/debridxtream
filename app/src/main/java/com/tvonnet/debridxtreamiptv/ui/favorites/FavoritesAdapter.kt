@@ -60,12 +60,14 @@ class FavoritesAdapter(
             }
             
             // Week 12: Load thumbnail from iconUrl if available
-            val imageUrl = favorite.iconUrl
-            Glide.with(itemView.context)
-                .load(imageUrl ?: placeholderIcon)
-                .placeholder(placeholderIcon)
-                .error(placeholderIcon)
-                .into(ivThumbnail)
+            val healed = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(favorite.iconUrl)
+            // Diagnostic Toast
+
+            if (!healed.isNullOrBlank()) {
+                com.tvonnet.debridxtreamiptv.util.GlideUtils.loadThumbnail(ivThumbnail, healed, placeholderIcon, placeholderIcon)
+            } else {
+                ivThumbnail.setImageResource(placeholderIcon)
+            }
             
             // Click listeners
             itemView.setOnClickListener { onItemClick(favorite) }

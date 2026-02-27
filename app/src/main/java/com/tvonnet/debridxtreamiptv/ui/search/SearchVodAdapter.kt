@@ -67,13 +67,10 @@ class SearchVodAdapter(
             tvType.text = typeText
             
             // Load poster with Glide
-            val posterUrl = vod.stream_icon ?: vod.cover
-            Glide.with(itemView.context)
-                .load(posterUrl)
-                .placeholder(R.drawable.ic_movie)
-                .error(R.drawable.ic_movie)
-                .into(ivIcon)
-            
+            val posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(vod.stream_icon) ?: vod.cover
+            // Diagnostic Toast
+
+            com.tvonnet.debridxtreamiptv.util.GlideUtils.loadMoviePoster(ivIcon, posterUrl, useRoundedCorners = true)
             itemView.setOnClickListener {
                 onVodClick(vod)
             }

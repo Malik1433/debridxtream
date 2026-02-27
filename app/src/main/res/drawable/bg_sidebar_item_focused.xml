@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- 25% white for glass effect -->
+    <solid android:color="#40FFFFFF" />
+    
+    <corners 
+        android:topRightRadius="16dp" 
+        android:bottomRightRadius="16dp" 
+        android:topLeftRadius="16dp"
+        android:bottomLeftRadius="16dp" />
+    
+    <stroke 
+        android:width="3dp" 
+        android:color="@color/brand_cyan" />
+        
+    <!-- We can't do real 'glow' in XML shapes easily without layer-lists, 
+         but this 2dp cyan stroke provides the visual focus -->
+</shape>

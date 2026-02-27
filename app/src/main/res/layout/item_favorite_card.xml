@@ -27,7 +27,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintBottom_toTopOf="@id/tv_favorite_title"
-            app:layout_constraintDimensionRatio="3:4" />
+            android:layout_marginBottom="4dp" />
 
         <!-- Favorite Icon Overlay -->
         <ImageView

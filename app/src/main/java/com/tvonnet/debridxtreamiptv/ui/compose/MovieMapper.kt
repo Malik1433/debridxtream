@@ -12,7 +12,7 @@ object MovieMapper {
             id = vodInfo.stream_id ?: "",
             title = vodInfo.name ?: "",
             overview = vodInfo.plot ?: "",
-            posterUrl = vodInfo.stream_icon,
+            posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(vodInfo.stream_icon),
             backdropUrl = vodInfo.cover,
             releaseYear = vodInfo.releaseDate?.take(4) ?: "",
             duration = vodInfo.duration ?: "",
