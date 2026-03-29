@@ -9,6 +9,17 @@
         <item name="android:windowBackground">@color/background_dark</item>
         <item name="preferenceTheme">@style/PreferenceThemeOverlay.v14.Material</item>
     </style>
+
+    <!-- Global Focus Styling -->
+    <style name="AppTheme_Card_Focused">
+        <item name="android:background">@drawable/bg_source_card_focused</item>
+        <item name="android:elevation">8dp</item>
+    </style>
+    
+    <style name="AppTheme_Button_Focused">
+        <item name="android:background">@drawable/bg_button_glass_stroke</item>
+        <item name="android:elevation">4dp</item>
+    </style>
     
     <!-- Week 10: Favorites Filter Tab Style -->
     <style name="FilterTab">

@@ -70,9 +70,6 @@ class MovieDetailActivity : AppCompatActivity() {
     @Inject
     lateinit var credentialsPrefs: CredentialsPreferences
 
-    // Views
-    private lateinit var btnTabDetails: AppCompatButton
-    private lateinit var btnTabTrailer: AppCompatButton
     private lateinit var ivBackdrop: ImageView
 
     private lateinit var tvTitle: TextView
@@ -87,9 +84,6 @@ class MovieDetailActivity : AppCompatActivity() {
     private lateinit var castAdapter: CastAdapter
 
     private lateinit var tvDuration: TextView
-    private lateinit var btnWatchNow: Button
-    private lateinit var btnWatchTrailer: Button
-    private lateinit var btnAddFavorite: Button
     private lateinit var detailsGroup: View
     private lateinit var tvSourcesHeader: TextView
     private lateinit var tvSourcesStatus: TextView
@@ -97,7 +91,7 @@ class MovieDetailActivity : AppCompatActivity() {
     private lateinit var sourcesAdapter: MovieSourceAdapter
     private lateinit var layoutSourceFilters: View
     private lateinit var btnCachedOnly: TextView
-    private lateinit var rvSizeFilters: RecyclerView
+
     private lateinit var rvLanguageFilters: RecyclerView
     private lateinit var sizeFilterAdapter: SizeFilterAdapter
     private lateinit var languageFilterAdapter: LanguageFilterAdapter
@@ -177,11 +171,8 @@ class MovieDetailActivity : AppCompatActivity() {
 
         initViews()
         getMovieDataFromIntent()
-        configureTrailerTab()
         displayMovieDetails()
         configureTabs()
-
-        updateFavoriteState()
         
         // Start data loading chain
         if (movieCategoryId == "debrid" && movieId != null) {
@@ -229,7 +220,7 @@ class MovieDetailActivity : AppCompatActivity() {
                             // Cast
                             val castList = details.credits?.cast
                             if (!castList.isNullOrEmpty()) {
-                                castAdapter.submitList(castList)
+                                castAdapter.submitList(castList.take(3))
                                 tvCastTitle.visibility = View.VISIBLE
                                 rvCast.visibility = View.VISIBLE
                             } else {
@@ -264,8 +255,6 @@ class MovieDetailActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
-        btnTabDetails = findViewById(R.id.btn_tab_details)
-        btnTabTrailer = findViewById(R.id.btn_tab_trailer)
         ivBackdrop = findViewById(R.id.iv_backdrop)
 
         tvTitle = findViewById(R.id.tv_title)
@@ -277,16 +266,13 @@ class MovieDetailActivity : AppCompatActivity() {
         rvCast = findViewById(R.id.rv_cast)
         tvDescription = findViewById(R.id.tv_description)
         tvDuration = findViewById(R.id.tv_duration)
-        btnWatchNow = findViewById(R.id.btn_watch_now)
-        btnWatchTrailer = findViewById(R.id.btn_watch_trailer)
-        btnAddFavorite = findViewById(R.id.btn_add_favorite)
 
         detailsGroup = findViewById(R.id.group_details)
         tvSourcesHeader = findViewById(R.id.tv_sources_header)
         tvSourcesStatus = findViewById(R.id.tv_sources_status)
         layoutSourceFilters = findViewById(R.id.layout_source_filters)
         btnCachedOnly = findViewById(R.id.btn_cached_only)
-        rvSizeFilters = findViewById(R.id.rv_size_filters)
+
         rvLanguageFilters = findViewById(R.id.rv_language_filters)
         rvSources = findViewById(R.id.rv_sources)
         sourcesAdapter = MovieSourceAdapter(
@@ -306,9 +292,7 @@ class MovieDetailActivity : AppCompatActivity() {
             filterState = filterState.copy(maxSizeBytes = option.maxSizeBytes)
             applySourceFilters()
         }
-        rvSizeFilters.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        rvSizeFilters.setHasFixedSize(true)
-        rvSizeFilters.adapter = sizeFilterAdapter
+
 
         languageFilterAdapter = LanguageFilterAdapter { language ->
             preferredLanguage = if (preferredLanguage == language) null else language
@@ -333,18 +317,6 @@ class MovieDetailActivity : AppCompatActivity() {
         btnCachedOnly.setOnFocusChangeListener { _, hasFocus ->
             btnCachedOnly.isSelected = hasFocus || filterState.cachedOnly
         }
-
-        btnWatchNow.setOnClickListener {
-            selectedSource?.let { playMovie(it) } ?: playMovie()
-        }
-
-        btnWatchTrailer.setOnClickListener {
-            launchTrailer()
-        }
-
-        btnAddFavorite.setOnClickListener {
-            toggleFavorite()
-        }
     }
 
 
@@ -366,13 +338,7 @@ class MovieDetailActivity : AppCompatActivity() {
         isDebridMovie = movieCategoryId == "debrid"
     }
 
-    private fun configureTrailerTab() {
-        hasTrailer = !movieTrailerUrl.isNullOrBlank()
-        btnTabTrailer.alpha = if (hasTrailer) 1f else 0.6f
-        if (!hasTrailer) {
-            btnTabTrailer.isSelected = false
-        }
-    }
+
 
     private fun displayMovieDetails() {
         tvTitle.text = movieName ?: getString(R.string.movie_detail_unknown_movie)
@@ -412,11 +378,6 @@ class MovieDetailActivity : AppCompatActivity() {
                 .centerCrop()
                 .into(ivBackdrop)
         }
-
-        // Update Trailer button visibility/state
-        val trailerAvailable = !movieTrailerUrl.isNullOrBlank() || hasTmdbTrailer()
-        btnWatchTrailer.isEnabled = trailerAvailable
-        btnWatchTrailer.alpha = if (trailerAvailable) 1f else 0.5f
     }
 
     private fun hasTmdbTrailer(): Boolean {
@@ -488,7 +449,7 @@ class MovieDetailActivity : AppCompatActivity() {
                     tvSourcesHeader.visibility = View.VISIBLE
                     allSources = sources
                     updateSourceFilterOptions()
-                    applySourceFilters()
+                    applySourceFilters(isInitialLoad = true)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("MovieDetailActivity", "Failed to load movie sources", e)
@@ -527,7 +488,7 @@ class MovieDetailActivity : AppCompatActivity() {
         }
 
         val showSizes = allSources.any { it.sizeBytes != null }
-        rvSizeFilters.isVisible = showSizes
+
         if (showSizes) {
             sizeFilterAdapter.submitList(SourceFilterUtils.SIZE_OPTIONS)
             sizeFilterAdapter.updateSelection(selectedSizeOption)
@@ -550,11 +511,11 @@ class MovieDetailActivity : AppCompatActivity() {
         layoutSourceFilters.isVisible = showCached || showSizes || showLanguages
     }
 
-    private fun applySourceFilters() {
+    private fun applySourceFilters(isInitialLoad: Boolean = false) {
         val updatedState = filterState.copy(preferredLanguage = preferredLanguage)
         val filteredSources = SourceFilterUtils.apply(allSources, updatedState)
         sourcesAdapter.submitList(filteredSources) {
-            if (filteredSources.isNotEmpty()) {
+            if (filteredSources.isNotEmpty() && isInitialLoad) {
                 rvSources.scrollToPosition(0)
                 rvSources.post {
                     val holder = rvSources.findViewHolderForAdapterPosition(0)
@@ -638,7 +599,6 @@ class MovieDetailActivity : AppCompatActivity() {
     ) {
         selectedSource = source
         sourcesAdapter.updateSelection(source.stream.stream_id, notify = updateAdapterSelection)
-        updateFavoriteState()
         if (shouldPlay) {
             playMovie(source)
         }
@@ -1008,54 +968,9 @@ class MovieDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun toggleFavorite() {
-        val currentStreamId = currentStreamId() ?: return
-        val currentName = currentStreamTitle() ?: getString(R.string.movie_detail_unknown_movie)
-        val currentIcon = currentStream()?.stream_icon ?: movieIcon
 
-        lifecycleScope.launch {
-            try {
-                val isFavorite = repository.isFavorite(currentStreamId)
-                if (isFavorite) {
-                    repository.removeFavorite(currentStreamId)
-                    Toast.makeText(this@MovieDetailActivity, R.string.movie_detail_removed_from_favorites, Toast.LENGTH_SHORT).show()
-                    updateFavoriteButton(false)
-                } else {
-                    repository.addFavorite(
-                        streamId = currentStreamId,
-                        type = "vod",
-                        name = currentName,
-                        iconUrl = currentIcon
-                    )
-                    Toast.makeText(this@MovieDetailActivity, R.string.movie_detail_added_to_favorites, Toast.LENGTH_SHORT).show()
-                    updateFavoriteButton(true)
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("MovieDetailActivity", "Error toggling favorite", e)
-                Toast.makeText(this@MovieDetailActivity, getString(R.string.movie_detail_error_generic, e.message ?: ""), Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
 
-    private fun updateFavoriteState() {
-        val streamId = currentStreamId() ?: return
-        lifecycleScope.launch {
-            try {
-                val isFavorite = repository.isFavorite(streamId)
-                updateFavoriteButton(isFavorite)
-            } catch (e: Exception) {
-                android.util.Log.e("MovieDetailActivity", "Error fetching favorite state", e)
-            }
-        }
-    }
 
-    private fun updateFavoriteButton(isFavorite: Boolean) {
-        val iconRes = if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border
-        val textRes = if (isFavorite) R.string.movie_detail_remove_from_favorites else R.string.movie_detail_add_to_favorites
-        
-        btnAddFavorite.setCompoundDrawablesWithIntrinsicBounds(iconRes, 0, 0, 0)
-        btnAddFavorite.setText(textRes)
-    }
 
 
     override fun onResume() {

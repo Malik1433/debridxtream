@@ -69,6 +69,14 @@ class SettingsPreferences(private val context: Context) {
             .apply()
     }
 
+    fun saveSeriesTrackPreference(seriesId: String?, audioIndex: Int, textIndex: Int) {
+        if (seriesId == null) return
+        prefs.edit()
+            .putInt(KEY_SERIES_AUDIO_INDEX + seriesId, audioIndex)
+            .putInt(KEY_SERIES_TEXT_INDEX + seriesId, textIndex)
+            .apply()
+    }
+
     fun getLastSelectionHash(): String? {
         return prefs.getString(KEY_LAST_SELECTION_HASH, null)
     }
@@ -81,6 +89,16 @@ class SettingsPreferences(private val context: Context) {
     fun getLastTextIndex(): Int {
         val hash = getLastSelectionHash() ?: return -1
         return prefs.getInt(KEY_LAST_TEXT_INDEX + hash, -1)
+    }
+
+    fun getSeriesAudioIndex(seriesId: String?): Int {
+        if (seriesId == null) return -1
+        return prefs.getInt(KEY_SERIES_AUDIO_INDEX + seriesId, -1)
+    }
+
+    fun getSeriesTextIndex(seriesId: String?): Int {
+        if (seriesId == null) return -1
+        return prefs.getInt(KEY_SERIES_TEXT_INDEX + seriesId, -1)
     }
     
     companion object {
@@ -95,6 +113,8 @@ class SettingsPreferences(private val context: Context) {
         private const val KEY_LAST_SELECTION_HASH = "last_selection_hash"
         private const val KEY_LAST_AUDIO_INDEX = "last_audio_idx_"
         private const val KEY_LAST_TEXT_INDEX = "last_text_idx_"
+        private const val KEY_SERIES_AUDIO_INDEX = "series_audio_idx_"
+        private const val KEY_SERIES_TEXT_INDEX = "series_text_idx_"
     }
 }
 

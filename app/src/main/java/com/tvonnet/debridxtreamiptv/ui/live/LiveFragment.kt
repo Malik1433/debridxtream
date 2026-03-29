@@ -241,6 +241,25 @@ class LiveFragment : Fragment() {
             adapter = channelPagingAdapter
         }
 
+        // We DO NOT use FocusTrapHelper here because it breaks RecyclerView scrolling!
+        // When you press DOWN on the last visible item, focusSearch() returns null (because the next item isn't laid out yet).
+        // FocusTrapHelper would intercept that null and kill the event, preventing the RV from scrolling.
+        rvCategories.setOnKeyListener { _, keyCode, event ->
+            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    rvChannels.requestFocus()
+                    return@setOnKeyListener true
+                }
+                KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    return@setOnKeyListener true // Block escaping to the left
+                }
+                else -> return@setOnKeyListener false // Let RV natively handle UP/DOWN scrolling
+            }
+        }
+
+        com.tvonnet.debridxtreamiptv.utils.SpatialNavigationEngine.enforceStrictOrthogonalNavigation(rvChannels)
+
         // TV Focus Guard:
         // Prevent DPAD_UP from the first channel jumping to the sidebar Back button.
         // Users should explicitly go LEFT to the sidebar, then UP to reach Back.
@@ -266,8 +285,13 @@ class LiveFragment : Fragment() {
         rvChannels.layoutAnimation = null
         rvCategories.layoutAnimation = null
 
+        // Prevent directional focus-glint leaks when user scrolls the channel list quickly.
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attachScrollReset(rvChannels)
+
         // Preserve scroll position across temporary detach/reattach.
-        channelPagingAdapter.stateRestorationPolicy = RecyclerView.Adapter.StateRestorationPolicy.PREVENT_WHEN_EMPTY
+        with(com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager) {
+            channelPagingAdapter.applyFocusMemory()
+        }
         
         // Phase 2.5: Initialize EPG cache system
         EpgCache.initialize(repository)
@@ -316,6 +340,14 @@ class LiveFragment : Fragment() {
         restoreChannelFocusIfNeeded()
         lastChannelLoadStates?.let { renderChannelLoadState(it) }
         viewModel.onEvent(LiveEvent.ConsumeReturnFromFullscreen)
+        
+        // Restore Focus Memory globally
+        com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.restoreFocus(requireView())
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.saveFocus(requireView())
     }
     
     override fun onDestroyView() {

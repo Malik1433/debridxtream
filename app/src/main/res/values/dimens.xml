@@ -144,7 +144,7 @@
     <dimen name="poster_top_10_height">210dp</dimen> <!-- 2:3 Ratio -->
     <dimen name="sidebar_width_collapsed">80dp</dimen>
     <dimen name="sidebar_width_expanded">240dp</dimen>
-    <dimen name="number_text_size">120sp</dimen>
-    <dimen name="number_offset_x">-20dp</dimen>
-    <dimen name="number_offset_y">30dp</dimen>
+    <dimen name="number_text_size">160sp</dimen>
+    <dimen name="number_offset_x">-30dp</dimen>
+    <dimen name="number_offset_y">36dp</dimen>
 </resources>

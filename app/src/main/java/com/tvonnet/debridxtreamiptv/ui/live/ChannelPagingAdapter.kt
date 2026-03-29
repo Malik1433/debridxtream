@@ -50,6 +50,12 @@ class ChannelPagingAdapter(
         }
     }
 
+    override fun onViewRecycled(holder: ChannelPagingViewHolder) {
+        super.onViewRecycled(holder)
+        // Reset any stale focus/glint animation state before the view is reused.
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.forceReset(holder.itemView)
+    }
+
     private fun prefetchLogos(context: android.content.Context, position: Int) {
         for (offset in 1..PREFETCH_DISTANCE) {
             val forwardIndex = position + offset
@@ -170,6 +176,10 @@ class ChannelPagingViewHolder(
         epgData: Pair<EpgEntity?, EpgEntity?>? = null,
         isFavorite: Boolean = false
     ) {
+        // Attach the LUMINA 2026 focus animation (scale + glint) to horizontal cards.
+        // This was previously missing, causing the card to have no focus animation.
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attach(itemView)
+
         val channelName = channel.name ?: "Unknown Channel"
 
         // Channel name
@@ -241,7 +251,7 @@ class ChannelPagingViewHolder(
             true
         }
 
-        MagneticFocusHelper.attach(itemView)
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attach(itemView)
     }
 
     private fun bindOldCard(channel: XtreamStream, onClick: (XtreamStream) -> Unit, onLongClick: ((XtreamStream) -> Unit)? = null) {
@@ -260,7 +270,7 @@ class ChannelPagingViewHolder(
             true
         }
 
-        MagneticFocusHelper.attach(itemView)
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attach(itemView)
     }
 
     private fun loadChannelImage(imageUrl: String?) {

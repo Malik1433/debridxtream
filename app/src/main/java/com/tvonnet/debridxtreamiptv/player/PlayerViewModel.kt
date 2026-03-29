@@ -109,8 +109,8 @@ class PlayerViewModel @Inject constructor(
 
     fun loadNextDebridEpisode(
         seriesId: String,
-        currentSeason: Int,
-        currentEpisode: Int,
+        targetSeason: Int,
+        targetEpisode: Int,
         seriesTitle: String?,
         infoHash: String?
     ) {
@@ -120,8 +120,8 @@ class PlayerViewModel @Inject constructor(
                 val sources = withContext(Dispatchers.IO) {
                     unifiedSourceProvider.getSeriesEpisodeSources(
                         seriesId = seriesId,
-                        seasonNumber = currentSeason,
-                        episodeNumber = currentEpisode,
+                        seasonNumber = targetSeason,
+                        episodeNumber = targetEpisode,
                         title = seriesTitle ?: "",
                         yearHint = null
                     )
@@ -132,11 +132,28 @@ class PlayerViewModel @Inject constructor(
                     return@launch
                 }
 
-                val matchingSource = infoHash?.let { hash -> 
+                // 1. Exact hash match (Season packs / same torrent)
+                val exactMatch = infoHash?.let { hash -> 
                     sources.firstOrNull { it.stream.stream_id == hash } 
                 }
                 
-                val targetSource = matchingSource ?: sources.firstOrNull { it.isCached == true } ?: sources.first()
+                // 2. Fuzzy match (different torrents)
+                val targetSource = if (exactMatch != null) {
+                    exactMatch
+                } else {
+                    // Find the best match based on previous source metadata (if we had it)
+                    // For now, prioritize Cached -> Provider Match -> Quality Match
+                    val cached = sources.filter { it.isCached == true }
+                    if (cached.isNotEmpty()) {
+                        // If we have cached sources, try to match provider/quality
+                        cached.firstOrNull { it.quality?.contains("2160") == true }
+                            ?: cached.firstOrNull { it.quality?.contains("1080") == true }
+                            ?: cached.first()
+                    } else {
+                        sources.first()
+                    }
+                }
+                
                 val magnet = targetSource.stream.direct_source
                 val hashToResolve = targetSource.stream.stream_id
 
@@ -148,8 +165,8 @@ class PlayerViewModel @Inject constructor(
                 if (magnet?.startsWith("http") == true && !magnet.endsWith(".torrent", ignoreCase = true)) {
                      _debridResolutionState.value = DebridResolutionState.Success(
                          url = magnet,
-                         season = currentSeason,
-                         episode = currentEpisode,
+                         season = targetSeason,
+                         episode = targetEpisode,
                          title = seriesTitle,
                          infoHash = hashToResolve
                      )
@@ -160,8 +177,8 @@ class PlayerViewModel @Inject constructor(
                     debridPlaybackRepository.resolveDebridUrl(
                         infoHash = hashToResolve,
                         magnet = magnet,
-                        seasonNumber = currentSeason,
-                        episodeNumber = currentEpisode,
+                        seasonNumber = targetSeason,
+                        episodeNumber = targetEpisode,
                         episodeTitle = seriesTitle
                     )
                 }
@@ -170,8 +187,8 @@ class PlayerViewModel @Inject constructor(
                     is Result.Success -> {
                         _debridResolutionState.value = DebridResolutionState.Success(
                             url = result.data,
-                            season = currentSeason,
-                            episode = currentEpisode,
+                            season = targetSeason,
+                            episode = targetEpisode,
                             title = seriesTitle,
                             infoHash = hashToResolve
                         )

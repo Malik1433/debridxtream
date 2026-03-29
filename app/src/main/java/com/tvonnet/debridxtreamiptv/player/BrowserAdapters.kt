@@ -60,6 +60,10 @@ class BrowserCategoryAdapter(
             itemView.setOnClickListener {
                 onCategoryClick(category)
             }
+
+            itemView.setOnClickListener {
+                onCategoryClick(category)
+            }
         }
     }
 

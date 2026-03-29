@@ -99,6 +99,12 @@ class DebridFragment : Fragment() {
             val intent = android.content.Intent(requireContext(), com.tvonnet.debridxtreamiptv.ui.debrid.search.DebridSearchActivity::class.java)
             startActivity(intent)
         }
+        
+        // Setup Discover button
+        view.findViewById<View>(R.id.btn_discover_debrid)?.setOnClickListener {
+            val intent = com.tvonnet.debridxtreamiptv.ui.debrid.discover.DebridDiscoverActivity.createIntent(requireContext())
+            startActivity(intent)
+        }
     }
     
     private fun setupRecyclerView() {

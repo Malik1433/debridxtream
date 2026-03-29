@@ -3,6 +3,7 @@ package com.tvonnet.debridxtreamiptv.data.debrid.source
 import com.tvonnet.debridxtreamiptv.BuildConfig
 import com.tvonnet.debridxtreamiptv.data.Result
 import com.tvonnet.debridxtreamiptv.data.debrid.api.TmdbApiService
+import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbGenreResponse
 import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbMovieResponse
 import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbTvShowResponse
 import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbVideoResponse
@@ -71,7 +72,8 @@ class TmdbRemoteDataSource @Inject constructor(
         withWatchProviders: String? = null,
         watchRegion: String? = "US",
         releaseDateLte: String? = null,
-        releaseDateGte: String? = null
+        releaseDateGte: String? = null,
+        withGenres: String? = null
     ): Result<TmdbMovieResponse> = resultOf {
         tmdbService.discoverMovies(
             apiKey = requireApiKey(),
@@ -81,7 +83,8 @@ class TmdbRemoteDataSource @Inject constructor(
             withWatchProviders = withWatchProviders,
             watchRegion = watchRegion,
             primaryReleaseDateLte = releaseDateLte,
-            primaryReleaseDateGte = releaseDateGte
+            primaryReleaseDateGte = releaseDateGte,
+            withGenres = withGenres
         )
     }
 
@@ -92,7 +95,8 @@ class TmdbRemoteDataSource @Inject constructor(
         withWatchProviders: String? = null,
         watchRegion: String? = "US",
         firstAirDateLte: String? = null,
-        firstAirDateGte: String? = null
+        firstAirDateGte: String? = null,
+        withGenres: String? = null
     ): Result<TmdbTvShowResponse> = resultOf {
         tmdbService.discoverTvShows(
             apiKey = requireApiKey(),
@@ -102,7 +106,16 @@ class TmdbRemoteDataSource @Inject constructor(
             withWatchProviders = withWatchProviders,
             watchRegion = watchRegion,
             firstAirDateLte = firstAirDateLte,
-            firstAirDateGte = firstAirDateGte
+            firstAirDateGte = firstAirDateGte,
+            withGenres = withGenres
         )
+    }
+
+    suspend fun getMovieGenres(): Result<TmdbGenreResponse> = resultOf {
+        tmdbService.getMovieGenres(requireApiKey())
+    }
+
+    suspend fun getTvGenres(): Result<TmdbGenreResponse> = resultOf {
+        tmdbService.getTvGenres(requireApiKey())
     }
 }

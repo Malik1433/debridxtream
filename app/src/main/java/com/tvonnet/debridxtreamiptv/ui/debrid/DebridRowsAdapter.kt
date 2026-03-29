@@ -174,7 +174,6 @@ class DebridItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private val tvYear: TextView = itemView.findViewById(R.id.tv_year)
     private val progressWatch: android.widget.ProgressBar =
         itemView.findViewById(R.id.progress_watch)
-    private val tvProgress: TextView = itemView.findViewById(R.id.tv_progress)
     private val glowFocus: View? = itemView.findViewById(R.id.glow_focus)
     
     fun bind(
@@ -183,8 +182,14 @@ class DebridItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         onItemFocused: (DebridContentItem) -> Unit
     ) {
         tvTitle.text = item.title
+        
+        // Consolidate metadata (S01E01 / Year)
+        val episodeLabel = if (item.seasonNumber != null && item.episodeNumber != null) {
+            String.format("S%02dE%02d", item.seasonNumber, item.episodeNumber)
+        } else null
+
         val subtitle = when {
-            !item.episodeTitle.isNullOrBlank() -> item.episodeTitle
+            episodeLabel != null -> episodeLabel
             !item.year.isNullOrBlank() -> item.year
             else -> null
         }
@@ -241,7 +246,6 @@ class DebridItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val duration = item.durationMs
         if (resumePosition == null || duration == null || duration <= 0L) {
             progressWatch.visibility = View.GONE
-            tvProgress.visibility = View.GONE
             return
         }
 
@@ -250,22 +254,6 @@ class DebridItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             .coerceIn(0, 100)
         progressWatch.progress = percent
         progressWatch.visibility = View.VISIBLE
-
-        val leftMs = (duration - resumePosition).coerceAtLeast(0L)
-        val leftLabel = formatTime(leftMs)
-        val progressLabel = itemView.context.getString(R.string.progress_format, percent, leftLabel)
-        val episodeLabel =
-            if (item.seasonNumber != null && item.episodeNumber != null) {
-                String.format("S%02dE%02d", item.seasonNumber, item.episodeNumber)
-            } else {
-                null
-            }
-        tvProgress.text = if (episodeLabel != null) {
-            "$episodeLabel • $progressLabel"
-        } else {
-            progressLabel
-        }
-        tvProgress.visibility = View.VISIBLE
     }
 
     private fun formatTime(milliseconds: Long): String {

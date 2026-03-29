@@ -71,30 +71,75 @@ class CategorySidebarAdapter(
 
 class CategorySidebarViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private val tvCategoryName = itemView.findViewById<TextView>(R.id.tv_category_name)
+    private val ivCategoryIcon = itemView.findViewById<android.widget.ImageView>(R.id.iv_category_icon)
     
     fun bind(category: XtreamCategory, isSelected: Boolean, onClick: () -> Unit) {
         itemView.setTag(R.id.tag_category_id, category.category_id)
-        tvCategoryName.text = category.category_name ?: "Unknown Category"
         
-        // Update selected state
-        itemView.isSelected = isSelected
+        val rawName = category.category_name ?: "Unknown"
+        // Convert to Title Case
+        val titleCasedName = rawName.split(" ").joinToString(" ") { word ->
+            word.lowercase().replaceFirstChar { it.uppercase() }
+        }
+        tvCategoryName.text = titleCasedName
+        
+        // Map common names to icons
+        val lowerName = rawName.lowercase()
+        val iconRes = when {
+            lowerName.contains("netflix") -> R.drawable.ic_movie // Replace with custom if available
+            lowerName.contains("amazon") || lowerName.contains("prime") -> R.drawable.ic_movie
+            lowerName.contains("favorite") || lowerName.contains("favourite") -> R.drawable.ic_favorite
+            lowerName.contains("action") -> R.drawable.ic_movie
+            lowerName.contains("comedy") -> R.drawable.ic_movie
+            lowerName.contains("horror") -> R.drawable.ic_movie
+            lowerName.contains("kids") || lowerName.contains("family") -> R.drawable.ic_movie
+            else -> R.drawable.ic_movie
+        }
+        ivCategoryIcon.setImageResource(iconRes)
+        
         val activeIndicator = itemView.findViewById<View>(R.id.v_active_indicator)
         
-        // Update styling based on selection
+        // Base styling based on selection
         if (isSelected) {
-            tvCategoryName.setTextColor(itemView.context.getColor(android.R.color.white))
-            tvCategoryName.alpha = 1.0f
-            tvCategoryName.setTypeface(null, android.graphics.Typeface.BOLD)
             activeIndicator.visibility = View.VISIBLE
-            itemView.setBackgroundResource(R.color.primary_10_percent) // Need to ensure this color exists or use a drawable
-            activeIndicator.alpha = 1f
+            // We only show selection background if NOT focused, otherwise focus background takes over
+            if (!itemView.hasFocus()) {
+                itemView.setBackgroundResource(R.color.primary_10_percent)
+            }
         } else {
-            tvCategoryName.setTextColor(itemView.context.getColor(android.R.color.white))
-            tvCategoryName.alpha = 0.6f
-            tvCategoryName.setTypeface(null, android.graphics.Typeface.NORMAL)
             activeIndicator.visibility = View.INVISIBLE
-            itemView.setBackgroundResource(android.R.color.transparent)
-            activeIndicator.alpha = 0f
+            if (!itemView.hasFocus()) {
+                itemView.setBackgroundResource(android.R.color.transparent)
+            }
+        }
+        
+        val previousListener = itemView.onFocusChangeListener
+        itemView.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
+            previousListener?.onFocusChange(v, hasFocus)
+            if (hasFocus) {
+                // FocusGlintHelper.attach(v) // Removed as per user request to avoid glint bugs
+                v.setBackgroundResource(R.drawable.bg_sidebar_item_focused_glass)
+                tvCategoryName.setTextColor(android.graphics.Color.WHITE)
+                tvCategoryName.setTypeface(tvCategoryName.typeface, android.graphics.Typeface.BOLD)
+                // XML stateListAnimator handles scaleX/Y and translationZ
+                tvCategoryName.setShadowLayer(15f, 0f, 0f, android.graphics.Color.parseColor("#4000D4FF"))
+                ivCategoryIcon.setColorFilter(android.graphics.Color.WHITE)
+                tvCategoryName.isSelected = true
+            } else {
+                if (isSelected) {
+                    v.setBackgroundResource(R.color.primary_10_percent)
+                } else {
+                    v.setBackgroundResource(android.R.color.transparent)
+                }
+                
+                tvCategoryName.setTextColor(android.graphics.Color.parseColor("#B3FFFFFF"))
+                tvCategoryName.setTypeface(android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.NORMAL), android.graphics.Typeface.NORMAL)
+                // XML stateListAnimator handles scaleX/Y and translationZ
+                tvCategoryName.setShadowLayer(0f, 0f, 0f, android.graphics.Color.TRANSPARENT)
+                
+                ivCategoryIcon.setColorFilter(android.graphics.Color.parseColor("#B3FFFFFF"))
+                tvCategoryName.isSelected = false
+            }
         }
         
         itemView.setOnClickListener {

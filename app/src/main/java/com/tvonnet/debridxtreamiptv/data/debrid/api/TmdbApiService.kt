@@ -1,5 +1,6 @@
 package com.tvonnet.debridxtreamiptv.data.debrid.api
 
+import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbGenreResponse
 import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbMovieResponse
 import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbTvShowResponse
 import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbVideoResponse
@@ -87,7 +88,8 @@ interface TmdbApiService {
         @Query("with_watch_providers") withWatchProviders: String? = null,
         @Query("watch_region") watchRegion: String? = "US",
         @Query("primary_release_date.lte") primaryReleaseDateLte: String? = null,
-        @Query("primary_release_date.gte") primaryReleaseDateGte: String? = null
+        @Query("primary_release_date.gte") primaryReleaseDateGte: String? = null,
+        @Query("with_genres") withGenres: String? = null
     ): TmdbMovieResponse
 
     @GET("discover/tv")
@@ -99,6 +101,17 @@ interface TmdbApiService {
         @Query("with_watch_providers") withWatchProviders: String? = null,
         @Query("watch_region") watchRegion: String? = "US",
         @Query("first_air_date.lte") firstAirDateLte: String? = null,
-        @Query("first_air_date.gte") firstAirDateGte: String? = null
+        @Query("first_air_date.gte") firstAirDateGte: String? = null,
+        @Query("with_genres") withGenres: String? = null
     ): TmdbTvShowResponse
+
+    @GET("genre/movie/list")
+    suspend fun getMovieGenres(
+        @Query("api_key") apiKey: String
+    ): TmdbGenreResponse
+
+    @GET("genre/tv/list")
+    suspend fun getTvGenres(
+        @Query("api_key") apiKey: String
+    ): TmdbGenreResponse
 }

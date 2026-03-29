@@ -183,58 +183,82 @@ class SeriesFragment : Fragment() {
         // Track focus for restore on back navigation
         rvCategoriesSidebar.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
             override fun onChildViewAttachedToWindow(view: View) {
-                view.setOnFocusChangeListener { v, hasFocus ->
+                val previousListener = view.onFocusChangeListener
+                view.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
+                    previousListener?.onFocusChange(v, hasFocus)
                     if (hasFocus) {
                         lastFocusTarget = FocusTarget.CATEGORIES
                         lastFocusedCategoryPosition = rvCategoriesSidebar.getChildAdapterPosition(v)
                         lastFocusedCategoryId = (v.getTag(R.id.tag_category_id) as? String)
-
-                        // TiviMate Sidebar Scale (Subtle 1.05x)
-                        // Enhanced Professional Animation: Scale + Slide
-                        v.animate()
-                            .scaleX(1.05f)
-                            .scaleY(1.05f)
-                            .translationX(12f) // Slide slightly right
-                            .setDuration(150)
-                            .setInterpolator(android.view.animation.DecelerateInterpolator())
-                            .start()
-                            
-                        v.elevation = 8f
-                    } else {
-                        v.animate()
-                            .scaleX(1.0f)
-                            .scaleY(1.0f)
-                            .translationX(0f)
-                            .setDuration(150)
-                            .setInterpolator(android.view.animation.DecelerateInterpolator())
-                            .start()
-                            
-                        v.elevation = 0f
                     }
                 }
             }
 
             override fun onChildViewDetachedFromWindow(view: View) {
-                view.onFocusChangeListener = null
+                // Do not nullify, let the adapter manage it
             }
         })
+        
+        // Track focus globally to expand/collapse the sidebar smoothly
+        rvCategoriesSidebar.viewTreeObserver.addOnGlobalFocusChangeListener { oldFocus, newFocus ->
+            if (!isAdded) return@addOnGlobalFocusChangeListener
+            
+            var view: View? = newFocus
+            var isInsideSidebar = false
+            while (view != null) {
+                if (view == rvCategoriesSidebar) {
+                    isInsideSidebar = true
+                    break
+                }
+                view = view.parent as? View
+            }
+            
+            val targetWidthDp = if (isInsideSidebar) 260f else 80f
+            val targetWidthPx = android.util.TypedValue.applyDimension(
+                android.util.TypedValue.COMPLEX_UNIT_DIP, targetWidthDp, resources.displayMetrics
+            ).toInt()
+            
+            val sidebarContainer = requireView().findViewById<View>(R.id.ll_series_sidebar_container)
+            if (sidebarContainer != null && sidebarContainer.layoutParams.width != targetWidthPx) {
+                val animator = android.animation.ValueAnimator.ofInt(sidebarContainer.width, targetWidthPx)
+                animator.addUpdateListener { anim ->
+                    val layoutParams = sidebarContainer.layoutParams
+                    layoutParams.width = anim.animatedValue as Int
+                    sidebarContainer.layoutParams = layoutParams
+                }
+                animator.duration = 150
+                animator.interpolator = android.view.animation.DecelerateInterpolator()
+                animator.start()
+                
+                val titleText = sidebarContainer.findViewById<View>(R.id.ll_sidebar_title_area)
+                titleText?.animate()?.alpha(if (isInsideSidebar) 1f else 0f)?.setDuration(150)?.start()
+            }
+        }
 
         rvSeriesGrid.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
             override fun onChildViewAttachedToWindow(view: View) {
-                view.setOnFocusChangeListener { v, hasFocus ->
+                val previousListener = view.onFocusChangeListener
+                view.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
+                    previousListener?.onFocusChange(v, hasFocus)
+                    
+                    val tvTitle = v.findViewById<TextView>(R.id.tv_series_title)
+                    val llRating = v.findViewById<View>(R.id.ll_rating_container)
+
                     if (hasFocus) {
                         lastFocusTarget = FocusTarget.SERIES
-                        lastFocusedSeriesPosition = rvSeriesGrid.getChildAdapterPosition(v)
                         lastFocusedSeriesId = (v.getTag(R.id.tag_series_id) as? String)
 
-                        // TiviMate Scale Animation (1.1x)
-                        v.animate()
-                            .scaleX(1.1f)
-                            .scaleY(1.1f)
-                            .setDuration(150)
-                            .setInterpolator(android.view.animation.DecelerateInterpolator())
-                            .start()
-                        v.z = 15f // Lift up more for glow visibility
+                        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attach(v)
+
+                        tvTitle?.animate()?.scaleX(1.05f)?.scaleY(1.05f)?.setDuration(200)?.start()
+                        tvTitle?.setShadowLayer(15f, 0f, 0f, android.graphics.Color.parseColor("#4000D4FF"))
+                        tvTitle?.isSelected = true
+
+                        llRating?.startAnimation(android.view.animation.AlphaAnimation(1f, 0.6f).apply {
+                            duration = 800
+                            repeatMode = android.view.animation.Animation.REVERSE
+                            repeatCount = android.view.animation.Animation.INFINITE
+                        })
 
                         // Update backdrop on focus
                         val position = lastFocusedSeriesPosition
@@ -249,20 +273,18 @@ class SeriesFragment : Fragment() {
                             }
                         }
                     } else {
-                        // Restore scale on focus loss
-                        v.animate()
-                            .scaleX(1.0f)
-                            .scaleY(1.0f)
-                            .setDuration(150)
-                            .setInterpolator(android.view.animation.DecelerateInterpolator())
-                            .start()
-                        v.z = 0f
+                        tvTitle?.animate()?.scaleX(1.0f)?.scaleY(1.0f)?.setDuration(200)?.start()
+                        tvTitle?.setShadowLayer(0f, 0f, 0f, android.graphics.Color.TRANSPARENT)
+                        tvTitle?.isSelected = false
+
+                        llRating?.clearAnimation()
+                        llRating?.alpha = 1f
                     }
                 }
             }
 
             override fun onChildViewDetachedFromWindow(view: View) {
-                view.onFocusChangeListener = null
+                // Do not nullify, let the adapter manage its own listeners if it has any, otherwise it's fine.
             }
         })
         

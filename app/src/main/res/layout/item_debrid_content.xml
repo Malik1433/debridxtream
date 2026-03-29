@@ -32,7 +32,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintDimensionRatio="2:3"
-        app:cardCornerRadius="14dp"
+        app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
         app:cardBackgroundColor="@android:color/transparent">
 
@@ -47,56 +47,85 @@
         <!-- Gradient Overlay -->
         <View
             android:layout_width="match_parent"
-            android:layout_height="85dp"
+            android:layout_height="100dp"
             android:layout_gravity="bottom"
             android:background="@drawable/gradient_poster_overlay_v3" />
 
-        <!-- Progress Indicator -->
+        <!-- Progress/Metadata Indicator -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
             android:orientation="vertical"
-            android:padding="12dp">
+            android:paddingHorizontal="10dp"
+            android:paddingBottom="12dp">
 
             <TextView
                 android:id="@+id/tv_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
+                android:singleLine="true"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
                 android:textColor="@android:color/white"
                 android:textSize="14sp"
+                android:fontFamily="@font/plus_jakarta_sans"
                 android:textStyle="bold"
-                android:fontFamily="sans-serif-medium" />
+                android:letterSpacing="0.02" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="4dp">
+
+                <ImageView
+                    android:id="@+id/iv_star"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:src="@drawable/ic_favorite"
+                    app:tint="@color/rating_star"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tv_rating"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="10sp"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:layout_marginStart="3dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tv_dot_divider"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" • "
+                    android:textColor="#66FFFFFF"
+                    android:textSize="10sp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tv_year"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="10sp"
+                    android:fontFamily="@font/plus_jakarta_sans" />
+            </LinearLayout>
 
             <ProgressBar
                 android:id="@+id/progress_watch"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
                 android:layout_height="4dp"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="8dp"
                 android:progress="0"
-                android:progressTint="@color/ds_primary"
-                android:progressBackgroundTint="#4DFFFFFF"
+                android:progressTint="@color/brand_cyan"
+                android:progressBackgroundTint="#33FFFFFF"
                 android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/tv_progress"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:textSize="11sp"
-                android:textColor="#CCFFFFFF"
-                android:visibility="gone" />
-                
-            <TextView
-                android:id="@+id/tv_year"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="#CCFFFFFF"
-                android:textSize="11sp" />
 
         </LinearLayout>
 

@@ -58,7 +58,7 @@ class SidebarAdapter(
                 ContextCompat.getColor(itemView.context, R.color.selector_sidebar_text)
             }
             ivIcon.setColorFilter(tintColor)
-            viewSelectionIndicator.visibility = if (isSelected && itemView.isFocused) View.VISIBLE else View.INVISIBLE
+            viewSelectionIndicator.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
             
             // Dimensions
             val density = itemView.context.resources.displayMetrics.density
@@ -75,7 +75,6 @@ class SidebarAdapter(
                 itemView.setBackgroundResource(android.R.color.transparent)
                 tvTitle.visibility = View.GONE
                 tvTitle.alpha = 0f
-                viewSelectionIndicator.visibility = View.INVISIBLE
             }
 
             itemView.setOnFocusChangeListener { _, hasFocus ->
@@ -100,7 +99,6 @@ class SidebarAdapter(
 
                     // 3. Visuals
                     itemView.setBackgroundResource(R.drawable.bg_sidebar_item_expanded)
-                    if (isSelected) viewSelectionIndicator.visibility = View.VISIBLE
                     
                     // 4. Text Reveal
                     tvTitle.visibility = View.VISIBLE
@@ -131,7 +129,6 @@ class SidebarAdapter(
 
                     // Reset Visuals
                     itemView.setBackgroundResource(android.R.color.transparent)
-                    viewSelectionIndicator.visibility = View.INVISIBLE
                     
                     // Text Hide
                     tvTitle.animate()

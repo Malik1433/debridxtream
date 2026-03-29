@@ -61,7 +61,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
             android:layout_margin="8dp"
-            android:background="@drawable/bg_rating_badge"
+            android:background="@drawable/bg_glass_badge"
             android:orientation="horizontal"
             android:paddingHorizontal="6dp"
             android:paddingVertical="3dp"
@@ -74,6 +74,7 @@
                 android:text="8.5"
                 android:textColor="@color/ds_accent_gold"
                 android:textSize="11sp"
+                android:fontFamily="sans-serif-condensed"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -86,7 +87,7 @@
             android:layout_margin="6dp"
             android:padding="6dp"
             android:src="@drawable/ic_favorite"
-            app:tint="@color/ds_accent_red"
+            app:tint="@color/brand_cyan"
             android:background="@drawable/bg_circle_dark_translucent"
             android:visibility="gone" />
 
@@ -102,13 +103,15 @@
                 android:id="@+id/tv_series_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
+                android:singleLine="true"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
                 android:text="Series Title"
-                android:textColor="@android:color/white"
+                android:textColor="#FFFFFF"
                 android:textSize="14sp"
                 android:textStyle="bold"
-                android:fontFamily="sans-serif-medium" />
+                android:letterSpacing="0.03"
+                android:fontFamily="sans-serif-black" />
 
             <TextView
                 android:id="@+id/tv_series_year"
@@ -116,7 +119,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:text="2024"
-                android:textColor="#CCFFFFFF"
+                android:textColor="#B3FFFFFF"
+                android:fontFamily="sans-serif-condensed-light"
                 android:textSize="11sp" />
 
         </LinearLayout>

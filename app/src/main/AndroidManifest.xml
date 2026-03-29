@@ -106,6 +106,13 @@
             android:windowSoftInputMode="stateVisible|adjustResize" />
 
         <activity
+            android:name=".ui.debrid.discover.DebridDiscoverActivity"
+            android:label="Discover"
+            android:theme="@style/AppTheme"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
+        <activity
             android:name=".ui.TestActivity"
             android:label="TEST ACTIVITY"
             android:theme="@style/AppTheme"

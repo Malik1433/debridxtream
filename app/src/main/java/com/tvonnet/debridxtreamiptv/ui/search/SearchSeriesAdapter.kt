@@ -44,7 +44,7 @@ class SearchSeriesAdapter(
                 v.isSelected = hasFocus
                 v.isActivated = hasFocus
             }
-            MagneticFocusHelper.attach(itemView, scale = 1.08f)
+            com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attach(itemView)
         }
         
         fun bind(series: XtreamSeriesInfo) {

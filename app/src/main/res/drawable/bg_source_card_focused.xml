@@ -2,9 +2,9 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape android:shape="rectangle">
-            <solid android:color="#2000BCD4" /> <!-- 12% opacity Cyan tint -->
+            <solid android:color="#4D00E5FF" /> <!-- 30% opacity Soft Cyan tint for intense highlighting -->
             <corners android:radius="12dp" />
-            <stroke android:width="2dp" android:color="#00BCD4" /> <!-- Neon Cyan Border -->
+            <stroke android:width="2dp" android:color="#00E5FF" /> <!-- 2dp Soft Cyan Border -->
             <padding android:bottom="4dp" android:top="4dp" android:left="4dp" android:right="4dp"/>
         </shape>
     </item>

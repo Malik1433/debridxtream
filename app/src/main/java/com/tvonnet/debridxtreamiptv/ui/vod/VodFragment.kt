@@ -168,37 +168,25 @@ class VodFragment : Fragment() {
         val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_standard)
         rvMoviesGrid.addItemDecoration(com.tvonnet.debridxtreamiptv.utils.GridSpacingItemDecoration(4, spacingPx, true))
         
+        with(com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager) {
+            vodAdapter.applyFocusMemory()
+        }
         rvMoviesGrid.adapter = vodAdapter
+
+        // Apply global TV focus rules
+        com.tvonnet.debridxtreamiptv.utils.FocusTrapHelper.attachFocusTrap(rvCategoriesSidebar, loopFocus = true)
+        com.tvonnet.debridxtreamiptv.utils.SpatialNavigationEngine.enforceStrictOrthogonalNavigation(rvMoviesGrid)
 
         // Track focus for restore on back navigation
         rvCategoriesSidebar.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
             override fun onChildViewAttachedToWindow(view: View) {
+                val existingListener = view.onFocusChangeListener
                 view.setOnFocusChangeListener { v, hasFocus ->
+                    existingListener?.onFocusChange(v, hasFocus)
                     if (hasFocus) {
                         lastFocusTarget = FocusTarget.CATEGORIES
                         lastFocusedCategoryPosition = rvCategoriesSidebar.getChildAdapterPosition(v)
                         lastFocusedCategoryId = (v.getTag(R.id.tag_category_id) as? String)
-                        
-                        // Enhanced Professional Animation: Scale + Slide
-                        v.animate()
-                            .scaleX(1.05f)
-                            .scaleY(1.05f)
-                            .translationX(12f) // Slide slightly right
-                            .setDuration(150)
-                            .setInterpolator(android.view.animation.DecelerateInterpolator())
-                            .start()
-                            
-                        v.elevation = 8f
-                    } else {
-                        v.animate()
-                            .scaleX(1.0f)
-                            .scaleY(1.0f)
-                            .translationX(0f)
-                            .setDuration(150)
-                            .setInterpolator(android.view.animation.DecelerateInterpolator())
-                            .start()
-                            
-                        v.elevation = 0f
                     }
                 }
             }
@@ -207,29 +195,82 @@ class VodFragment : Fragment() {
                 view.onFocusChangeListener = null
             }
         })
+        
+        // Track focus globally to expand/collapse the sidebar smoothly
+        rvCategoriesSidebar.viewTreeObserver.addOnGlobalFocusChangeListener { oldFocus, newFocus ->
+            if (!isAdded) return@addOnGlobalFocusChangeListener
+            
+            var view: View? = newFocus
+            var isInsideSidebar = false
+            while (view != null) {
+                if (view == rvCategoriesSidebar) {
+                    isInsideSidebar = true
+                    break
+                }
+                view = view.parent as? View
+            }
+            
+            val targetWidthDp = if (isInsideSidebar) 260f else 80f
+            val targetWidthPx = android.util.TypedValue.applyDimension(
+                android.util.TypedValue.COMPLEX_UNIT_DIP, targetWidthDp, resources.displayMetrics
+            ).toInt()
+            
+            val sidebarContainer = requireView().findViewById<View>(R.id.ll_vod_sidebar_container)
+            if (sidebarContainer != null && sidebarContainer.layoutParams.width != targetWidthPx) {
+                val animator = android.animation.ValueAnimator.ofInt(sidebarContainer.width, targetWidthPx)
+                animator.addUpdateListener { anim ->
+                    val layoutParams = sidebarContainer.layoutParams
+                    layoutParams.width = anim.animatedValue as Int
+                    sidebarContainer.layoutParams = layoutParams
+                }
+                animator.duration = 150
+                animator.interpolator = android.view.animation.DecelerateInterpolator()
+                animator.start()
+                
+                val titleText = sidebarContainer.findViewById<View>(R.id.ll_sidebar_title_area)
+                titleText?.animate()?.alpha(if (isInsideSidebar) 1f else 0f)?.setDuration(150)?.start()
+            }
+        }
 
         rvMoviesGrid.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
             override fun onChildViewAttachedToWindow(view: View) {
+                com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attach(view)
+                val existingListener = view.onFocusChangeListener
                 view.setOnFocusChangeListener { v, hasFocus ->
+                    existingListener?.onFocusChange(v, hasFocus)
+                    
+                    val tvTitle = v.findViewById<TextView>(R.id.tv_movie_title)
+                    val llQuality = v.findViewById<View>(R.id.ll_quality_badge)
+                    val tvLang = v.findViewById<View>(R.id.tv_lang_badge)
+                    
                     if (hasFocus) {
+                        tvTitle?.animate()?.scaleX(1.05f)?.scaleY(1.05f)?.setDuration(200)?.start()
+                        tvTitle?.setShadowLayer(15f, 0f, 0f, android.graphics.Color.parseColor("#4000D4FF"))
+                        tvTitle?.isSelected = true
+                        
+                        // Pulsing effect for badges
+                        val pulse = android.animation.ObjectAnimator.ofFloat(v, "alpha", 1f, 0.6f)
+                        pulse.duration = 800
+                        pulse.repeatMode = android.animation.ValueAnimator.REVERSE
+                        pulse.repeatCount = android.animation.ValueAnimator.INFINITE
+                        v.setTag(R.id.tag_focus_animator + 1, pulse)
+                        
+                        llQuality?.startAnimation(android.view.animation.AlphaAnimation(1f, 0.6f).apply {
+                            duration = 800
+                            repeatMode = android.view.animation.Animation.REVERSE
+                            repeatCount = android.view.animation.Animation.INFINITE
+                        })
+                        tvLang?.startAnimation(android.view.animation.AlphaAnimation(1f, 0.6f).apply {
+                            duration = 800
+                            repeatMode = android.view.animation.Animation.REVERSE
+                            repeatCount = android.view.animation.Animation.INFINITE
+                        })
+                        
                         lastFocusTarget = FocusTarget.MOVIES
                         val position = rvMoviesGrid.getChildAdapterPosition(v)
                         lastFocusedMoviePosition = position
                         lastFocusedMovieId = (v.getTag(R.id.tag_vod_id) as? String)
                         
-        
-                        // TiviMate Scale Animation (1.1x)
-                        v.animate()
-                            .scaleX(1.1f)
-                            .scaleY(1.1f)
-                            .setDuration(150)
-                            .setInterpolator(android.view.animation.DecelerateInterpolator())
-                            .start()
-                        v.z = 15f // Lift up more for glow visibility
-                        
-                        // Show blue border on focus (handled by selector in XML or manually here if needed)
-                        // XML background bg_movie_focus_cyan handles the border
-
                         // Update background on focus
                         if (position != RecyclerView.NO_POSITION) {
                             try {
@@ -242,14 +283,14 @@ class VodFragment : Fragment() {
                             }
                         }
                     } else {
-                        // Restore scale on focus loss
-                        v.animate()
-                            .scaleX(1.0f)
-                            .scaleY(1.0f)
-                            .setDuration(150)
-                            .setInterpolator(android.view.animation.DecelerateInterpolator())
-                            .start()
-                        v.z = 0f
+                        tvTitle?.animate()?.scaleX(1.0f)?.scaleY(1.0f)?.setDuration(200)?.start()
+                        tvTitle?.setShadowLayer(0f, 0f, 0f, android.graphics.Color.TRANSPARENT)
+                        tvTitle?.isSelected = false
+                        
+                        llQuality?.clearAnimation()
+                        llQuality?.alpha = 1f
+                        tvLang?.clearAnimation()
+                        tvLang?.alpha = 1f
                     }
                 }
             }
@@ -277,10 +318,12 @@ class VodFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         restoreFocusIfPossible()
+        com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.restoreFocus(requireView())
     }
 
     override fun onPause() {
         super.onPause()
+        com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.saveFocus(requireView())
 
         restoreCategoryPosition = lastFocusedCategoryPosition
         restoreMoviePosition = lastFocusedMoviePosition
@@ -623,6 +666,7 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private val tvMovieRatingValue = itemView.findViewById<TextView>(R.id.tv_movie_rating_value)
     private val tvMovieYear = itemView.findViewById<TextView>(R.id.tv_movie_year)
     private val tvQualityValue = itemView.findViewById<TextView>(R.id.tv_quality_value)
+    private val tvLangBadge = itemView.findViewById<TextView>(R.id.tv_lang_badge)
     private val ivMoviePoster = itemView.findViewById<ImageView>(R.id.iv_movie_poster)
     private val ivFavoriteIndicator = itemView.findViewById<ImageView>(R.id.iv_favorite_indicator)
 
@@ -633,7 +677,56 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         onLongClick: ((XtreamVodInfo) -> Unit)? = null
     ) {
         itemView.setTag(R.id.tag_vod_id, movie.stream_id?.toString())
-        tvMovieTitle.text = movie.name ?: "Unknown Movie"
+        
+        var cleanName = movie.name?.trim() ?: "Unknown Movie"
+        
+        // Extract language tags like | EN | MULTI (FR) [IT]
+        val langRegex = Regex("""(?i)[\|\[\(]?\s*(MULTI|EN|FR|IT|ES|DE|RU|TR|AR|NL|PT|PL)\s*[\]\)]?$""")
+        val langMatch = langRegex.find(cleanName)
+        var langBadge = ""
+        if (langMatch != null) {
+            langBadge = langMatch.groupValues[1].uppercase(Locale.ROOT)
+            cleanName = cleanName.replace(langMatch.value, "").trim()
+            if (cleanName.endsWith("|") || cleanName.endsWith("-")) cleanName = cleanName.dropLast(1).trim()
+        }
+        
+        // Also extract quality if at the end
+        val qualityRegex = Regex("""(?i)[\|\[\(]?\s*(4K|UHD|1080p|720p|FHD|HD)\s*[\]\)]?$""")
+        val qMatch = qualityRegex.find(cleanName)
+        var qualityBadge = "HD"
+        if (qMatch != null) {
+            val qExtracted = qMatch.groupValues[1].uppercase(Locale.ROOT)
+            qualityBadge = when {
+                qExtracted.contains("4K") || qExtracted.contains("UHD") -> "4K"
+                qExtracted.contains("1080") || qExtracted.contains("FHD") -> "FHD"
+                else -> "HD"
+            }
+            cleanName = cleanName.replace(qMatch.value, "").trim()
+            if (cleanName.endsWith("|") || cleanName.endsWith("-")) cleanName = cleanName.dropLast(1).trim()
+        } else {
+            // fallback search if not at the very end
+            val nameLower = cleanName.lowercase(Locale.ROOT)
+            if (nameLower.contains("4k") || nameLower.contains("uhd")) qualityBadge = "4K"
+            else if (nameLower.contains("1080p") || nameLower.contains("fhd")) qualityBadge = "FHD"
+        }
+        
+        tvMovieTitle.text = cleanName
+        tvQualityValue.text = qualityBadge
+        
+        if (langBadge.isNotEmpty() && tvLangBadge != null) {
+            tvLangBadge.visibility = View.VISIBLE
+            tvLangBadge.text = langBadge
+        } else {
+            tvLangBadge?.visibility = View.GONE
+        }
+        
+        // Apply Gradient to Title
+        val textShader = android.graphics.LinearGradient(
+            0f, 0f, 0f, tvMovieTitle.textSize * 1.5f,
+            intArrayOf(android.graphics.Color.WHITE, android.graphics.Color.parseColor("#888888")),
+            null, android.graphics.Shader.TileMode.CLAMP
+        )
+        tvMovieTitle.paint.shader = textShader
         
         // Bind Rating
         val rating = movie.rating?.trim()?.replace(",", ".")?.toFloatOrNull()
@@ -645,19 +738,7 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         }
         
         // Bind Year (Extract from releaseDate or name if needed, assuming valid date string)
-        // releaseDate often format: "2024-05-20" or just "2024"
         tvMovieYear.text = movie.releaseDate?.take(4) ?: ""
-
-        // Bind Quality (Placeholder logic, can be real data if available)
-        // Check if name contains quality indicators
-        val nameLower = movie.name?.lowercase(Locale.ROOT) ?: ""
-        val quality = when {
-            nameLower.contains("4k") || nameLower.contains("uhd") -> "4K"
-            nameLower.contains("1080p") || nameLower.contains("fhd") -> "FHD"
-            nameLower.contains("720p") || nameLower.contains("hd") -> "HD"
-            else -> "HD" // Default to HD for aesthetics
-        }
-        tvQualityValue.text = quality
         
         // Show/hide favorite heart icon
         ivFavoriteIndicator?.visibility = if (isFavorite) {

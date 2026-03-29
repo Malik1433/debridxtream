@@ -13,14 +13,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
-        android:alpha="0.6"
+        android:alpha="0.8" 
         tools:src="@tools:sample/backgrounds/scenic" />
 
-    <!-- Gradient Overlay for Readability -->
+    <!-- Gradient Overlay for Readability (LUMINA style) -->
     <View
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@drawable/vignette_cinematic" />
+        android:background="@drawable/vignette_lumina" />
         
     <!-- Main Content Container -->
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -63,10 +63,13 @@
                         android:fontFamily="@font/plus_jakarta_sans"
                         android:text="Featured Movie Title"
                         android:textColor="@color/white"
-                        android:textSize="36sp"
+                        android:textSize="48sp"
                         android:textStyle="bold"
-                        android:shadowColor="@color/black"
-                        android:shadowRadius="8"
+                        android:shadowColor="@color/brand_cyan"
+                        android:shadowRadius="24"
+                        android:shadowDx="0"
+                        android:shadowDy="0"
+                        android:layout_marginTop="12dp"
                         android:layout_marginBottom="8dp"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
@@ -78,15 +81,16 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/plus_jakarta_sans"
                         android:text="This is a short description of the movie. It is very cinematic and cool."
-                        android:textColor="#CCFFFFFF"
+                        android:textColor="@color/glass_text_secondary"
                         android:textSize="16sp"
                         android:maxLines="3"
                         android:ellipsize="end"
                         android:layout_marginTop="8dp"
                         android:layout_marginBottom="24dp"
+                        android:lineSpacingExtra="4dp"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toBottomOf="@id/tv_hero_title"
-                        app:layout_constraintWidth_percent="0.7" />
+                        app:layout_constraintWidth_percent="0.6" />
 
                     <LinearLayout
                         android:id="@+id/ll_hero_buttons"
@@ -100,39 +104,62 @@
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_hero_watch"
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Watch Now"
+                            android:layout_height="44dp"
+                            android:text="PLAY NOW"
                             android:backgroundTint="@color/brand_cyan"
-                            android:textColor="@color/white"
+                            android:textColor="@color/velvet_black"
                             android:fontFamily="@font/plus_jakarta_sans"
                             android:textStyle="bold"
                             app:cornerRadius="8dp"
-                            android:layout_marginEnd="16dp" />
+                            app:iconGravity="textStart"
+                            app:iconPadding="6dp"
+                            app:iconSize="16dp"
+                            app:icon="@drawable/ic_play"
+                            app:iconTint="@color/velvet_black"
+                            android:paddingHorizontal="16dp"
+                            android:paddingVertical="0dp"
+                            android:layout_marginEnd="12dp" />
                             
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_hero_details"
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="More Info"
-                            android:backgroundTint="#4DFFFFFF"
+                            android:layout_height="44dp"
+                            android:text="MORE INFO"
+                            android:backgroundTint="@color/glass_card_bg_light"
                             android:textColor="@color/white"
+                            android:fontFamily="@font/plus_jakarta_sans"
+                            android:textStyle="bold"
                             app:cornerRadius="8dp"
-                            app:strokeColor="@color/white"
-                            app:strokeWidth="1dp" />
+                            app:strokeColor="@color/glass_card_border_focus"
+                            app:strokeWidth="1dp"
+                            android:paddingHorizontal="16dp"
+                            android:paddingVertical="0dp" />
                     </LinearLayout>
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
                 <!-- Top 10 Movies Row -->
-                <TextView
-                    android:id="@+id/tv_title_top_10_movies"
-                    android:text="Top 10 Movies Today"
-                    android:textSize="20sp"
-                    android:textColor="@color/white"
-                    android:fontFamily="@font/plus_jakarta_sans"
-                    android:textStyle="bold"
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="16dp">
+                    <View
+                        android:layout_width="4dp"
+                        android:layout_height="20dp"
+                        android:background="@color/brand_cyan"
+                        android:layout_marginEnd="12dp" />
+                    <TextView
+                        android:id="@+id/tv_title_top_10_movies"
+                        android:text="TRENDING MOVIES"
+                        android:textSize="20sp"
+                        android:textColor="@color/white"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.05"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rv_top_10_movies"
@@ -147,16 +174,28 @@
                     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
                 <!-- Top 10 Series Row -->
-                <TextView
-                    android:id="@+id/tv_title_top_10_series"
-                    android:text="Top 10 Series Today"
-                    android:textSize="20sp"
-                    android:textColor="@color/white"
-                    android:fontFamily="@font/plus_jakarta_sans"
-                    android:textStyle="bold"
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="16dp">
+                    <View
+                        android:layout_width="4dp"
+                        android:layout_height="20dp"
+                        android:background="@color/brand_cyan"
+                        android:layout_marginEnd="12dp" />
+                    <TextView
+                        android:id="@+id/tv_title_top_10_series"
+                        android:text="TRENDING SERIES"
+                        android:textSize="20sp"
+                        android:textColor="@color/white"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.05"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rv_top_10_series"
@@ -175,6 +214,27 @@
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
 
+        <!-- Background Container for Sidebar Area (Glassmorphism) -->
+        <View
+            android:id="@+id/sidebar_bg"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:background="#66050505"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="@+id/rv_sidebar"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+        <!-- Visual Boundary: Cybernetic Glowing Divider -->
+        <View
+            android:id="@+id/divider_sidebar"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="@color/colorFocusCyanGlow"
+            app:layout_constraintStart_toEndOf="@+id/rv_sidebar"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
         <!-- Main Sidebar RecyclerView -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_sidebar"
@@ -189,15 +249,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             tools:listitem="@layout/item_sidebar_nav" />
-
-        <!-- Visual Boundary: Clean Cut 1dp Divider -->
-        <View
-            android:layout_width="1dp"
-            android:layout_height="0dp"
-            android:background="#1AFFFFFF"
-            app:layout_constraintStart_toEndOf="@+id/rv_sidebar"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

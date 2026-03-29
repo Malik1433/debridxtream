@@ -168,6 +168,19 @@
                     android:textColor="@color/text_primary" />
 
                 <ImageButton
+                    android:id="@+id/btn_discover_debrid"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_movie_filter_white_24dp"
+                    app:tint="@color/text_primary"
+                    android:contentDescription="Discover by Category"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:layout_marginEnd="8dp"
+                    android:nextFocusDown="@id/rv_debrid_rows"/>
+
+                <ImageButton
                     android:id="@+id/btn_search_debrid"
                     android:layout_width="48dp"
                     android:layout_height="48dp"

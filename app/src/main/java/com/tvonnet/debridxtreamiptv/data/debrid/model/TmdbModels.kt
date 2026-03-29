@@ -118,6 +118,14 @@ data class TmdbGenre(
     @SerializedName("name") val name: String?
 )
 
+/**
+ * TMDB API response for genre lists.
+ * Used by /genre/movie/list and /genre/tv/list endpoints.
+ */
+data class TmdbGenreResponse(
+    @SerializedName("genres") val genres: List<TmdbGenre>?
+)
+
 data class TmdbExternalIds(
     @SerializedName("imdb_id") val imdbId: String?,
     @SerializedName("tvdb_id") val tvdbId: Int?

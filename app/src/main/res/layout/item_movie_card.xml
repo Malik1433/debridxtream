@@ -60,7 +60,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
             android:layout_margin="8dp"
-            android:background="@drawable/bg_blue_pill"
+            android:background="@drawable/bg_glass_badge"
             android:orientation="horizontal"
             android:paddingHorizontal="6dp"
             android:paddingVertical="3dp"
@@ -73,6 +73,7 @@
                 android:text="4K"
                 android:textColor="@android:color/white"
                 android:textSize="10sp"
+                android:fontFamily="sans-serif-condensed"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -85,7 +86,7 @@
             android:layout_margin="6dp"
             android:padding="6dp"
             android:src="@drawable/ic_favorite"
-            app:tint="@color/ds_accent_red"
+            app:tint="@color/brand_cyan"
             android:background="@drawable/bg_circle_dark_translucent"
             android:visibility="gone" />
 
@@ -102,21 +103,23 @@
                 android:id="@+id/tv_movie_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
+                android:singleLine="true"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
                 android:text="Movie Title"
-                android:textColor="@android:color/white"
-                android:textSize="14sp"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
                 android:textStyle="bold"
-                android:fontFamily="sans-serif-medium" />
+                android:letterSpacing="0.03"
+                android:fontFamily="sans-serif-black" />
 
-            <!-- Metadata Row: Star | Rating | Year -->
+            <!-- Metadata Row: Star | Rating | Year | Lang -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginTop="2dp">
+                android:layout_marginTop="4dp">
 
                 <ImageView
                     android:layout_width="12dp"
@@ -130,16 +133,16 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="8.9"
-                    android:textColor="#CCFFFFFF"
-                    android:textSize="10sp"
-                    android:textStyle="bold"
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="11sp"
+                    android:fontFamily="sans-serif-condensed-light"
                     android:layout_marginStart="4dp"/>
                 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text=" | "
-                    android:textColor="#80FFFFFF"
+                    android:text=" • "
+                    android:textColor="#66FFFFFF"
                     android:textSize="10sp"
                     android:layout_marginStart="4dp"/>
 
@@ -148,9 +151,31 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="2024"
-                    android:textColor="#CCFFFFFF"
-                    android:textSize="10sp"
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="11sp"
+                    android:fontFamily="sans-serif-condensed-light"
                     android:layout_marginStart="4dp"/>
+
+                <!-- Extra space before badge -->
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"/>
+
+                <!-- Language / Format Badge -->
+                <TextView
+                    android:id="@+id/tv_lang_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="MULTI"
+                    android:textColor="#FFFFFF"
+                    android:textSize="9sp"
+                    android:textStyle="bold"
+                    android:fontFamily="sans-serif-condensed"
+                    android:paddingHorizontal="5dp"
+                    android:paddingVertical="1dp"
+                    android:background="@drawable/bg_glass_badge"
+                    android:visibility="gone"/>
 
             </LinearLayout>
 

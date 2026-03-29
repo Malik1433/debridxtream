@@ -31,7 +31,7 @@ class SourceSelectionBottomSheet(
     private lateinit var sourcesAdapter: MovieSourceAdapter
     private lateinit var layoutSourceFilters: View
     private lateinit var btnCachedOnly: TextView
-    private lateinit var rvSizeFilters: RecyclerView
+
     private lateinit var rvLanguageFilters: RecyclerView
     private lateinit var languageAdapter: LanguageFilterAdapter
     private lateinit var sizeFilterAdapter: SizeFilterAdapter
@@ -79,7 +79,7 @@ class SourceSelectionBottomSheet(
         rvSources = view.findViewById(R.id.rv_sources)
         layoutSourceFilters = view.findViewById(R.id.layout_source_filters)
         btnCachedOnly = view.findViewById(R.id.btn_cached_only)
-        rvSizeFilters = view.findViewById(R.id.rv_size_filters)
+
         rvLanguageFilters = view.findViewById(R.id.rv_language_filters)
 
         setupAdapters()
@@ -112,9 +112,7 @@ class SourceSelectionBottomSheet(
             onStateChanged?.invoke(filterState)
             applyFilters()
         }
-        rvSizeFilters.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-        rvSizeFilters.setHasFixedSize(true)
-        rvSizeFilters.adapter = sizeFilterAdapter
+
 
         btnCachedOnly.setOnClickListener {
             filterState = filterState.copy(cachedOnly = !filterState.cachedOnly)
@@ -197,7 +195,7 @@ class SourceSelectionBottomSheet(
         }
 
         val showSizes = allSources.any { it.sizeBytes != null }
-        rvSizeFilters.visibility = if (showSizes) View.VISIBLE else View.GONE
+
         if (showSizes) {
             selectedSizeOption =
                 SourceFilterUtils.SIZE_OPTIONS.firstOrNull { it.maxSizeBytes == filterState.maxSizeBytes }

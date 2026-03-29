@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.databinding.ItemMovieSourceBinding
+import com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper
 import java.util.Locale
 
 class MovieSourceAdapter(
@@ -51,7 +52,6 @@ class MovieSourceAdapter(
         fun bind(source: MovieSource) {
             binding.tvSourceLabel.text = source.label
             
-            // Set language flag
             // Set language flags
             val languages = source.languages ?: listOf("multi")
             val flags = languages.map { getFlagEmoji(it) }.distinct().joinToString(" ")
@@ -97,12 +97,21 @@ class MovieSourceAdapter(
             val isSelectedItem = source.stream.stream_id == selectedStreamId
             binding.root.isSelected = isSelectedItem
 
-            binding.root.setOnFocusChangeListener { _, hasFocus ->
+            // Setup the focus listener via the helper to prevent overwriting/nesting
+            com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.updateListener(binding.root) { _, hasFocus ->
                 val stillSelected = source.stream.stream_id == selectedStreamId
                 binding.root.isSelected = stillSelected
                 if (hasFocus) {
                     onSourceFocused(source)
                 }
+            }
+            
+            // Reset focus state before binding to prevent recycled highlights
+            com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.forceReset(binding.root)
+            
+            // If the view already has focus (e.g. after a data refresh), ensure effects are active
+            if (binding.root.isFocused) {
+                com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attach(binding.root)
             }
 
             binding.root.setOnClickListener {
@@ -148,6 +157,16 @@ class MovieSourceAdapter(
         }
     }
 
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attachScrollReset(recyclerView)
+    }
+
+    override fun onViewRecycled(holder: SourceViewHolder) {
+        super.onViewRecycled(holder)
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.forceReset(holder.itemView)
+    }
+
     companion object {
         private val DiffCallback = object : DiffUtil.ItemCallback<MovieSource>() {
             override fun areItemsTheSame(oldItem: MovieSource, newItem: MovieSource): Boolean {
@@ -160,4 +179,3 @@ class MovieSourceAdapter(
         }
     }
 }
-

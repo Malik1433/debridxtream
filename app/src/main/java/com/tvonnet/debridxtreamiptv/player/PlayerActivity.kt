@@ -72,7 +72,14 @@ import com.tvonnet.debridxtreamiptv.player.SeriesPlaylistState
 import com.tvonnet.debridxtreamiptv.util.GlideUtils
 import com.tvonnet.debridxtreamiptv.util.DeviceProfile
 import com.tvonnet.debridxtreamiptv.util.isMissingImageUrl
+import com.tvonnet.debridxtreamiptv.util.PlayerCacheManager
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.CacheDataSink
+import androidx.media3.datasource.DataSink
+import androidx.media3.datasource.FileDataSource
 
+@UnstableApi
 @AndroidEntryPoint
 class PlayerActivity : AppCompatActivity() {
     private val viewModel: PlayerViewModel by viewModels()
@@ -209,15 +216,15 @@ class PlayerActivity : AppCompatActivity() {
         const val EXTRA_LIVE_CATEGORY_ID = "LIVE_CATEGORY_ID"
         const val EXTRA_LIVE_CHANNEL_IDS = "LIVE_CHANNEL_IDS"
         const val EXTRA_BASE_SERVER_URL = "BASE_SERVER_URL"
-        private const val TIMEOUT_MS = 15000L
+        private const val TIMEOUT_MS = 25000L
         private const val MEDIAFUSION_TIMEOUT_MS = 35000L
         private const val OVERLAY_TIMEOUT = 6000L
         private const val MIN_PROGRESS_TO_TRACK_MS = 15_000L
         private const val MIN_DURATION_TO_TRACK_MS = 60_000L
         private const val RETURN_TO_SOURCES_THRESHOLD_MS = 60_000L
         private const val COMPLETION_THRESHOLD_RATIO = 0.95f
-        private const val STALL_THRESHOLD_MS = 8000L
-        private const val LOW_RAM_STALL_THRESHOLD_MS = 10000L
+        private const val STALL_THRESHOLD_MS = 12000L
+        private const val LOW_RAM_STALL_THRESHOLD_MS = 15000L
         private const val LOW_RAM_STALL_STRIKES = 2
         private const val NETWORK_RECOVERY_BUFFER_MS = 5000L
         private const val LOW_RAM_MAX_BUFFER_MS = 30000
@@ -446,22 +453,7 @@ class PlayerActivity : AppCompatActivity() {
             if (contentType == ContentType.SERIES || contentType == ContentType.EPISODE) {
                 btnNext?.isVisible = true
                 btnNext?.setOnClickListener {
-                     if (playbackSource == PlaybackSource.DEBRID && contentType == ContentType.EPISODE) {
-                         // Phase 2.1: Use new Debrid logic
-                         val currentSeason = seasonNumberExtra ?: -1
-                         val currentEpisode = episodeNumberExtra ?: -1
-                         // For Debrid, we usually rely on TMDB ID or use seriesId from intent if available and stored (which we didn't explicitly store as a property yet, but intent.getStringExtra(EXTRA_SERIES_ID) might be available if we re-read or stored it)
-                         // Let's just use tmdbIdExtra which IS stored.
-                         
-                         if (tmdbIdExtra != null && currentSeason != -1 && currentEpisode != -1) {
-                               viewModel.loadNextDebridEpisode(tmdbIdExtra!!, currentSeason, currentEpisode, seriesTitleExtra, debridInfoHashExtra)
-                         } else {
-                             // Fallback to old logic
-                             playNextEpisode()
-                         }
-                     } else {
-                        playNextEpisode()
-                     }
+                     playNextEpisode()
                 }
             } else {
                 btnNext?.isVisible = false
@@ -990,8 +982,8 @@ class PlayerActivity : AppCompatActivity() {
                   // Trigger Debrid Resolution for the NEW episode
                   viewModel.loadNextDebridEpisode(
                       seriesId = tmdbId,
-                      currentSeason = targetSeason,
-                      currentEpisode = targetEpisode,
+                      targetSeason = targetSeason,
+                      targetEpisode = targetEpisode,
                       seriesTitle = seriesTitleExtra,
                       infoHash = debridInfoHashExtra // Critical for binge consistency
                   )
@@ -1190,7 +1182,7 @@ class PlayerActivity : AppCompatActivity() {
         return runCatching { NetworkQuality.valueOf(rawQuality) }.getOrDefault(NetworkQuality.MODERATE)
     }
 
-    private fun buildLiveBufferConfig(isHls: Boolean): BufferConfig {
+    private fun buildLiveBufferConfig(isHls: Boolean, isDebrid: Boolean = false): BufferConfig {
         val baseMaxBuffer = calculateSmartBuffer()
         val quality = getSavedNetworkQuality()
         val config = when (quality) {
@@ -1203,7 +1195,15 @@ class PlayerActivity : AppCompatActivity() {
             NetworkQuality.UNKNOWN -> BufferConfig(15000, baseMaxBuffer, 2000, 3000)
         }
 
-        val cappedForDevice = config.copy(maxBufferMs = capMaxBufferForDevice(config.maxBufferMs))
+        // Debrid specialization for Live (e.g. via MediaFusion)
+        val debridAdjusted = if (isDebrid) {
+            config.copy(
+                startPlaybackMs = (config.startPlaybackMs + 1000).coerceAtLeast(3000),
+                rebufferPlaybackMs = (config.rebufferPlaybackMs + 1000).coerceAtLeast(4000)
+            )
+        } else config
+
+        val cappedForDevice = debridAdjusted.copy(maxBufferMs = capMaxBufferForDevice(debridAdjusted.maxBufferMs))
         return if (isHls) {
             val hlsCap = if (DeviceProfile.isLowRamDevice(this)) 25000 else 30000
             cappedForDevice.copy(maxBufferMs = cappedForDevice.maxBufferMs.coerceAtMost(hlsCap))
@@ -1212,7 +1212,7 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun buildVodBufferConfig(isHls: Boolean): BufferConfig {
+    private fun buildVodBufferConfig(isHls: Boolean, isDebrid: Boolean = false): BufferConfig {
         val baseMaxBuffer = calculateSmartBuffer()
         val quality = getSavedNetworkQuality()
         val config = when (quality) {
@@ -1225,7 +1225,15 @@ class PlayerActivity : AppCompatActivity() {
             NetworkQuality.UNKNOWN -> BufferConfig(15000, baseMaxBuffer, 2000, 3500)
         }
 
-        val cappedForDevice = config.copy(maxBufferMs = capMaxBufferForDevice(config.maxBufferMs))
+        // Debrid specialization: More robust initial buffer to prevent immediate expiration/stalls
+        val debridAdjusted = if (isDebrid) {
+            config.copy(
+                startPlaybackMs = (config.startPlaybackMs + 2000).coerceAtLeast(5000),
+                rebufferPlaybackMs = (config.rebufferPlaybackMs + 2000).coerceAtLeast(6000)
+            )
+        } else config
+
+        val cappedForDevice = debridAdjusted.copy(maxBufferMs = capMaxBufferForDevice(debridAdjusted.maxBufferMs))
         return if (isHls) {
             val hlsCap = if (DeviceProfile.isLowRamDevice(this)) 25000 else 45000
             cappedForDevice.copy(maxBufferMs = cappedForDevice.maxBufferMs.coerceAtMost(hlsCap))
@@ -1268,28 +1276,36 @@ class PlayerActivity : AppCompatActivity() {
             timeoutMs = resolveTimeoutMs(streamUrl)
             timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
 
-            // Phase 2: "Ultra" Engine - OkHttp Data Source for Connection Pooling
-            val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+            // Phase 5: Supercharge Engine - OkHttp + Disk Caching (Stremio Experience)
+            val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
             val requestHeaders = streamHeaders
             if (!requestHeaders.isNullOrEmpty()) {
-                dataSourceFactory.setDefaultRequestProperties(requestHeaders)
+                httpDataSourceFactory.setDefaultRequestProperties(requestHeaders)
             }
             val hasUserAgent = requestHeaders?.keys?.any { it.equals("User-Agent", ignoreCase = true) } == true
             if (!hasUserAgent) {
-                dataSourceFactory.setUserAgent("DebridXtream/1.0 (Linux; Android 10; TV)")
+                httpDataSourceFactory.setUserAgent("DebridXtream/1.0 (Linux; Android 10; TV)")
             }
+
+            // Wrap in CacheDataSource for Disk Caching
+            val dataSourceFactory = CacheDataSource.Factory()
+                .setCache(PlayerCacheManager.getCache(this))
+                .setUpstreamDataSourceFactory(httpDataSourceFactory)
+                .setCacheWriteDataSinkFactory(CacheDataSink.Factory().setCache(PlayerCacheManager.getCache(this)))
+                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
             val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
             
             // Phase 5: Ultra Engine V2 - Smart Dynamic Buffer
             // Fixes "Long Freezes" by allowing huge buffers (60s) but resuming FAST (2s)
+            val isDebrid = playbackSource == PlaybackSource.DEBRID
             val loadControl = if (contentType == ContentType.LIVE_TV) {
-                val bufferConfig = buildLiveBufferConfig(isHlsUrl(streamUrl))
+                val bufferConfig = buildLiveBufferConfig(isHlsUrl(streamUrl), isDebrid)
                 Log.i(
                     "PlayerActivity",
                     "Ultra Engine V2: Active (min=${bufferConfig.minBufferMs} max=${bufferConfig.maxBufferMs} " +
                         "start=${bufferConfig.startPlaybackMs} rebuffer=${bufferConfig.rebufferPlaybackMs} " +
-                        "net=${getSavedNetworkQuality()})"
+                        "debrid=$isDebrid net=${getSavedNetworkQuality()})"
                 )
                 DefaultLoadControl.Builder()
                     .setBufferDurationsMs(
@@ -1302,12 +1318,13 @@ class PlayerActivity : AppCompatActivity() {
                     .setPrioritizeTimeOverSizeThresholds(true)
                     .build()
             } else {
-                val bufferConfig = buildVodBufferConfig(isHlsUrl(streamUrl))
+                val isDebrid = playbackSource == PlaybackSource.DEBRID
+                val bufferConfig = buildVodBufferConfig(isHlsUrl(streamUrl), isDebrid)
                 Log.i(
                     "PlayerActivity",
                     "Playback Buffer: Active (min=${bufferConfig.minBufferMs} max=${bufferConfig.maxBufferMs} " +
                         "start=${bufferConfig.startPlaybackMs} rebuffer=${bufferConfig.rebufferPlaybackMs} " +
-                        "net=${getSavedNetworkQuality()})"
+                        "debrid=$isDebrid net=${getSavedNetworkQuality()})"
                 )
                 DefaultLoadControl.Builder()
                     .setBufferDurationsMs(
@@ -1317,6 +1334,7 @@ class PlayerActivity : AppCompatActivity() {
                         bufferConfig.rebufferPlaybackMs
                     )
                     .setTargetBufferBytes(resolveTargetBufferBytes())
+                    .setPrioritizeTimeOverSizeThresholds(true) // FIX: Prioritize time over size for VOD/Debrid
                     .build()
             }
             
@@ -1342,6 +1360,8 @@ class PlayerActivity : AppCompatActivity() {
                 .setMediaSourceFactory(mediaSourceFactory)
                 .setLoadControl(loadControl)
                 .setTrackSelector(trackSelector)
+                .setSeekForwardIncrementMs(15000) // 15s skip for buttons
+                .setSeekBackIncrementMs(15000)    // 15s skip for buttons
                 .build()
                 .also { playerView.player = it }
 
@@ -1447,7 +1467,6 @@ class PlayerActivity : AppCompatActivity() {
         if (shouldRestart) {
             Log.w("PlayerActivity", "Network recovery ($reason), restarting player.")
             // Fix: Save position before release
-            // Fix: Save position before release
             if (contentType != ContentType.LIVE_TV) {
                 val currentPos = playerSnapshot.currentPosition
                 if (currentPos > 1000L) {
@@ -1498,7 +1517,8 @@ class PlayerActivity : AppCompatActivity() {
             return
         }
 
-        val errorMessage = when (val cause = error.cause) {
+        val cause = error.cause
+        val errorMessage = when (cause) {
             is HttpDataSource.InvalidResponseCodeException -> {
                 when (cause.responseCode) {
                     503 -> "Server unavailable (503)"
@@ -1513,12 +1533,19 @@ class PlayerActivity : AppCompatActivity() {
         if (retryCount < maxRetries) {
             retryCount++
             
-            // Phase 1: Debrid Re-resolution logic
+            // Phase 1: Debrid Smart Re-resolution logic
             if (playbackSource == PlaybackSource.DEBRID && !isResolvingDebrid) {
                  val hasMeta = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
-                 if (hasMeta) {
-                      Log.i("PlayerActivity", "Debrid error detected. Attempting re-resolution instead of raw retry.")
-                      showToast("Link expired. Refreshing...")
+                 
+                 // Detect actual expiration (403 Forbidden or 410 Gone)
+                 val isTrulyExpired = cause is HttpDataSource.InvalidResponseCodeException && 
+                     (cause.responseCode == 403 || cause.responseCode == 410)
+                 
+                 // Only re-resolve if TRULY expired OR if this is the 2nd+ strike (standard retry failed)
+                 if (hasMeta && (isTrulyExpired || retryCount > 1)) {
+                      val reason = if (isTrulyExpired) "Link expired" else "Persistent error"
+                      Log.i("PlayerActivity", "Debrid $reason detected. Attempting re-resolution.")
+                      showToast("$reason. Refreshing...")
                       isResolvingDebrid = true
                       
                       // Save current position for re-resume
@@ -1533,6 +1560,8 @@ class PlayerActivity : AppCompatActivity() {
                           title = episodeTitleExtra
                       )
                       return
+                 } else if (hasMeta) {
+                      Log.i("PlayerActivity", "Debrid non-fatal error. Trying standard recovery first.")
                  }
             }
 
@@ -1638,27 +1667,31 @@ class PlayerActivity : AppCompatActivity() {
             if (retryCount < maxRetries) {
                 retryCount++
                 
-                // Phase 1: Debrid Re-resolution logic (for timeouts)
-                if (playbackSource == PlaybackSource.DEBRID && !isResolvingDebrid) {
-                     val hasMeta = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
-                     if (hasMeta) {
-                          Log.i("PlayerActivity", "Debrid timeout. Attempting re-resolution.")
-                          showToast("Refreshing expired link...")
-                          isResolvingDebrid = true
-                          
-                          val currentPos = player?.currentPosition ?: 0L
-                          if (currentPos > 1000L) startPositionMs = currentPos
-                          
-                          viewModel.reResolveDebridUrl(
-                              infoHash = debridInfoHashExtra,
-                              magnet = debridMagnetExtra,
-                              season = seasonNumberExtra,
-                              episode = episodeNumberExtra,
-                              title = episodeTitleExtra
-                          )
-                          return
-                     }
-                }
+            // Phase 1: Debrid Smart Re-resolution logic (for timeouts)
+            if (playbackSource == PlaybackSource.DEBRID && !isResolvingDebrid) {
+                 val hasMeta = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
+                 
+                 // On first timeout, try a standard retry. On 2nd+ strike, re-resolve.
+                 if (hasMeta && retryCount > 1) {
+                      Log.i("PlayerActivity", "Debrid persistent timeout. Attempting re-resolution.")
+                      showToast("Refreshing slow link...")
+                      isResolvingDebrid = true
+                      
+                      val currentPos = player?.currentPosition ?: 0L
+                      if (currentPos > 1000L) startPositionMs = currentPos
+                      
+                      viewModel.reResolveDebridUrl(
+                          infoHash = debridInfoHashExtra,
+                          magnet = debridMagnetExtra,
+                          season = seasonNumberExtra,
+                          episode = episodeNumberExtra,
+                          title = episodeTitleExtra
+                      )
+                      return
+                 } else if (hasMeta) {
+                      Log.i("PlayerActivity", "Debrid timeout (Strike 1). Trying standard retry first.")
+                 }
+            }
 
                 showToast("Connection timeout, retrying...")
                 
@@ -2454,10 +2487,19 @@ class PlayerActivity : AppCompatActivity() {
                         
                         // Update metadata if provided (Phase 2.1)
                         if (state.season != null && state.episode != null) {
+                            val isSameEpisode = seasonNumberExtra == state.season && episodeNumberExtra == state.episode
+                            
                             seasonNumberExtra = state.season
                             episodeNumberExtra = state.episode
                             episodeTitleExtra = state.title
-                            startPositionMs = 0L // FIX: Start next episode from beginning
+                            
+                            if (!isSameEpisode) {
+                                Log.d("PlayerActivity", "Debrid: New episode detected. Resetting start position.")
+                                startPositionMs = 0L // Start next episode from beginning
+                            } else {
+                                Log.d("PlayerActivity", "Debrid: Same episode re-resolved. Maintaining position: ${startPositionMs}ms")
+                            }
+                            
                             // Update UI immediately (Redesign: use modern binding)
                             val newTitle = "${seriesTitleExtra ?: ""} - S${state.season}:E${state.episode}"
                             bindModernMetadata(newTitle)
@@ -2547,8 +2589,15 @@ class PlayerActivity : AppCompatActivity() {
             settingsPreferences.savePreferredSubtitleLanguage(selectedTextLang)
         }
         
-        // Index persistence (for SAME torrent consistency)
+        // 1. Exact Source index persistence (for SAME torrent consistency)
         settingsPreferences.saveLastTrackSelection(debridInfoHashExtra, selectedAudioIndex, selectedTextIndex)
+        
+        // 2. Series-level index persistence (for NEXT torrent consistency)
+        val seriesId = intent.getStringExtra(EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
+        if (seriesId != null) {
+            settingsPreferences.saveSeriesTrackPreference(seriesId, selectedAudioIndex, selectedTextIndex)
+        }
+        
         Log.e("PlayerActivity", "🎯 Track choice captured: audio=$selectedAudioLang (idx=$selectedAudioIndex), sub=$selectedTextLang (idx=$selectedTextIndex)")
     }
 
@@ -2557,61 +2606,75 @@ class PlayerActivity : AppCompatActivity() {
         val lastHash = settingsPreferences.getLastSelectionHash()
         val currentHash = debridInfoHashExtra
         
+        val seriesId = intent.getStringExtra(EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
+        
+        var targetAudioIdx = -1
+        var targetTextIdx = -1
+        
         if (lastHash != null && currentHash != null && lastHash.equals(currentHash, ignoreCase = true)) {
-            val targetAudioIdx = settingsPreferences.getLastAudioIndex()
-            val targetTextIdx = settingsPreferences.getLastTextIndex()
-            
-            if (targetAudioIdx == -1 && targetTextIdx == -1) return
-            
-            val groups = p.currentTracks.groups
-            var params = p.trackSelectionParameters.buildUpon()
-            var modified = false
+            // Hash match: use exact indices
+            targetAudioIdx = settingsPreferences.getLastAudioIndex()
+            targetTextIdx = settingsPreferences.getLastTextIndex()
+            Log.d("PlayerActivity", "⚡ Hash matched. Using exact track indices: audio=$targetAudioIdx, sub=$targetTextIdx")
+        } else if (seriesId != null) {
+            // Hash mismatch: fallback to series-level fuzzy indices
+            targetAudioIdx = settingsPreferences.getSeriesAudioIndex(seriesId)
+            targetTextIdx = settingsPreferences.getSeriesTextIndex(seriesId)
+            if (targetAudioIdx != -1 || targetTextIdx != -1) {
+                Log.d("PlayerActivity", "⚡ Source changed. Falling back to series-level track indices: audio=$targetAudioIdx, sub=$targetTextIdx")
+            }
+        }
+        
+        if (targetAudioIdx == -1 && targetTextIdx == -1) return
+        
+        val groups = p.currentTracks.groups
+        var params = p.trackSelectionParameters.buildUpon()
+        var modified = false
 
-            // Audio override
-            if (targetAudioIdx != -1) {
-                var audioCounter = 0
-                for (i in 0 until groups.size) {
-                    val group = groups[i]
-                    if (group.type == C.TRACK_TYPE_AUDIO) {
-                        for (j in 0 until group.length) {
-                            if (audioCounter == targetAudioIdx) {
-                                params.addOverride(TrackSelectionOverride(group.mediaTrackGroup, j))
-                                modified = true
-                                Log.e("PlayerActivity", "⚡ Applied Audio Index Override: $targetAudioIdx")
-                                break
-                            }
-                            audioCounter++
+        // Audio override
+        if (targetAudioIdx != -1) {
+            var audioCounter = 0
+            for (i in 0 until groups.size) {
+                val group = groups[i]
+                if (group.type == C.TRACK_TYPE_AUDIO) {
+                    for (j in 0 until group.length) {
+                        if (audioCounter == targetAudioIdx) {
+                            params.addOverride(TrackSelectionOverride(group.mediaTrackGroup, j))
+                            modified = true
+                            Log.e("PlayerActivity", "⚡ Applied Audio Index Override: $targetAudioIdx")
+                            break
                         }
+                        audioCounter++
                     }
-                    if (modified) break
                 }
+                if (modified) break
             }
+        }
 
-            // Subtitle override
-            if (targetTextIdx != -1) {
-                var textCounter = 0
-                var textModified = false
-                for (i in 0 until groups.size) {
-                    val group = groups[i]
-                    if (group.type == C.TRACK_TYPE_TEXT) {
-                        for (j in 0 until group.length) {
-                            if (textCounter == targetTextIdx) {
-                                params.addOverride(TrackSelectionOverride(group.mediaTrackGroup, j))
-                                modified = true
-                                textModified = true
-                                Log.e("PlayerActivity", "⚡ Applied Text Index Override: $targetTextIdx")
-                                break
-                            }
-                            textCounter++
+        // Subtitle override
+        if (targetTextIdx != -1) {
+            var textCounter = 0
+            var textModified = false
+            for (i in 0 until groups.size) {
+                val group = groups[i]
+                if (group.type == C.TRACK_TYPE_TEXT) {
+                    for (j in 0 until group.length) {
+                        if (textCounter == targetTextIdx) {
+                            params.addOverride(TrackSelectionOverride(group.mediaTrackGroup, j))
+                            modified = true
+                            textModified = true
+                            Log.e("PlayerActivity", "⚡ Applied Text Index Override: $targetTextIdx")
+                            break
                         }
+                        textCounter++
                     }
-                    if (textModified) break
                 }
+                if (textModified) break
             }
+        }
 
-            if (modified) {
-                p.trackSelectionParameters = params.build()
-            }
+        if (modified) {
+            p.trackSelectionParameters = params.build()
         }
     }
 

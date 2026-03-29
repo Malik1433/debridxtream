@@ -6,13 +6,13 @@
                 android:duration="160"
                 android:interpolator="@android:interpolator/fast_out_slow_in"
                 android:propertyName="scaleX"
-                android:valueTo="1.02"
+                android:valueTo="1.08"
                 android:valueType="floatType" />
             <objectAnimator
                 android:duration="160"
                 android:interpolator="@android:interpolator/fast_out_slow_in"
                 android:propertyName="scaleY"
-                android:valueTo="1.02"
+                android:valueTo="1.08"
                 android:valueType="floatType" />
             <objectAnimator
                 android:duration="160"

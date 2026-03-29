@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.util.AttributeSet
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.LinearInterpolator
@@ -172,6 +173,63 @@ class WavySeekBar @JvmOverloads constructor(
         wavePath.lineTo(endX, centerY)
         
         canvas.drawPath(wavePath, playedPaint)
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (duration <= 0) return super.onKeyDown(keyCode, event)
+        
+        val increment = 60000L // 60s (1 min) skip for D-Pad on Seek Bar
+        var handled = false
+        
+        when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                val newPos = (if (isScrubbing) scrubPosition else position) - increment
+                val seekPos = newPos.coerceIn(0, duration)
+                if (!isScrubbing) {
+                    isScrubbing = true
+                    listeners.forEach { it.onScrubStart(this, position) }
+                }
+                scrubPosition = seekPos
+                listeners.forEach { it.onScrubMove(this, seekPos) }
+                invalidate()
+                handled = true
+            }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                val newPos = (if (isScrubbing) scrubPosition else position) + increment
+                val seekPos = newPos.coerceIn(0, duration)
+                if (!isScrubbing) {
+                    isScrubbing = true
+                    listeners.forEach { it.onScrubStart(this, position) }
+                }
+                scrubPosition = seekPos
+                listeners.forEach { it.onScrubMove(this, seekPos) }
+                invalidate()
+                handled = true
+            }
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                if (isScrubbing) {
+                    val finalPos = scrubPosition
+                    isScrubbing = false
+                    listeners.forEach { it.onScrubStop(this, finalPos, false) }
+                    invalidate()
+                    handled = true
+                }
+            }
+        }
+        
+        if (handled) return true
+        return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (isScrubbing && (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+            val finalPos = scrubPosition
+            isScrubbing = false
+            listeners.forEach { it.onScrubStop(this, finalPos, false) }
+            invalidate()
+            return true
+        }
+        return super.onKeyUp(keyCode, event)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {

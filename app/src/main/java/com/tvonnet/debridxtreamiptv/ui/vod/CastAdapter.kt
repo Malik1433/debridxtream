@@ -46,6 +46,9 @@ class CastAdapter : ListAdapter<TmdbCast, CastAdapter.CastViewHolder>(CastDiffCa
                 .transition(DrawableTransitionOptions.withCrossFade())
                 .circleCrop()
                 .into(binding.ivProfile)
+
+            // 2026 Focus Animation handled globally
+            com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attach(binding.root)
         }
     }
 

@@ -32,7 +32,7 @@
     <color name="brand_orange">#FF5722</color>
     <color name="brand_orange_light">#FF7043</color>
     <color name="brand_orange_dark">#E64A19</color>
-    <color name="brand_cyan">#00BCD4</color>
+    <color name="brand_cyan">#00E5FF</color>
     <color name="brand_cyan_light">#26C6DA</color>
     <color name="brand_purple">#673AB7</color>
     <color name="brand_purple_light">#7E57C2</color>
@@ -73,8 +73,8 @@
     <color name="overlay_gradient_end">#00000000</color>
     
     <!-- Border & Glow Colors (with transparency) - Subtle -->
-    <color name="border_cyan">#00BCD4</color>
-    <color name="border_cyan_glow">#3300BCD4</color>
+    <color name="border_cyan">#00E5FF</color>
+    <color name="border_cyan_glow">#3300E5FF</color>
     <color name="border_orange">#FF5722</color>
     <color name="border_orange_glow">#66FF5722</color>
     <color name="border_purple">#673AB7</color>
@@ -244,11 +244,11 @@
     <!-- background_pure_black, brand_cyan already exist -->
     
     <!-- Cinematic Cyan Theme Extras -->
-    <color name="colorAccentCyanGradientStart">#00BCD4</color>
+    <color name="colorAccentCyanGradientStart">#00E5FF</color>
     <color name="colorAccentCyanGradientEnd">#26C6DA</color>
     
     <!-- Focus & Glow -->
-    <color name="colorFocusCyanGlow">#8000BCD4</color> <!-- 50% opacity -->
+    <color name="colorFocusCyanGlow">#8000E5FF</color> <!-- 50% opacity -->
     <color name="colorSurfaceGlassDark">#E61c1c1c</color> <!-- 90% opacity charcoal -->
 </resources>
 

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?attr/colorControlHighlight">
+    <item>
+        <shape android:shape="rectangle">
+            <!-- Frosted glass background: ultra-translucent white 15% -->
+            <solid android:color="#26FFFFFF" />
+            <!-- Very thin white border for frosted glass definition -->
+            <stroke
+                android:width="0.5dp"
+                android:color="#4DFFFFFF" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+</ripple>

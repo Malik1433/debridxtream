@@ -61,7 +61,6 @@ class SidebarCategoryAdapter(
                 onCategoryFocused?.invoke(categoryId, position)
             }
         }
-        
     }
 
     override fun getItemCount() = categories.size

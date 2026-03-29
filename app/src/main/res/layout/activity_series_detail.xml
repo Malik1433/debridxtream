@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/gradient_hero_backdrop"
+    android:background="@drawable/bg_mesh_gradient_lumina"
     android:paddingStart="24dp"
     android:paddingEnd="24dp"
     android:paddingTop="24dp"
@@ -39,7 +39,7 @@
         android:id="@+id/view_backdrop_overlay"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="@drawable/gradient_poster_overlay"
+        android:background="@drawable/vignette_lumina"
         app:layout_constraintBottom_toBottomOf="@id/iv_backdrop"
         app:layout_constraintEnd_toEndOf="@id/iv_backdrop"
         app:layout_constraintStart_toStartOf="@id/iv_backdrop"
@@ -106,15 +106,25 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="4dp"
                 android:text="@string/series_detail_title_placeholder"
-                android:textColor="@color/ds_text_primary"
-                android:textSize="24sp"
-                android:textStyle="bold" />
+                android:textColor="@color/white"
+                android:textSize="36sp"
+                android:fontFamily="@font/inter"
+                android:textStyle="bold"
+                android:shadowColor="#4D00BCD4"
+                android:shadowRadius="12"
+                android:shadowDx="0"
+                android:shadowDy="0" />
 
             <LinearLayout
                 android:id="@+id/layout_ratings"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="4dp"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/bg_glass_neon_lumina"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
                 android:orientation="horizontal">
 
                 <TextView
@@ -122,8 +132,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/series_detail_star_placeholder"
-                    android:textColor="@color/ds_accent_gold"
-                    android:textSize="18sp" />
+                    android:textColor="@color/brand_cyan"
+                    android:textSize="14sp" />
 
                 <TextView
                     android:id="@+id/tv_rating_percentage"
@@ -131,8 +141,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:text="@string/series_detail_rating_placeholder"
-                    android:textColor="@color/ds_accent_gold"
-                    android:textSize="18sp"
+                    android:textColor="@color/brand_cyan"
+                    android:textSize="14sp"
+                    android:fontFamily="@font/inter"
                     android:textStyle="bold" />
 
             </LinearLayout>
@@ -142,24 +153,27 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="4dp"
-                android:textColor="@color/ds_text_secondary"
-                android:textSize="16sp" />
+                android:textColor="@color/glass_text_secondary"
+                android:fontFamily="@font/inter"
+                android:textSize="14sp" />
 
             <TextView
                 android:id="@+id/tv_director"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="4dp"
-                android:textColor="@color/ds_text_secondary"
-                android:textSize="16sp" />
+                android:textColor="@color/glass_text_secondary"
+                android:fontFamily="@font/inter"
+                android:textSize="14sp" />
 
             <TextView
                 android:id="@+id/tv_cast"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:textColor="@color/ds_text_secondary"
-                android:textSize="16sp" />
+                android:layout_marginBottom="12dp"
+                android:textColor="@color/glass_text_secondary"
+                android:fontFamily="@font/inter"
+                android:textSize="14sp" />
 
             <TextView
                 android:id="@+id/tv_description"
@@ -167,9 +181,10 @@
                 android:layout_height="0dp"
                 android:layout_weight="1"
                 android:text="@string/series_detail_description_placeholder"
-                android:textColor="@color/ds_text_tertiary"
+                android:textColor="@color/glass_text_secondary"
+                android:fontFamily="@font/inter"
                 android:textSize="15sp"
-                android:lineSpacingMultiplier="1.4" />
+                android:lineSpacingMultiplier="1.2" />
 
         </LinearLayout>
 
@@ -251,46 +266,52 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_watch_now"
             android:layout_width="0dp"
-            android:layout_height="48dp"
+            android:layout_height="44dp"
             android:layout_weight="1"
-            android:background="@drawable/button_primary_red"
-            android:drawableStart="@android:drawable/ic_media_play"
-            android:drawableTint="@color/ds_text_primary"
-            android:focusable="true"
-            android:focusableInTouchMode="true"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
             android:text="@string/series_detail_watch_now"
-            android:textColor="@color/ds_text_primary"
-            android:textSize="14sp"
+            android:backgroundTint="@color/brand_cyan"
+            android:textColor="@color/velvet_black"
+            android:fontFamily="@font/inter"
             android:textStyle="bold"
-            android:textAllCaps="false"
+            app:cornerRadius="8dp"
+            app:iconGravity="textStart"
+            app:iconPadding="6dp"
+            app:iconSize="16dp"
+            app:icon="@drawable/ic_play"
+            app:iconTint="@color/velvet_black"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="0dp"
+            android:focusable="true"
             android:nextFocusRight="@id/btn_watch_trailer" />
 
         <Space
             android:layout_width="12dp"
             android:layout_height="0dp" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_watch_trailer"
             android:layout_width="0dp"
-            android:layout_height="48dp"
+            android:layout_height="44dp"
             android:layout_weight="1"
-            android:background="@drawable/button_secondary_white_outline"
-            android:drawableStart="@android:drawable/ic_menu_slideshow"
-            android:drawableTint="@color/ds_accent_gold"
-            android:focusable="true"
-            android:focusableInTouchMode="true"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
             android:text="Watch Trailer"
-            android:textColor="@color/ds_text_primary"
-            android:textSize="14sp"
+            android:backgroundTint="@color/glass_card_bg_light"
+            android:textColor="@color/white"
+            android:fontFamily="@font/inter"
             android:textStyle="bold"
-            android:textAllCaps="false"
+            app:cornerRadius="8dp"
+            app:strokeColor="@color/glass_card_border_focus"
+            app:strokeWidth="1dp"
+            app:iconGravity="textStart"
+            app:iconPadding="6dp"
+            app:iconSize="16dp"
+            app:icon="@drawable/ic_search"
+            app:iconTint="@color/white"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="0dp"
+            android:focusable="true"
             android:nextFocusLeft="@id/btn_watch_now"
             android:nextFocusRight="@id/btn_add_favorite" />
 
@@ -298,23 +319,27 @@
             android:layout_width="12dp"
             android:layout_height="0dp" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_add_favorite"
             android:layout_width="0dp"
-            android:layout_height="48dp"
+            android:layout_height="44dp"
             android:layout_weight="1"
-            android:background="@drawable/button_secondary_white_outline"
-            android:drawableStart="@drawable/ic_favorite_border"
-            android:drawableTint="@color/ds_text_primary"
-            android:focusable="true"
-            android:focusableInTouchMode="true"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
             android:text="@string/series_detail_add_to_favorites"
-            android:textColor="@color/ds_text_primary"
-            android:textSize="14sp"
+            android:backgroundTint="@color/glass_card_bg_light"
+            android:textColor="@color/white"
+            android:fontFamily="@font/inter"
             android:textStyle="bold"
-            android:textAllCaps="false"
+            app:cornerRadius="8dp"
+            app:strokeColor="@color/glass_card_border_focus"
+            app:strokeWidth="1dp"
+            app:iconGravity="textStart"
+            app:iconPadding="6dp"
+            app:iconSize="16dp"
+            app:icon="@drawable/ic_favorite_border"
+            app:iconTint="@color/white"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="0dp"
+            android:focusable="true"
             android:nextFocusLeft="@id/btn_watch_trailer" />
 
     </LinearLayout>

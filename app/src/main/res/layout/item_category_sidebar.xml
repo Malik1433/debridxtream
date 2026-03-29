@@ -7,7 +7,8 @@
     android:layout_marginHorizontal="12dp"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    android:background="@drawable/category_sidebar_item_bg">
+    android:background="@drawable/category_sidebar_item_bg"
+    android:stateListAnimator="@animator/sidebar_item_animator">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -20,8 +21,17 @@
             android:id="@+id/v_active_indicator"
             android:layout_width="4dp"
             android:layout_height="match_parent"
-            android:background="@drawable/bg_sidebar_selection_strip"
+            android:background="#2196F3"
             android:visibility="invisible" />
+
+        <ImageView
+            android:id="@+id/iv_category_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="16dp"
+            android:src="@drawable/ic_movie"
+            app:tint="#99FFFFFF"
+            xmlns:app="http://schemas.android.com/apk/res-auto"/>
 
         <!-- Category Name -->
         <TextView
@@ -32,12 +42,14 @@
             android:layout_marginStart="16dp"
             android:layout_marginEnd="12dp"
             android:text="Category Name"
-            android:textColor="#99FFFFFF"
+            android:textColor="#B3FFFFFF"
             android:textSize="15sp"
             android:textStyle="normal"
-            android:fontFamily="sans-serif-medium"
-            android:maxLines="1"
-            android:ellipsize="end" />
+            android:letterSpacing="0.05"
+            android:fontFamily="sans-serif-condensed"
+            android:singleLine="true"
+            android:ellipsize="marquee"
+            android:marqueeRepeatLimit="marquee_forever" />
 
     </LinearLayout>
 

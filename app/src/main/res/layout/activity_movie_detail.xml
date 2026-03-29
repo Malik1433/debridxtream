@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/gradient_hero_backdrop"
+    android:background="@drawable/bg_mesh_gradient_lumina"
+    android:paddingStart="24dp"
     android:clipChildren="false"
     android:clipToPadding="false">
 
@@ -25,7 +26,7 @@
         android:id="@+id/view_backdrop_overlay"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="@drawable/gradient_poster_overlay"
+        android:background="@drawable/vignette_lumina"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -47,51 +48,7 @@
         android:orientation="horizontal"
         app:layout_constraintGuide_begin="48dp" />
 
-    <!-- Tab / Segmented Control -->
-    <LinearLayout
-        android:id="@+id/tab_button_group"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@drawable/bg_toggle_group"
-        android:orientation="horizontal"
-        android:padding="4dp"
-        app:layout_constraintStart_toStartOf="@id/guideline_left"
-        app:layout_constraintTop_toTopOf="@id/guideline_top">
 
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btn_tab_details"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:background="@drawable/bg_tab_button_selector"
-            android:focusable="true"
-            android:focusableInTouchMode="true"
-            android:minWidth="100dp"
-            android:nextFocusRight="@id/btn_tab_trailer"
-            android:nextFocusDown="@id/btn_watch_now"
-            android:text="Details"
-            android:textAllCaps="false"
-            android:textColor="@color/tab_button_text_selector"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btn_tab_trailer"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_tab_button_selector"
-            android:focusable="true"
-            android:focusableInTouchMode="true"
-            android:minWidth="100dp"
-            android:nextFocusLeft="@id/btn_tab_details"
-            android:nextFocusDown="@id/btn_watch_now"
-            android:text="Trailer"
-            android:textAllCaps="false"
-            android:textColor="@color/tab_button_text_selector"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
-    </LinearLayout>
 
     <!-- Main Content Container -->
     <FrameLayout
@@ -104,7 +61,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="@id/guideline_left"
-        app:layout_constraintTop_toBottomOf="@id/tab_button_group">
+        app:layout_constraintTop_toTopOf="@id/guideline_top">
 
         <!-- DETAILS VIEW (Left + Right Columns) -->
         <LinearLayout
@@ -132,13 +89,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Movie Title"
-                        android:textColor="@color/ds_text_primary"
-                        android:textSize="38sp"
-                        android:textStyle="bold"
-                        android:shadowColor="#80000000"
-                        android:shadowDx="2"
-                        android:shadowDy="2"
-                        android:shadowRadius="4" />
+                        android:textColor="@color/white"
+                        android:textSize="48sp"
+                        android:fontFamily="@font/inter_extrabold"
+                        android:textStyle="normal"
+                        android:shadowColor="#4D00E5FF"
+                        android:shadowRadius="16"
+                        android:shadowDx="0"
+                        android:shadowDy="0" />
 
                     <!-- Metadata Row -->
                     <LinearLayout
@@ -153,14 +111,15 @@
                             android:id="@+id/tv_genre_year"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:background="@drawable/bg_badge_chip"
-                            android:paddingStart="8dp"
-                            android:paddingTop="4dp"
-                            android:paddingEnd="8dp"
-                            android:paddingBottom="4dp"
+                            android:background="@drawable/bg_glass_neon_lumina"
+                            android:paddingStart="12dp"
+                            android:paddingTop="6dp"
+                            android:paddingEnd="12dp"
+                            android:paddingBottom="6dp"
                             android:text="2024"
-                            android:textColor="@color/ds_text_secondary"
+                            android:textColor="@color/white"
                             android:textSize="13sp"
+                            android:fontFamily="@font/inter"
                             android:textStyle="bold" />
 
                         <Space
@@ -171,13 +130,14 @@
                             android:id="@+id/tv_duration"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:background="@drawable/bg_badge_chip"
-                            android:paddingStart="8dp"
-                            android:paddingTop="4dp"
-                            android:paddingEnd="8dp"
-                            android:paddingBottom="4dp"
+                            android:background="@drawable/bg_glass_neon_lumina"
+                            android:paddingStart="12dp"
+                            android:paddingTop="6dp"
+                            android:paddingEnd="12dp"
+                            android:paddingBottom="6dp"
                             android:text="1h 45m"
-                            android:textColor="@color/ds_text_secondary"
+                            android:textColor="@color/white"
+                            android:fontFamily="@font/inter"
                             android:textSize="13sp"
                             android:textStyle="bold" />
 
@@ -188,19 +148,20 @@
                         <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:background="@drawable/bg_badge_chip"
+                            android:background="@drawable/bg_glass_neon_lumina"
                             android:gravity="center_vertical"
-                            android:paddingStart="8dp"
-                            android:paddingTop="4dp"
-                            android:paddingEnd="8dp"
-                            android:paddingBottom="4dp">
+                            android:paddingStart="12dp"
+                            android:paddingTop="6dp"
+                            android:paddingEnd="12dp"
+                            android:paddingBottom="6dp">
                             
                             <TextView
                                 android:id="@+id/tv_rating_percentage"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="7.5"
-                                android:textColor="@color/ds_accent_gold"
+                                android:fontFamily="@font/inter"
+                                android:textColor="#00E5FF"
                                 android:textSize="13sp"
                                 android:textStyle="bold" />
 
@@ -210,7 +171,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginStart="4dp"
                                 android:text="★"
-                                android:textColor="@color/ds_accent_gold"
+                                android:textColor="#00E5FF"
                                 android:textSize="12sp" />
                         </LinearLayout>
 
@@ -224,7 +185,8 @@
                         android:layout_marginTop="20dp"
                         android:lineSpacingMultiplier="1.4"
                         android:text="Movie description goes here..."
-                        android:textColor="@color/ds_text_secondary"
+                        android:fontFamily="@font/inter"
+                        android:textColor="@color/glass_text_secondary"
                         android:textSize="16sp"
                         android:maxLines="6"
                         android:ellipsize="end" />
@@ -268,70 +230,7 @@
                         tools:visibility="visible" />
 
 
-                    <!-- Actions Row -->
-                    <LinearLayout
-                        android:id="@+id/layout_actions"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="24dp"
-                        android:orientation="horizontal">
 
-                        <Button
-                            android:id="@+id/btn_watch_now"
-                            android:layout_width="0dp"
-                            android:layout_height="44dp"
-                            android:layout_weight="1"
-                            android:background="@drawable/button_primary_red"
-                            android:drawableStart="@android:drawable/ic_media_play"
-                            android:drawablePadding="8dp"
-                            android:drawableTint="@color/white"
-                            android:text="@string/movie_detail_watch_now"
-                            android:textColor="@color/white"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textAllCaps="false"
-                            android:focusable="true"
-                            android:nextFocusRight="@id/btn_watch_trailer" />
-
-                        <Space
-                            android:layout_width="12dp"
-                            android:layout_height="match_parent" />
-
-                        <Button
-                            android:id="@+id/btn_watch_trailer"
-                            android:layout_width="0dp"
-                            android:layout_height="44dp"
-                            android:layout_weight="1"
-                            android:background="@drawable/button_secondary_white_outline"
-                            android:drawableStart="@android:drawable/ic_menu_slideshow"
-                            android:drawablePadding="8dp"
-                            android:drawableTint="@color/ds_accent_gold"
-                            android:text="Watch Trailer"
-                            android:textColor="@color/ds_text_primary"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textAllCaps="false"
-                            android:focusable="true"
-                            android:nextFocusLeft="@id/btn_watch_now"
-                            android:nextFocusRight="@id/btn_add_favorite" />
-
-                        <Space
-                            android:layout_width="12dp"
-                            android:layout_height="match_parent" />
-
-                        <Button
-                            android:id="@+id/btn_add_favorite"
-                            android:layout_width="44dp"
-                            android:layout_height="44dp"
-                            android:background="@drawable/button_secondary_white_outline"
-                            android:drawableStart="@drawable/ic_favorite_border"
-                            android:drawableTint="@color/ds_text_primary"
-                            android:paddingStart="12dp"
-                            android:paddingEnd="0dp"
-                            android:focusable="true"
-                            android:nextFocusLeft="@id/btn_watch_trailer" />
-
-                    </LinearLayout>
 
                 </LinearLayout>
             </ScrollView>
@@ -352,7 +251,7 @@
                     android:id="@+id/layout_source_filters"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="24dp"
                     android:orientation="vertical"
                     android:visibility="visible">
 
@@ -362,7 +261,8 @@
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="8dp"
                         android:text="@string/movie_detail_sources_header"
-                        android:textColor="@color/ds_text_primary"
+                        android:textColor="@color/white"
+                        android:fontFamily="@font/inter"
                         android:textSize="18sp"
                         android:textStyle="bold" />
 
@@ -370,6 +270,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
+                        android:clipChildren="false"
+                        android:clipToPadding="false"
                         android:gravity="center_vertical">
                         
                         <TextView
@@ -379,34 +281,26 @@
                             android:background="@drawable/bg_tab_button_selector"
                             android:focusable="true"
                             android:focusableInTouchMode="true"
+                            android:layout_marginEnd="16dp"
                             android:paddingStart="12dp"
                             android:paddingEnd="12dp"
                             android:paddingTop="6dp"
                             android:paddingBottom="6dp"
                             android:text="@string/source_filter_cached_only"
                             android:textColor="@color/tab_button_text_selector"
-                            android:textSize="12sp"
-                            android:nextFocusDown="@id/rv_sources"
-                            android:nextFocusLeft="@id/btn_add_favorite" />
+                            android:textSize="12sp" />
 
                         <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/rv_size_filters"
+                            android:id="@+id/rv_language_filters"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
                             android:orientation="horizontal"
-                            tools:itemCount="3"
-                            tools:listitem="@layout/item_filter_chip" />
-                    </LinearLayout>
+                            android:clipChildren="false"
+                            android:clipToPadding="false"
+                            tools:itemCount="4"
+                            tools:listitem="@layout/item_language_chip" />
 
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/rv_language_filters"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal"
-                        tools:itemCount="4"
-                        tools:listitem="@layout/item_language_chip" />
+                    </LinearLayout>
 
                 </LinearLayout>
 
@@ -429,8 +323,7 @@
                     android:clipToPadding="false"
                     android:paddingBottom="24dp"
                     android:scrollbars="vertical"
-                    android:fadeScrollbars="true"
-                    android:nextFocusLeft="@id/btn_watch_now" />
+                    android:fadeScrollbars="true" />
 
             </LinearLayout>
 

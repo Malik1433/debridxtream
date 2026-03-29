@@ -6,6 +6,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.databinding.ItemLanguageChipBinding
+import com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper
 
 class LanguageFilterAdapter(
     private val onLanguageSelected: (String) -> Unit
@@ -46,14 +47,23 @@ class LanguageFilterAdapter(
                 onLanguageSelected(language)
             }
             
-            binding.root.setOnFocusChangeListener { _, hasFocus ->
-                binding.root.isSelected = hasFocus || isSelected
+            // Setup the focus listener via the helper to prevent overwriting/nesting
+            com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.updateListener(binding.root) { _, hasFocus ->
+                // Focus state is automatically handled by the view system and the selector drawable.
+            }
+
+            // Reset focus state before binding to prevent recycled highlights
+            com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.forceReset(binding.root)
+            
+            // If the view already has focus (e.g. after a data refresh), ensure effects are active
+            if (binding.root.isFocused) {
+                com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attach(binding.root)
             }
         }
 
         private fun getLanguageLabel(code: String): String {
-             val flag = getFlagEmoji(code)
-             return "$flag ${code.uppercase()}"
+            val flag = getFlagEmoji(code)
+            return "$flag ${code.uppercase()}"
         }
 
         private fun getFlagEmoji(languageCode: String): String {
@@ -77,6 +87,16 @@ class LanguageFilterAdapter(
                 else -> "🌍"
             }
         }
+    }
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attachScrollReset(recyclerView)
+    }
+
+    override fun onViewRecycled(holder: LanguageViewHolder) {
+        super.onViewRecycled(holder)
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.forceReset(holder.itemView)
     }
 
     companion object {

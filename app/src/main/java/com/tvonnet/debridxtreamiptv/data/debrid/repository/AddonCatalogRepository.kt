@@ -6,6 +6,7 @@ import com.tvonnet.debridxtreamiptv.data.Result.Success
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonDefinition
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonStream
 import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridRowConfig
+import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbGenre
 import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbImageUrl
 import com.tvonnet.debridxtreamiptv.data.debrid.source.AddonRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
@@ -176,10 +177,11 @@ class AddonCatalogRepository @Inject constructor(
         originalLanguage: String? = null,
         watchProviders: String? = null,
         watchRegion: String? = "US",
-        releaseDateGte: String? = null
+        releaseDateGte: String? = null,
+        withGenres: String? = null
     ): Result<List<CatalogItem>> {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        
+
         return if (type == "movie") {
             when (val result = tmdbRemote.discoverMovies(
                 sortBy = sortBy,
@@ -188,7 +190,8 @@ class AddonCatalogRepository @Inject constructor(
                 withWatchProviders = watchProviders,
                 watchRegion = watchRegion,
                 releaseDateLte = today,
-                releaseDateGte = releaseDateGte
+                releaseDateGte = releaseDateGte,
+                withGenres = withGenres
             )) {
                 is Success -> {
                      val items = result.data.results?.mapNotNull { movie ->
@@ -217,7 +220,8 @@ class AddonCatalogRepository @Inject constructor(
                 withWatchProviders = watchProviders,
                 watchRegion = watchRegion,
                 firstAirDateLte = today,
-                firstAirDateGte = releaseDateGte
+                firstAirDateGte = releaseDateGte,
+                withGenres = withGenres
             )) {
                 is Success -> {
                     val items = result.data.results?.mapNotNull { show ->
@@ -238,6 +242,30 @@ class AddonCatalogRepository @Inject constructor(
                 is Error -> result
                 else -> Error(Exception("Unknown error"))
             }
+        }
+    }
+
+    /**
+     * Fetches the list of official genres for movies from TMDB.
+     * @return A Result containing a list of TmdbGenre items.
+     */
+    suspend fun getMovieGenres(): Result<List<TmdbGenre>> {
+        return when (val result = tmdbRemote.getMovieGenres()) {
+            is Success -> Success(result.data.genres ?: emptyList())
+            is Error -> result
+            else -> Error(Exception("Unknown error"))
+        }
+    }
+
+    /**
+     * Fetches the list of official genres for TV shows from TMDB.
+     * @return A Result containing a list of TmdbGenre items.
+     */
+    suspend fun getTvGenres(): Result<List<TmdbGenre>> {
+        return when (val result = tmdbRemote.getTvGenres()) {
+            is Success -> Success(result.data.genres ?: emptyList())
+            is Error -> result
+            else -> Error(Exception("Unknown error"))
         }
     }
 
