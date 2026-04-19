@@ -153,7 +153,7 @@ class EpgSyncWorker @AssistedInject constructor(
     
     /**
      * Week 14: Save last sync time to SharedPreferences
-     * Used by EpgSettingsFragment to display last sync time
+     * Used by SettingsFragmentNew to display last sync time
      */
     private fun saveLastSyncTime() {
         try {

@@ -4,6 +4,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.Animation
+import android.view.animation.TranslateAnimation
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.ImageView
@@ -50,9 +52,8 @@ class SeriesFragment : Fragment() {
     private lateinit var tvCategoryTitle: TextView
     private lateinit var ivBackgroundBackdrop: ImageView
     private var llEmptyState: LinearLayout? = null
-    private var llLoadingState: LinearLayout? = null
+    private var llLoadingState: ViewGroup? = null
     private var tvEmptyMessage: TextView? = null
-    private var tvLoadingMessage: TextView? = null
 
     // Tracks ViewModel-driven loading to prevent "No series" flicker on category switch
     private var isSeriesLoadingFromViewModel: Boolean = false
@@ -72,6 +73,7 @@ class SeriesFragment : Fragment() {
     private var restoreCategoryId: String? = null
     private var restoreSeriesId: String? = null
     private var restoreFocusTarget: FocusTarget = FocusTarget.SERIES
+    private var globalFocusChangeListener: android.view.ViewTreeObserver.OnGlobalFocusChangeListener? = null
 
     // Paging adapter for series (Week 13: Added favorite indicators)
     private val seriesPagingAdapter by lazy {
@@ -134,6 +136,8 @@ class SeriesFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
+        com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.saveFocus(requireView())
+        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("SERIES_RESTORE")
 
         restoreCategoryPosition = lastFocusedCategoryPosition
         restoreSeriesPosition = lastFocusedSeriesPosition
@@ -163,7 +167,6 @@ class SeriesFragment : Fragment() {
         llEmptyState = view.findViewById(R.id.ll_empty_state)
         llLoadingState = view.findViewById(R.id.ll_loading_state)
         tvEmptyMessage = view.findViewById(R.id.tv_empty_message)
-        tvLoadingMessage = view.findViewById(R.id.tv_loading_message)
     }
 
     private fun setupRecyclerViews() {
@@ -176,6 +179,10 @@ class SeriesFragment : Fragment() {
         
         rvSeriesGrid.adapter = seriesPagingAdapter
         // RecyclerViewAnimations.applySpringAnimation(rvSeriesGrid)
+        
+        // Null Animators: Prevent focus jitter during updates
+        rvSeriesGrid.itemAnimator = null
+        rvCategoriesSidebar.itemAnimator = null
 
         // Setup Sidebar (temporarily empty or managed by observing categories)
         rvCategoriesSidebar.layoutManager = LinearLayoutManager(requireContext())
@@ -199,40 +206,18 @@ class SeriesFragment : Fragment() {
             }
         })
         
-        // Track focus globally to expand/collapse the sidebar smoothly
-        rvCategoriesSidebar.viewTreeObserver.addOnGlobalFocusChangeListener { oldFocus, newFocus ->
-            if (!isAdded) return@addOnGlobalFocusChangeListener
-            
-            var view: View? = newFocus
-            var isInsideSidebar = false
-            while (view != null) {
-                if (view == rvCategoriesSidebar) {
-                    isInsideSidebar = true
-                    break
-                }
-                view = view.parent as? View
-            }
-            
-            val targetWidthDp = if (isInsideSidebar) 260f else 80f
-            val targetWidthPx = android.util.TypedValue.applyDimension(
-                android.util.TypedValue.COMPLEX_UNIT_DIP, targetWidthDp, resources.displayMetrics
-            ).toInt()
-            
-            val sidebarContainer = requireView().findViewById<View>(R.id.ll_series_sidebar_container)
-            if (sidebarContainer != null && sidebarContainer.layoutParams.width != targetWidthPx) {
-                val animator = android.animation.ValueAnimator.ofInt(sidebarContainer.width, targetWidthPx)
-                animator.addUpdateListener { anim ->
-                    val layoutParams = sidebarContainer.layoutParams
-                    layoutParams.width = anim.animatedValue as Int
-                    sidebarContainer.layoutParams = layoutParams
-                }
-                animator.duration = 150
-                animator.interpolator = android.view.animation.DecelerateInterpolator()
-                animator.start()
-                
-                val titleText = sidebarContainer.findViewById<View>(R.id.ll_sidebar_title_area)
-                titleText?.animate()?.alpha(if (isInsideSidebar) 1f else 0f)?.setDuration(150)?.start()
-            }
+        // sidebarContainer is ll_series_sidebar_container
+        // focusTrigger is rvCategoriesSidebar
+        // titleArea is ll_sidebar_title_area
+        val sidebarContainer = requireView().findViewById<View>(R.id.ll_series_sidebar_container)
+        val titleArea = requireView().findViewById<View>(R.id.ll_sidebar_title_area)
+        
+        if (sidebarContainer != null) {
+            com.tvonnet.debridxtreamiptv.utils.SidebarFocusHelper.attachStandardSidebarAnimation(
+                sidebarContainer = sidebarContainer,
+                focusTrigger = rvCategoriesSidebar,
+                titleArea = titleArea
+            )
         }
 
         rvSeriesGrid.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
@@ -240,25 +225,12 @@ class SeriesFragment : Fragment() {
                 val previousListener = view.onFocusChangeListener
                 view.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
                     previousListener?.onFocusChange(v, hasFocus)
-                    
-                    val tvTitle = v.findViewById<TextView>(R.id.tv_series_title)
-                    val llRating = v.findViewById<View>(R.id.ll_rating_container)
 
                     if (hasFocus) {
+                        v.z = 20f // Ensure cinematic card is topmost
                         lastFocusTarget = FocusTarget.SERIES
                         lastFocusedSeriesId = (v.getTag(R.id.tag_series_id) as? String)
-
-                        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attach(v)
-
-                        tvTitle?.animate()?.scaleX(1.05f)?.scaleY(1.05f)?.setDuration(200)?.start()
-                        tvTitle?.setShadowLayer(15f, 0f, 0f, android.graphics.Color.parseColor("#4000D4FF"))
-                        tvTitle?.isSelected = true
-
-                        llRating?.startAnimation(android.view.animation.AlphaAnimation(1f, 0.6f).apply {
-                            duration = 800
-                            repeatMode = android.view.animation.Animation.REVERSE
-                            repeatCount = android.view.animation.Animation.INFINITE
-                        })
+                        lastFocusedSeriesPosition = rvSeriesGrid.getChildAdapterPosition(v)
 
                         // Update backdrop on focus
                         val position = lastFocusedSeriesPosition
@@ -273,26 +245,78 @@ class SeriesFragment : Fragment() {
                             }
                         }
                     } else {
-                        tvTitle?.animate()?.scaleX(1.0f)?.scaleY(1.0f)?.setDuration(200)?.start()
-                        tvTitle?.setShadowLayer(0f, 0f, 0f, android.graphics.Color.TRANSPARENT)
-                        tvTitle?.isSelected = false
-
-                        llRating?.clearAnimation()
-                        llRating?.alpha = 1f
-                    }
-                }
+                        v.z = 0f
+                    }                }
             }
 
             override fun onChildViewDetachedFromWindow(view: View) {
-                // Do not nullify, let the adapter manage its own listeners if it has any, otherwise it's fine.
+                // Do not nullify, let the adapter manage its own listeners
             }
         })
+
+        // ── D-pad Navigation Guards ────────────────────────────────────────
+        // Prevent DPAD_UP on first row from jumping to the header/toolbar.
+        // Prevent DPAD_LEFT on first column from staying stuck.
+        val gridColumns = (rvSeriesGrid.layoutManager as? GridLayoutManager)?.spanCount ?: 4
+        rvSeriesGrid.setOnKeyListener { _, keyCode, event ->
+            if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+
+            val focused = rvSeriesGrid.findFocus() ?: return@setOnKeyListener false
+            val holder = rvSeriesGrid.findContainingViewHolder(focused) ?: return@setOnKeyListener false
+            val position = holder.bindingAdapterPosition
+
+            when (keyCode) {
+                // Block UP escape from first row
+                android.view.KeyEvent.KEYCODE_DPAD_UP -> {
+                    position < gridColumns  // true = consume, false = allow
+                }
+                // LEFT on first column → move to sidebar
+                android.view.KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    if (position % gridColumns == 0) {
+                        rvCategoriesSidebar.post {
+                            rvCategoriesSidebar.post {
+                                rvCategoriesSidebar.requestFocus()
+                            }
+                        }
+                        true
+                    } else false
+                }
+                else -> false
+            }
+        }
+
+        // Sidebar: block LEFT escape, RIGHT → grid
+        rvCategoriesSidebar.setOnKeyListener { _, keyCode, event ->
+            if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            when (keyCode) {
+                android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    rvSeriesGrid.post {
+                        rvSeriesGrid.post {
+                            rvSeriesGrid.requestFocus()
+                        }
+                    }
+                    true
+                }
+                android.view.KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    true  // Block escaping left out of the sidebar
+                }
+                else -> false
+            }
+        }
         
         // Listen to load states for empty view handling
         seriesPagingAdapter.addLoadStateListener { loadState ->
             lastLoadStates = loadState
             updateListLoadingAndEmptyStates(loadState)
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        globalFocusChangeListener?.let {
+            rvCategoriesSidebar.viewTreeObserver.removeOnGlobalFocusChangeListener(it)
+        }
+        globalFocusChangeListener = null
     }
 
     private fun setupObservers() {
@@ -342,9 +366,9 @@ class SeriesFragment : Fragment() {
                 }
 
                 // Prevent empty flicker while series are being fetched for a category
-                if (isSeriesLoadingFromViewModel != state.isLoadingSeries) {
+                if (isSeriesLoadingFromViewModel != state.isLoadingSeries || state.isSwitchingCategory) {
                     isSeriesLoadingFromViewModel = state.isLoadingSeries
-                    lastLoadStates?.let { updateListLoadingAndEmptyStates(it) }
+                    lastLoadStates?.let { updateListLoadingAndEmptyStates(it, state.isSwitchingCategory) }
                 }
 
                 // Extra guard: if load states aren't available yet, never show empty while VM says loading.
@@ -366,7 +390,7 @@ class SeriesFragment : Fragment() {
         return listOf(favorites) + filtered
     }
 
-    private fun updateListLoadingAndEmptyStates(loadState: CombinedLoadStates) {
+    private fun updateListLoadingAndEmptyStates(loadState: CombinedLoadStates, isSwitching: Boolean = false) {
         val itemCount = seriesPagingAdapter.itemCount
 
         val isPagingRefreshLoading =
@@ -374,14 +398,16 @@ class SeriesFragment : Fragment() {
                 loadState.source.refresh is LoadState.Loading ||
                 loadState.mediator?.refresh is LoadState.Loading
 
-        // Show loading overlay while switching categories or initial refresh with no items yet.
-        val shouldShowLoading = (isSeriesLoadingFromViewModel || isPagingRefreshLoading) && itemCount == 0
-        showLoadingState(shouldShowLoading)
+        val shouldShowLoading = (isSeriesLoadingFromViewModel || isPagingRefreshLoading)
+        showLoadingState(shouldShowLoading, itemCount > 0)
 
         // Only show empty state once we are sure refresh finished and VM isn't still loading.
         val isListEmpty =
             !isSeriesLoadingFromViewModel &&
+                !isSwitching && 
                 loadState.refresh is LoadState.NotLoading &&
+                loadState.source.refresh is LoadState.NotLoading &&
+                (loadState.mediator?.refresh == null || loadState.mediator!!.refresh is LoadState.NotLoading) &&
                 itemCount == 0 &&
                 !isPagingRefreshLoading
         showEmptyState(isListEmpty)
@@ -405,51 +431,61 @@ class SeriesFragment : Fragment() {
     private fun restoreFocusIfPossible() {
         if (!pendingRestoreFocus) return
 
-        when (restoreFocusTarget) {
-            FocusTarget.CATEGORIES -> {
-                val count = rvCategoriesSidebar.adapter?.itemCount ?: 0
-                if (count <= 0) return
+        // Use FocusCoordinator to prevent race conditions with other components
+        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("SERIES_RESTORE") {
+            when (restoreFocusTarget) {
+                FocusTarget.CATEGORIES -> {
+                    val count = rvCategoriesSidebar.adapter?.itemCount ?: 0
+                    if (count <= 0) return@requestFocus
 
-                val resolvedPosition = restoreCategoryId
-                    ?.let { id -> currentCategories.indexOfFirst { it.category_id == id }.takeIf { it >= 0 } }
-                    ?: restoreCategoryPosition.takeIf { it != RecyclerView.NO_POSITION }
+                    val resolvedPosition = restoreCategoryId
+                        ?.let { id -> currentCategories.indexOfFirst { it.category_id == id }.takeIf { it >= 0 } }
+                        ?: restoreCategoryPosition.takeIf { it != RecyclerView.NO_POSITION }
 
-                if (resolvedPosition == null) return
-                val position = resolvedPosition.coerceIn(0, count - 1)
+                    if (resolvedPosition == null) return@requestFocus
+                    val position = resolvedPosition.coerceIn(0, count - 1)
 
-                rvCategoriesSidebar.post {
-                    rvCategoriesSidebar.scrollToPosition(position)
-                    (rvCategoriesSidebar.adapter as? CategorySidebarAdapter)?.setSelected(position)
                     rvCategoriesSidebar.post {
-                        val focused =
-                            rvCategoriesSidebar.findViewHolderForAdapterPosition(position)
-                                ?.itemView
-                                ?.requestFocus() == true
-                        if (focused) {
-                            pendingRestoreFocus = false
+                        rvCategoriesSidebar.scrollToPosition(position)
+                        (rvCategoriesSidebar.adapter as? CategorySidebarAdapter)?.setSelected(position)
+                        rvCategoriesSidebar.post {
+                            try {
+                                val focused =
+                                    rvCategoriesSidebar.findViewHolderForAdapterPosition(position)
+                                        ?.itemView
+                                        ?.requestFocus() == true
+                                if (focused) {
+                                    pendingRestoreFocus = false
+                                }
+                            } finally {
+                                com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("SERIES_RESTORE")
+                            }
                         }
                     }
                 }
-            }
 
-            FocusTarget.SERIES -> {
-                val count = seriesPagingAdapter.itemCount
-                if (count <= 0) return
+                FocusTarget.SERIES -> {
+                    val count = seriesPagingAdapter.itemCount
+                    if (count <= 0) return@requestFocus
 
-                // Prefer restoring by stable series_id; fall back to adapter position.
-                val position = resolveSeriesAdapterPosition()
-                    ?.coerceIn(0, count - 1)
-                    ?: return
+                    val position = resolveSeriesAdapterPosition()
+                        ?.coerceIn(0, count - 1)
+                        ?: return@requestFocus
 
-                rvSeriesGrid.post {
-                    rvSeriesGrid.scrollToPosition(position)
                     rvSeriesGrid.post {
-                        val focused =
-                            rvSeriesGrid.findViewHolderForAdapterPosition(position)
-                                ?.itemView
-                                ?.requestFocus() == true
-                        if (focused) {
-                            pendingRestoreFocus = false
+                        rvSeriesGrid.scrollToPosition(position)
+                        rvSeriesGrid.post {
+                            try {
+                                val focused =
+                                    rvSeriesGrid.findViewHolderForAdapterPosition(position)
+                                        ?.itemView
+                                        ?.requestFocus() == true
+                                if (focused) {
+                                    pendingRestoreFocus = false
+                                }
+                            } finally {
+                                com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("SERIES_RESTORE")
+                            }
                         }
                     }
                 }
@@ -470,11 +506,63 @@ class SeriesFragment : Fragment() {
 
     private fun showEmptyState(show: Boolean) {
         llEmptyState?.visibility = if (show) View.VISIBLE else View.GONE
-        rvSeriesGrid.visibility = if (show) View.GONE else View.VISIBLE
+        // Persistent Grid Pattern: Never hide the grid if it has items
+        if (show && seriesPagingAdapter.itemCount == 0) {
+            rvSeriesGrid.visibility = View.GONE
+        } else {
+            rvSeriesGrid.visibility = View.VISIBLE
+        }
     }
 
-    private fun showLoadingState(show: Boolean) {
-        llLoadingState?.visibility = if (show) View.VISIBLE else View.GONE
+    /**
+     * Toggles the shimmer skeleton grid visibility.
+     * Persistent Grid Pattern: If keepContent is true, we show the shimmer as an 
+     * overlay (veil) over the existing content.
+     */
+    private fun showLoadingState(show: Boolean, keepContent: Boolean = false) {
+        val container = llLoadingState ?: return
+        if (show) {
+            container.visibility = View.VISIBLE
+            // If keeping content, dim the original series and show shimmer as a veil
+            if (keepContent) {
+                container.alpha = 0.5f 
+                rvSeriesGrid.alpha = 0.6f
+            } else {
+                container.alpha = 1.0f
+                rvSeriesGrid.alpha = 0f
+                rvSeriesGrid.visibility = View.GONE
+            }
+            startShimmerAnimations(container)
+        } else {
+            stopShimmerAnimations(container)
+            container.visibility = View.GONE
+            rvSeriesGrid.visibility = View.VISIBLE
+            rvSeriesGrid.alpha = 1.0f
+        }
+    }
+
+    private fun startShimmerAnimations(container: ViewGroup) {
+        for (i in 0 until container.childCount) {
+            val shimmer = container.getChildAt(i)?.findViewById<View>(R.id.v_shimmer) ?: continue
+            val anim = TranslateAnimation(
+                Animation.RELATIVE_TO_PARENT, -1.0f,
+                Animation.RELATIVE_TO_PARENT, 1.0f,
+                Animation.RELATIVE_TO_PARENT, 0f,
+                Animation.RELATIVE_TO_PARENT, 0f
+            ).apply {
+                duration = 1200L + (i * 80L)  // Stagger for organic feel
+                repeatCount = Animation.INFINITE
+                repeatMode = Animation.RESTART
+                interpolator = android.view.animation.LinearInterpolator()
+            }
+            shimmer.startAnimation(anim)
+        }
+    }
+
+    private fun stopShimmerAnimations(container: ViewGroup) {
+        for (i in 0 until container.childCount) {
+            container.getChildAt(i)?.findViewById<View>(R.id.v_shimmer)?.clearAnimation()
+        }
     }
 
     private fun onSeriesClick(series: XtreamSeriesInfo, sharedView: View) {

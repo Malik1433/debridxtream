@@ -86,20 +86,17 @@ data class MovieSource(
  * 1. Check CacheManager (Memory → Room → Network)
  * 2. If cache miss, fetch from network
  * 3. Update CacheManager with new data
- * 
- * Note: CacheManager is optional for backward compatibility with manual instantiation
- * TODO Week 8: Refactor all fragments to use Hilt DI and remove optional cacheManager
  */
 @Singleton
 class XtreamRepository @Inject constructor(
     private val context: Context,
-    private val cacheManager: CacheManager? = null,
-    private val favoriteDao: FavoriteDao? = null,
-    private val searchHistoryDao: SearchHistoryDao? = null,
-    private val epgDao: EpgDao? = null,
-    private val vodDao: VodDao? = null, // Phase 1: VOD Database
-    private val seriesDao: SeriesDao? = null, // Phase 1: Series Database
-    private val favoritesCache: FavoritesCache? = null, // Week 12: Performance cache
+    private val cacheManager: CacheManager,
+    private val favoriteDao: FavoriteDao,
+    private val searchHistoryDao: SearchHistoryDao,
+    private val epgDao: EpgDao,
+    private val vodDao: VodDao,
+    private val seriesDao: SeriesDao,
+    private val favoritesCache: FavoritesCache,
     private val memoryManager: MemoryManager
 ) {
     private var apiService: XtreamApiService? = null
@@ -679,13 +676,12 @@ class XtreamRepository @Inject constructor(
                         val streams = response.body().orEmpty()
                         perCategoryVodCache[categoryId] = streams
                         
-                        // Phase 2: Save to Database
+                        // Save to DB
                         try {
                             vodDao?.let { dao ->
                                 val entities = streams.map { it.toVodEntity(categoryId) }
-                                dao.deleteMoviesByCategory(categoryId)
-                                dao.insertMovies(entities)
-                                Log.d(TAG, "Saved ${entities.size} movies to DB for category $categoryId")
+                                dao.replaceMoviesForCategory(categoryId, entities)
+                                Log.d(TAG, "Saved ${entities.size} movies to DB for category $categoryId (Atomic Replace)")
                             }
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to save movies to DB", e)

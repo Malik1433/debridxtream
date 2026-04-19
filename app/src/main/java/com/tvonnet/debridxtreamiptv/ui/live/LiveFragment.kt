@@ -38,7 +38,7 @@ import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.player.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.favorites.FavoritesFragment
 import com.tvonnet.debridxtreamiptv.ui.search.SearchFragment
-import com.tvonnet.debridxtreamiptv.ui.settings.SettingsFragmentNew
+import com.tvonnet.debridxtreamiptv.ui.settings.SettingsFragment
 import com.tvonnet.debridxtreamiptv.util.EpgCache
 import com.tvonnet.debridxtreamiptv.util.FAVORITES_CATEGORY_ID
 import com.tvonnet.debridxtreamiptv.util.GlideUtils
@@ -158,7 +158,13 @@ class LiveFragment : Fragment() {
             onChannelFocused = { stream, position ->
                 stream.stream_id?.let { viewModel.onEvent(LiveEvent.RememberChannelFocus(it, position)) }
             }
-        )
+        ).apply {
+            registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
+                override fun onChanged() = restoreFocusGrid()
+                override fun onItemRangeInserted(p0: Int, p1: Int) = restoreFocusGrid()
+                override fun onItemRangeRemoved(p0: Int, p1: Int) = restoreFocusGrid()
+            })
+        }
     }
     
     // Track if category adapter is already set
@@ -222,6 +228,8 @@ class LiveFragment : Fragment() {
         rvCategories.apply {
             layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
             setHasFixedSize(true)
+            isFocusable = false
+            isFocusableInTouchMode = false
         }
 
         etCategorySearch?.addTextChangedListener(object : TextWatcher {
@@ -236,6 +244,8 @@ class LiveFragment : Fragment() {
         rvChannels.apply {
             layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
             setHasFixedSize(true)
+            isFocusable = false
+            isFocusableInTouchMode = false
             setItemViewCacheSize(40)
             recycledViewPool.setMaxRecycledViews(0, 60)
             adapter = channelPagingAdapter
@@ -248,7 +258,11 @@ class LiveFragment : Fragment() {
             if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    rvChannels.requestFocus()
+                    rvChannels.post {
+                        rvChannels.post {
+                            rvChannels.requestFocus()
+                        }
+                    }
                     return@setOnKeyListener true
                 }
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
@@ -261,27 +275,33 @@ class LiveFragment : Fragment() {
         com.tvonnet.debridxtreamiptv.utils.SpatialNavigationEngine.enforceStrictOrthogonalNavigation(rvChannels)
 
         // TV Focus Guard:
-        // Prevent DPAD_UP from the first channel jumping to the sidebar Back button.
-        // Users should explicitly go LEFT to the sidebar, then UP to reach Back.
+        // 1. Prevent DPAD_UP from the first channel jumping to the sidebar Back button.
+        // 2. Harden DPAD_LEFT to always enter the Sidebar.
         rvChannels.setOnKeyListener { _, keyCode, event ->
             if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-            if (keyCode != KeyEvent.KEYCODE_DPAD_UP) return@setOnKeyListener false
-
-            val focused = rvChannels.findFocus() ?: return@setOnKeyListener false
-            val holder = rvChannels.findContainingViewHolder(focused) ?: return@setOnKeyListener false
-            val position = holder.bindingAdapterPosition
-            if (position == 0) {
-                true
-            } else {
-                false
+            
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP -> {
+                    val focused = rvChannels.findFocus() ?: return@setOnKeyListener false
+                    val holder = rvChannels.findContainingViewHolder(focused) ?: return@setOnKeyListener false
+                    val position = holder.bindingAdapterPosition
+                    position == 0
+                }
+                KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    rvCategories.post {
+                        rvCategories.post {
+                            rvCategories.requestFocus()
+                        }
+                    }
+                    true
+                }
+                else -> false
             }
         }
         
         // Smooth/pro: avoid "re-enter" layout animations on return from fullscreen.
         rvChannels.itemAnimator = null
-        rvCategories.itemAnimator = RecyclerViewAnimations.createDefaultAnimator().also { animator ->
-            (animator as? SimpleItemAnimator)?.supportsChangeAnimations = false
-        }
+        rvCategories.itemAnimator = null
         rvChannels.layoutAnimation = null
         rvCategories.layoutAnimation = null
 
@@ -330,11 +350,7 @@ class LiveFragment : Fragment() {
         if (state.restoreFromFullscreenPending) {
             didRestoreFocusForThisView = false
             blockCategoryFocusForReturnRestore()
-            rvChannels.postDelayed({
-                if (isAdded && categoriesFocusBlockedForRestore && !didRestoreFocusForThisView) {
-                    unblockCategoryFocusAfterRestore()
-                }
-            }, 1200)
+            restoreFocusGrid()
         }
         maybeRestorePreviewFromState(state)
         restoreChannelFocusIfNeeded()
@@ -348,6 +364,7 @@ class LiveFragment : Fragment() {
     override fun onPause() {
         super.onPause()
         com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.saveFocus(requireView())
+        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
     }
     
     override fun onDestroyView() {
@@ -692,7 +709,7 @@ class LiveFragment : Fragment() {
         }
 
         if (categoryAdapterSet) {
-            sidebarCategoryAdapter?.updateSelection(state.selectedCategoryId)
+            sidebarCategoryAdapter?.setSelectedCategory(state.selectedCategoryId)
             sidebarCategoryAdapter?.updateChannelCounts(counts)
         }
     }
@@ -746,19 +763,58 @@ class LiveFragment : Fragment() {
                 val positionById = displayCategories.indexOfFirst { it.category_id == focusCategoryId }
                 val position = if (positionById >= 0) positionById else state.lastFocusedCategoryPosition ?: -1
                 if (position >= 0) {
-                    rvCategories.post {
-                        rvCategories.scrollToPosition(position)
+                    com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("LIVE_GRID") {
                         rvCategories.post {
-                            rvCategories.findViewHolderForAdapterPosition(position)?.itemView?.requestFocus()
-                            didRestoreFocusForThisView = true
+                            rvCategories.scrollToPosition(position)
+                            rvCategories.post {
+                                try {
+                                    rvCategories.findViewHolderForAdapterPosition(position)?.itemView?.requestFocus()
+                                    didRestoreFocusForThisView = true
+                                } finally {
+                                    com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
+                                }
+                            }
                         }
                     }
                     return
                 }
             }
-            rvCategories.post {
-                rvCategories.requestFocus()
-                didRestoreFocusForThisView = true
+            com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("LIVE_GRID") {
+                rvCategories.post {
+                    try {
+                        rvCategories.requestFocus()
+                        didRestoreFocusForThisView = true
+                    } finally {
+                        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun restoreFocusGrid() {
+        if (didRestoreFocusForThisView) return
+        val state = viewModel.uiState.value
+        val position = state.lastFocusedChannelPosition ?: 0
+        val safePosition = minOf(position, channelPagingAdapter.itemCount - 1)
+        
+        if (safePosition >= 0) {
+            com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("LIVE_GRID") {
+                rvChannels.post {
+                    rvChannels.scrollToPosition(safePosition)
+                    rvChannels.post {
+                        try {
+                            val vh = rvChannels.findViewHolderForAdapterPosition(safePosition)
+                            if (vh != null) {
+                                vh.itemView.requestFocus()
+                                didRestoreFocusForThisView = true
+                                unblockCategoryFocusAfterRestore()
+                            }
+                        } finally {
+                            com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
+                        }
+                    }
+                }
             }
         }
     }
@@ -942,8 +998,9 @@ class LiveFragment : Fragment() {
     private fun renderChannelLoadState(loadStates: CombinedLoadStates) {
         when (loadStates.refresh) {
             is LoadState.Loading -> {
-                val keepContent = channelPagingAdapter.itemCount > 0
-                showLoading(getString(R.string.live_loading_channels), keepChannelsVisible = keepContent)
+                // Always keep existing channels visible during loading to preserve focus.
+                // The loading overlay will appear on top.
+                showLoading(getString(R.string.live_loading_channels), keepChannelsVisible = true)
             }
 
             is LoadState.Error -> {
@@ -1151,7 +1208,7 @@ class LiveFragment : Fragment() {
 
     private fun openSettingsScreen() {
         if (!isAdded) return
-        navigateToFragment(SettingsFragmentNew())
+        navigateToFragment(SettingsFragment())
     }
 
     private fun openFavoritesScreen() {

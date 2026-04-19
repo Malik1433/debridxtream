@@ -18,7 +18,7 @@ import com.tvonnet.debridxtreamiptv.util.GlobalConfig
 import com.tvonnet.debridxtreamiptv.ui.live.LiveFragment
 import com.tvonnet.debridxtreamiptv.ui.vod.VodFragment
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesFragment
-import com.tvonnet.debridxtreamiptv.ui.settings.SettingsFragmentNew
+
 import com.tvonnet.debridxtreamiptv.ui.search.SearchFragment
 import com.tvonnet.debridxtreamiptv.util.VoiceSearchManager
 import com.tvonnet.debridxtreamiptv.util.VoiceSearchState

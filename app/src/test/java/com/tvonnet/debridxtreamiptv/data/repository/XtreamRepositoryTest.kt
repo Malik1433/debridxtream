@@ -64,7 +64,21 @@ class XtreamRepositoryTest {
         every { anyConstructed<CacheHelper>().writeCache(any()) } just Runs
         
         val memoryManager = mockk<com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager>(relaxed = true)
-        repository = XtreamRepository(context, memoryManager = memoryManager)
+        val cacheManager = mockk<com.tvonnet.debridxtreamiptv.data.cache.CacheManager>(relaxed = true)
+        coEvery { cacheManager.getChannels(any(), any()) } returns null
+        coEvery { cacheManager.getCategories(any()) } returns null
+        
+        repository = XtreamRepository(
+            context = context,
+            cacheManager = cacheManager,
+            favoriteDao = mockk(relaxed = true),
+            searchHistoryDao = mockk(relaxed = true),
+            epgDao = mockk(relaxed = true),
+            vodDao = mockk(relaxed = true),
+            seriesDao = mockk(relaxed = true),
+            favoritesCache = mockk(relaxed = true),
+            memoryManager = mockk(relaxed = true)
+        )
     }
     
     @After

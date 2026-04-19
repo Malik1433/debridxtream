@@ -508,7 +508,11 @@ class SeriesDetailActivity : AppCompatActivity() {
             val initialKey = selectedSeasonKey ?: seasonItems.first().key
             selectedSeasonKey = initialKey
             showEpisodesForSeason(initialKey)
-            rvSeasons.post { rvSeasons.requestFocus() }
+            rvSeasons.post {
+                rvSeasons.post {
+                    rvSeasons.requestFocus()
+                }
+            }
         } else {
             showEpisodes(emptyList())
         }

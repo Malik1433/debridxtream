@@ -25,9 +25,28 @@ class FilterChipAdapter<T : Any>(
 
     private var selectedId: String? = null
 
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        return idProvider(getItem(position)).hashCode().toLong()
+    }
+
     fun updateSelection(option: T?) {
-        selectedId = option?.let(idProvider)
-        notifyDataSetChanged()
+        val oldId = selectedId
+        val newId = option?.let(idProvider)
+        if (oldId == newId) return
+        
+        selectedId = newId
+        
+        for (i in 0 until itemCount) {
+            val item = getItem(i)
+            val itemId = idProvider(item)
+            if (itemId == oldId || itemId == newId) {
+                notifyItemChanged(i)
+            }
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FilterChipViewHolder {
@@ -41,6 +60,11 @@ class FilterChipAdapter<T : Any>(
 
     override fun onBindViewHolder(holder: FilterChipViewHolder, position: Int) {
         holder.bind(getItem(position))
+    }
+
+    override fun onViewRecycled(holder: FilterChipViewHolder) {
+        super.onViewRecycled(holder)
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.forceReset(holder.itemView)
     }
 
     inner class FilterChipViewHolder(

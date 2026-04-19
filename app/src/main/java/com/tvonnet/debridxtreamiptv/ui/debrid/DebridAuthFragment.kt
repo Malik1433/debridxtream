@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.utils.FocusCoordinator
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -51,6 +52,18 @@ class DebridAuthFragment : Fragment() {
         
         initializeViews(view)
         observeViewModel()
+
+        // Phase 1: Initial focus fix for "dead UI"
+        FocusCoordinator.requestFocus("DEBRID_AUTH") {
+            btnStartAuth.post {
+                btnStartAuth.post {
+                    if (isAdded && !isDetached) {
+                        btnStartAuth.requestFocus()
+                    }
+                    FocusCoordinator.release("DEBRID_AUTH")
+                }
+            }
+        }
     }
     
     private fun initializeViews(view: View) {

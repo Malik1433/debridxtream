@@ -33,7 +33,12 @@ object FocusMemoryManager {
         if (savedId != null) {
             val targetView = container.findViewById<View>(savedId)
             if (targetView != null && targetView.isFocusable) {
-                targetView.requestFocus()
+                // Double-post pattern for rock-solid TV focus restoration
+            targetView.post {
+                targetView.post {
+                    targetView.requestFocus()
+                }
+            }
                 return true
             }
         }

@@ -39,6 +39,7 @@ data class SeriesUiState(
     val series: List<XtreamSeriesInfo> = emptyList(),
     val isLoadingCategories: Boolean = false,
     val isLoadingSeries: Boolean = false,
+    val isSwitchingCategory: Boolean = false, // New: track transition period
     val error: String? = null,
     val categoryStatus: SeriesCategoryStatus? = null,
     val searchQuery: String = "",
@@ -165,6 +166,7 @@ class SeriesViewModel @Inject constructor(
                     it.copy(
                         selectedCategoryId = categoryId,
                         isLoadingSeries = true,
+                        isSwitchingCategory = true, // Track transition start
                         error = null
                     )
                 }
@@ -173,7 +175,12 @@ class SeriesViewModel @Inject constructor(
                 _selectedCategoryFlow.value = categoryId
                 
                 if (categoryId == FAVORITES_CATEGORY_ID) {
-                    _uiState.update { it.copy(isLoadingSeries = false) }
+                    _uiState.update { 
+                        it.copy(
+                            isLoadingSeries = false,
+                            isSwitchingCategory = false 
+                        ) 
+                    }
                 } else {
                     // Fetch series from repository (lazy loading / sync)
                     val result = withContext(ioDispatcher) {
@@ -181,16 +188,21 @@ class SeriesViewModel @Inject constructor(
                     }
                     
                     result.onSuccess { 
-                        // Week 14: Add small delay to allow Paging data to propagate from DB to UI
-                        // This prevents the "No series" flicker when switching categories
+                        // Week 14: Clear transition flag after sync + propagation delay
                         kotlinx.coroutines.delay(500)
-                        _uiState.update { it.copy(isLoadingSeries = false) }
+                        _uiState.update { 
+                            it.copy(
+                                isLoadingSeries = false,
+                                isSwitchingCategory = false 
+                            ) 
+                        }
                     }
                     
                     result.onFailure { error ->
                         _uiState.update {
                             it.copy(
                                 isLoadingSeries = false,
+                                isSwitchingCategory = false,
                                 error = error.message ?: "Failed to load series"
                             )
                         }

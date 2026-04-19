@@ -15,6 +15,14 @@ class FeaturedAdapter(
     private val onItemClick: (FeaturedItem) -> Unit
 ) : RecyclerView.Adapter<FeaturedAdapter.FeaturedViewHolder>() {
     
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        return items[position].contentId.hashCode().toLong()
+    }
+    
     fun updateItems(newItems: List<FeaturedItem>) {
         items = newItems
         notifyDataSetChanged()

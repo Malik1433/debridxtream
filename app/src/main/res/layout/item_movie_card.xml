@@ -20,6 +20,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_margin="-20dp"
+        android:alpha="0"
         android:background="@drawable/bg_movie_focus_cyan"
         app:layout_constraintTop_toTopOf="@id/card_container"
         app:layout_constraintBottom_toBottomOf="@id/card_container"
@@ -47,12 +48,6 @@
             android:contentDescription="Movie Poster"
             android:scaleType="centerCrop" />
 
-        <!-- Gradient Overlay (Netflix style bottom fade) -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/gradient_poster_overlay_v3" />
-
         <!-- Top Right Quality Badge (e.g., 4K) -->
         <LinearLayout
             android:id="@+id/ll_quality_badge"
@@ -60,7 +55,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
             android:layout_margin="8dp"
-            android:background="@drawable/bg_glass_badge"
+            android:background="@drawable/bg_badge_quality"
             android:orientation="horizontal"
             android:paddingHorizontal="6dp"
             android:paddingVertical="3dp"
@@ -73,7 +68,7 @@
                 android:text="4K"
                 android:textColor="@android:color/white"
                 android:textSize="10sp"
-                android:fontFamily="sans-serif-condensed"
+                android:fontFamily="@font/plus_jakarta_sans"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -90,14 +85,16 @@
             android:background="@drawable/bg_circle_dark_translucent"
             android:visibility="gone" />
 
-        <!-- Bottom Content -->
+        <!-- Glass Metadata Layer -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
+            android:background="@drawable/bg_glass_card_footer"
             android:orientation="vertical"
-            android:paddingBottom="12dp"
-            android:paddingHorizontal="10dp">
+            android:paddingBottom="10dp"
+            android:paddingHorizontal="10dp"
+            android:paddingTop="8dp">
 
             <TextView
                 android:id="@+id/tv_movie_title"
@@ -107,11 +104,11 @@
                 android:ellipsize="marquee"
                 android:marqueeRepeatLimit="marquee_forever"
                 android:text="Movie Title"
-                android:textColor="#FFFFFF"
-                android:textSize="15sp"
+                android:textColor="@android:color/white"
+                android:textSize="13sp"
+                android:fontFamily="@font/plus_jakarta_sans"
                 android:textStyle="bold"
-                android:letterSpacing="0.03"
-                android:fontFamily="sans-serif-black" />
+                android:letterSpacing="0.01" />
 
             <!-- Metadata Row: Star | Rating | Year | Lang -->
             <LinearLayout
@@ -119,13 +116,13 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginTop="4dp">
+                android:layout_marginTop="3dp">
 
                 <ImageView
-                    android:layout_width="12dp"
-                    android:layout_height="12dp"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
                     android:src="@drawable/ic_favorite" 
-                    app:tint="#FFC107"
+                    app:tint="#FFD700"
                     android:contentDescription="Rating Star"/>
 
                 <TextView
@@ -133,28 +130,28 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="8.9"
-                    android:textColor="#B3FFFFFF"
-                    android:textSize="11sp"
-                    android:fontFamily="sans-serif-condensed-light"
-                    android:layout_marginStart="4dp"/>
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="9sp"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:layout_marginStart="3dp"/>
                 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text=" • "
                     android:textColor="#66FFFFFF"
-                    android:textSize="10sp"
-                    android:layout_marginStart="4dp"/>
+                    android:textSize="9sp"
+                    android:layout_marginStart="3dp"/>
 
                  <TextView
                     android:id="@+id/tv_movie_year"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="2024"
-                    android:textColor="#B3FFFFFF"
-                    android:textSize="11sp"
-                    android:fontFamily="sans-serif-condensed-light"
-                    android:layout_marginStart="4dp"/>
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="9sp"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:layout_marginStart="3dp"/>
 
                 <!-- Extra space before badge -->
                 <Space
@@ -169,12 +166,12 @@
                     android:layout_height="wrap_content"
                     android:text="MULTI"
                     android:textColor="#FFFFFF"
-                    android:textSize="9sp"
+                    android:textSize="8sp"
                     android:textStyle="bold"
-                    android:fontFamily="sans-serif-condensed"
+                    android:fontFamily="@font/plus_jakarta_sans"
                     android:paddingHorizontal="5dp"
                     android:paddingVertical="1dp"
-                    android:background="@drawable/bg_glass_badge"
+                    android:background="@drawable/bg_badge_quality"
                     android:visibility="gone"/>
 
             </LinearLayout>

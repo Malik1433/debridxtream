@@ -26,6 +26,9 @@ class ChannelPagingAdapter(
     private val favoriteChecker: ((String) -> Boolean)? = null, // Week 12: (streamId) -> isFavorite
     private val onChannelFocused: ((XtreamStream, Int) -> Unit)? = null
 ) : PagingDataAdapter<XtreamStream, ChannelPagingViewHolder>(CHANNEL_COMPARATOR) {
+
+// PagingDataAdapter handles stable IDs efficiently via DiffUtil.
+    // Explicit getItemId override is disabled here due to library finality.
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChannelPagingViewHolder {
         val layoutId = when {

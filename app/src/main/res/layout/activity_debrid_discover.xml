@@ -80,7 +80,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center_vertical" />
+                android:gravity="center_vertical"
+                android:nextFocusDown="@id/rv_discover_grid" />
         </HorizontalScrollView>
 
     </LinearLayout>
@@ -113,6 +114,7 @@
     <!-- Content Grid -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_discover_grid"
+        android:nextFocusUp="@id/ll_sort_selector"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:paddingStart="8dp"

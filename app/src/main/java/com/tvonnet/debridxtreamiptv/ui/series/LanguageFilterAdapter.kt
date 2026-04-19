@@ -14,9 +14,27 @@ class LanguageFilterAdapter(
 
     private var selectedLanguage: String? = null
 
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        return getItem(position).hashCode().toLong()
+    }
+
     fun updateSelection(language: String?) {
+        val old = selectedLanguage
+        if (old == language) return
+        
         selectedLanguage = language
-        notifyDataSetChanged()
+        
+        // Find and update affected positions only
+        for (i in 0 until itemCount) {
+            val item = getItem(i)
+            if (item == old || item == language) {
+                notifyItemChanged(i)
+            }
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): LanguageViewHolder {
@@ -30,6 +48,11 @@ class LanguageFilterAdapter(
 
     override fun onBindViewHolder(holder: LanguageViewHolder, position: Int) {
         holder.bind(getItem(position))
+    }
+
+    override fun onViewRecycled(holder: LanguageViewHolder) {
+        super.onViewRecycled(holder)
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.forceReset(holder.itemView)
     }
 
     inner class LanguageViewHolder(
@@ -94,10 +117,6 @@ class LanguageFilterAdapter(
         com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attachScrollReset(recyclerView)
     }
 
-    override fun onViewRecycled(holder: LanguageViewHolder) {
-        super.onViewRecycled(holder)
-        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.forceReset(holder.itemView)
-    }
 
     companion object {
         private val DiffCallback = object : DiffUtil.ItemCallback<String>() {

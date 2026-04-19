@@ -24,7 +24,8 @@
         android:maxLines="1"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        android:nextFocusDown="@id/rv_search_results" />
 
     <!-- Results Grid -->
     <androidx.recyclerview.widget.RecyclerView
@@ -34,6 +35,7 @@
         android:layout_marginTop="8dp"
         android:padding="8dp"
         android:clipToPadding="false"
+        android:nextFocusUp="@id/et_search"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

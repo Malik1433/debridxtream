@@ -100,6 +100,14 @@ class SettingsPreferences(private val context: Context) {
         if (seriesId == null) return -1
         return prefs.getInt(KEY_SERIES_TEXT_INDEX + seriesId, -1)
     }
+
+    fun isSoftwareAudioEnabled(): Boolean {
+        return prefs.getBoolean(KEY_SOFTWARE_AUDIO, true) // Enabled by default to fix missing audio
+    }
+
+    fun saveSoftwareAudioEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SOFTWARE_AUDIO, enabled).apply()
+    }
     
     companion object {
         private const val PREFS_NAME = "iptv_settings"
@@ -110,6 +118,7 @@ class SettingsPreferences(private val context: Context) {
         private const val KEY_SUPPORT_URL = "support_url"
         private const val KEY_PREFERRED_AUDIO = "pref_audio_lang"
         private const val KEY_PREFERRED_SUBTITLE = "pref_subtitle_lang"
+        private const val KEY_SOFTWARE_AUDIO = "software_audio_enabled"
         private const val KEY_LAST_SELECTION_HASH = "last_selection_hash"
         private const val KEY_LAST_AUDIO_INDEX = "last_audio_idx_"
         private const val KEY_LAST_TEXT_INDEX = "last_text_idx_"

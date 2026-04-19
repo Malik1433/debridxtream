@@ -16,6 +16,14 @@ import com.tvonnet.debridxtreamiptv.databinding.ItemCastMemberBinding
  * Adapter for displaying cast members in Movie Detail screen
  */
 class CastAdapter : ListAdapter<TmdbCast, CastAdapter.CastViewHolder>(CastDiffCallback()) {
+    
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        return getItem(position).id?.toLong() ?: RecyclerView.NO_ID
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CastViewHolder {
         val binding = ItemCastMemberBinding.inflate(
@@ -28,6 +36,11 @@ class CastAdapter : ListAdapter<TmdbCast, CastAdapter.CastViewHolder>(CastDiffCa
 
     override fun onBindViewHolder(holder: CastViewHolder, position: Int) {
         holder.bind(getItem(position))
+    }
+
+    override fun onViewRecycled(holder: CastViewHolder) {
+        super.onViewRecycled(holder)
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.forceReset(holder.itemView)
     }
 
     class CastViewHolder(private val binding: ItemCastMemberBinding) :

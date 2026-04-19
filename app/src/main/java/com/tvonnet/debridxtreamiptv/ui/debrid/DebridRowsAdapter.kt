@@ -19,8 +19,19 @@ import com.tvonnet.debridxtreamiptv.R
 class DebridRowsAdapter(
     private val onItemClick: (DebridContentItem) -> Unit,
     private val onItemFocused: (DebridContentItem) -> Unit,
-    private val onRowLoadMore: (String) -> Unit
+    private val onRowLoadMore: (String) -> Unit,
+    private val onLeftBoundary: () -> Unit // Component 2: Return to sidebar callback
 ) : ListAdapter<DebridRow, DebridRowViewHolder>(DebridRowDiffCallback()) {
+    
+    init {
+        setHasStableIds(true)
+        stateRestorationPolicy = StateRestorationPolicy.PREVENT_WHEN_EMPTY
+    }
+
+    override fun getItemId(position: Int): Long {
+        return getItem(position).id.hashCode().toLong()
+    }
+
     
     fun updateRows(newRows: List<DebridRow>) {
         submitList(newRows)
@@ -29,7 +40,7 @@ class DebridRowsAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DebridRowViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_debrid_row, parent, false)
-        return DebridRowViewHolder(view, onItemClick, onItemFocused)
+        return DebridRowViewHolder(view, onItemClick, onItemFocused, onLeftBoundary)
     }
     
     override fun onBindViewHolder(holder: DebridRowViewHolder, position: Int) {
@@ -54,12 +65,13 @@ class DebridRowDiffCallback : DiffUtil.ItemCallback<DebridRow>() {
 class DebridRowViewHolder(
     itemView: View,
     private val onItemClick: (DebridContentItem) -> Unit,
-    private val onItemFocused: (DebridContentItem) -> Unit
+    private val onItemFocused: (DebridContentItem) -> Unit,
+    private val onLeftBoundary: () -> Unit
 ) : RecyclerView.ViewHolder(itemView) {
     
     private val tvRowTitle: TextView = itemView.findViewById(R.id.tv_row_title)
     private val rvRowItems: RecyclerView = itemView.findViewById(R.id.rv_row_items)
-    private val itemsAdapter = DebridItemsAdapter(onItemClick, onItemFocused) { currentLoadMoreCallback?.invoke() }
+    private val itemsAdapter = DebridItemsAdapter(onItemClick, onItemFocused, onLeftBoundary) { currentLoadMoreCallback?.invoke() }
     private var currentLoadMoreCallback: (() -> Unit)? = null
     
     init {
@@ -89,8 +101,21 @@ class DebridRowViewHolder(
 class DebridItemsAdapter(
     private val onItemClick: (DebridContentItem) -> Unit,
     private val onItemFocused: (DebridContentItem) -> Unit,
+    private val onLeftBoundary: () -> Unit,
     private val onPrefetch: () -> Unit
 ) : ListAdapter<DebridContentItem, RecyclerView.ViewHolder>(DebridItemDiffCallback()) {
+    
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        if (canLoadMore && position == super.getItemCount()) {
+            return -1L // Stable ID for the Sentinel/Loading card
+        }
+        return getItem(position).id.hashCode().toLong()
+    }
+
     
     companion object {
         private const val VIEW_TYPE_ITEM = 0
@@ -130,7 +155,7 @@ class DebridItemsAdapter(
             DebridLoadingViewHolder(view)
         } else {
             val view = inflater.inflate(R.layout.item_debrid_content, parent, false)
-            DebridItemViewHolder(view)
+            DebridItemViewHolder(view, onLeftBoundary)
         }
     }
     
@@ -167,7 +192,10 @@ class DebridItemDiffCallback : DiffUtil.ItemCallback<DebridContentItem>() {
 /**
  * ViewHolder for individual content item (poster card)
  */
-class DebridItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+class DebridItemViewHolder(
+    itemView: View,
+    private val onLeftBoundary: () -> Unit
+) : RecyclerView.ViewHolder(itemView) {
     
     private val ivPoster: android.widget.ImageView = itemView.findViewById(R.id.iv_poster)
     private val tvTitle: TextView = itemView.findViewById(R.id.tv_title)
@@ -238,6 +266,17 @@ class DebridItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
                 v.z = 0f
                 glowFocus?.animate()?.alpha(0f)?.setDuration(150)?.start()
             }
+        }
+
+        // Component 2: Hardened Left Boundary Support
+        itemView.setOnKeyListener { _, keyCode, event ->
+            if (event.action == android.view.KeyEvent.ACTION_DOWN && keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (bindingAdapterPosition == 0) {
+                    onLeftBoundary()
+                    return@setOnKeyListener true
+                }
+            }
+            false
         }
     }
 

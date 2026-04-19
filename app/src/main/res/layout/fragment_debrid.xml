@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background_pure_black">
@@ -103,105 +104,44 @@
             android:focusableInTouchMode="true" />
     </LinearLayout>
     
-    <!-- Content Area (Authenticated) -->
-    <androidx.core.widget.NestedScrollView
+    <!-- Focusable Logic Layer: Two-Pane Stremio-Style Layout -->
+    <LinearLayout
         android:id="@+id/content_area"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fillViewport="true"
-        android:visibility="gone">
-        
+        android:orientation="horizontal"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <!-- Permanent Navigation Sidebar -->
+        <include
+            android:id="@+id/debrid_sidebar"
+            layout="@layout/view_debrid_sidebar"
+            android:layout_width="80dp"
+            android:layout_height="match_parent" />
+
+        <!-- Main Content Viewport -->
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:id="@+id/main_viewport"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
             android:orientation="vertical"
-            android:paddingStart="48dp"
-            android:paddingEnd="48dp"
-            android:paddingTop="32dp"
-            android:paddingBottom="48dp">
+            android:paddingStart="32dp"
+            android:paddingEnd="16dp">
 
-            <LinearLayout
-                android:id="@+id/refresh_banner"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@color/ds_background_secondary"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:layout_marginBottom="16dp"
-                android:visibility="gone">
-
-                <ProgressBar
-                    android:id="@+id/refresh_progress"
-                    style="?android:attr/progressBarStyleSmall"
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:indeterminate="true"
-                    android:indeterminateTint="@color/ds_accent_blue"
-                    android:layout_marginEnd="12dp" />
-
-                <TextView
-                    android:id="@+id/refresh_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/text_primary"
-                    android:textSize="16sp" />
-            </LinearLayout>
-            
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="24dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/debrid_section_title"
-                    android:textSize="32sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary" />
-
-                <ImageButton
-                    android:id="@+id/btn_discover_debrid"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@drawable/ic_movie_filter_white_24dp"
-                    app:tint="@color/text_primary"
-                    android:contentDescription="Discover by Category"
-                    android:focusable="true"
-                    android:focusableInTouchMode="true"
-                    android:layout_marginEnd="8dp"
-                    android:nextFocusDown="@id/rv_debrid_rows"/>
-
-                <ImageButton
-                    android:id="@+id/btn_search_debrid"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@drawable/ic_search"
-                    app:tint="@color/text_primary"
-                    android:contentDescription="@string/search_hint"
-                    android:focusable="true"
-                    android:focusableInTouchMode="true" 
-                    android:nextFocusDown="@id/rv_debrid_rows"/>
-
-            </LinearLayout>
-            
             <!-- Rows RecyclerView -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_debrid_rows"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="1"
                 android:clipToPadding="false"
+                android:paddingBottom="48dp"
                 android:focusable="true"
                 android:focusableInTouchMode="true" />
         </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+
+    </LinearLayout>
 </FrameLayout>

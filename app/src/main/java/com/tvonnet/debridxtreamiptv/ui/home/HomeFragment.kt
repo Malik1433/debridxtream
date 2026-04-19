@@ -31,7 +31,7 @@ import com.tvonnet.debridxtreamiptv.ui.live.LiveFragment
 import com.tvonnet.debridxtreamiptv.ui.vod.VodFragment
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesFragment
 import com.tvonnet.debridxtreamiptv.ui.search.SearchFragment
-import com.tvonnet.debridxtreamiptv.ui.settings.SettingsFragmentNew
+
 import com.tvonnet.debridxtreamiptv.player.PlayerActivity
 import com.tvonnet.debridxtreamiptv.util.FocusEffects
 import com.tvonnet.debridxtreamiptv.data.local.entity.FavoriteEntity
@@ -60,6 +60,8 @@ class HomeFragment : Fragment() {
     private lateinit var rvSidebar: RecyclerView
     private lateinit var rvTop10Movies: RecyclerView
     private lateinit var rvTop10Series: RecyclerView
+    private var didRestoreFocusForThisView = false
+    private var lastFocusedPosition = 0
 
     
     // Adapters
@@ -102,6 +104,11 @@ class HomeFragment : Fragment() {
                         (state.top10Movies.firstOrNull() ?: state.top10Series.firstOrNull())?.let { 
                             updateHeroSection(it) 
                         }
+                        
+                        // Robust restoration logic
+                        if (!didRestoreFocusForThisView && state.top10Movies.isNotEmpty()) {
+                            restoreFocusHome()
+                        }
                     }
                 }
             }
@@ -128,7 +135,6 @@ class HomeFragment : Fragment() {
 
         setupRecyclerViews()
     }
-    
     private fun setupRecyclerViews() {
         // Sidebar
         rvSidebar.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
@@ -139,24 +145,41 @@ class HomeFragment : Fragment() {
         
         rvTop10Series.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
         rvTop10Series.setHasFixedSize(true)
-        
 
+        // Null Animators: No-blink/jitter data updates
+        rvSidebar.itemAnimator = null
+        rvTop10Movies.itemAnimator = null
+        rvTop10Series.itemAnimator = null
+    }
+
+    private fun restoreFocusHome() {
+        if (didRestoreFocusForThisView) return
+        
+        // Return focus to Trending Movies by default (most cinematic)
+        rvTop10Movies.post {
+            rvTop10Movies.scrollToPosition(lastFocusedPosition)
+            rvTop10Movies.post {
+                val vh = rvTop10Movies.findViewHolderForAdapterPosition(lastFocusedPosition)
+                if (vh != null) {
+                    vh.itemView.requestFocus()
+                    didRestoreFocusForThisView = true
+                }
+            }
+        }
     }
     
     private fun setupSidebar() {
         val menuItems = listOf(
-            SidebarItem(0, "Search", R.drawable.ic_search),
-            SidebarItem(1, "Home", R.drawable.ic_home),
-            SidebarItem(2, "Live TV", R.drawable.ic_live_tv),
-            SidebarItem(3, "Movies", R.drawable.ic_movie),
-            SidebarItem(4, "Series", R.drawable.ic_series),
-            SidebarItem(5, "Debrid", R.drawable.ic_dns),
-            SidebarItem(6, "Settings", R.drawable.ic_settings)
+            SidebarItem(0, getString(R.string.nav_search), R.drawable.ic_search),
+            SidebarItem(1, getString(R.string.nav_home), R.drawable.ic_home),
+            SidebarItem(2, getString(R.string.nav_live_tv), R.drawable.ic_live_tv),
+            SidebarItem(3, getString(R.string.nav_movies), R.drawable.ic_movie),
+            SidebarItem(4, getString(R.string.nav_series), R.drawable.ic_series),
+            SidebarItem(5, getString(R.string.nav_debrid), R.drawable.ic_dns),
+            SidebarItem(6, getString(R.string.nav_settings), R.drawable.ic_settings)
         )
         
-        sidebarAdapter = SidebarAdapter(menuItems, onFocusChange = { hasFocus ->
-            animateSidebarWidth(hasFocus)
-        }) { position ->
+        sidebarAdapter = SidebarAdapter(menuItems) { position ->
             when (position) {
                 0 -> navigateToSection("search")
                 1 -> { /* Already home */ }
@@ -168,67 +191,12 @@ class HomeFragment : Fragment() {
             }
         }
         rvSidebar.adapter = sidebarAdapter
-    }
-    
-    private fun loadData() {
-        // Initialize Adapters with empty lists first
-        top10MoviesAdapter = Top10Adapter(
-            items = emptyList(),
-            onItemFocused = { item -> updateHeroSection(item) },
-            onItemClick = { item -> onFeaturedItemClick(item) }
+
+        // Week 15 Audit: Standardize Sidebar Focus expansion
+        com.tvonnet.debridxtreamiptv.utils.SidebarFocusHelper.attachStandardSidebarAnimation(
+            sidebarContainer = rvSidebar,
+            focusTrigger = rvSidebar
         )
-        rvTop10Movies.adapter = top10MoviesAdapter
-        
-        top10SeriesAdapter = Top10Adapter(
-            items = emptyList(),
-            onItemFocused = { item -> updateHeroSection(item) },
-            onItemClick = { item -> onFeaturedItemClick(item) }
-        )
-        rvTop10Series.adapter = top10SeriesAdapter
-        
-
-    }
-
-    private var sidebarAnimator: android.animation.ValueAnimator? = null
-    
-    private fun animateSidebarWidth(expand: Boolean) {
-        if (!expand) {
-            // Delay collapse to check if focus moves to another sidebar item
-            rvSidebar.postDelayed({
-                if (!rvSidebar.hasFocus()) {
-                    performSidebarAnimation(false)
-                }
-            }, 100) // 100ms grace period for focus transitions
-        } else {
-            performSidebarAnimation(true)
-        }
-    }
-
-    private fun performSidebarAnimation(expand: Boolean) {
-        val startWidth = rvSidebar.width
-        val endWidth = if (expand) {
-            (240f * resources.displayMetrics.density).toInt()
-        } else {
-            (80f * resources.displayMetrics.density).toInt()
-        }
-        
-        if (startWidth == endWidth) return
-        
-        sidebarAnimator?.cancel()
-        sidebarAnimator = android.animation.ValueAnimator.ofInt(startWidth, endWidth).apply {
-            duration = 300
-            interpolator = android.view.animation.DecelerateInterpolator()
-            addUpdateListener { animator ->
-                val width = animator.animatedValue as Int
-                val params = rvSidebar.layoutParams
-                params.width = width
-                rvSidebar.layoutParams = params
-                
-                // Ensure RV re-layouts its children to fit the new width
-                rvSidebar.requestLayout()
-            }
-            start()
-        }
     }
     
     private fun updateHeroSection(item: FeaturedItem) {
@@ -369,6 +337,20 @@ class HomeFragment : Fragment() {
             posterUrl = absoluteIcon
         )
         startActivity(intent)
+    }
+
+
+    private fun loadData() {
+        // Initialize Adapters with empty lists first
+        top10MoviesAdapter = Top10Adapter(emptyList(), { _, item -> updateHeroSection(item) }) { item ->
+            onFeaturedItemClick(item)
+        }
+        rvTop10Movies.adapter = top10MoviesAdapter
+
+        top10SeriesAdapter = Top10Adapter(emptyList(), { _, item -> updateHeroSection(item) }) { item ->
+            onFeaturedItemClick(item)
+        }
+        rvTop10Series.adapter = top10SeriesAdapter
     }
 
 

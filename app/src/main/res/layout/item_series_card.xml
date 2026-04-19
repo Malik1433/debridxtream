@@ -21,6 +21,7 @@
         android:layout_height="0dp"
         android:layout_margin="-20dp"
         android:background="@drawable/bg_movie_focus_cyan"
+        android:alpha="0"
         app:layout_constraintTop_toTopOf="@id/card_container"
         app:layout_constraintBottom_toBottomOf="@id/card_container"
         app:layout_constraintStart_toStartOf="@id/card_container"
@@ -47,13 +48,6 @@
             android:contentDescription="Series Poster"
             android:scaleType="centerCrop" />
 
-        <!-- Gradient Overlay -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="85dp"
-            android:layout_gravity="bottom"
-            android:background="@drawable/gradient_poster_overlay_v3" />
-
         <!-- Top Right Rating Badge -->
         <LinearLayout
             android:id="@+id/ll_rating_container"
@@ -61,7 +55,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
             android:layout_margin="8dp"
-            android:background="@drawable/bg_glass_badge"
+            android:background="@drawable/bg_badge_quality"
             android:orientation="horizontal"
             android:paddingHorizontal="6dp"
             android:paddingVertical="3dp"
@@ -72,9 +66,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="8.5"
-                android:textColor="@color/ds_accent_gold"
+                android:textColor="#FFD700"
                 android:textSize="11sp"
-                android:fontFamily="sans-serif-condensed"
+                android:fontFamily="@font/plus_jakarta_sans"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -91,13 +85,16 @@
             android:background="@drawable/bg_circle_dark_translucent"
             android:visibility="gone" />
 
-        <!-- Bottom Content -->
+        <!-- Glass Metadata Layer -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
+            android:background="@drawable/bg_glass_card_footer"
             android:orientation="vertical"
-            android:padding="12dp">
+            android:paddingHorizontal="10dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="10dp">
 
             <TextView
                 android:id="@+id/tv_series_title"
@@ -107,21 +104,21 @@
                 android:ellipsize="marquee"
                 android:marqueeRepeatLimit="marquee_forever"
                 android:text="Series Title"
-                android:textColor="#FFFFFF"
-                android:textSize="14sp"
+                android:textColor="@android:color/white"
+                android:textSize="13sp"
+                android:fontFamily="@font/plus_jakarta_sans"
                 android:textStyle="bold"
-                android:letterSpacing="0.03"
-                android:fontFamily="sans-serif-black" />
+                android:letterSpacing="0.01" />
 
             <TextView
                 android:id="@+id/tv_series_year"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="3dp"
                 android:text="2024"
-                android:textColor="#B3FFFFFF"
-                android:fontFamily="sans-serif-condensed-light"
-                android:textSize="11sp" />
+                android:textColor="#CCFFFFFF"
+                android:textSize="9sp"
+                android:fontFamily="@font/plus_jakarta_sans" />
 
         </LinearLayout>
 

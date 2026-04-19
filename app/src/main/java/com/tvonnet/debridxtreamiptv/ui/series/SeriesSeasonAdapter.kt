@@ -13,6 +13,14 @@ class SeriesSeasonAdapter(
     private val onSeasonSelected: (SeasonUiModel) -> Unit,
     private val onSeasonFocused: (SeasonUiModel) -> Unit
 ) : ListAdapter<SeasonUiModel, SeriesSeasonAdapter.SeasonViewHolder>(SeasonDiffCallback()) {
+    
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        return getItem(position).key.hashCode().toLong()
+    }
 
     private var selectedKey: String? = null
 

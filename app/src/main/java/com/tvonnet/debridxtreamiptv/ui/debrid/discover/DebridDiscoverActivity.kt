@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.view.ViewGroup
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -16,6 +17,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.utils.FocusCoordinator
+import android.view.ViewTreeObserver
 import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbGenre
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.CatalogItem
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
@@ -54,17 +57,57 @@ class DebridDiscoverActivity : AppCompatActivity() {
     private var selectedGenreId: Int? = null
     private var selectedRegionCode: String? = null
     private var selectedSort = "popularity.desc"
+    
+    // ── Focus Tracking (Premium Feature) ──────────────────────────────────────────
+    private var lastFocusedPosition = RecyclerView.NO_POSITION
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_debrid_discover)
 
+        if (savedInstanceState != null) {
+            lastFocusedPosition = savedInstanceState.getInt("last_focus_pos", RecyclerView.NO_POSITION)
+        }
+
         initViews()
         setupGrid()
+        
+        // Handle incoming filters from Intent before setting up selectors
+        intent.getStringExtra(EXTRA_TYPE)?.let { selectedType = it }
+        selectedGenreId = intent.getIntExtra(EXTRA_GENRE_ID, -1).takeIf { it != -1 }
+        
         setupTypeSelector()
         setupRegionSelector()
         setupSortSelector()
+        
+        // Push initial state to ViewModel if filtered
+        if (intent.hasExtra(EXTRA_TYPE) || intent.hasExtra(EXTRA_GENRE_ID)) {
+            viewModel.setType(selectedType)
+            viewModel.setGenre(selectedGenreId)
+        }
+        
         observeViewModel()
+        
+        setupInitialFocus()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt("last_focus_pos", lastFocusedPosition)
+    }
+
+    private fun setupInitialFocus() {
+        // Automatically focus the first chip in the type selector on first launch
+        llTypeSelector.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                if (lastFocusedPosition == RecyclerView.NO_POSITION) {
+                    if (llTypeSelector.childCount > 0) {
+                        llTypeSelector.getChildAt(0).requestFocus()
+                    }
+                }
+                llTypeSelector.viewTreeObserver.removeOnGlobalLayoutListener(this)
+            }
+        })
     }
 
     private fun initViews() {
@@ -80,12 +123,24 @@ class DebridDiscoverActivity : AppCompatActivity() {
     private fun setupGrid() {
         gridAdapter = DebridDiscoverAdapter(
             onItemClick = { item -> onItemClick(item) },
-            onItemFocused = { item -> updateBackdrop(item) },
+            onItemFocused = { item -> 
+                updateBackdrop(item)
+                // Save focus position for restoration
+                val focusedView = rvGrid.focusedChild ?: return@DebridDiscoverAdapter
+                val viewHolder = rvGrid.findContainingViewHolder(focusedView)
+                if (viewHolder != null) {
+                    lastFocusedPosition = viewHolder.bindingAdapterPosition
+                }
+            },
             onLoadMore = { viewModel.loadNextPage() }
         )
         rvGrid.apply {
             layoutManager = GridLayoutManager(this@DebridDiscoverActivity, 6)
             adapter = gridAdapter
+            itemAnimator = null // Phase 4: Disable animations for focus stability
+            setHasFixedSize(true)
+            // Important for TV: prevent focus from jumping to RecyclerView before items are ready
+            descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
         }
     }
 
@@ -176,6 +231,20 @@ class DebridDiscoverActivity : AppCompatActivity() {
                         tvError.visibility = View.GONE
                         rvGrid.visibility = View.VISIBLE
                         gridAdapter.submitItems(state.items, state.canLoadMore)
+                        
+                        // Phase 4: Premium Focus Restoration (Double-Post)
+                        if (lastFocusedPosition != RecyclerView.NO_POSITION) {
+                            FocusCoordinator.requestFocus("DEBRID_DISCOVER") {
+                                rvGrid.post {
+                                    rvGrid.scrollToPosition(lastFocusedPosition)
+                                    rvGrid.post {
+                                        val targetView = (rvGrid.layoutManager as? GridLayoutManager)?.findViewByPosition(lastFocusedPosition)
+                                        targetView?.requestFocus()
+                                        FocusCoordinator.release("DEBRID_DISCOVER")
+                                    }
+                                }
+                            }
+                        }
                     }
                     is DiscoverUiState.Error -> {
                         progressBar.visibility = View.GONE
@@ -252,13 +321,21 @@ class DebridDiscoverActivity : AppCompatActivity() {
     }
 
     companion object {
+        const val EXTRA_TYPE = "extra_type"
+        const val EXTRA_GENRE_ID = "extra_genre_id"
+
         /**
          * Creates an Intent to launch DebridDiscoverActivity.
          *
          * @param context The calling context.
+         * @param type Optional initial filter type (movie/series).
+         * @param genreId Optional initial filter genre ID.
          * @return A ready-to-use Intent.
          */
-        fun createIntent(context: Context): Intent =
-            Intent(context, DebridDiscoverActivity::class.java)
+        fun createIntent(context: Context, type: String? = null, genreId: Int? = null): Intent =
+            Intent(context, DebridDiscoverActivity::class.java).apply {
+                type?.let { putExtra(EXTRA_TYPE, it) }
+                genreId?.let { putExtra(EXTRA_GENRE_ID, it) }
+            }
     }
 }

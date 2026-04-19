@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="240dp"
+    android:height="56dp"
+    android:viewportWidth="240"
+    android:viewportHeight="56">
+    <path
+        android:fillColor="@color/slate_active_tab"
+        android:pathData="M 20,0 
+            L 212,0 
+            C 227.5,0 240,12.5 240,28
+            C 240,43.5 227.5,56 212,56
+            L 20,56
+            C 8.9,56 0,64.9 0,76
+            L 0,-20
+            C 0,-8.9 8.9,0 20,0 Z" />
+</vector>

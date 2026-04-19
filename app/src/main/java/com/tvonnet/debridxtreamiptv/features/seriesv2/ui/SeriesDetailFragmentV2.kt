@@ -12,6 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.tvonnet.debridxtreamiptv.databinding.FragmentSeriesDetailV2Binding
@@ -36,6 +37,11 @@ class SeriesDetailFragmentV2 : Fragment() {
     private val viewModel: SeriesDetailViewModelV2 by viewModels()
     private var adapter: EpisodesAdapterV2? = null
     private var seasonsAdapter: SeasonsAdapterV2? = null
+    
+    // Focus Tracking
+    private var lastFocusedEpisodeId: String? = null
+    private var lastFocusedSeasonNum: Int? = null
+    private var isRestoringFocus = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -86,12 +92,28 @@ class SeriesDetailFragmentV2 : Fragment() {
         binding.rvEpisodes.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
         binding.rvEpisodes.adapter = adapter
 
-        // Seasons Adapter
-        seasonsAdapter = SeasonsAdapterV2 { seasonNum ->
-            viewModel.onSeasonSelected(seasonNum)
-        }
         binding.rvSeasons.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
         binding.rvSeasons.adapter = seasonsAdapter
+
+        // Null Animators: Prevent focus jitter during updates
+        binding.rvEpisodes.itemAnimator = null
+        binding.rvSeasons.itemAnimator = null
+
+        // Track episode focus for restoration
+        binding.rvEpisodes.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
+            override fun onChildViewAttachedToWindow(view: View) {
+                view.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
+                    if (hasFocus && !isRestoringFocus) {
+                        val pos = binding.rvEpisodes.getChildAdapterPosition(v)
+                        if (pos != RecyclerView.NO_POSITION) {
+                            val episode = adapter?.peek(pos)
+                            lastFocusedEpisodeId = episode?.episodeId
+                        }
+                    }
+                }
+            }
+            override fun onChildViewDetachedFromWindow(view: View) {}
+        })
 
         // Handle Loading State based on Paging LoadState
         lifecycleScope.launch {
@@ -159,9 +181,11 @@ class SeriesDetailFragmentV2 : Fragment() {
                     android.util.Log.d("SeriesDetailFragmentV2", "Episodes pagingData collected, submitting to adapter")
                     // #endregion
                     adapter?.submitData(pagingData)
-                    // #region agent log
-                    android.util.Log.d("SeriesDetailFragmentV2", "Episodes submitted to adapter, adapter itemCount=${adapter?.itemCount}")
-                    // #endregion
+                    
+                    // Restore focus if we have a target
+                    if (lastFocusedEpisodeId != null) {
+                        restoreFocusDetails()
+                    }
                 }
             }
         }
@@ -185,8 +209,19 @@ class SeriesDetailFragmentV2 : Fragment() {
                 }
                 launch {
                     viewModel.selectedSeason.collect { selected ->
-                        seasonsAdapter?.selectedSeason = selected
-                        seasonsAdapter?.notifyDataSetChanged() // Force refresh selection UI
+                        val oldSeason = seasonsAdapter?.selectedSeason
+                        if (oldSeason != selected) {
+                            seasonsAdapter?.selectedSeason = selected
+                            
+                            // Surgical Update: Only update the affected items
+                            val oldPos = seasonsAdapter?.currentList?.indexOf(oldSeason) ?: -1
+                            val newPos = seasonsAdapter?.currentList?.indexOf(selected) ?: -1
+                            
+                            if (oldPos != -1) seasonsAdapter?.notifyItemChanged(oldPos)
+                            if (newPos != -1) seasonsAdapter?.notifyItemChanged(newPos)
+                            
+                            lastFocusedSeasonNum = selected
+                        }
                     }
                 }
             }
@@ -270,6 +305,25 @@ class SeriesDetailFragmentV2 : Fragment() {
 
         binding.btnFavorite?.setOnClickListener {
             Toast.makeText(context, "Added to Favorites (Demo)", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun restoreFocusDetails() {
+        val targetId = lastFocusedEpisodeId ?: return
+        
+        binding.rvEpisodes.post {
+            val snapshot = adapter?.snapshot()?.items ?: return@post
+            val position = snapshot.indexOfFirst { it.episodeId == targetId }
+            
+            if (position != -1) {
+                isRestoringFocus = true
+                binding.rvEpisodes.scrollToPosition(position)
+                binding.rvEpisodes.post {
+                    val holder = binding.rvEpisodes.findViewHolderForAdapterPosition(position)
+                    holder?.itemView?.requestFocus()
+                    isRestoringFocus = false
+                }
+            }
         }
     }
 

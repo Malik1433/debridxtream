@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.ui.debrid.DebridContentItem
+import com.tvonnet.debridxtreamiptv.utils.FocusCoordinator
 import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
 import dagger.hilt.android.AndroidEntryPoint
@@ -41,8 +42,10 @@ class DebridSearchActivity : AppCompatActivity() {
             navigateToDetails(item)
         })
 
-        rvResults.layoutManager = GridLayoutManager(this, 4) // Adjust span count as needed
+        rvResults.layoutManager = GridLayoutManager(this, 4)
         rvResults.adapter = adapter
+        rvResults.itemAnimator = null
+        rvResults.setHasFixedSize(true)
 
         etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -62,7 +65,7 @@ class DebridSearchActivity : AppCompatActivity() {
                         progressBar.visibility = View.GONE
                         tvMessage.visibility = View.VISIBLE
                         tvMessage.text = "Type to search..."
-                        adapter.updateItems(emptyList())
+                        adapter.submitList(emptyList())
                     }
                     is SearchUiState.Loading -> {
                         progressBar.visibility = View.VISIBLE
@@ -71,19 +74,35 @@ class DebridSearchActivity : AppCompatActivity() {
                     is SearchUiState.Success -> {
                         progressBar.visibility = View.GONE
                         tvMessage.visibility = View.GONE
-                        adapter.updateItems(state.items)
+                        
+                        // Phase 2: Focus-safe list submission
+                        adapter.submitList(state.items) {
+                            if (rvResults.hasFocus()) {
+                                // If the grid already has focus, ensure it stays on a valid item
+                                FocusCoordinator.requestFocus("DEBRID_SEARCH") {
+                                    rvResults.post {
+                                        rvResults.post {
+                                            if (rvResults.focusedChild == null && state.items.isNotEmpty()) {
+                                                rvResults.getChildAt(0)?.requestFocus()
+                                            }
+                                            FocusCoordinator.release("DEBRID_SEARCH")
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                     is SearchUiState.Empty -> {
                         progressBar.visibility = View.GONE
                         tvMessage.visibility = View.VISIBLE
                         tvMessage.text = state.message
-                        adapter.updateItems(emptyList())
+                        adapter.submitList(emptyList())
                     }
                     is SearchUiState.Error -> {
                         progressBar.visibility = View.GONE
                         tvMessage.visibility = View.VISIBLE
                         tvMessage.text = "Error: ${state.message}"
-                        adapter.updateItems(emptyList())
+                        adapter.submitList(emptyList())
                     }
                 }
             }

@@ -4,6 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false"
     android:background="#121212">
 
     <!-- Cinematic Backdrop (Fixed Background) -->
@@ -36,11 +38,15 @@
         android:layout_height="match_parent"
         android:fillViewport="true"
         android:overScrollMode="ifContentScrolls"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:scrollbars="none">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             android:paddingBottom="48dp">
 
             <!-- Content Block (Left Aligned) -->
@@ -212,6 +218,7 @@
                 android:layout_marginTop="12dp"
                 android:paddingStart="42dp" 
                 android:paddingBottom="16dp"
+                android:clipChildren="false"
                 android:clipToPadding="false"
                 app:layout_constraintTop_toBottomOf="@id/rv_seasons"
                 app:layout_constraintStart_toStartOf="parent"

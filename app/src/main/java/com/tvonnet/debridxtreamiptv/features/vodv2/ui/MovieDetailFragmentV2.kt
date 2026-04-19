@@ -149,6 +149,48 @@ class MovieDetailFragmentV2 : Fragment() {
         binding.btnFavorite.setOnClickListener {
             Toast.makeText(context, "Favorite (coming soon)", Toast.LENGTH_SHORT).show()
         }
+
+        setupFocusAnimations()
+        setupInitialFocus()
+    }
+
+    private fun setupFocusAnimations() {
+        val buttons = listOf(
+            binding.btnPlay,
+            binding.btnTrailer,
+            binding.btnFavorite,
+            binding.btnBack
+        )
+
+        buttons.forEach { view ->
+            view.alpha = 0.8f
+            view.setOnFocusChangeListener { v, hasFocus ->
+                if (hasFocus) {
+                    v.animate()
+                        .scaleX(1.1f)
+                        .scaleY(1.1f)
+                        .alpha(1.0f)
+                        .setDuration(200)
+                        .setInterpolator(android.view.animation.OvershootInterpolator())
+                        .start()
+                } else {
+                    v.animate()
+                        .scaleX(1.0f)
+                        .scaleY(1.0f)
+                        .alpha(0.8f)
+                        .setDuration(200)
+                        .start()
+                }
+            }
+        }
+    }
+
+    private fun setupInitialFocus() {
+        binding.root.post {
+            binding.root.post {
+                binding.btnPlay.requestFocus()
+            }
+        }
     }
 
     private fun buildStreamUrl(

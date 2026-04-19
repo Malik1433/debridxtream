@@ -16,6 +16,14 @@ class SidebarAdapter(
     private val onFocusChange: (Boolean) -> Unit = {},
     private val onItemSelected: (Int) -> Unit
 ) : RecyclerView.Adapter<SidebarAdapter.SidebarViewHolder>() {
+    
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        return items[position].id.toLong()
+    }
 
     private var selectedPosition = 1
 
@@ -70,8 +78,6 @@ class SidebarAdapter(
 
             // Initial State
             if (!itemView.isFocused) {
-                itemView.layoutParams.width = collapsedWidth
-                itemView.requestLayout()
                 itemView.setBackgroundResource(android.R.color.transparent)
                 tvTitle.visibility = View.GONE
                 tvTitle.alpha = 0f
@@ -81,68 +87,35 @@ class SidebarAdapter(
                 onFocusChange(hasFocus)
                 
                 if (hasFocus) {
-                    // 1. Measure Text
-                    tvTitle.measure(0, 0)
-                    val textWidth = tvTitle.measuredWidth
-                    val targetWidth = paddingStart + iconWidth + textMarginStart + textWidth + paddingEnd
-
-                    // 2. Animate Width
-                    val widthAnimator = android.animation.ValueAnimator.ofInt(itemView.width, targetWidth)
-                    widthAnimator.addUpdateListener { animator ->
-                        val value = animator.animatedValue as Int
-                        itemView.layoutParams.width = value
-                        itemView.requestLayout()
-                    }
-                    widthAnimator.duration = 150
-                    widthAnimator.interpolator = androidx.interpolator.view.animation.FastOutSlowInInterpolator()
-                    widthAnimator.start()
-
-                    // 3. Visuals
+                    // Visuals
                     itemView.setBackgroundResource(R.drawable.bg_sidebar_item_expanded)
                     
-                    // 4. Text Reveal
+                    // Text Reveal
                     tvTitle.visibility = View.VISIBLE
-                    tvTitle.animate()
-                        .alpha(1f)
-                        .setDuration(150)
-                        .start()
+                    tvTitle.alpha = 1f
 
-                    // 5. Scale/Elevation
+                    // Scale/Elevation
                     itemView.animate()
-                        .scaleX(1.05f)
-                        .scaleY(1.05f)
+                        .scaleX(1.1f)
+                        .scaleY(1.1f)
                         .translationZ(8f * density)
-                        .setDuration(150)
+                        .setDuration(200)
                         .start()
 
                 } else {
-                    // Collapse
-                    val widthAnimator = android.animation.ValueAnimator.ofInt(itemView.width, collapsedWidth)
-                    widthAnimator.addUpdateListener { animator ->
-                        val value = animator.animatedValue as Int
-                        itemView.layoutParams.width = value
-                        itemView.requestLayout()
-                    }
-                    widthAnimator.duration = 150
-                    widthAnimator.interpolator = androidx.interpolator.view.animation.FastOutSlowInInterpolator()
-                    widthAnimator.start()
-
                     // Reset Visuals
                     itemView.setBackgroundResource(android.R.color.transparent)
                     
                     // Text Hide
-                    tvTitle.animate()
-                        .alpha(0f)
-                        .setDuration(100)
-                        .withEndAction { tvTitle.visibility = View.GONE }
-                        .start()
+                    tvTitle.visibility = View.GONE
+                    tvTitle.alpha = 0f
                         
                     // Reset Scale
                     itemView.animate()
                         .scaleX(1.0f)
                         .scaleY(1.0f)
                         .translationZ(0f)
-                        .setDuration(150)
+                        .setDuration(200)
                         .start()
                 }
             }

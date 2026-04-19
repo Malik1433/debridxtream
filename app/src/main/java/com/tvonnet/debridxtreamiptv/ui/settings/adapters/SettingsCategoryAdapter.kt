@@ -15,6 +15,14 @@ class SettingsCategoryAdapter(
     private val categories = SettingCategory.values()
     private var selectedCategory = SettingCategory.GENERAL
 
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        return categories[position].ordinal.toLong()
+    }
+
     fun setSelectedCategory(category: SettingCategory) {
         val oldIndex = categories.indexOf(selectedCategory)
         val newIndex = categories.indexOf(category)
@@ -67,6 +75,7 @@ class SettingsCategoryAdapter(
         private fun getCategoryTitle(category: SettingCategory): String {
             return when (category) {
                 SettingCategory.GENERAL -> "General"
+                SettingCategory.IPTV_EPG -> "IPTV & EPG"
                 SettingCategory.HOME -> "Home Screen"
                 SettingCategory.PLAYER -> "Player"
                 SettingCategory.VISUALS -> "Visuals"
@@ -79,6 +88,7 @@ class SettingsCategoryAdapter(
         private fun getCategoryIcon(category: SettingCategory): Int {
             return when (category) {
                 SettingCategory.GENERAL -> R.drawable.ic_settings
+                SettingCategory.IPTV_EPG -> R.drawable.ic_live_tv
                 SettingCategory.HOME -> R.drawable.ic_home
                 SettingCategory.PLAYER -> R.drawable.ic_live_tv
                 SettingCategory.VISUALS -> R.drawable.ic_movie

@@ -34,6 +34,14 @@ sealed class SettingItem(val id: String) {
 
 class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(SettingDiffCallback()) {
 
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        return getItem(position).id.hashCode().toLong()
+    }
+
     companion object {
         private const val TYPE_TOGGLE = 1
         private const val TYPE_SELECTION = 2

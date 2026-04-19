@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.tvonnet.debridxtreamiptv.data.local.dao.FavoriteDao
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.SeriesDaoV2
 import com.tvonnet.debridxtreamiptv.features.seriesv2.domain.logic.RetentionPolicy
 import dagger.assisted.Assisted
@@ -21,6 +22,7 @@ class SeriesCachePruningWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val seriesDao: SeriesDaoV2,
+    private val favoriteDao: FavoriteDao,
     private val retentionPolicy: RetentionPolicy
 ) : CoroutineWorker(appContext, workerParams) {
 
@@ -35,8 +37,9 @@ class SeriesCachePruningWorker @AssistedInject constructor(
                 return@withContext Result.success()
             }
 
-            // 2. Fetch Favorites (TODO: Hook up real favorites when V2 is ready)
-            val favoriteIds = emptySet<String>() 
+            // 2. Fetch Favorites (Protected from pruning)
+            val favorites = favoriteDao.getFavoritesSync()
+            val favoriteIds = favorites.map { it.streamId }.toSet()
 
             // 3. Determine Purgable Items
             // Default threshold: 7 days (defined in Policy default, or we can override here)

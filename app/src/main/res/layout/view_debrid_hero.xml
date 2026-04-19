@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/hero_container"
+    android:layout_width="match_parent"
+    android:layout_height="380dp"
+    android:paddingStart="48dp"
+    android:paddingEnd="48dp"
+    android:paddingBottom="24dp"
+    android:visibility="gone"
+    tools:visibility="visible"
+    tools:background="@color/background_pure_black">
+
+    <!-- Meta Information Layout -->
+    <LinearLayout
+        android:id="@+id/ll_hero_meta"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:gravity="bottom"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toTopOf="@+id/btn_hero_primary"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:id="@+id/tv_hero_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:textColor="@color/text_primary"
+            android:textSize="44sp"
+            android:textStyle="bold"
+            android:letterSpacing="-0.02"
+            tools:text="Breaking Bad" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_hero_rating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_badge_quality"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp"
+                android:textColor="@color/rating_star"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="9.5" />
+
+            <TextView
+                android:id="@+id/tv_hero_year"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="16sp"
+                tools:text="2008" />
+
+            <TextView
+                android:id="@+id/tv_hero_type"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="16sp"
+                android:textAllCaps="true"
+                tools:text="SERIES" />
+                
+            <TextView
+                android:id="@+id/tv_hero_quality"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:background="@drawable/bg_badge_quality"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="1dp"
+                android:text="4K"
+                android:textColor="@color/brand_cyan"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:visibility="visible" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_hero_synopsis"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:lineSpacingExtra="4dp"
+            android:maxLines="3"
+            android:textColor="#CCFFFFFF"
+            android:textSize="16sp"
+            app:layout_constraintWidth_percent="0.6"
+            tools:text="High school chemistry teacher Walter White is diagnosed with inoperable lung cancer. He turns to manufacturing and selling methamphetamine in order to secure his family's future." />
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_hero_primary"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:backgroundTint="@color/brand_cyan"
+        android:drawableStart="@drawable/ic_play_arrow_24"
+        android:drawablePadding="8dp"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:text="Watch Now"
+        android:textAllCaps="false"
+        android:textColor="@color/background_pure_black"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

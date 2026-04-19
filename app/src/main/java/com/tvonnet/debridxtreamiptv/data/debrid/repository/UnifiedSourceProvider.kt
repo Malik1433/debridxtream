@@ -36,7 +36,8 @@ class UnifiedSourceProvider @Inject constructor(
     private val addonRemote: AddonRemoteDataSource,
     private val tmdbRemote: TmdbRemoteDataSource,
     private val simplifiedPureFireFetcher: SimplifiedPureFireFetcher,
-    private val mediaFusionFetcher: com.tvonnet.debridxtreamiptv.data.debrid.source.MediaFusionFetcher
+    private val mediaFusionFetcher: com.tvonnet.debridxtreamiptv.data.debrid.source.MediaFusionFetcher,
+    private val settingsPrefs: com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 ) {
     // PureFire integration is now enabled!
 
@@ -100,11 +101,14 @@ class UnifiedSourceProvider @Inject constructor(
 
                     Log.d(TAG, "📊 [RESULT] Found ${sources.size} sources before filtering")
 
-                    // Simplified filtering - just return sources as-is for now
+                    // Refined filtering: Apply Language and Quality prioritization
                     val finalSources = if (sources.isNotEmpty()) {
-                        Log.d(TAG, "🔍 [FILTER] Sources found - returning ${sources.size} sources")
-                        // TODO: Implement language filtering once engine package is available
-                        sources
+                        Log.d(TAG, "🔍 [FILTER] Applying SourceFilterUtils logic...")
+                        val preferredLang = settingsPrefs.getPreferredAudioLanguage()
+                        val filterState = com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterState(
+                            preferredLanguage = preferredLang
+                        )
+                        com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils.apply(sources, filterState)
                     } else {
                         Log.d(TAG, "📭 [NO-SOURCES] No sources available to filter")
                         sources

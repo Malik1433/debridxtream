@@ -4,7 +4,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#E6000000"
-    android:padding="32dp">
+    android:padding="32dp"
+    android:focusable="true"
+    android:descendantFocusability="afterDescendants">
 
     <!-- Header / Clock -->
     <TextView
@@ -26,6 +28,8 @@
         android:layout_marginTop="16dp"
         android:clipChildren="false"
         android:clipToPadding="false"
+        android:nextFocusLeft="@+id/rv_browser_categories"
+        android:nextFocusRight="@+id/rv_browser_channels"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tv_browser_clock" />
@@ -39,6 +43,7 @@
         android:layout_marginTop="16dp"
         android:clipChildren="false"
         android:clipToPadding="false"
+        android:nextFocusLeft="@+id/rv_browser_categories"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/rv_browser_categories"

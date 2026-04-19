@@ -5,19 +5,29 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.ImageView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.ui.debrid.DebridContentItem
+import android.animation.ValueAnimator
+import android.view.animation.LinearInterpolator
+import android.view.animation.OvershootInterpolator
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.Interpolator
 
 class DebridSearchAdapter(
-    private var items: List<DebridContentItem> = emptyList(),
     private val onItemClick: (DebridContentItem) -> Unit
-) : RecyclerView.Adapter<DebridSearchViewHolder>() {
+) : ListAdapter<DebridContentItem, DebridSearchViewHolder>(DebridSearchDiffCallback()) {
 
-    fun updateItems(newItems: List<DebridContentItem>) {
-        items = newItems
-        notifyDataSetChanged()
+    init {
+        setHasStableIds(true)
+        stateRestorationPolicy = RecyclerView.Adapter.StateRestorationPolicy.PREVENT_WHEN_EMPTY
+    }
+
+    override fun getItemId(position: Int): Long {
+        return getItem(position).id.hashCode().toLong()
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DebridSearchViewHolder {
@@ -30,16 +40,28 @@ class DebridSearchAdapter(
     }
 
     override fun onBindViewHolder(holder: DebridSearchViewHolder, position: Int) {
-        holder.bind(items[position], onItemClick)
+        holder.bind(getItem(position), onItemClick)
+    }
+}
+
+class DebridSearchDiffCallback : DiffUtil.ItemCallback<DebridContentItem>() {
+    override fun areItemsTheSame(oldItem: DebridContentItem, newItem: DebridContentItem): Boolean {
+        val oldId = if (!oldItem.id.isNullOrEmpty()) oldItem.id else oldItem.streamUrl
+        val newId = if (!newItem.id.isNullOrEmpty()) newItem.id else newItem.streamUrl
+        return oldId == newId
     }
 
-    override fun getItemCount(): Int = items.size
+    override fun areContentsTheSame(oldItem: DebridContentItem, newItem: DebridContentItem): Boolean {
+        return oldItem == newItem
+    }
 }
 
 class DebridSearchViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private val ivPoster: ImageView = itemView.findViewById(R.id.iv_poster)
     private val tvTitle: TextView = itemView.findViewById(R.id.tv_title)
     private val tvYear: TextView = itemView.findViewById(R.id.tv_year)
+    private val glowView: View = itemView.findViewById(R.id.glow_focus)
+    private var pulseAnimator: android.animation.ValueAnimator? = null
 
     fun bind(item: DebridContentItem, onItemClick: (DebridContentItem) -> Unit) {
         tvTitle.text = item.title
@@ -48,13 +70,65 @@ class DebridSearchViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView)
 
         Glide.with(itemView.context)
             .load(item.posterUrl)
-            .placeholder(R.drawable.placeholder_poster) // Assuming this drawable exists as used in DebridItemsAdapter
-            .error(R.drawable.placeholder_poster)
+            .placeholder(R.color.surface_dark)
+            .error(R.color.surface_dark)
             .into(ivPoster)
 
         itemView.setOnClickListener { onItemClick(item) }
         
-        itemView.isFocusable = true
-        itemView.isFocusableInTouchMode = true
+        itemView.setOnFocusChangeListener { _, hasFocus ->
+            onFocusChanged(hasFocus)
+        }
+    }
+
+    private fun onFocusChanged(hasFocus: Boolean) {
+        val scale = if (hasFocus) 1.15f else 1.0f
+        val glowAlpha = if (hasFocus) 1f else 0f
+        val lift = if (hasFocus) 15f else 0f
+        
+        val duration = 250L
+        val interpolator: Interpolator = if (hasFocus) 
+            OvershootInterpolator(1.2f) 
+            else DecelerateInterpolator()
+        
+        itemView.animate()
+            .scaleX(scale)
+            .scaleY(scale)
+            .z(lift)
+            .setDuration(duration)
+            .setInterpolator(interpolator)
+            .start()
+            
+        glowView.animate()
+            .alpha(glowAlpha)
+            .setDuration(duration)
+            .start()
+
+        tvTitle.isSelected = hasFocus
+
+        if (hasFocus) {
+            startPulsingGlow()
+        } else {
+            stopPulsingGlow()
+        }
+    }
+
+    private fun startPulsingGlow() {
+        pulseAnimator?.cancel()
+        pulseAnimator = ValueAnimator.ofFloat(0.5f, 1.0f).apply {
+            duration = 1000L
+            repeatMode = ValueAnimator.REVERSE
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = LinearInterpolator()
+            addUpdateListener { animator ->
+                glowView.alpha = animator.animatedValue as Float
+            }
+            start()
+        }
+    }
+
+    private fun stopPulsingGlow() {
+        pulseAnimator?.cancel()
+        glowView.alpha = 0f
     }
 }

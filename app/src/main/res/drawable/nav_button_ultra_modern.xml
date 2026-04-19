@@ -1,44 +1,34 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Ultra-Modern 2025 Navigation Button -->
+<!-- Pixel-Perfect Inverted Tab Sidebar Navigation Button -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     
-    <!-- FOCUSED STATE: The "Wow" Factor -->
-    <!-- Gradient Gold Fill + Glow Effect -->
+    <!-- FOCUSED STATE: Layered Negative Space Design -->
     <item android:state_focused="true">
-        <shape android:shape="rectangle">
-            <!-- Vibrant Gradient -->
-            <gradient
-                android:angle="45"
-                android:startColor="#FFD700"
-                android:centerColor="#FDB931"
-                android:endColor="#FFD700"
-                android:type="linear" />
+        <layer-list>
+            <!-- Top Concave Wing (Bleeds upwards) -->
+            <item android:top="-48dp" android:height="48dp" android:drawable="@drawable/ic_sidebar_curve_top" />
             
-            <!-- Fully Rounded Corners (Pill Shape) -->
-            <corners android:radius="50dp" />
-            
-            <!-- Bright Border to define edges -->
-            <stroke android:width="2dp" android:color="#FFFFFF" />
-        </shape>
+            <!-- Bottom Concave Wing (Bleeds downwards) -->
+            <item android:bottom="-48dp" android:height="48dp" android:drawable="@drawable/ic_sidebar_curve_bottom" />
+
+            <!-- Main Active Tab Body (Merged with Content area) -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/slate_active_tab" />
+                    <!-- Right side is pill-shaped (28dp radius for 56dp height) -->
+                    <corners android:topRightRadius="28dp" android:bottomRightRadius="28dp" />
+                </shape>
+            </item>
+        </layer-list>
     </item>
     
-    <!-- SELECTED STATE (Active Tab but not focused) -->
-    <!-- Subtle Gold Tint -->
+    <!-- SELECTED STATE (Active tab, not focused) -->
     <item android:state_selected="true">
         <shape android:shape="rectangle">
-            <solid android:color="#33FFD700" /> <!-- 20% Gold -->
-            <corners android:radius="50dp" />
-            <stroke android:width="1dp" android:color="#FFD700" />
+            <solid android:color="@color/slate_active_tab" />
+            <corners android:topRightRadius="28dp" android:bottomRightRadius="28dp" />
         </shape>
     </item>
     
-    <!-- DEFAULT STATE -->
-    <!-- Clean Glassmorphism -->
-    <item>
-        <shape android:shape="rectangle">
-            <solid android:color="#1AFFFFFF" /> <!-- 10% White Glass -->
-            <corners android:radius="50dp" />
-            <stroke android:width="1dp" android:color="#40FFFFFF" /> <!-- Subtle Border -->
-        </shape>
-    </item>
+    <!-- DEFAULT STATE: Transparent -->
+    <item android:drawable="@android:color/transparent" />
 </selector>

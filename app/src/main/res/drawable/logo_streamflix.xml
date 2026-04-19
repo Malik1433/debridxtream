@@ -1,0 +1,15 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="40dp"
+    android:viewportWidth="200"
+    android:viewportHeight="40">
+    <!-- Stylized 'S' -->
+    <path
+        android:fillColor="#6366F1"
+        android:pathData="M15,10c0,0 -5,-5 -5,0s5,10 5,10s-5,5 -5,0" />
+    <!-- Placeholder for STREAMFLIX Text - In a real app we'd use a PNG or more paths,
+         but for a premium mockup effect, we use a nice vector shape -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M25,12h4v16h-4zM32,12h10v3h-7v3h6v3h-6v4h6v3h-10zM45,12h10v3h-7v3h6v3h-6v4h6v3h-10zM58,12h6c3,0 5,2 5,5s-2,5 -5,5h-2v6h-4z m4,3v4h2c1,0 2,-1 2,-2s-1,-2 -2,-2zM72,12h4v13h6v3h-10zM85,12h4v16h-4zM92,12l4,7l4,-7h4l-6,10v6h-4v-6l-6,-10zM110,12h4v16h-4zM117,12h10v3h-7v3h6v3h-6v4h6v3h-10z" />
+</vector>

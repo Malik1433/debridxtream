@@ -34,12 +34,13 @@ class SeasonsAdapterV2(
             tvName.isSelected = isSelected
             
             // TV Focus Visuals
-            // TV Focus Visuals - Scaling only (Color handled by XML selectors)
-            itemView.setOnFocusChangeListener { _, hasFocus ->
-                itemView.animate()
-                    .scaleX(if (hasFocus) 1.05f else 1.0f)
-                    .scaleY(if (hasFocus) 1.05f else 1.0f)
-                    .duration = 150
+            // TV Focus Visuals - Scaling and Z-layering
+            itemView.setOnFocusChangeListener { v, hasFocus ->
+                v.z = if (hasFocus) 10f else 0f
+                v.animate()
+                    .scaleX(if (hasFocus) 1.1f else 1.0f)
+                    .scaleY(if (hasFocus) 1.1f else 1.0f)
+                    .duration = 200
             }
             
             itemView.setOnClickListener {

@@ -396,16 +396,23 @@ class PlayerActivity : AppCompatActivity() {
                 override fun onVisibilityChanged(visibility: Int) {
                     isControllerVisible = visibility == View.VISIBLE
                     if (isControllerVisible) {
-                        // High-performance focus logic for TV: target ONLY the visible play/pause control
-                        val playBtn = playerView.findViewById<View>(R.id.exo_play)
-                        val pauseBtn = playerView.findViewById<View>(R.id.exo_pause)
-                        
-                        if (playBtn?.isVisible == true) {
-                            playBtn.requestFocus()
-                        } else if (pauseBtn?.isVisible == true) {
-                            pauseBtn.requestFocus()
-                        } else {
-                            playerView.findViewById<View>(R.id.btn_player_shuffle)?.requestFocus()
+                        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("PLAYER_CONTROLLER") {
+                            val playBtn = playerView.findViewById<View>(R.id.exo_play)
+                            val pauseBtn = playerView.findViewById<View>(R.id.exo_pause)
+                            
+                            val targetBtn = if (playBtn?.isVisible == true) playBtn 
+                                           else if (pauseBtn?.isVisible == true) pauseBtn
+                                           else playerView.findViewById<View>(R.id.btn_player_shuffle)
+                            
+                            targetBtn?.post { 
+                                targetBtn.post { 
+                                    try {
+                                        targetBtn.requestFocus()
+                                    } finally {
+                                        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("PLAYER_CONTROLLER")
+                                    }
+                                }
+                            } ?: com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("PLAYER_CONTROLLER")
                         }
                     }
                 }
@@ -432,12 +439,7 @@ class PlayerActivity : AppCompatActivity() {
                 player?.seekForward()
             }
             
-            // Add listener to keep UI in sync even if playback changes externally
-            player?.addListener(object : androidx.media3.common.Player.Listener {
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    updatePlayPauseVisibility(isPlaying)
-                }
-            })
+
             
             // Initial sync
             player?.let { updatePlayPauseVisibility(it.isPlaying) }
@@ -1046,16 +1048,22 @@ class PlayerActivity : AppCompatActivity() {
         playerView.hideController() // Ensure controller doesn't steal focus
         playerView.isFocusable = false
         
-        btnPlayNext?.postDelayed({ 
-            val focused = btnPlayNext?.requestFocus()
-            if (focused == true) {
-                 btnPlayNext?.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_FOCUSED)
-            } else {
-                 // Fallback: try forcing parent or retry
-                 Log.w("PlayerActivity", "Failed to focus Play button, retrying...")
-                 btnPlayNext?.requestFocus()
+        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("PLAYER_NEXT_EP") {
+            btnPlayNext?.post { 
+                btnPlayNext?.post {
+                    try {
+                        val focused = btnPlayNext?.requestFocus()
+                        if (focused == true) {
+                             btnPlayNext?.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_FOCUSED)
+                        } else {
+                             btnPlayNext?.requestFocus()
+                        }
+                    } finally {
+                        // Note: actual release happens in hideNextEpisodePrompt to lock focus to this overlay
+                    }
+                }
             }
-        }, 150) // Increased delay to 150ms for safety
+        }
     }
 
     private fun hideNextEpisodePrompt(cancelled: Boolean) {
@@ -1065,6 +1073,7 @@ class PlayerActivity : AppCompatActivity() {
         
         // Restore Player Focus
         playerView.isFocusable = true
+        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("PLAYER_NEXT_EP")
         
         if (cancelled) {
             // Focus back to player or controller
@@ -1352,8 +1361,14 @@ class PlayerActivity : AppCompatActivity() {
             trackSelector.parameters = parametersBuilder.build()
 
             // Configure Renderers to allow software decoding fallback for complex Audio
+            val isSoftwareAudioEnabled = com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(this).isSoftwareAudioEnabled()
+            val extensionMode = if (isSoftwareAudioEnabled) {
+                DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+            } else {
+                DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+            }
             val renderersFactory = DefaultRenderersFactory(this)
-                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+                .setExtensionRendererMode(extensionMode)
 
             player = ExoPlayer.Builder(this)
                 .setRenderersFactory(renderersFactory)
@@ -1436,6 +1451,39 @@ class PlayerActivity : AppCompatActivity() {
                         hasAppliedIndexOverride = true
                     }
                     captureManualTrackSelection()
+                    
+                    // Smart Audio Fallback: If current audio track is unsupported, try finding a supported one
+                    if (isSoftwareAudioEnabled) {
+                        val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+                        var hasSupportedAudioSelected = false
+                        var firstSupportedGroup: androidx.media3.common.Tracks.Group? = null
+                        
+                        for (group in audioGroups) {
+                            if (group.isSupported) {
+                                if (firstSupportedGroup == null) firstSupportedGroup = group
+                                if (group.isSelected) {
+                                    hasSupportedAudioSelected = true
+                                    break
+                                }
+                            }
+                        }
+                        
+                        if (!hasSupportedAudioSelected && firstSupportedGroup != null && audioGroups.size > 1) {
+                             Log.w("PlayerActivity", "Smart Audio Fallback: Selected track isn't supported. Switching to supported track.")
+                             val playerSnapshot = player
+                             if (playerSnapshot != null) {
+                                 playerSnapshot.trackSelectionParameters = playerSnapshot.trackSelectionParameters
+                                     .buildUpon()
+                                     .setOverrideForType(
+                                         androidx.media3.common.TrackSelectionOverride(
+                                             firstSupportedGroup.mediaTrackGroup,
+                                             0 // Select first track in supported group
+                                         )
+                                     )
+                                     .build()
+                             }
+                        }
+                    }
                 }
 
             override fun onPlayerError(error: PlaybackException) {
@@ -1890,43 +1938,34 @@ class PlayerActivity : AppCompatActivity() {
         }
         rvChannels.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 4)
         rvChannels.setHasFixedSize(true)
+        rvChannels.itemAnimator = null // Performance & Focus stability
+        rvChannels.setItemViewCacheSize(12) // Prefetch more items for faster zapping
         rvChannels.adapter = browserChannelAdapter
+        
+        rvCategories.setHasFixedSize(true)
+        rvCategories.itemAnimator = null
 
         lifecycleScope.launch {
+            var wasVisible = false
             viewModel.browserState.collect { state ->
-                browserView.visibility = if (state.isVisible) View.VISIBLE else View.GONE
+                val browserVisible = state.isVisible
+                browserView.visibility = if (browserVisible) View.VISIBLE else View.GONE
                 
-                if (state.isVisible) {
+                if (browserVisible) {
                     // Update Categories
                     browserCategoryAdapter.submitList(state.categories)
                     browserCategoryAdapter.setSelectedId(state.selectedCategoryId)
                     
                     // Update Channels with callback for focus
                     browserChannelAdapter.submitList(state.channels) {
-                        // This block runs after the list difference is calculated and applied.
                         val currentId = contentId
                         if (state.channels.isNotEmpty() && currentId != null) {
                              val chanIndex = state.channels.indexOfFirst { it.stream_id == currentId }
                              if (chanIndex != -1) {
+                                 // Fix 3: Double-post pattern for stable focus
                                  rvChannels.scrollToPosition(chanIndex)
-                                 
-                                 // Focus only if we are just opening the browser (no existing focus in lists)
-                                 // OR if we want to force focus on the channel list (user request implied this).
-                                 // Let's refine: If categories has focus, don't steal it unless it's initial open.
-                                 // User said: "channel focus... not happening"
-                                 // Safer bet: Post a requestFocus for the specific view holder
-                                 // Ensure the view is laid out before requesting focus
                                  rvChannels.post {
-                                     val v = rvChannels.findViewHolderForAdapterPosition(chanIndex)?.itemView
-                                     if (v != null) {
-                                         v.requestFocus()
-                                     } else {
-                                         // Fallback if view holder is null (e.g. not laid out yet)
-                                         // Force scroll smoothly again and retry focus
-                                         rvChannels.postDelayed({
-                                            rvChannels.findViewHolderForAdapterPosition(chanIndex)?.itemView?.requestFocus()
-                                         }, 100)
-                                     }
+                                     rvChannels.findViewHolderForAdapterPosition(chanIndex)?.itemView?.requestFocus()
                                  }
                              }
                         }
@@ -1936,19 +1975,21 @@ class PlayerActivity : AppCompatActivity() {
                     pbLoading.visibility = if (state.isLoadingChannels) View.VISIBLE else View.GONE
                     tvEmpty.visibility = if (!state.isLoadingChannels && state.channels.isEmpty()) View.VISIBLE else View.GONE
                     
-                    // Focus Management & Scrolling for Categories
+                    // Scrolling for Categories
                     if (state.categories.isNotEmpty()) {
                         val catIndex = state.categories.indexOfFirst { it.category_id == state.selectedCategoryId }
                         if (catIndex != -1) {
                              rvCategories.scrollToPosition(catIndex)
-                             // Category Focus (Only if channels didn't take it or initial load preference)
-                             // If we want channel focus to be primary when opening, we should prioritize channels
-                             // But usually sidebar navigation starts on sidebar.
-                             // User complaint was specifically about CHANNEL focus not working.
-                             // Let's just scroll categories but not grab focus if we establish focus on channel above.
                         }
                     }
+                } else if (wasVisible) {
+                    // Fix 2: Restore focus to player when browser closes
+                    com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.force("PLAYER") {
+                        playerView.requestFocus()
+                    }
+                    com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("PLAYER")
                 }
+                wasVisible = browserVisible
             }
         }
     }
@@ -2466,9 +2507,9 @@ class PlayerActivity : AppCompatActivity() {
             val playBtn = playerView.findViewById<View>(R.id.exo_play)
             val pauseBtn = playerView.findViewById<View>(R.id.exo_pause)
             if (isPlaying && playBtn?.isFocused == true) {
-                pauseBtn?.requestFocus()
+                pauseBtn?.post { pauseBtn?.requestFocus() }
             } else if (!isPlaying && pauseBtn?.isFocused == true) {
-                playBtn?.requestFocus()
+                playBtn?.post { playBtn?.requestFocus() }
             }
         }
     }

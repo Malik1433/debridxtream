@@ -8,6 +8,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.XtreamSeriesInfo
+import android.animation.ValueAnimator
+import android.view.animation.OvershootInterpolator
 
 /**
  * Paging3 adapter for Series
@@ -20,7 +22,8 @@ class SeriesPagingAdapter(
     private val onSeriesLongClick: ((XtreamSeriesInfo) -> Unit)? = null
 ) : PagingDataAdapter<XtreamSeriesInfo, SeriesPagingViewHolder>(SERIES_COMPARATOR) {
 
-    // ... existing ViewHolder creation ...
+// PagingDataAdapter handles stable IDs efficiently via DiffUtil.
+    // Explicit getItemId override is disabled here due to library finality.
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SeriesPagingViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -34,6 +37,11 @@ class SeriesPagingAdapter(
             val isFavorite = series.series_id?.let { favoriteChecker?.invoke(it) } ?: false
             holder.bind(series, isFavorite, onSeriesClick, onSeriesLongClick)
         }
+    }
+
+    override fun onViewRecycled(holder: SeriesPagingViewHolder) {
+        super.onViewRecycled(holder)
+        holder.clearAnimations()
     }
     // ...
     companion object {
@@ -56,6 +64,10 @@ class SeriesPagingViewHolder(itemView: android.view.View) : RecyclerView.ViewHol
     private val tvRating = itemView.findViewById<android.widget.TextView>(R.id.tv_series_rating)
     private val ivPoster = itemView.findViewById<android.widget.ImageView>(R.id.iv_series_poster)
     private val ivFavoriteIndicator = itemView.findViewById<android.widget.ImageView>(R.id.iv_favorite_indicator)
+    private val glowFocus = itemView.findViewById<android.view.View>(R.id.glow_focus)
+    
+    private var pulseAnimator: ValueAnimator? = null
+    private val focusScale = 1.15f
 
     fun bind(
         series: XtreamSeriesInfo,
@@ -110,5 +122,55 @@ class SeriesPagingViewHolder(itemView: android.view.View) : RecyclerView.ViewHol
             onLongClick?.invoke(series)
             true
         }
+
+        itemView.setOnFocusChangeListener { v, hasFocus ->
+            if (hasFocus) {
+                // Focus: Scale up with pop and pulse glow
+                v.z = 20f
+                v.animate()
+                    .scaleX(focusScale)
+                    .scaleY(focusScale)
+                    .setInterpolator(OvershootInterpolator(1.2f))
+                    .setDuration(250)
+                    .start()
+
+                glowFocus?.alpha = 1f
+                pulseAnimator?.cancel()
+                pulseAnimator = ValueAnimator.ofFloat(0.5f, 1f).apply {
+                    duration = 800
+                    repeatMode = ValueAnimator.REVERSE
+                    repeatCount = ValueAnimator.INFINITE
+                    addUpdateListener { animator ->
+                        glowFocus?.alpha = animator.animatedValue as Float
+                    }
+                    start()
+                }
+
+                tvTitle.isSelected = true
+            } else {
+                // Unfocus: Scale down and hide glow
+                v.z = 0f
+                v.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .setDuration(200)
+                    .start()
+
+                pulseAnimator?.cancel()
+                glowFocus?.alpha = 0f
+                tvTitle.isSelected = false
+            }
+        }
+    }
+
+    fun clearAnimations() {
+        pulseAnimator?.cancel()
+        pulseAnimator = null
+        itemView.animate()?.cancel()
+        glowFocus?.alpha = 0f
+        itemView.scaleX = 1.0f
+        itemView.scaleY = 1.0f
+        itemView.z = 0f
     }
 }

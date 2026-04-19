@@ -1,5 +1,6 @@
 package com.tvonnet.debridxtreamiptv.ui.vod
 
+import android.animation.ValueAnimator
 import android.content.Intent
 import android.os.Bundle
 import android.text.SpannableString
@@ -8,6 +9,10 @@ import android.text.style.ForegroundColorSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.Animation
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
+import android.view.animation.TranslateAnimation
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -72,10 +77,9 @@ class VodFragment : Fragment() {
     private lateinit var rvMoviesGrid: RecyclerView
     private lateinit var tvCategoryTitle: TextView
     private lateinit var ivBackgroundBackdrop: ImageView
-    private var llLoadingState: LinearLayout? = null
+    private var llLoadingState: ViewGroup? = null
     private var llEmptyState: LinearLayout? = null
     private var tvEmptyMessage: TextView? = null
-    private var tvLoadingMessage: TextView? = null
     private var tvOfflineLabel: TextView? = null
     private var selectedCategoryId: String = ""
 
@@ -115,7 +119,34 @@ class VodFragment : Fragment() {
             onMovieClick = { movie -> onMovieClick(movie) },
             favoriteChecker = { streamId -> favoritesCache.isFavorite(streamId) },
             onMovieLongClick = { movie -> handleFavoriteLongPress(movie) }
-        )
+        ).apply {
+            onItemFocused = { position ->
+                lastFocusTarget = FocusTarget.MOVIES
+                lastFocusedMoviePosition = position
+                try {
+                    val item = peek(position)
+                    if (item != null) {
+                        lastFocusedMovieId = item.stream_id?.toString()
+                        updateBackdrop(item)
+                    }
+                } catch (e: Exception) {
+                    // Ignore peek errors
+                }
+            }
+            registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
+                override fun onChanged() {
+                    restoreFocus()
+                }
+                
+                override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {
+                    restoreFocus()
+                }
+                
+                override fun onItemRangeRemoved(positionStart: Int, itemCount: Int) {
+                    restoreFocus()
+                }
+            })
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -137,7 +168,6 @@ class VodFragment : Fragment() {
         llLoadingState = view.findViewById(R.id.ll_loading_state)
         llEmptyState = view.findViewById(R.id.ll_empty_state)
         tvEmptyMessage = view.findViewById(R.id.tv_empty_message)
-        tvLoadingMessage = view.findViewById(R.id.tv_loading_message)
         tvOfflineLabel = view.findViewById(R.id.tv_offline_label)
 
         savedInstanceState?.let { state ->
@@ -162,7 +192,35 @@ class VodFragment : Fragment() {
         rvCategoriesSidebar.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
         
         // Setup movies grid layout (4 columns for the spacious cinema look)
-        rvMoviesGrid.layoutManager = GridLayoutManager(context, 4)
+        val gridLayoutManager = GridLayoutManager(context, 4)
+        gridLayoutManager.initialPrefetchItemCount = 10
+        gridLayoutManager.isItemPrefetchEnabled = true
+        rvMoviesGrid.layoutManager = gridLayoutManager
+
+        // Apply RecyclerView focus optimization configuration
+        rvCategoriesSidebar.setHasFixedSize(true)
+        rvCategoriesSidebar.isFocusable = false
+        rvCategoriesSidebar.isFocusableInTouchMode = false
+        rvCategoriesSidebar.itemAnimator = null
+        rvCategoriesSidebar.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+
+        rvMoviesGrid.setHasFixedSize(true)
+        rvMoviesGrid.isFocusable = false
+        rvMoviesGrid.isFocusableInTouchMode = false
+        rvMoviesGrid.itemAnimator = null
+        rvMoviesGrid.setItemViewCacheSize(20)
+        rvMoviesGrid.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        
+        // Week 15 Audit: Standardize Sidebar Focus expansion
+        val sidebarContainer = view.findViewById<View>(R.id.ll_vod_sidebar_container)
+        val titleArea = view.findViewById<View>(R.id.ll_sidebar_title_area)
+        if (sidebarContainer != null) {
+            com.tvonnet.debridxtreamiptv.utils.SidebarFocusHelper.attachStandardSidebarAnimation(
+                sidebarContainer = sidebarContainer,
+                focusTrigger = rvCategoriesSidebar,
+                titleArea = titleArea
+            )
+        }
         
         // Add explicit spacing decoration (32dp margins)
         val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_standard)
@@ -177,128 +235,53 @@ class VodFragment : Fragment() {
         com.tvonnet.debridxtreamiptv.utils.FocusTrapHelper.attachFocusTrap(rvCategoriesSidebar, loopFocus = true)
         com.tvonnet.debridxtreamiptv.utils.SpatialNavigationEngine.enforceStrictOrthogonalNavigation(rvMoviesGrid)
 
-        // Track focus for restore on back navigation
-        rvCategoriesSidebar.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
-            override fun onChildViewAttachedToWindow(view: View) {
-                val existingListener = view.onFocusChangeListener
-                view.setOnFocusChangeListener { v, hasFocus ->
-                    existingListener?.onFocusChange(v, hasFocus)
-                    if (hasFocus) {
-                        lastFocusTarget = FocusTarget.CATEGORIES
-                        lastFocusedCategoryPosition = rvCategoriesSidebar.getChildAdapterPosition(v)
-                        lastFocusedCategoryId = (v.getTag(R.id.tag_category_id) as? String)
-                    }
-                }
-            }
+        // Focus tracking logic moved directly to Adapters using callback pattern
+        // (Removed complex ViewTreeObserver and attach state layout animators here per user requirement)
 
-            override fun onChildViewDetachedFromWindow(view: View) {
-                view.onFocusChangeListener = null
-            }
-        })
-        
-        // Track focus globally to expand/collapse the sidebar smoothly
-        rvCategoriesSidebar.viewTreeObserver.addOnGlobalFocusChangeListener { oldFocus, newFocus ->
-            if (!isAdded) return@addOnGlobalFocusChangeListener
-            
-            var view: View? = newFocus
-            var isInsideSidebar = false
-            while (view != null) {
-                if (view == rvCategoriesSidebar) {
-                    isInsideSidebar = true
-                    break
+        // ── D-pad Navigation Guards ────────────────────────────────────────
+        val gridColumns = (rvMoviesGrid.layoutManager as? GridLayoutManager)?.spanCount ?: 4
+        rvMoviesGrid.setOnKeyListener { _, keyCode, event ->
+            if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+
+            val focused = rvMoviesGrid.findFocus() ?: return@setOnKeyListener false
+            val holder = rvMoviesGrid.findContainingViewHolder(focused) ?: return@setOnKeyListener false
+            val position = holder.bindingAdapterPosition
+
+            when (keyCode) {
+                android.view.KeyEvent.KEYCODE_DPAD_UP -> {
+                    position < gridColumns  // Block UP escape from first row
                 }
-                view = view.parent as? View
-            }
-            
-            val targetWidthDp = if (isInsideSidebar) 260f else 80f
-            val targetWidthPx = android.util.TypedValue.applyDimension(
-                android.util.TypedValue.COMPLEX_UNIT_DIP, targetWidthDp, resources.displayMetrics
-            ).toInt()
-            
-            val sidebarContainer = requireView().findViewById<View>(R.id.ll_vod_sidebar_container)
-            if (sidebarContainer != null && sidebarContainer.layoutParams.width != targetWidthPx) {
-                val animator = android.animation.ValueAnimator.ofInt(sidebarContainer.width, targetWidthPx)
-                animator.addUpdateListener { anim ->
-                    val layoutParams = sidebarContainer.layoutParams
-                    layoutParams.width = anim.animatedValue as Int
-                    sidebarContainer.layoutParams = layoutParams
+                android.view.KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    if (position % gridColumns == 0) {
+                        rvCategoriesSidebar.post {
+                            rvCategoriesSidebar.post {
+                                rvCategoriesSidebar.requestFocus()
+                            }
+                        }
+                        true
+                    } else false
                 }
-                animator.duration = 150
-                animator.interpolator = android.view.animation.DecelerateInterpolator()
-                animator.start()
-                
-                val titleText = sidebarContainer.findViewById<View>(R.id.ll_sidebar_title_area)
-                titleText?.animate()?.alpha(if (isInsideSidebar) 1f else 0f)?.setDuration(150)?.start()
+                else -> false
             }
         }
 
-        rvMoviesGrid.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
-            override fun onChildViewAttachedToWindow(view: View) {
-                com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attach(view)
-                val existingListener = view.onFocusChangeListener
-                view.setOnFocusChangeListener { v, hasFocus ->
-                    existingListener?.onFocusChange(v, hasFocus)
-                    
-                    val tvTitle = v.findViewById<TextView>(R.id.tv_movie_title)
-                    val llQuality = v.findViewById<View>(R.id.ll_quality_badge)
-                    val tvLang = v.findViewById<View>(R.id.tv_lang_badge)
-                    
-                    if (hasFocus) {
-                        tvTitle?.animate()?.scaleX(1.05f)?.scaleY(1.05f)?.setDuration(200)?.start()
-                        tvTitle?.setShadowLayer(15f, 0f, 0f, android.graphics.Color.parseColor("#4000D4FF"))
-                        tvTitle?.isSelected = true
-                        
-                        // Pulsing effect for badges
-                        val pulse = android.animation.ObjectAnimator.ofFloat(v, "alpha", 1f, 0.6f)
-                        pulse.duration = 800
-                        pulse.repeatMode = android.animation.ValueAnimator.REVERSE
-                        pulse.repeatCount = android.animation.ValueAnimator.INFINITE
-                        v.setTag(R.id.tag_focus_animator + 1, pulse)
-                        
-                        llQuality?.startAnimation(android.view.animation.AlphaAnimation(1f, 0.6f).apply {
-                            duration = 800
-                            repeatMode = android.view.animation.Animation.REVERSE
-                            repeatCount = android.view.animation.Animation.INFINITE
-                        })
-                        tvLang?.startAnimation(android.view.animation.AlphaAnimation(1f, 0.6f).apply {
-                            duration = 800
-                            repeatMode = android.view.animation.Animation.REVERSE
-                            repeatCount = android.view.animation.Animation.INFINITE
-                        })
-                        
-                        lastFocusTarget = FocusTarget.MOVIES
-                        val position = rvMoviesGrid.getChildAdapterPosition(v)
-                        lastFocusedMoviePosition = position
-                        lastFocusedMovieId = (v.getTag(R.id.tag_vod_id) as? String)
-                        
-                        // Update background on focus
-                        if (position != RecyclerView.NO_POSITION) {
-                            try {
-                                val movie = vodAdapter.peek(position)
-                                if (movie != null) {
-                                    updateBackdrop(movie)
-                                }
-                            } catch (e: Exception) {
-                                // Ignore padding issues
-                            }
+        rvCategoriesSidebar.setOnKeyListener { _, keyCode, event ->
+            if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            when (keyCode) {
+                android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    rvMoviesGrid.post {
+                        rvMoviesGrid.post {
+                            rvMoviesGrid.requestFocus()
                         }
-                    } else {
-                        tvTitle?.animate()?.scaleX(1.0f)?.scaleY(1.0f)?.setDuration(200)?.start()
-                        tvTitle?.setShadowLayer(0f, 0f, 0f, android.graphics.Color.TRANSPARENT)
-                        tvTitle?.isSelected = false
-                        
-                        llQuality?.clearAnimation()
-                        llQuality?.alpha = 1f
-                        tvLang?.clearAnimation()
-                        tvLang?.alpha = 1f
                     }
+                    true
                 }
+                android.view.KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    true  // Block escaping left out of the sidebar
+                }
+                else -> false
             }
-
-            override fun onChildViewDetachedFromWindow(view: View) {
-                view.onFocusChangeListener = null
-            }
-        })
+        }
 
         vodAdapter.addLoadStateListener { loadState ->
             lastLoadStates = loadState
@@ -324,6 +307,7 @@ class VodFragment : Fragment() {
     override fun onPause() {
         super.onPause()
         com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.saveFocus(requireView())
+        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("VOD_RESTORE")
 
         restoreCategoryPosition = lastFocusedCategoryPosition
         restoreMoviePosition = lastFocusedMoviePosition
@@ -367,9 +351,9 @@ class VodFragment : Fragment() {
                 }
                 
                 // Handle Loading
-                if (isMoviesLoadingFromViewModel != state.isLoadingMovies) {
+                if (isMoviesLoadingFromViewModel != state.isLoadingMovies || state.isSwitchingCategory) {
                     isMoviesLoadingFromViewModel = state.isLoadingMovies
-                    lastLoadStates?.let { updateListLoadingAndEmptyStates(it) }
+                    lastLoadStates?.let { updateListLoadingAndEmptyStates(it, state.isSwitchingCategory) }
                 }
                 
                 // Handle Error
@@ -421,6 +405,13 @@ class VodFragment : Fragment() {
             selectedCategoryId = category.category_id ?: ""
             viewModel.onEvent(VodEvent.SelectCategory(selectedCategoryId))
         }
+        categorySidebarAdapter.onItemFocused = { position ->
+            lastFocusTarget = FocusTarget.CATEGORIES
+            lastFocusedCategoryPosition = position
+            if (position in categories.indices) {
+                lastFocusedCategoryId = categories[position].category_id
+            }
+        }
         rvCategoriesSidebar.adapter = categorySidebarAdapter
 
         restoreFocusIfPossible()
@@ -431,7 +422,7 @@ class VodFragment : Fragment() {
         viewModel.onEvent(VodEvent.LoadCategories)
     }
     
-    private fun updateListLoadingAndEmptyStates(loadState: CombinedLoadStates) {
+    private fun updateListLoadingAndEmptyStates(loadState: CombinedLoadStates, isSwitching: Boolean = false) {
         val itemCount = vodAdapter.itemCount
 
         val isPagingRefreshLoading =
@@ -439,12 +430,15 @@ class VodFragment : Fragment() {
                 loadState.source.refresh is LoadState.Loading ||
                 loadState.mediator?.refresh is LoadState.Loading
 
-        val shouldShowLoading = (isMoviesLoadingFromViewModel || isPagingRefreshLoading) && itemCount == 0
-        showLoadingState(shouldShowLoading)
+        val shouldShowLoading = (isMoviesLoadingFromViewModel || isPagingRefreshLoading)
+        showLoadingState(shouldShowLoading, itemCount > 0)
 
         val isListEmpty =
             !isMoviesLoadingFromViewModel &&
+                !isSwitching &&
                 loadState.refresh is LoadState.NotLoading &&
+                loadState.source.refresh is LoadState.NotLoading &&
+                (loadState.mediator?.refresh == null || loadState.mediator!!.refresh is LoadState.NotLoading) &&
                 itemCount == 0 &&
                 !isPagingRefreshLoading
         showEmptyState(isListEmpty)
@@ -466,52 +460,115 @@ class VodFragment : Fragment() {
 
     private fun showEmptyState(show: Boolean) {
         llEmptyState?.visibility = if (show) View.VISIBLE else View.GONE
-        rvMoviesGrid.visibility = if (show) View.GONE else View.VISIBLE
+        // NEVER set movies grid to GONE if we have items (Persistent Grid Pattern)
+        if (show && vodAdapter.itemCount == 0) {
+            rvMoviesGrid.visibility = View.GONE
+        } else {
+            rvMoviesGrid.visibility = View.VISIBLE
+        }
         if (show) tvEmptyMessage?.text = "No movies in this category"
     }
 
-    private fun showLoadingState(show: Boolean) {
-        llLoadingState?.visibility = if (show) View.VISIBLE else View.GONE
+    /**
+     * Toggles the shimmer skeleton grid visibility.
+     * Persistent Grid Pattern: If keepContent is true, we show the shimmer as an 
+     * overlay (veil) over the existing content.
+     */
+    private fun showLoadingState(show: Boolean, keepContent: Boolean = false) {
+        val container = llLoadingState ?: return
+        if (show) {
+            container.visibility = View.VISIBLE
+            // If keeping content, dim the original movies and show shimmer as a veil
+            if (keepContent) {
+                container.alpha = 0.5f 
+                rvMoviesGrid.alpha = 0.6f
+            } else {
+                container.alpha = 1.0f
+                rvMoviesGrid.alpha = 0f
+                rvMoviesGrid.visibility = View.GONE
+            }
+            startShimmerAnimations(container)
+        } else {
+            stopShimmerAnimations(container)
+            container.visibility = View.GONE
+            rvMoviesGrid.visibility = View.VISIBLE
+            rvMoviesGrid.alpha = 1.0f
+        }
+    }
+
+    private fun startShimmerAnimations(container: ViewGroup) {
+        for (i in 0 until container.childCount) {
+            val shimmer = container.getChildAt(i)?.findViewById<View>(R.id.v_shimmer) ?: continue
+            val anim = TranslateAnimation(
+                Animation.RELATIVE_TO_PARENT, -1.0f,
+                Animation.RELATIVE_TO_PARENT, 1.0f,
+                Animation.RELATIVE_TO_PARENT, 0f,
+                Animation.RELATIVE_TO_PARENT, 0f
+            ).apply {
+                duration = 1200L + (i * 80L)
+                repeatCount = Animation.INFINITE
+                repeatMode = Animation.RESTART
+                interpolator = android.view.animation.LinearInterpolator()
+            }
+            shimmer.startAnimation(anim)
+        }
+    }
+
+    private fun stopShimmerAnimations(container: ViewGroup) {
+        for (i in 0 until container.childCount) {
+            container.getChildAt(i)?.findViewById<View>(R.id.v_shimmer)?.clearAnimation()
+        }
     }
 
     private fun restoreFocusIfPossible() {
         if (!pendingRestoreFocus) return
 
-        when (restoreFocusTarget) {
-            FocusTarget.CATEGORIES -> {
-                val count = rvCategoriesSidebar.adapter?.itemCount ?: 0
-                if (count <= 0) return
+        // Use FocusCoordinator to prevent race conditions with other components
+        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("VOD_RESTORE") {
+            when (restoreFocusTarget) {
+                FocusTarget.CATEGORIES -> {
+                    val count = rvCategoriesSidebar.adapter?.itemCount ?: 0
+                    if (count <= 0) return@requestFocus
 
-                val adapter = rvCategoriesSidebar.adapter as? CategorySidebarAdapter
-                val position = resolveCategoryPosition(adapterCount = count) ?: return
+                    val adapter = rvCategoriesSidebar.adapter as? CategorySidebarAdapter
+                    val position = resolveCategoryPosition(adapterCount = count) ?: return@requestFocus
 
-                rvCategoriesSidebar.post {
-                    rvCategoriesSidebar.scrollToPosition(position)
-                    adapter?.setSelected(position)
                     rvCategoriesSidebar.post {
-                        val focused =
-                            rvCategoriesSidebar.findViewHolderForAdapterPosition(position)
-                                ?.itemView
-                                ?.requestFocus() == true
-                        if (focused) pendingRestoreFocus = false
+                        rvCategoriesSidebar.scrollToPosition(position)
+                        adapter?.setSelected(position)
+                        rvCategoriesSidebar.post {
+                            try {
+                                val focused =
+                                    rvCategoriesSidebar.findViewHolderForAdapterPosition(position)
+                                        ?.itemView
+                                        ?.requestFocus() == true
+                                if (focused) pendingRestoreFocus = false
+                            } finally {
+                                com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("VOD_RESTORE")
+                            }
+                        }
                     }
                 }
-            }
 
-            FocusTarget.MOVIES -> {
-                val count = vodAdapter.itemCount
-                if (count <= 0) return
+                FocusTarget.MOVIES -> {
+                    val count = vodAdapter.itemCount
+                    if (count <= 0) return@requestFocus
 
-                val position = resolveMovieAdapterPosition()?.coerceIn(0, count - 1) ?: return
+                    val position = resolveMovieAdapterPosition()?.coerceIn(0, count - 1) ?: return@requestFocus
 
-                rvMoviesGrid.post {
-                    rvMoviesGrid.scrollToPosition(position)
                     rvMoviesGrid.post {
-                        val focused =
-                            rvMoviesGrid.findViewHolderForAdapterPosition(position)
-                                ?.itemView
-                                ?.requestFocus() == true
-                        if (focused) pendingRestoreFocus = false
+                        rvMoviesGrid.scrollToPosition(position)
+                        rvMoviesGrid.post {
+                            try {
+                                val focused =
+                                    rvMoviesGrid.findViewHolderForAdapterPosition(position)
+                                        ?.itemView
+                                        ?.requestFocus() == true
+                                if (focused) pendingRestoreFocus = false
+                            } finally {
+                                com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("VOD_RESTORE")
+                            }
+                        }
                     }
                 }
             }
@@ -627,6 +684,21 @@ class VodFragment : Fragment() {
                 .into(ivBackgroundBackdrop)
         }
     }
+
+    private fun restoreFocus() {
+        rvMoviesGrid.post {
+            val positionToFocus = if (lastFocusedMoviePosition != RecyclerView.NO_POSITION) lastFocusedMoviePosition else 0
+            val safePosition = minOf(positionToFocus, vodAdapter.itemCount - 1)
+            
+            if (safePosition >= 0) {
+                rvMoviesGrid.scrollToPosition(safePosition)
+                
+                rvMoviesGrid.post {
+                    rvMoviesGrid.findViewHolderForAdapterPosition(safePosition)?.itemView?.requestFocus()
+                }
+            }
+        }
+    }
 }
 
 // VOD Adapter (Week 13: Added favorite indicator support, updated to use item_movie_card)
@@ -635,6 +707,12 @@ class VodAdapter(
     private val favoriteChecker: ((String) -> Boolean)? = null,
     private val onMovieLongClick: ((XtreamVodInfo) -> Unit)? = null
 ) : androidx.paging.PagingDataAdapter<XtreamVodInfo, VodViewHolder>(VodDiffCallback()) {
+
+    var onItemFocused: ((position: Int) -> Unit)? = null
+
+    init {
+        stateRestorationPolicy = StateRestorationPolicy.PREVENT_WHEN_EMPTY
+    }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VodViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -646,7 +724,7 @@ class VodAdapter(
         val movie = getItem(position)
         if (movie != null) {
             val isFavorite = movie.stream_id?.let { favoriteChecker?.invoke(it) } ?: false
-            holder.bind(movie, isFavorite, onMovieClick, onMovieLongClick)
+            holder.bind(movie, isFavorite, onItemFocused, onMovieClick, onMovieLongClick)
         }
     }
 }
@@ -669,13 +747,20 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private val tvLangBadge = itemView.findViewById<TextView>(R.id.tv_lang_badge)
     private val ivMoviePoster = itemView.findViewById<ImageView>(R.id.iv_movie_poster)
     private val ivFavoriteIndicator = itemView.findViewById<ImageView>(R.id.iv_favorite_indicator)
+    private val glowFocus = itemView.findViewById<View>(R.id.glow_focus)
+
+    private var pulseAnimator: ValueAnimator? = null
+    private val focusScale = 1.15f
 
     fun bind(
         movie: XtreamVodInfo,
         isFavorite: Boolean,
+        onItemFocused: ((Int) -> Unit)?,
         onClick: (XtreamVodInfo) -> Unit,
         onLongClick: ((XtreamVodInfo) -> Unit)? = null
     ) {
+        itemView.isFocusable = true
+        itemView.isFocusableInTouchMode = true
         itemView.setTag(R.id.tag_vod_id, movie.stream_id?.toString())
         
         var cleanName = movie.name?.trim() ?: "Unknown Movie"
@@ -720,14 +805,6 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             tvLangBadge?.visibility = View.GONE
         }
         
-        // Apply Gradient to Title
-        val textShader = android.graphics.LinearGradient(
-            0f, 0f, 0f, tvMovieTitle.textSize * 1.5f,
-            intArrayOf(android.graphics.Color.WHITE, android.graphics.Color.parseColor("#888888")),
-            null, android.graphics.Shader.TileMode.CLAMP
-        )
-        tvMovieTitle.paint.shader = textShader
-        
         // Bind Rating
         val rating = movie.rating?.trim()?.replace(",", ".")?.toFloatOrNull()
         if (rating != null && rating > 0) {
@@ -737,34 +814,67 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             tvMovieRatingValue.text = "N/A"
         }
         
-        // Bind Year (Extract from releaseDate or name if needed, assuming valid date string)
+        // Bind Year
         tvMovieYear.text = movie.releaseDate?.take(4) ?: ""
         
         // Show/hide favorite heart icon
-        ivFavoriteIndicator?.visibility = if (isFavorite) {
-            View.VISIBLE
-        } else {
-            View.GONE
-        }
+        ivFavoriteIndicator?.visibility = if (isFavorite) View.VISIBLE else View.GONE
         
-        // Load poster using Glide with 2:3 aspect ratio and 14dp corners (handled by CardView clip)
+        // Load poster
         val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.stream_icon)
-        // Diagnostic Toast
-
         if (!resolved.isNullOrBlank()) {
             com.tvonnet.debridxtreamiptv.util.GlideUtils.loadMoviePoster(ivMoviePoster, resolved, useRoundedCorners = true)
         } else {
             ivMoviePoster.setImageResource(R.drawable.tv_card_placeholder)
         }
         
-        itemView.setOnClickListener {
-            onClick(movie)
-        }
+        itemView.setOnClickListener { onClick(movie) }
         
-        // Long press to add/remove favorites
         itemView.setOnLongClickListener {
             onLongClick?.invoke(movie)
             true
+        }
+
+        // ── Premium Focus Engine ─────────────────────────────────────
+        itemView.setOnFocusChangeListener { v, hasFocus ->
+            if (hasFocus) {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+                    onItemFocused?.invoke(pos)
+                }
+
+                v.animate()
+                    .scaleX(focusScale)
+                    .scaleY(focusScale)
+                    .setInterpolator(OvershootInterpolator(1.2f))
+                    .setDuration(250)
+                    .start()
+
+                glowFocus?.alpha = 1f
+                pulseAnimator?.cancel()
+                pulseAnimator = ValueAnimator.ofFloat(0.5f, 1f).apply {
+                    duration = 800
+                    repeatMode = ValueAnimator.REVERSE
+                    repeatCount = ValueAnimator.INFINITE
+                    addUpdateListener { animator ->
+                        glowFocus?.alpha = animator.animatedValue as Float
+                    }
+                    start()
+                }
+
+                tvMovieTitle.isSelected = true
+            } else {
+                v.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .setInterpolator(DecelerateInterpolator())
+                    .setDuration(200)
+                    .start()
+
+                pulseAnimator?.cancel()
+                glowFocus?.alpha = 0f
+                tvMovieTitle.isSelected = false
+            }
         }
     }
 }

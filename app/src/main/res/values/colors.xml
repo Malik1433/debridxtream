@@ -249,6 +249,20 @@
     
     <!-- Focus & Glow -->
     <color name="colorFocusCyanGlow">#8000E5FF</color> <!-- 50% opacity -->
-    <color name="colorSurfaceGlassDark">#E61c1c1c</color> <!-- 90% opacity charcoal -->
+    <!-- Slate-Indigo Sidebar Refactor (Inverted Tab Design) -->
+    <!-- Cinematic "Alive" Sidebar Palette -->
+    <color name="sidebar_grad_top">#2F314A</color>
+    <color name="sidebar_grad_mid">#282A40</color>
+    <color name="sidebar_grad_bottom">#1B1D2D</color>
+    <color name="sidebar_pill_base">#5E6BFF</color>
+    <color name="sidebar_pill_glow">#405E6BFF</color>
+    <color name="sidebar_text_muted">#A8AFBF</color>
+    <color name="sidebar_accent_line">#7C8DFF</color>
+
+    <!-- Legacy Slate-Indigo Palette (Keep for build safety) -->
+    <color name="slate_sidebar_bg">#CC403F58</color>
+    <color name="slate_active_tab">#212130</color>
+    <color name="slate_text_primary">#FFFFFF</color>
+    <color name="slate_text_secondary">#CCBEC4E0</color>
 </resources>
 

@@ -13,6 +13,9 @@ interface FavoriteDao {
     
     @Query("SELECT * FROM favorites ORDER BY addedAt DESC")
     fun getAllFavorites(): Flow<List<FavoriteEntity>>
+
+    @Query("SELECT * FROM favorites ORDER BY addedAt DESC")
+    suspend fun getFavoritesSync(): List<FavoriteEntity>
     
     @Query("SELECT * FROM favorites WHERE type = :type ORDER BY addedAt DESC")
     fun getFavoritesByType(type: String): Flow<List<FavoriteEntity>>

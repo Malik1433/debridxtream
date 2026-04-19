@@ -77,12 +77,14 @@
     <string name="nav_movies">Movies</string>
     <string name="nav_series">Series</string>
     <string name="nav_search">Search</string>
+    <string name="nav_home">Home</string>
     <string name="section_featured">Featured</string>
     <string name="section_recent_live">Recent Live Channels</string>
     <string name="section_continue_watching">Continue Watching</string>
     <string name="section_favorites">Favorites</string>
     <string name="section_recently_watched">Recently Watched</string>
     <string name="settings">Settings</string>
+    <string name="nav_settings">Settings</string>
     
     <!-- Search Strings (Week 9) -->
     <string name="search">Search</string>

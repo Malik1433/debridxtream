@@ -74,7 +74,11 @@ class TrailerActivity : AppCompatActivity() {
         }
 
         configureWebView(webView)
-        webView.requestFocus()
+        webView.post {
+            webView.post {
+                webView.requestFocus()
+            }
+        }
 
         overlayMessage.visibility = View.GONE
 
@@ -374,7 +378,11 @@ class TrailerActivity : AppCompatActivity() {
 
     private fun hideOverlay() {
         overlayMessage.visibility = View.GONE
-        webView.requestFocus()
+        webView.post {
+            webView.post {
+                webView.requestFocus()
+            }
+        }
     }
 
     private fun attemptPlay() {

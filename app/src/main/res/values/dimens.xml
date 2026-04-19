@@ -147,4 +147,5 @@
     <dimen name="number_text_size">160sp</dimen>
     <dimen name="number_offset_x">-30dp</dimen>
     <dimen name="number_offset_y">36dp</dimen>
+    <dimen name="chip_corner_radius">16dp</dimen>
 </resources>

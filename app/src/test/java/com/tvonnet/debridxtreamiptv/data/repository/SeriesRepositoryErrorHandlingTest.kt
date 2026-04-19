@@ -43,7 +43,20 @@ class SeriesRepositoryErrorHandlingTest {
         context = mockk(relaxed = true)
         apiService = mockk(relaxed = true)
         val memoryManager = mockk<MemoryManager>(relaxed = true)
-        repository = spyk(XtreamRepository(context, memoryManager = memoryManager))
+        val cacheManager = mockk<com.tvonnet.debridxtreamiptv.data.cache.CacheManager>(relaxed = true)
+        coEvery { cacheManager.getChannels(any(), "series") } returns null
+        coEvery { cacheManager.getCategories("series") } returns null
+        repository = spyk(XtreamRepository(
+            context = context,
+            cacheManager = cacheManager,
+            favoriteDao = mockk(relaxed = true),
+            searchHistoryDao = mockk(relaxed = true),
+            epgDao = mockk(relaxed = true),
+            vodDao = mockk(relaxed = true),
+            seriesDao = mockk(relaxed = true),
+            favoritesCache = mockk(relaxed = true),
+            memoryManager = memoryManager
+        ))
     }
 
     @After

@@ -26,7 +26,8 @@ class AddonCatalogRepository @Inject constructor(
     private val remote: AddonRemoteDataSource,
     private val tmdbRemote: TmdbRemoteDataSource,
     private val preferences: DebridPreferences,
-    private val watchHistoryPrefs: com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
+    private val watchHistoryPrefs: com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences,
+    private val favoriteDao: com.tvonnet.debridxtreamiptv.data.local.dao.FavoriteDao
 ) {
 
     suspend fun fetchAddonDefinitions(registryUrl: String = DEFAULT_ADDON_REGISTRY_URL): Result<List<AddonDefinition>> {
@@ -73,7 +74,9 @@ class AddonCatalogRepository @Inject constructor(
                             backdropUrl = TmdbImageUrl.getBackdropUrl(movie.backdropPath),
                             type = "movie",
                             year = movie.releaseDate?.take(4),
-                            rating = movie.voteAverage?.toString()
+                            rating = movie.voteAverage?.toString(),
+                            overview = movie.overview,
+                            genreIds = movie.genreIds
                         )
                     }
                 } ?: emptyList()
@@ -96,7 +99,9 @@ class AddonCatalogRepository @Inject constructor(
                             backdropUrl = TmdbImageUrl.getBackdropUrl(show.backdropPath),
                             type = "series",
                             year = show.firstAirDate?.take(4),
-                            rating = show.voteAverage?.toString()
+                            rating = show.voteAverage?.toString(),
+                            overview = show.overview,
+                            genreIds = show.genreIds
                         )
                     }
                 } ?: emptyList()
@@ -131,7 +136,9 @@ class AddonCatalogRepository @Inject constructor(
                         backdropUrl = TmdbImageUrl.getBackdropUrl(movie.backdropPath),
                         type = "movie",
                         year = movie.releaseDate?.take(4),
-                        rating = movie.voteAverage?.toString()
+                        rating = movie.voteAverage?.toString(),
+                        overview = movie.overview,
+                        genreIds = movie.genreIds
                     )
                 }
             }?.let { items.addAll(it) }
@@ -150,7 +157,9 @@ class AddonCatalogRepository @Inject constructor(
                         backdropUrl = TmdbImageUrl.getBackdropUrl(show.backdropPath),
                         type = "series",
                         year = show.firstAirDate?.take(4),
-                        rating = show.voteAverage?.toString()
+                        rating = show.voteAverage?.toString(),
+                        overview = show.overview,
+                        genreIds = show.genreIds
                     )
                 }
             }?.let { items.addAll(it) }
@@ -203,7 +212,9 @@ class AddonCatalogRepository @Inject constructor(
                                 backdropUrl = TmdbImageUrl.getBackdropUrl(movie.backdropPath),
                                 type = "movie",
                                 year = movie.releaseDate?.take(4),
-                                rating = movie.voteAverage?.toString()
+                                rating = movie.voteAverage?.toString(),
+                                overview = movie.overview,
+                                genreIds = movie.genreIds
                             )
                         }
                     } ?: emptyList()
@@ -233,7 +244,9 @@ class AddonCatalogRepository @Inject constructor(
                                 backdropUrl = TmdbImageUrl.getBackdropUrl(show.backdropPath),
                                 type = "series",
                                 year = show.firstAirDate?.take(4),
-                                rating = show.voteAverage?.toString()
+                                rating = show.voteAverage?.toString(),
+                                overview = show.overview,
+                                genreIds = show.genreIds
                             )
                         }
                     } ?: emptyList()
@@ -282,6 +295,26 @@ class AddonCatalogRepository @Inject constructor(
             .filter { it.source == "debrid" }
     }
 
+    suspend fun getLibraryItems(): List<CatalogItem> {
+        return try {
+            val favorites = favoriteDao.getFavoritesSync()
+            favorites.filter { it.type == "vod" || it.type == "series" }
+                .map { favorite ->
+                    CatalogItem(
+                        id = favorite.streamId,
+                        title = favorite.name,
+                        posterUrl = favorite.iconUrl,
+                        backdropUrl = favorite.iconUrl, // Use iconUrl as backdrop fallback for library items
+                        type = favorite.type,
+                        year = null,
+                        rating = null
+                    )
+                }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     companion object {
         const val DEFAULT_ADDON_REGISTRY_URL =
             "https://raw.githubusercontent.com/codebutter-bit/scraper/refs/heads/main/addons-en.json"
@@ -299,7 +332,9 @@ data class CatalogItem(
     val backdropUrl: String?,
     val type: String,
     val year: String?,
-    val rating: String?
+    val rating: String?,
+    val overview: String? = null,
+    val genreIds: List<Int>? = null
 ) : android.os.Parcelable
 
 

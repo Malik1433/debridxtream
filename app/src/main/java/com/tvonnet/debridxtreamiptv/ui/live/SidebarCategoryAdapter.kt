@@ -25,6 +25,15 @@ class SidebarCategoryAdapter(
     private val onCategoryClick: (String) -> Unit,
     private val onCategoryFocused: ((String, Int) -> Unit)? = null
 ) : RecyclerView.Adapter<SidebarCategoryViewHolder>() {
+    
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        val categoryId = categories[position].category_id
+        return categoryId?.hashCode()?.toLong() ?: position.toLong()
+    }
 
     private val categories: MutableList<XtreamCategory> = categories.toMutableList()
     private var selectedCategoryId: String? = initialSelectedCategoryId
@@ -66,24 +75,31 @@ class SidebarCategoryAdapter(
     override fun getItemCount() = categories.size
 
     fun updateCategories(newCategories: List<XtreamCategory>, selectedCategoryId: String?) {
+        val oldSize = categories.size
+        val newSize = newCategories.size
+        
         categories.clear()
         categories.addAll(newCategories)
         this.selectedCategoryId = selectedCategoryId
-        notifyDataSetChanged()
+        
+        if (oldSize == newSize) {
+            notifyItemRangeChanged(0, newSize)
+        } else {
+            notifyDataSetChanged() // Fallback if size changed, but prioritized size match
+        }
     }
 
-    fun updateSelection(categoryId: String?) {
-        if (selectedCategoryId == categoryId) return
-        val previousId = selectedCategoryId
-        selectedCategoryId = categoryId
-        previousId?.let { previous ->
-            val previousIndex = categories.indexOfFirst { it.category_id == previous }
-            if (previousIndex != -1) notifyItemChanged(previousIndex)
-        }
-        categoryId?.let { newId ->
-            val newIndex = categories.indexOfFirst { it.category_id == newId }
-            if (newIndex != -1) notifyItemChanged(newIndex)
-        }
+    fun setSelectedCategory(id: String?) {
+        val old = selectedCategoryId
+        if (old == id) return
+
+        selectedCategoryId = id
+
+        val oldIndex = if (old != null) categories.indexOfFirst { it.category_id == old } else -1
+        val newIndex = if (id != null) categories.indexOfFirst { it.category_id == id } else -1
+
+        if (oldIndex != -1) notifyItemChanged(oldIndex)
+        if (newIndex != -1) notifyItemChanged(newIndex)
     }
 
     fun updateChannelCounts(newCounts: Map<String, Int>) {
@@ -171,6 +187,29 @@ class SidebarCategoryViewHolder(itemView: View) : RecyclerView.ViewHolder(itemVi
             countLabel
         )
         itemView.setOnClickListener { onClick(category.category_id) }
+
+        itemView.isFocusable = true
+        itemView.isFocusableInTouchMode = true
+
+        // Premium 1.1x focus scaling with no-clipping
+        itemView.setOnFocusChangeListener { v, hasFocus ->
+            if (hasFocus) {
+                v.animate()
+                    .scaleX(1.1f)
+                    .scaleY(1.1f)
+                    .setDuration(200)
+                    .setInterpolator(android.view.animation.OvershootInterpolator())
+                    .start()
+                v.z = 10f // Bring to front
+            } else {
+                v.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .setDuration(200)
+                    .start()
+                v.z = 0f
+            }
+        }
     }
 
     private fun getCategoryIcon(categoryName: String): String {

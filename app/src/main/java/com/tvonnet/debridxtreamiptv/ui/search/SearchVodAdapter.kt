@@ -20,6 +20,14 @@ class SearchVodAdapter(
     private val onVodClick: (XtreamVodInfo) -> Unit
 ) : ListAdapter<XtreamVodInfo, SearchVodAdapter.ViewHolder>(DiffCallback()) {
     
+    init {
+        setHasStableIds(true)
+    }
+    
+    override fun getItemId(position: Int): Long {
+        return getItem(position).stream_id.hashCode().toLong()
+    }
+    
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_search_result, parent, false)
@@ -28,6 +36,11 @@ class SearchVodAdapter(
     
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.bind(getItem(position))
+    }
+
+    override fun onViewRecycled(holder: ViewHolder) {
+        super.onViewRecycled(holder)
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.forceReset(holder.itemView)
     }
     
     class ViewHolder(

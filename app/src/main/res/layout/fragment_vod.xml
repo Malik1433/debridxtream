@@ -86,6 +86,8 @@
                 android:focusable="true"
                 android:focusableInTouchMode="true"
                 android:nextFocusRight="@id/rv_movies_grid"
+                android:nextFocusLeft="@id/rv_categories_sidebar"
+                android:nextFocusUp="@id/btn_search"
                 android:descendantFocusability="afterDescendants"/>
 
             <!-- Bottom Settings Item (Hidden per user request) -->
@@ -167,12 +169,15 @@
 
                 <!-- Search Button -->
                 <FrameLayout
+                    android:id="@+id/btn_search"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="24dp"
                     android:background="@drawable/bg_circle_glass"
                     android:clickable="true"
-                    android:focusable="true">
+                    android:focusable="true"
+                    android:nextFocusDown="@id/rv_categories_sidebar"
+                    android:nextFocusLeft="@id/rv_categories_sidebar">
                     
                     <ImageView
                         android:layout_width="24dp"
@@ -237,38 +242,37 @@
                     android:paddingBottom="48dp"
                     android:focusable="true"
                     android:focusableInTouchMode="true"
-                    android:nextFocusLeft="@id/rv_categories_sidebar"/>
+                    android:nextFocusLeft="@id/rv_categories_sidebar"
+                    android:nextFocusRight="@id/rv_movies_grid"
+                    android:nextFocusUp="@id/btn_search"/>
 
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Loading State -->
-    <LinearLayout
+    <!-- Loading State (Shimmer Skeleton Grid) -->
+    <GridLayout
         android:id="@+id/ll_loading_state"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:layout_gravity="center"
-        android:orientation="vertical"
-        android:gravity="center"
+        android:layout_marginStart="80dp"  
+        android:layout_marginTop="140dp"
+        android:paddingStart="48dp"
+        android:paddingEnd="48dp"
+        android:columnCount="4"
+        android:rowCount="3"
         android:visibility="gone">
-        
-        <ProgressBar
-            android:id="@+id/progress_bar"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
-            android:indeterminate="true"
-            android:indeterminateTint="@color/ds_primary" />
-        
-        <TextView
-            android:id="@+id/tv_loading_message"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="Loading movies..."
-            android:textSize="18sp"
-            android:textColor="@color/ds_text_primary" />
-    </LinearLayout>
+
+        <include layout="@layout/item_movie_loading" />
+        <include layout="@layout/item_movie_loading" />
+        <include layout="@layout/item_movie_loading" />
+        <include layout="@layout/item_movie_loading" />
+        <include layout="@layout/item_movie_loading" />
+        <include layout="@layout/item_movie_loading" />
+        <include layout="@layout/item_movie_loading" />
+        <include layout="@layout/item_movie_loading" />
+    </GridLayout>
 
     <!-- Empty State -->
     <LinearLayout

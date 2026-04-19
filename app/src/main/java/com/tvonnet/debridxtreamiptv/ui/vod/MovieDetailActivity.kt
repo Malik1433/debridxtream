@@ -518,11 +518,13 @@ class MovieDetailActivity : AppCompatActivity() {
             if (filteredSources.isNotEmpty() && isInitialLoad) {
                 rvSources.scrollToPosition(0)
                 rvSources.post {
-                    val holder = rvSources.findViewHolderForAdapterPosition(0)
-                    if (holder != null) {
-                        holder.itemView.requestFocus()
-                    } else {
-                        rvSources.requestFocus()
+                    rvSources.post {
+                        val holder = rvSources.findViewHolderForAdapterPosition(0)
+                        if (holder != null) {
+                            holder.itemView.requestFocus()
+                        } else {
+                            rvSources.requestFocus()
+                        }
                     }
                 }
             }

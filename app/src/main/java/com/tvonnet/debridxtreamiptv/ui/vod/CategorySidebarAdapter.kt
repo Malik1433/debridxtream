@@ -12,6 +12,18 @@ class CategorySidebarAdapter(
     categories: List<XtreamCategory>,
     private val onCategoryClick: (XtreamCategory) -> Unit
 ) : RecyclerView.Adapter<CategorySidebarViewHolder>() {
+
+    var onItemFocused: ((position: Int) -> Unit)? = null
+
+    
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        val categoryId = categories[position].category_id
+        return categoryId?.hashCode()?.toLong() ?: position.toLong()
+    }
     
     private var categories: List<XtreamCategory> = categories
     private var selectedPosition = 0
@@ -25,10 +37,10 @@ class CategorySidebarAdapter(
     override fun onBindViewHolder(holder: CategorySidebarViewHolder, position: Int) {
         val category = categories[position]
         val isSelected = position == selectedPosition
-        holder.bind(category, isSelected) {
+        holder.bind(category, isSelected, onItemFocused) {
             // Update selected position
             val oldPosition = selectedPosition
-            selectedPosition = position
+            selectedPosition = holder.bindingAdapterPosition
             notifyItemChanged(oldPosition)
             notifyItemChanged(selectedPosition)
             
@@ -40,12 +52,25 @@ class CategorySidebarAdapter(
     override fun getItemCount() = categories.size
     
     fun updateCategories(newCategories: List<XtreamCategory>, selectedCategoryId: String?) {
+        val diffCallback = object : androidx.recyclerview.widget.DiffUtil.Callback() {
+            override fun getOldListSize() = categories.size
+            override fun getNewListSize() = newCategories.size
+            override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                return categories[oldItemPosition].category_id == newCategories[newItemPosition].category_id
+            }
+            override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                return categories[oldItemPosition] == newCategories[newItemPosition]
+            }
+        }
+        val diffResult = androidx.recyclerview.widget.DiffUtil.calculateDiff(diffCallback)
+        
         categories = newCategories
         selectedPosition = selectedCategoryId
             ?.let { id -> categories.indexOfFirst { it.category_id == id } }
             ?.takeIf { it >= 0 }
             ?: 0
-        notifyDataSetChanged()
+            
+        diffResult.dispatchUpdatesTo(this)
     }
 
     fun setSelectedById(categoryId: String?) {
@@ -73,7 +98,9 @@ class CategorySidebarViewHolder(itemView: View) : RecyclerView.ViewHolder(itemVi
     private val tvCategoryName = itemView.findViewById<TextView>(R.id.tv_category_name)
     private val ivCategoryIcon = itemView.findViewById<android.widget.ImageView>(R.id.iv_category_icon)
     
-    fun bind(category: XtreamCategory, isSelected: Boolean, onClick: () -> Unit) {
+    fun bind(category: XtreamCategory, isSelected: Boolean, onItemFocused: ((Int) -> Unit)?, onClick: () -> Unit) {
+        itemView.isFocusable = true
+        itemView.isFocusableInTouchMode = true
         itemView.setTag(R.id.tag_category_id, category.category_id)
         
         val rawName = category.category_name ?: "Unknown"
@@ -113,11 +140,13 @@ class CategorySidebarViewHolder(itemView: View) : RecyclerView.ViewHolder(itemVi
             }
         }
         
-        val previousListener = itemView.onFocusChangeListener
         itemView.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
-            previousListener?.onFocusChange(v, hasFocus)
             if (hasFocus) {
-                // FocusGlintHelper.attach(v) // Removed as per user request to avoid glint bugs
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+                    onItemFocused?.invoke(pos)
+                }
+                
                 v.setBackgroundResource(R.drawable.bg_sidebar_item_focused_glass)
                 tvCategoryName.setTextColor(android.graphics.Color.WHITE)
                 tvCategoryName.setTypeface(tvCategoryName.typeface, android.graphics.Typeface.BOLD)

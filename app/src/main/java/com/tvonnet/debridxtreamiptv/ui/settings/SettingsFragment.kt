@@ -26,6 +26,7 @@ import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.databinding.FragmentSettingsV2Binding
 import com.tvonnet.debridxtreamiptv.ui.LoginFragment
+import com.tvonnet.debridxtreamiptv.worker.EpgSyncScheduler
 import com.tvonnet.debridxtreamiptv.ui.settings.adapters.SettingItem
 import com.tvonnet.debridxtreamiptv.ui.settings.adapters.SettingsCategoryAdapter
 import com.tvonnet.debridxtreamiptv.ui.settings.adapters.SettingsDetailAdapter
@@ -135,6 +136,13 @@ class SettingsFragment : Fragment() {
                     description = "May improve smooth playback on some TVs (Experimental)",
                     isChecked = state.isTunnelingEnabled,
                     onToggle = { viewModel.toggleTunneling(it) }
+                ),
+                SettingItem.Toggle(
+                    key = "software_audio",
+                    title = "Smart Audio Fallback",
+                    description = "Automatically switch tracks if the main audio format (like AC3/EAC3) is unsupported",
+                    isChecked = state.isSoftwareAudioEnabled,
+                    onToggle = { viewModel.toggleSoftwareAudio(it) }
                 )
             )
             SettingCategory.VISUALS -> listOf(
@@ -144,6 +152,39 @@ class SettingsFragment : Fragment() {
                     description = "Scale and glow effect when focusing on items",
                     isChecked = state.isUiScaleEnabled,
                     onToggle = { viewModel.toggleUiScale(it) }
+                )
+            )
+            SettingCategory.IPTV_EPG -> listOf(
+                SettingItem.Action(
+                    key = "refresh_iptv",
+                    title = "Refresh IPTV Data",
+                    description = "Force update live channels, movies, and series",
+                    onClick = { refreshIptvData() }
+                ),
+                SettingItem.Toggle(
+                    key = "epg_auto_sync",
+                    title = "Auto EPG Sync",
+                    description = "Automatically refresh EPG in background",
+                    isChecked = state.isEpgAutoSyncEnabled,
+                    onToggle = { viewModel.toggleEpgAutoSync(it) }
+                ),
+                SettingItem.Selection(
+                    key = "epg_sync_interval",
+                    title = "EPG Sync Interval",
+                    currentValue = getEpgIntervalName(state.epgSyncIntervalHours),
+                    onClick = { showEpgIntervalSelector(state.epgSyncIntervalHours) }
+                ),
+                SettingItem.Action(
+                    key = "epg_sync_now",
+                    title = "Sync EPG Now",
+                    description = "Manually fetch EPG TV guide data",
+                    onClick = { syncEpgNow() }
+                ),
+                SettingItem.Action(
+                    key = "clear_cache",
+                    title = "Clear Cached TV Data",
+                    description = "Wipe temporary storage to resolve issues",
+                    onClick = { showClearCacheDialog() }
                 )
             )
             SettingCategory.HOME -> listOf(
@@ -228,6 +269,24 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    private fun getEpgIntervalName(hours: String): String {
+        return "Every $hours hours"
+    }
+
+    private fun showEpgIntervalSelector(current: String) {
+        val options = arrayOf("Every 3 hours", "Every 6 hours", "Every 12 hours", "Every 24 hours")
+        val values = arrayOf("3", "6", "12", "24")
+        val checkedItem = values.indexOf(current).takeIf { it != -1 } ?: 1
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Select EPG Sync Interval")
+            .setSingleChoiceItems(options, checkedItem) { dialog, which ->
+                viewModel.setEpgSyncInterval(values[which])
+                dialog.dismiss()
+            }
+            .show()
+    }
+
     private fun showRegistrySelector(current: String) {
         val options = arrayOf("DebridXtream Default", "PureFire Optimized (Hindi)", "Custom URL...")
         val values = arrayOf(
@@ -290,6 +349,55 @@ class SettingsFragment : Fragment() {
                 viewModel.setPlayerEngine(values[which])
                 dialog.dismiss()
             }
+            .show()
+    }
+
+    private fun refreshIptvData() {
+        Toast.makeText(requireContext(), "Refreshing IPTV data...", Toast.LENGTH_SHORT).show()
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val result = repository.forceRefresh()
+                if (result is com.tvonnet.debridxtreamiptv.data.Result.Success) {
+                    Toast.makeText(requireContext(), "IPTV data refreshed successfully", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(requireContext(), "Refresh failed. Please try again.", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Error: \${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun syncEpgNow() {
+        Toast.makeText(requireContext(), "Syncing EPG data...", Toast.LENGTH_SHORT).show()
+        EpgSyncScheduler.scheduleImmediateSync(requireContext())
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val result = repository.fetchAndSaveEpg()
+                if (result is com.tvonnet.debridxtreamiptv.data.Result.Success) {
+                    Toast.makeText(requireContext(), "EPG synced: \${result.data} programs", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(requireContext(), "EPG sync failed. Please try again.", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Error: \${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun showClearCacheDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Clear Cache")
+            .setMessage("Are you sure you want to clear all cached TV data?")
+            .setPositiveButton("Clear") { _, _ ->
+                try {
+                    requireContext().cacheDir.deleteRecursively()
+                    Toast.makeText(requireContext(), "Cache cleared", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(requireContext(), "Failed to clear cache", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
             .show()
     }
 

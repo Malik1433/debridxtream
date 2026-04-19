@@ -34,6 +34,10 @@ class DebridViewModel @Inject constructor(
     
     private val _uiState = MutableStateFlow<DebridUiState>(DebridUiState.Loading)
     val uiState: StateFlow<DebridUiState> = _uiState.asStateFlow()
+    
+    private val _genres = MutableStateFlow<List<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbGenre>>(emptyList())
+    val genres: StateFlow<List<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbGenre>> = _genres.asStateFlow()
+    
     private var loadJob: Job? = null
     private var cachedRows: List<DebridRow> = emptyList()
     
@@ -97,6 +101,23 @@ class DebridViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 _uiState.value = DebridUiState.Error(e.message ?: "Failed to load content")
+            }
+        }
+    }
+
+    fun fetchGenres() {
+        viewModelScope.launch {
+            try {
+                val movieGenres = catalogRepo.getMovieGenres()
+                val tvGenres = catalogRepo.getTvGenres()
+                
+                val allGenres = mutableSetOf<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbGenre>()
+                movieGenres.onSuccess { allGenres.addAll(it) }
+                tvGenres.onSuccess { allGenres.addAll(it) }
+                
+                _genres.value = allGenres.sortedBy { it.name }
+            } catch (e: Exception) {
+                // Ignore genre load errors
             }
         }
     }
@@ -248,10 +269,27 @@ class DebridViewModel @Inject constructor(
             // Ignore history load errors
         }
 
-        // Load trending movies
+        // 2. My Library (New optional row)
+        try {
+            val libraryItems = catalogRepo.getLibraryItems()
+            if (libraryItems.isNotEmpty()) {
+                rows.add(
+                    DebridRow(
+                        id = "my_library",
+                        title = "My Library",
+                        items = libraryItems.map { it.toDebridContentItem() },
+                        canLoadMore = false
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            // Ignore library load errors
+        }
+
+        // 3. Trending Movies
         appendRow("trending_movies", "Trending Movies", preloadedItems = catalogRepo.getTrendingMovies())
 
-        // Load trending series
+        // 4. Trending Series
         appendRow("trending_series", "Trending Series", preloadedItems = catalogRepo.getTrendingSeries())
 
         // --- CUSTOM ROWS START ---
@@ -401,6 +439,8 @@ data class DebridContentItem(
     val debridInfoHash: String? = null,
     val debridMagnet: String? = null,
     val streamUrl: String? = null,
+    val overview: String? = null,
+    val genreIds: List<Int>? = null,
     val isSkeleton: Boolean = false
 )
 
@@ -415,7 +455,9 @@ private fun CatalogItem.toDebridContentItem(): DebridContentItem {
         backdropUrl = this.backdropUrl,
         type = this.type,
         year = this.year,
-        rating = this.rating
+        rating = this.rating,
+        overview = this.overview,
+        genreIds = this.genreIds
     )
 }
 

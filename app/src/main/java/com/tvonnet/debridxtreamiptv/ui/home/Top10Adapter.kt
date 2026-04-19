@@ -23,13 +23,20 @@ import com.tvonnet.debridxtreamiptv.util.FocusEffects
 
 class Top10Adapter(
     private var items: List<FeaturedItem>,
-    private val onItemFocused: (FeaturedItem) -> Unit,
+    private val onItemFocused: (Int, FeaturedItem) -> Unit,
     private val onItemClick: (FeaturedItem) -> Unit
 ) : RecyclerView.Adapter<Top10Adapter.Top10ViewHolder>() {
 
     fun updateItems(newItems: List<FeaturedItem>) {
+        val oldSize = items.size
+        val newSize = newItems.size
         items = newItems
-        notifyDataSetChanged()
+        
+        if (oldSize == newSize) {
+            notifyItemRangeChanged(0, newSize)
+        } else {
+            notifyDataSetChanged()
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Top10ViewHolder {
@@ -39,7 +46,7 @@ class Top10Adapter(
     }
 
     override fun onBindViewHolder(holder: Top10ViewHolder, position: Int) {
-        holder.bind(items[position], position + 1, onItemFocused, onItemClick)
+        holder.bind(items[position], position, onItemFocused, onItemClick)
     }
 
     override fun getItemCount() = items.size
@@ -48,8 +55,8 @@ class Top10Adapter(
         private val ivPoster: ImageView = itemView.findViewById(R.id.iv_poster)
         private val tvRank: TextView = itemView.findViewById(R.id.tv_rank_number)
 
-        fun bind(item: FeaturedItem, rank: Int, onFocus: (FeaturedItem) -> Unit, onClick: (FeaturedItem) -> Unit) {
-            tvRank.text = rank.toString()
+        fun bind(item: FeaturedItem, position: Int, onFocus: (Int, FeaturedItem) -> Unit, onClick: (FeaturedItem) -> Unit) {
+            tvRank.text = (position + 1).toString()
 
             val cornerRadius = (12 * itemView.context.resources.displayMetrics.density).toInt()
             
@@ -65,8 +72,12 @@ class Top10Adapter(
             itemView.setOnFocusChangeListener { view, hasFocus ->
                 FocusEffects.applyCinematicFocus(view, hasFocus, scale = 1.15f)
                 FocusEffects.apply3DTilt(view, hasFocus)
+                
                 if (hasFocus) {
-                    onFocus(item)
+                    view.z = 20f // Topmost layering for no-clipping scale-up
+                    onFocus(position, item)
+                } else {
+                    view.z = 0f
                 }
             }
         }

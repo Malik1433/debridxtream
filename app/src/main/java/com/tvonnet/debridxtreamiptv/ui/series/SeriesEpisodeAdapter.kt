@@ -16,6 +16,14 @@ class SeriesEpisodeAdapter(
     private val onEpisodeFocused: (EpisodeUiModel) -> Unit
 ) : ListAdapter<EpisodeUiModel, SeriesEpisodeAdapter.EpisodeViewHolder>(DIFF_CALLBACK) {
 
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        return getItem(position).id.hashCode().toLong()
+    }
+
     private var selectedEpisodeId: String? = null
 
     fun submitEpisodes(newItems: List<EpisodeUiModel>, selectedId: String?) {

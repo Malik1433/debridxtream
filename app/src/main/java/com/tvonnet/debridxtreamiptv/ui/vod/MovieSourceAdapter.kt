@@ -17,11 +17,28 @@ class MovieSourceAdapter(
 ) : ListAdapter<MovieSource, MovieSourceAdapter.SourceViewHolder>(DiffCallback) {
 
     private var selectedStreamId: String? = null
+    
+    init {
+        setHasStableIds(true)
+    }
+    
+    override fun getItemId(position: Int): Long {
+        return getItem(position).stream.stream_id.hashCode().toLong()
+    }
 
     fun updateSelection(streamId: String?, notify: Boolean = true) {
+        val oldId = selectedStreamId
+        if (oldId == streamId) return
+        
         selectedStreamId = streamId
         if (notify) {
-            notifyDataSetChanged()
+            // Find positions and update selectively
+            for (i in 0 until itemCount) {
+                val item = getItem(i)
+                if (item.stream.stream_id == oldId || item.stream.stream_id == streamId) {
+                    notifyItemChanged(i)
+                }
+            }
         }
     }
 

@@ -38,9 +38,19 @@ class XtreamRepositoryStreamLookupTest {
     @Before
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
-        val memoryManager = io.mockk.mockk<com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager>(relaxed = true)
-        repository = XtreamRepository(context, memoryManager = memoryManager)
         cacheHelper = CacheHelper(context)
+        val memoryManager = io.mockk.mockk<com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager>(relaxed = true)
+        repository = XtreamRepository(
+            context = context,
+            cacheManager = io.mockk.mockk(relaxed = true),
+            favoriteDao = io.mockk.mockk(relaxed = true),
+            searchHistoryDao = io.mockk.mockk(relaxed = true),
+            epgDao = io.mockk.mockk(relaxed = true),
+            vodDao = io.mockk.mockk(relaxed = true),
+            seriesDao = io.mockk.mockk(relaxed = true),
+            favoritesCache = io.mockk.mockk(relaxed = true),
+            memoryManager = memoryManager
+        )
         cacheHelper.clearCache()
     }
     

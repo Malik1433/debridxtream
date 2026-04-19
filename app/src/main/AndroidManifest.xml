@@ -91,11 +91,7 @@
             android:theme="@style/AppTheme"
             android:parentActivityName=".ui.MainActivity"
             android:exported="false" />
-        <activity
-            android:name=".ui.compose.ComposeMovieDetailActivity"
-            android:label="Movie Details (Compose)"
-            android:theme="@style/AppTheme"
-            android:exported="false" />
+
 
 
         <activity
@@ -112,11 +108,7 @@
             android:exported="false"
             android:screenOrientation="landscape" />
 
-        <activity
-            android:name=".ui.TestActivity"
-            android:label="TEST ACTIVITY"
-            android:theme="@style/AppTheme"
-            android:exported="false" />
+
 
         <activity
             android:name=".ui.settings.MediaFusionConfigActivity"

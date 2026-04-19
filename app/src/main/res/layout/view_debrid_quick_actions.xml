@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/quick_actions_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingStart="48dp"
+    android:paddingEnd="48dp"
+    android:paddingTop="16dp"
+    android:paddingBottom="16dp"
+    android:gravity="center_vertical"
+    android:visibility="gone"
+    tools:visibility="visible">
+
+    <Button
+        android:id="@+id/btn_search_debrid_new"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Search"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:textAllCaps="false"
+        android:drawableStart="@drawable/ic_search"
+        android:drawablePadding="8dp"
+        app:drawableTint="@color/text_primary"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:background="@drawable/bg_glass_button_selector" />
+
+    <Button
+        android:id="@+id/btn_discover_debrid_new"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:text="Discover"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:textAllCaps="false"
+        android:drawableStart="@drawable/ic_movie_filter_white_24dp"
+        android:drawablePadding="8dp"
+        app:drawableTint="@color/text_primary"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:background="@drawable/bg_glass_button_selector" />
+
+    <Button
+        android:id="@+id/btn_library_debrid_new"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:text="My Library"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:textAllCaps="false"
+        android:drawableStart="@drawable/ic_favorite_border"
+        android:drawablePadding="8dp"
+        app:drawableTint="@color/text_primary"
+        android:focusableInTouchMode="true"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:background="@drawable/bg_glass_button_selector"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+</LinearLayout>

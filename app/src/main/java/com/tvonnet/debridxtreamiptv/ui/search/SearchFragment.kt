@@ -120,7 +120,11 @@ class SearchFragment : Fragment() {
             override fun handleOnBackPressed() {
                 if (::etSearchQuery.isInitialized && !etSearchQuery.hasFocus() && viewModel.uiState.value.hasResults) {
                     // If results are showing and we are not in the search bar, move focus back to search bar
-                    etSearchQuery.requestFocus()
+                    etSearchQuery.post {
+                        etSearchQuery.post {
+                            etSearchQuery.requestFocus()
+                        }
+                    }
                     if (::rvLiveResults.isInitialized) rvLiveResults.smoothScrollToPosition(0)
                     if (::rvVodResults.isInitialized) rvVodResults.smoothScrollToPosition(0)
                     if (::rvSeriesResults.isInitialized) rvSeriesResults.smoothScrollToPosition(0)
@@ -261,7 +265,11 @@ class SearchFragment : Fragment() {
                 else -> null
             } ?: return@setOnKeyListener false
 
-            target.requestFocus()
+            target.post {
+                target.post {
+                    target.requestFocus()
+                }
+            }
             target.scrollToPosition(0)
             requestFocusOnFirstItem(target) {
                 lastAutoFocusedQuery = state.query
@@ -270,7 +278,11 @@ class SearchFragment : Fragment() {
         }
         
         // Request focus on search field
-        etSearchQuery.requestFocus()
+        etSearchQuery.post {
+            etSearchQuery.post {
+                etSearchQuery.requestFocus()
+            }
+        }
     }
     
     private fun setupRecyclerViews() {
@@ -541,7 +553,11 @@ class SearchFragment : Fragment() {
 
         val existingFirst = recyclerView.findViewHolderForAdapterPosition(0)?.itemView
         if (existingFirst != null) {
-            existingFirst.requestFocus()
+            existingFirst.post {
+                existingFirst.post {
+                    existingFirst.requestFocus()
+                }
+            }
             onFocused?.invoke()
             return
         }
@@ -551,7 +567,11 @@ class SearchFragment : Fragment() {
                 val holder = recyclerView.getChildViewHolder(view)
                 if (holder.bindingAdapterPosition != 0) return
                 recyclerView.removeOnChildAttachStateChangeListener(this)
-                view.requestFocus()
+                view.post {
+                    view.post {
+                        view.requestFocus()
+                    }
+                }
                 onFocused?.invoke()
             }
 

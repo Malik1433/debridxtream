@@ -13,9 +13,26 @@ class SizeFilterAdapter(
 
     private var selectedOption: SizeFilterOption? = null
 
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        return getItem(position).label.hashCode().toLong()
+    }
+
     fun updateSelection(option: SizeFilterOption?) {
+        val old = selectedOption
+        if (old == option) return
+        
         selectedOption = option
-        notifyDataSetChanged()
+        
+        for (i in 0 until itemCount) {
+            val item = getItem(i)
+            if (item == old || item == option) {
+                notifyItemChanged(i)
+            }
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SizeFilterViewHolder {
@@ -29,6 +46,11 @@ class SizeFilterAdapter(
 
     override fun onBindViewHolder(holder: SizeFilterViewHolder, position: Int) {
         holder.bind(getItem(position))
+    }
+
+    override fun onViewRecycled(holder: SizeFilterViewHolder) {
+        super.onViewRecycled(holder)
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.forceReset(holder.itemView)
     }
 
     inner class SizeFilterViewHolder(

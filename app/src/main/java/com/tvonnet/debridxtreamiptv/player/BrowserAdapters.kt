@@ -22,8 +22,14 @@ class BrowserCategoryAdapter(
     private var selectedCategoryId: String? = null
 
     fun setSelectedId(id: String?) {
+        val old = selectedCategoryId
         selectedCategoryId = id
-        notifyDataSetChanged() // Inefficient but simple for now
+        if (old == id) return
+        val list = currentList
+        val oldIndex = if (old != null) list.indexOfFirst { it.category_id == old } else -1
+        val newIndex = if (id != null) list.indexOfFirst { it.category_id == id } else -1
+        if (oldIndex != -1) notifyItemChanged(oldIndex)
+        if (newIndex != -1) notifyItemChanged(newIndex)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -43,6 +49,8 @@ class BrowserCategoryAdapter(
         private val indicator: View = itemView.findViewById(R.id.v_active_indicator)
 
         fun bind(category: XtreamCategory, isSelected: Boolean) {
+            itemView.isFocusable = true
+            itemView.isFocusableInTouchMode = true
             tvName.text = category.category_name ?: "Unknown"
 
             if (isSelected) {
@@ -61,8 +69,12 @@ class BrowserCategoryAdapter(
                 onCategoryClick(category)
             }
 
-            itemView.setOnClickListener {
-                onCategoryClick(category)
+            itemView.setOnFocusChangeListener { v, hasFocus ->
+                v.animate()
+                    .scaleX(if (hasFocus) 1.05f else 1.0f)
+                    .scaleY(if (hasFocus) 1.05f else 1.0f)
+                    .setDuration(120)
+                    .start()
             }
         }
     }

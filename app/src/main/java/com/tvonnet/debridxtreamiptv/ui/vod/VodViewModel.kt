@@ -29,6 +29,7 @@ data class VodUiState(
     val movies: List<XtreamVodInfo> = emptyList(),
     val isLoadingCategories: Boolean = false,
     val isLoadingMovies: Boolean = false,
+    val isSwitchingCategory: Boolean = false, // New: track transition period
     val error: String? = null,
     val searchQuery: String = "",
     val isSearching: Boolean = false
@@ -150,7 +151,8 @@ class VodViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         selectedCategoryId = categoryId,
-                        isLoadingMovies = true, // Show loading while we sync/check DB
+                        isLoadingMovies = true,
+                        isSwitchingCategory = true, // Track transition start
                         error = null
                     )
                 }
@@ -159,25 +161,33 @@ class VodViewModel @Inject constructor(
                 _selectedCategoryFlow.value = categoryId
                 
                 if (categoryId == FAVORITES_CATEGORY_ID) {
-                    _uiState.update { it.copy(isLoadingMovies = false) }
+                    _uiState.update { 
+                        it.copy(
+                            isLoadingMovies = false,
+                            isSwitchingCategory = false 
+                        ) 
+                    }
                 } else {
                     // Trigger network sync (Hybrid Sync)
-                    // The PagingSource will automatically emit updates when DB changes
                     val result = repository.fetchVodStreamsForCategory(categoryId)
                     
                     result.onSuccess { 
-                        _uiState.update { it.copy(isLoadingMovies = false) }
-                    }
-                    
-                    result.onFailure { error ->
-                        // If DB has data, we don't show error, just stop loading
-                        // But we can't easily check DB count here without another query
-                        // For now, just stop loading. Paging adapter load state will handle empty/error states visually if needed
+                        // Week 14: Clear transition flag after sync + propagation delay
+                        kotlinx.coroutines.delay(500)
                         _uiState.update { 
                             it.copy(
                                 isLoadingMovies = false,
-                                // Only show error if we really want to interrupt user
-                                // error = error.message 
+                                isSwitchingCategory = false 
+                            ) 
+                        }
+                    }
+                    
+                    result.onFailure { error ->
+                        _uiState.update { 
+                            it.copy(
+                                isLoadingMovies = false,
+                                isSwitchingCategory = false,
+                                error = error.message
                             ) 
                         }
                     }

@@ -21,6 +21,9 @@ class VodPagingAdapter(
     private val onMovieLongClick: ((XtreamVodInfo) -> Unit)? = null
 ) : PagingDataAdapter<XtreamVodInfo, VodPagingViewHolder>(VOD_COMPARATOR) {
     
+// PagingDataAdapter handles stable IDs efficiently via DiffUtil.
+    // Explicit getItemId override is disabled here due to library finality.
+    
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VodPagingViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_channel_card, parent, false)
@@ -33,6 +36,11 @@ class VodPagingAdapter(
             val isFavorite = movie.stream_id?.let { favoriteChecker?.invoke(it) } ?: false
             holder.bind(movie, isFavorite, onMovieClick, onMovieLongClick)
         }
+    }
+
+    override fun onViewRecycled(holder: VodPagingViewHolder) {
+        super.onViewRecycled(holder)
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.forceReset(holder.itemView)
     }
     
     companion object {

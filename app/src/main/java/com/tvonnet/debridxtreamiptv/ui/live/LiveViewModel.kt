@@ -435,7 +435,6 @@ class LiveViewModel @Inject constructor(
 
             updateState {
                 copy(
-                    channels = emptyList(), // Avoid keeping large lists in state; paging renders UI.
                     categoryChannelCounts = if (cachedCount != null) {
                         categoryChannelCounts + (categoryId to cachedCount)
                     } else {

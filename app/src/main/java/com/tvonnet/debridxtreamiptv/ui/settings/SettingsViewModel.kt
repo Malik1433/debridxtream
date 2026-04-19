@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.content.Context
+import androidx.preference.PreferenceManager
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 data class SettingsUiState(
     val playerEngine: String = "exo",
@@ -18,15 +21,19 @@ data class SettingsUiState(
     val isUiScaleEnabled: Boolean = true,
     val selectedCategory: SettingCategory = SettingCategory.GENERAL,
     val isDebridAuthenticated: Boolean = false,
-    val addonRegistryUrl: String = ""
+    val addonRegistryUrl: String = "",
+    val isEpgAutoSyncEnabled: Boolean = true,
+    val epgSyncIntervalHours: String = "6",
+    val isSoftwareAudioEnabled: Boolean = true
 )
 
 enum class SettingCategory {
-    GENERAL, HOME, PLAYER, VISUALS, DEBRID, ABOUT, LOGOUT
+    GENERAL, IPTV_EPG, HOME, PLAYER, VISUALS, DEBRID, ABOUT, LOGOUT
 }
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val prefs: DebridPreferences,
     private val homePrefs: com.tvonnet.debridxtreamiptv.data.prefs.HomePreferences,
     private val repository: com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
@@ -40,6 +47,8 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun loadSettings() {
+        val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val audioPrefs = com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(context)
         _uiState.update {
             it.copy(
                 playerEngine = prefs.getPlayerEngine(),
@@ -47,7 +56,10 @@ class SettingsViewModel @Inject constructor(
                 isAutoPlayEnabled = prefs.isAutoPlayNextEnabled(),
                 isUiScaleEnabled = prefs.isUiScaleAnimationEnabled(),
                 isDebridAuthenticated = prefs.getRealDebridToken() != null,
-                addonRegistryUrl = prefs.getAddonRegistryUrl()
+                addonRegistryUrl = prefs.getAddonRegistryUrl(),
+                isEpgAutoSyncEnabled = defaultPrefs.getBoolean("epg_auto_sync", true),
+                epgSyncIntervalHours = defaultPrefs.getString("epg_sync_interval", "6") ?: "6",
+                isSoftwareAudioEnabled = audioPrefs.isSoftwareAudioEnabled()
             )
         }
     }
@@ -71,6 +83,12 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(isAutoPlayEnabled = enabled) }
     }
 
+    fun toggleSoftwareAudio(enabled: Boolean) {
+        val audioPrefs = com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(context)
+        audioPrefs.saveSoftwareAudioEnabled(enabled)
+        _uiState.update { it.copy(isSoftwareAudioEnabled = enabled) }
+    }
+
     fun toggleUiScale(enabled: Boolean) {
         prefs.setUiScaleAnimation(enabled)
         _uiState.update { it.copy(isUiScaleEnabled = enabled) }
@@ -84,6 +102,20 @@ class SettingsViewModel @Inject constructor(
     fun setAddonRegistryUrl(url: String) {
         prefs.saveAddonRegistryUrl(url)
         _uiState.update { it.copy(addonRegistryUrl = url) }
+    }
+
+    fun toggleEpgAutoSync(enabled: Boolean) {
+        val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(context)
+        defaultPrefs.edit().putBoolean("epg_auto_sync", enabled).apply()
+        _uiState.update { it.copy(isEpgAutoSyncEnabled = enabled) }
+        com.tvonnet.debridxtreamiptv.worker.EpgSyncController().syncFromPreferences(context, defaultPrefs)
+    }
+
+    fun setEpgSyncInterval(hours: String) {
+        val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(context)
+        defaultPrefs.edit().putString("epg_sync_interval", hours).apply()
+        _uiState.update { it.copy(epgSyncIntervalHours = hours) }
+        com.tvonnet.debridxtreamiptv.worker.EpgSyncController().syncFromPreferences(context, defaultPrefs)
     }
 
     suspend fun getCategories(type: String): List<com.tvonnet.debridxtreamiptv.data.model.XtreamCategory> {

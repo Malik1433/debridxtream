@@ -45,12 +45,13 @@ class EpisodesAdapterV2(
             binding.vFocusBorder.setBackgroundResource(com.tvonnet.debridxtreamiptv.R.drawable.border_focus_white)
             binding.vFocusBorder.visibility = android.view.View.INVISIBLE
             
-            binding.root.setOnFocusChangeListener { _, hasFocus ->
+            binding.root.setOnFocusChangeListener { v, hasFocus ->
                 // Animate Scale
-                binding.root.animate()
-                    .scaleX(if (hasFocus) 1.05f else 1.0f)
-                    .scaleY(if (hasFocus) 1.05f else 1.0f)
-                    .duration = 150
+                v.z = if (hasFocus) 20f else 0f
+                v.animate()
+                    .scaleX(if (hasFocus) 1.1f else 1.0f)
+                    .scaleY(if (hasFocus) 1.1f else 1.0f)
+                    .duration = 200
                 
                 // Toggle Border Visibility
                 binding.vFocusBorder.visibility = if (hasFocus) android.view.View.VISIBLE else android.view.View.INVISIBLE
