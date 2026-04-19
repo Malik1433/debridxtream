@@ -19,6 +19,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.tvonnet.debridxtreamiptv.util.GlobalConfig
 
+/**
+ * Premium split-screen login screen for DebridXtream.
+ *
+ * Layout: Left branding panel | Right login card
+ * Provides two entry paths: manual credentials and QR/Mobile connect.
+ */
 @AndroidEntryPoint
 class LoginFragment : Fragment() {
     
@@ -28,7 +34,11 @@ class LoginFragment : Fragment() {
     private lateinit var btnLogin: View
     private lateinit var btnSetupPhone: View
     private lateinit var progressBar: ProgressBar
-    private lateinit var logoView: View
+
+    // Split-screen panels
+    private lateinit var panelLeft: View
+    private lateinit var panelRight: View
+    private lateinit var llTitleContainer: View
     private lateinit var loginContainer: View
     
     @Inject
@@ -48,15 +58,18 @@ class LoginFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        // Dependencies injected by Hilt
-        
+        // Input fields
         etServerUrl = view.findViewById(R.id.et_server_url)
         etUsername = view.findViewById(R.id.et_username)
         etPassword = view.findViewById(R.id.et_password)
         btnLogin = view.findViewById(R.id.btn_login)
         btnSetupPhone = view.findViewById(R.id.btn_setup_phone)
         progressBar = view.findViewById(R.id.progress_bar)
-        logoView = view.findViewById(R.id.iv_logo)
+
+        // Panels for animation
+        panelLeft = view.findViewById(R.id.panel_left)
+        panelRight = view.findViewById(R.id.panel_right)
+        llTitleContainer = view.findViewById(R.id.ll_title_container)
         loginContainer = view.findViewById(R.id.card_login_container)
         
         btnLogin.setOnClickListener {
@@ -67,6 +80,7 @@ class LoginFragment : Fragment() {
             onSetupPhoneClick()
         }
 
+        setupFocusListeners()
         startEntranceAnimations()
     }
 
@@ -76,7 +90,7 @@ class LoginFragment : Fragment() {
     }
 
     /**
-     * Checks if credentials were saved via Companion Sync and triggers auto-login
+     * Checks if credentials were saved via Companion Sync and triggers auto-login.
      */
     private fun checkAutoSyncCredentials() {
         val server = credentialsPrefs.getServerUrl()
@@ -102,31 +116,98 @@ class LoginFragment : Fragment() {
         }
     }
 
-
-    private fun startEntranceAnimations() {
-        // Initial state
-        logoView.alpha = 0f
-        logoView.translationY = -50f
+    /**
+     * Adds scale + elevation effects on D-pad focus for all interactive elements.
+     */
+    private fun setupFocusListeners() {
+        val viewsToScale = listOf(
+            etServerUrl, etUsername, etPassword, btnLogin, btnSetupPhone
+        )
         
-        loginContainer.alpha = 0f
-        loginContainer.translationY = 100f
+        viewsToScale.forEach { focusView ->
+            focusView.setOnFocusChangeListener { v, hasFocus ->
+                val targetScale = if (hasFocus) 1.03f else 1.0f
+                val targetZ = if (hasFocus) 6f else 0f
+                v.animate()
+                    .scaleX(targetScale)
+                    .scaleY(targetScale)
+                    .translationZ(targetZ)
+                    .setDuration(250)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .start()
+            }
+        }
+    }
 
-        // Animate
-        logoView.animate()
+    /**
+     * Choreographed entrance animation sequence for both panels.
+     *
+     * Sequence:
+     *   1. Left panel slides in from left with fade
+     *   2. Right panel slides in from right with fade (slight delay)
+     *   3. Card content fields appear with staggered fade-up
+     */
+    private fun startEntranceAnimations() {
+        // Initial states
+        panelLeft.alpha = 0f
+        panelLeft.translationX = -80f
+        
+        panelRight.alpha = 0f
+        panelRight.translationX = 80f
+
+        loginContainer.alpha = 0f
+        loginContainer.scaleX = 0.96f
+        loginContainer.scaleY = 0.96f
+
+        val cardElements = listOf(
+            view?.findViewById<View>(R.id.tv_card_heading),
+            view?.findViewById<View>(R.id.tv_card_subtitle),
+            view?.findViewById<View>(R.id.til_server_url),
+            view?.findViewById<View>(R.id.til_username),
+            view?.findViewById<View>(R.id.til_password),
+            btnLogin,
+            view?.findViewById<View>(R.id.ll_or_divider),
+            btnSetupPhone
+        )
+        cardElements.forEach { it?.alpha = 0f; it?.translationY = 24f }
+
+        // 1. Left panel entrance
+        panelLeft.animate()
             .alpha(1f)
-            .translationY(0f)
-            .setDuration(800)
-            .setStartDelay(100)
-            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .translationX(0f)
+            .setDuration(900)
+            .setInterpolator(android.view.animation.DecelerateInterpolator(1.5f))
             .start()
 
+        // 2. Right panel entrance (delayed)
+        panelRight.animate()
+            .alpha(1f)
+            .translationX(0f)
+            .setDuration(900)
+            .setStartDelay(150)
+            .setInterpolator(android.view.animation.DecelerateInterpolator(1.5f))
+            .start()
+
+        // 3. Card container scale-in
         loginContainer.animate()
             .alpha(1f)
-            .translationY(0f)
+            .scaleX(1f)
+            .scaleY(1f)
             .setDuration(800)
-            .setStartDelay(300)
-            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .setStartDelay(400)
+            .setInterpolator(android.view.animation.OvershootInterpolator(0.6f))
             .start()
+
+        // 4. Staggered card elements
+        cardElements.forEachIndexed { index, element ->
+            element?.animate()
+                ?.alpha(1f)
+                ?.translationY(0f)
+                ?.setDuration(500)
+                ?.setStartDelay(600L + (index * 80L))
+                ?.setInterpolator(android.view.animation.DecelerateInterpolator())
+                ?.start()
+        }
     }
     
     private fun onLoginClick() {
@@ -139,6 +220,13 @@ class LoginFragment : Fragment() {
         }
     }
     
+    /**
+     * Performs the actual IPTV login against the Xtream repository.
+     *
+     * @param server  The server URL.
+     * @param username The user's username.
+     * @param password The user's password.
+     */
     private fun performLogin(server: String, username: String, password: String) {
         btnLogin.isEnabled = false
         progressBar.visibility = View.VISIBLE
@@ -206,6 +294,11 @@ class LoginFragment : Fragment() {
         }
     }
     
+    /**
+     * Validates the three required input fields before attempting login.
+     *
+     * @return true if all fields are non-empty.
+     */
     private fun validateInputs(): Boolean {
         val server = etServerUrl.text.toString().trim()
         val username = etUsername.text.toString().trim()

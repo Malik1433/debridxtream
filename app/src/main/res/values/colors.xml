@@ -264,5 +264,16 @@
     <color name="slate_active_tab">#212130</color>
     <color name="slate_text_primary">#FFFFFF</color>
     <color name="slate_text_secondary">#CCBEC4E0</color>
+
+    <!-- Login Screen Premium Colors -->
+    <color name="login_emerald">#22C55E</color>
+    <color name="login_emerald_dark">#16A34A</color>
+    <color name="login_emerald_light">#86EFAC</color>
+    <color name="login_card_bg">#E60D1117</color>
+    <color name="login_input_bg">#1A1D2B</color>
+    <color name="login_tagline">#6B7280</color>
+    <color name="white_opacity_30">#4DFFFFFF</color>
+    <color name="white_opacity_10">#1AFFFFFF</color>
+    <color name="white_opacity_06">#0FFFFFFF</color>
 </resources>
 

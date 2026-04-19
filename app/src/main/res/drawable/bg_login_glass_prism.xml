@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    
+    <!-- Deep Glass Background with subtle Blue-Indigo tint -->
+    <gradient
+        android:startColor="#331A1A2E"
+        android:endColor="#4D2A0A3A"
+        android:angle="135" />
+    
+    <!-- Soft Corner Radius -->
+    <corners android:radius="24dp" />
+    
+    <!-- Prism Edge Stroke - Semi-transparent White/Cyan -->
+    <stroke
+        android:width="1.5dp"
+        android:color="#4000E5FF" />
+        
+</shape>

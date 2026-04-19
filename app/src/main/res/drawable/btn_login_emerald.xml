@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Focused: brighter green with glow -->
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#34D399"
+                android:endColor="#22C55E"
+                android:angle="0" />
+            <corners android:radius="12dp" />
+            <stroke
+                android:width="2dp"
+                android:color="#86EFAC" />
+        </shape>
+    </item>
+    <!-- Pressed: darker green -->
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#16A34A" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    <!-- Default: vibrant emerald gradient -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#22C55E"
+                android:endColor="#16A34A"
+                android:angle="90" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+</selector>
