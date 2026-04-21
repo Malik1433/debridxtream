@@ -257,49 +257,66 @@ class HomeFragment : Fragment() {
         }
 
         // Week 15 Audit: Standardize Sidebar Focus expansion
-        com.tvonnet.debridxtreamiptv.utils.SidebarFocusHelper.attachStandardSidebarAnimation(
-            sidebarContainer = requireView().findViewById(R.id.sidebar_panel),
-            focusTrigger = rvSidebar,
-            titleArea = requireView().findViewById(R.id.tv_sidebar_app_name),
-            onExpandedChanged = { expanded ->
-                sidebarAdapter.setExpanded(expanded)
-
-                // Header alignment: logo centers when collapsed, app name fades via titleArea
-                val header = requireView().findViewById<android.widget.LinearLayout>(R.id.sidebar_header)
-                val logo = requireView().findViewById<android.widget.ImageView>(R.id.iv_sidebar_logo)
-                val appName = requireView().findViewById<android.widget.TextView>(R.id.tv_sidebar_app_name)
-
-                if (expanded) {
-                    header.gravity = android.view.Gravity.CENTER_VERTICAL
-                    (logo.layoutParams as? android.widget.LinearLayout.LayoutParams)?.let { lp ->
-                        lp.marginStart = 0
-                        logo.layoutParams = lp
-                    }
-                    appName.visibility = android.view.View.VISIBLE
-
-                    // Settings label visible in expanded mode
-                    settingsItemView?.findViewById<android.widget.TextView>(R.id.tv_title)?.apply {
-                        visibility = android.view.View.VISIBLE
-                        alpha = 1f
-                    }
-                } else {
-                    header.gravity = android.view.Gravity.CENTER
-                    appName.visibility = android.view.View.GONE
-
-                    // Settings label hidden in collapsed mode (prevents truncation)
-                    settingsItemView?.findViewById<android.widget.TextView>(R.id.tv_title)?.apply {
-                        alpha = 0f
-                        visibility = android.view.View.GONE
+        val sidebarPanel = view?.findViewById<android.view.View>(R.id.sidebar_panel)
+        val titleArea = view?.findViewById<android.view.View>(R.id.tv_sidebar_app_name)
+        
+        if (sidebarPanel != null && titleArea != null) {
+            com.tvonnet.debridxtreamiptv.utils.SidebarFocusHelper.attachStandardSidebarAnimation(
+                sidebarContainer = sidebarPanel,
+                focusTrigger = rvSidebar,
+                titleArea = titleArea,
+                onExpandedChanged = { expanded ->
+                    if (isAdded && view != null) {
+                        sidebarAdapter.setExpanded(expanded)
+        
+                        // Header alignment: logo centers when collapsed, app name fades via titleArea
+                        val header = view?.findViewById<android.widget.LinearLayout>(R.id.sidebar_header)
+                        val logo = view?.findViewById<android.widget.ImageView>(R.id.iv_sidebar_logo)
+                        val appName = view?.findViewById<android.widget.TextView>(R.id.tv_sidebar_app_name)
+        
+                        if (expanded) {
+                            header?.gravity = android.view.Gravity.CENTER_VERTICAL
+                            (logo?.layoutParams as? android.widget.LinearLayout.LayoutParams)?.let { lp ->
+                                lp.marginStart = 0
+                                logo.layoutParams = lp
+                            }
+                            appName?.visibility = android.view.View.VISIBLE
+        
+                            // Settings label visible in expanded mode
+                            settingsItemView?.findViewById<android.widget.TextView>(R.id.tv_title)?.apply {
+                                alpha = 1f
+                                visibility = android.view.View.VISIBLE
+                                translationX = -20f
+                                animate()
+                                    .translationX(0f)
+                                    .setDuration(150)
+                                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                                    .start()
+                            }
+                        } else {
+                            header?.gravity = android.view.Gravity.CENTER
+                            (logo?.layoutParams as? android.widget.LinearLayout.LayoutParams)?.let { lp ->
+                                lp.marginStart = 0
+                                logo.layoutParams = lp
+                            }
+                            appName?.visibility = android.view.View.GONE
+        
+                            // Settings label hidden in collapsed mode (prevents truncation)
+                            settingsItemView?.findViewById<android.widget.TextView>(R.id.tv_title)?.apply {
+                                alpha = 0f
+                                visibility = android.view.View.GONE
+                            }
+                        }
+                        
+                        // Deep Integration: Dim Hero Background aggressively when sidebar is expanded
+                        ivHeroBackground.animate()
+                            .alpha(if (expanded) 0.3f else 0.8f)
+                            .setDuration(250)
+                            .start()
                     }
                 }
-                
-                // Deep Integration: Dim Hero Background aggressively when sidebar is expanded
-                ivHeroBackground.animate()
-                    .alpha(if (expanded) 0.3f else 0.8f)
-                    .setDuration(250)
-                    .start()
-            }
-        )
+            )
+        }
     }
     
     private fun updateHeroSection(item: FeaturedItem) {

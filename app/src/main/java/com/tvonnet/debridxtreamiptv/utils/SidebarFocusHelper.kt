@@ -43,38 +43,42 @@ object SidebarFocusHelper {
         var isExpanded = sidebarContainer.layoutParams.width != collapsedWidth
 
         val performAnimation = { expand: Boolean ->
-            val startWidth = sidebarContainer.width
-            val endWidth = if (expand) expandedWidth else collapsedWidth
-            if (expand != isExpanded) {
-                isExpanded = expand
-                onExpandedChanged?.invoke(expand)
-            }
-
-            if (startWidth != endWidth) {
-                animator?.cancel()
-                animator = ValueAnimator.ofInt(startWidth, endWidth).apply {
-                    duration = ANIMATION_DURATION
-                    interpolator = FastOutSlowInInterpolator()
-                    addUpdateListener { anim ->
-                        val width = anim.animatedValue as Int
-                        val params = sidebarContainer.layoutParams
-                        params.width = width
-                        sidebarContainer.layoutParams = params
-                        sidebarContainer.requestLayout()
-                    }
-                    start()
+            if (sidebarContainer.isAttachedToWindow) {
+                val startWidth = sidebarContainer.width
+                val endWidth = if (expand) expandedWidth else collapsedWidth
+                if (expand != isExpanded) {
+                    isExpanded = expand
+                    onExpandedChanged?.invoke(expand)
                 }
-
-                titleArea?.animate()
-                    ?.alpha(if (expand) 1f else 0f)
-                    ?.setDuration(ANIMATION_DURATION)
-                    ?.setInterpolator(FastOutSlowInInterpolator())
-                    ?.start()
+    
+                if (startWidth != endWidth) {
+                    animator?.cancel()
+                    animator = ValueAnimator.ofInt(startWidth, endWidth).apply {
+                        duration = ANIMATION_DURATION
+                        interpolator = FastOutSlowInInterpolator()
+                        addUpdateListener { anim ->
+                            val width = anim.animatedValue as Int
+                            val params = sidebarContainer.layoutParams
+                            params.width = width
+                            sidebarContainer.layoutParams = params
+                            sidebarContainer.requestLayout()
+                        }
+                        start()
+                    }
+    
+                    titleArea?.animate()
+                        ?.alpha(if (expand) 1f else 0f)
+                        ?.setDuration(ANIMATION_DURATION)
+                        ?.setInterpolator(FastOutSlowInInterpolator())
+                        ?.start()
+                }
             }
         }
 
         // Use GlobalFocusChangeListener for robust tracking across children
-        focusTrigger.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus ->
+        val focusListener = android.view.ViewTreeObserver.OnGlobalFocusChangeListener { _, newFocus ->
+            if (!focusTrigger.isAttachedToWindow) return@OnGlobalFocusChangeListener
+            
             val isInside = isDescendantOf(newFocus, focusTrigger)
             
             if (isInside) {
@@ -82,6 +86,7 @@ object SidebarFocusHelper {
             } else {
                 // Focus left the sidebar. Use grace period to see if it refocuses (e.g. moving between items)
                 focusTrigger.postDelayed({
+                    if (!focusTrigger.isAttachedToWindow) return@postDelayed
                     val currentFocus = focusTrigger.findFocus()
                     if (!isDescendantOf(currentFocus, focusTrigger)) {
                         performAnimation(false)
@@ -89,6 +94,19 @@ object SidebarFocusHelper {
                 }, FOCUS_GRACE_PERIOD_MS)
             }
         }
+        
+        focusTrigger.viewTreeObserver.addOnGlobalFocusChangeListener(focusListener)
+        
+        focusTrigger.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {}
+            override fun onViewDetachedFromWindow(v: View) {
+                // Ensure we don't leak or fire after detached
+                if (v.viewTreeObserver.isAlive) {
+                    v.viewTreeObserver.removeOnGlobalFocusChangeListener(focusListener)
+                }
+                animator?.cancel()
+            }
+        })
     }
 
     private fun isDescendantOf(view: View?, ancestor: View): Boolean {
