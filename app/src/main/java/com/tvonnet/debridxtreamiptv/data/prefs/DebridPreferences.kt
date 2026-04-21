@@ -137,6 +137,7 @@ class DebridPreferences @Inject constructor(
         private const val KEY_AUTO_PLAY_NEXT = "pref_auto_play_next"
         private const val KEY_UI_SCALE_ANIMATION = "pref_ui_scale_animation"
         private const val KEY_ADDON_REGISTRY_URL = "pref_addon_registry_url"
+        private const val KEY_ADDON_REGISTRY_URLS = "pref_addon_registry_urls"
         
         const val DEFAULT_REGISTRY_URL = "https://raw.githubusercontent.com/DebridXtream/registry/main/addons.json"
         const val PUREFIRE_REGISTRY_URL = "https://raw.githubusercontent.com/PureFireHindi/registry/main/addons.json"
@@ -153,6 +154,48 @@ class DebridPreferences @Inject constructor(
     // Aliases to match legacy usage in some ViewModels
     fun saveAddonRegistryUrl(url: String) = setAddonRegistryUrl(url)
     fun getAddonRegistryUrlLegacy(): String = getAddonRegistryUrl()
+
+    // ── Multi-Registry URL Management ────────────────────────────────────
+
+    /**
+     * Returns all user-configured addon registry URLs.
+     * If none are stored, returns an empty set (the hardcoded providers are
+     * always used in parallel, so an empty set simply means "no extra registries").
+     */
+    fun getAddonRegistryUrls(): Set<String> {
+        val json = sharedPreferences.getString(KEY_ADDON_REGISTRY_URLS, null)
+            ?: return emptySet()
+        return runCatching {
+            gson.fromJson<List<String>>(json, object : TypeToken<List<String>>() {}.type)
+                .toSet()
+        }.getOrDefault(emptySet())
+    }
+
+    /**
+     * Adds a new registry URL to the persisted set.
+     *
+     * @param url Fully-qualified HTTPS URL pointing to a JSON addon registry.
+     */
+    fun addAddonRegistryUrl(url: String) {
+        val current = getAddonRegistryUrls().toMutableSet()
+        current.add(url.trim())
+        sharedPreferences.edit()
+            .putString(KEY_ADDON_REGISTRY_URLS, gson.toJson(current.toList()))
+            .apply()
+    }
+
+    /**
+     * Removes a registry URL from the persisted set.
+     *
+     * @param url The URL to remove.
+     */
+    fun removeAddonRegistryUrl(url: String) {
+        val current = getAddonRegistryUrls().toMutableSet()
+        current.remove(url.trim())
+        sharedPreferences.edit()
+            .putString(KEY_ADDON_REGISTRY_URLS, gson.toJson(current.toList()))
+            .apply()
+    }
 
     fun getMediaFusionUrl(): String? {
         return sharedPreferences.getString(KEY_MEDIA_FUSION_URL, null)

@@ -232,11 +232,11 @@ class SettingsFragment : Fragment() {
                         startActivity(intent)
                     }
                 ),
-                SettingItem.Selection(
-                    key = "addon_source",
-                    title = "Addon Source (Registry)",
-                    currentValue = getRegistryName(state.addonRegistryUrl),
-                    onClick = { showRegistrySelector(state.addonRegistryUrl) }
+                SettingItem.Action(
+                    key = "manage_scraper_sources",
+                    title = "Manage Scraper Sources",
+                    description = "${state.addonRegistryUrls.size} custom source(s) active  •  Add unlimited JSON registries",
+                    onClick = { showManageScraperSourcesDialog(state.addonRegistryUrls) }
                 )
             )
             SettingCategory.ABOUT -> listOf(
@@ -331,6 +331,88 @@ class SettingsFragment : Fragment() {
                     Toast.makeText(context, "Custom Source Saved", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(context, "Invalid URL", Toast.LENGTH_SHORT).show()
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
+            .show()
+    }
+
+    /**
+     * Displays a dialog allowing the user to manage (add/remove) scraper registry URLs.
+     * Each URL is shown as a list item with a "Remove" action.
+     * An "Add Source" button is shown at the bottom.
+     *
+     * @param currentUrls The current set of active registry URLs.
+     */
+    private fun showManageScraperSourcesDialog(currentUrls: Set<String>) {
+        val urls = currentUrls.toMutableList()
+
+        // Build a simple text list with item indices
+        val buildItems = {
+            if (urls.isEmpty()) {
+                arrayOf("No custom sources added yet.\nTap '+ Add Source' below to add one.")
+            } else {
+                urls.mapIndexed { index, url ->
+                    val shortName = try {
+                        val segments = android.net.Uri.parse(url).pathSegments
+                        segments.lastOrNull() ?: url.takeLast(50)
+                    } catch (_: Exception) {
+                        url.takeLast(50)
+                    }
+                    "${index + 1}. $shortName"
+                }.toTypedArray()
+            }
+        }
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle("Scraper Sources (${urls.size})")
+            .setItems(buildItems()) { _, which ->
+                if (urls.isNotEmpty() && which < urls.size) {
+                    // Confirm removal
+                    val urlToRemove = urls[which]
+                    AlertDialog.Builder(requireContext())
+                        .setTitle("Remove Source?")
+                        .setMessage(urlToRemove)
+                        .setPositiveButton("Remove") { d, _ ->
+                            viewModel.removeAddonRegistryUrl(urlToRemove)
+                            Toast.makeText(context, "Source removed", Toast.LENGTH_SHORT).show()
+                            d.dismiss()
+                        }
+                        .setNegativeButton("Cancel") { d, _ -> d.dismiss() }
+                        .show()
+                }
+            }
+            .setPositiveButton("+ Add Source") { dialog, _ ->
+                dialog.dismiss()
+                showAddScraperSourceInput()
+            }
+            .setNegativeButton("Close") { dialog, _ -> dialog.dismiss() }
+            .show()
+    }
+
+    /**
+     * Shows a text input dialog for the user to paste a new JSON registry URL.
+     */
+    private fun showAddScraperSourceInput() {
+        val input = android.widget.EditText(requireContext()).apply {
+            setHint("https://example.com/scrapers.json")
+            setTextColor(android.graphics.Color.WHITE)
+            setHintTextColor(android.graphics.Color.GRAY)
+            setPadding(40, 30, 40, 30)
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Add Scraper Source")
+            .setMessage("Paste the full URL of a JSON scraper registry:")
+            .setView(input)
+            .setPositiveButton("Add") { dialog, _ ->
+                val url = input.text.toString().trim()
+                if (url.startsWith("http") && (url.endsWith(".json") || url.contains("/"))) {
+                    viewModel.addAddonRegistryUrl(url)
+                    Toast.makeText(context, "✅ Source added!", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Invalid URL — must start with http", Toast.LENGTH_SHORT).show()
                 }
                 dialog.dismiss()
             }

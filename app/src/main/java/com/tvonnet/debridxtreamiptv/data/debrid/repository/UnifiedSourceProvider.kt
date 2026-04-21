@@ -1,20 +1,26 @@
 package com.tvonnet.debridxtreamiptv.data.debrid.repository
 
 import android.util.Log
+import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonDefinition
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonStream
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonSourceType
 import com.tvonnet.debridxtreamiptv.data.debrid.source.AddonRemoteDataSource
+import com.tvonnet.debridxtreamiptv.data.debrid.source.DynamicAddonFetcher
 import com.tvonnet.debridxtreamiptv.data.debrid.source.SimplifiedPureFireFetcher
 import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
+import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
+import com.tvonnet.debridxtreamiptv.data.Result as AppResult
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,7 +32,8 @@ import kotlin.coroutines.coroutineContext
  * Features:
  * - Smart debrid detection based on content metadata
  * - Fallback between IPTV and debrid sources
- * - Batch processing for performance optimization
+ * - Parallel fetching from unlimited dynamic scrapers
+ * - InfoHash-based deduplication across providers
  * - Language filtering and source prioritization
  * - Comprehensive error handling and retry logic
  */
@@ -37,9 +44,13 @@ class UnifiedSourceProvider @Inject constructor(
     private val tmdbRemote: TmdbRemoteDataSource,
     private val simplifiedPureFireFetcher: SimplifiedPureFireFetcher,
     private val mediaFusionFetcher: com.tvonnet.debridxtreamiptv.data.debrid.source.MediaFusionFetcher,
-    private val settingsPrefs: com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
+    private val settingsPrefs: com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences,
+    private val dynamicAddonFetcher: DynamicAddonFetcher,
+    private val debridPrefs: DebridPreferences
 ) {
-    // PureFire integration is now enabled!
+
+    /** Limits how many scraper requests run at the same time. */
+    private val scrapeSemaphore = Semaphore(10)
 
     companion object {
         private const val TAG = "UnifiedSourceProvider"
@@ -203,7 +214,7 @@ class UnifiedSourceProvider @Inject constructor(
             val contentType = ContentType.MOVIE
             val releaseYear = yearHint?.toIntOrNull()
 
-            // PARALLEL EXECUTION: Run both fetchers at the same time
+            // PARALLEL EXECUTION: Run both built-in fetchers at the same time
             val torrentioDeferred = async {
                 try {
                     simplifiedPureFireFetcher.fetchMovieSources(imdbId, title, releaseYear, contentType)
@@ -222,12 +233,18 @@ class UnifiedSourceProvider @Inject constructor(
                 }
             }
 
-            // Wait for both to finish
+            // DYNAMIC ADDONS: Fetch from all user-configured registries in parallel
+            val dynamicDeferred = async {
+                fetchDynamicMovieSources(imdbId)
+            }
+
+            // Wait for all to finish
             val torrentioStreams = torrentioDeferred.await()
             val mediaFusionStreams = mediaFusionDeferred.await()
+            val dynamicStreams = dynamicDeferred.await()
 
             // Merge results
-            val addonStreams = torrentioStreams + mediaFusionStreams
+            val addonStreams = deduplicateStreams(torrentioStreams + mediaFusionStreams + dynamicStreams)
 
             if (addonStreams.isNotEmpty()) {
                 // Enhanced logging with provider breakdown
@@ -242,6 +259,7 @@ class UnifiedSourceProvider @Inject constructor(
                         AddonSourceType.TORRENTIO -> "Torrentio"
                         AddonSourceType.MEDIA_FUSION -> "MediaFusion"
                         AddonSourceType.ZILEAN -> "Zilean"
+                        AddonSourceType.DYNAMIC -> "Dynamic"
                         AddonSourceType.UNKNOWN -> "PureFire"
                     }
                     Log.d(TAG, "   ├─ $providerName: ${streams.size} sources")
@@ -359,7 +377,7 @@ class UnifiedSourceProvider @Inject constructor(
             // Fetch real sources from Enhanced Simplified PureFire AND MediaFusion
             Log.e(TAG, "🚀 Fetching episode sources from Torrentio & MediaFusion for IMDb ID: $imdbId")
 
-            // PARALLEL EXECUTION
+            // PARALLEL EXECUTION — built-in fetchers
             val torrentioDeferred = async {
                 try {
                     simplifiedPureFireFetcher.fetchEpisodeSources(imdbId, seasonNumber, episodeNumber, title)
@@ -378,10 +396,16 @@ class UnifiedSourceProvider @Inject constructor(
                 }
             }
 
+            // DYNAMIC ADDONS: Fetch from all user-configured registries
+            val dynamicDeferred = async {
+                fetchDynamicEpisodeSources(imdbId, seasonNumber, episodeNumber)
+            }
+
             val torrentioStreams = torrentioDeferred.await()
             val mediaFusionStreams = mediaFusionDeferred.await()
+            val dynamicStreams = dynamicDeferred.await()
 
-            val addonStreams = torrentioStreams + mediaFusionStreams
+            val addonStreams = deduplicateStreams(torrentioStreams + mediaFusionStreams + dynamicStreams)
 
             if (addonStreams.isNotEmpty()) {
                 Log.e(TAG, "✅ PureFire API returned ${addonStreams.size} sources for Episode")
@@ -392,6 +416,7 @@ class UnifiedSourceProvider @Inject constructor(
                         AddonSourceType.TORRENTIO -> "Torrentio"
                         AddonSourceType.MEDIA_FUSION -> "MediaFusion"
                         AddonSourceType.ZILEAN -> "Zilean"
+                        AddonSourceType.DYNAMIC -> "Dynamic"
                         AddonSourceType.UNKNOWN -> "PureFire"
                     }
                     Log.e(TAG, "   - $providerName: ${streams.size} sources")
@@ -634,7 +659,7 @@ class UnifiedSourceProvider @Inject constructor(
             } else {
                 validInfoHash ?: addonStream.title.hashCode().toString()
             }
-            val providerLabel = getSourceLabel(addonStream.source)
+            val providerLabel = (addonStream.extras["providerName"] as? String) ?: getSourceLabel(addonStream.source)
             val cachedFlag = inferCachedFlag(addonStream)
 
             // Enhanced label creation with rich metadata from extras
@@ -765,8 +790,170 @@ class UnifiedSourceProvider @Inject constructor(
             AddonSourceType.MEDIA_FUSION -> "MediaFusion"
             AddonSourceType.ZILEAN -> "Zilean"
             AddonSourceType.TORRENTIO -> "TorrentIO"
+            AddonSourceType.DYNAMIC -> "Dynamic"
             AddonSourceType.UNKNOWN -> "PureFire"
         }
+    }
+
+    // ── Dynamic Addon Helpers ─────────────────────────────────────────────
+
+    /**
+     * Loads addon definitions from ALL user-configured registry URLs,
+     * then fetches movie sources from each definition in parallel.
+     *
+     * @param imdbId IMDb ID of the movie.
+     * @return Aggregated list of [AddonStream] from all dynamic scrapers.
+     */
+    private suspend fun fetchDynamicMovieSources(imdbId: String?): List<AddonStream> = coroutineScope {
+        if (imdbId.isNullOrBlank()) return@coroutineScope emptyList()
+
+        val definitions = loadAllDynamicDefinitions()
+        if (definitions.isEmpty()) {
+            Log.d(TAG, "📭 No dynamic addon definitions configured")
+            return@coroutineScope emptyList()
+        }
+
+        Log.d(TAG, "🔥 Launching ${definitions.size} dynamic scrapers for movie $imdbId")
+
+        val results = definitions.map { def ->
+            async {
+                scrapeSemaphore.withPermit {
+                    try {
+                        dynamicAddonFetcher.fetchMovieSources(def, imdbId)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "⚠️ Dynamic [${def.name}] movie failed: ${e.message}")
+                        emptyList()
+                    }
+                }
+            }
+        }.awaitAll().flatten()
+
+        Log.d(TAG, "✅ Dynamic scrapers returned ${results.size} total movie streams")
+        results
+    }
+
+    /**
+     * Loads addon definitions from ALL user-configured registry URLs,
+     * then fetches episode sources from each definition in parallel.
+     *
+     * @param imdbId  IMDb ID of the series.
+     * @param season  Season number.
+     * @param episode Episode number.
+     * @return Aggregated list of [AddonStream] from all dynamic scrapers.
+     */
+    private suspend fun fetchDynamicEpisodeSources(
+        imdbId: String?,
+        season: Int,
+        episode: Int
+    ): List<AddonStream> = coroutineScope {
+        if (imdbId.isNullOrBlank()) return@coroutineScope emptyList()
+
+        val definitions = loadAllDynamicDefinitions()
+        if (definitions.isEmpty()) return@coroutineScope emptyList()
+
+        Log.d(TAG, "🔥 Launching ${definitions.size} dynamic scrapers for episode $imdbId S${season}E${episode}")
+
+        val results = definitions.map { def ->
+            async {
+                scrapeSemaphore.withPermit {
+                    try {
+                        dynamicAddonFetcher.fetchEpisodeSources(def, imdbId, season, episode)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "⚠️ Dynamic [${def.name}] episode failed: ${e.message}")
+                        emptyList()
+                    }
+                }
+            }
+        }.awaitAll().flatten()
+
+        Log.d(TAG, "✅ Dynamic scrapers returned ${results.size} total episode streams")
+        results
+    }
+
+    /**
+     * Fetches and aggregates [AddonDefinition] lists from every user-configured
+     * registry URL. Deduplicates by (name + urlTemplate) to prevent
+     * the same scraper from appearing twice.
+     *
+     * @return Flattened, deduplicated list of addon definitions.
+     */
+    private suspend fun loadAllDynamicDefinitions(): List<AddonDefinition> {
+        val urls = debridPrefs.getAddonRegistryUrls()
+        if (urls.isEmpty()) return emptyList()
+
+        val allDefs = mutableListOf<AddonDefinition>()
+        for (url in urls) {
+            try {
+                val result = addonRemote.fetchAddonDefinitions(url)
+                if (result is AppResult.Success) {
+                    allDefs.addAll(result.data)
+                    Log.d(TAG, "📥 Registry '$url' → ${result.data.size} definitions")
+                } else {
+                    Log.w(TAG, "⚠️ Registry fetch failed for: $url")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "⚠️ Registry error for '$url': ${e.message}")
+            }
+        }
+
+        // Deduplicate by (name + url template)
+        val unique = allDefs.distinctBy { "${it.name}|${it.urlTemplate}" }
+        Log.d(TAG, "📋 Total unique definitions: ${unique.size} (from ${allDefs.size} raw)")
+        return unique
+    }
+
+    /**
+     * Removes duplicate streams that share the same infoHash.
+     * When duplicates are found, the stream with more metadata wins.
+     *
+     * @param streams Raw, possibly duplicated stream list.
+     * @return Deduplicated list.
+     */
+    private fun deduplicateStreams(streams: List<AddonStream>): List<AddonStream> {
+        if (streams.size <= 1) return streams
+
+        val seen = mutableMapOf<String, AddonStream>()
+        val noHashStreams = mutableListOf<AddonStream>()
+
+        for (stream in streams) {
+            val hash = stream.infoHash?.trim()?.lowercase()
+            if (hash.isNullOrBlank()) {
+                noHashStreams.add(stream)
+                continue
+            }
+            val existing = seen[hash]
+            if (existing == null) {
+                seen[hash] = stream
+            } else {
+                // Keep the one with more metadata (prefer cached, larger size, seeders)
+                val existingScore = metadataScore(existing)
+                val newScore = metadataScore(stream)
+                if (newScore > existingScore) {
+                    seen[hash] = stream
+                }
+            }
+        }
+
+        val result = seen.values.toList() + noHashStreams
+        val removed = streams.size - result.size
+        if (removed > 0) {
+            Log.d(TAG, "🔄 Dedup removed $removed duplicate streams (${streams.size} → ${result.size})")
+        }
+        return result
+    }
+
+    /**
+     * Scores a stream by how much useful metadata it carries.
+     * Higher score = more informative stream entry.
+     */
+    private fun metadataScore(stream: AddonStream): Int {
+        var score = 0
+        if (stream.sizeBytes != null && stream.sizeBytes > 0) score += 2
+        if (stream.seeders != null && stream.seeders > 0) score += 1
+        if (!stream.quality.isNullOrBlank() && stream.quality != "Unknown") score += 1
+        if (!stream.url.isNullOrBlank()) score += 1
+        if (stream.extras.containsKey("cached")) score += 2
+        return score
     }
 
     /**

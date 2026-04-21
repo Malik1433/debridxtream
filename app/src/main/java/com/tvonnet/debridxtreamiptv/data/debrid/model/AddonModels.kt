@@ -13,9 +13,12 @@ data class AddonDefinition(
     @SerializedName("imdbType") val imdbType: String?,
     @SerializedName("itemType") val itemType: String?,
     @SerializedName("infoHashTargetKey") val infoHashTargetKey: String? = null,
+    @SerializedName("httpUrlTargetKey") val httpUrlTargetKey: String? = null,
     @SerializedName("torrentNameTargetKey") val torrentNameTargetKey: String? = null,
     @SerializedName("sizeAttr") val sizeAttr: String? = null,
+    @SerializedName("sizePattern") val sizePattern: String? = null,
     @SerializedName("jsonResultsKey") val jsonResultsKey: String? = null,
+    @SerializedName("mode") val mode: String? = null,
     @SerializedName("searchPattern") val searchPattern: AddonSearchPattern? = null,
     @SerializedName("url") val urlTemplate: String
 )
@@ -109,6 +112,7 @@ enum class AddonSourceType {
     MEDIA_FUSION,
     ZILEAN,
     TORRENTIO,
+    DYNAMIC,
     UNKNOWN
 }
 
