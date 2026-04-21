@@ -86,11 +86,14 @@ class SidebarAdapter(
             itemView.setBackgroundResource(
                 if (isSelected) R.drawable.bg_sidebar_nav_active else R.drawable.bg_sidebar_nav_default
             )
+            // Persistent Dimmed Active state when grid is focused
+            itemView.alpha = if (isSelected && !itemView.hasFocus()) 0.6f else 1.0f
 
             itemView.setOnFocusChangeListener { _, hasFocus ->
                 onFocusChange(hasFocus)
                 
                 if (hasFocus) {
+                    itemView.alpha = 1f
                     // Visuals
                     itemView.setBackgroundResource(
                         if (isSelected) R.drawable.bg_sidebar_nav_active else R.drawable.bg_sidebar_nav_focused
@@ -110,6 +113,9 @@ class SidebarAdapter(
                         .start()
 
                 } else {
+                    // Persistent Active visibility
+                    itemView.alpha = if (isSelected) 0.6f else 1f
+                    
                     // Reset Visuals
                     itemView.setBackgroundResource(
                         if (isSelected) R.drawable.bg_sidebar_nav_active else R.drawable.bg_sidebar_nav_default

@@ -61,7 +61,9 @@ class HomeFragment : Fragment() {
     private lateinit var rvTop10Movies: RecyclerView
     private lateinit var rvTop10Series: RecyclerView
     private var didRestoreFocusForThisView = false
-    private var lastFocusedPosition = 0
+    private var lastFocusedRvIndex = 0
+    private var lastFocusedItemIndex = 0
+    private var activeNavItemId: Int = 1 // 1 = Home (based on SidebarItem id in list)
 
     
     // Adapters
@@ -107,7 +109,12 @@ class HomeFragment : Fragment() {
                         
                         // Robust restoration logic
                         if (!didRestoreFocusForThisView && state.top10Movies.isNotEmpty()) {
-                            restoreFocusHome()
+                            // Only hijack if sidebar is not currently focused by the user
+                            val sidebarPanel = view?.findViewById<View>(R.id.sidebar_panel)
+                            if (sidebarPanel?.hasFocus() != true) {
+                                restoreContentFocus()
+                                didRestoreFocusForThisView = true
+                            }
                         }
                     }
                 }
@@ -150,22 +157,43 @@ class HomeFragment : Fragment() {
         rvSidebar.itemAnimator = null
         rvTop10Movies.itemAnimator = null
         rvTop10Series.itemAnimator = null
+
+        // Add Lateral Routing to Sidebar
+        rvSidebar.setOnKeyListener { _, keyCode, event ->
+            if (event.action == android.view.KeyEvent.ACTION_DOWN && keyCode == android.view.KeyEvent.KEYCODE_DPAD_RIGHT) {
+                restoreContentFocus()
+                return@setOnKeyListener true
+            }
+            false
+        }
     }
 
-    private fun restoreFocusHome() {
-        if (didRestoreFocusForThisView) return
+    private fun restoreContentFocus() {
+        if (!isAdded || !isResumed || view == null) return
         
-        // Return focus to Trending Movies by default (most cinematic)
-        rvTop10Movies.post {
-            rvTop10Movies.scrollToPosition(lastFocusedPosition)
-            rvTop10Movies.post {
-                val vh = rvTop10Movies.findViewHolderForAdapterPosition(lastFocusedPosition)
-                if (vh != null) {
-                    vh.itemView.requestFocus()
-                    didRestoreFocusForThisView = true
-                }
+        val targetRv = if (lastFocusedRvIndex == 1) rvTop10Series else rvTop10Movies
+        
+        if (lastFocusedRvIndex == 0) {
+            val scrollContent = view?.findViewById<androidx.core.widget.NestedScrollView>(R.id.scroll_content)
+            scrollContent?.smoothScrollTo(0, 0)
+        }
+
+        targetRv.post {
+            val vh = targetRv.findViewHolderForAdapterPosition(lastFocusedItemIndex)
+            if (vh != null && vh.itemView.isFocusable) {
+                vh.itemView.requestFocus()
+            } else {
+                // Fallback to first item in the target row
+                targetRv.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
             }
         }
+    }
+    
+    private fun returnToSidebar() {
+        val sidebarRoot = view?.findViewById<RecyclerView>(R.id.rv_sidebar)
+        // Find the active tab in the sidebar
+        sidebarRoot?.findViewHolderForItemId(activeNavItemId.toLong())?.itemView?.requestFocus()
+            ?: sidebarRoot?.findViewHolderForAdapterPosition(1)?.itemView?.requestFocus()
     }
     
     private fun setupSidebar() {
@@ -206,6 +234,8 @@ class HomeFragment : Fragment() {
             // Match list micro-interactions
             settingsItemView.setOnFocusChangeListener { _, hasFocus ->
                 val density = settingsItemView.context.resources.displayMetrics.density
+                
+                settingsItemView.alpha = if (hasFocus) 1f else 0.6f
                 settingsItemView.setBackgroundResource(
                     if (hasFocus) R.drawable.bg_sidebar_nav_focused else R.drawable.bg_sidebar_nav_default
                 )
@@ -215,6 +245,14 @@ class HomeFragment : Fragment() {
                     .translationZ(if (hasFocus) 4f * density else 0f)
                     .setDuration(if (hasFocus) 220 else 180)
                     .start()
+            }
+
+            settingsItemView.setOnKeyListener { _, keyCode, event ->
+                if (event.action == android.view.KeyEvent.ACTION_DOWN && keyCode == android.view.KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    restoreContentFocus()
+                    return@setOnKeyListener true
+                }
+                false
             }
         }
 
@@ -254,6 +292,12 @@ class HomeFragment : Fragment() {
                         visibility = android.view.View.GONE
                     }
                 }
+                
+                // Deep Integration: Dim Hero Background aggressively when sidebar is expanded
+                ivHeroBackground.animate()
+                    .alpha(if (expanded) 0.3f else 0.8f)
+                    .setDuration(250)
+                    .start()
             }
         )
     }
@@ -288,6 +332,34 @@ class HomeFragment : Fragment() {
                 }
             })
             .into(ivHeroBackground)
+
+        // Hero Button Polishing
+        val btnWatch = view?.findViewById<View>(R.id.btn_hero_watch)
+        val btnDetails = view?.findViewById<View>(R.id.btn_hero_details)
+        
+        btnWatch?.setOnFocusChangeListener { v, hasFocus ->
+            FocusEffects.applyCinematicFocus(v, hasFocus, scale = 1.05f)
+            v.z = if (hasFocus) 10f else 0f
+        }
+        btnWatch?.setOnKeyListener { _, keyCode, event ->
+            if (event.action == android.view.KeyEvent.ACTION_DOWN && keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) {
+                returnToSidebar()
+                return@setOnKeyListener true
+            }
+            false
+        }
+        
+        btnDetails?.setOnFocusChangeListener { v, hasFocus ->
+            FocusEffects.applyCinematicFocus(v, hasFocus, scale = 1.05f)
+            v.z = if (hasFocus) 10f else 0f
+        }
+        btnDetails?.setOnKeyListener { _, keyCode, event ->
+            if (event.action == android.view.KeyEvent.ACTION_DOWN && keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) {
+                returnToSidebar()
+                return@setOnKeyListener true
+            }
+            false
+        }
     }
     
 
@@ -401,14 +473,28 @@ class HomeFragment : Fragment() {
 
     private fun loadData() {
         // Initialize Adapters with empty lists first
-        top10MoviesAdapter = Top10Adapter(emptyList(), { _, item -> updateHeroSection(item) }) { item ->
-            onFeaturedItemClick(item)
-        }
+        top10MoviesAdapter = Top10Adapter(
+            items = emptyList(),
+            onItemFocused = { index, item -> 
+                lastFocusedRvIndex = 0
+                lastFocusedItemIndex = index
+                updateHeroSection(item) 
+            },
+            onItemClick = { item -> onFeaturedItemClick(item) },
+            onLeftBoundary = { returnToSidebar() }
+        )
         rvTop10Movies.adapter = top10MoviesAdapter
 
-        top10SeriesAdapter = Top10Adapter(emptyList(), { _, item -> updateHeroSection(item) }) { item ->
-            onFeaturedItemClick(item)
-        }
+        top10SeriesAdapter = Top10Adapter(
+            items = emptyList(),
+            onItemFocused = { index, item -> 
+                lastFocusedRvIndex = 1
+                lastFocusedItemIndex = index
+                updateHeroSection(item) 
+            },
+            onItemClick = { item -> onFeaturedItemClick(item) },
+            onLeftBoundary = { returnToSidebar() }
+        )
         rvTop10Series.adapter = top10SeriesAdapter
     }
 

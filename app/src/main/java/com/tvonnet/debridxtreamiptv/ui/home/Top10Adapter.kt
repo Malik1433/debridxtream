@@ -24,7 +24,8 @@ import com.tvonnet.debridxtreamiptv.util.FocusEffects
 class Top10Adapter(
     private var items: List<FeaturedItem>,
     private val onItemFocused: (Int, FeaturedItem) -> Unit,
-    private val onItemClick: (FeaturedItem) -> Unit
+    private val onItemClick: (FeaturedItem) -> Unit,
+    private val onLeftBoundary: () -> Unit
 ) : RecyclerView.Adapter<Top10Adapter.Top10ViewHolder>() {
 
     fun updateItems(newItems: List<FeaturedItem>) {
@@ -46,7 +47,7 @@ class Top10Adapter(
     }
 
     override fun onBindViewHolder(holder: Top10ViewHolder, position: Int) {
-        holder.bind(items[position], position, onItemFocused, onItemClick)
+        holder.bind(items[position], position, onItemFocused, onItemClick, onLeftBoundary)
     }
 
     override fun getItemCount() = items.size
@@ -55,7 +56,13 @@ class Top10Adapter(
         private val ivPoster: ImageView = itemView.findViewById(R.id.iv_poster)
         private val tvRank: TextView = itemView.findViewById(R.id.tv_rank_number)
 
-        fun bind(item: FeaturedItem, position: Int, onFocus: (Int, FeaturedItem) -> Unit, onClick: (FeaturedItem) -> Unit) {
+        fun bind(
+            item: FeaturedItem, 
+            position: Int, 
+            onFocus: (Int, FeaturedItem) -> Unit, 
+            onClick: (FeaturedItem) -> Unit,
+            onLeftBoundary: () -> Unit
+        ) {
             tvRank.text = (position + 1).toString()
 
             val cornerRadius = (12 * itemView.context.resources.displayMetrics.density).toInt()
@@ -79,6 +86,16 @@ class Top10Adapter(
                 } else {
                     view.z = 0f
                 }
+            }
+
+            itemView.setOnKeyListener { _, keyCode, event ->
+                if (event.action == android.view.KeyEvent.ACTION_DOWN && keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) {
+                    if (bindingAdapterPosition == 0) {
+                        onLeftBoundary()
+                        return@setOnKeyListener true
+                    }
+                }
+                false
             }
         }
     }
