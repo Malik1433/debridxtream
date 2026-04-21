@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/home_sidebar_container"
+    android:layout_width="@dimen/sidebar_width_expanded"
+    android:layout_height="match_parent"
+    android:background="@drawable/sidebar_alive_bg"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="20dp"
+    android:paddingBottom="20dp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- Header (Logo + App Name) -->
+    <LinearLayout
+        android:id="@+id/sidebar_header"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/iv_sidebar_logo"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_login_logo"
+            android:contentDescription="@string/app_name"
+            android:scaleType="fitCenter" />
+
+        <TextView
+            android:id="@+id/tv_sidebar_app_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="@string/app_title"
+            android:textColor="@color/sidebar_text_primary"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:letterSpacing="0.02" />
+    </LinearLayout>
+
+    <!-- Subtle divider under header -->
+    <View
+        android:id="@+id/sidebar_header_divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginTop="16dp"
+        android:background="@color/sidebar_divider_line"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/sidebar_header" />
+
+    <!-- Main navigation list (full labels visible) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_sidebar"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/sidebar_header_divider"
+        app:layout_constraintBottom_toTopOf="@id/sidebar_settings_divider" />
+
+    <!-- Divider before settings -->
+    <View
+        android:id="@+id/sidebar_settings_divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="20dp"
+        android:background="@color/sidebar_divider_line"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/sidebar_settings_item" />
+
+    <!-- Settings (bottom) -->
+    <include
+        android:id="@+id/sidebar_settings_item"
+        layout="@layout/item_sidebar_nav"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

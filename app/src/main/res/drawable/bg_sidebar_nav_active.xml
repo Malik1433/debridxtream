@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Active (selected) nav item: Soft emerald glow, no hard borders (prevents clipping) -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Soft pill background -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/sidebar_emerald_soft_bg" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    <!-- Left emerald accent bar -->
+    <item
+        android:width="3dp"
+        android:top="10dp"
+        android:bottom="10dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/sidebar_active_emerald" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+</layer-list>
