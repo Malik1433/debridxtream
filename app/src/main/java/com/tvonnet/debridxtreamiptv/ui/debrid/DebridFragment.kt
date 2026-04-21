@@ -106,6 +106,9 @@ class DebridFragment : Fragment() {
         super.onResume()
         // Phase 3: Restore focus on resume
         FocusMemoryManager.restoreFocus(rvDebridRows)
+        // Tier 2: Atomic Continue Watching sync — refresh the CW row instantly on return
+        // from PlayerActivity so progress/position updates are visible immediately.
+        viewModel.refreshContinueWatching()
     }
 
     override fun onPause() {
@@ -411,6 +414,17 @@ class DebridFragment : Fragment() {
         }
     }
 
+    /**
+     * Handles resume playback for Debrid "Continue Watching" items.
+     *
+     * Architecture (Stremio-Mode): Debrid links are **ephemeral** — they contain short-lived
+     * tokens that expire after a few hours. Instead of playing the saved URL directly (which
+     * leads to "Link Expired" errors), we ALWAYS re-resolve a fresh link via Real-Debrid
+     * when metadata (infoHash / magnet) is available.
+     *
+     * @param item The Continue Watching item to resume.
+     * @return true if this method handled the click, false to fall through to normal detail navigation.
+     */
     private fun tryResumeDebrid(item: DebridContentItem): Boolean {
         val resumePosition = item.resumePositionMs ?: return false
         if (resumePosition <= 0L) return false
@@ -422,7 +436,10 @@ class DebridFragment : Fragment() {
             ?: if (item.type == "series") com.tvonnet.debridxtreamiptv.data.model.ContentType.EPISODE
             else com.tvonnet.debridxtreamiptv.data.model.ContentType.MOVIE
 
-        if (infoHash.isNullOrBlank() && magnet.isNullOrBlank()) {
+        val hasResolvableMetadata = !infoHash.isNullOrBlank() || !magnet.isNullOrBlank()
+
+        // Fallback path: no metadata available — play the cached URL directly (last resort)
+        if (!hasResolvableMetadata) {
             if (streamUrl.isNullOrBlank()) return false
             val intent = com.tvonnet.debridxtreamiptv.player.PlayerActivity.createIntent(
                 context = requireContext(),
@@ -447,7 +464,8 @@ class DebridFragment : Fragment() {
             return true
         }
 
-        Toast.makeText(requireContext(), "Resuming...", Toast.LENGTH_SHORT).show()
+        // Primary path (Stremio-Mode): ALWAYS re-resolve a fresh link via Real-Debrid
+        Toast.makeText(requireContext(), "Resolving fresh link...", Toast.LENGTH_SHORT).show()
         viewLifecycleOwner.lifecycleScope.launch {
             val result = debridPlaybackRepository.resolveDebridUrl(
                 infoHash = infoHash,
@@ -457,6 +475,7 @@ class DebridFragment : Fragment() {
                 episodeTitle = item.episodeTitle
             )
             result.onSuccess { url ->
+                if (!isAdded) return@onSuccess
                 val intent = com.tvonnet.debridxtreamiptv.player.PlayerActivity.createIntent(
                     context = requireContext(),
                     streamUrl = url,
@@ -478,6 +497,7 @@ class DebridFragment : Fragment() {
                 )
                 startActivity(intent)
             }.onFailure { error ->
+                if (!isAdded) return@onFailure
                 if (error is com.tvonnet.debridxtreamiptv.data.debrid.model.NotAuthenticatedException) {
                     navigateToLogin()
                 } else {

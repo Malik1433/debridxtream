@@ -105,6 +105,50 @@ class DebridViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Atomically refreshes only the "Continue Watching" row within the current UI state.
+     *
+     * This avoids a full catalog reload (which causes flicker and focus loss) by reading
+     * fresh history from local storage and patching the existing cached row list in-place.
+     * Mirrors Stremio's approach: metadata is the source of truth, UI updates are instantaneous.
+     */
+    fun refreshContinueWatching() {
+        viewModelScope.launch {
+            try {
+                val freshHistory = catalogRepo.getContinueWatching()
+                val freshItems = freshHistory.map { it.toDebridContentItem() }
+
+                val currentState = _uiState.value
+                if (currentState !is DebridUiState.Content) return@launch
+
+                val existingRows = currentState.rows.toMutableList()
+                val cwIndex = existingRows.indexOfFirst { it.id == "continue_watching" }
+
+                if (freshItems.isNotEmpty()) {
+                    val newCwRow = DebridRow(
+                        id = "continue_watching",
+                        title = "Continue Watching",
+                        items = freshItems,
+                        canLoadMore = false
+                    )
+                    if (cwIndex >= 0) {
+                        existingRows[cwIndex] = newCwRow
+                    } else {
+                        existingRows.add(0, newCwRow)
+                    }
+                } else if (cwIndex >= 0) {
+                    existingRows.removeAt(cwIndex)
+                }
+
+                cachedRows = existingRows
+                _uiState.value = DebridUiState.Content(existingRows, DebridRefreshState.Idle)
+            } catch (e: Exception) {
+                // Non-fatal: silently ignore refresh errors to avoid disrupting the UI
+                android.util.Log.w("DebridViewModel", "Continue Watching refresh failed: ${e.message}")
+            }
+        }
+    }
+
     fun fetchGenres() {
         viewModelScope.launch {
             try {

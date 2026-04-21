@@ -1581,19 +1581,23 @@ class PlayerActivity : AppCompatActivity() {
         if (retryCount < maxRetries) {
             retryCount++
             
-            // Phase 1: Debrid Smart Re-resolution logic
+            // Tier 3: Aggressive Debrid Re-resolution (Stremio-Mode)
+            // Debrid links are ephemeral — ANY playback error likely means the token expired.
+            // Instead of blindly retrying the same dead URL, immediately re-resolve a fresh
+            // link when we have metadata (infoHash / magnet).
             if (playbackSource == PlaybackSource.DEBRID && !isResolvingDebrid) {
                  val hasMeta = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
                  
-                 // Detect actual expiration (403 Forbidden or 410 Gone)
-                 val isTrulyExpired = cause is HttpDataSource.InvalidResponseCodeException && 
-                     (cause.responseCode == 403 || cause.responseCode == 410)
-                 
-                 // Only re-resolve if TRULY expired OR if this is the 2nd+ strike (standard retry failed)
-                 if (hasMeta && (isTrulyExpired || retryCount > 1)) {
-                      val reason = if (isTrulyExpired) "Link expired" else "Persistent error"
-                      Log.i("PlayerActivity", "Debrid $reason detected. Attempting re-resolution.")
-                      showToast("$reason. Refreshing...")
+                 if (hasMeta) {
+                      val isTrulyExpired = cause is HttpDataSource.InvalidResponseCodeException && 
+                          (cause.responseCode == 403 || cause.responseCode == 410)
+                      val reason = when {
+                          isTrulyExpired -> "Link expired"
+                          cause is HttpDataSource.InvalidResponseCodeException -> "HTTP ${cause.responseCode}"
+                          else -> "Playback error"
+                      }
+                      Log.i("PlayerActivity", "Debrid $reason detected. Attempting immediate re-resolution.")
+                      showToast("$reason. Refreshing stream...")
                       isResolvingDebrid = true
                       
                       // Save current position for re-resume
@@ -1608,8 +1612,6 @@ class PlayerActivity : AppCompatActivity() {
                           title = episodeTitleExtra
                       )
                       return
-                 } else if (hasMeta) {
-                      Log.i("PlayerActivity", "Debrid non-fatal error. Trying standard recovery first.")
                  }
             }
 
