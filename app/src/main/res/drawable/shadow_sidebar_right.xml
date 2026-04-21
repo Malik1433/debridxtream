@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Sidebar right edge shadow: Deeper shadow for premium depth -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <gradient
-        android:startColor="#80000000"
+        android:startColor="#990F172A"
+        android:centerColor="#400F172A"
         android:endColor="@android:color/transparent"
         android:angle="0" />
 </shape>

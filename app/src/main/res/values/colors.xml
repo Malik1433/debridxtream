@@ -275,5 +275,19 @@
     <color name="white_opacity_30">#4DFFFFFF</color>
     <color name="white_opacity_10">#1AFFFFFF</color>
     <color name="white_opacity_06">#0FFFFFFF</color>
+
+    <!-- ========== SIDEBAR PREMIUM THEME (Emerald) ========== -->
+    <color name="sidebar_bg_navy">#0F172A</color>
+    <color name="sidebar_surface">#1E293B</color>
+    <color name="sidebar_surface_light">#283548</color>
+    <color name="sidebar_active_emerald">#22C55E</color>
+    <color name="sidebar_emerald_glow">#3322C55E</color>
+    <color name="sidebar_emerald_soft_bg">#1A22C55E</color>
+    <color name="sidebar_text_primary">#FFFFFF</color>
+    <color name="sidebar_text_dim">#94A3B8</color>
+    <color name="sidebar_divider_line">#3394A3B8</color>
+    <color name="sidebar_icon_default">#94A3B8</color>
+    <color name="sidebar_icon_active">#FFFFFF</color>
+    <color name="sidebar_edge_shadow">#660F172A</color>
 </resources>
 

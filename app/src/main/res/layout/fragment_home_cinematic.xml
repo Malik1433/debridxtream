@@ -43,7 +43,7 @@
             android:paddingBottom="48dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@+id/rv_sidebar"
+            app:layout_constraintStart_toEndOf="@+id/sidebar_panel"
             app:layout_constraintTop_toTopOf="parent">
 
             <LinearLayout
@@ -217,41 +217,27 @@
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
 
-        <!-- Background Container for Sidebar Area (Glassmorphism) -->
-        <View
-            android:id="@+id/sidebar_bg"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:background="#66050505"
+        <!-- Premium Sidebar Panel (structured; full labels visible) -->
+        <include
+            android:id="@+id/sidebar_panel"
+            layout="@layout/view_home_sidebar"
+            android:layout_width="@dimen/sidebar_width_expanded"
+            android:layout_height="0dp"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="@+id/rv_sidebar"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"/>
+            app:layout_constraintBottom_toBottomOf="parent" />
 
-        <!-- Visual Boundary: Cybernetic Glowing Divider -->
+        <!-- Visual Boundary: Soft premium edge shadow -->
         <View
             android:id="@+id/divider_sidebar"
             android:layout_width="1dp"
             android:layout_height="match_parent"
-            android:background="@color/colorFocusCyanGlow"
-            app:layout_constraintStart_toEndOf="@+id/rv_sidebar"
+            android:background="@drawable/shadow_sidebar_right"
+            app:layout_constraintStart_toEndOf="@+id/sidebar_panel"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />
 
-        <!-- Main Sidebar RecyclerView -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_sidebar"
-            android:layout_width="wrap_content"
-            android:layout_height="0dp"
-            android:orientation="vertical"
-            android:paddingTop="32dp"
-            android:paddingBottom="32dp"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:listitem="@layout/item_sidebar_nav" />
+        <!-- RecyclerView moved inside `view_home_sidebar` -->
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

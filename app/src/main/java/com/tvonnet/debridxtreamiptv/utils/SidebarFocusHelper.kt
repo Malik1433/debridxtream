@@ -3,9 +3,8 @@ package com.tvonnet.debridxtreamiptv.utils
 import android.animation.ValueAnimator
 import android.util.TypedValue
 import android.view.View
-import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
-import androidx.recyclerview.widget.RecyclerView
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 
 /**
  * SidebarFocusHelper
@@ -22,7 +21,7 @@ object SidebarFocusHelper {
 
     private const val COLLAPSED_WIDTH_DP = 80f
     private const val EXPANDED_WIDTH_DP = 260f
-    private const val ANIMATION_DURATION = 200L
+    private const val ANIMATION_DURATION = 300L
     private const val FOCUS_GRACE_PERIOD_MS = 100L
 
     /**
@@ -35,21 +34,27 @@ object SidebarFocusHelper {
     fun attachStandardSidebarAnimation(
         sidebarContainer: View,
         focusTrigger: View,
-        titleArea: View? = null
+        titleArea: View? = null,
+        onExpandedChanged: ((Boolean) -> Unit)? = null
     ) {
         var animator: ValueAnimator? = null
         val collapsedWidth = dpToPx(sidebarContainer, COLLAPSED_WIDTH_DP)
         val expandedWidth = dpToPx(sidebarContainer, EXPANDED_WIDTH_DP)
+        var isExpanded = sidebarContainer.layoutParams.width != collapsedWidth
 
         val performAnimation = { expand: Boolean ->
             val startWidth = sidebarContainer.width
             val endWidth = if (expand) expandedWidth else collapsedWidth
+            if (expand != isExpanded) {
+                isExpanded = expand
+                onExpandedChanged?.invoke(expand)
+            }
 
             if (startWidth != endWidth) {
                 animator?.cancel()
                 animator = ValueAnimator.ofInt(startWidth, endWidth).apply {
                     duration = ANIMATION_DURATION
-                    interpolator = DecelerateInterpolator()
+                    interpolator = FastOutSlowInInterpolator()
                     addUpdateListener { anim ->
                         val width = anim.animatedValue as Int
                         val params = sidebarContainer.layoutParams
@@ -63,6 +68,7 @@ object SidebarFocusHelper {
                 titleArea?.animate()
                     ?.alpha(if (expand) 1f else 0f)
                     ?.setDuration(ANIMATION_DURATION)
+                    ?.setInterpolator(FastOutSlowInInterpolator())
                     ?.start()
             }
         }

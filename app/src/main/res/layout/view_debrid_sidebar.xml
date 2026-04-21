@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/sidebar_container"
-    android:layout_width="80dp"
+    android:layout_width="@dimen/sidebar_width_collapsed"
     android:layout_height="match_parent"
     android:background="@drawable/sidebar_alive_bg"
     android:elevation="8dp"
@@ -58,27 +58,27 @@
         <include
             android:id="@+id/nav_item_home"
             layout="@layout/item_debrid_sidebar"
-            android:layout_marginTop="16dp" />
+            android:layout_marginTop="8dp" />
 
         <include
             android:id="@+id/nav_item_discover"
             layout="@layout/item_debrid_sidebar"
-            android:layout_marginTop="16dp" />
+            android:layout_marginTop="8dp" />
 
         <include
             android:id="@+id/nav_item_library"
             layout="@layout/item_debrid_sidebar"
-            android:layout_marginTop="16dp" />
+            android:layout_marginTop="8dp" />
 
         <include
             android:id="@+id/nav_item_movies"
             layout="@layout/item_debrid_sidebar"
-            android:layout_marginTop="16dp" />
+            android:layout_marginTop="8dp" />
 
         <include
             android:id="@+id/nav_item_series"
             layout="@layout/item_debrid_sidebar"
-            android:layout_marginTop="16dp" />
+            android:layout_marginTop="8dp" />
 
     </LinearLayout>
 </FrameLayout>

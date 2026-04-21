@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Sidebar icon/text color selector: Emerald green for active/focused, muted slate for default -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_selected="true" android:color="@color/brand_cyan" />
-    <item android:state_focused="true" android:color="@color/brand_cyan" />
-    <item android:color="#A4A9BD" /> <!-- default greyish blue -->
+    <!-- Active tab should read as "on" (white), with emerald expressed via background/indicator -->
+    <item android:state_selected="true" android:color="@color/sidebar_text_primary" />
+    <item android:state_focused="true" android:color="@color/sidebar_text_primary" />
+    <item android:color="@color/sidebar_text_dim" />
 </selector>

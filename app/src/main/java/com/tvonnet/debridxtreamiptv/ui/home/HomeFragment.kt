@@ -175,8 +175,7 @@ class HomeFragment : Fragment() {
             SidebarItem(2, getString(R.string.nav_live_tv), R.drawable.ic_live_tv),
             SidebarItem(3, getString(R.string.nav_movies), R.drawable.ic_movie),
             SidebarItem(4, getString(R.string.nav_series), R.drawable.ic_series),
-            SidebarItem(5, getString(R.string.nav_debrid), R.drawable.ic_dns),
-            SidebarItem(6, getString(R.string.nav_settings), R.drawable.ic_settings)
+            SidebarItem(5, getString(R.string.nav_debrid), R.drawable.ic_dns)
         )
         
         sidebarAdapter = SidebarAdapter(menuItems) { position ->
@@ -187,15 +186,75 @@ class HomeFragment : Fragment() {
                 3 -> navigateToSection("movies")
                 4 -> navigateToSection("series")
                 5 -> navigateToSection("debrid")
-                6 -> navigateToSection("settings")
             }
         }
         rvSidebar.adapter = sidebarAdapter
 
+        // Bottom Settings item (same visual style, pinned)
+        val settingsItemView = view?.findViewById<android.view.View>(R.id.sidebar_settings_item)
+        if (settingsItemView != null) {
+            val ivIcon = settingsItemView.findViewById<android.widget.ImageView>(R.id.iv_icon)
+            val tvTitle = settingsItemView.findViewById<android.widget.TextView>(R.id.tv_title)
+            val indicator = settingsItemView.findViewById<android.view.View>(R.id.view_selection_indicator)
+
+            ivIcon.setImageResource(R.drawable.ic_settings)
+            tvTitle.text = getString(R.string.nav_settings)
+            indicator.visibility = android.view.View.INVISIBLE
+
+            settingsItemView.setOnClickListener { navigateToSection("settings") }
+
+            // Match list micro-interactions
+            settingsItemView.setOnFocusChangeListener { _, hasFocus ->
+                val density = settingsItemView.context.resources.displayMetrics.density
+                settingsItemView.setBackgroundResource(
+                    if (hasFocus) R.drawable.bg_sidebar_nav_focused else R.drawable.bg_sidebar_nav_default
+                )
+                settingsItemView.animate()
+                    .scaleX(if (hasFocus) 1.05f else 1.0f)
+                    .scaleY(if (hasFocus) 1.05f else 1.0f)
+                    .translationZ(if (hasFocus) 4f * density else 0f)
+                    .setDuration(if (hasFocus) 220 else 180)
+                    .start()
+            }
+        }
+
         // Week 15 Audit: Standardize Sidebar Focus expansion
         com.tvonnet.debridxtreamiptv.utils.SidebarFocusHelper.attachStandardSidebarAnimation(
-            sidebarContainer = rvSidebar,
-            focusTrigger = rvSidebar
+            sidebarContainer = requireView().findViewById(R.id.sidebar_panel),
+            focusTrigger = rvSidebar,
+            titleArea = requireView().findViewById(R.id.tv_sidebar_app_name),
+            onExpandedChanged = { expanded ->
+                sidebarAdapter.setExpanded(expanded)
+
+                // Header alignment: logo centers when collapsed, app name fades via titleArea
+                val header = requireView().findViewById<android.widget.LinearLayout>(R.id.sidebar_header)
+                val logo = requireView().findViewById<android.widget.ImageView>(R.id.iv_sidebar_logo)
+                val appName = requireView().findViewById<android.widget.TextView>(R.id.tv_sidebar_app_name)
+
+                if (expanded) {
+                    header.gravity = android.view.Gravity.CENTER_VERTICAL
+                    (logo.layoutParams as? android.widget.LinearLayout.LayoutParams)?.let { lp ->
+                        lp.marginStart = 0
+                        logo.layoutParams = lp
+                    }
+                    appName.visibility = android.view.View.VISIBLE
+
+                    // Settings label visible in expanded mode
+                    settingsItemView?.findViewById<android.widget.TextView>(R.id.tv_title)?.apply {
+                        visibility = android.view.View.VISIBLE
+                        alpha = 1f
+                    }
+                } else {
+                    header.gravity = android.view.Gravity.CENTER
+                    appName.visibility = android.view.View.GONE
+
+                    // Settings label hidden in collapsed mode (prevents truncation)
+                    settingsItemView?.findViewById<android.widget.TextView>(R.id.tv_title)?.apply {
+                        alpha = 0f
+                        visibility = android.view.View.GONE
+                    }
+                }
+            }
         )
     }
     

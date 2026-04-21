@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Premium dark navy sidebar background matching login page theme.
+     Subtle vertical gradient from slightly lighter at top to pure navy at bottom. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <gradient
-        android:startColor="@color/sidebar_grad_top"
-        android:centerColor="@color/sidebar_grad_mid"
-        android:endColor="@color/sidebar_grad_bottom"
+        android:startColor="#141C30"
+        android:centerColor="@color/sidebar_bg_navy"
+        android:endColor="#0B1222"
         android:angle="270" />
 </shape>
