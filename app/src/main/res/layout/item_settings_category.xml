@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
-    android:background="@drawable/selector_menu_item"
+    android:layout_marginBottom="12dp"
+    android:background="@drawable/selector_settings_item"
     android:focusable="true"
     android:focusableInTouchMode="true"
     android:orientation="horizontal"
@@ -16,8 +17,7 @@
         android:layout_gravity="center_vertical"
         android:scaleType="centerInside"
         android:src="@drawable/ic_settings"
-        app:tint="@color/white"
-        xmlns:app="http://schemas.android.com/apk/res-auto" />
+        android:tint="@color/sidebar_icon_active" />
 
     <TextView
         android:id="@+id/tv_title"
@@ -25,9 +25,10 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
         android:layout_marginStart="16dp"
-        android:fontFamily="sans-serif-medium"
-        android:textColor="@color/white"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:textColor="@color/tv_text_primary"
         android:textSize="16sp"
+        android:textStyle="bold"
         android:text="General" />
 
 </LinearLayout>

@@ -69,6 +69,9 @@ class SettingsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
+        // Lock sidebar expanded while in Settings
+        com.tvonnet.debridxtreamiptv.utils.SidebarFocusHelper.setLocked(true)
+        
         setupAdapters()
         observeState()
     }
@@ -507,6 +510,8 @@ class SettingsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        // Unlock sidebar
+        com.tvonnet.debridxtreamiptv.utils.SidebarFocusHelper.setLocked(false)
         _binding = null
     }
 }

@@ -15,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.constraintlayout.widget.ConstraintLayout
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
@@ -219,43 +220,71 @@ class HomeFragment : Fragment() {
         }
 
         // Week 15 Audit: Standardize Sidebar Focus expansion
+        val sidebarPanel = requireView().findViewById<android.view.View>(R.id.sidebar_panel)
         com.tvonnet.debridxtreamiptv.utils.SidebarFocusHelper.attachStandardSidebarAnimation(
-            sidebarContainer = requireView().findViewById(R.id.sidebar_panel),
-            focusTrigger = rvSidebar,
-            titleArea = requireView().findViewById(R.id.tv_sidebar_app_name),
+            sidebarContainer = sidebarPanel,
+            focusTrigger = sidebarPanel, // Track entire sidebar area
+            titleArea = null,
             onExpandedChanged = { expanded ->
                 sidebarAdapter.setExpanded(expanded)
-
-                // Header alignment: logo centers when collapsed, app name fades via titleArea
+                
+                // Header alignment and Settings alignment
                 val header = requireView().findViewById<android.widget.LinearLayout>(R.id.sidebar_header)
-                val logo = requireView().findViewById<android.widget.ImageView>(R.id.iv_sidebar_logo)
                 val appName = requireView().findViewById<android.widget.TextView>(R.id.tv_sidebar_app_name)
+                val settingsLabel = settingsItemView?.findViewById<android.widget.TextView>(R.id.tv_title)
+                val settingsIcon = settingsItemView?.findViewById<android.widget.ImageView>(R.id.iv_icon)
+                val btnCollapse = requireView().findViewById<android.view.View>(R.id.btn_sidebar_collapse)
 
                 if (expanded) {
-                    header.gravity = android.view.Gravity.CENTER_VERTICAL
-                    (logo.layoutParams as? android.widget.LinearLayout.LayoutParams)?.let { lp ->
-                        lp.marginStart = 0
-                        logo.layoutParams = lp
-                    }
+                    // Expanded Mode: Stacked Centered
                     appName.visibility = android.view.View.VISIBLE
+                    appName.animate().alpha(1f).setDuration(220).start()
 
-                    // Settings label visible in expanded mode
-                    settingsItemView?.findViewById<android.widget.TextView>(R.id.tv_title)?.apply {
-                        visibility = android.view.View.VISIBLE
-                        alpha = 1f
+                    settingsLabel?.visibility = android.view.View.VISIBLE
+                    settingsLabel?.animate()?.alpha(1f)?.setDuration(220)?.start()
+                    
+                    btnCollapse.visibility = android.view.View.VISIBLE
+                    btnCollapse.animate().alpha(1f).setDuration(220).start()
+
+                    (settingsIcon?.layoutParams as? ConstraintLayout.LayoutParams)?.let { lp ->
+                        lp.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
+                        lp.endToEnd = ConstraintLayout.LayoutParams.UNSET
+                        settingsIcon.layoutParams = lp
                     }
                 } else {
-                    header.gravity = android.view.Gravity.CENTER
-                    appName.visibility = android.view.View.GONE
+                    // Collapsed Mode: Logo Centered at Top
+                    appName.animate().alpha(0f).setDuration(180).withEndAction { 
+                        appName.visibility = android.view.View.GONE 
+                    }.start()
 
-                    // Settings label hidden in collapsed mode (prevents truncation)
-                    settingsItemView?.findViewById<android.widget.TextView>(R.id.tv_title)?.apply {
-                        alpha = 0f
-                        visibility = android.view.View.GONE
+                    settingsLabel?.animate()?.alpha(0f)?.setDuration(180)?.withEndAction { 
+                        settingsLabel.visibility = android.view.View.GONE 
+                    }?.start()
+
+                    btnCollapse.animate().alpha(0f).setDuration(180).withEndAction {
+                        btnCollapse.visibility = android.view.View.GONE
+                    }.start()
+
+                    (settingsIcon?.layoutParams as? ConstraintLayout.LayoutParams)?.let { lp ->
+                        lp.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
+                        lp.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
+                        settingsIcon.layoutParams = lp
                     }
                 }
             }
         )
+
+        // Manual Collapse Button functionality
+        view?.findViewById<android.view.View>(R.id.btn_sidebar_collapse)?.setOnClickListener {
+            com.tvonnet.debridxtreamiptv.utils.SidebarFocusHelper.collapse(
+                sidebarPanel,
+                requireView().findViewById(R.id.tv_sidebar_app_name),
+                onExpandedChanged = { expanded ->
+                    sidebarAdapter.setExpanded(expanded)
+                    // Synchronization logic is handled by GlobalFocusChangeListener but we force it here for immediate feedback
+                }
+            )
+        }
     }
     
     private fun updateHeroSection(item: FeaturedItem) {
