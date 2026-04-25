@@ -27,8 +27,13 @@ data class ContinueWatchingItem(
     val episodeNumber: Int? = null,
     val debridInfoHash: String? = null,
     val debridMagnet: String? = null,
-    val source: String = "xtream" // "xtream" or "debrid"
+    val source: String = "xtream", // "xtream" or "debrid"
+    val expiresAt: Long? = null
 ) {
+    fun isExpired(): Boolean {
+        return expiresAt == null || System.currentTimeMillis() > expiresAt
+    }
+
     val progressPercentage: Int
         get() = if (totalDuration > 0) {
             ((currentPosition.toFloat() / totalDuration.toFloat()) * 100).toInt()

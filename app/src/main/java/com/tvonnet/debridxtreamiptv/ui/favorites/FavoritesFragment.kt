@@ -13,7 +13,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.local.entity.FavoriteEntity
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
-import com.tvonnet.debridxtreamiptv.player.PlayerActivity
+import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.utils.RecyclerViewAnimations
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch

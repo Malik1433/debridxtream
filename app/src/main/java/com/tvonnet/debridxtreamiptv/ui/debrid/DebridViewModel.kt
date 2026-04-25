@@ -483,10 +483,16 @@ data class DebridContentItem(
     val debridInfoHash: String? = null,
     val debridMagnet: String? = null,
     val streamUrl: String? = null,
+    val source: String = "xtream",
+    val expiresAt: Long? = null,
     val overview: String? = null,
     val genreIds: List<Int>? = null,
     val isSkeleton: Boolean = false
-)
+) {
+    fun isExpired(): Boolean {
+        return expiresAt == null || System.currentTimeMillis() > expiresAt
+    }
+}
 
 /**
  * Extension to map catalog items to UI models
@@ -530,6 +536,8 @@ private fun ContinueWatchingItem.toDebridContentItem(): DebridContentItem {
         imdbId = imdbId,
         debridInfoHash = debridInfoHash,
         debridMagnet = debridMagnet,
-        streamUrl = streamUrl
+        streamUrl = streamUrl,
+        source = source,
+        expiresAt = expiresAt
     )
 }

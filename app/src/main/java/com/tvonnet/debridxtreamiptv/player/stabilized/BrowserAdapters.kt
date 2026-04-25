@@ -1,4 +1,4 @@
-package com.tvonnet.debridxtreamiptv.player
+package com.tvonnet.debridxtreamiptv.player.stabilized
 
 import android.graphics.Typeface
 import android.view.LayoutInflater

@@ -32,7 +32,7 @@ import com.tvonnet.debridxtreamiptv.ui.vod.VodFragment
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesFragment
 import com.tvonnet.debridxtreamiptv.ui.search.SearchFragment
 
-import com.tvonnet.debridxtreamiptv.player.PlayerActivity
+import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.util.FocusEffects
 import com.tvonnet.debridxtreamiptv.data.local.entity.FavoriteEntity
 import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity

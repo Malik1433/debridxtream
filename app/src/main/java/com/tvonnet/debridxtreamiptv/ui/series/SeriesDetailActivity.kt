@@ -31,7 +31,7 @@ import com.tvonnet.debridxtreamiptv.data.onFailure
 import com.tvonnet.debridxtreamiptv.data.onSuccess
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
-import com.tvonnet.debridxtreamiptv.player.PlayerActivity
+import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
 import com.tvonnet.debridxtreamiptv.data.local.entity.toXtreamSeasonInfo
 import com.tvonnet.debridxtreamiptv.data.local.entity.toXtreamEpisodeInfo
@@ -788,7 +788,7 @@ class SeriesDetailActivity : AppCompatActivity() {
                     title = "${seriesName} - S${selectedSeasonKey}E${episode.episodeNumber}",
                     contentId = infoHash ?: seriesId ?: "",
                     contentType = ContentType.EPISODE,
-                    playbackSource = com.tvonnet.debridxtreamiptv.player.PlaybackSource.DEBRID,
+                    playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
                     posterUrl = episode.thumbnailUrl,
                     backdropUrl = seriesBackdrop,
                     headers = source.headers,
@@ -850,7 +850,7 @@ class SeriesDetailActivity : AppCompatActivity() {
                     title = "${seriesName} - S${selectedSeasonKey}E${episode.episodeNumber}",
                     contentId = infoHash ?: seriesId ?: "",
                     contentType = ContentType.EPISODE,
-                    playbackSource = com.tvonnet.debridxtreamiptv.player.PlaybackSource.DEBRID,
+                    playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
                     posterUrl = episode.thumbnailUrl,
                     backdropUrl = seriesBackdrop,
                     tmdbId = tmdbId,

@@ -27,7 +27,7 @@ import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
-import com.tvonnet.debridxtreamiptv.player.PlayerActivity
+import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.vod.MovieSourceAdapter
 import com.tvonnet.debridxtreamiptv.ui.series.LanguageFilterAdapter
 import com.tvonnet.debridxtreamiptv.ui.sources.SizeFilterAdapter
@@ -689,7 +689,7 @@ class MovieDetailActivity : AppCompatActivity() {
 
         val tmdbId = movieId?.takeIf { it.toIntOrNull() != null }
         val playbackSource =
-            if (movieCategoryId == "debrid") com.tvonnet.debridxtreamiptv.player.PlaybackSource.DEBRID else null
+            if (movieCategoryId == "debrid") com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID else null
 
         val launchPlayer = {
             val intent = PlayerActivity.createIntent(
@@ -879,7 +879,7 @@ class MovieDetailActivity : AppCompatActivity() {
                     posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream?.stream_icon) ?: movieIcon,
                     backdropUrl = stream?.cover ?: movieBackdrop,
                     headers = source?.headers,
-                    playbackSource = com.tvonnet.debridxtreamiptv.player.PlaybackSource.DEBRID,
+                    playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
                     tmdbId = tmdbId,
                     imdbId = currentImdbId,
                     debridInfoHash = infoHash,
@@ -947,7 +947,7 @@ class MovieDetailActivity : AppCompatActivity() {
                     contentType = ContentType.MOVIE,
                     posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream?.stream_icon) ?: movieIcon,
                     backdropUrl = stream?.cover ?: movieBackdrop,
-                    playbackSource = com.tvonnet.debridxtreamiptv.player.PlaybackSource.DEBRID,
+                    playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
                     tmdbId = tmdbId,
                     imdbId = currentImdbId,
                     debridInfoHash = infoHash,
@@ -1030,7 +1030,7 @@ class MovieDetailActivity : AppCompatActivity() {
                     contentType = ContentType.MOVIE,
                     posterUrl = movieIcon,
                     backdropUrl = movieBackdrop,
-                    playbackSource = com.tvonnet.debridxtreamiptv.player.PlaybackSource.DEBRID,
+                    playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
                     tmdbId = tmdbId,
                     imdbId = currentImdbId,
                     debridInfoHash = infoHash

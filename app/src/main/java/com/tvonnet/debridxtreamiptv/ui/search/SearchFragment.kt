@@ -25,7 +25,7 @@ import com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.SeriesDetailFragmentV2
 import com.tvonnet.debridxtreamiptv.features.vodv2.ui.MovieDetailFragmentV2
-import com.tvonnet.debridxtreamiptv.player.PlayerActivity
+import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.utils.RecyclerViewAnimations
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
