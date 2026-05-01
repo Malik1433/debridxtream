@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.collect
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
@@ -36,7 +38,8 @@ sealed class DebridResolutionState {
         val season: Int? = null,
         val episode: Int? = null,
         val title: String? = null,
-        val infoHash: String? = null
+        val infoHash: String? = null,
+        val expiresAt: Long? = null
     ) : DebridResolutionState()
     data class Error(val message: String) : DebridResolutionState()
 }
@@ -114,29 +117,107 @@ class PlayerViewModel @Inject constructor(
     private val _seriesPlaylistState = MutableStateFlow<SeriesPlaylistState?>(null)
     val seriesPlaylistState: StateFlow<SeriesPlaylistState?> = _seriesPlaylistState.asStateFlow()
 
+    private val _isPlaylistLoading = MutableStateFlow(false)
+    val isPlaylistLoading: StateFlow<Boolean> = _isPlaylistLoading.asStateFlow()
+
     private val _debridResolutionState = MutableStateFlow<DebridResolutionState>(DebridResolutionState.Idle)
     val debridResolutionState: StateFlow<DebridResolutionState> = _debridResolutionState.asStateFlow()
 
     fun loadSeriesPlaylist(seriesId: String, seasonNum: Int, startEpisodeId: String) {
         viewModelScope.launch {
-             try {
-                 val episodes = seriesRepository.getSeasonEpisodes(seriesId, seasonNum)
-                 if (episodes.isNotEmpty()) {
-                     val startIndex = episodes.indexOfFirst { it.episodeId == startEpisodeId }.takeIf { it >= 0 } ?: 0
-                     val current = episodes[startIndex]
-                     
-                     _seriesPlaylistState.value = SeriesPlaylistState(
-                         originalList = episodes,
-                         currentIndex = startIndex,
-                         currentEpisode = current,
-                         hasNext = startIndex < episodes.size - 1,
-                         hasPrev = startIndex > 0
-                     )
-                 }
-             } catch (e: Exception) {
-                 e.printStackTrace()
-             }
+            _isPlaylistLoading.value = true
+            
+            // Cleanup startEpisodeId (it might be a URL)
+            val cleanEpId = if (startEpisodeId.contains("/")) {
+                startEpisodeId.substringAfterLast("/").substringBefore(".")
+            } else {
+                startEpisodeId
+            }
+            
+            android.util.Log.i("PlayerViewModel", "LOAD_START: seriesId=$seriesId, season=$seasonNum, cleanEpId=$cleanEpId")
+            
+            try {
+                // Step 1: Initial Local Check
+                var episodes = seriesRepository.getSeasonEpisodes(seriesId, seasonNum)
+                
+                // Resolution: If season list empty, try to find the episode in DB to get its REAL season
+                if (episodes.isEmpty() && cleanEpId.isNotEmpty()) {
+                    val ep = seriesRepository.getEpisodeById(cleanEpId)
+                    if (ep != null && ep.seasonNumber != null) {
+                        android.util.Log.d("PlayerViewModel", "LOAD_RESOLVE: Redirecting to season ${ep.seasonNumber} for ep $cleanEpId")
+                        episodes = seriesRepository.getSeasonEpisodes(seriesId, ep.seasonNumber!!)
+                    }
+                }
+                
+                // Ultimate Fallback: Just get ANY episodes for this series if still empty
+                if (episodes.isEmpty()) {
+                    val allEps = seriesRepository.getAllEpisodesForSeries(seriesId)
+                    if (allEps.isNotEmpty()) {
+                        android.util.Log.d("PlayerViewModel", "LOAD_FALLBACK: Using all episodes list (Size=${allEps.size})")
+                        episodes = allEps
+                    }
+                }
+
+                if (episodes.isNotEmpty()) {
+                    android.util.Log.d("PlayerViewModel", "LOAD_CACHE_HIT: Found ${episodes.size} episodes locally.")
+                    updatePlaylistState(episodes, cleanEpId)
+                    _isPlaylistLoading.value = false
+                }
+
+                // Step 2: Background/Network Sync with Timeout
+                withTimeoutOrNull(25000L) {
+                    android.util.Log.d("PlayerViewModel", "LOAD_SYNC: Triggering repository fetch...")
+                    seriesRepository.getSeriesById(seriesId).collect { result ->
+                        if (result is com.tvonnet.debridxtreamiptv.data.Result.Success) {
+                            // Re-fetch after sync
+                            val ep = seriesRepository.getEpisodeById(cleanEpId)
+                            val targetSeason = ep?.seasonNumber ?: seasonNum
+                            var newEpisodes = seriesRepository.getSeasonEpisodes(seriesId, targetSeason)
+                            
+                            if (newEpisodes.isEmpty()) {
+                                newEpisodes = seriesRepository.getAllEpisodesForSeries(seriesId)
+                            }
+                            
+                            if (newEpisodes.isNotEmpty()) {
+                                android.util.Log.i("PlayerViewModel", "LOAD_SUCCESS: Episodes synchronized. Size=${newEpisodes.size}")
+                                updatePlaylistState(newEpisodes, cleanEpId)
+                                _isPlaylistLoading.value = false
+                            }
+                        } else if (result is com.tvonnet.debridxtreamiptv.data.Result.Error) {
+                            android.util.Log.e("PlayerViewModel", "LOAD_ERROR: ${result.exception.message}")
+                            _isPlaylistLoading.value = false
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PlayerViewModel", "LOAD_CRITICAL: ${e.message}", e)
+            } finally {
+                android.util.Log.i("PlayerViewModel", "LOAD_FINISH: Task complete.")
+                _isPlaylistLoading.value = false
+                if (_seriesPlaylistState.value == null) {
+                    // One last check if something was saved but not caught
+                    val finalCheck = seriesRepository.getAllEpisodesForSeries(seriesId)
+                    if (finalCheck.isNotEmpty()) {
+                        updatePlaylistState(finalCheck, cleanEpId)
+                    }
+                }
+            }
         }
+    }
+
+    private fun updatePlaylistState(episodes: List<EpisodeEntityV2>, startEpisodeId: String) {
+        val startIndex = episodes.indexOfFirst { it.episodeId == startEpisodeId }.takeIf { it >= 0 } ?: 0
+        val current = episodes[startIndex]
+        
+        android.util.Log.d("PlayerViewModel", "updatePlaylistState: Loaded ${episodes.size} episodes, index=$startIndex")
+        
+        _seriesPlaylistState.value = SeriesPlaylistState(
+            originalList = episodes,
+            currentIndex = startIndex,
+            currentEpisode = current,
+            hasNext = startIndex < episodes.size - 1,
+            hasPrev = startIndex > 0
+        )
     }
 
     fun getNextEpisode(): EpisodeEntityV2? {
@@ -225,7 +306,8 @@ class PlayerViewModel @Inject constructor(
                             season = targetSeason,
                             episode = targetEpisode,
                             title = seriesTitle,
-                            infoHash = hashToResolve
+                            infoHash = hashToResolve,
+                            expiresAt = result.expiresAt
                         )
                     }
                     is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
@@ -271,7 +353,8 @@ class PlayerViewModel @Inject constructor(
                             season = season,
                             episode = episode,
                             title = title,
-                            infoHash = infoHash
+                            infoHash = infoHash,
+                            expiresAt = result.expiresAt
                         )
                     }
                     is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {

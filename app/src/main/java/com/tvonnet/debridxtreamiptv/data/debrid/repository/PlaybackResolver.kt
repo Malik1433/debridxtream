@@ -8,7 +8,7 @@ import javax.inject.Singleton
  * Result of the playback resolution process.
  */
 sealed class ResolutionResult {
-    data class Success(val url: String) : ResolutionResult()
+    data class Success(val url: String, val expiresAt: Long? = null) : ResolutionResult()
     object RefreshRequired : ResolutionResult()
     data class Error(val message: String) : ResolutionResult()
 }
@@ -33,12 +33,21 @@ class PlaybackResolver @Inject constructor(
         magnet: String?,
         seasonNumber: Int? = null,
         episodeNumber: Int? = null,
-        episodeTitle: String? = null
+        episodeTitle: String? = null,
+        currentExpiresAt: Long? = null
     ): ResolutionResult {
         android.util.Log.d("PlaybackResolver", "Resolving - source: $source, hasStreamUrl: ${!streamUrl.isNullOrBlank()}, isExpired: $isExpired, infoHash: $infoHash")
         
         if (source == "debrid") {
-            // RULE: Debrid items MUST ALWAYS resolve via hash/magnet.
+            // SMART VALIDATION: If link exists and is not expired (with 5-min buffer), skip resolution
+            val now = System.currentTimeMillis()
+            
+            if (!isExpired && !streamUrl.isNullOrBlank()) {
+                android.util.Log.i("PlaybackResolver", "Debrid link is still valid (Smart Cache), skipping re-resolution")
+                return ResolutionResult.Success(streamUrl, currentExpiresAt)
+            }
+
+            // RULE: Debrid items MUST resolve via hash/magnet if expired.
             // We ignore the stored streamUrl completely to avoid 403 Forbidden/link expiration.
             if (infoHash.isNullOrBlank() && magnet.isNullOrBlank()) {
                 android.util.Log.w("PlaybackResolver", "Debrid item missing metadata, requiring refresh")
@@ -68,8 +77,14 @@ class PlaybackResolver @Inject constructor(
                             android.util.Log.w("PlaybackResolver", "Debrid resolution attempt $attempt failed: $lastError")
                             continue
                         }
-                        android.util.Log.i("PlaybackResolver", "Debrid resolution SUCCESS")
-                        return ResolutionResult.Success(resolvedUrl)
+                        
+                        // Metadata Anchor: Generate new expiration (4 hours from now).
+                        // NOTE: Real-Debrid links typically expire in 2-6 hours in practice.
+                        // Using 23h caused the SmartCache to serve dead links until the
+                        // next resume attempt hours later.
+                        val newExpiresAt = now + (4 * 60 * 60 * 1000L)
+                        android.util.Log.i("PlaybackResolver", "Debrid resolution SUCCESS. New expiry: $newExpiresAt")
+                        return ResolutionResult.Success(resolvedUrl, newExpiresAt)
                     }
                     is Result.Error -> {
                         lastError = result.exception.message

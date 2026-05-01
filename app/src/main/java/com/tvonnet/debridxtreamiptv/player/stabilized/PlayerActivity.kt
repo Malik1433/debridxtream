@@ -58,6 +58,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import okhttp3.OkHttpClient
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.SimpleItemAnimator
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.common.TrackSelectionOverride
@@ -100,6 +103,7 @@ class PlayerActivity : AppCompatActivity() {
     private var retryCount = 0
     private val maxRetries = 5 
     private var currentUrl: String? = null
+    private var streamTitle: String? = null
     private var streamHeaders: Map<String, String>? = null
     private var subtitleEntries: List<String> = emptyList()
     private val subtitleUrlRegex = Regex("https?://\\S+", RegexOption.IGNORE_CASE)
@@ -121,6 +125,12 @@ class PlayerActivity : AppCompatActivity() {
     private var switchCount = 0
     private var debugListener: Player.Listener? = null
     private val debugOverlayHandler = Handler(Looper.getMainLooper())
+    private lateinit var rvEpisodes: RecyclerView
+    private lateinit var episodeOverlay: View
+    private lateinit var pbEpisodesLoading: ProgressBar
+    private lateinit var tvEpisodesEmpty: TextView
+    private lateinit var episodeAdapter: PlayerEpisodeAdapter
+    private var isEpisodeOverlayVisible = false
     private val debugOverlayRunnable = object : Runnable {
         override fun run() {
             if (isFinishing || isDestroyed) return
@@ -138,6 +148,7 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
+    private var channelName: String? = null
     private var epgOverlay: View? = null
     private var imgChannelLogo: ImageView? = null
     private var tvChannelNumber: TextView? = null
@@ -183,6 +194,7 @@ class PlayerActivity : AppCompatActivity() {
     private var contentType: ContentType? = null
     private var playbackSource: PlaybackSource = PlaybackSource.IPTV
     private var contentId: String? = null
+    private var seriesId: String? = null
     private var returnToSourcesOnExit: Boolean = false
     private var didPlaybackComplete: Boolean = false
     private var manualExit: Boolean = false
@@ -214,6 +226,8 @@ class PlayerActivity : AppCompatActivity() {
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var networkAvailable = true
     private var isResolvingDebrid = false
+    private var isIntentProcessing = false
+    private var lastRecoveryTime = 0L
     private var hasAppliedIndexOverride = false
     private var preferredAudioLanguage: String? = null
     private var preferredSubtitleLanguage: String? = null
@@ -247,24 +261,25 @@ class PlayerActivity : AppCompatActivity() {
         private const val NETWORK_RECOVERY_BUFFER_MS = 5000L
         private const val LOW_RAM_MAX_BUFFER_MS = 30000
         private const val LOW_RAM_TARGET_BUFFER_BYTES = 12 * 1024 * 1024
+
         const val EXTRA_SERIES_ID = "EXTRA_SERIES_ID"
+        const val EXTRA_SERIES_TITLE = "EXTRA_SERIES_TITLE"
+        const val EXTRA_EPISODE_TITLE = "EXTRA_EPISODE_TITLE"
         const val EXTRA_SEASON_NUM = "EXTRA_SEASON_NUM"
         const val EXTRA_EPISODE_NUM = "EXTRA_EPISODE_NUM"
         const val EXTRA_TMDB_ID = "EXTRA_TMDB_ID"
         const val EXTRA_IMDB_ID = "EXTRA_IMDB_ID"
-        const val EXTRA_SERIES_TITLE = "EXTRA_SERIES_TITLE"
-        const val EXTRA_EPISODE_TITLE = "EXTRA_EPISODE_TITLE"
         const val EXTRA_DEBRID_INFOHASH = "EXTRA_DEBRID_INFOHASH"
         const val EXTRA_DEBRID_MAGNET = "EXTRA_DEBRID_MAGNET"
         const val EXTRA_EXPIRES_AT = "EXTRA_EXPIRES_AT"
-        const val EXTRA_RETURN_TO_SOURCES = "EXTRA_RETURN_TO_SOURCES"
+        const val EXTRA_AUTO_PLAY_NEXT = "EXTRA_AUTO_PLAY_NEXT"
         const val EXTRA_FAILED_STREAM_ID = "EXTRA_FAILED_STREAM_ID"
         const val EXTRA_FAIL_REASON = "EXTRA_FAIL_REASON"
-        const val EXTRA_AUTO_PLAY_NEXT = "EXTRA_AUTO_PLAY_NEXT"
+        const val EXTRA_RETURN_TO_SOURCES = "EXTRA_RETURN_TO_SOURCES"
         const val EXTRA_SUBTITLE_ENTRIES = "EXTRA_SUBTITLE_ENTRIES"
 
         fun createIntent(
-            context: Context,
+            context: android.content.Context,
             streamUrl: String,
             title: String? = null,
             channelName: String? = null,
@@ -273,9 +288,9 @@ class PlayerActivity : AppCompatActivity() {
             startPositionMs: Long? = null,
             contentId: String? = null,
             contentType: ContentType? = null,
-            playbackSource: PlaybackSource? = null,
             posterUrl: String? = null,
             backdropUrl: String? = null,
+            playbackSource: com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource? = null,
             liveCategoryId: String? = null,
             liveChannelIds: ArrayList<String>? = null,
             baseServerUrl: String? = null,
@@ -289,9 +304,11 @@ class PlayerActivity : AppCompatActivity() {
             debridInfoHash: String? = null,
             debridMagnet: String? = null,
             subtitles: List<String>? = null,
-            expiresAt: Long? = null
+            expiresAt: Long? = null,
+            seriesId: String? = null
         ): Intent {
             return Intent(context, PlayerActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 putExtra(EXTRA_STREAM_URL, streamUrl)
                 putExtra(EXTRA_STREAM_TITLE, title)
                 putExtra(EXTRA_CHANNEL_NAME, channelName)
@@ -316,9 +333,89 @@ class PlayerActivity : AppCompatActivity() {
                 debridInfoHash?.let { putExtra(EXTRA_DEBRID_INFOHASH, it) }
                 debridMagnet?.let { putExtra(EXTRA_DEBRID_MAGNET, it) }
                 expiresAt?.let { putExtra(EXTRA_EXPIRES_AT, it) }
+                seriesId?.let { putExtra(EXTRA_SERIES_ID, it) }
                 subtitles?.let { putStringArrayListExtra(EXTRA_SUBTITLE_ENTRIES, ArrayList(it)) }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        
+        if (BuildConfig.DEBUG) {
+            Log.d("PlayerActivity", "onNewIntent received")
+        }
+
+        if (isSwitching || isResolvingDebrid || isIntentProcessing) {
+            Log.w("PlayerActivity", "onNewIntent ignored: isSwitching=$isSwitching isResolving=$isResolvingDebrid isProcessing=$isIntentProcessing")
+            return
+        }
+
+        val newUrl = intent.getStringExtra(EXTRA_STREAM_URL)
+        val newContentId = intent.getStringExtra(EXTRA_CONTENT_ID) ?: newUrl
+        
+        if (newContentId == contentId && newUrl == currentUrl) {
+            Log.d("PlayerActivity", "onNewIntent ignored: Same content already playing")
+            return
+        }
+
+        isIntentProcessing = true
+        try {
+            parseIntentData(intent)
+            
+            if (player != null) {
+                // Reuse player instance via seamless switch
+                performSeamlessSwitch(currentUrl ?: "")
+            } else {
+                // Not initialized, fallback to normal initialization
+                currentUrl?.let { initializePlayer(it) }
+            }
+        } finally {
+            isIntentProcessing = false
+        }
+    }
+
+    private fun parseIntentData(intent: Intent) {
+        val contentTypeString = intent.getStringExtra(EXTRA_CONTENT_TYPE)
+        contentType = contentTypeString?.let { runCatching { ContentType.valueOf(it) }.getOrNull() }
+        playbackSource = intent.getStringExtra(EXTRA_PLAYBACK_SOURCE)
+            ?.let { runCatching { PlaybackSource.valueOf(it) }.getOrNull() }
+            ?: PlaybackSource.IPTV
+        contentId = intent.getStringExtra(EXTRA_CONTENT_ID) ?: intent.getStringExtra(EXTRA_STREAM_URL)
+        seriesId = intent.getStringExtra(EXTRA_SERIES_ID)
+        returnToSourcesOnExit = intent.getBooleanExtra(EXTRA_RETURN_TO_SOURCES, false)
+        currentEpgChannelId = intent.getStringExtra(EXTRA_EPG_CHANNEL_ID)
+            ?.takeIf { it.isNotBlank() }
+            ?: contentId?.takeIf { it.isNotBlank() }
+        currentUrl = intent.getStringExtra(EXTRA_STREAM_URL)
+        streamTitle = intent.getStringExtra(EXTRA_STREAM_TITLE)
+        channelName = intent.getStringExtra(EXTRA_CHANNEL_NAME)
+        channelLogoUrl = intent.getStringExtra(EXTRA_CHANNEL_LOGO)
+        startPositionMs = intent.getLongExtra(EXTRA_START_POSITION, 0L)
+        posterUrlExtra = intent.getStringExtra(EXTRA_POSTER_URL)
+        backdropUrlExtra = intent.getStringExtra(EXTRA_BACKDROP_URL)
+        tmdbIdExtra = intent.getStringExtra(EXTRA_TMDB_ID)
+        imdbIdExtra = intent.getStringExtra(EXTRA_IMDB_ID)
+        seriesTitleExtra = intent.getStringExtra(EXTRA_SERIES_TITLE)
+        episodeTitleExtra = intent.getStringExtra(EXTRA_EPISODE_TITLE)
+        seasonNumberExtra = intent.getIntExtra(EXTRA_SEASON_NUM, -1).takeIf { it >= 0 }
+        episodeNumberExtra = intent.getIntExtra(EXTRA_EPISODE_NUM, -1).takeIf { it >= 0 }
+        debridInfoHashExtra = intent.getStringExtra(EXTRA_DEBRID_INFOHASH)
+        debridMagnetExtra = intent.getStringExtra(EXTRA_DEBRID_MAGNET)
+            ?: intent.getStringExtra("DEBRID_MAGNET")
+        expiresAtExtra = intent.getLongExtra(EXTRA_EXPIRES_AT, -1L).takeIf { it > 0 }
+        liveCategoryId = intent.getStringExtra(EXTRA_LIVE_CATEGORY_ID)
+        liveChannelIds = intent.getStringArrayListExtra(EXTRA_LIVE_CHANNEL_IDS)
+        baseServerUrl = intent.getStringExtra(EXTRA_BASE_SERVER_URL)
+        
+        @Suppress("UNCHECKED_CAST")
+        val headersHashMap = intent.getSerializableExtra(EXTRA_STREAM_HEADERS) as? HashMap<String, String>
+        streamHeaders = headersHashMap
+        if (streamHeaders == null) {
+            streamHeaders = readStreamHeaders(intent)
+        }
+        subtitleEntries = intent.getStringArrayListExtra(EXTRA_SUBTITLE_ENTRIES) ?: emptyList()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -339,51 +436,52 @@ class PlayerActivity : AppCompatActivity() {
         layoutDebugOverlay = findViewById(R.id.layout_debug_overlay)
         tvDebugInfo = findViewById(R.id.tv_debug_info)
 
-        val contentTypeString = intent.getStringExtra(EXTRA_CONTENT_TYPE)
-        contentType = contentTypeString?.let { runCatching { ContentType.valueOf(it) }.getOrNull() }
-        playbackSource = intent.getStringExtra(EXTRA_PLAYBACK_SOURCE)
-            ?.let { runCatching { PlaybackSource.valueOf(it) }.getOrNull() }
-            ?: PlaybackSource.IPTV
-        contentId = intent.getStringExtra(EXTRA_CONTENT_ID) ?: intent.getStringExtra(EXTRA_STREAM_URL)
-        returnToSourcesOnExit = intent.getBooleanExtra(EXTRA_RETURN_TO_SOURCES, false)
-        currentEpgChannelId = intent.getStringExtra(EXTRA_EPG_CHANNEL_ID)
-            ?.takeIf { it.isNotBlank() }
-            ?: contentId?.takeIf { it.isNotBlank() }
-        posterUrlExtra = intent.getStringExtra(EXTRA_POSTER_URL)
-        backdropUrlExtra = intent.getStringExtra(EXTRA_BACKDROP_URL)
-        tmdbIdExtra = intent.getStringExtra(EXTRA_TMDB_ID)
-        imdbIdExtra = intent.getStringExtra(EXTRA_IMDB_ID)
-        seriesTitleExtra = intent.getStringExtra(EXTRA_SERIES_TITLE)
-        episodeTitleExtra = intent.getStringExtra(EXTRA_EPISODE_TITLE)
-        seasonNumberExtra = intent.getIntExtra(EXTRA_SEASON_NUM, -1).takeIf { it >= 0 }
-        episodeNumberExtra = intent.getIntExtra(EXTRA_EPISODE_NUM, -1).takeIf { it >= 0 }
-        debridInfoHashExtra = intent.getStringExtra(EXTRA_DEBRID_INFOHASH)
-        debridMagnetExtra = intent.getStringExtra(EXTRA_DEBRID_MAGNET)
-            ?: intent.getStringExtra("DEBRID_MAGNET")
-        expiresAtExtra = intent.getLongExtra(EXTRA_EXPIRES_AT, -1L).takeIf { it > 0 }
+        episodeOverlay = findViewById(R.id.layout_episode_overlay)
+        rvEpisodes = findViewById(R.id.rv_episodes)
+        pbEpisodesLoading = findViewById(R.id.pb_episodes_loading)
+        tvEpisodesEmpty = findViewById(R.id.tv_episodes_empty)
+        
+        episodeAdapter = PlayerEpisodeAdapter { episode ->
+            if (isSwitching) return@PlayerEpisodeAdapter
+            toggleEpisodeOverlay(false)
+            playSeriesEpisode(episode)
+        }
+        rvEpisodes.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        (rvEpisodes.itemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations = false
+        rvEpisodes.adapter = episodeAdapter
 
-        val streamUrl = intent.getStringExtra(EXTRA_STREAM_URL)
-        val streamTitle = intent.getStringExtra(EXTRA_STREAM_TITLE)
+        parseIntentData(intent)
         originalTitle = streamTitle
-        streamHeaders = readStreamHeaders(intent)
-        subtitleEntries = intent.getStringArrayListExtra(EXTRA_SUBTITLE_ENTRIES) ?: emptyList()
 
-        if (streamUrl.isNullOrBlank()) {
+        // ID Resolution Guard (V2)
+        if (contentType == ContentType.EPISODE && seriesId == null) {
+            // If seriesId is missing, attempt to use TMDB ID or contentId as a fallback
+            seriesId = tmdbIdExtra ?: contentId
+            android.util.Log.w("PlayerActivity", "SeriesID missing! Attempting resolution with: $seriesId")
+        }
+
+        if (contentType == ContentType.EPISODE && seriesId != null) {
+            viewModel.loadSeriesPlaylist(
+                seriesId = seriesId!!,
+                seasonNum = seasonNumberExtra ?: 1,
+                startEpisodeId = contentId ?: ""
+            )
+        }
+        
+        if (currentUrl.isNullOrBlank()) {
             showError("Invalid stream URL")
             finish()
             return
         }
 
-        timeoutMs = resolveTimeoutMs(streamUrl)
-        currentUrl = streamUrl
+        timeoutMs = resolveTimeoutMs(currentUrl!!)
         channelLogoUrl = intent.getStringExtra(EXTRA_CHANNEL_LOGO)
-        startPositionMs = intent.getLongExtra(EXTRA_START_POSITION, 0L)
-        val channelName = intent.getStringExtra(EXTRA_CHANNEL_NAME) ?: streamTitle
-        pendingChannelName = channelName
+        val channelNameUsed = intent.getStringExtra(EXTRA_CHANNEL_NAME) ?: streamTitle ?: "Playing"
+        pendingChannelName = channelNameUsed
 
         if (contentType == ContentType.LIVE_TV) {
             setupOverlayViews()
-            bindChannelMeta(channelName)
+            bindChannelMeta(channelNameUsed)
         } else {
             // New Redesign: We use the Controller's Top Bar instead of a separate VOD overlay
         }
@@ -395,6 +493,7 @@ class PlayerActivity : AppCompatActivity() {
 
         val seriesId = intent.getStringExtra(EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
         val seasonNum = intent.getIntExtra(EXTRA_SEASON_NUM, -1)
+        Log.d("PlayerActivity", "Series Playlist Loading Check: seriesId=$seriesId, season=$seasonNum, contentId=$contentId")
         if (seriesId != null && seasonNum != -1 && contentId != null) {
             viewModel.loadSeriesPlaylist(seriesId, seasonNum, contentId!!)
         }
@@ -460,13 +559,22 @@ class PlayerActivity : AppCompatActivity() {
             setupInteractiveAnimations()
 
             val btnNext = playerView.findViewById<View>(R.id.btn_next_episode)
+            val btnEpisodes = playerView.findViewById<View>(R.id.btn_episodes_list)
+            
             if (contentType == ContentType.SERIES || contentType == ContentType.EPISODE) {
                 btnNext?.isVisible = true
                 btnNext?.setOnClickListener {
                      playNextEpisode()
                 }
+                
+                btnEpisodes?.isVisible = true
+                btnEpisodes?.setOnClickListener {
+                    toggleEpisodeOverlay(true)
+                    playerView.hideController()
+                }
             } else {
                 btnNext?.isVisible = false
+                btnEpisodes?.isVisible = false
             }
 
             playerView.findViewById<View>(R.id.btn_aspect_ratio)?.setOnClickListener {
@@ -478,7 +586,7 @@ class PlayerActivity : AppCompatActivity() {
             observeDebridResolutionState()
         }
 
-        initializePlayer(streamUrl)
+        initializePlayer(currentUrl!!)
         supportActionBar?.title = streamTitle ?: "Playing"
 
         if (contentType == ContentType.LIVE_TV) {
@@ -502,6 +610,10 @@ class PlayerActivity : AppCompatActivity() {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (isEpisodeOverlayVisible) {
+                    toggleEpisodeOverlay(false)
+                    return
+                }
                 if (viewModel.browserState.value.isVisible) {
                     viewModel.toggleBrowser(false)
                     return
@@ -873,16 +985,57 @@ class PlayerActivity : AppCompatActivity() {
     private fun observeSeriesPlaylistState() {
         lifecycleScope.launch {
             repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                viewModel.seriesPlaylistState.collect { state ->
-                    if (state == null) return@collect
-                    val currentEpId = contentId
-                    if (currentEpId != state.currentEpisode.episodeId) {
-                         if (playbackSource != PlaybackSource.DEBRID) {
-                             playSeriesEpisode(state.currentEpisode)
-                         }
+                launch {
+                    viewModel.seriesPlaylistState.collect { state ->
+                        updateEpisodeOverlayUI(state, viewModel.isPlaylistLoading.value)
+                        if (state == null) return@collect
+                        
+                        episodeAdapter.submitList(state.originalList) {
+                            if (isEpisodeOverlayVisible) {
+                                rvEpisodes.post {
+                                    rvEpisodes.requestFocus()
+                                    val index = state.currentIndex
+                                    if (index >= 0) rvEpisodes.scrollToPosition(index)
+                                }
+                            }
+                        }
+                        episodeAdapter.setCurrentEpisodeId(state.currentEpisode.episodeId)
+                        val currentEpId = contentId
+                        if (currentEpId != state.currentEpisode.episodeId) {
+                             if (playbackSource != PlaybackSource.DEBRID) {
+                                 playSeriesEpisode(state.currentEpisode)
+                             }
+                        }
+                    }
+                }
+
+                launch {
+                    viewModel.isPlaylistLoading.collect { isLoading ->
+                        updateEpisodeOverlayUI(viewModel.seriesPlaylistState.value, isLoading)
                     }
                 }
             }
+        }
+    }
+
+    private fun updateEpisodeOverlayUI(state: SeriesPlaylistState?, isLoading: Boolean) {
+        val hasData = state != null && state.originalList.isNotEmpty()
+        
+        // Spinner Logic
+        pbEpisodesLoading.visibility = if (isLoading) View.VISIBLE else View.GONE
+        
+        if (hasData) {
+            // Data is PRIORITY. Show the list immediately.
+            rvEpisodes.visibility = View.VISIBLE
+            tvEpisodesEmpty.visibility = View.GONE
+        } else if (isLoading) {
+            // No data yet, but still loading
+            rvEpisodes.visibility = View.GONE
+            tvEpisodesEmpty.visibility = View.GONE
+        } else {
+            // Not loading and no data
+            rvEpisodes.visibility = View.GONE
+            tvEpisodesEmpty.visibility = if (isEpisodeOverlayVisible) View.VISIBLE else View.GONE
         }
     }
 
@@ -900,6 +1053,22 @@ class PlayerActivity : AppCompatActivity() {
         nextPromptShownForThisEpisode = false
         
         performSeamlessSwitch(url)
+    }
+
+    private fun toggleEpisodeOverlay(show: Boolean) {
+        if (show == isEpisodeOverlayVisible) return
+        isEpisodeOverlayVisible = show
+        if (show) {
+            episodeOverlay.visibility = View.VISIBLE
+            updateEpisodeOverlayUI(viewModel.seriesPlaylistState.value, viewModel.isPlaylistLoading.value)
+            rvEpisodes.requestFocus()
+            val state = viewModel.seriesPlaylistState.value
+            val index = state?.currentIndex ?: -1
+            if (index >= 0) rvEpisodes.scrollToPosition(index)
+        } else {
+            episodeOverlay.visibility = View.GONE
+            playerView.requestFocus()
+        }
     }
 
     private fun bindModernMetadata(title: String?) {
@@ -925,7 +1094,7 @@ class PlayerActivity : AppCompatActivity() {
             PlaybackSource.IPTV -> getString(R.string.label_iptv)
         }
         
-        val subtitle = if (contentType == ContentType.EPISODE || contentType == ContentType.SERIES) {
+        val subtitleText = if (contentType == ContentType.EPISODE || contentType == ContentType.SERIES) {
             val season = seasonNumberExtra
             val episode = episodeNumberExtra
             if (season != null && episode != null) {
@@ -937,7 +1106,7 @@ class PlayerActivity : AppCompatActivity() {
             "$contentLabel • $sourceLabel"
         }
         
-        subtitleView?.text = subtitle
+        subtitleView?.text = subtitleText
     }
 
     private fun cleanTitle(raw: String): String {
@@ -1310,8 +1479,7 @@ class PlayerActivity : AppCompatActivity() {
                     }
                 }
                 override fun onPlayerError(error: PlaybackException) {
-                    isSwitching = false
-                    timeoutHandler.removeCallbacks(timeoutRunnable)
+                    Log.e("PlayerActivity", "Playback error: ${error.errorCodeName}", error)
                     handlePlaybackError(error)
                 }
             })
@@ -1341,6 +1509,13 @@ class PlayerActivity : AppCompatActivity() {
         val now = SystemClock.elapsedRealtime()
         val bufferingMs = if (lastBufferingStartMs > 0L) now - lastBufferingStartMs else 0L
         if (playerSnapshot.playbackState == Player.STATE_IDLE || (playerSnapshot.playbackState == Player.STATE_BUFFERING && bufferingMs >= NETWORK_RECOVERY_BUFFER_MS)) {
+            val currentTime = SystemClock.elapsedRealtime()
+            if (currentTime - lastRecoveryTime < 10000) {
+                Log.w("PlayerActivity", "Recovery skipped: Too soon since last recovery attempt")
+                return
+            }
+            lastRecoveryTime = currentTime
+            
             if (contentType != ContentType.LIVE_TV && playerSnapshot.currentPosition > 1000L) startPositionMs = playerSnapshot.currentPosition
             playerSnapshot.release()
             player = null
@@ -1375,7 +1550,24 @@ class PlayerActivity : AppCompatActivity() {
         }
         if (retryCount < maxRetries) {
             retryCount++
-            if (playbackSource == PlaybackSource.DEBRID && !isResolvingDebrid && (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())) {
+            
+            // Silent Recovery Guard: Catch 403 Forbidden or 410 Gone (common for expired Debrid links)
+            val isExpiredError = cause is HttpDataSource.InvalidResponseCodeException && 
+                                (cause.responseCode == 403 || cause.responseCode == 410)
+
+            if (playbackSource == PlaybackSource.DEBRID && !isResolvingDebrid && (isExpiredError || retryCount > 1) && (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())) {
+                  val currentTime = SystemClock.elapsedRealtime()
+                  // BUG FIX: Expired link errors (403/410) ALWAYS bypass the cooldown.
+                  // Previously, a second 403 within 10s (e.g., after re-resolution returned
+                  // the wrong episode file) would be silently dropped, freezing the player.
+                  // Generic non-expired errors still respect the cooldown to avoid thrashing.
+                  if (!isExpiredError && currentTime - lastRecoveryTime < 10000) {
+                      Log.w("PlayerActivity", "Debrid re-resolution skipped: Cooldown active (non-expired error)")
+                      return
+                  }
+                  lastRecoveryTime = currentTime
+                  
+                  android.util.Log.i("PlayerActivity", "Silent Recovery: Detected ${if (isExpiredError) "Expired Link (403/410)" else "Playback Error"}. Triggering re-resolution...")
                   isResolvingDebrid = true
                   if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
                   viewModel.reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
@@ -1432,7 +1624,9 @@ class PlayerActivity : AppCompatActivity() {
         if (player?.playbackState == Player.STATE_BUFFERING) {
             if (retryCount < maxRetries) {
                 retryCount++
-                if (playbackSource == PlaybackSource.DEBRID && !isResolvingDebrid && retryCount > 1 && (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())) {
+                // BUG FIX: Changed retryCount > 1 to retryCount >= 1 so Debrid re-resolution fires
+                // on the FIRST timeout instead of wasting one full 25s cycle re-trying a dead URL.
+                if (playbackSource == PlaybackSource.DEBRID && !isResolvingDebrid && retryCount >= 1 && (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())) {
                       isResolvingDebrid = true
                       if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
                       viewModel.reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
@@ -1551,7 +1745,23 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) {
-            if (contentType != ContentType.LIVE_TV && playerView.useController && !isNextPromptVisible && !playerView.isControllerFullyVisible) {
+            if (isEpisodeOverlayVisible) {
+                if (event.keyCode == KeyEvent.KEYCODE_BACK || event.keyCode == KeyEvent.KEYCODE_ESCAPE) {
+                    toggleEpisodeOverlay(false)
+                    return true
+                }
+            }
+
+            if (event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN || event.keyCode == KeyEvent.KEYCODE_MENU) {
+                if (contentType == ContentType.SERIES || contentType == ContentType.EPISODE) {
+                    if (!isEpisodeOverlayVisible && !playerView.isControllerFullyVisible) {
+                        toggleEpisodeOverlay(true)
+                        return true
+                    }
+                }
+            }
+
+            if (contentType != ContentType.LIVE_TV && playerView.useController && !isNextPromptVisible && !playerView.isControllerFullyVisible && !isEpisodeOverlayVisible) {
                 when (event.keyCode) { KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MENU -> { playerView.showController(); playerView.requestFocus(); return true } }
             }
             when (event.keyCode) {
@@ -1631,6 +1841,14 @@ class PlayerActivity : AppCompatActivity() {
                     is DebridResolutionState.Loading -> { layoutDebridResolving?.isVisible = true; tvResolvingStatus?.text = "Resolving source via Debrid..." }
                     is DebridResolutionState.Success -> {
                         layoutDebridResolving?.isVisible = false; isResolvingDebrid = false
+                        // Metadata Anchor Sync: Update expiresAtExtra with fresh timestamp from resolver
+                        state.expiresAt?.let { newExpiry ->
+                            if (expiresAtExtra == null || newExpiry > (expiresAtExtra ?: 0L)) {
+                                android.util.Log.i("PlayerActivity", "Metadata Anchor: Updating expiresAtExtra from $expiresAtExtra to $newExpiry")
+                                expiresAtExtra = newExpiry
+                            }
+                        }
+                        
                         if (state.season != null && state.episode != null) {
                             val isSame = seasonNumberExtra == state.season && episodeNumberExtra == state.episode
                             seasonNumberExtra = state.season; episodeNumberExtra = state.episode; episodeTitleExtra = state.title
@@ -1641,7 +1859,18 @@ class PlayerActivity : AppCompatActivity() {
                         }
                         currentUrl = state.url; performSeamlessSwitch(state.url)
                     }
-                    is DebridResolutionState.Error -> { layoutDebridResolving?.isVisible = false; isResolvingDebrid = false; showError("Failed: ${state.message}") }
+                    is DebridResolutionState.Error -> {
+                        layoutDebridResolving?.isVisible = false
+                        isResolvingDebrid = false
+                        android.util.Log.e("PlayerActivity", "Debrid re-resolution FAILED permanently: ${state.message}")
+                        // BUG FIX: Previously this only showed a Toast, leaving the player frozen
+                        // on a black screen in STATE_BUFFERING with no way to recover.
+                        // Now we return to sources (autoPlayNext=true picks the next source
+                        // automatically), or fall back to support QR if no sources remain.
+                        if (!finishWithReturnToSources(autoPlayNext = true, reason = state.message)) {
+                            showSupportQr()
+                        }
+                    }
                     is DebridResolutionState.Idle -> { layoutDebridResolving?.isVisible = false; isResolvingDebrid = false }
                 }
             }

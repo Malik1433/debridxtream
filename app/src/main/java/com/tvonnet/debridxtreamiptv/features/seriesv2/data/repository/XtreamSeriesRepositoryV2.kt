@@ -377,6 +377,14 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
         return episodeDao.getEpisodesForSeasonList(seriesId, seasonNum)
     }
 
+    suspend fun getEpisodeById(episodeId: String): EpisodeEntityV2? {
+        return episodeDao.getEpisodeById(episodeId)
+    }
+
+    suspend fun getAllEpisodesForSeries(seriesId: String): List<EpisodeEntityV2> {
+        return episodeDao.getEpisodesForSeriesList(seriesId)
+    }
+
     /**
      * Get Paged Series for a Category.
      */

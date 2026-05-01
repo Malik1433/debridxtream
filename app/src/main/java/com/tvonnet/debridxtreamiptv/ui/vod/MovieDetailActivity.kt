@@ -62,6 +62,9 @@ class MovieDetailActivity : AppCompatActivity() {
     lateinit var debridPlaybackRepository: com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridPlaybackRepository
 
     @Inject
+    lateinit var playbackResolver: com.tvonnet.debridxtreamiptv.data.debrid.repository.PlaybackResolver
+
+    @Inject
     lateinit var repository: XtreamRepository
 
     @Inject
@@ -865,115 +868,110 @@ class MovieDetailActivity : AppCompatActivity() {
              return
         }
 
-        if (magnet?.startsWith("http", ignoreCase = true) == true &&
-            !magnet.endsWith(".torrent", ignoreCase = true)
-        ) {
-            val tmdbId = movieId?.takeIf { it.toIntOrNull() != null }
-            val launchPlayer = {
-                val intent = PlayerActivity.createIntent(
-                    context = this@MovieDetailActivity,
-                    streamUrl = magnet,
-                    title = stream?.name ?: movieName ?: getString(R.string.movie_detail_unknown_movie),
-                    contentId = infoHash ?: movieId ?: "",
-                    contentType = ContentType.MOVIE,
-                    posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream?.stream_icon) ?: movieIcon,
-                    backdropUrl = stream?.cover ?: movieBackdrop,
-                    headers = source?.headers,
-                    playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
-                    tmdbId = tmdbId,
-                    imdbId = currentImdbId,
-                    debridInfoHash = infoHash,
-                    debridMagnet = magnet
-                )
-                if (returnToSources) {
-                    intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
-                    playerLauncher.launch(intent)
-                } else {
-                    startActivity(intent)
-                }
-            }
-
-            if (isMediaFusionPlaybackUrl(magnet)) {
-                lifecycleScope.launch {
-                    val readyResult = withContext(Dispatchers.IO) {
-                        debridPlaybackRepository.isMediaFusionPlaybackReady(magnet)
-                    }
-                    val isReady =
-                        readyResult is com.tvonnet.debridxtreamiptv.data.Result.Success && readyResult.data
-                    if (!isReady) {
-                        markDebridSourceCached(stream?.stream_id, false)
-                        Toast.makeText(
-                            this@MovieDetailActivity,
-                            "MediaFusion: link not cached on RD yet",
-                            Toast.LENGTH_LONG
-                        ).show()
-                        if (returnToSources) {
-                            showDebridSourcePicker()
-                        }
-                        return@launch
-                    }
-                    markDebridSourceCached(stream?.stream_id, true)
-                    launchPlayer()
-                }
-                return
-            }
-
-            launchPlayer()
-            return
-        }
-
         lifecycleScope.launch {
             // Show loading indicator
             tvSourcesStatus.visibility = View.VISIBLE
             tvSourcesStatus.text = "Resolving Debrid link..."
             
+            val tmdbId = movieId?.takeIf { it.toIntOrNull() != null }
+            
             val result = withContext(Dispatchers.IO) {
-                debridPlaybackRepository.resolveDebridUrl(
+                playbackResolver.resolve(
+                    source = "debrid",
+                    streamUrl = magnet,
+                    isExpired = true,
                     infoHash = infoHash,
-                    magnet = magnet
+                    magnet = magnet,
+                    seasonNumber = null,
+                    episodeNumber = null,
+                    episodeTitle = movieName
                 )
             }
             
             tvSourcesStatus.visibility = View.GONE
             
-            result.onSuccess { streamUrl ->
-                 // Launch player with resolved URL
-                 val tmdbId = movieId?.takeIf { it.toIntOrNull() != null }
-                 val intent = PlayerActivity.createIntent(
-                    context = this@MovieDetailActivity,
-                    streamUrl = streamUrl,
-                    title = stream?.name ?: movieName ?: getString(R.string.movie_detail_unknown_movie),
-                    contentId = infoHash ?: movieId ?: "",
-                    contentType = ContentType.MOVIE,
-                    posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream?.stream_icon) ?: movieIcon,
-                    backdropUrl = stream?.cover ?: movieBackdrop,
-                    playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
-                    tmdbId = tmdbId,
-                    imdbId = currentImdbId,
-                    debridInfoHash = infoHash,
-                    debridMagnet = magnet
-                )
-                if (returnToSources) {
-                    intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
-                    playerLauncher.launch(intent)
-                } else {
-                    startActivity(intent)
+            when (result) {
+                is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Success -> {
+                    val intent = PlayerActivity.createIntent(
+                        context = this@MovieDetailActivity,
+                        streamUrl = result.url,
+                        title = stream?.name ?: movieName ?: getString(R.string.movie_detail_unknown_movie),
+                        contentId = infoHash ?: movieId ?: "",
+                        contentType = ContentType.MOVIE,
+                        posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream?.stream_icon) ?: movieIcon,
+                        backdropUrl = stream?.cover ?: movieBackdrop,
+                        headers = source?.headers,
+                        playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
+                        tmdbId = tmdbId,
+                        imdbId = currentImdbId,
+                        debridInfoHash = infoHash,
+                        debridMagnet = magnet,
+                        expiresAt = result.expiresAt
+                    )
+                    if (returnToSources) {
+                        intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
+                        playerLauncher.launch(intent)
+                    } else {
+                        startActivity(intent)
+                    }
                 }
-            }.onFailure { e ->
-                if (e is com.tvonnet.debridxtreamiptv.data.debrid.model.NotAuthenticatedException) {
-                    showDebridConfigDialog()
-                } else {
-                    android.util.Log.e("MovieDetailActivity", "Debrid resolution failed", e)
-                    Toast.makeText(this@MovieDetailActivity, "Failed to resolve Debrid link: ${e.message}", Toast.LENGTH_LONG).show()
+                is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
+                    Toast.makeText(this@MovieDetailActivity, "Source expired, please refresh", Toast.LENGTH_SHORT).show()
+                    showDebridSourcePicker()
+                }
+                is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Error -> {
+                    Toast.makeText(this@MovieDetailActivity, result.message, Toast.LENGTH_LONG).show()
+                    showDebridSourcePicker()
                 }
             }
         }
     }
 
-
-
-
-
+    private fun handleDebridHistoryItem(infoHash: String) {
+        tvSourcesStatus.visibility = View.VISIBLE
+        tvSourcesStatus.text = "Resuming from Debrid History..." 
+        
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                playbackResolver.resolve(
+                    source = "debrid",
+                    streamUrl = null,
+                    isExpired = true,
+                    infoHash = infoHash,
+                    magnet = null
+                )
+            }
+            
+            tvSourcesStatus.visibility = View.GONE
+            
+            when (result) {
+                is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Success -> {
+                    val tmdbId = movieId?.takeIf { it.toIntOrNull() != null }
+                    val intent = PlayerActivity.createIntent(
+                        context = this@MovieDetailActivity,
+                        streamUrl = result.url,
+                        title = movieName ?: getString(R.string.movie_detail_unknown_movie),
+                        contentId = infoHash,
+                        contentType = ContentType.MOVIE,
+                        posterUrl = movieIcon,
+                        backdropUrl = movieBackdrop,
+                        playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
+                        tmdbId = tmdbId,
+                        imdbId = currentImdbId,
+                        debridInfoHash = infoHash,
+                        expiresAt = result.expiresAt
+                    )
+                    startActivity(intent)
+                }
+                is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
+                    Toast.makeText(this@MovieDetailActivity, "History item expired", Toast.LENGTH_SHORT).show()
+                }
+                is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Error -> {
+                    Toast.makeText(this@MovieDetailActivity, result.message, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     override fun onResume() {
         super.onResume()
@@ -1006,46 +1004,7 @@ class MovieDetailActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-    private fun handleDebridHistoryItem(infoHash: String) {
-        tvSourcesStatus.visibility = View.VISIBLE
-        tvSourcesStatus.text = "Resuming from Debrid History..." 
-        
-        lifecycleScope.launch {
-            val magnet: String? = null
-            val result = withContext(Dispatchers.IO) {
-                debridPlaybackRepository.resolveDebridUrl(
-                    infoHash = infoHash,
-                    magnet = magnet
-                )
-            }
-            
-            result.onSuccess { streamUrl ->
-                 // Launch player with resolved URL for auto-resume
-                 val tmdbId = movieId?.takeIf { it.toIntOrNull() != null }
-                 val intent = PlayerActivity.createIntent(
-                    context = this@MovieDetailActivity,
-                    streamUrl = streamUrl,
-                    title = movieName ?: getString(R.string.movie_detail_unknown_movie),
-                    contentId = infoHash,
-                    contentType = ContentType.MOVIE,
-                    posterUrl = movieIcon,
-                    backdropUrl = movieBackdrop,
-                    playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
-                    tmdbId = tmdbId,
-                    imdbId = currentImdbId,
-                    debridInfoHash = infoHash
-                )
-                // Pass the magnet again so it persists in history (if we had it)
-                // intent.putExtra("DEBRID_MAGNET", magnet)
-                startActivity(intent)
-                // Keep detail activity open in background
-            }.onFailure { e ->
-                android.util.Log.e("MovieDetailActivity", "Debrid resume failed", e)
-                Toast.makeText(this@MovieDetailActivity, "Failed to resume: ${e.message}", Toast.LENGTH_LONG).show()
-                tvSourcesStatus.text = "Resume failed. Try searching manually."
-            }
-        }
-    }
+
 
     override fun onBackPressed() {
         super.onBackPressed()
