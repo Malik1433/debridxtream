@@ -118,7 +118,6 @@ class PlayerActivity : AppCompatActivity() {
     private val overlayHideRunnable = Runnable { maybeAutoHideOverlay() }
     private var epgOverlayMode: EpgOverlayMode = EpgOverlayMode.HIDDEN
     private var epgOverlayPinned: Boolean = false
-    private var isSwitching = false
     private var layoutDebugOverlay: View? = null
     private var tvDebugInfo: TextView? = null
     private var debugEnabled = false
@@ -139,6 +138,12 @@ class PlayerActivity : AppCompatActivity() {
             updateDebugOverlay()
             debugOverlayHandler.postDelayed(this, 1000)
         }
+    }
+
+    private fun validateStateSync(): Boolean {
+        // Legacy validation removed as booleans are deleted.
+        // Full state machine control active.
+        return true
     }
 
     private fun startDebugOverlay() {
@@ -225,12 +230,11 @@ class PlayerActivity : AppCompatActivity() {
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var networkAvailable = true
-    private var isResolvingDebrid = false
-    private var isIntentProcessing = false
+    private var preferredSubtitleLanguage: String? = null
     private var lastRecoveryTime = 0L
     private var hasAppliedIndexOverride = false
     private var preferredAudioLanguage: String? = null
-    private var preferredSubtitleLanguage: String? = null
+    private val shadowCoordinator = PlaybackStateCoordinator()
 
     companion object {
         const val EXTRA_STREAM_URL = "STREAM_URL"
@@ -342,16 +346,17 @@ class PlayerActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        
-        if (BuildConfig.DEBUG) {
-            Log.d("PlayerActivity", "onNewIntent received")
-        }
 
-        if (isSwitching || isResolvingDebrid || isIntentProcessing) {
-            Log.w("PlayerActivity", "onNewIntent ignored: isSwitching=$isSwitching isResolving=$isResolvingDebrid isProcessing=$isIntentProcessing")
+        if (!shadowCoordinator.canExecute(ActionType.ACTION_NEW_INTENT)) {
+            shadowCoordinator.queueIntent(intent)
+            Log.d("COORDINATOR", "INTENT QUEUED")
             return
         }
 
+        handleNewIntent(intent)
+    }
+
+    private fun handleNewIntent(intent: Intent) {
         val newUrl = intent.getStringExtra(EXTRA_STREAM_URL)
         val newContentId = intent.getStringExtra(EXTRA_CONTENT_ID) ?: newUrl
         
@@ -360,19 +365,16 @@ class PlayerActivity : AppCompatActivity() {
             return
         }
 
-        isIntentProcessing = true
         try {
             parseIntentData(intent)
             
             if (player != null) {
-                // Reuse player instance via seamless switch
                 performSeamlessSwitch(currentUrl ?: "")
             } else {
-                // Not initialized, fallback to normal initialization
                 currentUrl?.let { initializePlayer(it) }
             }
-        } finally {
-            isIntentProcessing = false
+        } catch (e: Exception) {
+            Log.e("PlayerActivity", "Error handling new intent", e)
         }
     }
 
@@ -442,7 +444,8 @@ class PlayerActivity : AppCompatActivity() {
         tvEpisodesEmpty = findViewById(R.id.tv_episodes_empty)
         
         episodeAdapter = PlayerEpisodeAdapter { episode ->
-            if (isSwitching) return@PlayerEpisodeAdapter
+            // COORDINATOR CONTROL: Gate channel switches via state machine
+            if (!shadowCoordinator.canExecute(ActionType.SWITCH_CHANNEL)) return@PlayerEpisodeAdapter
             toggleEpisodeOverlay(false)
             playSeriesEpisode(episode)
         }
@@ -664,8 +667,9 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun playUrl(url: String) {
-        if (isSwitching) return
-        isSwitching = true
+        // COORDINATOR CONTROL: Gate channel switches via state machine
+        if (!shadowCoordinator.canExecute(ActionType.SWITCH_CHANNEL)) return
+        
         try {
             didPlaybackComplete = false
             timeoutHandler.removeCallbacks(timeoutRunnable)
@@ -690,7 +694,6 @@ class PlayerActivity : AppCompatActivity() {
             }
             // Redundant binding removed to prevent Surface race conditions
         } catch (e: Exception) {
-            isSwitching = false
             timeoutHandler.removeCallbacks(timeoutRunnable)
             handleInitializationError(e)
         }
@@ -723,9 +726,13 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun performSeamlessSwitch(newUrl: String) {
-        if (isSwitching) return
+        // COORDINATOR CONTROL: Gate channel switches via state machine
+        if (!shadowCoordinator.canExecute(ActionType.SWITCH_CHANNEL)) {
+            Log.w("STATE_COORDINATOR", "COORDINATOR BLOCKED ACTION - Gate Control Active")
+            return
+        }
+        
         val playerSnapshot = player ?: return
-        isSwitching = true
         switchCount++
         Log.i("PlayerActivity", "Performing seamless switch to: $newUrl")
         
@@ -758,6 +765,8 @@ class PlayerActivity : AppCompatActivity() {
         
         // 6. Start
         playerSnapshot.playWhenReady = true
+        
+        shadowCoordinator.transitionTo(PlaybackState.SWITCHING, "UI_SWITCH")
         
         // NOTE: DO NOT re-bind playerView.player here. 
         // Re-binding causes Surface detachment/attachment race conditions on many Android TV devices.
@@ -1359,13 +1368,16 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun initializePlayer(streamUrl: String) {
-        try {
-            // RULE: Prevent Memory Leaks. ALWAYS release existing player before creating new one.
-            if (player != null) {
-                Log.i("PlayerActivity", "Releasing existing player before re-initialization")
-                releasePlayer()
-            }
+        if (!shadowCoordinator.canExecute(ActionType.ACTION_PLAYER_OPERATION)) {
+            Log.d("COORDINATOR", "PLAYER INIT BLOCKED")
+            return
+        }
+        
+        if (player != null) {
+            releasePlayer()
+        }
 
+        try {
             didPlaybackComplete = false
             hasAppliedIndexOverride = false
             timeoutHandler.removeCallbacks(timeoutRunnable)
@@ -1426,12 +1438,20 @@ class PlayerActivity : AppCompatActivity() {
             }
             player?.playWhenReady = true
             // player?.play() removed as playWhenReady=true is sufficient
+            shadowCoordinator.transitionTo(PlaybackState.PREPARING_PLAYER, "PLAYER_INIT")
             startStallMonitor()
 
             player?.addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_READY) {
-                         isSwitching = false
+                         shadowCoordinator.transitionTo(PlaybackState.PLAYING, "PLAYER_READY")
+                         
+                         val nextIntent = shadowCoordinator.resolveNextIntent()
+                         if (nextIntent != null) {
+                             Log.d("COORDINATOR", "EXECUTING QUEUED INTENT")
+                             handleNewIntent(nextIntent)
+                         }
+                         
                          if (player?.currentPosition ?: 0L > 1000) startPositionMs = 0L 
                         timeoutHandler.removeCallbacks(timeoutRunnable)
                         retryCount = 0
@@ -1480,6 +1500,7 @@ class PlayerActivity : AppCompatActivity() {
                 }
                 override fun onPlayerError(error: PlaybackException) {
                     Log.e("PlayerActivity", "Playback error: ${error.errorCodeName}", error)
+                    shadowCoordinator.transitionTo(PlaybackState.ERROR, "PLAYER_ERROR")
                     handlePlaybackError(error)
                 }
             })
@@ -1539,7 +1560,6 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun handlePlaybackError(error: PlaybackException) {
-        isSwitching = false
         if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
             player?.seekToDefaultPosition(); player?.prepare(); player?.playWhenReady = true; return
         }
@@ -1555,7 +1575,7 @@ class PlayerActivity : AppCompatActivity() {
             val isExpiredError = cause is HttpDataSource.InvalidResponseCodeException && 
                                 (cause.responseCode == 403 || cause.responseCode == 410)
 
-            if (playbackSource == PlaybackSource.DEBRID && !isResolvingDebrid && (isExpiredError || retryCount > 1) && (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())) {
+            if (playbackSource == PlaybackSource.DEBRID && shadowCoordinator.canExecute(ActionType.RESOLVE_DEBRID) && (isExpiredError || retryCount > 1) && (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())) {
                   val currentTime = SystemClock.elapsedRealtime()
                   // BUG FIX: Expired link errors (403/410) ALWAYS bypass the cooldown.
                   // Previously, a second 403 within 10s (e.g., after re-resolution returned
@@ -1568,7 +1588,6 @@ class PlayerActivity : AppCompatActivity() {
                   lastRecoveryTime = currentTime
                   
                   android.util.Log.i("PlayerActivity", "Silent Recovery: Detected ${if (isExpiredError) "Expired Link (403/410)" else "Playback Error"}. Triggering re-resolution...")
-                  isResolvingDebrid = true
                   if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
                   viewModel.reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
                   return
@@ -1593,7 +1612,17 @@ class PlayerActivity : AppCompatActivity() {
             if (currentPos > lastBoundPosition) { lastBoundPosition = currentPos; lastProgressCheckMs = now; stallStrikeCount = 0; return }
             if (currentPos > 0 && now - lastProgressCheckMs >= stallThresholdMs) {
                 stallStrikeCount++
-                if (stallStrikeCount >= requiredStrikes) { stallStrikeCount = 0; handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)) }
+                if (stallStrikeCount >= requiredStrikes) { 
+                    stallStrikeCount = 0
+                    
+                    if (!shadowCoordinator.canExecute(ActionType.ACTION_STALL_RECOVERY)) {
+                        Log.d("COORDINATOR", "STALL BLOCKED")
+                        return
+                    }
+                    
+                    shadowCoordinator.transitionTo(PlaybackState.STALLED, "STALL_MONITOR")
+                    handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)) 
+                }
                 lastProgressCheckMs = now
             }
         } else { lastBoundPosition = p.currentPosition; lastProgressCheckMs = now; stallStrikeCount = 0 }
@@ -1626,8 +1655,7 @@ class PlayerActivity : AppCompatActivity() {
                 retryCount++
                 // BUG FIX: Changed retryCount > 1 to retryCount >= 1 so Debrid re-resolution fires
                 // on the FIRST timeout instead of wasting one full 25s cycle re-trying a dead URL.
-                if (playbackSource == PlaybackSource.DEBRID && !isResolvingDebrid && retryCount >= 1 && (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())) {
-                      isResolvingDebrid = true
+                if (playbackSource == PlaybackSource.DEBRID && shadowCoordinator.canExecute(ActionType.RESOLVE_DEBRID) && retryCount >= 1 && (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())) {
                       if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
                       viewModel.reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
                       return
@@ -1673,6 +1701,7 @@ class PlayerActivity : AppCompatActivity() {
     override fun onStop() { super.onStop(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); unregisterNetworkCallback(); recordPlaybackHistoryIfNeeded(); releasePlayer() }
 
     private fun releasePlayer() {
+        shadowCoordinator.transitionTo(PlaybackState.IDLE, "PLAYER_RELEASE")
         updateLastPlaybackPosition(); timeoutHandler.removeCallbacks(timeoutRunnable); overlayHandler.removeCallbacks(overlayHideRunnable); nextCheckHandler.removeCallbacks(nextCheckRunnable); nextEpisodeTimer?.cancel(); stopStallMonitor()
         player?.stop(); player?.release(); player = null; playerView.player = null
     }
@@ -1838,16 +1867,23 @@ class PlayerActivity : AppCompatActivity() {
         lifecycleScope.launch {
             viewModel.debridResolutionState.collect { state ->
                 when (state) {
-                    is DebridResolutionState.Loading -> { layoutDebridResolving?.isVisible = true; tvResolvingStatus?.text = "Resolving source via Debrid..." }
+                    is DebridResolutionState.Loading -> { 
+                        layoutDebridResolving?.isVisible = true
+                        tvResolvingStatus?.text = "Resolving source via Debrid..."
+                        shadowCoordinator.transitionTo(PlaybackState.RESOLVING_SOURCE, "DEBRID_RESOLVE")
+                    }
                     is DebridResolutionState.Success -> {
-                        layoutDebridResolving?.isVisible = false; isResolvingDebrid = false
-                        // Metadata Anchor Sync: Update expiresAtExtra with fresh timestamp from resolver
-                        state.expiresAt?.let { newExpiry ->
-                            if (expiresAtExtra == null || newExpiry > (expiresAtExtra ?: 0L)) {
-                                android.util.Log.i("PlayerActivity", "Metadata Anchor: Updating expiresAtExtra from $expiresAtExtra to $newExpiry")
-                                expiresAtExtra = newExpiry
-                            }
+                        layoutDebridResolving?.isVisible = false
+                        
+                        if (!shadowCoordinator.canExecute(ActionType.ACTION_RESOLUTION_COMPLETE)) {
+                            // Fetch current intent if possible, or just log
+                            shadowCoordinator.queueIntent(intent)
+                            Log.d("COORDINATOR", "DEBRID QUEUED")
+                            return@collect
                         }
+                        
+                        // Metadata Anchor Sync: Update expiresAtExtra with fresh timestamp from resolver
+                        state.expiresAt?.let { expiresAtExtra = it }
                         
                         if (state.season != null && state.episode != null) {
                             val isSame = seasonNumberExtra == state.season && episodeNumberExtra == state.episode
@@ -1861,7 +1897,6 @@ class PlayerActivity : AppCompatActivity() {
                     }
                     is DebridResolutionState.Error -> {
                         layoutDebridResolving?.isVisible = false
-                        isResolvingDebrid = false
                         android.util.Log.e("PlayerActivity", "Debrid re-resolution FAILED permanently: ${state.message}")
                         // BUG FIX: Previously this only showed a Toast, leaving the player frozen
                         // on a black screen in STATE_BUFFERING with no way to recover.
@@ -1871,7 +1906,7 @@ class PlayerActivity : AppCompatActivity() {
                             showSupportQr()
                         }
                     }
-                    is DebridResolutionState.Idle -> { layoutDebridResolving?.isVisible = false; isResolvingDebrid = false }
+                    is DebridResolutionState.Idle -> { layoutDebridResolving?.isVisible = false }
                 }
             }
         }
