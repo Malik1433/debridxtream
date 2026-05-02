@@ -20,6 +20,7 @@ import com.tvonnet.debridxtreamiptv.utils.FocusCoordinator
 import com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager
 import com.tvonnet.debridxtreamiptv.data.onFailure
 import com.tvonnet.debridxtreamiptv.data.onSuccess
+import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -45,7 +46,7 @@ class DebridFragment : Fragment() {
     private val viewModel: DebridViewModel by viewModels()
 
     @Inject
-    lateinit var debridPlaybackRepository: com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridPlaybackRepository
+    lateinit var playbackResolver: com.tvonnet.debridxtreamiptv.data.debrid.repository.PlaybackResolver
     
     // UI components
     private lateinit var progressBar: ProgressBar
@@ -55,6 +56,7 @@ class DebridFragment : Fragment() {
     private lateinit var contentArea: View
     private lateinit var rvDebridRows: RecyclerView
     private lateinit var ivBackgroundBackdrop: ImageView
+    private lateinit var layoutResolutionOverlay: View
     
     // Sidebar components
     private var sidebarContainer: View? = null
@@ -106,6 +108,9 @@ class DebridFragment : Fragment() {
         super.onResume()
         // Phase 3: Restore focus on resume
         FocusMemoryManager.restoreFocus(rvDebridRows)
+        // Tier 2: Atomic Continue Watching sync — refresh the CW row instantly on return
+        // from PlayerActivity so progress/position updates are visible immediately.
+        viewModel.refreshContinueWatching()
     }
 
     override fun onPause() {
@@ -125,6 +130,7 @@ class DebridFragment : Fragment() {
             contentArea = view.findViewById(R.id.content_area)
             rvDebridRows = view.findViewById(R.id.rv_debrid_rows)
             ivBackgroundBackdrop = view.findViewById(R.id.iv_background_backdrop)
+            layoutResolutionOverlay = view.findViewById(R.id.layout_resolution_overlay)
             
             // Sidebar Initialization
             sidebarContainer = view.findViewById(R.id.debrid_sidebar)
@@ -411,85 +417,106 @@ class DebridFragment : Fragment() {
         }
     }
 
+    /**
+     * Handles resume playback for Debrid "Continue Watching" items.
+     *
+     * Architecture (Stremio-Mode): Debrid links are **ephemeral** — they contain short-lived
+     * tokens that expire after a few hours. Instead of playing the saved URL directly (which
+     * leads to "Link Expired" errors), we ALWAYS re-resolve a fresh link via Real-Debrid
+     * when metadata (infoHash / magnet) is available.
+     *
+     * @param item The Continue Watching item to resume.
+     * @return true if this method handled the click, false to fall through to normal detail navigation.
+     */
     private fun tryResumeDebrid(item: DebridContentItem): Boolean {
-        val resumePosition = item.resumePositionMs ?: return false
-        if (resumePosition <= 0L) return false
+        val resumePosition = item.resumePositionMs ?: 0L
 
-        val infoHash = item.debridInfoHash
-        val magnet = item.debridMagnet
-        val streamUrl = item.streamUrl
-        val contentType = item.contentType
-            ?: if (item.type == "series") com.tvonnet.debridxtreamiptv.data.model.ContentType.EPISODE
-            else com.tvonnet.debridxtreamiptv.data.model.ContentType.MOVIE
-
-        if (infoHash.isNullOrBlank() && magnet.isNullOrBlank()) {
-            if (streamUrl.isNullOrBlank()) return false
-            val intent = com.tvonnet.debridxtreamiptv.player.PlayerActivity.createIntent(
-                context = requireContext(),
-                streamUrl = streamUrl,
-                title = item.title,
-                startPositionMs = resumePosition,
-                contentId = item.tmdbId ?: item.id,
-                contentType = contentType,
-                playbackSource = com.tvonnet.debridxtreamiptv.player.PlaybackSource.DEBRID,
-                posterUrl = item.posterUrl,
-                backdropUrl = item.backdropUrl,
-                tmdbId = item.tmdbId,
-                imdbId = item.imdbId,
-                seriesTitle = item.seriesTitle,
-                episodeTitle = item.episodeTitle,
-                seasonNumber = item.seasonNumber,
-                episodeNumber = item.episodeNumber,
-                debridInfoHash = infoHash,
-                debridMagnet = magnet
-            )
-            startActivity(intent)
-            return true
-        }
-
-        Toast.makeText(requireContext(), "Resuming...", Toast.LENGTH_SHORT).show()
+        // ALWAYS return true to intercept the click and handle asynchronously via Resolver
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = debridPlaybackRepository.resolveDebridUrl(
-                infoHash = infoHash,
-                magnet = magnet,
+            layoutResolutionOverlay.visibility = View.VISIBLE
+            val result = playbackResolver.resolve(
+                source = item.source,
+                streamUrl = item.streamUrl,
+                isExpired = item.isExpired(),
+                infoHash = item.debridInfoHash,
+                magnet = item.debridMagnet,
                 seasonNumber = item.seasonNumber,
                 episodeNumber = item.episodeNumber,
-                episodeTitle = item.episodeTitle
+                episodeTitle = item.episodeTitle,
+                currentExpiresAt = item.expiresAt
             )
-            result.onSuccess { url ->
-                val intent = com.tvonnet.debridxtreamiptv.player.PlayerActivity.createIntent(
-                    context = requireContext(),
-                    streamUrl = url,
-                    title = item.title,
-                    startPositionMs = resumePosition,
-                    contentId = item.tmdbId ?: item.id,
-                    contentType = contentType,
-                    playbackSource = com.tvonnet.debridxtreamiptv.player.PlaybackSource.DEBRID,
-                    posterUrl = item.posterUrl,
-                    backdropUrl = item.backdropUrl,
-                    tmdbId = item.tmdbId,
-                    imdbId = item.imdbId,
-                    seriesTitle = item.seriesTitle,
-                    episodeTitle = item.episodeTitle,
-                    seasonNumber = item.seasonNumber,
-                    episodeNumber = item.episodeNumber,
-                    debridInfoHash = infoHash,
-                    debridMagnet = magnet
-                )
-                startActivity(intent)
-            }.onFailure { error ->
-                if (error is com.tvonnet.debridxtreamiptv.data.debrid.model.NotAuthenticatedException) {
-                    navigateToLogin()
-                } else {
-                    Toast.makeText(
-                        requireContext(),
-                        error.message ?: "Failed to resume",
-                        Toast.LENGTH_LONG
-                    ).show()
+
+            layoutResolutionOverlay.visibility = View.GONE
+                      when (result) {
+                is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Success -> {
+                    if (!isAdded) return@launch
+                    // Metadata Anchor Fix: Use new expiresAt if provided by resolver
+                    val finalExpiresAt = result.expiresAt ?: item.expiresAt
+                    launchPlayer(item, result.url, resumePosition, finalExpiresAt)
+                }
+                is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
+                    if (!isAdded) return@launch
+                    android.util.Log.i("DebridResume", "Resolution failed/expired: falling back to details.")
+                    navigateToDetail(item)
+                }
+                is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Error -> {
+                    if (!isAdded) return@launch
+                    android.util.Log.e("DebridResume", "Resolution Error: ${result.message}")
+                    navigateToDetail(item)
                 }
             }
         }
         return true
+    }
+
+    private fun launchPlayer(item: DebridContentItem, url: String, resumePosition: Long, expiresAt: Long? = null) {
+        saveFocusState(item)
+        val intent = PlayerActivity.createIntent(
+            context = requireContext(),
+            streamUrl = url,
+            title = item.title,
+            contentType = if (item.type == "series") com.tvonnet.debridxtreamiptv.data.model.ContentType.EPISODE else com.tvonnet.debridxtreamiptv.data.model.ContentType.MOVIE,
+            playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
+            startPositionMs = resumePosition,
+            posterUrl = item.posterUrl,
+            backdropUrl = item.backdropUrl,
+            tmdbId = item.tmdbId,
+            imdbId = item.imdbId,
+            seriesTitle = item.seriesTitle,
+            episodeTitle = item.episodeTitle,
+            seasonNumber = item.seasonNumber,
+            episodeNumber = item.episodeNumber,
+            debridInfoHash = item.debridInfoHash,
+            debridMagnet = item.debridMagnet,
+            contentId = item.id,
+            expiresAt = expiresAt ?: item.expiresAt,
+            seriesId = item.id
+        )
+        startActivity(intent)
+    }
+
+    private fun navigateToDetail(item: DebridContentItem) {
+        // Force immediate detail navigation (ignoring resume state)
+        if (item.type == "movie") {
+            val intent = android.content.Intent(requireContext(), com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity::class.java).apply {
+                putExtra(com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity.EXTRA_MOVIE_ID, item.id)
+                putExtra(com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
+                putExtra(com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
+                putExtra(com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
+                putExtra(com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity.EXTRA_MOVIE_YEAR, item.year)
+                putExtra(com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity.EXTRA_MOVIE_RATING, item.rating)
+                putExtra(com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
+            }
+            startActivity(intent)
+        } else {
+            val intent = android.content.Intent(requireContext(), com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity::class.java).apply {
+                putExtra(com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity.EXTRA_SERIES_ID, item.id)
+                putExtra(com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity.EXTRA_SERIES_NAME, item.title)
+                putExtra(com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
+                putExtra(com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity.EXTRA_IS_DEBRID, true)
+            }
+            startActivity(intent)
+        }
     }
 
 

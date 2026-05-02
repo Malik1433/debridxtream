@@ -35,7 +35,7 @@ import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
-import com.tvonnet.debridxtreamiptv.player.PlayerActivity
+import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.favorites.FavoritesFragment
 import com.tvonnet.debridxtreamiptv.ui.search.SearchFragment
 import com.tvonnet.debridxtreamiptv.ui.settings.SettingsFragment

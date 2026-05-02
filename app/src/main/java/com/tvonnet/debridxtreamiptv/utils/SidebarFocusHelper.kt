@@ -1,120 +1,112 @@
 package com.tvonnet.debridxtreamiptv.utils
 
 import android.animation.ValueAnimator
+import android.util.TypedValue
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
-import com.tvonnet.debridxtreamiptv.R
 
 /**
  * SidebarFocusHelper
  * 
  * Standardized utility to handle the "Alive" sidebar expansion/collapsing animation
  * across different fragments in the DebridXtream player.
+ * 
+ * Features:
+ * - Smooth width animation
+ * - Alpha transitions for title areas
+ * - Focus-loss grace period to prevent flickering during fast navigation
  */
 object SidebarFocusHelper {
 
+    private const val COLLAPSED_WIDTH_DP = 80f
+    private const val EXPANDED_WIDTH_DP = 260f
     private const val ANIMATION_DURATION = 300L
     private const val FOCUS_GRACE_PERIOD_MS = 100L
-    
-    private var currentAnimator: ValueAnimator? = null
-    private var isExpandedState = false
-    private var isLockedState = false
 
+    /**
+     * Attaches expansion logic to a sidebar container.
+     * 
+     * @param sidebarContainer The view whose width will be animated (typically a Layout or RecyclerView)
+     * @param focusTrigger The view to monitor for focus (usually the RecyclerView itself)
+     * @param titleArea Optional title view/container to fade in/out during expansion
+     */
     fun attachStandardSidebarAnimation(
         sidebarContainer: View,
         focusTrigger: View,
         titleArea: View? = null,
         onExpandedChanged: ((Boolean) -> Unit)? = null
     ) {
-        val collapsedWidth = sidebarContainer.resources.getDimensionPixelSize(R.dimen.sidebar_width_collapsed)
-        val expandedWidth = sidebarContainer.resources.getDimensionPixelSize(R.dimen.sidebar_width_expanded)
-        isExpandedState = sidebarContainer.layoutParams.width == expandedWidth
+        var animator: ValueAnimator? = null
+        val collapsedWidth = dpToPx(sidebarContainer, COLLAPSED_WIDTH_DP)
+        val expandedWidth = dpToPx(sidebarContainer, EXPANDED_WIDTH_DP)
+        var isExpanded = sidebarContainer.layoutParams.width != collapsedWidth
 
         val performAnimation = { expand: Boolean ->
-            if (expand == isExpandedState || isLockedState) { /* do nothing */ } else {
-                isExpandedState = expand
-                onExpandedChanged?.invoke(expand)
-
-                currentAnimator?.cancel()
+            if (sidebarContainer.isAttachedToWindow) {
                 val startWidth = sidebarContainer.width
                 val endWidth = if (expand) expandedWidth else collapsedWidth
-                
-                currentAnimator = ValueAnimator.ofInt(startWidth, endWidth).apply {
-                    duration = ANIMATION_DURATION
-                    interpolator = FastOutSlowInInterpolator()
-                    addUpdateListener { anim ->
-                        val width = anim.animatedValue as Int
-                        val params = sidebarContainer.layoutParams
-                        params.width = width
-                        sidebarContainer.layoutParams = params
-                    }
-                    start()
+                if (expand != isExpanded) {
+                    isExpanded = expand
+                    onExpandedChanged?.invoke(expand)
                 }
-
-                titleArea?.animate()
-                    ?.alpha(if (expand) 1f else 0f)
-                    ?.setDuration(ANIMATION_DURATION)
-                    ?.setInterpolator(FastOutSlowInInterpolator())
-                    ?.withStartAction { if (expand) titleArea.visibility = View.VISIBLE }
-                    ?.withEndAction { if (!expand) titleArea.visibility = View.GONE }
-                    ?.start()
+    
+                if (startWidth != endWidth) {
+                    animator?.cancel()
+                    animator = ValueAnimator.ofInt(startWidth, endWidth).apply {
+                        duration = ANIMATION_DURATION
+                        interpolator = FastOutSlowInInterpolator()
+                        addUpdateListener { anim ->
+                            val width = anim.animatedValue as Int
+                            val params = sidebarContainer.layoutParams
+                            params.width = width
+                            sidebarContainer.layoutParams = params
+                            sidebarContainer.requestLayout()
+                        }
+                        start()
+                    }
+    
+                    titleArea?.animate()
+                        ?.alpha(if (expand) 1f else 0f)
+                        ?.setDuration(ANIMATION_DURATION)
+                        ?.setInterpolator(FastOutSlowInInterpolator())
+                        ?.start()
+                }
             }
         }
 
         // Use GlobalFocusChangeListener for robust tracking across children
-        focusTrigger.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus ->
-            val isInside = isDescendantOf(newFocus, focusTrigger) || newFocus === focusTrigger
+        val focusListener = android.view.ViewTreeObserver.OnGlobalFocusChangeListener { _, newFocus ->
+            if (!focusTrigger.isAttachedToWindow) return@OnGlobalFocusChangeListener
+            
+            val isInside = isDescendantOf(newFocus, focusTrigger)
             
             if (isInside) {
                 performAnimation(true)
             } else {
-                // Focus left the sidebar. Use grace period to see if it refocuses
+                // Focus left the sidebar. Use grace period to see if it refocuses (e.g. moving between items)
                 focusTrigger.postDelayed({
+                    if (!focusTrigger.isAttachedToWindow) return@postDelayed
                     val currentFocus = focusTrigger.findFocus()
-                    if (!isDescendantOf(currentFocus, focusTrigger) && currentFocus !== focusTrigger && !isLockedState) {
+                    if (!isDescendantOf(currentFocus, focusTrigger)) {
                         performAnimation(false)
                     }
                 }, FOCUS_GRACE_PERIOD_MS)
             }
         }
-    }
-
-    /**
-     * Lock or unlock the sidebar in its current state (prevent auto-collapse).
-     */
-    fun setLocked(locked: Boolean) {
-        isLockedState = locked
-    }
-
-    /**
-     * Explicitly close the sidebar regardless of focus or lock (e.g., from a back button click).
-     */
-    fun collapse(sidebarContainer: View, titleArea: View? = null, onExpandedChanged: ((Boolean) -> Unit)? = null) {
-        val collapsedWidth = sidebarContainer.resources.getDimensionPixelSize(R.dimen.sidebar_width_collapsed)
-        if (isExpandedState) {
-            isExpandedState = false
-            isLockedState = false // Force unlock on manual collapse
-            onExpandedChanged?.invoke(false)
-            
-            currentAnimator?.cancel()
-            currentAnimator = ValueAnimator.ofInt(sidebarContainer.width, collapsedWidth).apply {
-                duration = ANIMATION_DURATION
-                interpolator = FastOutSlowInInterpolator()
-                addUpdateListener { anim ->
-                    val params = sidebarContainer.layoutParams
-                    params.width = anim.animatedValue as Int
-                    sidebarContainer.layoutParams = params
+        
+        focusTrigger.viewTreeObserver.addOnGlobalFocusChangeListener(focusListener)
+        
+        focusTrigger.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {}
+            override fun onViewDetachedFromWindow(v: View) {
+                // Ensure we don't leak or fire after detached
+                if (v.viewTreeObserver.isAlive) {
+                    v.viewTreeObserver.removeOnGlobalFocusChangeListener(focusListener)
                 }
-                start()
+                animator?.cancel()
             }
-
-            titleArea?.animate()
-                ?.alpha(0f)
-                ?.setDuration(ANIMATION_DURATION)
-                ?.setInterpolator(FastOutSlowInInterpolator())
-                ?.withEndAction { titleArea.visibility = View.GONE }
-                ?.start()
-        }
+        })
     }
 
     private fun isDescendantOf(view: View?, ancestor: View): Boolean {
@@ -125,5 +117,13 @@ object SidebarFocusHelper {
             current = if (parent is View) parent else null
         }
         return false
+    }
+
+    private fun dpToPx(view: View, dp: Float): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            dp,
+            view.resources.displayMetrics
+        ).toInt()
     }
 }

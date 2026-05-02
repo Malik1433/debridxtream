@@ -235,7 +235,7 @@ class SeriesDetailFragmentV2 : Fragment() {
                         is SeriesNavigationEvent.NavigateToPlayer -> {
                             val seriesTitle = arguments?.getString("title")
                                 ?: binding.tvTitle.text?.toString()
-                            val intent = com.tvonnet.debridxtreamiptv.player.PlayerActivity.createIntent(
+                            val intent = com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity.createIntent(
                                 context = requireContext(),
                                 streamUrl = event.streamUrl,
                                 title = event.title,
@@ -247,11 +247,9 @@ class SeriesDetailFragmentV2 : Fragment() {
                                 seriesTitle = seriesTitle,
                                 episodeTitle = event.title,
                                 seasonNumber = event.seasonNumber,
-                                episodeNumber = event.episodeNumber
-                            ).apply {
-                                putExtra("EXTRA_SERIES_ID", event.seriesId)
-                                putExtra("EXTRA_SEASON_NUM", event.seasonNumber)
-                            }
+                                episodeNumber = event.episodeNumber,
+                                seriesId = event.seriesId
+                            )
                             startActivity(intent)
                         }
                         SeriesNavigationEvent.NavigateBack -> {

@@ -32,7 +32,7 @@ import com.tvonnet.debridxtreamiptv.ui.vod.VodFragment
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesFragment
 import com.tvonnet.debridxtreamiptv.ui.search.SearchFragment
 
-import com.tvonnet.debridxtreamiptv.player.PlayerActivity
+import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.util.FocusEffects
 import com.tvonnet.debridxtreamiptv.data.local.entity.FavoriteEntity
 import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
@@ -60,7 +60,9 @@ class HomeFragment : Fragment() {
     private lateinit var rvTop10Movies: RecyclerView
     private lateinit var rvTop10Series: RecyclerView
     private var didRestoreFocusForThisView = false
-    private var lastFocusedPosition = 0
+    private var lastFocusedRvIndex = 0
+    private var lastFocusedItemIndex = 0
+    private var activeNavItemId: Int = 1 // 1 = Home (based on SidebarItem id in list)
 
 
     // Adapters
@@ -105,7 +107,12 @@ class HomeFragment : Fragment() {
                         
                         // Robust restoration logic
                         if (!didRestoreFocusForThisView && state.top10Movies.isNotEmpty()) {
-                            restoreFocusHome()
+                            // Only hijack if sidebar is not currently focused by the user
+                            val sidebarPanel = view?.findViewById<View>(R.id.sidebar_panel)
+                            if (sidebarPanel?.hasFocus() != true) {
+                                restoreContentFocus()
+                                didRestoreFocusForThisView = true
+                            }
                         }
                     }
                 }
@@ -143,22 +150,37 @@ class HomeFragment : Fragment() {
         // Null Animators: No-blink/jitter data updates
         rvTop10Movies.itemAnimator = null
         rvTop10Series.itemAnimator = null
+
+        // DPad-right routing from the cinematic sidebar to content is handled by
+        // Android's natural focus search (nav_X items are focusable LinearLayouts);
+        // the legacy rvSidebar.setOnKeyListener is gone with the RecyclerView.
     }
 
-    private fun restoreFocusHome() {
-        if (didRestoreFocusForThisView) return
+    private fun restoreContentFocus() {
+        if (!isAdded || !isResumed || view == null) return
         
-        // Return focus to Trending Movies by default (most cinematic)
-        rvTop10Movies.post {
-            rvTop10Movies.scrollToPosition(lastFocusedPosition)
-            rvTop10Movies.post {
-                val vh = rvTop10Movies.findViewHolderForAdapterPosition(lastFocusedPosition)
-                if (vh != null) {
-                    vh.itemView.requestFocus()
-                    didRestoreFocusForThisView = true
-                }
+        val targetRv = if (lastFocusedRvIndex == 1) rvTop10Series else rvTop10Movies
+        
+        if (lastFocusedRvIndex == 0) {
+            val scrollContent = view?.findViewById<androidx.core.widget.NestedScrollView>(R.id.scroll_content)
+            scrollContent?.smoothScrollTo(0, 0)
+        }
+
+        targetRv.post {
+            val vh = targetRv.findViewHolderForAdapterPosition(lastFocusedItemIndex)
+            if (vh != null && vh.itemView.isFocusable) {
+                vh.itemView.requestFocus()
+            } else {
+                // Fallback to first item in the target row
+                targetRv.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
             }
         }
+    }
+    
+    private fun returnToSidebar() {
+        // Cinematic sidebar uses hardcoded nav_X LinearLayouts (no RecyclerView).
+        // Home is the active section while in HomeFragment, so focus nav_home.
+        view?.findViewById<View>(R.id.nav_home)?.requestFocus()
     }
     
     private fun setupSidebar() {
@@ -216,6 +238,34 @@ class HomeFragment : Fragment() {
                 }
             })
             .into(ivHeroBackground)
+
+        // Hero Button Polishing
+        val btnWatch = view?.findViewById<View>(R.id.btn_hero_watch)
+        val btnDetails = view?.findViewById<View>(R.id.btn_hero_details)
+        
+        btnWatch?.setOnFocusChangeListener { v, hasFocus ->
+            FocusEffects.applyCinematicFocus(v, hasFocus, scale = 1.05f)
+            v.z = if (hasFocus) 10f else 0f
+        }
+        btnWatch?.setOnKeyListener { _, keyCode, event ->
+            if (event.action == android.view.KeyEvent.ACTION_DOWN && keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) {
+                returnToSidebar()
+                return@setOnKeyListener true
+            }
+            false
+        }
+        
+        btnDetails?.setOnFocusChangeListener { v, hasFocus ->
+            FocusEffects.applyCinematicFocus(v, hasFocus, scale = 1.05f)
+            v.z = if (hasFocus) 10f else 0f
+        }
+        btnDetails?.setOnKeyListener { _, keyCode, event ->
+            if (event.action == android.view.KeyEvent.ACTION_DOWN && keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) {
+                returnToSidebar()
+                return@setOnKeyListener true
+            }
+            false
+        }
     }
     
 
@@ -329,14 +379,28 @@ class HomeFragment : Fragment() {
 
     private fun loadData() {
         // Initialize Adapters with empty lists first
-        top10MoviesAdapter = Top10Adapter(emptyList(), { _, item -> updateHeroSection(item) }) { item ->
-            onFeaturedItemClick(item)
-        }
+        top10MoviesAdapter = Top10Adapter(
+            items = emptyList(),
+            onItemFocused = { index, item -> 
+                lastFocusedRvIndex = 0
+                lastFocusedItemIndex = index
+                updateHeroSection(item) 
+            },
+            onItemClick = { item -> onFeaturedItemClick(item) },
+            onLeftBoundary = { returnToSidebar() }
+        )
         rvTop10Movies.adapter = top10MoviesAdapter
 
-        top10SeriesAdapter = Top10Adapter(emptyList(), { _, item -> updateHeroSection(item) }) { item ->
-            onFeaturedItemClick(item)
-        }
+        top10SeriesAdapter = Top10Adapter(
+            items = emptyList(),
+            onItemFocused = { index, item -> 
+                lastFocusedRvIndex = 1
+                lastFocusedItemIndex = index
+                updateHeroSection(item) 
+            },
+            onItemClick = { item -> onFeaturedItemClick(item) },
+            onLeftBoundary = { returnToSidebar() }
+        )
         rvTop10Series.adapter = top10SeriesAdapter
     }
 

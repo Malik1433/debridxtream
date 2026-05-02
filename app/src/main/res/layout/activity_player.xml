@@ -113,4 +113,44 @@
             android:textStyle="bold"
             android:fontFamily="@font/inter_extrabold" />
     </LinearLayout>
+    <!-- Debug Overlay (Netflix Style) -->
+    <include layout="@layout/debug_overlay" />
+
+    <FrameLayout
+        android:id="@+id/layout_episode_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#CC000000"
+        android:visibility="gone"
+        android:focusable="true"
+        android:focusableInTouchMode="true">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_episodes"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:layout_gravity="bottom"
+            android:paddingStart="32dp"
+            android:paddingEnd="32dp"
+            android:clipToPadding="false"/>
+
+        <ProgressBar
+            android:id="@+id/pb_episodes_loading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone"
+            android:indeterminateTint="@color/gold_primary" />
+
+        <TextView
+            android:id="@+id/tv_episodes_empty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="No Episodes Found"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:visibility="gone" />
+    </FrameLayout>
+
 </FrameLayout>

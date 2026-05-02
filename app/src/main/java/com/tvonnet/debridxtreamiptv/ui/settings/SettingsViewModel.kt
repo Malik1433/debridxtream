@@ -22,6 +22,7 @@ data class SettingsUiState(
     val selectedCategory: SettingCategory = SettingCategory.GENERAL,
     val isDebridAuthenticated: Boolean = false,
     val addonRegistryUrl: String = "",
+    val addonRegistryUrls: Set<String> = emptySet(),
     val isEpgAutoSyncEnabled: Boolean = true,
     val epgSyncIntervalHours: String = "6",
     val isSoftwareAudioEnabled: Boolean = true
@@ -57,6 +58,7 @@ class SettingsViewModel @Inject constructor(
                 isUiScaleEnabled = prefs.isUiScaleAnimationEnabled(),
                 isDebridAuthenticated = prefs.getRealDebridToken() != null,
                 addonRegistryUrl = prefs.getAddonRegistryUrl(),
+                addonRegistryUrls = prefs.getAddonRegistryUrls(),
                 isEpgAutoSyncEnabled = defaultPrefs.getBoolean("epg_auto_sync", true),
                 epgSyncIntervalHours = defaultPrefs.getString("epg_sync_interval", "6") ?: "6",
                 isSoftwareAudioEnabled = audioPrefs.isSoftwareAudioEnabled()
@@ -102,6 +104,26 @@ class SettingsViewModel @Inject constructor(
     fun setAddonRegistryUrl(url: String) {
         prefs.saveAddonRegistryUrl(url)
         _uiState.update { it.copy(addonRegistryUrl = url) }
+    }
+
+    /**
+     * Adds a new scraper registry URL to the active set.
+     *
+     * @param url Fully-qualified HTTPS URL pointing to a JSON addon registry.
+     */
+    fun addAddonRegistryUrl(url: String) {
+        prefs.addAddonRegistryUrl(url)
+        _uiState.update { it.copy(addonRegistryUrls = prefs.getAddonRegistryUrls()) }
+    }
+
+    /**
+     * Removes a scraper registry URL from the active set.
+     *
+     * @param url The URL to remove.
+     */
+    fun removeAddonRegistryUrl(url: String) {
+        prefs.removeAddonRegistryUrl(url)
+        _uiState.update { it.copy(addonRegistryUrls = prefs.getAddonRegistryUrls()) }
     }
 
     fun toggleEpgAutoSync(enabled: Boolean) {

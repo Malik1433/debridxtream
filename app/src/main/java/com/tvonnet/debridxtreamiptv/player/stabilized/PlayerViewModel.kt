@@ -1,4 +1,4 @@
-package com.tvonnet.debridxtreamiptv.player
+package com.tvonnet.debridxtreamiptv.player.stabilized
 
 import android.content.Context
 import androidx.lifecycle.viewModelScope
@@ -22,12 +22,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.collect
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridPlaybackRepository
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider
-
 
 sealed class DebridResolutionState {
     object Idle : DebridResolutionState()
@@ -37,10 +38,60 @@ sealed class DebridResolutionState {
         val season: Int? = null,
         val episode: Int? = null,
         val title: String? = null,
-        val infoHash: String? = null
+        val infoHash: String? = null,
+        val expiresAt: Long? = null
     ) : DebridResolutionState()
     data class Error(val message: String) : DebridResolutionState()
 }
+
+data class BrowserUiState(
+    val isVisible: Boolean = false,
+    val categories: List<XtreamCategory> = emptyList(),
+    val channels: List<XtreamStream> = emptyList(),
+    val selectedCategoryId: String? = null,
+    val isLoading: Boolean = false,
+    val isLoadingChannels: Boolean = false,
+    val error: String? = null
+)
+
+data class ZapChannel(
+    val streamId: String,
+    val name: String,
+    val logoUrl: String?,
+    val epgChannelId: String?,
+    val streamUrl: String
+)
+
+data class ZapState(
+    val categoryId: String,
+    val channels: List<ZapChannel>,
+    val index: Int
+)
+
+data class PlayerOverlayUiState(
+    val now: EpgEntity? = null,
+    val next: EpgEntity? = null,
+    val upcoming: List<EpgEntity> = emptyList(),
+    val epgAvailable: Boolean = true,
+    val lastSyncTime: Long? = null,
+    val isSyncing: Boolean = false,
+    val errorMessage: String? = null
+) {
+    fun formattedLastSync(): String? {
+        return lastSyncTime?.let {
+            val formatter = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+            formatter.format(Date(it))
+        }
+    }
+}
+
+data class SeriesPlaylistState(
+    val originalList: List<EpisodeEntityV2>,
+    val currentIndex: Int,
+    val currentEpisode: EpisodeEntityV2,
+    val hasNext: Boolean,
+    val hasPrev: Boolean
+)
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
@@ -49,6 +100,7 @@ class PlayerViewModel @Inject constructor(
     private val cacheManager: CacheManager,
     private val debridPlaybackRepository: DebridPlaybackRepository,
     private val unifiedSourceProvider: UnifiedSourceProvider,
+    private val playbackResolver: com.tvonnet.debridxtreamiptv.data.debrid.repository.PlaybackResolver,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -62,33 +114,110 @@ class PlayerViewModel @Inject constructor(
     private val _zapState = MutableStateFlow<ZapState?>(null)
     val zapState: StateFlow<ZapState?> = _zapState.asStateFlow()
 
-    // Series Playlist State (Plan C: Dynamic Queue)
     private val _seriesPlaylistState = MutableStateFlow<SeriesPlaylistState?>(null)
     val seriesPlaylistState: StateFlow<SeriesPlaylistState?> = _seriesPlaylistState.asStateFlow()
+
+    private val _isPlaylistLoading = MutableStateFlow(false)
+    val isPlaylistLoading: StateFlow<Boolean> = _isPlaylistLoading.asStateFlow()
 
     private val _debridResolutionState = MutableStateFlow<DebridResolutionState>(DebridResolutionState.Idle)
     val debridResolutionState: StateFlow<DebridResolutionState> = _debridResolutionState.asStateFlow()
 
     fun loadSeriesPlaylist(seriesId: String, seasonNum: Int, startEpisodeId: String) {
         viewModelScope.launch {
-             try {
-                 val episodes = seriesRepository.getSeasonEpisodes(seriesId, seasonNum)
-                 if (episodes.isNotEmpty()) {
-                     val startIndex = episodes.indexOfFirst { it.episodeId == startEpisodeId }.takeIf { it >= 0 } ?: 0
-                     val current = episodes[startIndex]
-                     
-                     _seriesPlaylistState.value = SeriesPlaylistState(
-                         originalList = episodes,
-                         currentIndex = startIndex,
-                         currentEpisode = current,
-                         hasNext = startIndex < episodes.size - 1,
-                         hasPrev = startIndex > 0
-                     )
-                 }
-             } catch (e: Exception) {
-                 e.printStackTrace()
-             }
+            _isPlaylistLoading.value = true
+            
+            // Cleanup startEpisodeId (it might be a URL)
+            val cleanEpId = if (startEpisodeId.contains("/")) {
+                startEpisodeId.substringAfterLast("/").substringBefore(".")
+            } else {
+                startEpisodeId
+            }
+            
+            android.util.Log.i("PlayerViewModel", "LOAD_START: seriesId=$seriesId, season=$seasonNum, cleanEpId=$cleanEpId")
+            
+            try {
+                // Step 1: Initial Local Check
+                var episodes = seriesRepository.getSeasonEpisodes(seriesId, seasonNum)
+                
+                // Resolution: If season list empty, try to find the episode in DB to get its REAL season
+                if (episodes.isEmpty() && cleanEpId.isNotEmpty()) {
+                    val ep = seriesRepository.getEpisodeById(cleanEpId)
+                    if (ep != null && ep.seasonNumber != null) {
+                        android.util.Log.d("PlayerViewModel", "LOAD_RESOLVE: Redirecting to season ${ep.seasonNumber} for ep $cleanEpId")
+                        episodes = seriesRepository.getSeasonEpisodes(seriesId, ep.seasonNumber!!)
+                    }
+                }
+                
+                // Ultimate Fallback: Just get ANY episodes for this series if still empty
+                if (episodes.isEmpty()) {
+                    val allEps = seriesRepository.getAllEpisodesForSeries(seriesId)
+                    if (allEps.isNotEmpty()) {
+                        android.util.Log.d("PlayerViewModel", "LOAD_FALLBACK: Using all episodes list (Size=${allEps.size})")
+                        episodes = allEps
+                    }
+                }
+
+                if (episodes.isNotEmpty()) {
+                    android.util.Log.d("PlayerViewModel", "LOAD_CACHE_HIT: Found ${episodes.size} episodes locally.")
+                    updatePlaylistState(episodes, cleanEpId)
+                    _isPlaylistLoading.value = false
+                }
+
+                // Step 2: Background/Network Sync with Timeout
+                withTimeoutOrNull(25000L) {
+                    android.util.Log.d("PlayerViewModel", "LOAD_SYNC: Triggering repository fetch...")
+                    seriesRepository.getSeriesById(seriesId).collect { result ->
+                        if (result is com.tvonnet.debridxtreamiptv.data.Result.Success) {
+                            // Re-fetch after sync
+                            val ep = seriesRepository.getEpisodeById(cleanEpId)
+                            val targetSeason = ep?.seasonNumber ?: seasonNum
+                            var newEpisodes = seriesRepository.getSeasonEpisodes(seriesId, targetSeason)
+                            
+                            if (newEpisodes.isEmpty()) {
+                                newEpisodes = seriesRepository.getAllEpisodesForSeries(seriesId)
+                            }
+                            
+                            if (newEpisodes.isNotEmpty()) {
+                                android.util.Log.i("PlayerViewModel", "LOAD_SUCCESS: Episodes synchronized. Size=${newEpisodes.size}")
+                                updatePlaylistState(newEpisodes, cleanEpId)
+                                _isPlaylistLoading.value = false
+                            }
+                        } else if (result is com.tvonnet.debridxtreamiptv.data.Result.Error) {
+                            android.util.Log.e("PlayerViewModel", "LOAD_ERROR: ${result.exception.message}")
+                            _isPlaylistLoading.value = false
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PlayerViewModel", "LOAD_CRITICAL: ${e.message}", e)
+            } finally {
+                android.util.Log.i("PlayerViewModel", "LOAD_FINISH: Task complete.")
+                _isPlaylistLoading.value = false
+                if (_seriesPlaylistState.value == null) {
+                    // One last check if something was saved but not caught
+                    val finalCheck = seriesRepository.getAllEpisodesForSeries(seriesId)
+                    if (finalCheck.isNotEmpty()) {
+                        updatePlaylistState(finalCheck, cleanEpId)
+                    }
+                }
+            }
         }
+    }
+
+    private fun updatePlaylistState(episodes: List<EpisodeEntityV2>, startEpisodeId: String) {
+        val startIndex = episodes.indexOfFirst { it.episodeId == startEpisodeId }.takeIf { it >= 0 } ?: 0
+        val current = episodes[startIndex]
+        
+        android.util.Log.d("PlayerViewModel", "updatePlaylistState: Loaded ${episodes.size} episodes, index=$startIndex")
+        
+        _seriesPlaylistState.value = SeriesPlaylistState(
+            originalList = episodes,
+            currentIndex = startIndex,
+            currentEpisode = current,
+            hasNext = startIndex < episodes.size - 1,
+            hasPrev = startIndex > 0
+        )
     }
 
     fun getNextEpisode(): EpisodeEntityV2? {
@@ -132,20 +261,15 @@ class PlayerViewModel @Inject constructor(
                     return@launch
                 }
 
-                // 1. Exact hash match (Season packs / same torrent)
                 val exactMatch = infoHash?.let { hash -> 
                     sources.firstOrNull { it.stream.stream_id == hash } 
                 }
                 
-                // 2. Fuzzy match (different torrents)
                 val targetSource = if (exactMatch != null) {
                     exactMatch
                 } else {
-                    // Find the best match based on previous source metadata (if we had it)
-                    // For now, prioritize Cached -> Provider Match -> Quality Match
                     val cached = sources.filter { it.isCached == true }
                     if (cached.isNotEmpty()) {
-                        // If we have cached sources, try to match provider/quality
                         cached.firstOrNull { it.quality?.contains("2160") == true }
                             ?: cached.firstOrNull { it.quality?.contains("1080") == true }
                             ?: cached.first()
@@ -162,19 +286,11 @@ class PlayerViewModel @Inject constructor(
                     return@launch
                 }
 
-                if (magnet?.startsWith("http") == true && !magnet.endsWith(".torrent", ignoreCase = true)) {
-                     _debridResolutionState.value = DebridResolutionState.Success(
-                         url = magnet,
-                         season = targetSeason,
-                         episode = targetEpisode,
-                         title = seriesTitle,
-                         infoHash = hashToResolve
-                     )
-                     return@launch
-                }
-
                 val result = withContext(Dispatchers.IO) {
-                    debridPlaybackRepository.resolveDebridUrl(
+                    playbackResolver.resolve(
+                        source = "debrid",
+                        streamUrl = null,
+                        isExpired = true, // Force resolution for next episode
                         infoHash = hashToResolve,
                         magnet = magnet,
                         seasonNumber = targetSeason,
@@ -184,22 +300,21 @@ class PlayerViewModel @Inject constructor(
                 }
 
                 when (result) {
-                    is Result.Success -> {
+                    is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Success -> {
                         _debridResolutionState.value = DebridResolutionState.Success(
-                            url = result.data,
+                            url = result.url,
                             season = targetSeason,
                             episode = targetEpisode,
                             title = seriesTitle,
-                            infoHash = hashToResolve
+                            infoHash = hashToResolve,
+                            expiresAt = result.expiresAt
                         )
                     }
-                    is Result.Error -> {
-                        _debridResolutionState.value = DebridResolutionState.Error(
-                            result.exception.message ?: "Failed to resolve next Debrid link"
-                        )
+                    is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
+                        _debridResolutionState.value = DebridResolutionState.Error("Refresh required to play this episode.")
                     }
-                    else -> {
-                        _debridResolutionState.value = DebridResolutionState.Error("Unknown error resolving link")
+                    is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Error -> {
+                        _debridResolutionState.value = DebridResolutionState.Error(result.message)
                     }
                 }
             } catch (e: Exception) {
@@ -218,19 +333,11 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             _debridResolutionState.value = DebridResolutionState.Loading
             try {
-                if (magnet?.startsWith("http") == true && !magnet.endsWith(".torrent", ignoreCase = true)) {
-                     _debridResolutionState.value = DebridResolutionState.Success(
-                         url = magnet,
-                         season = season,
-                         episode = episode,
-                         title = title,
-                         infoHash = infoHash
-                     )
-                     return@launch
-                }
-
                 val result = withContext(Dispatchers.IO) {
-                    debridPlaybackRepository.resolveDebridUrl(
+                    playbackResolver.resolve(
+                        source = "debrid",
+                        streamUrl = null,
+                        isExpired = true, // Force re-resolution on retry
                         infoHash = infoHash,
                         magnet = magnet,
                         seasonNumber = season,
@@ -240,22 +347,21 @@ class PlayerViewModel @Inject constructor(
                 }
 
                 when (result) {
-                    is Result.Success -> {
+                    is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Success -> {
                         _debridResolutionState.value = DebridResolutionState.Success(
-                            url = result.data,
+                            url = result.url,
                             season = season,
                             episode = episode,
                             title = title,
-                            infoHash = infoHash
+                            infoHash = infoHash,
+                            expiresAt = result.expiresAt
                         )
                     }
-                    is Result.Error -> {
-                        _debridResolutionState.value = DebridResolutionState.Error(
-                            result.exception.message ?: "Failed to retry Debrid link"
-                        )
+                    is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
+                        _debridResolutionState.value = DebridResolutionState.Error("Retry failed: Refresh required.")
                     }
-                    else -> {
-                        _debridResolutionState.value = DebridResolutionState.Error("Unknown error resolving retry link")
+                    is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Error -> {
+                        _debridResolutionState.value = DebridResolutionState.Error(result.message)
                     }
                 }
             } catch (e: Exception) {
@@ -284,7 +390,6 @@ class PlayerViewModel @Inject constructor(
         return seriesRepository.getStreamUrl(episode.episodeId, episode.containerExtension)
     }
 
-    // Helper to clear playlist when leaving player
     fun clearSeriesPlaylist() {
         _seriesPlaylistState.value = null
     }
@@ -301,7 +406,6 @@ class PlayerViewModel @Inject constructor(
             return
         }
 
-        // Immediately show a lightweight "loading guide" state so the player overlay can appear right away.
         _overlayState.value = PlayerOverlayUiState(
             epgAvailable = false,
             lastSyncTime = readLastSyncTime(),
@@ -313,7 +417,6 @@ class PlayerViewModel @Inject constructor(
             val flow = repository.getEpgByChannel(epgChannelId)
 
             if (flow == null) {
-                // Room not available; use lightweight per-stream short EPG if possible.
                 val fallback = streamId
                     ?.takeIf { it.isNotBlank() }
                     ?.let { id ->
@@ -342,7 +445,6 @@ class PlayerViewModel @Inject constructor(
                         epgAvailable = false,
                         errorMessage = context.getString(R.string.player_epg_unavailable_generic)
                     )
-                    // Avoid auto-triggering full XMLTV sync on low-memory devices; keep as manual/worker task.
                 }
                 return@launch
             }
@@ -350,7 +452,6 @@ class PlayerViewModel @Inject constructor(
             flow.collect { programs ->
                 val nowMs = System.currentTimeMillis()
                 if (programs.isEmpty()) {
-                    // Fallback to short-EPG (fast) instead of forcing full XMLTV sync (heavy).
                     _overlayState.value = _overlayState.value.copy(
                         epgAvailable = false,
                         isSyncing = true,
@@ -408,50 +509,6 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun triggerGuideRefresh(channelId: String, force: Boolean = false) {
-        if (epgRefreshJob?.isActive == true) return
-        val now = System.currentTimeMillis()
-        if (!force) {
-            val lastAttempt = refreshAttempts[channelId] ?: 0L
-            if (now - lastAttempt < REFRESH_COOLDOWN_MS) return
-        }
-
-        epgRefreshJob = viewModelScope.launch {
-            val hasLocalData = withContext(Dispatchers.IO) {
-                repository.hasEpgData(channelId)
-            }
-            if (hasLocalData && !force) return@launch
-
-            refreshAttempts[channelId] = now
-            _overlayState.value = _overlayState.value.copy(
-                isSyncing = true,
-                epgAvailable = false,
-                errorMessage = null
-            )
-
-            val result = withContext(Dispatchers.IO) {
-                repository.fetchAndSaveEpg()
-            }
-
-            when (result) {
-                is Result.Success -> {
-                    saveLastSyncTime()
-                    _overlayState.value = _overlayState.value.copy(isSyncing = false, errorMessage = null)
-                }
-                is Result.Error -> {
-                    _overlayState.value = _overlayState.value.copy(
-                        isSyncing = false,
-                        errorMessage = result.exception.localizedMessage
-                            ?: context.getString(R.string.player_epg_sync_failed)
-                    )
-                }
-                else -> {
-                    _overlayState.value = _overlayState.value.copy(isSyncing = false)
-                }
-            }
-        }
-    }
-
     private fun readLastSyncTime(): Long? {
         return context
             .getSharedPreferences("epg_prefs", Context.MODE_PRIVATE)
@@ -459,20 +516,11 @@ class PlayerViewModel @Inject constructor(
             .takeIf { it > 0 }
     }
 
-    private fun saveLastSyncTime() {
-        context
-            .getSharedPreferences("epg_prefs", Context.MODE_PRIVATE)
-            .edit()
-            .putLong("last_sync_time", System.currentTimeMillis())
-            .apply()
-    }
-
     fun updatePlaybackStatus(contentId: String, isWatched: Boolean, resumePosition: Long, duration: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.updateEpisodePlaybackStatus(contentId, isWatched, resumePosition, duration)
             } catch (e: Exception) {
-                // Log error but don't crash
                 e.printStackTrace()
             }
         }
@@ -530,18 +578,12 @@ class PlayerViewModel @Inject constructor(
         return updated.channels[nextIndex]
     }
 
-    companion object {
-        private const val REFRESH_COOLDOWN_MS = 5 * 60 * 1000L
-    }
-    // Browser State
     private val _browserState = MutableStateFlow(BrowserUiState())
     val browserState: StateFlow<BrowserUiState> = _browserState.asStateFlow()
 
     fun toggleBrowser(visible: Boolean, currentCategoryId: String? = null, currentChannelId: String? = null) {
         if (visible) {
-             // If we have a current category, prioritize selecting it
              if (currentCategoryId != null && currentCategoryId != _browserState.value.selectedCategoryId) {
-                 // Trigger category load/select
                  if (_browserState.value.categories.isEmpty()) {
                      loadBrowserCategories(initialCategoryId = currentCategoryId)
                  } else {
@@ -558,10 +600,7 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             _browserState.value = _browserState.value.copy(isLoading = true, error = null)
             try {
-                // Try cache first
                 var categories = cacheManager.getCategories("live")
-                
-                // If cache miss, try network (via repository which handles caching)
                 if (categories == null) {
                     val result = repository.ensureLiveCategories()
                     if (result.isNotEmpty()) {
@@ -574,7 +613,6 @@ class PlayerViewModel @Inject constructor(
                         categories = categories,
                         isLoading = false
                     )
-                    // Select default or requested category
                     val targetId = initialCategoryId ?: _browserState.value.selectedCategoryId ?: categories.first().category_id
                     if (targetId != null) {
                        selectBrowserCategory(targetId)
@@ -582,14 +620,11 @@ class PlayerViewModel @Inject constructor(
                 } else {
                     _browserState.value = _browserState.value.copy(
                         isLoading = false,
-                        error = context.getString(R.string.series_category_unavailable_generic) // Generic error
+                        error = context.getString(R.string.series_category_unavailable_generic)
                     )
                 }
             } catch (e: Exception) {
-                _browserState.value = _browserState.value.copy(
-                    isLoading = false,
-                    error = e.message
-                )
+                _browserState.value = _browserState.value.copy(isLoading = false, error = e.message)
             }
         }
     }
@@ -604,10 +639,7 @@ class PlayerViewModel @Inject constructor(
             )
             
             try {
-                 // Try cache first
                 var channels = cacheManager.getChannels(categoryId, "live")
-                
-                // If cache miss, try network
                 if (channels == null) {
                     val result = repository.fetchLiveStreamsForCategory(categoryId)
                     if (result is Result.Success) {
@@ -615,7 +647,6 @@ class PlayerViewModel @Inject constructor(
                     }
                 }
 
-                // Enrich with EPG
                 val enrichedChannels = if (!channels.isNullOrEmpty()) {
                      withContext(Dispatchers.IO) {
                          repository.enrichChannelsWithCurrentEpg(channels!!)
@@ -629,61 +660,11 @@ class PlayerViewModel @Inject constructor(
                     isLoadingChannels = false
                 )
             } catch (e: Exception) {
-                 _browserState.value = _browserState.value.copy(
+                  _browserState.value = _browserState.value.copy(
                     isLoadingChannels = false,
-                    // Don't show global error, just empty channels
                     channels = emptyList()
                 )
             }
         }
     }
 }
-
-data class BrowserUiState(
-    val isVisible: Boolean = false,
-    val categories: List<XtreamCategory> = emptyList(),
-    val channels: List<XtreamStream> = emptyList(),
-    val selectedCategoryId: String? = null,
-    val isLoading: Boolean = false,
-    val isLoadingChannels: Boolean = false,
-    val error: String? = null
-)
-
-data class ZapChannel(
-    val streamId: String,
-    val name: String,
-    val logoUrl: String?,
-    val epgChannelId: String?,
-    val streamUrl: String
-)
-
-data class ZapState(
-    val categoryId: String,
-    val channels: List<ZapChannel>,
-    val index: Int
-)
-
-data class PlayerOverlayUiState(
-    val now: EpgEntity? = null,
-    val next: EpgEntity? = null,
-    val upcoming: List<EpgEntity> = emptyList(),
-    val epgAvailable: Boolean = true,
-    val lastSyncTime: Long? = null,
-    val isSyncing: Boolean = false,
-    val errorMessage: String? = null
-) {
-    fun formattedLastSync(): String? {
-        return lastSyncTime?.let {
-            val formatter = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
-            formatter.format(Date(it))
-        }
-    }
-}
-
-data class SeriesPlaylistState(
-    val originalList: List<EpisodeEntityV2>,
-    val currentIndex: Int,
-    val currentEpisode: EpisodeEntityV2,
-    val hasNext: Boolean,
-    val hasPrev: Boolean
-)
