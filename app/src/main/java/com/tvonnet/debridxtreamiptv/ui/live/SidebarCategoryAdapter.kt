@@ -117,11 +117,14 @@ class SidebarCategoryAdapter(
 }
 
 class SidebarCategoryViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-    private val iconContainer = itemView.findViewById<View>(R.id.category_icon_container)
-    private val ivCategoryFlag = itemView.findViewById<ImageView>(R.id.iv_category_flag)
-    private val tvCategoryIcon = itemView.findViewById<TextView>(R.id.tv_category_icon)
-    private val tvCategoryName = itemView.findViewById<TextView>(R.id.tv_category_name_sidebar)
-    private val tvChannelCount = itemView.findViewById<TextView>(R.id.tv_channel_count_sidebar)
+    // The cinematic item layout uses iv_category_icon for the icon ImageView and
+    // tv_category_count for the trailing channel count. The optional emoji-text fallback
+    // (tv_category_icon as a TextView) may not exist in the modernized layout, so it's nullable.
+    // Resize is done directly on the ImageView when present.
+    private val ivCategoryFlag: ImageView? = itemView.findViewById(R.id.iv_category_icon)
+    private val tvCategoryIcon: TextView? = itemView.findViewById(R.id.tv_category_icon)
+    private val tvCategoryName: TextView = itemView.findViewById(R.id.tv_category_name_sidebar)
+    private val tvChannelCount: TextView = itemView.findViewById(R.id.tv_category_count)
 
     fun bind(
         category: XtreamCategory,
@@ -139,13 +142,15 @@ class SidebarCategoryViewHolder(itemView: View) : RecyclerView.ViewHolder(itemVi
 
         val flagRes = resolveFlagRes(categoryName)
         if (flagRes != null) {
-            ivCategoryFlag.setImageResource(flagRes)
-            ivCategoryFlag.visibility = View.VISIBLE
-            tvCategoryIcon.visibility = View.GONE
+            ivCategoryFlag?.setImageResource(flagRes)
+            ivCategoryFlag?.visibility = View.VISIBLE
+            tvCategoryIcon?.visibility = View.GONE
         } else {
-            ivCategoryFlag.visibility = View.GONE
-            tvCategoryIcon.visibility = View.VISIBLE
-            tvCategoryIcon.text = getCategoryIcon(categoryName)
+            ivCategoryFlag?.visibility = View.GONE
+            // tvCategoryIcon may not exist in the modernized layout; fall back to hiding the icon
+            // entirely if there's no flag drawable for this category.
+            tvCategoryIcon?.visibility = if (tvCategoryIcon != null) View.VISIBLE else View.GONE
+            tvCategoryIcon?.text = getCategoryIcon(categoryName)
         }
         tvCategoryName.text = categoryName
         tvChannelCount.text = countLabel
@@ -158,7 +163,7 @@ class SidebarCategoryViewHolder(itemView: View) : RecyclerView.ViewHolder(itemVi
 
         tvCategoryName.setTextColor(nameColor)
         tvChannelCount.setTextColor(countColor)
-        tvCategoryIcon.setTextColor(if (isSelected) selectedTextColor else iconNormalColor)
+        tvCategoryIcon?.setTextColor(if (isSelected) selectedTextColor else iconNormalColor)
         tvCategoryName.setTypeface(tvCategoryName.typeface, if (isSelected) Typeface.BOLD else Typeface.NORMAL)
         itemView.isSelected = isSelected
 
@@ -167,14 +172,16 @@ class SidebarCategoryViewHolder(itemView: View) : RecyclerView.ViewHolder(itemVi
             if (isSelected) R.dimen.live_sidebar_icon_size_selected
             else R.dimen.live_sidebar_icon_size
         )
-        val iconParams = iconContainer.layoutParams
-        if (iconParams.width != iconSize || iconParams.height != iconSize) {
-            iconParams.width = iconSize
-            iconParams.height = iconSize
-            iconContainer.layoutParams = iconParams
+        // Resize the icon ImageView directly when present.
+        ivCategoryFlag?.layoutParams?.let { params ->
+            if (params.width != iconSize || params.height != iconSize) {
+                params.width = iconSize
+                params.height = iconSize
+                ivCategoryFlag.layoutParams = params
+            }
         }
         val iconTextSize = if (isSelected) 20f else 18f
-        tvCategoryIcon.setTextSize(TypedValue.COMPLEX_UNIT_SP, iconTextSize)
+        tvCategoryIcon?.setTextSize(TypedValue.COMPLEX_UNIT_SP, iconTextSize)
 
         val nameSize = if (isSelected) 17f else 15f
         val countSize = if (isSelected) 12f else 11f

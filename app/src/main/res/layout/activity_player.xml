@@ -55,7 +55,7 @@
         android:layout_gravity="center"
         android:orientation="vertical"
         android:gravity="center"
-        android:background="#E6000000"
+        android:background="@drawable/cin_card_glass"
         android:padding="32dp"
         android:visibility="gone">
 
@@ -63,9 +63,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Stream Failed"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/cin_text_primary"
             android:textSize="24sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:fontFamily="@font/inter_extrabold" />
 
         <ImageView
             android:id="@+id/img_support_qr"
@@ -80,9 +81,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Scan for Support"
-            android:textColor="#CCCCCC"
+            android:textColor="@color/cin_text_secondary"
             android:textSize="16sp"
-            android:layout_marginTop="16dp" />
+            android:layout_marginTop="16dp"
+            android:fontFamily="@font/plus_jakarta_sans" />
     </LinearLayout>
 
     <!-- Debrid Resolving Overlay (Phase 2.1) -->
@@ -93,21 +95,22 @@
         android:layout_gravity="center"
         android:orientation="vertical"
         android:gravity="center"
-        android:background="@drawable/glass_card_focused"
+        android:background="@drawable/cin_card_glass"
         android:padding="24dp"
         android:visibility="gone">
         <ProgressBar
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:indeterminateTint="@color/gold_primary" />
+            android:indeterminateTint="@color/cin_gold_500" />
         <TextView
             android:id="@+id/tv_resolving_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="Resolving..."
-            android:textColor="@color/white"
+            android:textColor="@color/cin_text_primary"
             android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:fontFamily="@font/inter_extrabold" />
     </LinearLayout>
 </FrameLayout>

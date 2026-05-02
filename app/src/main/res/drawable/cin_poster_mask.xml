@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rounded poster mask used for image clipping (apply via shapeAppearanceOverlay) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/cin_ink_700" />
+    <corners android:radius="@dimen/cin_radius_md" />
+</shape>

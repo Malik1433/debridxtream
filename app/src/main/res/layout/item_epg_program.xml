@@ -1,75 +1,83 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Week 11: EPG Program Item Layout -->
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    CINEMATIC EPG PROGRAM ITEM (now/upcoming/past row)
+    Replaces: item_epg_program.xml
+    Preserves IDs: view_program_status, text_program_title,
+      text_program_time, text_program_description
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="12dp"
+    android:layout_marginBottom="14dp"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    app:cardBackgroundColor="@color/card_background"
-    app:cardCornerRadius="8dp"
-    app:cardElevation="4dp">
-    
+    android:clickable="true"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@drawable/cin_epg_card_state"
         android:orientation="horizontal"
-        android:padding="16dp">
-        
-        <!-- Status indicator (colored bar) -->
+        android:padding="20dp">
+
+        <!-- Status indicator (color set in adapter: now=gold, upcoming=cyan, past=gray) -->
         <View
             android:id="@+id/view_program_status"
             android:layout_width="4dp"
             android:layout_height="match_parent"
-            android:layout_marginEnd="12dp"
-            android:background="@color/epg_playing" />
-        
+            android:layout_marginEnd="18dp"
+            android:background="@drawable/cin_epg_status_bar" />
+
         <!-- Program info -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical">
-            
-            <!-- Program title -->
+
             <TextView
                 android:id="@+id/text_program_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/text_primary"
-                android:textSize="18sp"
+                android:textColor="#FFFFFFFF"
+                android:textSize="20sp"
                 android:textStyle="bold"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="-0.01"
                 tools:text="BBC News at 10" />
-            
-            <!-- Program time -->
+
             <TextView
                 android:id="@+id/text_program_time"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp"
-                tools:text="20:00 - 21:00 (60 min)" />
-            
-            <!-- Program description -->
+                android:layout_marginTop="6dp"
+                android:textColor="#FFC9A961"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.18"
+                android:fontFamily="@font/plus_jakarta_sans"
+                tools:text="20:00 — 21:00  ·  60 MIN" />
+
             <TextView
                 android:id="@+id/text_program_description"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="10dp"
                 android:ellipsize="end"
                 android:maxLines="2"
-                android:textColor="@color/text_tertiary"
+                android:textColor="#B3FFFFFF"
                 android:textSize="14sp"
-                tools:text="The latest national and international news stories from the BBC News" />
-        
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:lineSpacingMultiplier="1.3"
+                tools:text="The latest national and international news stories from the BBC News team." />
         </LinearLayout>
-    
+
     </LinearLayout>
 
-</androidx.cardview.widget.CardView>
-
+</FrameLayout>

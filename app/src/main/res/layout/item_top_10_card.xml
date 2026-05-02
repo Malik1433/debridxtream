@@ -18,8 +18,8 @@
         android:layout_marginTop="10dp"
         android:layout_marginEnd="10dp"
         android:layout_marginBottom="10dp"
-        android:foreground="@drawable/bg_card_focus_cyan"
-        app:cardBackgroundColor="@color/card_background"
+        android:foreground="@drawable/bg_top10_focus_gold"
+        app:cardBackgroundColor="@color/cin_ink_500"
         app:cardCornerRadius="12dp"
         app:cardElevation="6dp"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -36,18 +36,22 @@
 
     </androidx.cardview.widget.CardView>
 
-    <!-- Large Number Overlay -->
+    <!-- Large Number Overlay (gold-glowing cinematic numeral) -->
     <TextView
         android:id="@+id/tv_rank_number"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:fontFamily="@font/plus_jakarta_sans"
+        android:fontFamily="@font/inter_extrabold"
         android:includeFontPadding="false"
         android:letterSpacing="-0.05"
         android:text="1"
-        android:textColor="@color/white"
+        android:textColor="@color/cin_gold_300"
         android:textSize="@dimen/number_text_size"
         android:textStyle="bold"
+        android:shadowColor="@color/cin_gold_glow_40"
+        android:shadowRadius="20"
+        android:shadowDx="0"
+        android:shadowDy="0"
         app:layout_constraintBottom_toBottomOf="@+id/card_poster"
         app:layout_constraintStart_toStartOf="@+id/card_poster"
         app:layout_constraintHorizontal_bias="0.0"

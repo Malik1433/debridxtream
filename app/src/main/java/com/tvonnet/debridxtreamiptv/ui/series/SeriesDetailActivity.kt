@@ -151,7 +151,7 @@ class SeriesDetailActivity : AppCompatActivity() {
         // DEBUG: FORCE RED BACKGROUND
         window.decorView.setBackgroundColor(android.graphics.Color.RED)
         
-        setContentView(R.layout.activity_series_detail)
+        setContentView(R.layout.fragment_series_detail)
 
         // Repository and credentials are now injected via Hilt
         // No need to manually create instances

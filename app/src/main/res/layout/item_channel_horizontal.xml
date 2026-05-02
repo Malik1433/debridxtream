@@ -1,45 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Compact Live TV Row with EPG Info -->
+<!--
+    CINEMATIC HORIZONTAL CHANNEL ROW (96dp tall, used in 3-column rail)
+    Replaces: item_channel_horizontal.xml
+    Preserves IDs: view_focus_bar, iv_channel_logo_horizontal,
+      tv_channel_name_horizontal, tv_epg_now, tv_epg_next,
+      badge_hd, badge_4k, badge_epg, badge_pay,
+      pb_epg_progress, iv_favorite_indicator
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="96dp"
+    android:layout_height="104dp"
     android:layout_marginBottom="12dp"
-    android:layout_marginStart="8dp"
-    android:layout_marginEnd="8dp"
-    android:background="@drawable/selector_browser_item_modern"
+    android:layout_marginHorizontal="6dp"
     android:focusable="true"
     android:focusableInTouchMode="true"
     android:clickable="true"
-    android:stateListAnimator="@null">
-
-    <View
-        android:id="@+id/view_focus_bar"
-        android:layout_width="3dp"
-        android:layout_height="match_parent"
-        android:layout_gravity="start"
-        android:layout_marginStart="2dp"
-        android:layout_marginTop="6dp"
-        android:layout_marginBottom="6dp"
-        android:background="@drawable/channel_focus_bar_bg"
-        android:duplicateParentState="true" />
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:stateListAnimator="@animator/cin_channel_card_state">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="@drawable/cin_channel_card_state"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp">
+        android:paddingStart="14dp"
+        android:paddingEnd="16dp">
 
-        <!-- Channel Logo (Left) -->
+        <!-- Focus accent bar (Kotlin-bound id) -->
+        <View
+            android:id="@+id/view_focus_bar"
+            android:layout_width="3dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="14dp"
+            android:background="@drawable/cin_sidebar_active_bar"
+            android:duplicateParentState="true"
+            android:visibility="invisible" />
+
+        <!-- Logo -->
         <FrameLayout
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
             android:background="@drawable/channel_logo_bg_dark"
-            android:padding="4dp"
-            android:layout_marginEnd="14dp">
+            android:padding="6dp"
+            android:layout_marginEnd="16dp">
 
             <ImageView
                 android:id="@+id/iv_channel_logo_horizontal"
@@ -50,7 +57,7 @@
                 tools:src="@android:drawable/ic_menu_gallery" />
         </FrameLayout>
 
-        <!-- Channel & EPG Info (Center) -->
+        <!-- Center column -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -58,13 +65,13 @@
             android:orientation="vertical"
             android:gravity="center_vertical">
 
-            <!-- Row 1: Channel Name + Badges -->
+            <!-- Title row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginBottom="4dp">
+                android:layout_marginBottom="3dp">
 
                 <TextView
                     android:id="@+id/tv_channel_name_horizontal"
@@ -74,13 +81,14 @@
                     tools:text="CNN International"
                     android:textSize="17sp"
                     android:textStyle="bold"
-                    android:textColor="@color/tv_text_primary"
-                    android:includeFontPadding="false"
+                    android:textColor="#FFFFFFFF"
+                    android:fontFamily="@font/inter_extrabold"
+                    android:letterSpacing="-0.01"
                     android:maxLines="1"
                     android:ellipsize="end" />
             </LinearLayout>
 
-            <!-- Row 2: Current Program (EPG) + Badges -->
+            <!-- EPG row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -94,91 +102,119 @@
                     android:layout_weight="1"
                     tools:text="Newsroom with Jim Acosta"
                     android:textSize="12sp"
-                    android:textColor="@color/tv_text_tertiary"
-                    android:includeFontPadding="false"
+                    android:textColor="#80FFFFFF"
+                    android:fontFamily="@font/plus_jakarta_sans"
                     android:maxLines="1"
-                    android:ellipsize="end"
-                    android:visibility="visible" />
+                    android:ellipsize="end" />
 
-                <!-- Badges -->
+                <!-- Quality / pay badges -->
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginStart="8dp">
+                    android:layout_marginStart="10dp"
+                    android:gravity="center_vertical">
 
                     <TextView
                         android:id="@+id/badge_hd"
-                        style="@style/ChannelBadgeText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:text="HD"
-                        android:background="@drawable/badge_background"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="9sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.18"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:paddingHorizontal="6dp"
+                        android:paddingVertical="2dp"
+                        android:layout_marginStart="4dp"
+                        android:background="@drawable/cin_pill_hd_glass"
                         android:visibility="gone"
                         tools:visibility="visible" />
 
                     <TextView
                         android:id="@+id/badge_4k"
-                        style="@style/ChannelBadgeText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:text="4K"
-                        android:background="@drawable/badge_background"
+                        android:textColor="#1A1108"
+                        android:textSize="9sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.18"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:paddingHorizontal="6dp"
+                        android:paddingVertical="2dp"
+                        android:layout_marginStart="4dp"
+                        android:background="@drawable/cin_pill_4k_gold"
                         android:visibility="gone" />
 
                     <TextView
                         android:id="@+id/badge_epg"
-                        style="@style/ChannelBadgeText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:text="EPG"
-                        android:background="@drawable/badge_background"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="9sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.18"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:paddingHorizontal="6dp"
+                        android:paddingVertical="2dp"
+                        android:layout_marginStart="4dp"
+                        android:background="@drawable/cin_pill_hd_glass"
                         android:visibility="gone" />
 
                     <TextView
                         android:id="@+id/badge_pay"
-                        style="@style/ChannelBadgeText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:text="$"
-                        android:background="@drawable/badge_background"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="9sp"
+                        android:textStyle="bold"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:paddingHorizontal="6dp"
+                        android:paddingVertical="2dp"
+                        android:layout_marginStart="4dp"
+                        android:background="@drawable/cin_pill_hd_glass"
                         android:visibility="gone" />
                 </LinearLayout>
             </LinearLayout>
-            
-            <!-- Row 2b: Next Program (Hidden by default, used if needed) -->
+
+            <!-- Hidden next-program slot -->
             <TextView
                 android:id="@+id/tv_epg_next"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:visibility="gone" />
 
-            <!-- Row 4: Progress Bar -->
+            <!-- Mini progress -->
             <ProgressBar
                 android:id="@+id/pb_epg_progress"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
-                android:layout_height="1dp"
+                android:layout_height="2dp"
                 android:layout_marginTop="6dp"
-                android:progressDrawable="@drawable/epg_progress_bar_mini"
                 android:max="100"
                 android:progress="0"
+                android:progressDrawable="@drawable/cin_preview_progress"
                 android:visibility="invisible"
                 tools:progress="40"
                 tools:visibility="visible" />
 
         </LinearLayout>
 
-        <!-- Right Side Actions/Status -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:layout_marginStart="12dp">
-
-            <ImageView
-                android:id="@+id/iv_favorite_indicator"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@drawable/ic_favorite"
-                android:tint="@color/tv_accent_yellow"
-                android:visibility="gone"
-                tools:visibility="visible"
-                android:contentDescription="@string/favorite_added" />
-        </LinearLayout>
+        <!-- Right: favorite indicator -->
+        <ImageView
+            android:id="@+id/iv_favorite_indicator"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_favorite"
+            app:tint="#FFC9A961"
+            android:layout_marginStart="14dp"
+            android:visibility="gone"
+            tools:visibility="visible"
+            android:contentDescription="@string/favorite_added" />
 
     </LinearLayout>
 </FrameLayout>

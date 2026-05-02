@@ -1,265 +1,398 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    CINEMATIC SEARCH (drop-in replacement for fragment_search.xml)
+
+    All original IDs preserved exactly so SearchFragment.kt findViewById calls
+    keep working. Only the visual chrome and structure change:
+
+      et_search_query, btn_clear_query, progress_bar,
+      tv_results_count, tv_browse_hint, tv_empty_state,
+      tv_recent_title, rv_recent_searches, btn_clear_history,
+      tv_live_title,    rv_live_results,
+      tv_vod_title,     rv_vod_results,
+      tv_series_title,  rv_series_results,
+      tv_programs_title, rv_epg_results
+
+    Notes for the host fragment / activity:
+      • Sidebar (cin_view_sidebar) is included via @+id/sidebar_panel.
+        If your SearchFragment is hosted INSIDE a sidebar-bearing activity,
+        delete the <include id="@+id/sidebar_panel"/> below and remove the
+        layout_marginStart on the inner panel (or simply ignore — it overlaps
+        nothing because constraint chain references it).
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_dark"
-    android:fillViewport="true"
-    android:padding="16dp"
-    android:clipToPadding="false"
+    android:background="@drawable/cin_bg_app"
     android:clipChildren="false">
 
+    <!-- Sidebar (mirror Home / Movies / Series). Remove if your host already
+         supplies one. -->
+    <include
+        android:id="@+id/sidebar_panel"
+        layout="@layout/cin_view_sidebar"
+        android:layout_width="@dimen/cin_sidebar_expanded"
+        android:layout_height="0dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <!-- ============================================================ -->
+    <!-- HERO SEARCH BAR                                                -->
+    <!-- ============================================================ -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:clipChildren="false">
+        android:id="@+id/search_bar_container"
+        android:layout_width="0dp"
+        android:layout_height="72dp"
+        android:layout_marginStart="@dimen/cin_gutter_screen"
+        android:layout_marginEnd="@dimen/cin_gutter_screen"
+        android:layout_marginTop="@dimen/cin_space_8"
+        android:background="@drawable/cin_card_glass"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="@dimen/cin_space_5"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
-        <!-- Search Bar -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/search_bar_background"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="8dp">
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:contentDescription="@string/search"
+            android:src="@drawable/ic_search"
+            app:tint="@color/cin_gold_300" />
 
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:contentDescription="@string/search"
-                android:src="@drawable/ic_search"
-                android:tint="@color/text_secondary" />
+        <EditText
+            android:id="@+id/et_search_query"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="@dimen/cin_space_4"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:hint="@string/search_hint"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:maxLines="1"
+            android:textColor="@color/cin_text_primary"
+            android:textColorHint="@color/cin_text_tertiary"
+            android:textSize="@dimen/cin_text_title_sm"
+            tools:text="John Wick" />
 
-            <EditText
-                android:id="@+id/et_search_query"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="@android:color/transparent"
-                android:hint="@string/search_hint"
-                android:imeOptions="actionSearch"
-                android:inputType="text"
-                android:maxLines="1"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_secondary"
-                android:textSize="16sp"
-                tools:text="Search query" />
-
-            <ImageButton
-                android:id="@+id/btn_clear_query"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_marginEnd="4dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/clear"
-                android:src="@drawable/ic_clear"
-                android:tint="@color/text_secondary"
-                android:visibility="gone"
-                tools:visibility="visible" />
-        </LinearLayout>
-
-        <!-- Progress Bar -->
         <ProgressBar
             android:id="@+id/progress_bar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginTop="32dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="@dimen/cin_space_3"
+            android:indeterminateTint="@color/cin_gold_500"
             android:visibility="gone"
             tools:visibility="visible" />
 
-        <!-- Results Count -->
-        <TextView
-            android:id="@+id/tv_results_count"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp"
+        <ImageButton
+            android:id="@+id/btn_clear_query"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="@dimen/cin_space_3"
+            android:background="@drawable/cin_btn_circle_glass"
+            android:contentDescription="@string/clear"
+            android:focusable="true"
+            android:src="@drawable/ic_clear"
             android:visibility="gone"
-            tools:text="42 results found"
+            app:tint="@color/cin_text_secondary"
             tools:visibility="visible" />
+    </LinearLayout>
 
-        <!-- Hint for browsing more content -->
-        <TextView
-            android:id="@+id/tv_browse_hint"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:padding="12dp"
-            android:background="@color/card_background"
-            android:text="@string/search_limited_cache_hint"
-            android:textColor="@color/accent_gold"
-            android:textSize="13sp"
-            android:visibility="gone"
-            tools:visibility="visible" />
+    <!-- ============================================================ -->
+    <!-- RESULTS COUNT + CACHE HINT (sit just under the search bar)    -->
+    <!-- ============================================================ -->
+    <TextView
+        android:id="@+id/tv_results_count"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/cin_gutter_screen"
+        android:layout_marginEnd="@dimen/cin_gutter_screen"
+        android:layout_marginTop="@dimen/cin_space_4"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:textAllCaps="true"
+        android:textColor="@color/cin_text_tertiary"
+        android:textSize="@dimen/cin_text_caption"
+        android:letterSpacing="0.16"
+        android:visibility="gone"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/search_bar_container"
+        tools:text="42 results"
+        tools:visibility="visible" />
 
-        <!-- Empty State -->
+    <TextView
+        android:id="@+id/tv_browse_hint"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/cin_gutter_screen"
+        android:layout_marginEnd="@dimen/cin_gutter_screen"
+        android:layout_marginTop="@dimen/cin_space_3"
+        android:background="@drawable/cin_chip_gold_soft"
+        android:drawablePadding="@dimen/cin_space_3"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:padding="@dimen/cin_space_4"
+        android:text="@string/search_limited_cache_hint"
+        android:textColor="@color/cin_gold_300"
+        android:textSize="@dimen/cin_text_caption"
+        android:visibility="gone"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_results_count"
+        tools:visibility="visible" />
+
+    <!-- ============================================================ -->
+    <!-- BARRIER: results body anchors below whichever hint is visible -->
+    <!-- ============================================================ -->
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/barrier_above_body"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="bottom"
+        app:constraint_referenced_ids="search_bar_container,tv_results_count,tv_browse_hint" />
+
+    <!-- ============================================================ -->
+    <!-- EMPTY STATE                                                   -->
+    <!-- ============================================================ -->
+    <LinearLayout
+        android:id="@+id/empty_state_container"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/cin_space_16"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/barrier_above_body">
+
+        <FrameLayout
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:background="@drawable/cin_pill_glass">
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_search"
+                app:tint="@color/cin_gold_300" />
+        </FrameLayout>
+
         <TextView
             android:id="@+id/tv_empty_state"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginTop="48dp"
+            android:layout_marginTop="@dimen/cin_space_5"
+            android:fontFamily="@font/plus_jakarta_sans"
             android:gravity="center"
-            android:textColor="@color/text_secondary"
-            android:textSize="16sp"
-            android:visibility="gone"
-            tools:text="No results found for 'test'"
-            tools:visibility="visible" />
-
-        <!-- Recent Searches Section -->
-        <TextView
-            android:id="@+id/tv_recent_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/recent_searches"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
+            android:textColor="@color/cin_text_secondary"
+            android:textSize="@dimen/cin_text_body"
             android:textStyle="bold"
-            android:visibility="gone"
-            tools:visibility="visible" />
+            tools:text="No results found for 'wick'" />
+    </LinearLayout>
+
+    <!-- ============================================================ -->
+    <!-- SCROLLABLE BODY: recent + 4 result sections                   -->
+    <!-- ============================================================ -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="@dimen/cin_space_5"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:paddingBottom="@dimen/cin_space_10"
+        android:scrollbars="none"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/barrier_above_body"
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal">
+            android:clipChildren="false"
+            android:orientation="vertical">
+
+            <!-- ===== RECENT SEARCHES ===================================== -->
+            <LinearLayout
+                android:id="@+id/recent_header_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/cin_gutter_screen"
+                android:layout_marginEnd="@dimen/cin_gutter_screen"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tv_recent_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/inter_extrabold"
+                    android:letterSpacing="-0.01"
+                    android:text="@string/recent_searches"
+                    android:textColor="@color/cin_text_primary"
+                    android:textSize="@dimen/cin_text_title_sm"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+
+                <TextView
+                    android:id="@+id/btn_clear_history"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/cin_chip_meta"
+                    android:focusable="true"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:paddingHorizontal="@dimen/cin_space_4"
+                    android:paddingVertical="@dimen/cin_space_2"
+                    android:text="@string/clear_history"
+                    android:textColor="@color/cin_text_secondary"
+                    android:textSize="@dimen/cin_text_caption"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+            </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_recent_searches"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:layout_marginTop="@dimen/cin_space_3"
                 android:clipToPadding="false"
+                android:paddingHorizontal="@dimen/cin_gutter_screen"
                 android:visibility="gone"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                 tools:itemCount="5"
                 tools:listitem="@layout/item_recent_search"
                 tools:visibility="visible" />
 
+            <!-- ===== LIVE TV =========================================== -->
             <TextView
-                android:id="@+id/btn_clear_history"
-                android:layout_width="wrap_content"
+                android:id="@+id/tv_live_title"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="?attr/selectableItemBackground"
-                android:padding="8dp"
-                android:text="@string/clear_history"
-                android:textColor="@color/accent"
-                android:textSize="14sp"
+                android:layout_marginStart="@dimen/cin_gutter_screen"
+                android:layout_marginEnd="@dimen/cin_gutter_screen"
+                android:layout_marginTop="@dimen/cin_space_8"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="-0.01"
+                android:textColor="@color/cin_text_primary"
+                android:textSize="@dimen/cin_text_title_sm"
                 android:visibility="gone"
+                tools:text="Live TV · 12 results"
                 tools:visibility="visible" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_live_results"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_4"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="false"
+                android:paddingHorizontal="@dimen/cin_gutter_screen"
+                android:visibility="gone"
+                tools:itemCount="4"
+                tools:listitem="@layout/item_search_result"
+                tools:visibility="visible" />
+
+            <!-- ===== MOVIES ============================================ -->
+            <TextView
+                android:id="@+id/tv_vod_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/cin_gutter_screen"
+                android:layout_marginEnd="@dimen/cin_gutter_screen"
+                android:layout_marginTop="@dimen/cin_space_8"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="-0.01"
+                android:textColor="@color/cin_text_primary"
+                android:textSize="@dimen/cin_text_title_sm"
+                android:visibility="gone"
+                tools:text="Movies · 18 results"
+                tools:visibility="visible" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_vod_results"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_4"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="false"
+                android:paddingHorizontal="@dimen/cin_gutter_screen"
+                android:visibility="gone"
+                tools:itemCount="4"
+                tools:listitem="@layout/item_search_result"
+                tools:visibility="visible" />
+
+            <!-- ===== SERIES ============================================ -->
+            <TextView
+                android:id="@+id/tv_series_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/cin_gutter_screen"
+                android:layout_marginEnd="@dimen/cin_gutter_screen"
+                android:layout_marginTop="@dimen/cin_space_8"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="-0.01"
+                android:textColor="@color/cin_text_primary"
+                android:textSize="@dimen/cin_text_title_sm"
+                android:visibility="gone"
+                tools:text="Series · 12 results"
+                tools:visibility="visible" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_series_results"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_4"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="false"
+                android:paddingHorizontal="@dimen/cin_gutter_screen"
+                android:visibility="gone"
+                tools:itemCount="4"
+                tools:listitem="@layout/item_search_result"
+                tools:visibility="visible" />
+
+            <!-- ===== PROGRAMS / EPG ==================================== -->
+            <TextView
+                android:id="@+id/tv_programs_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/cin_gutter_screen"
+                android:layout_marginEnd="@dimen/cin_gutter_screen"
+                android:layout_marginTop="@dimen/cin_space_8"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="-0.01"
+                android:textColor="@color/cin_text_primary"
+                android:textSize="@dimen/cin_text_title_sm"
+                android:visibility="gone"
+                tools:text="Programs · 5 results"
+                tools:visibility="visible" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_epg_results"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_4"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="false"
+                android:paddingHorizontal="@dimen/cin_gutter_screen"
+                android:visibility="gone"
+                tools:itemCount="4"
+                tools:listitem="@layout/item_search_result"
+                tools:visibility="visible" />
+
         </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
-        <!-- Live TV Results Section -->
-        <TextView
-            android:id="@+id/tv_live_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            tools:text="Live TV (12 results)"
-            tools:visibility="visible" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_live_results"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:clipToPadding="false"
-            android:clipChildren="false"
-            android:nestedScrollingEnabled="false"
-            android:visibility="gone"
-            tools:itemCount="4"
-            tools:listitem="@layout/item_search_result"
-            tools:visibility="visible" />
-
-        <!-- VOD Results Section -->
-        <TextView
-            android:id="@+id/tv_vod_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            tools:text="Movies (18 results)"
-            tools:visibility="visible" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_vod_results"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:clipToPadding="false"
-            android:clipChildren="false"
-            android:nestedScrollingEnabled="false"
-            android:visibility="gone"
-            tools:itemCount="4"
-            tools:listitem="@layout/item_search_result"
-            tools:visibility="visible" />
-
-        <!-- Series Results Section -->
-        <TextView
-            android:id="@+id/tv_series_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            tools:text="Series (12 results)"
-            tools:visibility="visible" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_series_results"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:clipToPadding="false"
-            android:clipChildren="false"
-            android:nestedScrollingEnabled="false"
-            android:visibility="gone"
-            tools:itemCount="4"
-            tools:listitem="@layout/item_search_result"
-            tools:visibility="visible" />
-
-        <!-- Programs Results Section -->
-        <TextView
-            android:id="@+id/tv_programs_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            tools:text="Programs (5 results)"
-            tools:visibility="visible" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_epg_results"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="24dp"
-            android:clipToPadding="false"
-            android:clipChildren="false"
-            android:nestedScrollingEnabled="false"
-            android:visibility="gone"
-            tools:itemCount="4"
-            tools:listitem="@layout/item_search_result"
-            tools:visibility="visible" />
-
-    </LinearLayout>
-
-</ScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>

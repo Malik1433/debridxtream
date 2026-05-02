@@ -1,77 +1,146 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    CINEMATIC CHANNEL BROWSER (in-player overlay)
+    Replaces: view_player_channel_browser.xml
+    Preserves IDs: tv_browser_clock, rv_browser_categories,
+      rv_browser_channels, pb_browser_loading, tv_browser_empty
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#E6000000"
-    android:padding="32dp"
+    android:background="@drawable/cin_browser_overlay_bg"
+    android:padding="40dp"
     android:focusable="true"
     android:descendantFocusability="afterDescendants">
 
-    <!-- Header / Clock -->
-    <TextView
-        android:id="@+id/tv_browser_clock"
-        android:layout_width="wrap_content"
+    <!-- Header row: brand + clock -->
+    <LinearLayout
+        android:id="@+id/header_row"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="12:00 PM"
-        android:textColor="@android:color/white"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-    <!-- Categories List (Left) -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="LIVE TV BROWSER"
+                android:textColor="#FFC9A961"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.32"
+                android:fontFamily="@font/plus_jakarta_sans" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Channels"
+                android:textColor="#FFFFFFFF"
+                android:textSize="32sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="-0.02" />
+        </LinearLayout>
+
+        <!-- Clock pill -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/cin_browser_clock_pill"
+            android:paddingHorizontal="18dp"
+            android:paddingVertical="10dp">
+
+            <View
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/cin_dot_live_v2" />
+
+            <TextView
+                android:id="@+id/tv_browser_clock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="12:00 PM"
+                android:textColor="#FFFFFFFF"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="0.02" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Categories panel -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_browser_categories"
-        android:layout_width="300dp"
+        android:layout_width="320dp"
         android:layout_height="0dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="28dp"
+        android:padding="12dp"
+        android:background="@drawable/cin_browser_panel_glass"
         android:clipChildren="false"
         android:clipToPadding="false"
         android:nextFocusLeft="@+id/rv_browser_categories"
         android:nextFocusRight="@+id/rv_browser_channels"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_browser_clock" />
+        app:layout_constraintTop_toBottomOf="@+id/header_row" />
 
-    <!-- Channels Grid (Right) -->
+    <!-- Channels grid -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_browser_channels"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginStart="24dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="28dp"
         android:clipChildren="false"
         android:clipToPadding="false"
         android:nextFocusLeft="@+id/rv_browser_categories"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/rv_browser_categories"
-        app:layout_constraintTop_toBottomOf="@+id/tv_browser_clock" />
+        app:layout_constraintTop_toBottomOf="@+id/header_row" />
 
-    <!-- Loading State -->
+    <!-- Loading -->
     <ProgressBar
         android:id="@+id/pb_browser_loading"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:indeterminate="true"
+        android:indeterminateTint="#FFC9A961"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@+id/rv_browser_channels"
         app:layout_constraintStart_toStartOf="@+id/rv_browser_channels"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/header_row" />
 
-    <!-- Empty State -->
+    <!-- Empty -->
     <TextView
         android:id="@+id/tv_browser_empty"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="No channels found"
-        android:textColor="@android:color/white"
+        android:textColor="#B3FFFFFF"
         android:textSize="18sp"
+        android:fontFamily="@font/plus_jakarta_sans"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@+id/rv_browser_channels"
         app:layout_constraintStart_toStartOf="@+id/rv_browser_channels"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/header_row" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

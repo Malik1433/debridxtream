@@ -1,35 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    CINEMATIC VOD INFO OVERLAY (top of player for movies/series/debrid)
+    Replaces: view_player_vod_info_overlay.xml
+    Preserves IDs: vod_info_overlay, img_vod_artwork, tv_vod_title, tv_vod_subtitle
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/vod_info_overlay"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:background="@drawable/bg_player_info_bar"
-    android:padding="14dp"
+    android:background="@drawable/cin_player_info_bar"
+    android:padding="20dp"
     android:gravity="center_vertical"
+    android:elevation="12dp"
     android:visibility="gone">
 
     <ImageView
         android:id="@+id/img_vod_artwork"
-        android:layout_width="52dp"
-        android:layout_height="52dp"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
         android:scaleType="centerCrop"
         android:src="@drawable/tv_card_placeholder" />
+
+    <View
+        android:layout_width="1dp"
+        android:layout_height="40dp"
+        android:layout_marginHorizontal="16dp"
+        android:background="#33C9A961" />
 
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:layout_marginStart="14dp"
         android:orientation="vertical">
 
         <TextView
             android:id="@+id/tv_vod_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/white"
-            android:textSize="18sp"
+            android:textColor="#FFFFFFFF"
+            android:textSize="20sp"
             android:textStyle="bold"
+            android:fontFamily="@font/inter_extrabold"
+            android:letterSpacing="-0.01"
             android:maxLines="1"
             android:ellipsize="end"
             android:text="Title" />
@@ -38,13 +51,14 @@
             android:id="@+id/tv_vod_subtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="@android:color/white"
-            android:textSize="13sp"
-            android:alpha="0.8"
+            android:layout_marginTop="3dp"
+            android:textColor="#80FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.18"
+            android:fontFamily="@font/plus_jakarta_sans"
             android:maxLines="1"
             android:ellipsize="end"
             android:text="Subtitle" />
     </LinearLayout>
 </LinearLayout>
-

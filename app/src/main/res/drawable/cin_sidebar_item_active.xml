@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Active (selected) sidebar item: gold-tint gradient pill + larger gold indicator.
+  Used when navHome.isSelected = true.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Pill background: horizontal gold-tint gradient (stronger at left) -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="0"
+                android:startColor="#26D4AF37"
+                android:endColor="#08D4AF37"
+                android:type="linear" />
+            <corners android:radius="14dp" />
+            <stroke android:width="1dp" android:color="#1FD4AF37" />
+        </shape>
+    </item>
+
+    <!-- Left indicator bar: vertical gold pill, 4dp wide, 32dp tall -->
+    <item
+        android:width="4dp"
+        android:height="32dp"
+        android:gravity="start|center_vertical">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="@color/cin_gold_300"
+                android:endColor="@color/cin_gold_500"
+                android:type="linear" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+
+</layer-list>

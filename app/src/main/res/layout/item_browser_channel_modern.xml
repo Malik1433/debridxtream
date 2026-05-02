@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    CINEMATIC IN-PLAYER BROWSER CHANNEL CARD
+    Replaces: item_browser_channel_modern.xml
+    Preserves IDs: container_channel, badge_container, badge_hd_modern,
+      badge_4k_modern, logo_container, iv_channel_logo_modern,
+      tv_channel_num_modern, tv_channel_name_modern, tv_now_playing_modern
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -9,17 +16,32 @@
     android:clipChildren="false"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    android:clickable="true">
+    android:clickable="true"
+    android:stateListAnimator="@animator/cin_channel_card_state">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/container_channel"
         android:layout_width="match_parent"
-        android:layout_height="130dp"
-        android:background="@drawable/selector_browser_item_modern"
+        android:layout_height="148dp"
+        android:background="@drawable/cin_channel_card_state"
         android:duplicateParentState="true"
-        android:padding="8dp">
+        android:padding="12dp">
 
-        <!-- Badges (Top Right) -->
+        <!-- Channel number (top-left) -->
+        <TextView
+            android:id="@+id/tv_channel_num_modern"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFC9A961"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.18"
+            android:fontFamily="@font/inter_extrabold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="01" />
+
+        <!-- Quality badges (top-right) -->
         <LinearLayout
             android:id="@+id/badge_container"
             android:layout_width="wrap_content"
@@ -31,31 +53,47 @@
 
             <TextView
                 android:id="@+id/badge_hd_modern"
-                style="@style/ChannelBadgeText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="HD"
-                android:background="@drawable/badge_background"
+                android:textColor="#FFFFFFFF"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.18"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp"
+                android:background="@drawable/cin_pill_hd_glass"
                 android:visibility="gone"
                 tools:visibility="visible" />
 
             <TextView
                 android:id="@+id/badge_4k_modern"
-                style="@style/ChannelBadgeText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="4K"
-                android:background="@drawable/badge_background"
+                android:textColor="#1A1108"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.18"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp"
                 android:layout_marginStart="4dp"
+                android:background="@drawable/cin_pill_4k_gold"
                 android:visibility="gone"
                 tools:visibility="visible" />
         </LinearLayout>
 
-        <!-- Logo Container (centered top) -->
+        <!-- Logo (centered upper) -->
         <FrameLayout
             android:id="@+id/logo_container"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
+            android:layout_width="68dp"
+            android:layout_height="68dp"
             android:background="@drawable/channel_logo_bg_dark"
-            android:padding="2dp"
-            android:layout_marginTop="8dp"
-            app:layout_constraintTop_toTopOf="parent"
+            android:padding="6dp"
+            android:layout_marginTop="14dp"
+            app:layout_constraintTop_toBottomOf="@id/tv_channel_num_modern"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
@@ -68,37 +106,27 @@
                 tools:src="@android:drawable/sym_def_app_icon" />
         </FrameLayout>
 
-        <!-- Channel Number (Top Left, Small) -->
-        <TextView
-            android:id="@+id/tv_channel_num_modern"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="@color/white_opacity_50"
-            android:textSize="10sp"
-            android:textStyle="bold"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:text="01" />
-
-        <!-- Channel Name (Centered, Multi-line) -->
+        <!-- Channel name (multi-line) -->
         <TextView
             android:id="@+id/tv_channel_name_modern"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="10dp"
             android:ellipsize="end"
             android:gravity="center"
             android:maxLines="2"
-            android:textColor="@color/white"
+            android:textColor="#FFFFFFFF"
             android:textSize="13sp"
             android:textStyle="bold"
+            android:fontFamily="@font/inter_extrabold"
+            android:letterSpacing="-0.01"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/logo_container"
             app:layout_constraintBottom_toTopOf="@id/tv_now_playing_modern"
-            tools:text="HBO Family HD\nMovies" />
+            tools:text="HBO Family HD" />
 
-        <!-- Now Playing (Bottom, Small) -->
+        <!-- Now playing -->
         <TextView
             android:id="@+id/tv_now_playing_modern"
             android:layout_width="0dp"
@@ -106,8 +134,9 @@
             android:gravity="center"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="@color/white_opacity_70"
+            android:textColor="#80FFFFFF"
             android:textSize="10sp"
+            android:fontFamily="@font/plus_jakarta_sans"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"

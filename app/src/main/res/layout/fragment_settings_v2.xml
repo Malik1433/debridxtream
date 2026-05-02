@@ -1,10 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    CINEMATIC SETTINGS V2 (drop-in for fragment_settings_v2.xml)
+
+    Two-pane layout. All original IDs preserved exactly:
+      rv_settings_categories, divider_vertical, rv_settings_details,
+      guideline_vertical (same 30%)
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/sidebar_bg_navy">
+    android:background="@drawable/cin_bg_app">
+
+    <!-- Page header -->
+    <TextView
+        android:id="@+id/tv_screen_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/cin_gutter_screen"
+        android:layout_marginTop="@dimen/cin_space_8"
+        android:fontFamily="@font/inter_extrabold"
+        android:letterSpacing="-0.02"
+        android:text="Settings"
+        android:textColor="@color/cin_text_primary"
+        android:textSize="@dimen/cin_text_display"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_screen_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/cin_gutter_screen"
+        android:layout_marginTop="@dimen/cin_space_2"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:text="Pick a category on the left to configure"
+        android:textColor="@color/cin_text_tertiary"
+        android:textSize="@dimen/cin_text_body_sm"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_screen_title" />
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/guideline_vertical"
@@ -13,48 +49,73 @@
         android:orientation="vertical"
         app:layout_constraintGuide_percent="0.30" />
 
-    <!-- Left Pane: Categories -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_settings_categories"
+    <!-- ============================================================ -->
+    <!-- LEFT PANE: categories                                          -->
+    <!-- ============================================================ -->
+    <FrameLayout
+        android:id="@+id/left_pane_card"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="32dp"
-        android:layout_marginBottom="32dp"
-        android:layout_marginStart="32dp"
-        android:clipToPadding="false"
+        android:layout_marginStart="@dimen/cin_gutter_screen"
+        android:layout_marginTop="@dimen/cin_space_6"
+        android:layout_marginEnd="@dimen/cin_space_6"
+        android:layout_marginBottom="@dimen/cin_space_8"
+        android:background="@drawable/cin_card_glass"
+        android:padding="@dimen/cin_space_3"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/guideline_vertical"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:listitem="@layout/item_settings_category" />
+        app:layout_constraintTop_toBottomOf="@id/tv_screen_subtitle">
 
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_settings_categories"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:paddingVertical="@dimen/cin_space_2"
+            tools:listitem="@layout/item_settings_category" />
+    </FrameLayout>
+
+    <!-- Vertical divider (kept for ID compatibility, positioned at the
+         seam between the cards). -->
     <View
         android:id="@+id/divider_vertical"
         android:layout_width="1dp"
         android:layout_height="0dp"
-        android:layout_marginTop="32dp"
-        android:layout_marginBottom="32dp"
-        android:background="#1AFFFFFF"
+        android:layout_marginTop="@dimen/cin_space_6"
+        android:layout_marginBottom="@dimen/cin_space_8"
+        android:background="@color/cin_stroke_subtle"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@+id/guideline_vertical"
         app:layout_constraintStart_toStartOf="@+id/guideline_vertical"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/tv_screen_subtitle" />
 
-    <!-- Right Pane: Details -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_settings_details"
+    <!-- ============================================================ -->
+    <!-- RIGHT PANE: details                                            -->
+    <!-- ============================================================ -->
+    <FrameLayout
+        android:id="@+id/right_pane_card"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="32dp"
-        android:layout_marginBottom="32dp"
-        android:layout_marginEnd="32dp"
-        android:paddingStart="32dp"
-        android:paddingEnd="16dp"
-        android:clipToPadding="false"
+        android:layout_marginStart="@dimen/cin_space_6"
+        android:layout_marginTop="@dimen/cin_space_6"
+        android:layout_marginEnd="@dimen/cin_gutter_screen"
+        android:layout_marginBottom="@dimen/cin_space_8"
+        android:background="@drawable/cin_card_glass"
+        android:padding="@dimen/cin_space_5"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/guideline_vertical"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:listitem="@layout/item_settings_toggle" />
+        app:layout_constraintTop_toBottomOf="@id/tv_screen_subtitle">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_settings_details"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            tools:listitem="@layout/item_settings_toggle" />
+    </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

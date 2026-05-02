@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cinematic dimens — owns the modernized sidebar_* values (legacy values were removed
+  from dimens.xml so AAPT links cleanly without duplicates) AND the cin_* design system.
+-->
+<resources>
+
+    <!-- ===== SIDEBAR (modernized values, owned by this file) ===== -->
+    <dimen name="sidebar_width_expanded">288dp</dimen>
+    <dimen name="sidebar_width_collapsed">88dp</dimen>
+    <dimen name="sidebar_item_height">56dp</dimen>
+    <dimen name="sidebar_item_padding_start">16dp</dimen>
+    <dimen name="sidebar_item_padding_end">16dp</dimen>
+    <dimen name="sidebar_icon_size">22dp</dimen>
+    <dimen name="sidebar_text_size">15sp</dimen>
+    <dimen name="sidebar_text_marginStart">16dp</dimen>
+    <dimen name="sidebar_item_spacing">6dp</dimen>
+    <dimen name="sidebar_item_radius">14dp</dimen>
+    <dimen name="sidebar_indicator_width">4dp</dimen>
+    <dimen name="sidebar_indicator_height">32dp</dimen>
+
+    <!-- Cinematic sidebar tokens (used by cin_view_sidebar.xml) -->
+    <dimen name="cin_sidebar_collapsed">88dp</dimen>
+    <dimen name="cin_sidebar_expanded">288dp</dimen>
+    <dimen name="cin_sidebar_item_h">56dp</dimen>
+
+    <!-- ===== SPACING (4dp baseline scale) ===== -->
+    <dimen name="cin_space_1">4dp</dimen>
+    <dimen name="cin_space_2">8dp</dimen>
+    <dimen name="cin_space_3">12dp</dimen>
+    <dimen name="cin_space_4">16dp</dimen>
+    <dimen name="cin_space_5">20dp</dimen>
+    <dimen name="cin_space_6">24dp</dimen>
+    <dimen name="cin_space_8">32dp</dimen>
+    <dimen name="cin_space_10">40dp</dimen>
+    <dimen name="cin_space_12">48dp</dimen>
+    <dimen name="cin_space_16">64dp</dimen>
+
+    <!-- ===== CORNER RADIUS ===== -->
+    <dimen name="cin_radius_sm">8dp</dimen>
+    <dimen name="cin_radius_md">12dp</dimen>
+    <dimen name="cin_radius_lg">16dp</dimen>
+    <dimen name="cin_radius_xl">24dp</dimen>
+    <dimen name="cin_radius_pill">999dp</dimen>
+
+    <!-- ===== STROKE WIDTHS ===== -->
+    <dimen name="cin_stroke_hair">1dp</dimen>
+    <dimen name="cin_stroke_thin">2dp</dimen>
+
+    <!-- ===== ELEVATION ===== -->
+    <dimen name="cin_elev_card">8dp</dimen>
+
+    <!-- ===== TYPOGRAPHY ===== -->
+    <dimen name="cin_text_caption">12sp</dimen>
+    <dimen name="cin_text_overline">12sp</dimen>
+    <dimen name="cin_text_body_sm">14sp</dimen>
+    <dimen name="cin_text_body">16sp</dimen>
+    <dimen name="cin_text_body_lg">18sp</dimen>
+    <dimen name="cin_text_title_sm">22sp</dimen>
+    <dimen name="cin_text_title">28sp</dimen>
+    <dimen name="cin_text_display">48sp</dimen>
+    <dimen name="cin_text_top10_number">96sp</dimen>
+
+    <!-- ===== BUTTONS ===== -->
+    <dimen name="cin_btn_h">48dp</dimen>
+    <dimen name="cin_btn_h_lg">56dp</dimen>
+    <dimen name="cin_btn_padding_h">24dp</dimen>
+
+    <!-- ===== BADGES ===== -->
+    <dimen name="cin_badge_h">24dp</dimen>
+    <dimen name="cin_badge_padding_h">8dp</dimen>
+
+    <!-- ===== SCREEN LAYOUT (TV-friendly gutters) ===== -->
+    <dimen name="cin_gutter_screen">56dp</dimen>
+    <dimen name="cin_topbar_h">64dp</dimen>
+    <dimen name="cin_topbar_search_w">320dp</dimen>
+
+    <!-- ===== POSTERS / CARDS ===== -->
+    <dimen name="cin_poster_md_w">160dp</dimen>
+    <dimen name="cin_poster_md_h">240dp</dimen>
+    <dimen name="cin_channel_card">192dp</dimen>
+
+    <!-- ===== TOP-10 CARDS ===== -->
+    <dimen name="cin_top10_card_w">220dp</dimen>
+    <dimen name="cin_top10_poster_w">200dp</dimen>
+    <dimen name="cin_top10_poster_h">300dp</dimen>
+
+</resources>

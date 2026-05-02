@@ -15,7 +15,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.constraintlayout.widget.ConstraintLayout
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
@@ -58,15 +57,13 @@ class HomeFragment : Fragment() {
     private lateinit var ivHeroBackground: ImageView
     private lateinit var tvHeroTitle: TextView
     private lateinit var tvHeroDescription: TextView
-    private lateinit var rvSidebar: RecyclerView
     private lateinit var rvTop10Movies: RecyclerView
     private lateinit var rvTop10Series: RecyclerView
     private var didRestoreFocusForThisView = false
     private var lastFocusedPosition = 0
 
-    
+
     // Adapters
-    private lateinit var sidebarAdapter: SidebarAdapter
     private lateinit var top10MoviesAdapter: Top10Adapter
     private lateinit var top10SeriesAdapter: Top10Adapter
 
@@ -129,26 +126,21 @@ class HomeFragment : Fragment() {
         ivHeroBackground = view.findViewById(R.id.iv_hero_background)
         tvHeroTitle = view.findViewById(R.id.tv_hero_title)
         tvHeroDescription = view.findViewById(R.id.tv_hero_description)
-        
-        rvSidebar = view.findViewById(R.id.rv_sidebar)
+
         rvTop10Movies = view.findViewById(R.id.rv_top_10_movies)
         rvTop10Series = view.findViewById(R.id.rv_top_10_series)
 
         setupRecyclerViews()
     }
+
     private fun setupRecyclerViews() {
-        // Sidebar
-        rvSidebar.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
-        
-        // Top 10s (Horizontal)
         rvTop10Movies.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
         rvTop10Movies.setHasFixedSize(true)
-        
+
         rvTop10Series.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
         rvTop10Series.setHasFixedSize(true)
 
         // Null Animators: No-blink/jitter data updates
-        rvSidebar.itemAnimator = null
         rvTop10Movies.itemAnimator = null
         rvTop10Series.itemAnimator = null
     }
@@ -170,121 +162,28 @@ class HomeFragment : Fragment() {
     }
     
     private fun setupSidebar() {
-        val menuItems = listOf(
-            SidebarItem(0, getString(R.string.nav_search), R.drawable.ic_search),
-            SidebarItem(1, getString(R.string.nav_home), R.drawable.ic_home),
-            SidebarItem(2, getString(R.string.nav_live_tv), R.drawable.ic_live_tv),
-            SidebarItem(3, getString(R.string.nav_movies), R.drawable.ic_movie),
-            SidebarItem(4, getString(R.string.nav_series), R.drawable.ic_series),
-            SidebarItem(5, getString(R.string.nav_debrid), R.drawable.ic_dns)
-        )
-        
-        sidebarAdapter = SidebarAdapter(menuItems) { position ->
-            when (position) {
-                0 -> navigateToSection("search")
-                1 -> { /* Already home */ }
-                2 -> navigateToSection("live")
-                3 -> navigateToSection("movies")
-                4 -> navigateToSection("series")
-                5 -> navigateToSection("debrid")
-            }
-        }
-        rvSidebar.adapter = sidebarAdapter
+        // Cinematic sidebar: hardcoded nav items, gold pill on active state, no expand/collapse.
+        // Each nav_X is a focusable LinearLayout in cin_view_sidebar.xml; clicks navigate to the matching fragment.
+        val root = requireView()
 
-        // Bottom Settings item (same visual style, pinned)
-        val settingsItemView = view?.findViewById<android.view.View>(R.id.sidebar_settings_item)
-        if (settingsItemView != null) {
-            val ivIcon = settingsItemView.findViewById<android.widget.ImageView>(R.id.iv_icon)
-            val tvTitle = settingsItemView.findViewById<android.widget.TextView>(R.id.tv_title)
-            val indicator = settingsItemView.findViewById<android.view.View>(R.id.view_selection_indicator)
+        val navHome = root.findViewById<View>(R.id.nav_home)
+        val navLive = root.findViewById<View>(R.id.nav_live)
+        val navMovies = root.findViewById<View>(R.id.nav_movies)
+        val navSeries = root.findViewById<View>(R.id.nav_series)
+        val navSearch = root.findViewById<View>(R.id.nav_search)
+        val navDebrid = root.findViewById<View>(R.id.nav_debrid)
+        val navSettings = root.findViewById<View>(R.id.nav_settings)
 
-            ivIcon.setImageResource(R.drawable.ic_settings)
-            tvTitle.text = getString(R.string.nav_settings)
-            indicator.visibility = android.view.View.INVISIBLE
+        // Mark Home as the currently-active section so the cin_sidebar_item_selector renders the gold-pill state.
+        navHome?.isSelected = true
 
-            settingsItemView.setOnClickListener { navigateToSection("settings") }
-
-            // Match list micro-interactions
-            settingsItemView.setOnFocusChangeListener { _, hasFocus ->
-                val density = settingsItemView.context.resources.displayMetrics.density
-                settingsItemView.setBackgroundResource(
-                    if (hasFocus) R.drawable.bg_sidebar_nav_focused else R.drawable.bg_sidebar_nav_default
-                )
-                settingsItemView.animate()
-                    .scaleX(if (hasFocus) 1.05f else 1.0f)
-                    .scaleY(if (hasFocus) 1.05f else 1.0f)
-                    .translationZ(if (hasFocus) 4f * density else 0f)
-                    .setDuration(if (hasFocus) 220 else 180)
-                    .start()
-            }
-        }
-
-        // Week 15 Audit: Standardize Sidebar Focus expansion
-        val sidebarPanel = requireView().findViewById<android.view.View>(R.id.sidebar_panel)
-        com.tvonnet.debridxtreamiptv.utils.SidebarFocusHelper.attachStandardSidebarAnimation(
-            sidebarContainer = sidebarPanel,
-            focusTrigger = sidebarPanel, // Track entire sidebar area
-            titleArea = null,
-            onExpandedChanged = { expanded ->
-                sidebarAdapter.setExpanded(expanded)
-                
-                // Header alignment and Settings alignment
-                val header = requireView().findViewById<android.widget.LinearLayout>(R.id.sidebar_header)
-                val appName = requireView().findViewById<android.widget.TextView>(R.id.tv_sidebar_app_name)
-                val settingsLabel = settingsItemView?.findViewById<android.widget.TextView>(R.id.tv_title)
-                val settingsIcon = settingsItemView?.findViewById<android.widget.ImageView>(R.id.iv_icon)
-                val btnCollapse = requireView().findViewById<android.view.View>(R.id.btn_sidebar_collapse)
-
-                if (expanded) {
-                    // Expanded Mode: Stacked Centered
-                    appName.visibility = android.view.View.VISIBLE
-                    appName.animate().alpha(1f).setDuration(220).start()
-
-                    settingsLabel?.visibility = android.view.View.VISIBLE
-                    settingsLabel?.animate()?.alpha(1f)?.setDuration(220)?.start()
-                    
-                    btnCollapse.visibility = android.view.View.VISIBLE
-                    btnCollapse.animate().alpha(1f).setDuration(220).start()
-
-                    (settingsIcon?.layoutParams as? ConstraintLayout.LayoutParams)?.let { lp ->
-                        lp.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
-                        lp.endToEnd = ConstraintLayout.LayoutParams.UNSET
-                        settingsIcon.layoutParams = lp
-                    }
-                } else {
-                    // Collapsed Mode: Logo Centered at Top
-                    appName.animate().alpha(0f).setDuration(180).withEndAction { 
-                        appName.visibility = android.view.View.GONE 
-                    }.start()
-
-                    settingsLabel?.animate()?.alpha(0f)?.setDuration(180)?.withEndAction { 
-                        settingsLabel.visibility = android.view.View.GONE 
-                    }?.start()
-
-                    btnCollapse.animate().alpha(0f).setDuration(180).withEndAction {
-                        btnCollapse.visibility = android.view.View.GONE
-                    }.start()
-
-                    (settingsIcon?.layoutParams as? ConstraintLayout.LayoutParams)?.let { lp ->
-                        lp.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
-                        lp.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
-                        settingsIcon.layoutParams = lp
-                    }
-                }
-            }
-        )
-
-        // Manual Collapse Button functionality
-        view?.findViewById<android.view.View>(R.id.btn_sidebar_collapse)?.setOnClickListener {
-            com.tvonnet.debridxtreamiptv.utils.SidebarFocusHelper.collapse(
-                sidebarPanel,
-                requireView().findViewById(R.id.tv_sidebar_app_name),
-                onExpandedChanged = { expanded ->
-                    sidebarAdapter.setExpanded(expanded)
-                    // Synchronization logic is handled by GlobalFocusChangeListener but we force it here for immediate feedback
-                }
-            )
-        }
+        navHome?.setOnClickListener { /* already on Home */ }
+        navLive?.setOnClickListener { navigateToSection("live") }
+        navMovies?.setOnClickListener { navigateToSection("movies") }
+        navSeries?.setOnClickListener { navigateToSection("series") }
+        navSearch?.setOnClickListener { navigateToSection("search") }
+        navDebrid?.setOnClickListener { navigateToSection("debrid") }
+        navSettings?.setOnClickListener { navigateToSection("settings") }
     }
     
     private fun updateHeroSection(item: FeaturedItem) {

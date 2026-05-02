@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Section header: gold tick + title + optional "View all" chevron -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingHorizontal="@dimen/cin_gutter_screen"
+    android:paddingTop="@dimen/cin_space_6"
+    android:paddingBottom="@dimen/cin_space_4">
+
+    <View
+        android:layout_width="3dp"
+        android:layout_height="22dp"
+        android:layout_marginEnd="@dimen/cin_space_3"
+        android:background="@color/cin_gold_500" />
+
+    <TextView
+        android:id="@+id/tv_section_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="Trending Now"
+        style="@style/Cin.Text.SectionHeader"
+        android:textColor="@color/cin_text_primary" />
+
+    <TextView
+        android:id="@+id/tv_section_view_all"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="View all"
+        android:textColor="@color/cin_gold_300"
+        android:textSize="@dimen/cin_text_caption"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:textStyle="bold"
+        android:letterSpacing="0.06"
+        android:visibility="gone" />
+</LinearLayout>

@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="@dimen/sidebar_item_height"
     android:layout_marginBottom="@dimen/sidebar_item_spacing"
-    android:background="@drawable/selector_sidebar_item"
+    android:background="@drawable/cin_sidebar_item_selector"
     android:paddingStart="@dimen/sidebar_item_padding_start"
     android:paddingEnd="@dimen/sidebar_item_padding_end"
     android:clipChildren="false"
@@ -20,7 +20,7 @@
         android:id="@+id/view_selection_indicator"
         android:layout_width="@dimen/sidebar_indicator_width"
         android:layout_height="@dimen/sidebar_indicator_height"
-        android:background="@color/sidebar_active_emerald"
+        android:background="@color/cin_gold_500"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -35,7 +35,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         tools:src="@android:drawable/ic_menu_search"
-        app:tint="@color/selector_sidebar_text" />
+        app:tint="@color/cin_sidebar_text_selector" />
 
     <!-- Title: Pixel-perfect spacing from icon -->
     <TextView
@@ -46,7 +46,7 @@
         android:alpha="1"
         android:fontFamily="@font/plus_jakarta_sans"
         android:text="Search"
-        android:textColor="@color/selector_sidebar_text"
+        android:textColor="@color/cin_sidebar_text_selector"
         android:textSize="@dimen/sidebar_text_size"
         android:textStyle="bold"
         android:maxLines="1"

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cinematic vignette overlay: dark edges, transparent center -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="800"
+                android:centerX="0.5"
+                android:centerY="0.5"
+                android:startColor="@android:color/transparent"
+                android:centerColor="@color/cin_overlay_30"
+                android:endColor="@color/cin_overlay_70" />
+        </shape>
+    </item>
+</layer-list>

@@ -1,250 +1,554 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    CINEMATIC SETTINGS (drop-in for fragment_settings.xml)
+
+    All original IDs preserved:
+      btn_refresh_now, progress_refresh,
+      tv_current_interval, rv_interval_options,
+      switch_epg_auto_sync, tv_epg_status, btn_epg_sync_now, tv_epg_last_sync,
+      tv_debrid_status, btn_debrid_action, btn_connect_mediafusion,
+      switch_enable_series_v2, btn_logout
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true"
-    android:focusable="true"
-    android:focusableInTouchMode="true">
+    android:background="@drawable/cin_bg_app">
 
-<LinearLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="32dp">
+    <!-- Optional sidebar — remove if host activity already supplies one -->
+    <include
+        android:id="@+id/sidebar_panel"
+        layout="@layout/cin_view_sidebar"
+        android:layout_width="@dimen/cin_sidebar_expanded"
+        android:layout_height="0dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
 
+    <!-- Page title -->
     <TextView
+        android:id="@+id/tv_screen_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/cin_gutter_screen"
+        android:layout_marginTop="@dimen/cin_space_8"
+        android:fontFamily="@font/inter_extrabold"
+        android:letterSpacing="-0.02"
         android:text="Settings"
-        android:textSize="24sp"
-        android:textColor="#FFFFFFFF"
-        android:textStyle="bold"
-        android:layout_marginBottom="32dp" />
-
-    <!-- Manual Refresh Section -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Refresh IPTV Data"
-        android:textSize="18sp"
-        android:textColor="#FFFFFFFF"
-        android:textStyle="bold"
-        android:layout_marginBottom="16dp" />
-
-    <Button
-        android:id="@+id/btn_refresh_now"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Refresh IPTV data now"
-        android:textColor="#FFFFFFFF"
-        android:background="@drawable/tv_menu_item_bg"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:nextFocusDown="@id/rv_interval_options"
-        android:paddingStart="32dp"
-        android:paddingEnd="32dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="16dp"
-        android:textSize="16sp" />
-
-    <ProgressBar
-        android:id="@+id/progress_refresh"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:visibility="gone" />
-
-    <!-- Interval Selection Section -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Update Interval"
-        android:textSize="18sp"
-        android:textColor="#FFFFFFFF"
-        android:textStyle="bold"
-        android:layout_marginTop="48dp"
-        android:layout_marginBottom="16dp" />
+        android:textColor="@color/cin_text_primary"
+        android:textSize="@dimen/cin_text_display"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
-        android:id="@+id/tv_current_interval"
+        android:id="@+id/tv_screen_subtitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="16sp"
-        android:textColor="#FFFFFFFF"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginStart="@dimen/cin_gutter_screen"
+        android:layout_marginTop="@dimen/cin_space_2"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:text="Manage data, accounts and developer options"
+        android:textColor="@color/cin_text_tertiary"
+        android:textSize="@dimen/cin_text_body_sm"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintTop_toBottomOf="@id/tv_screen_title" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_interval_options"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:nextFocusUp="@id/btn_refresh_now"
-        android:nextFocusDown="@id/switch_epg_auto_sync" />
+    <!-- ============================================================ -->
+    <!-- SCROLLABLE BODY                                                -->
+    <!-- ============================================================ -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="@dimen/cin_gutter_screen"
+        android:layout_marginEnd="@dimen/cin_gutter_screen"
+        android:layout_marginTop="@dimen/cin_space_6"
+        android:clipToPadding="false"
+        android:paddingBottom="@dimen/cin_space_10"
+        android:scrollbars="none"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_screen_subtitle"
+        app:layout_constraintBottom_toBottomOf="parent">
 
-    <!-- Week 14: EPG Background Sync Section -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="EPG Background Sync"
-        android:textSize="18sp"
-        android:textColor="#FFFFFFFF"
-        android:textStyle="bold"
-        android:layout_marginTop="48dp"
-        android:layout_marginBottom="16dp" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/switch_epg_auto_sync"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Auto EPG Sync"
-        android:textSize="16sp"
-        android:textColor="#FFFFFFFF"
-        android:checked="true"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:nextFocusUp="@id/rv_interval_options"
-        android:nextFocusDown="@id/btn_epg_sync_now"
-        android:padding="16dp" />
+            <!-- ===== REFRESH IPTV DATA =================================== -->
+            <TextView
+                style="@style/Cin.Text.Overline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="DATA · LIBRARY"
+                android:textColor="@color/cin_gold_300" />
 
-    <TextView
-        android:id="@+id/tv_epg_status"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Status: Checking..."
-        android:textSize="14sp"
-        android:textColor="#FFCCCCCC"
-        android:layout_marginStart="16dp"
-        android:layout_marginBottom="16dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_3"
+                android:background="@drawable/cin_card_glass"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="@dimen/cin_space_5">
 
-    <Button
-        android:id="@+id/btn_epg_sync_now"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Sync EPG Now"
-        android:textColor="#FFFFFFFF"
-        android:background="@drawable/tv_menu_item_bg"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:paddingStart="32dp"
-        android:paddingEnd="32dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="16dp"
-        android:textSize="16sp"
-        android:layout_marginTop="8dp" />
+                <FrameLayout
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/cin_pill_glass">
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_settings"
+                        app:tint="@color/cin_gold_300" />
+                </FrameLayout>
 
-    <TextView
-        android:id="@+id/tv_epg_last_sync"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="#FFCCCCCC"
-        android:layout_marginTop="16dp" />
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/cin_space_4"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
-    <!-- Real-Debrid Section -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Real-Debrid"
-        android:textSize="18sp"
-        android:textColor="#FFFFFFFF"
-        android:textStyle="bold"
-        android:layout_marginTop="48dp"
-        android:layout_marginBottom="16dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:text="Refresh IPTV data"
+                        android:textColor="@color/cin_text_primary"
+                        android:textSize="@dimen/cin_text_body"
+                        android:textStyle="bold" />
 
-    <TextView
-        android:id="@+id/tv_debrid_status"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Status: Checking..."
-        android:textSize="14sp"
-        android:textColor="#FFCCCCCC"
-        android:layout_marginStart="16dp"
-        android:layout_marginBottom="16dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:text="Re-download channels, movies and series"
+                        android:textColor="@color/cin_text_tertiary"
+                        android:textSize="@dimen/cin_text_caption" />
+                </LinearLayout>
 
-    <Button
-        android:id="@+id/btn_debrid_action"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Connect Real-Debrid"
-        android:textColor="#FFFFFFFF"
-        android:background="@drawable/tv_menu_item_bg"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:nextFocusDown="@id/switch_enable_series_v2"
-        android:paddingStart="32dp"
-        android:paddingEnd="32dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="16dp"
-        android:textSize="16sp" />
+                <ProgressBar
+                    android:id="@+id/progress_refresh"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginEnd="@dimen/cin_space_3"
+                    android:indeterminateTint="@color/cin_gold_500"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
 
-    <Button
-        android:id="@+id/btn_connect_mediafusion"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Connect MediaFusion (Desi/Extra)"
-        android:textColor="#FFFFFFFF"
-        android:background="@drawable/tv_menu_item_bg"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:nextFocusDown="@id/switch_enable_series_v2"
-        android:paddingStart="32dp"
-        android:paddingEnd="32dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="16dp"
-        android:textSize="16sp" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_refresh_now"
+                    style="@style/Cin.Button.Primary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/cin_btn_h"
+                    android:nextFocusDown="@id/rv_interval_options"
+                    android:paddingHorizontal="@dimen/cin_space_6"
+                    android:text="Refresh now" />
 
-    <!-- Developer Options Section -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Developer Options"
-        android:textSize="18sp"
-        android:textColor="#FFFFFFFF"
-        android:textStyle="bold"
-        android:layout_marginTop="48dp"
-        android:layout_marginBottom="16dp" />
+            </LinearLayout>
 
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/switch_enable_series_v2"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Enable Series V2 Engine (Restart Required)"
-        android:textSize="16sp"
-        android:textColor="#FFFFFFFF"
-        android:checked="false"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:nextFocusDown="@id/btn_logout"
-        android:padding="16dp" />
+            <!-- ===== UPDATE INTERVAL ===================================== -->
+            <TextView
+                style="@style/Cin.Text.Overline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_8"
+                android:text="UPDATE INTERVAL"
+                android:textColor="@color/cin_gold_300" />
 
-    <!-- Account Section -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Account"
-        android:textSize="18sp"
-        android:textColor="#FFFFFFFF"
-        android:textStyle="bold"
-        android:layout_marginTop="48dp"
-        android:layout_marginBottom="16dp" />
+            <TextView
+                android:id="@+id/tv_current_interval"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_2"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:textColor="@color/cin_text_secondary"
+                android:textSize="@dimen/cin_text_body_sm"
+                tools:text="Currently every 6 hours" />
 
-    <Button
-        android:id="@+id/btn_logout"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Logout"
-        android:textColor="#FFFFFFFF"
-        android:background="@drawable/tv_menu_item_bg"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:nextFocusUp="@id/switch_enable_series_v2"
-        android:paddingStart="32dp"
-        android:paddingEnd="32dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="16dp"
-        android:textSize="16sp" />
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_interval_options"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_3"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:nextFocusUp="@id/btn_refresh_now"
+                android:nextFocusDown="@id/switch_epg_auto_sync"
+                android:nestedScrollingEnabled="false"
+                tools:itemCount="4"
+                tools:listitem="@layout/item_interval_option" />
 
-</LinearLayout>
+            <!-- ===== EPG BACKGROUND SYNC ================================ -->
+            <TextView
+                style="@style/Cin.Text.Overline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_8"
+                android:text="EPG · BACKGROUND SYNC"
+                android:textColor="@color/cin_gold_300" />
 
-</ScrollView>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_3"
+                android:background="@drawable/cin_card_glass"
+                android:orientation="vertical"
+                android:padding="@dimen/cin_space_5">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/plus_jakarta_sans"
+                            android:text="Auto EPG Sync"
+                            android:textColor="@color/cin_text_primary"
+                            android:textSize="@dimen/cin_text_body"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_epg_status"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:fontFamily="@font/plus_jakarta_sans"
+                            android:text="Status: Checking…"
+                            android:textColor="@color/cin_text_tertiary"
+                            android:textSize="@dimen/cin_text_caption" />
+                    </LinearLayout>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switch_epg_auto_sync"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusUp="@id/rv_interval_options"
+                        android:nextFocusDown="@id/btn_epg_sync_now"
+                        android:thumbTint="@color/cin_text_primary"
+                        android:trackTint="@color/cin_gold_300" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="@dimen/cin_space_4"
+                    android:background="@color/cin_stroke_subtle" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/plus_jakarta_sans"
+                            android:text="Sync EPG manually"
+                            android:textColor="@color/cin_text_primary"
+                            android:textSize="@dimen/cin_text_body"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_epg_last_sync"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:fontFamily="@font/plus_jakarta_sans"
+                            android:textColor="@color/cin_text_tertiary"
+                            android:textSize="@dimen/cin_text_caption"
+                            tools:text="Last synced 12 minutes ago" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_epg_sync_now"
+                        style="@style/Cin.Button.Secondary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="@dimen/cin_btn_h"
+                        android:paddingHorizontal="@dimen/cin_space_6"
+                        android:text="Sync now" />
+
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ===== REAL-DEBRID & MEDIAFUSION ============================ -->
+            <TextView
+                style="@style/Cin.Text.Overline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_8"
+                android:text="DEBRID · SOURCES"
+                android:textColor="@color/cin_gold_300" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_3"
+                android:background="@drawable/cin_card_glass"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="@dimen/cin_space_5">
+
+                <FrameLayout
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/cin_pill_glass">
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_dns"
+                        app:tint="@color/cin_gold_300" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/cin_space_4"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:text="Real-Debrid"
+                        android:textColor="@color/cin_text_primary"
+                        android:textSize="@dimen/cin_text_body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_debrid_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:text="Status: Checking…"
+                        android:textColor="@color/cin_text_tertiary"
+                        android:textSize="@dimen/cin_text_caption" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_debrid_action"
+                    style="@style/Cin.Button.Primary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/cin_btn_h"
+                    android:nextFocusDown="@id/btn_connect_mediafusion"
+                    android:paddingHorizontal="@dimen/cin_space_6"
+                    android:text="Connect" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_3"
+                android:background="@drawable/cin_card_glass"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="@dimen/cin_space_5">
+
+                <FrameLayout
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/cin_pill_glass">
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_dns"
+                        app:tint="@color/cin_gold_300" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/cin_space_4"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:text="MediaFusion"
+                        android:textColor="@color/cin_text_primary"
+                        android:textSize="@dimen/cin_text_body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:text="Desi / extra catalogue add-on"
+                        android:textColor="@color/cin_text_tertiary"
+                        android:textSize="@dimen/cin_text_caption" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_connect_mediafusion"
+                    style="@style/Cin.Button.Secondary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/cin_btn_h"
+                    android:nextFocusDown="@id/switch_enable_series_v2"
+                    android:paddingHorizontal="@dimen/cin_space_6"
+                    android:text="Connect" />
+
+            </LinearLayout>
+
+            <!-- ===== DEVELOPER OPTIONS ================================= -->
+            <TextView
+                style="@style/Cin.Text.Overline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_8"
+                android:text="DEVELOPER OPTIONS"
+                android:textColor="@color/cin_gold_300" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_3"
+                android:background="@drawable/cin_card_glass"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="@dimen/cin_space_5">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:text="Series V2 engine"
+                        android:textColor="@color/cin_text_primary"
+                        android:textSize="@dimen/cin_text_body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:text="Experimental — restart required"
+                        android:textColor="@color/cin_text_tertiary"
+                        android:textSize="@dimen/cin_text_caption" />
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switch_enable_series_v2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:nextFocusDown="@id/btn_logout"
+                    android:thumbTint="@color/cin_text_primary"
+                    android:trackTint="@color/cin_gold_300" />
+
+            </LinearLayout>
+
+            <!-- ===== ACCOUNT ============================================ -->
+            <TextView
+                style="@style/Cin.Text.Overline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_8"
+                android:text="ACCOUNT"
+                android:textColor="@color/cin_gold_300" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_3"
+                android:background="@drawable/cin_card_glass"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="@dimen/cin_space_5">
+
+                <FrameLayout
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:background="@drawable/cin_avatar_gold">
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:fontFamily="@font/inter_extrabold"
+                        android:gravity="center"
+                        android:text="D"
+                        android:textColor="@color/cin_text_on_gold"
+                        android:textSize="@dimen/cin_text_title_sm" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/cin_space_4"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:text="Signed in"
+                        android:textColor="@color/cin_text_primary"
+                        android:textSize="@dimen/cin_text_body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:text="Sign out to switch IPTV provider"
+                        android:textColor="@color/cin_text_tertiary"
+                        android:textSize="@dimen/cin_text_caption" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_logout"
+                    style="@style/Cin.Button.Danger"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/cin_btn_h"
+                    android:nextFocusUp="@id/switch_enable_series_v2"
+                    android:paddingHorizontal="@dimen/cin_space_6"
+                    android:text="Sign out" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

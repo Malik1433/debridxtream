@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Default cinematic gold gradient (top→bottom highlight) -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="@color/cin_gold_300"
+                android:centerColor="@color/cin_gold_500"
+                android:endColor="@color/cin_gold_700" />
+            <corners android:radius="@dimen/cin_radius_md" />
+        </shape>
+    </item>
+</layer-list>

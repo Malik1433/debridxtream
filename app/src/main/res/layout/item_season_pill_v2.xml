@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Modernized season pill (V2). ID preserved: tv_season_name.
+-->
 <TextView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/tv_season_name"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="@drawable/background_season_pill_modern"
+    android:background="@drawable/cin_season_pill_state"
     android:clickable="true"
     android:focusable="true"
-    android:paddingStart="20dp"
-    android:paddingTop="10dp"
-    android:paddingEnd="20dp"
-    android:paddingBottom="10dp"
+    android:focusableInTouchMode="true"
     android:text="Season 1"
-    android:textColor="@color/color_selector_season_text"
+    android:textAllCaps="false"
+    android:textColor="@color/cin_season_pill_text"
+    android:textSize="14sp"
     android:textStyle="bold"
-    android:fontFamily="sans-serif-medium"
-    android:layout_marginEnd="12dp"
-    android:textSize="15sp" />
+    android:letterSpacing="0.02"
+    android:fontFamily="@font/inter_extrabold"
+    android:layout_marginEnd="10dp" />

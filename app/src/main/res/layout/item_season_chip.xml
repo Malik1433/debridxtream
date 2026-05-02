@@ -1,19 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Modernized season chip (legacy detail screen).
+    ID preserved: tv_season_name.
+-->
 <TextView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/tv_season_name"
     android:layout_width="wrap_content"
-    android:layout_height="40dp"
-    android:layout_marginEnd="12dp"
-    android:background="@drawable/bg_tab_button_selector"
+    android:layout_height="42dp"
+    android:layout_marginEnd="10dp"
+    android:background="@drawable/cin_season_pill_state"
     android:gravity="center"
-    android:minWidth="96dp"
-    android:paddingStart="20dp"
-    android:paddingEnd="20dp"
+    android:minWidth="92dp"
     android:text="S1"
     android:textAllCaps="false"
-    android:textColor="@color/tab_button_text_selector"
-    android:textSize="16sp"
+    android:textColor="@color/cin_season_pill_text"
+    android:textSize="14sp"
     android:textStyle="bold"
+    android:letterSpacing="0.04"
+    android:fontFamily="@font/inter_extrabold"
     android:focusable="true"
-    android:focusableInTouchMode="true" />
-
+    android:focusableInTouchMode="true"
+    android:clickable="true" />

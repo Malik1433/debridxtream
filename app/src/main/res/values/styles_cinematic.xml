@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cinematic style overlays. Apply to widgets via:
+    style="@style/Cin.Text.Title"
+    style="@style/Cin.Button.Primary"
+  Drop into: app/src/main/res/values/
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Empty base styles so dotted descendants (Cin.Card.Glass, Cin.Badge.*, Cin.SidebarItem)
+         have a valid implicit parent. -->
+    <style name="Cin"/>
+    <style name="Cin.Card"/>
+
+    <!-- ========== APP THEME OVERLAY ========== -->
+    <style name="Theme.DerbixCinematic" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="colorPrimary">@color/cin_gold_500</item>
+        <item name="colorPrimaryDark">@color/cin_ink_900</item>
+        <item name="colorAccent">@color/cin_gold_500</item>
+        <item name="colorControlActivated">@color/cin_gold_500</item>
+        <item name="colorControlHighlight">@color/cin_gold_glow_25</item>
+        <item name="android:colorBackground">@color/cin_ink_800</item>
+        <item name="android:windowBackground">@color/cin_ink_800</item>
+        <item name="android:textColorPrimary">@color/cin_text_primary</item>
+        <item name="android:textColorSecondary">@color/cin_text_secondary</item>
+    </style>
+
+    <!-- ========== TYPOGRAPHY ========== -->
+    <style name="Cin.Text" parent="android:Widget.TextView">
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+        <item name="android:textColor">@color/cin_text_primary</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="Cin.Text.Display">
+        <item name="android:textSize">@dimen/cin_text_display</item>
+        <item name="android:fontFamily">@font/inter_extrabold</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+
+    <style name="Cin.Text.Title">
+        <item name="android:textSize">@dimen/cin_text_title</item>
+        <item name="android:fontFamily">@font/inter_extrabold</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+
+    <style name="Cin.Text.SectionHeader">
+        <item name="android:textSize">@dimen/cin_text_body_lg</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.04</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <style name="Cin.Text.Body">
+        <item name="android:textSize">@dimen/cin_text_body</item>
+        <item name="android:lineSpacingExtra">4dp</item>
+    </style>
+
+    <style name="Cin.Text.Caption">
+        <item name="android:textSize">@dimen/cin_text_caption</item>
+        <item name="android:textColor">@color/cin_text_secondary</item>
+    </style>
+
+    <style name="Cin.Text.Overline">
+        <item name="android:textSize">@dimen/cin_text_overline</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.18</item>
+        <item name="android:textColor">@color/cin_gold_300</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Cin.Text.Meta">
+        <item name="android:textSize">@dimen/cin_text_caption</item>
+        <item name="android:textColor">@color/cin_text_tertiary</item>
+    </style>
+
+    <!-- ========== BUTTONS ========== -->
+    <style name="Cin.Button" parent="Widget.MaterialComponents.Button">
+        <item name="android:layout_height">@dimen/cin_btn_h</item>
+        <item name="android:paddingHorizontal">@dimen/cin_btn_padding_h</item>
+        <item name="android:textSize">@dimen/cin_text_body_sm</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.04</item>
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+        <item name="cornerRadius">@dimen/cin_radius_md</item>
+    </style>
+
+    <style name="Cin.Button.Primary">
+        <item name="android:background">@drawable/cin_btn_primary_gold</item>
+        <item name="android:textColor">@color/cin_text_on_gold</item>
+        <item name="backgroundTint">@null</item>
+    </style>
+
+    <style name="Cin.Button.Secondary">
+        <item name="android:background">@drawable/cin_btn_secondary_glass</item>
+        <item name="android:textColor">@color/cin_text_primary</item>
+        <item name="backgroundTint">@null</item>
+    </style>
+
+    <style name="Cin.Button.Ghost">
+        <item name="android:background">@drawable/cin_btn_ghost</item>
+        <item name="android:textColor">@color/cin_text_secondary</item>
+        <item name="backgroundTint">@null</item>
+    </style>
+
+    <!-- Destructive action button (Sign out, Reset, Delete) -->
+    <style name="Cin.Button.Danger" parent="Cin.Button">
+        <item name="android:background">@drawable/cin_btn_secondary_glass</item>
+        <item name="android:textColor">@color/cin_error</item>
+        <item name="backgroundTint">@null</item>
+    </style>
+
+    <!-- ========== CARDS ========== -->
+    <style name="Cin.Card.Glass">
+        <item name="android:background">@drawable/cin_card_glass</item>
+        <item name="android:padding">@dimen/cin_space_5</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+    </style>
+
+    <style name="Cin.Card.Poster">
+        <item name="android:background">@drawable/cin_card_poster_focus</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+        <item name="android:elevation">@dimen/cin_elev_card</item>
+    </style>
+
+    <!-- ========== INPUT FIELDS (Material Outlined) ========== -->
+    <style name="Cin.TextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">@color/cin_gold_500</item>
+        <item name="boxStrokeWidth">@dimen/cin_stroke_hair</item>
+        <item name="boxStrokeWidthFocused">@dimen/cin_stroke_thin</item>
+        <item name="boxCornerRadiusTopStart">@dimen/cin_radius_md</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/cin_radius_md</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/cin_radius_md</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/cin_radius_md</item>
+        <item name="hintTextColor">@color/cin_gold_300</item>
+        <item name="android:textColorHint">@color/cin_text_tertiary</item>
+        <item name="startIconTint">@color/cin_text_tertiary</item>
+    </style>
+
+    <!-- ========== SIDEBAR ITEM ========== -->
+    <style name="Cin.SidebarItem">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">@dimen/cin_sidebar_item_h</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:paddingStart">@dimen/cin_space_6</item>
+        <item name="android:paddingEnd">@dimen/cin_space_4</item>
+        <item name="android:background">@drawable/cin_sidebar_item_selector</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+        <item name="android:textColor">@color/cin_sidebar_text_selector</item>
+        <item name="android:textSize">@dimen/cin_text_body_sm</item>
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+    </style>
+
+    <!-- ========== BADGE ========== -->
+    <style name="Cin.Badge">
+        <item name="android:layout_height">@dimen/cin_badge_h</item>
+        <item name="android:paddingHorizontal">@dimen/cin_badge_padding_h</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textColor">@color/cin_text_primary</item>
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+    </style>
+
+    <style name="Cin.Badge.Gold">
+        <item name="android:background">@drawable/cin_badge_gold</item>
+        <item name="android:textColor">@color/cin_text_on_gold</item>
+    </style>
+
+    <style name="Cin.Badge.Live">
+        <item name="android:background">@drawable/cin_badge_live</item>
+    </style>
+
+    <style name="Cin.Badge.Glass">
+        <item name="android:background">@drawable/cin_badge_glass</item>
+    </style>
+
+    <!-- ========== SHAPE APPEARANCES (for ShapeableImageView posters) ========== -->
+    <style name="Cin.Shape" parent="ShapeAppearance.MaterialComponents"/>
+
+    <style name="Cin.Shape.Poster">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/cin_radius_md</item>
+    </style>
+
+    <style name="Cin.Shape.PosterSm">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/cin_radius_sm</item>
+    </style>
+
+    <!-- ========== ICON-ONLY BUTTONS (player chrome, etc.) ========== -->
+    <style name="Cin.Button.Icon" parent="Widget.MaterialComponents.Button">
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:padding">0dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:background">@drawable/cin_btn_secondary_glass</item>
+        <item name="backgroundTint">@null</item>
+        <item name="cornerRadius">@dimen/cin_radius_md</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconPadding">0dp</item>
+        <item name="iconTint">@color/cin_text_primary</item>
+    </style>
+
+    <!-- Big gold play button at the center of the player. -->
+    <style name="Cin.Button.PlayHero" parent="Widget.MaterialComponents.Button">
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:padding">0dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:background">@drawable/cin_btn_primary_gold</item>
+        <item name="backgroundTint">@null</item>
+        <item name="cornerRadius">96dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconPadding">0dp</item>
+        <item name="iconTint">@color/cin_text_on_gold</item>
+    </style>
+
+    <!-- ========== HERO SEARCH INPUT ========== -->
+    <style name="Cin.TextInputLayout.Hero" parent="Cin.TextInputLayout">
+        <item name="boxStrokeWidth">@dimen/cin_stroke_thin</item>
+        <item name="boxCornerRadiusTopStart">@dimen/cin_radius_lg</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/cin_radius_lg</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/cin_radius_lg</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/cin_radius_lg</item>
+    </style>
+
+    <!-- ========== FILTER CHIP / PILL ========== -->
+    <style name="Cin.Chip.Filter" parent="android:Widget.TextView">
+        <item name="android:background">@drawable/cin_pill_glass</item>
+        <item name="android:paddingHorizontal">@dimen/cin_space_4</item>
+        <item name="android:paddingVertical">@dimen/cin_space_2</item>
+        <item name="android:textColor">@color/cin_text_primary</item>
+        <item name="android:textSize">@dimen/cin_text_caption</item>
+        <item name="android:fontFamily">@font/plus_jakarta_sans</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+        <item name="android:gravity">center</item>
+    </style>
+
+</resources>

@@ -1,166 +1,335 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout 
+<!--
+  Modernized cinematic home layout.
+  All existing IDs preserved (iv_hero_background, tv_hero_title, tv_hero_description,
+  btn_hero_watch, btn_hero_details, rv_top_10_movies, rv_top_10_series, scroll_content,
+  sidebar_panel) so HomeFragment.kt and Top10Adapter wire up unchanged.
+
+  Visual upgrades:
+    • Hero gets a proper bottom-left dark gradient (cin_hero_overlay_v2) for text legibility
+    • Ambient gold bloom in top-right for cinematic warmth
+    • FEATURED overline + metadata chip row (rating · year · runtime · quality)
+    • Refined hero buttons (gold play + glass info) with bigger hit targets
+    • Section row headers redesigned with gold accent bar + caption
+    • Tighter rhythm, more breathing room, better gutter
+-->
+<androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_pure_black">
+    android:background="@color/cin_ink_900">
 
-    <!-- Hero Background (Full Screen) -->
+    <!-- ============================================================ -->
+    <!-- HERO BACKDROP                                                 -->
+    <!-- ============================================================ -->
     <ImageView
         android:id="@+id/iv_hero_background"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="640dp"
         android:scaleType="centerCrop"
-        android:alpha="0.8" 
+        android:alpha="0.85"
         tools:src="@tools:sample/backgrounds/scenic" />
 
-    <!-- Gradient Overlay for Readability (LUMINA style) -->
+    <!-- Hero overlay: bottom darken + left sidebar shadow + top haze -->
     <View
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@drawable/vignette_lumina" />
-        
-    <!-- Main Content Container -->
+        android:layout_height="640dp"
+        android:background="@drawable/cin_hero_overlay_v2" />
+
+    <!-- Ambient gold bloom (top-right, subtle warmth) -->
+    <ImageView
+        android:layout_width="700dp"
+        android:layout_height="700dp"
+        android:layout_gravity="end|top"
+        android:layout_marginTop="-260dp"
+        android:layout_marginEnd="-220dp"
+        android:src="@drawable/cin_bloom_gold"
+        android:alpha="0.55"
+        android:importantForAccessibility="no" />
+
+    <!-- Bottom-edge fade into ink so the rails sit on solid ground -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="320dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/cin_ink_bottom_fade" />
+
+    <!-- ============================================================ -->
+    <!-- MAIN CONTAINER                                                -->
+    <!-- ============================================================ -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipChildren="false"
         android:clipToPadding="false">
 
-        <!-- Content Area -->
+        <!-- Sidebar (cinematic) -->
+        <include
+            android:id="@+id/sidebar_panel"
+            layout="@layout/cin_view_sidebar"
+            android:layout_width="@dimen/sidebar_width_expanded"
+            android:layout_height="0dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <!-- Soft right-edge shadow on sidebar -->
+        <View
+            android:id="@+id/divider_sidebar"
+            android:layout_width="24dp"
+            android:layout_height="match_parent"
+            android:background="@drawable/shadow_sidebar_right"
+            app:layout_constraintStart_toEndOf="@+id/sidebar_panel"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <!-- Content scroll -->
         <androidx.core.widget.NestedScrollView
             android:id="@+id/scroll_content"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="24dp"
+            android:layout_height="0dp"
             android:clipToPadding="false"
             android:clipChildren="false"
-            android:paddingStart="0dp"
-            android:paddingTop="48dp"
-            android:paddingEnd="0dp"
-            android:paddingBottom="48dp"
+            android:paddingTop="56dp"
+            android:paddingBottom="64dp"
+            android:paddingStart="48dp"
+            android:paddingEnd="48dp"
+            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/sidebar_panel"
-            app:layout_constraintTop_toTopOf="parent">
+            app:layout_constraintEnd_toEndOf="parent">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:clipChildren="false"
+                android:clipToPadding="false">
 
-                <!-- Hero Section Wrapper -->
-                <androidx.constraintlayout.widget.ConstraintLayout
+                <!-- ====== HERO BLOCK ====== -->
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="32dp">
+                    android:orientation="vertical"
+                    android:paddingTop="40dp"
+                    android:paddingBottom="48dp">
 
+                    <!-- FEATURED overline -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="14dp">
+
+                        <View
+                            android:layout_width="32dp"
+                            android:layout_height="2dp"
+                            android:background="@color/cin_gold_500"
+                            android:layout_marginEnd="12dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="FEATURED TONIGHT"
+                            android:textColor="@color/cin_gold_300"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.32"
+                            android:fontFamily="@font/plus_jakarta_sans" />
+                    </LinearLayout>
+
+                    <!-- HERO TITLE -->
                     <TextView
                         android:id="@+id/tv_hero_title"
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:fontFamily="@font/inter_extrabold"
+                        android:letterSpacing="-0.025"
+                        android:lineSpacingExtra="-6dp"
                         android:text="Featured Movie Title"
-                        android:textColor="@color/white"
-                        android:textSize="48sp"
-                        android:textStyle="bold"
-                        android:shadowColor="@color/brand_cyan"
+                        android:textColor="@color/cin_text_primary"
+                        android:textSize="64sp"
+                        android:maxLines="2"
+                        android:ellipsize="end"
+                        android:shadowColor="#80000000"
                         android:shadowRadius="24"
                         android:shadowDx="0"
-                        android:shadowDy="0"
-                        android:layout_marginTop="12dp"
-                        android:layout_marginBottom="8dp"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintWidth_percent="0.7" />
+                        android:shadowDy="2" />
 
+                    <!-- METADATA chip row -->
+                    <LinearLayout
+                        android:id="@+id/ll_hero_meta"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="20dp">
+
+                        <!-- Star rating -->
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="28dp"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:paddingHorizontal="10dp"
+                            android:background="@drawable/cin_meta_chip">
+
+                            <ImageView
+                                android:layout_width="12dp"
+                                android:layout_height="12dp"
+                                android:src="@drawable/ic_star"
+                                app:tint="@color/cin_gold_300" />
+
+                            <TextView
+                                android:id="@+id/tv_hero_rating"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:text="8.7"
+                                android:textColor="@color/cin_text_primary"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:fontFamily="@font/plus_jakarta_sans"
+                                android:includeFontPadding="false" />
+                        </LinearLayout>
+
+                        <!-- Year -->
+                        <TextView
+                            android:id="@+id/tv_hero_year"
+                            android:layout_width="wrap_content"
+                            android:layout_height="28dp"
+                            android:layout_marginStart="8dp"
+                            android:gravity="center"
+                            android:paddingHorizontal="10dp"
+                            android:background="@drawable/cin_meta_chip"
+                            android:text="2024"
+                            android:textColor="@color/cin_text_secondary"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:fontFamily="@font/plus_jakarta_sans"
+                            android:includeFontPadding="false" />
+
+                        <!-- Runtime -->
+                        <TextView
+                            android:id="@+id/tv_hero_runtime"
+                            android:layout_width="wrap_content"
+                            android:layout_height="28dp"
+                            android:layout_marginStart="8dp"
+                            android:gravity="center"
+                            android:paddingHorizontal="10dp"
+                            android:background="@drawable/cin_meta_chip"
+                            android:text="2h 18m"
+                            android:textColor="@color/cin_text_secondary"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:fontFamily="@font/plus_jakarta_sans"
+                            android:includeFontPadding="false" />
+
+                        <!-- Quality (gold) -->
+                        <TextView
+                            android:id="@+id/tv_hero_quality"
+                            android:layout_width="wrap_content"
+                            android:layout_height="28dp"
+                            android:layout_marginStart="8dp"
+                            android:gravity="center"
+                            android:paddingHorizontal="10dp"
+                            android:background="@drawable/cin_badge_gold"
+                            android:text="4K HDR"
+                            android:textColor="@color/cin_text_on_gold"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.08"
+                            android:fontFamily="@font/plus_jakarta_sans"
+                            android:includeFontPadding="false" />
+                    </LinearLayout>
+
+                    <!-- HERO DESCRIPTION -->
                     <TextView
                         android:id="@+id/tv_hero_description"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
                         android:fontFamily="@font/plus_jakarta_sans"
-                        android:text="This is a short description of the movie. It is very cinematic and cool."
-                        android:textColor="@color/glass_text_secondary"
-                        android:textSize="16sp"
+                        android:text="A short cinematic description appears here. Watch the full feature now in 4K HDR with cinematic surround."
+                        android:textColor="@color/cin_text_secondary"
+                        android:textSize="17sp"
                         android:maxLines="3"
                         android:ellipsize="end"
-                        android:layout_marginTop="8dp"
-                        android:layout_marginBottom="24dp"
-                        android:lineSpacingExtra="4dp"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/tv_hero_title"
-                        app:layout_constraintWidth_percent="0.6" />
+                        android:lineSpacingExtra="6dp"
+                        android:layout_weight="0"
+                        android:shadowColor="#80000000"
+                        android:shadowRadius="12"
+                        android:shadowDx="0"
+                        android:shadowDy="1"
+                        app:layout_constraintWidth_percent="0.55"
+                        android:width="780dp" />
 
+                    <!-- HERO BUTTONS -->
                     <LinearLayout
                         android:id="@+id/ll_hero_buttons"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginTop="24dp"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/tv_hero_description">
-                        
+                        android:layout_marginTop="32dp">
+
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_hero_watch"
                             android:layout_width="wrap_content"
-                            android:layout_height="44dp"
-                            android:text="PLAY NOW"
-                            android:backgroundTint="@color/brand_cyan"
-                            android:textColor="@color/velvet_black"
+                            android:layout_height="56dp"
+                            android:text="Watch Now"
+                            android:backgroundTint="@null"
+                            android:background="@drawable/cin_btn_primary_gold"
+                            android:textColor="@color/cin_text_on_gold"
                             android:fontFamily="@font/plus_jakarta_sans"
                             android:textStyle="bold"
-                            app:cornerRadius="8dp"
+                            android:textSize="15sp"
+                            android:letterSpacing="0.04"
+                            app:cornerRadius="12dp"
                             app:iconGravity="textStart"
-                            app:iconPadding="6dp"
-                            app:iconSize="16dp"
+                            app:iconPadding="10dp"
+                            app:iconSize="20dp"
                             app:icon="@drawable/ic_play"
-                            app:iconTint="@color/velvet_black"
-                            android:paddingHorizontal="16dp"
+                            app:iconTint="@color/cin_text_on_gold"
+                            android:paddingHorizontal="28dp"
                             android:paddingVertical="0dp"
-                            android:layout_marginEnd="12dp" />
-                            
+                            android:layout_marginEnd="14dp"
+                            android:focusable="true" />
+
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_hero_details"
                             android:layout_width="wrap_content"
-                            android:layout_height="44dp"
-                            android:text="MORE INFO"
-                            android:backgroundTint="@color/glass_card_bg_light"
-                            android:textColor="@color/white"
+                            android:layout_height="56dp"
+                            android:text="More Info"
+                            android:backgroundTint="@null"
+                            android:background="@drawable/cin_btn_secondary_glass"
+                            android:textColor="@color/cin_text_primary"
                             android:fontFamily="@font/plus_jakarta_sans"
                             android:textStyle="bold"
-                            app:cornerRadius="8dp"
-                            app:strokeColor="@color/glass_card_border_focus"
-                            app:strokeWidth="1dp"
-                            android:paddingHorizontal="16dp"
-                            android:paddingVertical="0dp" />
+                            android:textSize="15sp"
+                            android:letterSpacing="0.04"
+                            app:cornerRadius="12dp"
+                            app:iconGravity="textStart"
+                            app:iconPadding="10dp"
+                            app:iconSize="20dp"
+                            app:icon="@drawable/ic_info"
+                            app:iconTint="@color/cin_text_primary"
+                            android:paddingHorizontal="28dp"
+                            android:paddingVertical="0dp"
+                            android:focusable="true" />
                     </LinearLayout>
-                </androidx.constraintlayout.widget.ConstraintLayout>
-
-                <!-- Top 10 Movies Row -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="16dp">
-                    <View
-                        android:layout_width="4dp"
-                        android:layout_height="20dp"
-                        android:background="@color/brand_cyan"
-                        android:layout_marginEnd="12dp" />
-                    <TextView
-                        android:id="@+id/tv_title_top_10_movies"
-                        android:text="TRENDING MOVIES"
-                        android:textSize="20sp"
-                        android:textColor="@color/white"
-                        android:fontFamily="@font/plus_jakarta_sans"
-                        android:textStyle="bold"
-                        android:letterSpacing="0.05"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
                 </LinearLayout>
+
+                <!-- ====== TRENDING MOVIES ROW ====== -->
+                <include
+                    android:id="@+id/header_top_10_movies"
+                    layout="@layout/cin_view_section_header_v2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="20dp" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rv_top_10_movies"
@@ -168,36 +337,22 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:paddingStart="0dp"
+                    android:paddingEnd="48dp"
                     android:clipToPadding="false"
                     android:clipChildren="false"
-                    android:layout_marginBottom="32dp"
+                    android:overScrollMode="never"
+                    android:layout_marginBottom="44dp"
                     tools:listitem="@layout/item_top_10_card"
                     tools:itemCount="5"
                     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
-                <!-- Top 10 Series Row -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
+                <!-- ====== TRENDING SERIES ROW ====== -->
+                <include
+                    android:id="@+id/header_top_10_series"
+                    layout="@layout/cin_view_section_header_v2"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="16dp">
-                    <View
-                        android:layout_width="4dp"
-                        android:layout_height="20dp"
-                        android:background="@color/brand_cyan"
-                        android:layout_marginEnd="12dp" />
-                    <TextView
-                        android:id="@+id/tv_title_top_10_series"
-                        android:text="TRENDING SERIES"
-                        android:textSize="20sp"
-                        android:textColor="@color/white"
-                        android:fontFamily="@font/plus_jakarta_sans"
-                        android:textStyle="bold"
-                        android:letterSpacing="0.05"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
-                </LinearLayout>
+                    android:layout_marginBottom="20dp" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rv_top_10_series"
@@ -205,39 +360,17 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:paddingStart="0dp"
+                    android:paddingEnd="48dp"
                     android:clipToPadding="false"
                     android:clipChildren="false"
-                    android:layout_marginBottom="32dp"
+                    android:overScrollMode="never"
+                    android:layout_marginBottom="40dp"
                     tools:listitem="@layout/item_top_10_card"
                     tools:itemCount="5"
                     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
-
-
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
-
-        <!-- Premium Sidebar Panel (structured; full labels visible) -->
-        <include
-            android:id="@+id/sidebar_panel"
-            layout="@layout/view_home_sidebar"
-            android:layout_width="@dimen/sidebar_width_expanded"
-            android:layout_height="0dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
-
-        <!-- Visual Boundary: Soft premium edge shadow -->
-        <View
-            android:id="@+id/divider_sidebar"
-            android:layout_width="1dp"
-            android:layout_height="match_parent"
-            android:background="@drawable/shadow_sidebar_right"
-            app:layout_constraintStart_toEndOf="@+id/sidebar_panel"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
-
-        <!-- RecyclerView moved inside `view_home_sidebar` -->
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

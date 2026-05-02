@@ -1,54 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modern 3-Column TV Layout with Preview Panel -->
+<!--
+    CINEMATIC LIVE TV — 3-column (sidebar | channel rail | preview)
+    Replaces: fragment_live_3column.xml
+    Preserves IDs:
+      sidebar_container, et_category_search, rv_sidebar_categories,
+      tv_category_name, tv_channel_count, rv_channels_horizontal,
+      ll_loading_state, tv_loading_message, tv_empty_state,
+      preview_panel_container, preview_top_bar, tv_current_time,
+      iv_weather_icon, tv_weather, btn_preview_search, btn_profile,
+      preview_video_container, preview_player_view, preview_loading_container,
+      btn_fullscreen, preview_info_container, tv_preview_title,
+      tv_preview_description, preview_progress_bar,
+      tv_current_time_preview, tv_total_time_preview,
+      btn_favorite, btn_epg_next,
+      icon_live_tv, icon_favorites
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
     android:clipChildren="false"
-    android:background="@drawable/live_tv_background">
+    android:background="@drawable/cin_live_bg">
 
-    <!-- ==================== LEFT SIDEBAR ==================== -->
+    <!-- ============ LEFT SIDEBAR (categories) ============ -->
     <LinearLayout
         android:id="@+id/sidebar_container"
-        android:layout_width="240dp"
+        android:layout_width="280dp"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:clipChildren="false"
-        android:background="@drawable/live_tv_sidebar_bg"
-        android:paddingTop="22dp"
-        android:paddingBottom="24dp">
+        android:background="@drawable/cin_live_sidebar_bg"
+        android:paddingTop="32dp"
+        android:paddingBottom="28dp">
 
-        <!-- Section Title -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/live_sidebar_section_title"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="@color/tv_text_primary"
-            android:layout_marginStart="24dp"
-            android:layout_marginBottom="12dp" />
-
+        <!-- Branded header -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="16dp"
-            android:background="@drawable/search_bar_background"
+            android:orientation="vertical"
+            android:paddingHorizontal="24dp"
+            android:layout_marginBottom="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="LIVE TV"
+                android:textColor="#FFC9A961"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.32"
+                android:fontFamily="@font/plus_jakarta_sans" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Categories"
+                android:textColor="#FFFFFFFF"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="-0.02" />
+
+        </LinearLayout>
+
+        <!-- Search -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginHorizontal="20dp"
+            android:layout_marginBottom="20dp"
+            android:background="@drawable/cin_live_search_bg"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:padding="8dp">
+            android:paddingHorizontal="14dp">
 
             <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_marginStart="6dp"
-                android:layout_marginEnd="8dp"
-                android:contentDescription="@string/search"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginEnd="10dp"
                 android:src="@drawable/ic_search"
-                android:tint="@color/tv_text_secondary" />
+                app:tint="#80FFFFFF"
+                android:contentDescription="@string/search" />
 
             <EditText
                 android:id="@+id/et_category_search"
@@ -61,25 +95,26 @@
                 android:inputType="text"
                 android:maxLines="1"
                 android:nextFocusDown="@id/rv_sidebar_categories"
-                android:textColor="@color/tv_text_primary"
-                android:textColorHint="@color/tv_text_secondary"
-                android:textSize="14sp" />
+                android:textColor="#FFFFFFFF"
+                android:textColorHint="#66FFFFFF"
+                android:textSize="14sp"
+                android:fontFamily="@font/plus_jakarta_sans" />
         </LinearLayout>
 
-        <!-- Country/Category List -->
+        <!-- Category list -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_sidebar_categories"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
+            android:paddingHorizontal="16dp"
             android:clipChildren="false"
             android:clipToPadding="false"
             android:focusable="true"
             android:nextFocusRight="@id/rv_channels_horizontal"
             android:nextFocusUp="@id/et_category_search" />
 
+        <!-- Hidden helper anchors (Kotlin still binds these) -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="0dp"
@@ -99,18 +134,18 @@
 
     </LinearLayout>
 
-    <!-- ==================== CENTER: CHANNEL LIST ==================== -->
+    <!-- ============ CENTER: channel rail ============ -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
         android:orientation="vertical"
         android:clipChildren="false"
-        android:paddingTop="28dp"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp">
+        android:paddingTop="32dp"
+        android:paddingHorizontal="32dp"
+        android:paddingBottom="20dp">
 
-        <!-- Channel List Header -->
+        <!-- Header row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -118,47 +153,64 @@
             android:gravity="center_vertical"
             android:layout_marginBottom="20dp">
 
-            <TextView
-                android:id="@+id/tv_category_name"
+            <!-- Gold accent bar -->
+            <View
+                android:layout_width="4dp"
+                android:layout_height="36dp"
+                android:layout_marginEnd="14dp"
+                android:background="@drawable/cin_section_accent_bar" />
+
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/live_category_placeholder"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:includeFontPadding="false"
-                android:textColor="@color/tv_text_primary" />
+                android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/tv_channel_count"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/live_channel_count_placeholder"
-                android:textSize="13sp"
-                android:includeFontPadding="false"
-                android:textColor="@color/tv_text_secondary" />
+                <TextView
+                    android:id="@+id/tv_category_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/live_category_placeholder"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFFFF"
+                    android:fontFamily="@font/inter_extrabold"
+                    android:letterSpacing="-0.02" />
+
+                <TextView
+                    android:id="@+id/tv_channel_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/live_channel_count_placeholder"
+                    android:textSize="13sp"
+                    android:textColor="#80FFFFFF"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:letterSpacing="0.02" />
+
+            </LinearLayout>
+
         </LinearLayout>
 
-        <!-- Channels content container (list + loading/empty overlays) -->
+        <!-- Channel list / loading / empty -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipChildren="false">
 
-            <!-- Horizontal Channel Cards RecyclerView -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_channels_horizontal"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clipToPadding="false"
                 android:clipChildren="false"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="16dp"
                 android:focusable="true"
                 android:nextFocusLeft="@id/rv_sidebar_categories"
                 android:nextFocusRight="@id/preview_panel_container" />
 
-            <!-- Loading state -->
+            <!-- Loading -->
             <LinearLayout
                 android:id="@+id/ll_loading_state"
                 android:layout_width="wrap_content"
@@ -169,22 +221,23 @@
                 android:visibility="gone">
 
                 <ProgressBar
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
                     android:indeterminate="true"
-                    android:indeterminateTint="@color/tv_accent_cyan" />
+                    android:indeterminateTint="#FFC9A961" />
 
                 <TextView
                     android:id="@+id/tv_loading_message"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
                     android:text="@string/live_loading_channels"
                     android:textSize="16sp"
-                    android:textColor="@color/tv_text_secondary" />
+                    android:textColor="#B3FFFFFF"
+                    android:fontFamily="@font/plus_jakarta_sans" />
             </LinearLayout>
 
-            <!-- Empty state -->
+            <!-- Empty -->
             <TextView
                 android:id="@+id/tv_empty_state"
                 android:layout_width="wrap_content"
@@ -193,56 +246,56 @@
                 android:gravity="center"
                 android:text="@string/live_no_channels"
                 android:textSize="18sp"
-                android:textColor="@color/tv_text_secondary"
+                android:textColor="#B3FFFFFF"
+                android:fontFamily="@font/plus_jakarta_sans"
                 android:visibility="gone" />
         </FrameLayout>
 
     </LinearLayout>
 
-    <!-- ==================== RIGHT: PREVIEW PANEL ==================== -->
+    <!-- ============ RIGHT: preview panel ============ -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/preview_panel_container"
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="1.15"
+        android:layout_weight="1.1"
         android:background="@android:color/transparent"
         android:clipChildren="false"
-        android:paddingTop="16dp"
-        android:paddingStart="12dp"
-        android:paddingEnd="24dp"
-        android:paddingBottom="20dp">
+        android:paddingTop="24dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="32dp"
+        android:paddingBottom="28dp">
 
-        <!-- Top Bar (Time, Weather, Search, Profile) -->
+        <!-- Top bar -->
         <LinearLayout
             android:id="@+id/preview_top_bar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingBottom="10dp"
+            android:paddingBottom="14dp"
             app:layout_constraintTop_toTopOf="parent">
 
-            <!-- Time -->
             <TextView
                 android:id="@+id/tv_current_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/live_time_placeholder"
-                android:textSize="14sp"
-                android:textStyle="normal"
-                android:textColor="@color/tv_text_primary"
-                android:layout_marginEnd="12dp" />
+                android:textSize="15sp"
+                android:textColor="#FFFFFFFF"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="0.02"
+                android:layout_marginEnd="14dp" />
 
             <ImageView
                 android:id="@+id/iv_weather_icon"
-                android:layout_width="12dp"
-                android:layout_height="12dp"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
                 android:src="@drawable/ic_weather_cloud"
-                android:tint="@color/tv_text_secondary"
+                app:tint="#99FFFFFF"
                 android:layout_marginEnd="6dp"
                 android:contentDescription="@string/live_preview_weather_icon" />
 
-            <!-- Weather (Optional) -->
             <TextView
                 android:id="@+id/tv_weather"
                 android:layout_width="0dp"
@@ -251,160 +304,206 @@
                 android:text="@string/live_preview_weather_placeholder"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textSize="11sp"
-                android:textColor="@color/tv_text_tertiary" />
+                android:textSize="12sp"
+                android:textColor="#80FFFFFF"
+                android:fontFamily="@font/plus_jakarta_sans" />
 
-            <!-- Search Icon -->
             <ImageView
                 android:id="@+id/btn_preview_search"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:src="@drawable/ic_search"
-                android:tint="@color/tv_text_primary"
-                android:padding="8dp"
+                app:tint="#FFFFFFFF"
+                android:padding="9dp"
                 android:layout_marginEnd="10dp"
-                android:background="@drawable/topbar_icon_bg"
+                android:background="@drawable/cin_preview_icon_btn"
                 android:scaleType="center"
                 android:contentDescription="@string/search_content_description"
-                android:focusable="true" />
+                android:focusable="true"
+                android:clickable="true" />
 
-            <!-- Profile Icon -->
             <ImageView
                 android:id="@+id/btn_profile"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:src="@android:drawable/ic_menu_myplaces"
-                android:tint="@color/tv_text_primary"
-                android:background="@drawable/avatar_circle_bg"
-                android:padding="8dp"
+                app:tint="#FFFFFFFF"
+                android:background="@drawable/cin_preview_icon_btn"
+                android:padding="9dp"
                 android:scaleType="center"
                 android:contentDescription="@string/settings_content_description"
-                android:focusable="true" />
+                android:focusable="true"
+                android:clickable="true" />
         </LinearLayout>
 
-        <!-- Preview Video Container -->
+        <!-- Preview frame -->
         <FrameLayout
             android:id="@+id/preview_video_container"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_marginTop="4dp"
-            android:background="@drawable/preview_frame_bg"
+            android:background="@drawable/cin_preview_frame_v2"
             android:clipToOutline="true"
             app:layout_constraintTop_toBottomOf="@id/preview_top_bar"
             app:layout_constraintBottom_toBottomOf="parent">
 
-            <!-- ExoPlayer Preview -->
             <androidx.media3.ui.PlayerView
                 android:id="@+id/preview_player_view"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@drawable/preview_placeholder_bg"
+                android:background="#FF000000"
                 app:resize_mode="zoom"
                 app:use_controller="false"
                 app:show_buffering="when_playing"
                 app:surface_type="texture_view" />
 
-            <!-- Loading State -->
+            <!-- Loading shimmer -->
             <FrameLayout
                 android:id="@+id/preview_loading_container"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@drawable/preview_placeholder_bg"
+                android:background="#FF000000"
                 android:visibility="gone">
 
                 <ProgressBar
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
                     android:layout_gravity="center"
-                    android:indeterminateTint="@color/tv_accent_cyan" />
+                    android:indeterminateTint="#FFC9A961" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    android:layout_marginTop="80dp"
+                    android:layout_marginTop="92dp"
                     android:text="@string/live_preview_loading_state"
-                    android:textSize="14sp"
-                    android:textColor="@color/tv_text_secondary" />
+                    android:textSize="13sp"
+                    android:textColor="#80FFFFFF"
+                    android:fontFamily="@font/plus_jakarta_sans" />
             </FrameLayout>
 
-            <!-- Fullscreen Button Overlay -->
+            <!-- Fullscreen button -->
             <ImageView
                 android:id="@+id/btn_fullscreen"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:layout_gravity="bottom|end"
-                android:layout_margin="12dp"
+                android:layout_margin="14dp"
                 android:src="@android:drawable/ic_menu_crop"
-                android:tint="@color/tv_text_primary"
-                android:background="@drawable/topbar_icon_bg"
-                android:padding="9dp"
+                app:tint="#FFFFFFFF"
+                android:background="@drawable/cin_preview_icon_btn"
+                android:padding="10dp"
                 android:contentDescription="@string/live_preview_fullscreen"
                 android:focusable="true"
                 android:clickable="true" />
 
-            <!-- Preview Info Container -->
+            <!-- Info scrim -->
             <LinearLayout
                 android:id="@+id/preview_info_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
                 android:orientation="vertical"
-                android:paddingTop="16dp"
-                android:paddingStart="18dp"
-                android:paddingEnd="18dp"
-                android:paddingBottom="14dp"
-                android:background="@drawable/hero_info_scrim">
+                android:paddingTop="32dp"
+                android:paddingHorizontal="22dp"
+                android:paddingBottom="18dp"
+                android:background="@drawable/cin_preview_scrim_v2">
 
-                <!-- Now Playing Label -->
-                <TextView
+                <!-- LIVE / NOW PLAYING row -->
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/live_preview_label_now"
-                    android:textSize="10sp"
-                    android:textColor="@color/tv_text_tertiary"
-                    android:layout_marginBottom="6dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="10dp">
 
-                <!-- Program Title -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="4dp"
+                        android:background="@drawable/cin_pill_live_v2">
+
+                        <View
+                            android:layout_width="6dp"
+                            android:layout_height="6dp"
+                            android:layout_marginEnd="5dp"
+                            android:background="@drawable/cin_dot_live_v2" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="LIVE"
+                            android:textColor="#FFFFFFFF"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.18"
+                            android:fontFamily="@font/plus_jakarta_sans" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:text="NOW PLAYING"
+                        android:textColor="#80FFFFFF"
+                        android:textSize="10sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.28"
+                        android:fontFamily="@font/plus_jakarta_sans" />
+
+                </LinearLayout>
+
+                <!-- Title -->
                 <TextView
                     android:id="@+id/tv_preview_title"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/live_preview_title_placeholder"
-                    android:textSize="22sp"
+                    android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="@color/tv_text_primary"
+                    android:textColor="#FFFFFFFF"
+                    android:fontFamily="@font/inter_extrabold"
+                    android:letterSpacing="-0.02"
                     android:maxLines="2"
                     android:ellipsize="end"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="6dp"
+                    android:shadowColor="#CC000000"
+                    android:shadowDx="0"
+                    android:shadowDy="2"
+                    android:shadowRadius="8" />
 
-                <!-- Program Description -->
+                <!-- Description -->
                 <TextView
                     android:id="@+id/tv_preview_description"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/live_preview_description_placeholder"
-                    android:textSize="12sp"
-                    android:textColor="@color/tv_text_secondary"
-                    android:maxLines="3"
+                    android:textSize="13sp"
+                    android:textColor="#B3FFFFFF"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:maxLines="2"
                     android:ellipsize="end"
-                    android:lineSpacingMultiplier="1.2"
-                    android:layout_marginBottom="10dp" />
+                    android:lineSpacingMultiplier="1.25"
+                    android:layout_marginBottom="12dp" />
 
-                <!-- Progress Bar -->
+                <!-- Progress -->
                 <ProgressBar
                     android:id="@+id/preview_progress_bar"
                     style="?android:attr/progressBarStyleHorizontal"
                     android:layout_width="match_parent"
-                    android:layout_height="2dp"
-                    android:progressTint="@color/tv_progress_fill"
-                    android:progressBackgroundTint="@color/tv_progress_bg"
-                    android:layout_marginBottom="4dp" />
+                    android:layout_height="3dp"
+                    android:max="100"
+                    android:progress="0"
+                    android:progressDrawable="@drawable/cin_preview_progress" />
 
-                <!-- Time Stamps -->
+                <!-- Time row -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
                     android:orientation="horizontal">
 
                     <TextView
@@ -413,7 +512,9 @@
                         android:layout_height="wrap_content"
                         android:text="@string/live_time_placeholder"
                         android:textSize="11sp"
-                        android:textColor="@color/tv_text_tertiary" />
+                        android:textColor="#80FFFFFF"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:letterSpacing="0.02" />
 
                     <View
                         android:layout_width="0dp"
@@ -426,26 +527,32 @@
                         android:layout_height="wrap_content"
                         android:text="@string/live_time_placeholder"
                         android:textSize="11sp"
-                        android:textColor="@color/tv_text_tertiary" />
+                        android:textColor="#80FFFFFF"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:letterSpacing="0.02" />
                 </LinearLayout>
 
-                <!-- Quick Actions (EPG Next, Favorite, etc.) -->
+                <!-- Action chips -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginTop="10dp">
+                    android:layout_marginTop="14dp">
 
                     <TextView
                         android:id="@+id/btn_favorite"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/live_favorite_action_add"
+                        android:textColor="#FFFFFFFF"
                         android:textSize="11sp"
-                        android:textColor="@color/tv_text_secondary"
-                        android:padding="5dp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.06"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:paddingHorizontal="14dp"
+                        android:paddingVertical="8dp"
                         android:layout_marginEnd="10dp"
-                        android:background="@drawable/btn_secondary_outline"
+                        android:background="@drawable/cin_preview_chip"
                         android:focusable="true"
                         android:clickable="true"
                         android:contentDescription="@string/live_favorite_action_add" />
@@ -455,10 +562,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/live_preview_next_button"
+                        android:textColor="#FFFFFFFF"
                         android:textSize="11sp"
-                        android:textColor="@color/tv_text_secondary"
-                        android:padding="5dp"
-                        android:background="@drawable/btn_secondary_outline"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.06"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:paddingHorizontal="14dp"
+                        android:paddingVertical="8dp"
+                        android:background="@drawable/cin_preview_chip"
                         android:focusable="true"
                         android:clickable="true"
                         android:contentDescription="@string/live_preview_next_button" />
@@ -470,7 +581,3 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </LinearLayout>
-
-
-
-

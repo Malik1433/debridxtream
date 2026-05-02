@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Modernized cinematic sidebar.
+    All existing IDs preserved (sidebar_root, nav_home, nav_live, nav_movies, nav_series,
+    nav_search, nav_debrid, nav_settings, iv_sidebar_logo) so HomeFragment.setupSidebar()
+    keeps working unchanged.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/sidebar_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/cin_bg_sidebar"
+    android:paddingTop="32dp"
+    android:paddingBottom="24dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- ============================================================ -->
+    <!-- BRAND — wordmark + tagline                                    -->
+    <!-- ============================================================ -->
+    <!-- Solid bg + elevation so when the nav ScrollView below scrolls
+         up, scrolled content (e.g. focused Home pill) hides behind this
+         header instead of bleeding through it. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="12dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="20dp"
+        android:background="@color/cin_sidebar_bg_top"
+        android:elevation="2dp">
+
+        <ImageView
+            android:id="@+id/iv_sidebar_logo"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/cin_logo_mark"
+            android:contentDescription="Derbix TV"
+            android:scaleType="fitCenter" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="DERBIX"
+                android:textColor="@color/cin_text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="0.06"
+                android:includeFontPadding="false" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CINEMATIC TV"
+                android:textColor="@color/cin_gold_300"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:letterSpacing="0.32"
+                android:layout_marginTop="2dp"
+                android:includeFontPadding="false" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Scrollable nav body — keeps Settings reachable on short screens.
+         fillViewport=true so the Spacer (weight=1) inside still pushes Settings
+         to the bottom when the content fits. When focus moves off-screen, the
+         framework auto-scrolls focused descendants into view.
+         clipChildren/clipToPadding=true on the ScrollView itself so scrolled
+         items don't bleed into the brand header above; the inner LinearLayout
+         keeps clipChildren=false so per-item focus glow still renders. -->
+    <ScrollView
+        android:id="@+id/sidebar_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none"
+        android:overScrollMode="never">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="8dp"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+    <!-- ============================================================ -->
+    <!-- SECTION: BROWSE                                               -->
+    <!-- ============================================================ -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="BROWSE"
+        android:textColor="@color/cin_text_tertiary"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.24"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:paddingStart="16dp"
+        android:layout_marginBottom="10dp" />
+
+    <!-- HOME -->
+    <LinearLayout
+        android:id="@+id/nav_home"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:background="@drawable/cin_sidebar_item_selector"
+        android:stateListAnimator="@animator/cin_sidebar_item_state"
+        android:focusable="true"
+        android:clickable="true"
+        android:layout_marginBottom="6dp">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_home"
+            app:tint="@color/cin_sidebar_text_selector" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="16dp"
+            android:text="Home"
+            android:textColor="@color/cin_sidebar_text_selector"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:letterSpacing="0.01" />
+    </LinearLayout>
+
+    <!-- LIVE TV -->
+    <LinearLayout
+        android:id="@+id/nav_live"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:background="@drawable/cin_sidebar_item_selector"
+        android:stateListAnimator="@animator/cin_sidebar_item_state"
+        android:focusable="true"
+        android:clickable="true"
+        android:layout_marginBottom="6dp">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_live_tv"
+            app:tint="@color/cin_sidebar_text_selector" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="16dp"
+            android:text="Live TV"
+            android:textColor="@color/cin_sidebar_text_selector"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:letterSpacing="0.01" />
+
+        <!-- LIVE indicator dot -->
+        <View
+            android:layout_width="6dp"
+            android:layout_height="6dp"
+            android:background="@drawable/cin_sidebar_live_dot" />
+    </LinearLayout>
+
+    <!-- MOVIES -->
+    <LinearLayout
+        android:id="@+id/nav_movies"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:background="@drawable/cin_sidebar_item_selector"
+        android:stateListAnimator="@animator/cin_sidebar_item_state"
+        android:focusable="true"
+        android:clickable="true"
+        android:layout_marginBottom="6dp">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_movie"
+            app:tint="@color/cin_sidebar_text_selector" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="16dp"
+            android:text="Movies"
+            android:textColor="@color/cin_sidebar_text_selector"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:letterSpacing="0.01" />
+    </LinearLayout>
+
+    <!-- SERIES -->
+    <LinearLayout
+        android:id="@+id/nav_series"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:background="@drawable/cin_sidebar_item_selector"
+        android:stateListAnimator="@animator/cin_sidebar_item_state"
+        android:focusable="true"
+        android:clickable="true"
+        android:layout_marginBottom="6dp">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_series"
+            app:tint="@color/cin_sidebar_text_selector" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="16dp"
+            android:text="Series"
+            android:textColor="@color/cin_sidebar_text_selector"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:letterSpacing="0.01" />
+    </LinearLayout>
+
+    <!-- ============================================================ -->
+    <!-- SECTION: LIBRARY                                              -->
+    <!-- ============================================================ -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="LIBRARY"
+        android:textColor="@color/cin_text_tertiary"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.24"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:paddingStart="16dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="10dp" />
+
+    <!-- SEARCH -->
+    <LinearLayout
+        android:id="@+id/nav_search"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:background="@drawable/cin_sidebar_item_selector"
+        android:stateListAnimator="@animator/cin_sidebar_item_state"
+        android:focusable="true"
+        android:clickable="true"
+        android:layout_marginBottom="6dp">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_search"
+            app:tint="@color/cin_sidebar_text_selector" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="16dp"
+            android:text="Search"
+            android:textColor="@color/cin_sidebar_text_selector"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:letterSpacing="0.01" />
+    </LinearLayout>
+
+    <!-- DEBRID -->
+    <LinearLayout
+        android:id="@+id/nav_debrid"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:background="@drawable/cin_sidebar_item_selector"
+        android:stateListAnimator="@animator/cin_sidebar_item_state"
+        android:focusable="true"
+        android:clickable="true"
+        android:layout_marginBottom="6dp">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_dns"
+            app:tint="@color/cin_sidebar_text_selector" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="16dp"
+            android:text="Debrid"
+            android:textColor="@color/cin_sidebar_text_selector"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:letterSpacing="0.01" />
+
+        <!-- PRO badge -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="18dp"
+            android:paddingHorizontal="6dp"
+            android:gravity="center"
+            android:text="PRO"
+            android:textSize="8sp"
+            android:textStyle="bold"
+            android:textColor="@color/cin_text_on_gold"
+            android:letterSpacing="0.12"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:background="@drawable/cin_badge_gold"
+            android:includeFontPadding="false" />
+    </LinearLayout>
+
+    <!-- spacer pushes settings to bottom -->
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/cin_stroke_subtle"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginVertical="12dp" />
+
+    <!-- SETTINGS -->
+    <LinearLayout
+        android:id="@+id/nav_settings"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:background="@drawable/cin_sidebar_item_selector"
+        android:stateListAnimator="@animator/cin_sidebar_item_state"
+        android:focusable="true"
+        android:clickable="true">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_settings"
+            app:tint="@color/cin_sidebar_text_selector" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="16dp"
+            android:text="Settings"
+            android:textColor="@color/cin_sidebar_text_selector"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:letterSpacing="0.01" />
+    </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

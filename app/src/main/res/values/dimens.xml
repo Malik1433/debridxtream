@@ -142,22 +142,13 @@
     <dimen name="spacing_section_distinct">32dp</dimen>
     <dimen name="poster_top_10_width">140dp</dimen>
     <dimen name="poster_top_10_height">210dp</dimen> <!-- 2:3 Ratio -->
-    <dimen name="sidebar_width_collapsed">80dp</dimen>
-    <dimen name="sidebar_width_expanded">260dp</dimen>
     <dimen name="number_text_size">160sp</dimen>
     <dimen name="number_offset_x">-30dp</dimen>
     <dimen name="number_offset_y">36dp</dimen>
     <dimen name="chip_corner_radius">16dp</dimen>
-    
-    <!-- Sidebar Refined -->
-    <dimen name="sidebar_item_height">52dp</dimen>
-    <dimen name="sidebar_item_padding_start">24dp</dimen>
-    <dimen name="sidebar_item_padding_end">16dp</dimen>
-    <dimen name="sidebar_icon_size">20dp</dimen>
-    <dimen name="sidebar_text_size">15sp</dimen>
-    <dimen name="sidebar_text_marginStart">16dp</dimen>
-    <dimen name="sidebar_item_spacing">8dp</dimen>
-    <dimen name="sidebar_item_radius">14dp</dimen>
-    <dimen name="sidebar_indicator_width">3dp</dimen>
-    <dimen name="sidebar_indicator_height">24dp</dimen>
+
+    <!-- Sidebar dimens moved to dimens_cinematic.xml (modernized values: 288dp/56dp/etc.).
+         SidebarFocusHelper + legacy fragments still reference sidebar_width_*,
+         sidebar_item_height, etc. by name — those names are now defined ONCE, in the
+         cinematic file, so AAPT links cleanly without duplicates. -->
 </resources>

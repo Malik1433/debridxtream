@@ -1,54 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Modernized episode row (legacy 88dp landscape thumb + text).
+    IDs preserved: iv_episode_thumb, iv_watched_indicator, pb_resume_progress,
+    layout_episode_text, tv_episode_title, tv_episode_meta, iv_play_indicator.
+-->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="88dp"
-    android:background="@drawable/movie_card_selector"
+    android:layout_height="120dp"
+    android:layout_marginVertical="6dp"
+    android:background="@drawable/cin_source_row_bg"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    android:padding="12dp">
+    android:padding="14dp"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:stateListAnimator="@animator/cin_episode_focus_state">
 
-    <ImageView
+    <!-- Thumb -->
+    <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/iv_episode_thumb"
-        android:layout_width="104dp"
+        android:layout_width="160dp"
         android:layout_height="0dp"
-        android:contentDescription="@string/series_detail_episode_thumbnail_desc"
         android:scaleType="centerCrop"
+        app:shapeAppearanceOverlay="@style/Cin.Shape.PosterSm"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        tools:src="@tools:sample/backgrounds/scenic" />
 
+    <!-- Watched indicator -->
     <ImageView
         android:id="@+id/iv_watched_indicator"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_margin="4dp"
-        android:src="@android:drawable/checkbox_on_background"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_margin="6dp"
+        android:padding="4dp"
+        android:background="@drawable/cin_chip_watched"
+        android:src="@drawable/ic_check"
         android:visibility="gone"
+        app:tint="#5FE5A0"
         app:layout_constraintTop_toTopOf="@id/iv_episode_thumb"
         app:layout_constraintEnd_toEndOf="@id/iv_episode_thumb"
-        app:tint="@color/ds_accent" />
+        tools:visibility="visible" />
 
+    <!-- Resume progress -->
     <ProgressBar
         android:id="@+id/pb_resume_progress"
         style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="0dp"
-        android:layout_height="4dp"
+        android:layout_height="3dp"
         android:max="100"
-        android:progressDrawable="@drawable/custom_progress_drawable"
+        android:progressDrawable="@drawable/cin_ep_progress_gold"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="@id/iv_episode_thumb"
         app:layout_constraintStart_toStartOf="@id/iv_episode_thumb"
-        app:layout_constraintEnd_toEndOf="@id/iv_episode_thumb" />
+        app:layout_constraintEnd_toEndOf="@id/iv_episode_thumb"
+        tools:visibility="visible"
+        tools:progress="40" />
 
+    <!-- Text column -->
     <LinearLayout
         android:id="@+id/layout_episode_text"
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_marginStart="16dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="12dp"
         android:orientation="vertical"
+        android:gravity="center_vertical"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/iv_play_indicator"
         app:layout_constraintStart_toEndOf="@id/iv_episode_thumb"
         app:layout_constraintTop_toTopOf="parent">
 
@@ -58,34 +80,39 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="Episode Title"
-            android:textColor="@color/ds_text_primary"
+            android:textColor="@color/cin_text_primary"
             android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:letterSpacing="-0.005"
+            android:fontFamily="@font/inter_extrabold"
+            tools:text="Episode Title" />
 
         <TextView
             android:id="@+id/tv_episode_meta"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="6dp"
             android:ellipsize="end"
             android:maxLines="2"
-            android:textColor="@color/ds_text_secondary"
-            android:textSize="14sp" />
-
+            android:lineSpacingMultiplier="1.3"
+            android:textColor="@color/cin_text_tertiary"
+            android:textSize="13sp"
+            android:fontFamily="@font/plus_jakarta_sans"
+            tools:text="Ep 2 · 58m · Toranaga's plan unfolds. Mariko-sama navigates her allegiances under pressure." />
     </LinearLayout>
 
+    <!-- Play indicator -->
     <ImageView
         android:id="@+id/iv_play_indicator"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_marginEnd="8dp"
-        android:contentDescription="@string/series_detail_episode_play_desc"
-        android:src="@android:drawable/ic_media_play"
-        android:tint="@color/ds_text_primary"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="10dp"
+        android:padding="10dp"
+        android:background="@drawable/cin_btn_circle_glass"
+        android:src="@drawable/ic_play"
+        app:tint="@color/cin_gold_300"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-
