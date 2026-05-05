@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Live TV background - same dark base as cin_bg_app -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#FF07090C" />
+        </shape>
+    </item>
+
+    <!-- Soft top-left ambient gold bloom -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="900dp"
+                android:centerX="0.15"
+                android:centerY="0.1"
+                android:startColor="#1FC9A961"
+                android:endColor="#0007090C" />
+        </shape>
+    </item>
+
+</layer-list>

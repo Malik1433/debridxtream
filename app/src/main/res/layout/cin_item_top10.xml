@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Top-10 card: oversized rank numeral + poster.
+    Number is set programmatically via tv_rank.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/top10_root"
+    android:layout_width="@dimen/cin_top10_card_w"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="@dimen/cin_space_5"
+    android:focusable="true"
+    android:clickable="true"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/cin_top10_poster_h"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <!-- Giant rank numeral -->
+            <TextView
+                android:id="@+id/tv_rank"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start|bottom"
+                android:layout_marginStart="-20dp"
+                android:layout_marginBottom="-30dp"
+                android:text="1"
+                android:textColor="@color/cin_gold_500"
+                android:textSize="@dimen/cin_text_top10_number"
+                android:fontFamily="@font/inter_extrabold"
+                android:includeFontPadding="false"
+                android:shadowColor="@color/cin_gold_glow_40"
+                android:shadowRadius="20"
+                android:shadowDx="0"
+                android:shadowDy="0" />
+
+            <!-- Poster -->
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/iv_poster"
+                android:layout_width="@dimen/cin_top10_poster_w"
+                android:layout_height="@dimen/cin_top10_poster_h"
+                android:layout_gravity="end|bottom"
+                android:scaleType="centerCrop"
+                android:background="@drawable/cin_card_poster_focus"
+                app:shapeAppearanceOverlay="@style/CircleAppearance"
+                tools:background="@color/cin_ink_500"
+                tools:src="@tools:sample/avatars" />
+
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/cin_space_3"
+            android:layout_gravity="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="Title"
+            android:textColor="@color/cin_text_primary"
+            android:textSize="@dimen/cin_text_body_sm"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+</FrameLayout>

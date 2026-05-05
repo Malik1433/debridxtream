@@ -1,255 +1,297 @@
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    CINEMATIC INITIAL SYNC (drop-in for fragment_initial_sync.xml)
+
+    All original IDs preserved exactly:
+      iv_sync_watermark, sync_card, sync_header, iv_sync_icon,
+      tv_sync_title, tv_sync_subtitle,
+      tv_sync_status, tv_sync_percent, sync_progress,
+      sync_counts_row, tv_count_live, tv_count_movies, tv_count_series,
+      tv_sync_note, tv_sync_error, btn_sync_retry
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_initial_sync">
+    android:background="@drawable/cin_bg_app">
 
+    <!-- Ambient bloom -->
     <ImageView
-        android:id="@+id/iv_sync_watermark"
-        android:layout_width="260dp"
-        android:layout_height="120dp"
-        android:alpha="0.08"
+        android:layout_width="900dp"
+        android:layout_height="900dp"
+        android:alpha="0.55"
         android:contentDescription="@null"
-        android:scaleType="fitCenter"
-        android:src="@drawable/ic_login_logo"
+        android:src="@drawable/cin_bloom_gold"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.85" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/sync_card"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="96dp"
-        android:background="@drawable/bg_sync_card"
-        android:padding="28dp"
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/cin_vignette_radial" />
+
+    <!-- Wordmark watermark, low opacity -->
+    <ImageView
+        android:id="@+id/iv_sync_watermark"
+        android:layout_width="280dp"
+        android:layout_height="120dp"
+        android:alpha="0.10"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter"
+        android:src="@drawable/cin_logo_wordmark"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintWidth_max="720dp">
+        app:layout_constraintVertical_bias="0.92" />
 
+    <!-- Sync card -->
+    <LinearLayout
+        android:id="@+id/sync_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/cin_space_12"
+        android:background="@drawable/cin_card_glass"
+        android:orientation="vertical"
+        android:padding="@dimen/cin_space_8"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_max="760dp">
+
+        <!-- Header row -->
         <LinearLayout
             android:id="@+id/sync_header"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
             <FrameLayout
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="@drawable/bg_sync_icon_circle"
-                android:padding="10dp">
-
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="@drawable/cin_pill_glass">
                 <ImageView
                     android:id="@+id/iv_sync_icon"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_gravity="center"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_weather_cloud"
-                    android:tint="@color/brand_cyan_light" />
+                    app:tint="@color/cin_gold_300" />
             </FrameLayout>
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:orientation="vertical"
-                android:layout_weight="1">
+                android:layout_marginStart="@dimen/cin_space_4"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
                 <TextView
                     android:id="@+id/tv_sync_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:fontFamily="@font/inter_extrabold"
+                    android:letterSpacing="-0.01"
                     android:text="Preparing your library"
-                    android:textColor="@color/text_primary_new"
-                    android:textSize="24sp"
-                    android:textStyle="bold" />
+                    android:textColor="@color/cin_text_primary"
+                    android:textSize="@dimen/cin_text_title_sm" />
 
                 <TextView
                     android:id="@+id/tv_sync_subtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="Syncing channels, movies, and series"
-                    android:textColor="@color/text_secondary_new"
-                    android:textSize="14sp" />
+                    android:layout_marginTop="2dp"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:text="Syncing channels, movies and series"
+                    android:textColor="@color/cin_text_tertiary"
+                    android:textSize="@dimen/cin_text_caption" />
             </LinearLayout>
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/tv_sync_status"
-            android:layout_width="0dp"
+        <!-- Status + percent row -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="Preparing data"
-            android:textColor="@color/text_primary_new"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            app:layout_constraintEnd_toStartOf="@id/tv_sync_percent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/sync_header" />
+            android:layout_marginTop="@dimen/cin_space_6"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/tv_sync_percent"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="0%"
-            android:textColor="@color/accent_gold"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            app:layout_constraintBaseline_toBaselineOf="@id/tv_sync_status"
-            app:layout_constraintEnd_toEndOf="parent" />
+            <TextView
+                android:id="@+id/tv_sync_status"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:text="Preparing data"
+                android:textColor="@color/cin_text_primary"
+                android:textSize="@dimen/cin_text_body"
+                android:textStyle="bold" />
 
+            <TextView
+                android:id="@+id/tv_sync_percent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/inter_extrabold"
+                android:text="0%"
+                android:textColor="@color/cin_gold_300"
+                android:textSize="@dimen/cin_text_body" />
+        </LinearLayout>
+
+        <!-- Progress bar -->
         <ProgressBar
             android:id="@+id/sync_progress"
             style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="0dp"
-            android:layout_height="10dp"
-            android:layout_marginTop="12dp"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="@dimen/cin_space_3"
             android:max="100"
             android:progress="0"
-            android:progressTint="@color/progress_bar_fill"
-            android:backgroundTint="@color/progress_bar_track"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_sync_status" />
+            android:progressDrawable="@drawable/cin_progress_gold" />
 
+        <!-- Counts row (3 glass pills, evenly weighted) -->
         <LinearLayout
             android:id="@+id/sync_counts_row"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/bg_glass_panel"
+            android:layout_marginTop="@dimen/cin_space_5"
             android:orientation="horizontal"
-            android:padding="12dp"
-            android:weightSum="3"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/sync_progress">
+            android:weightSum="3">
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:gravity="center_vertical"
-                android:orientation="vertical">
+                android:background="@drawable/cin_pill_glass"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="@dimen/cin_space_4">
 
                 <TextView
                     android:id="@+id/tv_count_live"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:fontFamily="@font/inter_extrabold"
                     android:text="0"
-                    android:textColor="@color/text_primary_new"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
+                    android:textColor="@color/cin_gold_300"
+                    android:textSize="@dimen/cin_text_title_sm" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="Channels"
-                    android:textColor="@color/text_secondary_new"
-                    android:textSize="12sp" />
+                    android:layout_marginTop="@dimen/cin_space_1"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:letterSpacing="0.18"
+                    android:text="LIVE"
+                    android:textAllCaps="true"
+                    android:textColor="@color/cin_text_tertiary"
+                    android:textSize="10sp" />
             </LinearLayout>
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/cin_space_3"
                 android:layout_weight="1"
-                android:gravity="center_vertical"
-                android:orientation="vertical">
+                android:background="@drawable/cin_pill_glass"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="@dimen/cin_space_4">
 
                 <TextView
                     android:id="@+id/tv_count_movies"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:fontFamily="@font/inter_extrabold"
                     android:text="0"
-                    android:textColor="@color/text_primary_new"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
+                    android:textColor="@color/cin_gold_300"
+                    android:textSize="@dimen/cin_text_title_sm" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="Movies"
-                    android:textColor="@color/text_secondary_new"
-                    android:textSize="12sp" />
+                    android:layout_marginTop="@dimen/cin_space_1"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:letterSpacing="0.18"
+                    android:text="MOVIES"
+                    android:textAllCaps="true"
+                    android:textColor="@color/cin_text_tertiary"
+                    android:textSize="10sp" />
             </LinearLayout>
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/cin_space_3"
                 android:layout_weight="1"
-                android:gravity="center_vertical"
-                android:orientation="vertical">
+                android:background="@drawable/cin_pill_glass"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="@dimen/cin_space_4">
 
                 <TextView
                     android:id="@+id/tv_count_series"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:fontFamily="@font/inter_extrabold"
                     android:text="0"
-                    android:textColor="@color/text_primary_new"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
+                    android:textColor="@color/cin_gold_300"
+                    android:textSize="@dimen/cin_text_title_sm" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="Series"
-                    android:textColor="@color/text_secondary_new"
-                    android:textSize="12sp" />
+                    android:layout_marginTop="@dimen/cin_space_1"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:letterSpacing="0.18"
+                    android:text="SERIES"
+                    android:textAllCaps="true"
+                    android:textColor="@color/cin_text_tertiary"
+                    android:textSize="10sp" />
             </LinearLayout>
         </LinearLayout>
 
+        <!-- Note -->
         <TextView
             android:id="@+id/tv_sync_note"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="@dimen/cin_space_4"
+            android:fontFamily="@font/plus_jakarta_sans"
             android:text="First sync can take a minute. Please keep the app open."
-            android:textColor="@color/text_tertiary"
-            android:textSize="12sp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/sync_counts_row" />
+            android:textColor="@color/cin_text_tertiary"
+            android:textSize="@dimen/cin_text_caption" />
 
+        <!-- Error + retry -->
         <TextView
             android:id="@+id/tv_sync_error"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="@dimen/cin_space_3"
+            android:fontFamily="@font/plus_jakarta_sans"
             android:text="Sync failed. Check your connection."
-            android:textColor="@color/error_red"
-            android:textSize="12sp"
+            android:textColor="@color/cin_error"
+            android:textSize="@dimen/cin_text_caption"
             android:visibility="gone"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_sync_note" />
+            tools:visibility="visible" />
 
-        <androidx.appcompat.widget.AppCompatButton
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_sync_retry"
+            style="@style/Cin.Button.Primary"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/btn_login_modern"
-            android:paddingLeft="28dp"
-            android:paddingRight="28dp"
-            android:text="Retry Sync"
-            android:textAllCaps="true"
-            android:textColor="@color/text_primary_new"
-            android:textSize="14sp"
+            android:layout_height="@dimen/cin_btn_h"
+            android:layout_marginTop="@dimen/cin_space_4"
+            android:paddingHorizontal="@dimen/cin_space_8"
+            android:text="Retry sync"
             android:visibility="gone"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_sync_error" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
+            tools:visibility="visible" />
+
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

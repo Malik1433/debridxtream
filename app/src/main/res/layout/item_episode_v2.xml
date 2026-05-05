@@ -1,33 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Modernized episode card (V2 portrait-thumb tile).
+    IDs preserved: v_focus_border, cv_thumb, iv_episode_thumb, iv_play_icon,
+    tv_duration, tv_episode_number, tv_title, tv_plot.
+-->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="260dp"
+    android:layout_width="300dp"
     android:layout_height="wrap_content"
-    android:background="?attr/selectableItemBackground"
+    android:layout_marginEnd="18dp"
+    android:layout_marginVertical="8dp"
+    android:background="@android:color/transparent"
     android:focusable="true"
     android:clickable="true"
-    android:padding="8dp">
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:padding="6dp"
+    android:stateListAnimator="@animator/cin_episode_focus_state">
 
-    <!-- Focus Border Overlay (Required by Adapter) -->
+    <!-- Focus ring overlay -->
     <View
         android:id="@+id/v_focus_border"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="@drawable/border_focus_white"
+        android:background="@drawable/cin_episode_thumb_focus"
         android:visibility="invisible"
         app:layout_constraintTop_toTopOf="@id/cv_thumb"
         app:layout_constraintBottom_toBottomOf="@id/cv_thumb"
         app:layout_constraintStart_toStartOf="@id/cv_thumb"
         app:layout_constraintEnd_toEndOf="@id/cv_thumb"
-        android:translationZ="10dp"/>
+        android:translationZ="10dp" />
 
     <androidx.cardview.widget.CardView
         android:id="@+id/cv_thumb"
         android:layout_width="0dp"
-        android:layout_height="146dp"
-        app:cardCornerRadius="8dp"
-        app:cardElevation="4dp"
+        android:layout_height="170dp"
+        android:elevation="6dp"
+        app:cardCornerRadius="12dp"
+        app:cardBackgroundColor="@color/cin_ink_700"
+        app:cardElevation="6dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -37,72 +49,91 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            tools:src="@tools:sample/backgrounds/scenic"
-            android:contentDescription="Episode Thumbnail" />
-            
+            android:contentDescription="Episode Thumbnail"
+            tools:src="@tools:sample/backgrounds/scenic" />
+
+        <!-- Footer fade -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:layout_gravity="bottom"
+            android:background="@drawable/cin_card_footer_gradient"
+            android:importantForAccessibility="no" />
+
+        <!-- Center play icon -->
         <ImageView
             android:id="@+id/iv_play_icon"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:layout_gravity="center"
-            android:src="@android:drawable/ic_media_play"
-            app:tint="#FFFFFF"
-            android:alpha="0.8"/>
-            
-         <TextView
+            android:padding="10dp"
+            android:background="@drawable/cin_btn_circle_glass"
+            android:src="@drawable/ic_play"
+            app:tint="@color/cin_gold_200" />
+
+        <!-- Duration chip -->
+        <TextView
             android:id="@+id/tv_duration"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
-            tools:text="45m"
-            android:textColor="#FFFFFF"
-            android:textSize="10sp"
-            android:background="#AA000000"
-            android:padding="4dp"
-            android:layout_margin="4dp"/>
+            android:layout_margin="10dp"
+            android:background="@drawable/cin_ep_dur_chip"
+            android:textColor="@color/cin_text_secondary"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/plus_jakarta_sans"
+            tools:text="58m" />
 
+        <!-- Episode number chip -->
+        <TextView
+            android:id="@+id/tv_episode_number"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:layout_margin="10dp"
+            android:background="@drawable/cin_ep_num_chip"
+            android:textColor="@color/cin_gold_200"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.06"
+            android:fontFamily="@font/inter_extrabold"
+            tools:text="EP 02" />
     </androidx.cardview.widget.CardView>
 
-    <TextView
-        android:id="@+id/tv_episode_number"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        tools:text="Episode 1"
-        android:textColor="#AAAAAA"
-        android:textSize="12sp"
-        android:textStyle="bold"
-        android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@id/cv_thumb"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
+    <!-- Title -->
     <TextView
         android:id="@+id/tv_title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        tools:text="Pilot"
-        android:textColor="#FFFFFF"
-        android:textSize="14sp"
+        android:layout_marginTop="12dp"
+        android:textColor="@color/cin_text_primary"
+        android:textSize="15sp"
         android:textStyle="bold"
         android:maxLines="1"
         android:ellipsize="end"
-        android:layout_marginTop="2dp"
-        app:layout_constraintTop_toBottomOf="@id/tv_episode_number"
+        android:letterSpacing="-0.005"
+        android:fontFamily="@font/inter_extrabold"
+        tools:text="Servants of Two Masters"
+        app:layout_constraintTop_toBottomOf="@id/cv_thumb"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- Plot -->
     <TextView
         android:id="@+id/tv_plot"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        tools:text="No description"
-        android:textColor="#888888"
+        android:layout_marginTop="4dp"
+        android:textColor="@color/cin_text_tertiary"
         android:textSize="12sp"
+        android:lineSpacingMultiplier="1.35"
         android:maxLines="2"
         android:ellipsize="end"
-        android:layout_marginTop="2dp"
+        android:fontFamily="@font/plus_jakarta_sans"
+        tools:text="Toranaga's plan unfolds. Mariko-sama navigates her allegiances under pressure."
         app:layout_constraintTop_toBottomOf="@id/tv_title"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

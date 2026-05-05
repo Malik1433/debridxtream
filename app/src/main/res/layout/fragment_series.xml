@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    CINEMATIC SERIES GRID
+    Mirrors fragment_vod.xml structure for series. Reuses same IDs where applicable.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/cin_bg_app">
+
+    <ImageView
+        android:layout_width="500dp"
+        android:layout_height="500dp"
+        android:layout_marginTop="-150dp"
+        android:layout_marginEnd="-150dp"
+        android:src="@drawable/cin_bloom_gold"
+        android:alpha="0.45"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <include
+        android:id="@+id/sidebar_panel"
+        layout="@layout/cin_view_sidebar"
+        android:layout_width="@dimen/cin_sidebar_expanded"
+        android:layout_height="0dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <include
+        android:id="@+id/top_bar"
+        layout="@layout/cin_view_topbar"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/cin_topbar_h"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_screen_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/cin_gutter_screen"
+        android:layout_marginTop="@dimen/cin_space_4"
+        android:text="Series"
+        android:textColor="@color/cin_text_primary"
+        android:textSize="@dimen/cin_text_display"
+        android:fontFamily="@font/inter_extrabold"
+        android:letterSpacing="-0.02"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintTop_toBottomOf="@id/top_bar" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_search"
+        style="@style/Cin.TextInputLayout"
+        android:layout_width="320dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="@dimen/cin_gutter_screen"
+        android:hint="Search this category"
+        app:startIconDrawable="@drawable/ic_search"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/tv_screen_title"
+        app:layout_constraintBottom_toBottomOf="@id/tv_screen_title">
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_search"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:imeOptions="actionSearch"
+            android:textColor="@color/cin_text_primary"
+            android:fontFamily="@font/plus_jakarta_sans" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_categories"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/cin_space_5"
+        android:paddingHorizontal="@dimen/cin_gutter_screen"
+        android:clipToPadding="false"
+        android:orientation="horizontal"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_screen_title"
+        tools:itemCount="6" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_content"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="@dimen/cin_space_5"
+        android:paddingHorizontal="@dimen/cin_gutter_screen"
+        android:paddingBottom="@dimen/cin_space_8"
+        android:clipToPadding="false"
+        android:clipChildren="false"
+        app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+        app:spanCount="6"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/rv_categories"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:listitem="@layout/cin_item_poster" />
+
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:indeterminateTint="@color/cin_gold_500"
+        android:visibility="gone"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/rv_categories"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_empty_state"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="No results found"
+        android:textColor="@color/cin_text_tertiary"
+        android:textSize="@dimen/cin_text_body"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:visibility="gone"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/rv_categories"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

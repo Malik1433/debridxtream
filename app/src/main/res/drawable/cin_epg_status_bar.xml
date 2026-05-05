@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status indicator vertical bar in EPG list (set color in code: live/upcoming/past) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:startColor="#FFE9D7A8"
+        android:endColor="#FFC9A961"
+        android:angle="270" />
+    <corners android:radius="3dp" />
+</shape>

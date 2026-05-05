@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    CINEMATIC LIVE TV
+    Replaces: fragment_live.xml
+    Preserves IDs: sidebar_panel, rv_categories, rv_channels,
+      preview_container, video_view, tv_now_playing, tv_now_program,
+      progress_now_playing, et_search
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/cin_bg_app">
+
+    <include
+        android:id="@+id/sidebar_panel"
+        layout="@layout/cin_view_sidebar"
+        android:layout_width="@dimen/cin_sidebar_expanded"
+        android:layout_height="0dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <include
+        android:id="@+id/top_bar"
+        layout="@layout/cin_view_topbar"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/cin_topbar_h"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- LEFT: categories rail (220dp) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_categories"
+        android:layout_width="220dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="@dimen/cin_space_4"
+        android:layout_marginTop="@dimen/cin_space_4"
+        android:layout_marginBottom="@dimen/cin_space_6"
+        android:padding="@dimen/cin_space_2"
+        android:background="@drawable/cin_card_glass_subtle"
+        android:clipToPadding="false"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+        app:layout_constraintTop_toBottomOf="@id/top_bar"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:itemCount="10" />
+
+    <!-- MIDDLE: channels list (320dp) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_channels"
+        android:layout_width="320dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="@dimen/cin_space_4"
+        android:layout_marginTop="@dimen/cin_space_4"
+        android:layout_marginBottom="@dimen/cin_space_6"
+        android:padding="@dimen/cin_space_2"
+        android:background="@drawable/cin_card_glass_subtle"
+        android:clipToPadding="false"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintStart_toEndOf="@id/rv_categories"
+        app:layout_constraintTop_toBottomOf="@id/top_bar"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:itemCount="20" />
+
+    <!-- RIGHT: preview pane -->
+    <FrameLayout
+        android:id="@+id/preview_container"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="@dimen/cin_space_5"
+        android:layout_marginEnd="@dimen/cin_gutter_screen"
+        android:layout_marginTop="@dimen/cin_space_4"
+        android:layout_marginBottom="@dimen/cin_space_6"
+        android:background="@drawable/cin_card_preview"
+        android:clipChildren="true"
+        app:layout_constraintStart_toEndOf="@id/rv_channels"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/top_bar"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <androidx.media3.ui.PlayerView
+            android:id="@+id/video_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:resize_mode="zoom"
+            app:use_controller="false" />
+
+        <!-- Overlay: now playing info -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/cin_preview_overlay" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:orientation="vertical"
+            android:padding="@dimen/cin_space_6">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp"
+                android:background="@drawable/cin_badge_live">
+                <View
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/cin_dot_live" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="LIVE"
+                    android:textColor="@color/cin_text_primary"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.18"
+                    android:fontFamily="@font/plus_jakarta_sans" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_now_playing"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_3"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="Channel name"
+                android:textColor="@color/cin_text_primary"
+                android:textSize="@dimen/cin_text_title"
+                android:fontFamily="@font/inter_extrabold" />
+
+            <TextView
+                android:id="@+id/tv_now_program"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_1"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="Now: Program title · 8:00–9:00 PM"
+                android:textColor="@color/cin_text_secondary"
+                android:textSize="@dimen/cin_text_body_sm"
+                android:fontFamily="@font/plus_jakarta_sans" />
+
+            <ProgressBar
+                android:id="@+id/progress_now_playing"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:layout_marginTop="@dimen/cin_space_3"
+                android:progressDrawable="@drawable/cin_progress_gold"
+                android:progress="35" />
+
+        </LinearLayout>
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

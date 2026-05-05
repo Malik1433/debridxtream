@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Focus scale animator: 1.0 → 1.04 with overshoot -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:ordering="together">
+    <objectAnimator
+        android:propertyName="scaleX"
+        android:duration="180"
+        android:valueFrom="1.0"
+        android:valueTo="1.04"
+        android:interpolator="@android:interpolator/overshoot" />
+    <objectAnimator
+        android:propertyName="scaleY"
+        android:duration="180"
+        android:valueFrom="1.0"
+        android:valueTo="1.04"
+        android:interpolator="@android:interpolator/overshoot" />
+    <objectAnimator
+        android:propertyName="translationZ"
+        android:duration="180"
+        android:valueFrom="0"
+        android:valueTo="12dp" />
+</set>

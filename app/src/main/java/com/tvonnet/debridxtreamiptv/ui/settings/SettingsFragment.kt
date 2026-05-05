@@ -68,7 +68,10 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
+        // Sidebar lock removed: cinematic sidebars are fixed-width and don't auto-collapse,
+        // so no lock is needed. Origin's SidebarFocusHelper no longer exposes setLocked().
+
         setupAdapters()
         observeState()
     }

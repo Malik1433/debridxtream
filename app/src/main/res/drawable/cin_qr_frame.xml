@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- QR code frame: white card with gold corner accents simulated via stroke -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFF" />
+            <corners android:radius="@dimen/cin_radius_lg" />
+            <stroke android:width="2dp" android:color="@color/cin_gold_500" />
+        </shape>
+    </item>
+</layer-list>

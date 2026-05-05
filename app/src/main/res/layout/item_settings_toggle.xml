@@ -2,8 +2,8 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
-    android:background="@drawable/selector_card_background"
+    android:layout_marginBottom="12dp"
+    android:background="@drawable/selector_settings_item"
     android:focusable="true"
     android:focusableInTouchMode="true"
     android:orientation="horizontal"
@@ -20,9 +20,10 @@
             android:id="@+id/tv_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-medium"
-            android:textColor="@color/white"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:textColor="@color/tv_text_primary"
             android:textSize="16sp"
+            android:textStyle="bold"
             android:text="Setting Title" />
 
         <TextView
@@ -30,7 +31,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:textColor="#B3FFFFFF"
+            android:textColor="@color/tv_text_secondary"
             android:textSize="12sp"
             android:text="Setting description goes here" />
     </LinearLayout>
@@ -40,6 +41,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:focusable="false"
-        android:clickable="false" />
+        android:clickable="false"
+        android:thumbTint="@color/cin_gold_500"
+        android:trackTint="@color/cin_gold_glow_25" />
 
 </LinearLayout>

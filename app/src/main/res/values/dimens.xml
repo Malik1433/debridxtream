@@ -29,9 +29,9 @@
     <!-- Icon Sizes -->
     <dimen name="icon_search_size">40dp</dimen>
     <dimen name="icon_settings_size">40dp</dimen>
-    <dimen name="icon_small">20dp</dimen>
-    <dimen name="icon_medium">24dp</dimen>
-    <dimen name="icon_large">32dp</dimen>
+    <dimen name="icon_small">18dp</dimen>
+    <dimen name="icon_medium">20dp</dimen>
+    <dimen name="icon_large">24dp</dimen>
     <dimen name="icon_margin">12dp</dimen>
     <dimen name="icon_play_size">48dp</dimen>
     <dimen name="icon_play_inner">24dp</dimen>
@@ -142,10 +142,13 @@
     <dimen name="spacing_section_distinct">32dp</dimen>
     <dimen name="poster_top_10_width">140dp</dimen>
     <dimen name="poster_top_10_height">210dp</dimen> <!-- 2:3 Ratio -->
-    <dimen name="sidebar_width_collapsed">80dp</dimen>
-    <dimen name="sidebar_width_expanded">240dp</dimen>
     <dimen name="number_text_size">160sp</dimen>
     <dimen name="number_offset_x">-30dp</dimen>
     <dimen name="number_offset_y">36dp</dimen>
     <dimen name="chip_corner_radius">16dp</dimen>
+
+    <!-- Sidebar dimens moved to dimens_cinematic.xml (modernized values: 288dp/56dp/etc.).
+         SidebarFocusHelper + legacy fragments still reference sidebar_width_*,
+         sidebar_item_height, etc. by name — those names are now defined ONCE, in the
+         cinematic file, so AAPT links cleanly without duplicates. -->
 </resources>

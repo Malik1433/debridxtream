@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Animator: scale + lift channel cards on focus -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_focused="true">
+        <objectAnimator
+            android:propertyName="translationZ"
+            android:valueTo="14dp"
+            android:duration="180" />
+    </item>
+
+    <item>
+        <objectAnimator
+            android:propertyName="translationZ"
+            android:valueTo="0dp"
+            android:duration="180" />
+    </item>
+
+</selector>

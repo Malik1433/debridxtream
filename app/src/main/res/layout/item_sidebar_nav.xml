@@ -4,59 +4,57 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_container"
     android:layout_width="match_parent"
-    android:layout_height="56dp"
-    android:background="@drawable/selector_sidebar_item"
-    android:paddingStart="16dp"
-    android:paddingEnd="12dp"
+    android:layout_height="@dimen/sidebar_item_height"
+    android:layout_marginBottom="@dimen/sidebar_item_spacing"
+    android:background="@drawable/cin_sidebar_item_selector"
+    android:paddingStart="@dimen/sidebar_item_padding_start"
+    android:paddingEnd="@dimen/sidebar_item_padding_end"
     android:clipChildren="false"
     android:clickable="true"
     android:focusable="true"
-    android:focusableInTouchMode="true"
-    android:stateListAnimator="@animator/sidebar_item_animator">
+    android:focusableInTouchMode="true">
 
-    <!-- Selection Indicator (Left Strip - Glow) -->
+    <!-- Selection Indicator (Now part of the background pill logic, 
+         but kept as a redundant strip if desired or used for dynamic states) -->
     <View
         android:id="@+id/view_selection_indicator"
-        android:layout_width="3dp"
-        android:layout_height="20dp"
-        android:layout_marginStart="0dp"
-        android:background="@color/sidebar_active_emerald"
-        android:visibility="invisible"
-        android:outlineSpotShadowColor="@color/sidebar_emerald_glow"
-        android:outlineAmbientShadowColor="@color/sidebar_active_emerald"
-        android:elevation="3dp"
+        android:layout_width="@dimen/sidebar_indicator_width"
+        android:layout_height="@dimen/sidebar_indicator_height"
+        android:background="@color/cin_gold_500"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Icon -->
+    <!-- Icon: Centered in collapsed mode via SidebarAdapter programmatic constraints -->
     <ImageView
         android:id="@+id/iv_icon"
-        android:layout_width="22dp"
-        android:layout_height="22dp"
+        android:layout_width="@dimen/sidebar_icon_size"
+        android:layout_height="@dimen/sidebar_icon_size"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         tools:src="@android:drawable/ic_menu_search"
-        app:tint="@color/selector_sidebar_text" />
+        app:tint="@color/cin_sidebar_text_selector" />
 
-    <!-- Title -->
+    <!-- Title: Pixel-perfect spacing from icon -->
     <TextView
         android:id="@+id/tv_title"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="14dp"
+        android:layout_marginStart="@dimen/sidebar_text_marginStart"
         android:alpha="1"
         android:fontFamily="@font/plus_jakarta_sans"
         android:text="Search"
-        android:textColor="@color/selector_sidebar_text"
-        android:textSize="15sp"
+        android:textColor="@color/cin_sidebar_text_selector"
+        android:textSize="@dimen/sidebar_text_size"
         android:textStyle="bold"
         android:maxLines="1"
         android:ellipsize="end"
         android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toEndOf="@+id/iv_icon"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

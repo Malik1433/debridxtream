@@ -1,63 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Modernized cast member card. IDs preserved: iv_profile, tv_name, tv_character.
+-->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="140dp"
+    android:layout_width="120dp"
     android:layout_height="wrap_content"
-    android:layout_marginEnd="16dp"
+    android:layout_marginEnd="14dp"
     android:clipChildren="false"
     android:clipToPadding="false"
     android:focusable="false"
-    android:background="@drawable/bg_cast_member_card">
+    android:padding="6dp">
 
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/iv_profile"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:layout_marginTop="10dp"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_marginTop="2dp"
         android:scaleType="centerCrop"
+        android:background="@drawable/cin_cast_circle_bg"
+        app:shapeAppearanceOverlay="@style/CircleAppearance"
+        app:strokeColor="#1FFFFFFF"
+        app:strokeWidth="2dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:shapeAppearanceOverlay="@style/CircleAppearance"
         tools:src="@tools:sample/avatars" />
 
     <TextView
         android:id="@+id/tv_name"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginStart="4dp"
-        android:layout_marginEnd="4dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginStart="2dp"
+        android:layout_marginEnd="2dp"
         android:ellipsize="end"
         android:gravity="center"
         android:maxLines="1"
-        android:textColor="@color/white"
-        android:fontFamily="@font/inter"
-        android:textSize="14sp"
+        android:textColor="@color/cin_text_secondary"
+        android:fontFamily="@font/inter_extrabold"
+        android:textSize="13sp"
         android:textStyle="bold"
+        android:letterSpacing="-0.005"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/iv_profile"
-        tools:text="Cast Name" />
+        tools:text="Timothée C." />
 
     <TextView
         android:id="@+id/tv_character"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
-        android:layout_marginEnd="4dp"
-        android:layout_marginBottom="10dp"
+        android:layout_marginStart="2dp"
+        android:layout_marginEnd="2dp"
+        android:layout_marginBottom="6dp"
+        android:layout_marginTop="2dp"
         android:ellipsize="end"
         android:gravity="center"
         android:maxLines="1"
-        android:textColor="#99FFFFFF"
-        android:fontFamily="@font/inter"
-        android:textSize="12sp"
+        android:textColor="@color/cin_text_tertiary"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:textSize="11sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tv_name"
-        tools:text="Character Name" />
+        tools:text="Paul Atreides" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

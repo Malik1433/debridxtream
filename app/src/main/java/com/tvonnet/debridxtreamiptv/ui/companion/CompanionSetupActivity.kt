@@ -9,7 +9,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import com.tvonnet.debridxtreamiptv.R
-import com.tvonnet.debridxtreamiptv.databinding.ActivityCompanionSetupBinding
+import com.tvonnet.debridxtreamiptv.databinding.FragmentCompanionSetupBinding
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
 import java.util.*
@@ -17,13 +17,13 @@ import java.util.*
 
 class CompanionSetupActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityCompanionSetupBinding
+    private lateinit var binding: FragmentCompanionSetupBinding
     private val db = FirebaseFirestore.getInstance()
     private lateinit var deviceCode: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityCompanionSetupBinding.inflate(layoutInflater)
+        binding = FragmentCompanionSetupBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         deviceCode = getPersistentCode()

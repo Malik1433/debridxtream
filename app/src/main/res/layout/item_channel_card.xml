@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    CINEMATIC LEGACY CHANNEL CARD (300×169 backdrop-style, used by older paths)
+    Replaces: item_channel_card.xml
+    Preserves IDs: iv_channel_logo, iv_favorite_indicator, tv_channel_name
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="300dp"
@@ -6,7 +11,11 @@
     android:layout_margin="8dp"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    android:background="@drawable/tv_card_bg">
+    android:clickable="true"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:background="@drawable/cin_channel_card_state"
+    android:stateListAnimator="@animator/cin_channel_card_state">
 
     <ImageView
         android:id="@+id/iv_channel_logo"
@@ -14,28 +23,66 @@
         android:layout_height="match_parent"
         android:scaleType="centerCrop" />
 
-    <!-- Favorite Heart Icon (Week 13) -->
+    <!-- Bottom scrim for legibility -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/cin_preview_scrim_v2" />
+
+    <!-- LIVE pill (top-left) -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start|top"
+        android:layout_margin="12dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="4dp"
+        android:background="@drawable/cin_pill_live_v2">
+
+        <View
+            android:layout_width="5dp"
+            android:layout_height="5dp"
+            android:layout_marginEnd="5dp"
+            android:background="@drawable/cin_dot_live_v2" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="LIVE"
+            android:textColor="#FFFFFFFF"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.18"
+            android:fontFamily="@font/plus_jakarta_sans" />
+    </LinearLayout>
+
+    <!-- Favorite -->
     <ImageView
         android:id="@+id/iv_favorite_indicator"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
         android:src="@drawable/ic_favorite"
-        android:tint="@color/primary"
+        app:tint="#FFC9A961"
         android:visibility="gone"
         android:layout_gravity="top|end"
-        android:layout_margin="8dp"
+        android:layout_margin="12dp"
         android:contentDescription="Favorite" />
 
+    <!-- Title -->
     <TextView
         android:id="@+id/tv_channel_name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:background="#80000000"
-        android:padding="8dp"
-        android:textColor="@android:color/white"
-        android:textSize="14sp"
+        android:padding="14dp"
+        android:textColor="#FFFFFFFF"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:fontFamily="@font/inter_extrabold"
+        android:letterSpacing="-0.01"
         android:maxLines="1"
         android:ellipsize="end" />
 </FrameLayout>
-

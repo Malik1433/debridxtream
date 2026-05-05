@@ -5,44 +5,45 @@
     android:id="@+id/home_sidebar_container"
     android:layout_width="@dimen/sidebar_width_expanded"
     android:layout_height="match_parent"
-    android:background="@drawable/sidebar_alive_bg"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
-    android:paddingTop="20dp"
-    android:paddingBottom="20dp"
+    android:background="@drawable/cin_bg_sidebar"
+    android:paddingTop="28dp"
+    android:paddingBottom="28dp"
     android:clipChildren="false"
     android:clipToPadding="false">
 
-    <!-- Header (Logo + App Name) -->
+    <!-- Header (Logo + App Name) - Top Centered Stack -->
     <LinearLayout
         android:id="@+id/sidebar_header"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:gravity="center"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
             android:id="@+id/iv_sidebar_logo"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:src="@drawable/ic_login_logo"
             android:contentDescription="@string/app_name"
-            android:scaleType="fitCenter" />
+            android:scaleType="fitCenter"
+            android:layout_gravity="center_horizontal" />
 
         <TextView
             android:id="@+id/tv_sidebar_app_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
+            android:layout_marginTop="12dp"
             android:text="@string/app_title"
-            android:textColor="@color/sidebar_text_primary"
+            android:textColor="@color/cin_text_primary"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:fontFamily="@font/plus_jakarta_sans"
-            android:letterSpacing="0.02" />
+            android:fontFamily="@font/inter_extrabold"
+            android:letterSpacing="0.02"
+            android:layout_gravity="center_horizontal"
+            android:visibility="visible" />
     </LinearLayout>
 
     <!-- Subtle divider under header -->
@@ -51,17 +52,17 @@
         android:layout_width="0dp"
         android:layout_height="1dp"
         android:layout_marginTop="16dp"
-        android:background="@color/sidebar_divider_line"
+        android:background="@color/cin_stroke_subtle"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/sidebar_header" />
 
-    <!-- Main navigation list (full labels visible) -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_sidebar"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="24dp"
+        android:paddingHorizontal="12dp"
         android:clipChildren="false"
         android:clipToPadding="false"
         android:overScrollMode="never"
@@ -77,7 +78,7 @@
         android:layout_height="1dp"
         android:layout_marginTop="20dp"
         android:layout_marginBottom="20dp"
-        android:background="@color/sidebar_divider_line"
+        android:background="@color/cin_stroke_subtle"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toTopOf="@id/sidebar_settings_item" />
@@ -88,6 +89,22 @@
         layout="@layout/item_sidebar_nav"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/btn_sidebar_collapse" />
+
+    <!-- Manual Collapse Button (Left Arrow) -->
+    <ImageButton
+        android:id="@+id/btn_sidebar_collapse"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_arrow_back"
+        android:padding="8dp"
+        android:layout_gravity="center_horizontal"
+        android:tint="@color/cin_text_tertiary"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />

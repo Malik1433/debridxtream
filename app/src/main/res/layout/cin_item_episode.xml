@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Episode row: thumbnail + title + meta + duration -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/episode_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="@dimen/cin_space_3"
+    android:layout_marginBottom="@dimen/cin_space_2"
+    android:background="@drawable/cin_settings_row"
+    android:focusable="true"
+    android:clickable="true">
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/iv_episode_thumb"
+        android:layout_width="160dp"
+        android:layout_height="90dp"
+        android:scaleType="centerCrop"
+        android:background="@color/cin_ink_500"
+        app:shapeAppearanceOverlay="@style/CircleAppearance"
+        tools:src="@tools:sample/avatars" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="@dimen/cin_space_4"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/tv_episode_number"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="EPISODE 1"
+            style="@style/Cin.Text.Overline" />
+        <TextView
+            android:id="@+id/tv_episode_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="Pilot"
+            android:textColor="@color/cin_text_primary"
+            android:textSize="@dimen/cin_text_body"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/tv_episode_synopsis"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:text="Episode synopsis lorem ipsum dolor sit amet."
+            android:textColor="@color/cin_text_secondary"
+            android:textSize="@dimen/cin_text_caption"
+            android:lineSpacingExtra="2dp"
+            android:fontFamily="@font/plus_jakarta_sans" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_episode_duration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/cin_space_4"
+        android:text="48m"
+        android:textColor="@color/cin_text_tertiary"
+        android:textSize="@dimen/cin_text_caption"
+        android:fontFamily="@font/plus_jakarta_sans" />
+
+</LinearLayout>

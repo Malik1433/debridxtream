@@ -1,43 +1,113 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Week 11: EPG Fragment Layout -->
+<!--
+    CINEMATIC EPG (Electronic Program Guide)
+    Replaces: fragment_epg.xml
+    Preserves IDs: recycler_view_epg, progress_bar_epg, text_empty_epg
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_color">
-    
-    <!-- RecyclerView for EPG timeline -->
+    android:background="@drawable/cin_live_bg">
+
+    <!-- Header (fixed, decorative — adapter rows scroll under it) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="40dp"
+        android:paddingTop="32dp"
+        android:paddingBottom="16dp">
+
+        <View
+            android:layout_width="4dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="14dp"
+            android:background="@drawable/cin_section_accent_bar" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TV GUIDE"
+                android:textColor="#FFC9A961"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.32"
+                android:fontFamily="@font/plus_jakarta_sans" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Now &amp; Next"
+                android:textColor="#FFFFFFFF"
+                android:textSize="32sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="-0.02" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- EPG list -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_view_epg"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:paddingStart="24dp"
-        android:paddingTop="24dp"
-        android:paddingEnd="24dp"
-        android:paddingBottom="24dp"
+        android:clipChildren="false"
+        android:paddingHorizontal="40dp"
+        android:paddingTop="124dp"
+        android:paddingBottom="40dp"
         android:visibility="gone"
         tools:listitem="@layout/item_epg_program"
         tools:visibility="visible" />
-    
-    <!-- Loading indicator -->
-    <ProgressBar
-        android:id="@+id/progress_bar_epg"
+
+    <!-- Loading -->
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:visibility="gone" />
-    
-    <!-- Empty state -->
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:id="@+id/progress_bar_epg"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:indeterminateTint="#FFC9A961" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Loading guide…"
+            android:textColor="#B3FFFFFF"
+            android:textSize="14sp"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:letterSpacing="0.04" />
+
+    </LinearLayout>
+
+    <!-- Empty -->
     <TextView
         android:id="@+id/text_empty_epg"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:text="@string/epg_empty_message"
-        android:textColor="@color/text_secondary"
+        android:textColor="#B3FFFFFF"
         android:textSize="18sp"
+        android:fontFamily="@font/plus_jakarta_sans"
         android:visibility="gone" />
 
 </FrameLayout>
-

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Channel-browser overlay scrim (3-stop dark gradient) -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#F00B0E12"
+                android:centerColor="#E60E1218"
+                android:endColor="#F00B0E12"
+                android:angle="90" />
+        </shape>
+    </item>
+
+</layer-list>

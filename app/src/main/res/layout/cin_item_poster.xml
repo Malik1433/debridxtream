@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Cinematic poster card (2:3). Used by movies, series, search, favorites.
+    IDs match common Adapter binding (iv_poster, tv_title, tv_meta, badge_*).
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/poster_root"
+    android:layout_width="@dimen/cin_poster_md_w"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="@dimen/cin_space_4"
+    android:focusable="true"
+    android:clickable="true"
+    android:background="@drawable/cin_card_poster_focus"
+    android:stateListAnimator="@animator/cin_focus_state"
+    android:padding="4dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Poster image -->
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/iv_poster"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/cin_poster_md_h"
+            android:scaleType="centerCrop"
+            android:background="@drawable/cin_poster_mask"
+            app:shapeAppearanceOverlay="@style/CircleAppearance"
+            app:strokeWidth="0dp"
+            tools:background="@color/cin_ink_500"
+            tools:src="@tools:sample/avatars" />
+
+        <!-- Title row -->
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/cin_space_3"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="Title"
+            android:textColor="@color/cin_text_primary"
+            android:textSize="@dimen/cin_text_body_sm"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="2024 · Drama · 8.2"
+            android:textColor="@color/cin_text_tertiary"
+            android:textSize="11sp"
+            android:fontFamily="@font/plus_jakarta_sans" />
+
+    </LinearLayout>
+
+    <!-- Top-right badge (HD/4K) -->
+    <TextView
+        android:id="@+id/badge_quality"
+        style="@style/Cin.Badge.Gold"
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/cin_badge_h"
+        android:layout_gravity="end|top"
+        android:layout_marginEnd="@dimen/cin_space_2"
+        android:layout_marginTop="@dimen/cin_space_2"
+        android:text="HD"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <!-- Bottom progress bar (continue watching) -->
+    <ProgressBar
+        android:id="@+id/progress_watch"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_gravity="bottom"
+        android:layout_marginBottom="44dp"
+        android:layout_marginHorizontal="@dimen/cin_space_2"
+        android:progressDrawable="@drawable/cin_progress_gold"
+        android:progress="35"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+</FrameLayout>

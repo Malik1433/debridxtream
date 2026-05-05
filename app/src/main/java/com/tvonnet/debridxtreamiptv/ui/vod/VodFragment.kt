@@ -211,16 +211,10 @@ class VodFragment : Fragment() {
         rvMoviesGrid.setItemViewCacheSize(20)
         rvMoviesGrid.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
         
-        // Week 15 Audit: Standardize Sidebar Focus expansion
-        val sidebarContainer = view.findViewById<View>(R.id.ll_vod_sidebar_container)
-        val titleArea = view.findViewById<View>(R.id.ll_sidebar_title_area)
-        if (sidebarContainer != null) {
-            com.tvonnet.debridxtreamiptv.utils.SidebarFocusHelper.attachStandardSidebarAnimation(
-                sidebarContainer = sidebarContainer,
-                focusTrigger = rvCategoriesSidebar,
-                titleArea = titleArea
-            )
-        }
+        // Cinematic sidebar: fixed expanded width (288dp in the layout), no auto-collapse.
+        // The legacy SidebarFocusHelper.attachStandardSidebarAnimation was removed because
+        // it toggled between expanded and collapsed states based on focus, which felt jittery
+        // and is inconsistent with the cinematic Home sidebar.
         
         // Add explicit spacing decoration (32dp margins)
         val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_standard)

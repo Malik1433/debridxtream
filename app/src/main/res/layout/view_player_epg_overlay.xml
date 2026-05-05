@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    CINEMATIC LIVE TV PLAYER OVERLAY
+    Replaces: view_player_epg_overlay.xml
+    Preserves IDs: epg_overlay, img_channel_logo, tv_channel_number,
+      tv_channel_name, tv_live_badge, tv_now_time, tv_now_title,
+      progress_now, tv_epg_status,
+      card_now, tv_now_card_badge, tv_now_card_time, tv_now_card_title,
+      card_next_1, tv_next_1_time, tv_next_1_title,
+      card_next_2, tv_next_2_time, tv_next_2_title,
+      card_next_3, tv_next_3_time, tv_next_3_title
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/epg_overlay"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -10,16 +22,19 @@
         android:id="@+id/epg_overlay_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_player_info_bar"
-        android:orientation="horizontal">
+        android:background="@drawable/cin_player_info_bar"
+        android:orientation="horizontal"
+        android:padding="22dp"
+        android:elevation="14dp">
 
-        <!-- Left: channel info (logo + number + name + current program) -->
+        <!-- LEFT: channel info -->
         <LinearLayout
-            android:layout_width="360dp"
+            android:layout_width="380dp"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingEnd="18dp">
+            android:paddingEnd="22dp">
 
+            <!-- Logo + number + name -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -28,102 +43,135 @@
 
                 <ImageView
                     android:id="@+id/img_channel_logo"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
                     android:scaleType="centerCrop"
                     android:src="@drawable/tv_card_placeholder" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="32dp"
+                    android:layout_marginHorizontal="14dp"
+                    android:background="#33C9A961" />
 
                 <TextView
                     android:id="@+id/tv_channel_number"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:textColor="@android:color/white"
-                    android:textSize="18sp"
+                    android:textColor="#FFC9A961"
+                    android:textSize="20sp"
                     android:textStyle="bold"
+                    android:fontFamily="@font/inter_extrabold"
+                    android:letterSpacing="0.02"
                     android:text="1" />
 
                 <TextView
                     android:id="@+id/tv_channel_name"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
+                    android:layout_marginStart="12dp"
                     android:layout_weight="1"
-                    android:textColor="@android:color/white"
-                    android:textSize="18sp"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="20sp"
                     android:textStyle="bold"
+                    android:fontFamily="@font/inter_extrabold"
+                    android:letterSpacing="-0.01"
                     android:maxLines="1"
                     android:ellipsize="end"
                     android:text="Channel Name" />
             </LinearLayout>
 
+            <!-- LIVE pill + time -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="14dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <TextView
+                <LinearLayout
                     android:id="@+id/tv_live_badge"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/badge_live_red"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/cin_pill_live_v2"
                     android:paddingHorizontal="10dp"
-                    android:paddingVertical="6dp"
-                    android:text="LIVE"
-                    android:textAllCaps="true"
-                    android:textColor="@android:color/white"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:paddingVertical="5dp">
+
+                    <View
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:layout_marginEnd="5dp"
+                        android:background="@drawable/cin_dot_live_v2" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="LIVE"
+                        android:textAllCaps="true"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.18"
+                        android:fontFamily="@font/plus_jakarta_sans" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/tv_now_time"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp"
-                    android:alpha="0.9"
+                    android:layout_marginStart="12dp"
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="13sp"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:letterSpacing="0.02"
                     android:maxLines="1"
                     android:ellipsize="end"
                     android:text="--:-- - --:--" />
             </LinearLayout>
 
+            <!-- Now title -->
             <TextView
                 android:id="@+id/tv_now_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:textColor="@android:color/white"
+                android:layout_marginTop="10dp"
+                android:textColor="#FFFFFFFF"
                 android:textSize="18sp"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:textStyle="bold"
                 android:maxLines="1"
                 android:ellipsize="end"
                 android:text="Program title" />
 
+            <!-- Progress -->
             <ProgressBar
                 android:id="@+id/progress_now"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
-                android:layout_height="4dp"
-                android:layout_marginTop="12dp"
+                android:layout_height="3dp"
+                android:layout_marginTop="14dp"
                 android:max="100"
                 android:progress="0"
-                android:progressDrawable="@android:drawable/progress_horizontal" />
+                android:progressDrawable="@drawable/cin_progress_now_gold" />
 
+            <!-- Sync status -->
             <TextView
                 android:id="@+id/tv_epg_status"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:textColor="@android:color/white"
-                android:textSize="13sp"
-                android:alpha="0.8"
+                android:textColor="#80FFFFFF"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.18"
+                android:fontFamily="@font/plus_jakarta_sans"
                 android:visibility="gone"
-                android:text="Syncing TV guide…" />
+                android:text="SYNCING TV GUIDE…" />
         </LinearLayout>
 
-        <!-- Right: NOW card + NEXT cards -->
+        <!-- RIGHT: NOW + NEXT cards -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -131,13 +179,14 @@
             android:orientation="horizontal"
             android:gravity="center_vertical">
 
+            <!-- NOW card (gold) -->
             <LinearLayout
                 android:id="@+id/card_now"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="14dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_epg_card_now"
+                android:layout_marginEnd="12dp"
+                android:layout_weight="1.1"
+                android:background="@drawable/cin_epg_card_now"
                 android:orientation="vertical"
                 android:padding="14dp">
 
@@ -147,28 +196,44 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
-                    <TextView
+                    <LinearLayout
                         android:id="@+id/tv_now_card_badge"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/badge_live_red"
-                        android:paddingHorizontal="10dp"
-                        android:paddingVertical="6dp"
-                        android:text="LIVE"
-                        android:textAllCaps="true"
-                        android:textColor="@android:color/white"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="3dp"
+                        android:background="@drawable/cin_pill_live_v2">
+                        <View
+                            android:layout_width="5dp"
+                            android:layout_height="5dp"
+                            android:layout_marginEnd="4dp"
+                            android:background="@drawable/cin_dot_live_v2" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="LIVE"
+                            android:textAllCaps="true"
+                            android:textColor="#FFFFFFFF"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.18"
+                            android:fontFamily="@font/plus_jakarta_sans" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/tv_now_card_time"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
+                        android:layout_marginStart="10dp"
                         android:layout_weight="1"
                         android:gravity="end"
-                        android:textColor="#111111"
-                        android:textSize="13sp"
+                        android:textColor="#1A1108"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:letterSpacing="0.04"
                         android:maxLines="1"
                         android:ellipsize="end"
                         android:text="--:-- - --:--" />
@@ -179,21 +244,24 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:textColor="#111111"
-                    android:textSize="18sp"
+                    android:textColor="#1A1108"
+                    android:textSize="17sp"
                     android:textStyle="bold"
+                    android:fontFamily="@font/inter_extrabold"
+                    android:letterSpacing="-0.01"
                     android:maxLines="1"
                     android:ellipsize="end"
                     android:text="Program title" />
             </LinearLayout>
 
+            <!-- NEXT cards -->
             <LinearLayout
                 android:id="@+id/card_next_1"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="14dp"
+                android:layout_marginEnd="12dp"
                 android:layout_weight="1"
-                android:background="@drawable/bg_epg_card_next"
+                android:background="@drawable/cin_epg_card_next"
                 android:orientation="vertical"
                 android:padding="14dp">
 
@@ -202,29 +270,30 @@
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
-
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/bg_badge_next_green"
-                        android:paddingHorizontal="10dp"
-                        android:paddingVertical="6dp"
+                        android:background="@drawable/cin_badge_next_emerald"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="3dp"
                         android:text="NEXT"
                         android:textAllCaps="true"
-                        android:textColor="@android:color/white"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
-
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="10sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.18"
+                        android:fontFamily="@font/plus_jakarta_sans" />
                     <TextView
                         android:id="@+id/tv_next_1_time"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
+                        android:layout_marginStart="10dp"
                         android:layout_weight="1"
                         android:gravity="end"
-                        android:textColor="@android:color/white"
-                        android:textSize="13sp"
-                        android:alpha="0.9"
+                        android:textColor="#80FFFFFF"
+                        android:textSize="12sp"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:letterSpacing="0.04"
                         android:maxLines="1"
                         android:ellipsize="end"
                         android:text="--:-- - --:--" />
@@ -235,9 +304,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:textColor="@android:color/white"
-                    android:textSize="18sp"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="16sp"
                     android:textStyle="bold"
+                    android:fontFamily="@font/plus_jakarta_sans"
                     android:maxLines="1"
                     android:ellipsize="end"
                     android:text="Upcoming title" />
@@ -247,9 +317,9 @@
                 android:id="@+id/card_next_2"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="14dp"
+                android:layout_marginEnd="12dp"
                 android:layout_weight="1"
-                android:background="@drawable/bg_epg_card_next"
+                android:background="@drawable/cin_epg_card_next"
                 android:orientation="vertical"
                 android:padding="14dp">
 
@@ -258,29 +328,30 @@
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
-
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/bg_badge_next_green"
-                        android:paddingHorizontal="10dp"
-                        android:paddingVertical="6dp"
+                        android:background="@drawable/cin_badge_next_emerald"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="3dp"
                         android:text="NEXT"
                         android:textAllCaps="true"
-                        android:textColor="@android:color/white"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
-
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="10sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.18"
+                        android:fontFamily="@font/plus_jakarta_sans" />
                     <TextView
                         android:id="@+id/tv_next_2_time"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
+                        android:layout_marginStart="10dp"
                         android:layout_weight="1"
                         android:gravity="end"
-                        android:textColor="@android:color/white"
-                        android:textSize="13sp"
-                        android:alpha="0.9"
+                        android:textColor="#80FFFFFF"
+                        android:textSize="12sp"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:letterSpacing="0.04"
                         android:maxLines="1"
                         android:ellipsize="end"
                         android:text="--:-- - --:--" />
@@ -291,9 +362,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:textColor="@android:color/white"
-                    android:textSize="18sp"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="16sp"
                     android:textStyle="bold"
+                    android:fontFamily="@font/plus_jakarta_sans"
                     android:maxLines="1"
                     android:ellipsize="end"
                     android:text="Upcoming title" />
@@ -304,7 +376,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:background="@drawable/bg_epg_card_next"
+                android:background="@drawable/cin_epg_card_next"
                 android:orientation="vertical"
                 android:padding="14dp">
 
@@ -313,29 +385,30 @@
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
-
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/bg_badge_next_green"
-                        android:paddingHorizontal="10dp"
-                        android:paddingVertical="6dp"
+                        android:background="@drawable/cin_badge_next_emerald"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="3dp"
                         android:text="NEXT"
                         android:textAllCaps="true"
-                        android:textColor="@android:color/white"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
-
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="10sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.18"
+                        android:fontFamily="@font/plus_jakarta_sans" />
                     <TextView
                         android:id="@+id/tv_next_3_time"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
+                        android:layout_marginStart="10dp"
                         android:layout_weight="1"
                         android:gravity="end"
-                        android:textColor="@android:color/white"
-                        android:textSize="13sp"
-                        android:alpha="0.9"
+                        android:textColor="#80FFFFFF"
+                        android:textSize="12sp"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:letterSpacing="0.04"
                         android:maxLines="1"
                         android:ellipsize="end"
                         android:text="--:-- - --:--" />
@@ -346,9 +419,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:textColor="@android:color/white"
-                    android:textSize="18sp"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="16sp"
                     android:textStyle="bold"
+                    android:fontFamily="@font/plus_jakarta_sans"
                     android:maxLines="1"
                     android:ellipsize="end"
                     android:text="Upcoming title" />

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Channel card (square) -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/channel_root"
+    android:layout_width="@dimen/cin_channel_card"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="@dimen/cin_space_4"
+    android:focusable="true"
+    android:clickable="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:layout_width="@dimen/cin_channel_card"
+            android:layout_height="@dimen/cin_channel_card"
+            android:background="@drawable/cin_channel_card"
+            android:padding="@dimen/cin_space_3">
+
+            <ImageView
+                android:id="@+id/iv_channel_logo"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="center"
+                android:scaleType="fitCenter"
+                tools:src="@tools:sample/avatars" />
+
+            <!-- Live dot + label -->
+            <LinearLayout
+                android:id="@+id/badge_live_container"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start|top"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="3dp"
+                android:background="@drawable/cin_badge_live">
+                <View
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="@drawable/cin_dot_live" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="LIVE"
+                    android:textColor="@color/cin_text_primary"
+                    android:textSize="9sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.18"
+                    android:fontFamily="@font/plus_jakarta_sans" />
+            </LinearLayout>
+
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/tv_channel_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/cin_space_2"
+            android:gravity="center"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="Channel"
+            android:textColor="@color/cin_text_primary"
+            android:textSize="@dimen/cin_text_caption"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_channel_program"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="Now playing"
+            android:textColor="@color/cin_text_tertiary"
+            android:textSize="11sp"
+            android:fontFamily="@font/plus_jakarta_sans" />
+
+    </LinearLayout>
+</FrameLayout>

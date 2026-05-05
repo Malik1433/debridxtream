@@ -1,93 +1,84 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sidebar Category Item with Flag/Icon -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    CINEMATIC LIVE TV SIDEBAR CATEGORY ROW
+    Replaces: item_sidebar_category.xml
+    Preserves IDs: tv_category_name_sidebar (and any category-icon id used by adapter)
+
+    SidebarCategoryAdapter binds: root view + tv_category_name_sidebar.
+    We add v_active_indicator + iv_category_icon so it matches both modern and
+    legacy bindings.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:background="@drawable/sidebar_item_bg"
-    android:paddingStart="16dp"
-    android:paddingEnd="12dp"
-    android:paddingTop="10dp"
-    android:paddingBottom="10dp"
-    android:layout_marginTop="5dp"
-    android:layout_marginBottom="5dp"
-    android:clipChildren="false"
-    android:clipToPadding="false"
+    android:layout_height="56dp"
+    android:layout_marginVertical="3dp"
     android:focusable="true"
     android:focusableInTouchMode="true"
     android:clickable="true"
-    android:stateListAnimator="@animator/sidebar_item_animator">
+    android:clipChildren="false"
+    android:clipToPadding="false">
 
-    <View
-        android:layout_width="2dp"
-        android:layout_height="32dp"
-        android:layout_marginEnd="10dp"
-        android:background="@drawable/sidebar_selection_bar_bg"
-        android:duplicateParentState="true" />
-
-    <!-- Category Icon/Flag (Circular) -->
-    <FrameLayout
-        android:id="@+id/category_icon_container"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:background="@drawable/category_icon_circle"
-        android:clipToOutline="true"
-        android:outlineProvider="background"
-        android:elevation="2dp"
-        android:duplicateParentState="true">
-
-        <com.google.android.material.imageview.ShapeableImageView
-            android:id="@+id/iv_category_flag"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_margin="2dp"
-            android:scaleType="centerCrop"
-            app:shapeAppearanceOverlay="@style/FlagCircleShapeOverlay"
-            app:strokeColor="@color/tv_border_normal"
-            app:strokeWidth="1dp"
-            android:contentDescription="@string/live_sidebar_icon_placeholder"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/tv_category_icon"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:text="@string/live_sidebar_icon_placeholder"
-            android:textColor="@color/tv_text_primary"
-            android:textSize="18sp" />
-    </FrameLayout>
-
-    <!-- Category Info -->
     <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical"
-        android:layout_marginStart="12dp">
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/cin_sidebar_cat_state"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="14dp">
 
+        <!-- Active gold bar -->
+        <View
+            android:id="@+id/v_active_indicator"
+            android:layout_width="3dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/cin_sidebar_active_bar"
+            android:visibility="invisible" />
+
+        <!-- Category icon (optional — adapter may set src) -->
+        <ImageView
+            android:id="@+id/iv_category_icon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="12dp"
+            android:scaleType="fitCenter"
+            app:tint="#FFFFFFFF"
+            android:visibility="gone"
+            tools:visibility="visible"
+            tools:src="@android:drawable/ic_menu_view" />
+
+        <!-- Category name (modern binding) -->
         <TextView
             android:id="@+id/tv_category_name_sidebar"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="@string/live_category_placeholder"
+            android:layout_weight="1"
+            android:textColor="#FFFFFFFF"
             android:textSize="15sp"
-            android:textStyle="normal"
-            android:textColor="@color/tv_text_primary"
-            android:includeFontPadding="false"
-            android:maxLines="2"
-            android:ellipsize="end" />
+            android:textStyle="bold"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:letterSpacing="0.02"
+            android:maxLines="1"
+            android:ellipsize="end"
+            tools:text="Sports HD" />
 
+        <!-- Channel count (optional — set in adapter) -->
         <TextView
-            android:id="@+id/tv_channel_count_sidebar"
+            android:id="@+id/tv_category_count"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/live_channel_count_placeholder"
+            android:layout_marginStart="8dp"
+            android:textColor="#80FFFFFF"
             android:textSize="11sp"
-            android:textColor="@color/tv_text_tertiary"
-            android:includeFontPadding="false" />
+            android:textStyle="bold"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:letterSpacing="0.06"
+            android:visibility="gone"
+            tools:visibility="visible"
+            tools:text="142" />
+
     </LinearLayout>
 
-</LinearLayout>
+</FrameLayout>

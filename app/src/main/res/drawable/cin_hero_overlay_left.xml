@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Heavy left scrim for text legibility -->
+    <item>
+        <shape>
+            <gradient
+                android:startColor="#F2070708"
+                android:centerColor="#C70D0D10"
+                android:endColor="#000D0D10"
+                android:angle="0" />
+        </shape>
+    </item>
+    <!-- Bottom dark band to blend into content -->
+    <item android:gravity="bottom" android:height="360dp">
+        <shape>
+            <gradient
+                android:startColor="#00070708"
+                android:endColor="#EB0A0A0C"
+                android:angle="270" />
+        </shape>
+    </item>
+    <!-- Top haze for breadcrumb chrome -->
+    <item android:gravity="top" android:height="180dp">
+        <shape>
+            <gradient
+                android:startColor="#A60A0A0C"
+                android:endColor="#000A0A0C"
+                android:angle="270" />
+        </shape>
+    </item>
+</layer-list>

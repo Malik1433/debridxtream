@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Drawable aliases for icon names referenced by the cinematic redesign layouts
+  but not shipped in the redesign package. These point at existing legacy
+  drawables that match closely.
+-->
+<resources>
+    <item name="ic_chevron_right" type="drawable">@drawable/ic_arrow_right</item>
+    <item name="ic_skip_back" type="drawable">@drawable/ic_rewind</item>
+    <item name="ic_skip_fwd" type="drawable">@drawable/ic_forward</item>
+</resources>

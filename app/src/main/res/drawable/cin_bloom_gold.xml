@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Animated ambient bloom (gold) for hero/splash backgrounds -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient
+        android:type="radial"
+        android:gradientRadius="400"
+        android:startColor="@color/cin_gold_glow_25"
+        android:centerColor="@color/cin_gold_glow_08"
+        android:endColor="@android:color/transparent" />
+</shape>

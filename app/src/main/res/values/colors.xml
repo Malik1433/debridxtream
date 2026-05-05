@@ -280,9 +280,12 @@
     <color name="sidebar_bg_navy">#0F172A</color>
     <color name="sidebar_surface">#1E293B</color>
     <color name="sidebar_surface_light">#283548</color>
-    <color name="sidebar_active_emerald">#22C55E</color>
-    <color name="sidebar_emerald_glow">#3322C55E</color>
-    <color name="sidebar_emerald_soft_bg">#1A22C55E</color>
+    <!-- Was emerald (#22C55E); retoned to cinematic gold so Settings + sidebar focus
+         states match the rest of the app. The names stay for backward compat with
+         drawables that reference @color/sidebar_active_emerald etc. -->
+    <color name="sidebar_active_emerald">#D4AF37</color>
+    <color name="sidebar_emerald_glow">#33D4AF37</color>
+    <color name="sidebar_emerald_soft_bg">#1AD4AF37</color>
     <color name="sidebar_text_primary">#FFFFFF</color>
     <color name="sidebar_text_dim">#94A3B8</color>
     <color name="sidebar_divider_line">#3394A3B8</color>

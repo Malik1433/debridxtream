@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    CINEMATIC COMPANION SETUP (QR pairing screen)
+    Wired to CompanionSetupActivity via FragmentCompanionSetupBinding.
+    IDs match the activity's binding accessors:
+      tv_device_code, iv_qr_code, pb_loading
+    Plus: tv_status, btn_cancel for future use.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/cin_bg_app">
+
+    <ImageView
+        android:layout_width="700dp"
+        android:layout_height="700dp"
+        android:layout_gravity="center"
+        android:src="@drawable/cin_bloom_gold"
+        android:alpha="0.5" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/cin_vignette_radial" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="horizontal"
+        android:background="@drawable/cin_card_glass"
+        android:padding="@dimen/cin_space_10">
+
+        <!-- Left: instructions -->
+        <LinearLayout
+            android:layout_width="360dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_gravity="center_vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="STEP 1 OF 2"
+                style="@style/Cin.Text.Overline" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_3"
+                android:text="Pair your phone"
+                android:textColor="@color/cin_text_primary"
+                android:textSize="@dimen/cin_text_title"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="-0.01" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_3"
+                android:text="Open the Derbix companion app on your phone and scan the QR code, or enter the pairing code manually."
+                android:textColor="@color/cin_text_secondary"
+                android:textSize="@dimen/cin_text_body_sm"
+                android:lineSpacingExtra="4dp"
+                android:fontFamily="@font/plus_jakarta_sans" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_6"
+                android:orientation="vertical"
+                android:padding="@dimen/cin_space_4"
+                android:background="@drawable/cin_pill_glass">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="PAIRING CODE"
+                    android:textColor="@color/cin_text_tertiary"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.18"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/tv_device_code"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/cin_space_2"
+                    android:textColor="@color/cin_gold_300"
+                    android:textSize="@dimen/cin_text_title"
+                    android:letterSpacing="0.12"
+                    android:fontFamily="@font/inter_extrabold"
+                    tools:text="DRBX-7G2K" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/cin_space_5"
+                android:text="Waiting for phone…"
+                android:textColor="@color/cin_text_tertiary"
+                android:textSize="@dimen/cin_text_caption"
+                android:fontFamily="@font/plus_jakarta_sans" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_cancel"
+                style="@style/Cin.Button.Secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/cin_btn_h"
+                android:layout_marginTop="@dimen/cin_space_5"
+                android:text="Cancel" />
+        </LinearLayout>
+
+        <!-- Right: QR card -->
+        <FrameLayout
+            android:layout_width="320dp"
+            android:layout_height="320dp"
+            android:layout_marginStart="@dimen/cin_space_8"
+            android:layout_gravity="center_vertical"
+            android:background="@drawable/cin_qr_frame"
+            android:padding="@dimen/cin_space_4">
+
+            <ImageView
+                android:id="@+id/iv_qr_code"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="fitCenter"
+                tools:background="#FFFFFF" />
+
+            <ProgressBar
+                android:id="@+id/pb_loading"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:indeterminateTint="@color/cin_gold_500" />
+        </FrameLayout>
+    </LinearLayout>
+
+</FrameLayout>

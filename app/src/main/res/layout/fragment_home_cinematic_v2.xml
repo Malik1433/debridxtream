@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    CINEMATIC HOME LAYOUT
+    Replaces: fragment_home_cinematic.xml
+    IDs preserved: sidebar_panel, scroll_content, iv_hero_background,
+      tv_hero_title, tv_hero_description, btn_hero_watch, btn_hero_details,
+      rv_top_10_movies, rv_top_10_series
+    New IDs added: rv_continue_watching, rv_live_now, top_bar (include)
+-->
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/cin_bg_app">
+
+    <!-- Hero backdrop image -->
+    <ImageView
+        android:id="@+id/iv_hero_background"
+        android:layout_width="match_parent"
+        android:layout_height="540dp"
+        android:scaleType="centerCrop"
+        android:alpha="0.7"
+        tools:src="@tools:sample/backgrounds/scenic" />
+
+    <!-- Hero overlay (darken bottom for legibility) -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="540dp"
+        android:background="@drawable/cin_hero_overlay" />
+
+    <!-- Ambient gold bloom (top-right) -->
+    <ImageView
+        android:layout_width="600dp"
+        android:layout_height="600dp"
+        android:layout_gravity="end|top"
+        android:layout_marginTop="-200dp"
+        android:layout_marginEnd="-200dp"
+        android:src="@drawable/cin_bloom_gold"
+        android:alpha="0.6" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <!-- Sidebar -->
+        <include
+            android:id="@+id/sidebar_panel"
+            layout="@layout/cin_view_sidebar"
+            android:layout_width="@dimen/cin_sidebar_expanded"
+            android:layout_height="0dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <!-- Top bar -->
+        <include
+            android:id="@+id/top_bar"
+            layout="@layout/cin_view_topbar"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/cin_topbar_h"
+            app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Content scroll -->
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/scroll_content"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:clipToPadding="false"
+            android:clipChildren="false"
+            android:paddingBottom="@dimen/cin_space_12"
+            app:layout_constraintTop_toBottomOf="@id/top_bar"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/sidebar_panel"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- HERO -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="380dp"
+                    android:orientation="vertical"
+                    android:gravity="bottom"
+                    android:paddingHorizontal="@dimen/cin_gutter_screen"
+                    android:paddingBottom="@dimen/cin_space_8">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/cin_space_3"
+                        android:text="FEATURED"
+                        style="@style/Cin.Text.Overline" />
+
+                    <TextView
+                        android:id="@+id/tv_hero_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:maxLines="2"
+                        android:ellipsize="end"
+                        android:text="The Last Cinematic"
+                        android:textColor="@color/cin_text_primary"
+                        android:textSize="@dimen/cin_text_display"
+                        android:fontFamily="@font/inter_extrabold"
+                        android:letterSpacing="-0.02"
+                        android:lineSpacingExtra="-8dp" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/cin_space_3"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="2024"
+                            android:textColor="@color/cin_text_secondary"
+                            android:textSize="@dimen/cin_text_caption"
+                            android:fontFamily="@font/plus_jakarta_sans" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="@dimen/cin_space_2"
+                            android:text="·"
+                            android:textColor="@color/cin_text_tertiary" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Drama / Thriller"
+                            android:textColor="@color/cin_text_secondary"
+                            android:textSize="@dimen/cin_text_caption"
+                            android:fontFamily="@font/plus_jakarta_sans" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="@dimen/cin_space_2"
+                            android:text="·"
+                            android:textColor="@color/cin_text_tertiary" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="★ 8.4"
+                            android:textColor="@color/cin_gold_300"
+                            android:textSize="@dimen/cin_text_caption"
+                            android:fontFamily="@font/plus_jakarta_sans"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_hero_description"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/cin_space_4"
+                        android:maxLines="2"
+                        android:ellipsize="end"
+                        android:text="A masterpiece of modern cinema that redefines what's possible when storytelling meets vision."
+                        android:textColor="@color/cin_text_secondary"
+                        android:textSize="@dimen/cin_text_body"
+                        android:lineSpacingExtra="4dp"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        app:layout_constraintWidth_max="600dp" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/cin_space_6"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_hero_watch"
+                            style="@style/Cin.Button.Primary"
+                            android:layout_width="wrap_content"
+                            android:layout_height="@dimen/cin_btn_h"
+                            android:layout_marginEnd="@dimen/cin_space_3"
+                            android:text="Play now"
+                            app:icon="@drawable/ic_play"
+                            app:iconTint="@color/cin_text_on_gold"
+                            app:iconGravity="textStart"
+                            app:iconPadding="8dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_hero_details"
+                            style="@style/Cin.Button.Secondary"
+                            android:layout_width="wrap_content"
+                            android:layout_height="@dimen/cin_btn_h"
+                            android:text="More info"
+                            app:icon="@drawable/ic_info"
+                            app:iconTint="@color/cin_text_primary"
+                            app:iconGravity="textStart"
+                            app:iconPadding="8dp" />
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- CONTINUE WATCHING -->
+                <include layout="@layout/cin_view_section_header" android:id="@+id/header_continue" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_continue_watching"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="@dimen/cin_gutter_screen"
+                    android:clipToPadding="false"
+                    android:clipChildren="false"
+                    android:layout_marginBottom="@dimen/cin_space_6"
+                    tools:listitem="@layout/cin_item_poster"
+                    tools:itemCount="6"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+                <!-- LIVE NOW -->
+                <include layout="@layout/cin_view_section_header" android:id="@+id/header_live" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_live_now"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="@dimen/cin_gutter_screen"
+                    android:clipToPadding="false"
+                    android:clipChildren="false"
+                    android:layout_marginBottom="@dimen/cin_space_6"
+                    tools:listitem="@layout/cin_item_channel"
+                    tools:itemCount="8"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+                <!-- TOP 10 MOVIES -->
+                <include layout="@layout/cin_view_section_header" android:id="@+id/header_top_movies" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_top_10_movies"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="@dimen/cin_gutter_screen"
+                    android:clipToPadding="false"
+                    android:clipChildren="false"
+                    android:layout_marginBottom="@dimen/cin_space_6"
+                    tools:listitem="@layout/cin_item_top10"
+                    tools:itemCount="5"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+                <!-- TOP 10 SERIES -->
+                <include layout="@layout/cin_view_section_header" android:id="@+id/header_top_series" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_top_10_series"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="@dimen/cin_gutter_screen"
+                    android:clipToPadding="false"
+                    android:clipChildren="false"
+                    android:layout_marginBottom="@dimen/cin_space_6"
+                    tools:listitem="@layout/cin_item_top10"
+                    tools:itemCount="5"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

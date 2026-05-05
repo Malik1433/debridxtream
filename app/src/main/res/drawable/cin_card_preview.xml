@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Live preview frame: rounded ink card with gold-tinted stroke -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/cin_radius_xl" />
+            <solid android:color="@color/cin_ink_500" />
+            <stroke android:width="1dp" android:color="@color/cin_stroke_subtle" />
+        </shape>
+    </item>
+</layer-list>

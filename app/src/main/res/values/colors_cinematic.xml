@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ============================================================
+  DERBIX TV — CINEMATIC THEME TOKENS
+  ============================================================
+  Drop into: app/src/main/res/values/
+  Coexists with existing colors.xml (no overrides). All names
+  are namespaced `cin_*` to avoid collision.
+  Palette: Midnight ink + Luxury Gold accent.
+-->
+<resources>
+
+    <!-- ========== INK / SURFACE ========== -->
+    <color name="cin_ink_900">#050608</color>          <!-- Deepest void -->
+    <color name="cin_ink_800">#0B0E15</color>          <!-- Default app background -->
+    <color name="cin_ink_700">#11141C</color>          <!-- Elevated surface -->
+    <color name="cin_ink_600">#181C26</color>          <!-- Card surface -->
+    <color name="cin_ink_500">#222632</color>          <!-- Hover surface -->
+    <color name="cin_ink_400">#2D3140</color>          <!-- Border line -->
+
+    <!-- ========== GOLD ACCENT (single source of truth) ========== -->
+    <color name="cin_gold_50">#FFF7DC</color>          <!-- Highlight on gold -->
+    <color name="cin_gold_200">#F5D976</color>         <!-- Pale gold (chip text) -->
+    <color name="cin_gold_300">#F0CB57</color>         <!-- Light gold -->
+    <color name="cin_gold_500">#D4AF37</color>         <!-- Primary gold -->
+    <color name="cin_gold_700">#A8801F</color>         <!-- Pressed gold -->
+    <color name="cin_gold_glow_40">#66D4AF37</color>   <!-- 40% glow -->
+    <color name="cin_gold_glow_25">#40D4AF37</color>   <!-- 25% glow -->
+    <color name="cin_gold_glow_15">#26D4AF37</color>   <!-- 15% glow -->
+    <color name="cin_gold_glow_08">#14D4AF37</color>   <!-- 8% wash -->
+
+    <!-- ========== TEXT ========== -->
+    <color name="cin_text_primary">#FFFFFF</color>
+    <color name="cin_text_secondary">#B8C0CC</color>
+    <color name="cin_text_tertiary">#7A828F</color>
+    <color name="cin_text_disabled">#4A5160</color>
+    <color name="cin_text_on_gold">#1A1208</color>     <!-- Dark on gold buttons -->
+
+    <!-- ========== GLASS / TRANSLUCENT ========== -->
+    <color name="cin_glass_06">#0FFFFFFF</color>       <!-- 6% white -->
+    <color name="cin_glass_10">#1AFFFFFF</color>
+    <color name="cin_glass_15">#26FFFFFF</color>
+    <color name="cin_glass_20">#33FFFFFF</color>
+    <color name="cin_stroke_subtle">#1FFFFFFF</color>  <!-- ~12% white -->
+    <color name="cin_stroke_medium">#33FFFFFF</color>
+
+    <!-- ========== STATE / SEMANTIC ========== -->
+    <color name="cin_live_red">#FF3B47</color>
+    <color name="cin_live_glow">#66FF3B47</color>
+    <color name="cin_success">#34D399</color>
+    <color name="cin_warning">#FBBF24</color>
+    <color name="cin_error">#F87171</color>
+    <color name="cin_info">#60A5FA</color>
+
+    <!-- ========== OVERLAYS ========== -->
+    <color name="cin_overlay_70">#B3000000</color>
+    <color name="cin_overlay_50">#80000000</color>
+    <color name="cin_overlay_30">#4D000000</color>
+    <color name="cin_overlay_10">#1A000000</color>
+
+    <!-- ========== BADGE BACKGROUNDS ========== -->
+    <color name="cin_badge_4k">#33D4AF37</color>       <!-- gold tint -->
+    <color name="cin_badge_hd">#3360A5FA</color>
+    <color name="cin_badge_new">#3334D399</color>
+    <color name="cin_badge_quality">#33FFFFFF</color>
+
+    <!-- ========== POSTER FALLBACK GRADIENTS ========== -->
+    <color name="cin_poster_fallback_a">#1F2433</color>
+    <color name="cin_poster_fallback_b">#0E1119</color>
+
+    <!-- ========== SIDEBAR ========== -->
+    <color name="cin_sidebar_bg_top">#0E1119</color>
+    <color name="cin_sidebar_bg_bottom">#070910</color>
+    <color name="cin_sidebar_active_bg">#1FD4AF37</color>
+    <color name="cin_sidebar_active_text">#F0CB57</color>
+    <color name="cin_sidebar_inactive_text">#7A828F</color>
+
+    <!-- ========== ALIASES (mirrors of existing names so old layouts adopt theme without rewrite) ========== -->
+    <!-- Uncomment any of these lines AFTER auditing usage if you want a screen to flip globally. -->
+    <!--
+    <color name="background_pure_black">@color/cin_ink_900</color>
+    <color name="background_dark">@color/cin_ink_800</color>
+    <color name="surface_dark">@color/cin_ink_700</color>
+    <color name="gold_primary">@color/cin_gold_500</color>
+    <color name="cinematic_gold">@color/cin_gold_500</color>
+    -->
+
+</resources>

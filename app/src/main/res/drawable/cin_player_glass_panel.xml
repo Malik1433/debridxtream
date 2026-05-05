@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bottom control panel surface used by custom_player_control_view -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Outer shadow -->
+    <item android:left="8dp" android:top="12dp" android:right="8dp" android:bottom="0dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#99000000" />
+            <corners android:radius="28dp" />
+        </shape>
+    </item>
+
+    <!-- Glass body -->
+    <item android:bottom="8dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#F50C0F14"
+                android:endColor="#E815171F"
+                android:angle="270" />
+            <corners android:radius="28dp" />
+            <stroke android:width="1dp" android:color="#26C9A961" />
+        </shape>
+    </item>
+
+    <!-- Inner top highlight -->
+    <item android:bottom="8dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#1FFFFFFF"
+                android:endColor="#00000000"
+                android:angle="270" />
+            <corners android:radius="28dp" />
+        </shape>
+    </item>
+
+</layer-list>
