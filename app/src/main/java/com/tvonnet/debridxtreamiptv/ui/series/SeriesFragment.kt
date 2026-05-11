@@ -207,18 +207,10 @@ class SeriesFragment : Fragment() {
         })
         
         // sidebarContainer is ll_series_sidebar_container
-        // focusTrigger is rvCategoriesSidebar
-        // titleArea is ll_sidebar_title_area
-        val sidebarContainer = requireView().findViewById<View>(R.id.ll_series_sidebar_container)
-        val titleArea = requireView().findViewById<View>(R.id.ll_sidebar_title_area)
-        
-        if (sidebarContainer != null) {
-            com.tvonnet.debridxtreamiptv.utils.SidebarFocusHelper.attachStandardSidebarAnimation(
-                sidebarContainer = sidebarContainer,
-                focusTrigger = rvCategoriesSidebar,
-                titleArea = titleArea
-            )
-        }
+        // Cinematic sidebar: fixed expanded width (288dp in the layout), no auto-collapse.
+        // The legacy SidebarFocusHelper.attachStandardSidebarAnimation was removed because
+        // it toggled between expanded and collapsed states based on focus, which felt jittery
+        // and is inconsistent with the cinematic Home sidebar.
 
         rvSeriesGrid.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
             override fun onChildViewAttachedToWindow(view: View) {

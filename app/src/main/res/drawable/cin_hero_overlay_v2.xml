@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Refined hero overlay (replaces the old radial vignette behind the hero text).
+  Layered top-to-bottom:
+    1) very subtle top vignette
+    2) strong dark gradient on the BOTTOM-LEFT for text legibility
+    3) sidebar shadow gradient on the LEFT to anchor the sidebar visually
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 1. soft darken at the very top (subtle haze for status / topbar area) -->
+    <item android:height="180dp" android:gravity="top">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#80000000"
+                android:endColor="@android:color/transparent"
+                android:type="linear" />
+        </shape>
+    </item>
+
+    <!-- 2. strong dark band along the bottom for hero text legibility -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="90"
+                android:startColor="#F2050608"
+                android:centerColor="#A6050608"
+                android:endColor="@android:color/transparent"
+                android:type="linear"
+                android:centerX="0.5"
+                android:centerY="0.5" />
+        </shape>
+    </item>
+
+    <!-- 3. left-side gradient that anchors the sidebar and pulls focus rightward -->
+    <item android:width="640dp" android:gravity="start">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="0"
+                android:startColor="#E6050608"
+                android:endColor="@android:color/transparent"
+                android:type="linear" />
+        </shape>
+    </item>
+
+</layer-list>

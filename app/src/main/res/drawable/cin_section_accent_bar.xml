@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Section accent bar — vertical gold pill used as a leader for rail titles.
+  Replaces the flat 4dp solid gold rect for a richer feel.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:startColor="@color/cin_gold_300"
+        android:endColor="@color/cin_gold_500"
+        android:type="linear" />
+    <corners android:radius="3dp" />
+</shape>

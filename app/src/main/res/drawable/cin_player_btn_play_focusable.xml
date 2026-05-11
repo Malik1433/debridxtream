@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Gold play button with focus ring (used in custom_player_control_view) -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_focused="true">
+        <layer-list>
+            <item>
+                <shape android:shape="oval">
+                    <solid android:color="#66C9A961" />
+                </shape>
+            </item>
+            <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
+                <shape android:shape="oval">
+                    <gradient
+                        android:type="radial"
+                        android:gradientRadius="44dp"
+                        android:centerX="0.5"
+                        android:centerY="0.45"
+                        android:startColor="#FFFAEFCB"
+                        android:endColor="#FFC9A961" />
+                    <stroke android:width="2dp" android:color="#FFFAEFCB" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+    <item>
+        <layer-list>
+            <item>
+                <shape android:shape="oval">
+                    <solid android:color="#33000000" />
+                </shape>
+            </item>
+            <item android:left="3dp" android:top="3dp" android:right="3dp" android:bottom="3dp">
+                <shape android:shape="oval">
+                    <gradient
+                        android:type="radial"
+                        android:gradientRadius="44dp"
+                        android:centerX="0.5"
+                        android:centerY="0.45"
+                        android:startColor="#FFE9D7A8"
+                        android:endColor="#FFB48A4A" />
+                    <stroke android:width="1dp" android:color="#33000000" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+</selector>

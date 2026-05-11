@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings row -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/settings_row"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="64dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="@dimen/cin_space_4"
+    android:layout_marginBottom="@dimen/cin_space_2"
+    android:background="@drawable/cin_settings_row"
+    android:focusable="true"
+    android:clickable="true">
+
+    <FrameLayout
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@drawable/cin_pill_glass">
+        <ImageView
+            android:id="@+id/iv_settings_icon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_settings"
+            app:tint="@color/cin_gold_300" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="@dimen/cin_space_4"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/tv_settings_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Setting title"
+            android:textColor="@color/cin_text_primary"
+            android:textSize="@dimen/cin_text_body_sm"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/tv_settings_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="Subtitle / current value"
+            android:textColor="@color/cin_text_tertiary"
+            android:textSize="@dimen/cin_text_caption"
+            android:fontFamily="@font/plus_jakarta_sans" />
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginStart="@dimen/cin_space_3"
+        android:src="@drawable/ic_chevron_right"
+        app:tint="@color/cin_text_tertiary" />
+
+</LinearLayout>

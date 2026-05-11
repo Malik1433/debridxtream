@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Outer glow halo -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/cin_gold_glow_40" />
+            <corners android:radius="@dimen/cin_radius_lg" />
+        </shape>
+    </item>
+    <item android:left="6dp" android:top="6dp" android:right="6dp" android:bottom="6dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="@color/cin_gold_50"
+                android:centerColor="@color/cin_gold_300"
+                android:endColor="@color/cin_gold_500" />
+            <corners android:radius="@dimen/cin_radius_md" />
+            <stroke android:width="1dp" android:color="@color/cin_gold_50" />
+        </shape>
+    </item>
+</layer-list>

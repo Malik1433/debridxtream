@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Cinematic top bar: greeting + search pill + avatar.
+    Use as <include /> at the top of fragments.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/cin_topbar_h"
+    android:paddingHorizontal="@dimen/cin_space_8"
+    android:paddingVertical="@dimen/cin_space_4">
+
+    <TextView
+        android:id="@+id/tv_topbar_greeting"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Good evening"
+        android:textColor="@color/cin_text_secondary"
+        android:textSize="@dimen/cin_text_caption"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:letterSpacing="0.04"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_topbar_section"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Home"
+        android:textColor="@color/cin_text_primary"
+        android:textSize="@dimen/cin_text_title_sm"
+        android:fontFamily="@font/inter_extrabold"
+        android:letterSpacing="-0.01"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_topbar_greeting" />
+
+    <!-- Search pill -->
+    <LinearLayout
+        android:id="@+id/btn_topbar_search"
+        android:layout_width="@dimen/cin_topbar_search_w"
+        android:layout_height="44dp"
+        android:layout_marginEnd="@dimen/cin_space_4"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="@dimen/cin_space_5"
+        android:background="@drawable/cin_pill_glass"
+        android:focusable="true"
+        android:clickable="true"
+        app:layout_constraintEnd_toStartOf="@id/iv_topbar_avatar"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_search"
+            app:tint="@color/cin_text_tertiary" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/cin_space_3"
+            android:text="Search movies, series, channels"
+            android:textColor="@color/cin_text_tertiary"
+            android:textSize="@dimen/cin_text_body_sm"
+            android:fontFamily="@font/plus_jakarta_sans" />
+    </LinearLayout>
+
+    <!-- Avatar -->
+    <FrameLayout
+        android:id="@+id/iv_topbar_avatar"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@drawable/cin_pill_glass"
+        android:focusable="true"
+        android:clickable="true"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="D"
+            android:textColor="@color/cin_gold_300"
+            android:textSize="@dimen/cin_text_body"
+            android:fontFamily="@font/inter_extrabold" />
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

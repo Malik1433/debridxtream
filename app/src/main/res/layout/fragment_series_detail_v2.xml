@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    DERBIX SERIES DETAIL V2 — modernized cinematic layout (Round 3)
+    All IDs preserved: iv_backdrop, sv_content, container_info, tv_title,
+    container_meta, tv_rating, tv_year, tv_genre, container_actions, btn_play,
+    btn_favorite, tv_plot, rv_seasons, rv_episodes, layout_skeleton, btn_back,
+    pb_loading_central, cv_poster, iv_poster, tv_meta.
+-->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -6,32 +13,24 @@
     android:layout_height="match_parent"
     android:clipChildren="false"
     android:clipToPadding="false"
-    android:background="#121212">
+    android:background="@color/cin_ink_900">
 
-    <!-- Cinematic Backdrop (Fixed Background) -->
+    <!-- Backdrop -->
     <ImageView
         android:id="@+id/iv_backdrop"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
-        android:alpha="1.0"
-        tools:src="@tools:sample/backgrounds/scenic"
-        android:importantForAccessibility="no" />
+        android:alpha="0.55"
+        android:importantForAccessibility="no"
+        tools:src="@tools:sample/backgrounds/scenic" />
 
-    <!-- Left Scrim Gradient (Fixed) -->
     <View
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@drawable/scrim_gradient_left" />
-        
-    <!-- Bottom Gradient (Fixed - behind scroll content) -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="300dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:background="@drawable/gradient_bottom_up" />
+        android:background="@drawable/cin_hero_overlay_left"
+        android:importantForAccessibility="no" />
 
-    <!-- Content Scroll Container -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/sv_content"
         android:layout_width="match_parent"
@@ -47,177 +46,273 @@
             android:layout_height="wrap_content"
             android:clipChildren="false"
             android:clipToPadding="false"
-            android:paddingBottom="48dp">
+            android:paddingBottom="64dp">
 
-            <!-- Content Block (Left Aligned) -->
-            <!-- Adjusted vertical bias/margins since we are scrolling now. 
-                 Using top margin instead of bias for consistent start position. -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/container_info"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:paddingStart="48dp"
-                android:layout_marginTop="120dp"
-                app:layout_constraintWidth_percent="0.6"
+                android:paddingStart="120dp"
+                android:layout_marginTop="160dp"
+                app:layout_constraintWidth_percent="0.66"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent">
+
+                <!-- Featured overline -->
+                <LinearLayout
+                    android:id="@+id/ll_overline"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <View
+                        android:layout_width="38dp"
+                        android:layout_height="2dp"
+                        android:layout_marginEnd="14dp"
+                        android:background="@drawable/cin_section_accent_bar" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="LIMITED SERIES"
+                        android:textColor="@color/cin_gold_300"
+                        android:textSize="13sp"
+                        android:fontFamily="@font/inter_extrabold"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.36" />
+                </LinearLayout>
 
                 <!-- Title -->
                 <TextView
                     android:id="@+id/tv_title"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    tools:text="Stranger Things"
-                    android:textColor="#FFFFFF"
-                    android:textSize="56sp"
-                    android:fontFamily="sans-serif-black"
+                    android:layout_marginTop="20dp"
+                    android:fontFamily="@font/inter_extrabold"
+                    android:textColor="@color/cin_text_primary"
+                    android:textSize="74sp"
                     android:textStyle="bold"
-                    android:shadowColor="#000000"
-                    android:shadowDx="4"
+                    android:lineSpacingMultiplier="0.96"
+                    android:letterSpacing="-0.025"
+                    android:shadowColor="#A6000000"
+                    android:shadowDx="0"
                     android:shadowDy="4"
-                    android:shadowRadius="8"
-                    app:layout_constraintTop_toTopOf="parent"
+                    android:shadowRadius="24"
+                    tools:text="Shōgun"
+                    app:layout_constraintTop_toBottomOf="@id/ll_overline"
                     app:layout_constraintStart_toStartOf="parent" />
 
-                <!-- Metadata Pills -->
-                <LinearLayout
+                <!-- Meta chips -->
+                <com.google.android.flexbox.FlexboxLayout
                     android:id="@+id/container_meta"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="24dp"
+                    app:flexWrap="wrap"
+                    app:alignItems="center"
                     app:layout_constraintTop_toBottomOf="@id/tv_title"
                     app:layout_constraintStart_toStartOf="parent">
 
-                    <TextView
-                        android:id="@+id/tv_rating"
+                    <LinearLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        tools:text="⭐ 9.5"
-                        android:textColor="#FFD700"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:layout_marginEnd="12dp" />
+                        android:layout_height="36dp"
+                        android:layout_marginEnd="12dp"
+                        android:layout_marginBottom="8dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/cin_chip_rating_v2">
+
+                        <ImageView
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
+                            android:layout_marginEnd="8dp"
+                            android:src="@drawable/ic_star_filled"
+                            app:tint="@color/cin_gold_300"
+                            android:importantForAccessibility="no" />
+
+                        <TextView
+                            android:id="@+id/tv_rating"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/cin_gold_200"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:fontFamily="@font/plus_jakarta_sans"
+                            tools:text="9.5" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/tv_year"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        tools:text="2016"
-                        android:textColor="#E0E0E0"
+                        android:layout_height="36dp"
+                        android:layout_marginEnd="12dp"
+                        android:layout_marginBottom="8dp"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/cin_chip_meta"
+                        android:textColor="@color/cin_text_secondary"
                         android:textSize="14sp"
-                        android:layout_marginEnd="12dp" />
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        tools:text="2024" />
 
                     <TextView
                         android:id="@+id/tv_genre"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        tools:text="Sci-Fi, Horror"
-                        android:textColor="#E0E0E0"
+                        android:layout_height="36dp"
+                        android:layout_marginEnd="12dp"
+                        android:layout_marginBottom="8dp"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/cin_chip_meta"
+                        android:textColor="@color/cin_text_secondary"
                         android:textSize="14sp"
-                        android:textStyle="bold" />
-                        
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        tools:text="Drama · Historical" />
+
                     <TextView
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="HD"
-                        android:textSize="10sp"
-                        android:textColor="#FFFFFF"
+                        android:layout_height="36dp"
+                        android:layout_marginBottom="8dp"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/cin_chip_quality_gold"
+                        android:text="4K · HDR"
+                        android:textColor="#1A1108"
+                        android:textSize="13sp"
                         android:textStyle="bold"
-                        android:paddingStart="4dp"
-                        android:paddingEnd="4dp"
-                        android:layout_marginStart="12dp"
-                        android:background="@drawable/bg_meta_pill" />
-                </LinearLayout>
+                        android:letterSpacing="0.04"
+                        android:fontFamily="@font/inter_extrabold" />
+                </com.google.android.flexbox.FlexboxLayout>
 
-                <!-- Action Buttons -->
+                <!-- Actions -->
                 <LinearLayout
                     android:id="@+id/container_actions"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginTop="24dp"
+                    android:layout_marginTop="32dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
                     app:layout_constraintTop_toBottomOf="@id/container_meta"
                     app:layout_constraintStart_toStartOf="parent">
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_play"
+                        style="@style/Cin.Button.Primary"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Watch Now"
-                        android:textColor="#FFFFFF"
-                        android:textStyle="bold"
-                        android:background="@drawable/btn_primary_action"
-                        android:paddingStart="24dp"
-                        android:paddingEnd="24dp"
-                        android:drawableStart="@android:drawable/ic_media_play"
-                        android:drawableTint="#FFFFFF"
-                        android:drawablePadding="8dp"
-                        android:focusable="true"
+                        android:layout_height="64dp"
+                        android:layout_marginEnd="14dp"
+                        android:paddingStart="36dp"
+                        android:paddingEnd="36dp"
+                        android:text="Continue Watching"
+                        android:textSize="17sp"
                         android:nextFocusUp="@id/btn_back"
-                        android:nextFocusRight="@id/btn_favorite" />
+                        android:nextFocusRight="@id/btn_favorite"
+                        app:icon="@drawable/ic_play"
+                        app:iconTint="@color/cin_text_on_gold"
+                        app:iconGravity="textStart"
+                        app:iconPadding="12dp"
+                        app:cornerRadius="14dp" />
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_favorite"
+                        style="@style/Cin.Button.Secondary"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_height="64dp"
+                        android:paddingStart="32dp"
+                        android:paddingEnd="32dp"
                         android:text="Favorite"
-                        android:textColor="#FFFFFF"
-                        android:background="@drawable/btn_secondary_action"
-                        android:layout_marginStart="16dp"
-                        android:paddingStart="24dp"
-                        android:paddingEnd="24dp"
-                        android:focusable="true"
-                        android:nextFocusLeft="@id/btn_play" />
+                        android:textSize="17sp"
+                        android:nextFocusLeft="@id/btn_play"
+                        app:icon="@drawable/ic_favorite"
+                        app:iconTint="@color/cin_text_primary"
+                        app:iconGravity="textStart"
+                        app:iconPadding="10dp"
+                        app:cornerRadius="14dp" />
                 </LinearLayout>
 
                 <!-- Plot -->
                 <TextView
                     android:id="@+id/tv_plot"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    tools:text="When a young boy disappears, his mother, a police chief and his friends must confront terrifying supernatural forces in order to get him back."
-                    android:textColor="#CCCCCC"
-                    android:textSize="16sp"
-                    android:lineSpacingMultiplier="1.2"
+                    android:layout_marginTop="28dp"
+                    android:layout_marginBottom="20dp"
+                    android:lineSpacingMultiplier="1.45"
+                    android:textColor="@color/cin_text_secondary"
+                    android:textSize="19sp"
                     android:maxLines="3"
                     android:ellipsize="end"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    tools:text="When a young boy disappears, his mother, a police chief and his friends must confront terrifying supernatural forces in order to get him back."
                     app:layout_constraintTop_toBottomOf="@id/container_actions"
-                    app:layout_constraintStart_toStartOf="parent"
-                    android:layout_marginTop="24dp" 
-                    android:layout_marginBottom="24dp"/>
+                    app:layout_constraintStart_toStartOf="parent" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <!-- Season Selector -->
+            <!-- Season header bar -->
+            <LinearLayout
+                android:id="@+id/ll_season_header"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="120dp"
+                android:paddingEnd="120dp"
+                android:paddingTop="24dp"
+                android:paddingBottom="16dp"
+                app:layout_constraintTop_toBottomOf="@id/container_info"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <View
+                    android:layout_width="4dp"
+                    android:layout_height="28dp"
+                    android:layout_marginEnd="18dp"
+                    android:background="@drawable/cin_section_accent_bar" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Episodes"
+                    android:textColor="@color/cin_text_primary"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:fontFamily="@font/inter_extrabold"
+                    android:letterSpacing="-0.01" />
+            </LinearLayout>
+
+            <!-- Season selector -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_seasons"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:paddingStart="48dp"
-                android:paddingEnd="48dp"
+                android:paddingStart="120dp"
+                android:paddingEnd="120dp"
                 android:clipToPadding="false"
+                android:clipChildren="false"
                 android:visibility="gone"
-                app:layout_constraintTop_toBottomOf="@id/container_info"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                app:layout_constraintTop_toBottomOf="@id/ll_season_header"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                android:layout_marginTop="24dp"
                 android:focusable="true"
                 android:descendantFocusability="afterDescendants"
                 android:nextFocusUp="@id/btn_play"
                 android:nextFocusDown="@id/rv_episodes"
                 tools:itemCount="5"
-                tools:listitem="@layout/item_category_pill" />
+                tools:listitem="@layout/item_season_pill_v2" />
 
-            <!-- Episodes List (Wrap Content for ScrollView) -->
+            <!-- Episodes -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_episodes"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:paddingStart="42dp" 
-                android:paddingBottom="16dp"
+                android:layout_marginTop="20dp"
+                android:paddingStart="112dp"
+                android:paddingEnd="112dp"
+                android:paddingBottom="24dp"
                 android:clipChildren="false"
                 android:clipToPadding="false"
                 app:layout_constraintTop_toBottomOf="@id/rv_seasons"
@@ -228,23 +323,21 @@
                 android:nextFocusUp="@id/rv_seasons"
                 tools:listitem="@layout/item_episode_v2" />
 
-            <!-- Loading Skeleton Overlay (Inside Scroll for alignment) -->
             <LinearLayout
                 android:id="@+id/layout_skeleton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:visibility="gone"
-                tools:visibility="visible"
                 app:layout_constraintTop_toBottomOf="@id/rv_seasons"
                 app:layout_constraintStart_toStartOf="parent">
-                
+
                 <include layout="@layout/item_episode_skeleton" />
                 <include layout="@layout/item_episode_skeleton" />
                 <include layout="@layout/item_episode_skeleton" />
             </LinearLayout>
-            
-            <!-- Hidden Compatibility Views -->
+
+            <!-- Hidden compatibility views -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/cv_poster"
                 android:visibility="gone"
@@ -256,47 +349,46 @@
                 android:id="@+id/iv_poster"
                 android:visibility="gone"
                 android:layout_width="0dp"
-                android:layout_height="0dp" 
+                android:layout_height="0dp"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintStart_toStartOf="parent"/>
+                app:layout_constraintStart_toStartOf="parent" />
             <TextView
                 android:id="@+id/tv_meta"
                 android:visibility="gone"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintStart_toStartOf="parent"/>
+                app:layout_constraintStart_toStartOf="parent" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Fixed Buttons -->
+    <!-- Back button -->
     <ImageButton
         android:id="@+id/btn_back"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:src="@android:drawable/ic_menu_close_clear_cancel"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        app:tint="#FFFFFF"
-        android:layout_margin="32dp"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_margin="36dp"
+        android:src="@drawable/ic_arrow_back"
+        android:background="@drawable/cin_btn_back_glass"
+        app:tint="@color/cin_text_primary"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
+        android:padding="18dp"
         android:contentDescription="Back"
         android:focusable="true"
         android:nextFocusDown="@id/btn_play"
-        android:nextFocusRight="@id/btn_favorite"/>
+        android:nextFocusRight="@id/btn_favorite"
+        android:elevation="6dp" />
 
-    <!-- Central Loader (Fixed) -->
-    <!-- Central Loader (Fixed & Modern) -->
-    <!-- Z-Index: Placed as last item to ensure it is drawn on top -->
+    <!-- Loader -->
     <ProgressBar
         android:id="@+id/pb_loading_central"
         android:layout_width="64dp"
         android:layout_height="64dp"
         android:visibility="gone"
-        android:indeterminateDrawable="@drawable/progress_indeterminate_modern"
+        android:indeterminateTint="@color/cin_gold_500"
         android:elevation="50dp"
-        android:layout_gravity="center"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App background: deep midnight ink vertical gradient -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:startColor="@color/cin_ink_700"
+        android:centerColor="@color/cin_ink_800"
+        android:endColor="@color/cin_ink_900" />
+</shape>

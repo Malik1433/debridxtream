@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mark only (square) for splash, login -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- Glow halo -->
+    <path
+        android:fillColor="#26D4AF37"
+        android:pathData="M24,24 m-22,0 a22,22 0 1,0 44,0 a22,22 0 1,0 -44,0" />
+
+    <!-- Antennae -->
+    <path
+        android:strokeColor="#F0CB57"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M16,8 L24,18 M32,8 L24,18" />
+
+    <!-- TV body -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M8,18 L40,18 A4,4 0 0 1 44,22 L44,38 A4,4 0 0 1 40,42 L8,42 A4,4 0 0 1 4,38 L4,22 A4,4 0 0 1 8,18 Z" />
+
+    <!-- Inner screen -->
+    <path
+        android:fillColor="#0B0E15"
+        android:pathData="M10,22 L38,22 A1,1 0 0 1 39,23 L39,37 A1,1 0 0 1 38,38 L10,38 A1,1 0 0 1 9,37 L9,23 A1,1 0 0 1 10,22 Z" />
+
+    <!-- Inner highlight -->
+    <path
+        android:fillColor="#F0CB57"
+        android:pathData="M11,23 L37,23 L37,24 L11,24 Z" />
+
+    <!-- Power dot -->
+    <path
+        android:fillColor="#F0CB57"
+        android:pathData="M24,32 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+</vector>

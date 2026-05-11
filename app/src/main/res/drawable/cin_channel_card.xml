@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Channel logo card (square, glass) -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/cin_gold_glow_25" />
+                    <corners android:radius="@dimen/cin_radius_lg" />
+                </shape>
+            </item>
+            <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/cin_ink_600" />
+                    <stroke android:width="2dp" android:color="@color/cin_gold_500" />
+                    <corners android:radius="@dimen/cin_radius_md" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/cin_ink_700" />
+            <stroke android:width="1dp" android:color="@color/cin_stroke_subtle" />
+            <corners android:radius="@dimen/cin_radius_md" />
+        </shape>
+    </item>
+</selector>

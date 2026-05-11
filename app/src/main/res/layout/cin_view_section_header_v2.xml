@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Modern row-section header — gold accent bar + title + (optional) caption + chevron.
+  Replaces the inline "View > 4dp gold bar + TextView" pattern in fragment_home_cinematic.
+
+  IDs exposed for binding (optional — fragment can leave defaults):
+    tv_section_title    main label, e.g. "Trending Movies"
+    tv_section_caption  small description, e.g. "Updated daily"
+    iv_section_chevron  affordance arrow (decorative)
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical">
+
+    <!-- gold accent bar -->
+    <View
+        android:layout_width="4dp"
+        android:layout_height="28dp"
+        android:background="@drawable/cin_section_accent_bar" />
+
+    <!-- title + caption stack -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="14dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_section_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Trending Movies"
+            android:textColor="@color/cin_text_primary"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/inter_extrabold"
+            android:letterSpacing="-0.005"
+            android:includeFontPadding="false" />
+
+        <TextView
+            android:id="@+id/tv_section_caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:text="Updated daily · Top 10 today"
+            android:textColor="@color/cin_text_tertiary"
+            android:textSize="12sp"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:letterSpacing="0.02"
+            android:includeFontPadding="false" />
+    </LinearLayout>
+
+    <!-- view-all chevron (decorative; can be wired later) -->
+    <ImageView
+        android:id="@+id/iv_section_chevron"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginEnd="48dp"
+        android:src="@drawable/ic_arrow_right"
+        app:tint="@color/cin_text_tertiary"
+        android:alpha="0.6"
+        android:importantForAccessibility="no" />
+
+</LinearLayout>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <set>
+            <objectAnimator
+                android:propertyName="scaleX"
+                android:valueTo="1.04"
+                android:duration="160"
+                android:interpolator="@android:interpolator/decelerate_quint" />
+            <objectAnimator
+                android:propertyName="scaleY"
+                android:valueTo="1.04"
+                android:duration="160"
+                android:interpolator="@android:interpolator/decelerate_quint" />
+            <objectAnimator
+                android:propertyName="translationZ"
+                android:valueTo="14dp"
+                android:duration="160" />
+        </set>
+    </item>
+    <item>
+        <set>
+            <objectAnimator
+                android:propertyName="scaleX"
+                android:valueTo="1.0"
+                android:duration="140"
+                android:interpolator="@android:interpolator/accelerate_quint" />
+            <objectAnimator
+                android:propertyName="scaleY"
+                android:valueTo="1.0"
+                android:duration="140"
+                android:interpolator="@android:interpolator/accelerate_quint" />
+            <objectAnimator
+                android:propertyName="translationZ"
+                android:valueTo="0dp"
+                android:duration="140" />
+        </set>
+    </item>
+</selector>
