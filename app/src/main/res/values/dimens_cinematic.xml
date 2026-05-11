@@ -6,18 +6,6 @@
 <resources>
 
     <!-- ===== SIDEBAR (modernized values, owned by this file) ===== -->
-    <dimen name="sidebar_width_expanded">288dp</dimen>
-    <dimen name="sidebar_width_collapsed">88dp</dimen>
-    <dimen name="sidebar_item_height">56dp</dimen>
-    <dimen name="sidebar_item_padding_start">16dp</dimen>
-    <dimen name="sidebar_item_padding_end">16dp</dimen>
-    <dimen name="sidebar_icon_size">22dp</dimen>
-    <dimen name="sidebar_text_size">15sp</dimen>
-    <dimen name="sidebar_text_marginStart">16dp</dimen>
-    <dimen name="sidebar_item_spacing">6dp</dimen>
-    <dimen name="sidebar_item_radius">14dp</dimen>
-    <dimen name="sidebar_indicator_width">4dp</dimen>
-    <dimen name="sidebar_indicator_height">32dp</dimen>
 
     <!-- Cinematic sidebar tokens (used by cin_view_sidebar.xml) -->
     <dimen name="cin_sidebar_collapsed">88dp</dimen>

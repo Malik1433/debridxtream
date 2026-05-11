@@ -8,7 +8,7 @@ import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 
 object HomeFavoriteMapper {
 
-    fun mapToFavoriteItem(
+    suspend fun mapToFavoriteItem(
         entity: FavoriteEntity,
         repository: XtreamRepository,
         serverUrl: String?,

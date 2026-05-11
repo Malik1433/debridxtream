@@ -16,6 +16,8 @@ import com.tvonnet.debridxtreamiptv.data.model.SidebarItem
 class SidebarAdapter(
     private val items: List<SidebarItem>,
     private val onFocusChange: (Boolean) -> Unit = {},
+    private val onItemFocused: (SidebarItem) -> Unit = {},
+    private val onDpadRight: () -> Boolean = { false },
     private val onItemSelected: (Int) -> Unit
 ) : RecyclerView.Adapter<SidebarAdapter.SidebarViewHolder>() {
     
@@ -27,7 +29,8 @@ class SidebarAdapter(
         return items[position].id.toLong()
     }
 
-    private var selectedPosition = 1
+    private val attachedHolders = mutableSetOf<SidebarViewHolder>()
+    private var selectedPosition = items.indexOfFirst { it.id == 1 }.takeIf { it >= 0 } ?: 0
     private var isExpanded: Boolean = true
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SidebarViewHolder {
@@ -42,19 +45,32 @@ class SidebarAdapter(
 
     override fun getItemCount() = items.size
 
-    fun selectItem(position: Int) {
+    fun setActiveItemId(itemId: Int) {
+        val position = items.indexOfFirst { it.id == itemId }
+        if (position == RecyclerView.NO_POSITION || position == selectedPosition) return
         val previousPosition = selectedPosition
         selectedPosition = position
-        notifyItemChanged(previousPosition)
+        if (previousPosition != RecyclerView.NO_POSITION) {
+            notifyItemChanged(previousPosition)
+        }
         notifyItemChanged(selectedPosition)
-        onItemSelected(position)
     }
 
     fun setExpanded(expanded: Boolean, animate: Boolean = true) {
         if (expanded == isExpanded) return
         isExpanded = expanded
-        // Rebind to apply constraints + label visibility without truncation
-        notifyDataSetChanged()
+        attachedHolders.forEach { it.applyExpandedState(expanded, animate) }
+    }
+
+    override fun onViewAttachedToWindow(holder: SidebarViewHolder) {
+        super.onViewAttachedToWindow(holder)
+        attachedHolders.add(holder)
+        holder.applyExpandedState(isExpanded, animate = false)
+    }
+
+    override fun onViewDetachedFromWindow(holder: SidebarViewHolder) {
+        attachedHolders.remove(holder)
+        super.onViewDetachedFromWindow(holder)
     }
 
     inner class SidebarViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -80,7 +96,7 @@ class SidebarAdapter(
             viewSelectionIndicator.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
             val density = itemView.context.resources.displayMetrics.density
 
-            applyRowLayout(expanded = isExpanded, animate = false)
+            applyExpandedState(expanded = isExpanded, animate = false)
 
             // Initial State
             itemView.setBackgroundResource(
@@ -93,6 +109,7 @@ class SidebarAdapter(
                 onFocusChange(hasFocus)
                 
                 if (hasFocus) {
+                    onItemFocused(item)
                     itemView.alpha = 1f
                     // Visuals
                     itemView.setBackgroundResource(
@@ -133,8 +150,24 @@ class SidebarAdapter(
             }
             
             itemView.setOnClickListener {
-                selectItem(adapterPosition)
+                val position = bindingAdapterPosition
+                if (position == RecyclerView.NO_POSITION) return@setOnClickListener
+                onItemSelected(position)
             }
+
+            itemView.setOnKeyListener { _, keyCode, event ->
+                if (
+                    event.action == android.view.KeyEvent.ACTION_DOWN &&
+                    keyCode == android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+                ) {
+                    return@setOnKeyListener onDpadRight()
+                }
+                false
+            }
+        }
+
+        fun applyExpandedState(expanded: Boolean, animate: Boolean) {
+            applyRowLayout(expanded, animate)
         }
 
         private fun applyRowLayout(expanded: Boolean, animate: Boolean) {

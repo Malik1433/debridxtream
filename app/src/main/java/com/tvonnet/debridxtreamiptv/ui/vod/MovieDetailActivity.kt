@@ -905,8 +905,7 @@ class MovieDetailActivity : AppCompatActivity() {
                         tmdbId = tmdbId,
                         imdbId = currentImdbId,
                         debridInfoHash = infoHash,
-                        debridMagnet = magnet,
-                        expiresAt = result.expiresAt
+                        debridMagnet = magnet
                     )
                     if (returnToSources) {
                         intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
@@ -958,8 +957,7 @@ class MovieDetailActivity : AppCompatActivity() {
                         playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
                         tmdbId = tmdbId,
                         imdbId = currentImdbId,
-                        debridInfoHash = infoHash,
-                        expiresAt = result.expiresAt
+                        debridInfoHash = infoHash
                     )
                     startActivity(intent)
                 }

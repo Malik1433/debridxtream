@@ -51,4 +51,7 @@ interface VodDao {
     
     @Query("DELETE FROM vod_v2")
     suspend fun deleteAllMovies()
+
+    @Query("SELECT * FROM vod_v2 WHERE streamId = :streamId")
+    suspend fun getVodById(streamId: String): VodEntity?
 }

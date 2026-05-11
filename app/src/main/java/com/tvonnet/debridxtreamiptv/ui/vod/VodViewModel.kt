@@ -237,7 +237,7 @@ class VodViewModel @Inject constructor(
         return favoritesCache.isFavorite(streamId)
     }
 
-    private fun buildFavoriteMovies(
+    private suspend fun buildFavoriteMovies(
         favorites: List<FavoriteEntity>,
         searchQuery: String
     ): List<XtreamVodInfo> {

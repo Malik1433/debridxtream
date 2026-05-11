@@ -311,7 +311,7 @@ class SeriesViewModel @Inject constructor(
         }
     }
 
-    private fun buildFavoriteSeries(
+    private suspend fun buildFavoriteSeries(
         favorites: List<FavoriteEntity>,
         searchQuery: String
     ): List<XtreamSeriesInfo> {

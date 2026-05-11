@@ -78,6 +78,7 @@ class InitialSyncFragment : Fragment() {
     private fun startSync() {
         syncError.visibility = View.GONE
         retryButton.visibility = View.GONE
+        retryButton.isEnabled = false
 
         viewLifecycleOwner.lifecycleScope.launch {
             val result = repository.syncInitialData()
@@ -105,6 +106,7 @@ class InitialSyncFragment : Fragment() {
                     when (progress.state) {
                         SyncState.ERROR -> showError(progress.errorMessage)
                         SyncState.SUCCESS -> navigateToHome()
+                        SyncState.RUNNING -> retryButton.isEnabled = false
                         else -> Unit
                     }
                 }
@@ -117,6 +119,7 @@ class InitialSyncFragment : Fragment() {
         syncError.text = message ?: "Sync failed. Check your connection."
         syncError.visibility = View.VISIBLE
         retryButton.visibility = View.VISIBLE
+        retryButton.isEnabled = true
     }
 
     private fun navigateToHome() {

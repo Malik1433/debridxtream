@@ -6,21 +6,41 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.R
-import android.widget.Toast
 import com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem
 import com.tvonnet.debridxtreamiptv.util.GlobalConfig
 import com.tvonnet.debridxtreamiptv.util.loadPosterOrPlaceholder
 
 class ContinueWatchingAdapter(
     private var items: List<ContinueWatchingItem>,
-    private val onItemClick: (ContinueWatchingItem) -> Unit
+    private val onItemClick: (ContinueWatchingItem) -> Unit,
+    private val onItemFocused: (Int, ContinueWatchingItem) -> Unit = { _, _ -> }
 ) : RecyclerView.Adapter<ContinueWatchingAdapter.ContinueWatchingViewHolder>() {
+
+    init {
+        setHasStableIds(true)
+    }
     
     fun updateItems(newItems: List<ContinueWatchingItem>) {
+        if (items == newItems) return
+        val oldItems = items
+        val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+            override fun getOldListSize(): Int = oldItems.size
+
+            override fun getNewListSize(): Int = newItems.size
+
+            override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                return stableIdFor(oldItems[oldItemPosition]) == stableIdFor(newItems[newItemPosition])
+            }
+
+            override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                return oldItems[oldItemPosition] == newItems[newItemPosition]
+            }
+        })
         items = newItems
-        notifyDataSetChanged()
+        diff.dispatchUpdatesTo(this)
     }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ContinueWatchingViewHolder {
@@ -30,10 +50,42 @@ class ContinueWatchingAdapter(
     }
     
     override fun onBindViewHolder(holder: ContinueWatchingViewHolder, position: Int) {
-        holder.bind(items[position], onItemClick)
+        android.util.Log.e("HISTORY_DEBUG", "ContinueWatchingAdapter: onBindViewHolder position=$position")
+        holder.bind(items[position], onItemClick, onItemFocused)
     }
     
     override fun getItemCount() = items.size
+
+    override fun getItemId(position: Int): Long {
+        return stableIdFor(items[position])
+    }
+
+    fun getStableItemIdAt(position: Int): Long? {
+        return items.getOrNull(position)?.let { stableIdFor(it) }
+    }
+
+    fun findPositionByStableId(stableId: Long): Int {
+        return items.indexOfFirst { stableIdFor(it) == stableId }
+    }
+
+    companion object {
+        fun stableIdFor(item: ContinueWatchingItem): Long {
+            val identity = buildString {
+                append(item.contentType.name)
+                append(':')
+                append(item.tmdbId ?: item.imdbId ?: item.contentId)
+                append(':')
+                append(item.seriesTitle ?: item.title)
+                append(':')
+                append(item.source)
+            }
+            var hash = 1125899906842597L
+            identity.forEach { char ->
+                hash = 31L * hash + char.code
+            }
+            return hash
+        }
+    }
     
     class ContinueWatchingViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val ivContinuePoster: ImageView = itemView.findViewById(R.id.iv_continue_poster)
@@ -41,12 +93,16 @@ class ContinueWatchingAdapter(
         private val progressWatch: ProgressBar = itemView.findViewById(R.id.progress_watch)
         private val tvContinueProgress: TextView = itemView.findViewById(R.id.tv_continue_progress)
         
-        fun bind(item: ContinueWatchingItem, onClick: (ContinueWatchingItem) -> Unit) {
+        fun bind(
+            item: ContinueWatchingItem,
+            onClick: (ContinueWatchingItem) -> Unit,
+            onFocused: (Int, ContinueWatchingItem) -> Unit
+        ) {
             tvContinueTitle.text = formatTitle(item)
             tvContinueProgress.text = item.formattedProgress
             progressWatch.progress = item.progressPercentage
             
-            val resolvedUrl = GlobalConfig.resolveIconUrl(item.posterUrl)
+            val resolvedUrl = GlobalConfig.resolveIconUrl(item.posterUrl ?: item.backdropUrl)
             // Debug Toast as requested
             
             // Load poster image (guard blank URLs)
@@ -54,6 +110,14 @@ class ContinueWatchingAdapter(
             
             itemView.setOnClickListener {
                 onClick(item)
+            }
+
+            itemView.setOnFocusChangeListener { _, hasFocus ->
+                if (!hasFocus) return@setOnFocusChangeListener
+                val position = bindingAdapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    onFocused(position, item)
+                }
             }
         }
 

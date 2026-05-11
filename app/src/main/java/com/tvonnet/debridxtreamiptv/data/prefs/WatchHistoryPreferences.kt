@@ -6,8 +6,9 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem
 import com.tvonnet.debridxtreamiptv.data.model.FavoriteItem
-import com.tvonnet.debridxtreamiptv.data.model.RecentlyWatchedItem
+
 import com.tvonnet.debridxtreamiptv.data.model.RecentLiveChannelItem
+import com.tvonnet.debridxtreamiptv.util.GlobalConfig
 
 class WatchHistoryPreferences(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -59,6 +60,7 @@ class WatchHistoryPreferences(private val context: Context) {
     private fun readContinueWatchingList(): List<ContinueWatchingItem> {
         val json = prefs.getString(KEY_CONTINUE_WATCHING, null) ?: return emptyList()
         return try {
+            android.util.Log.e("HISTORY_DEBUG", "Reading Continue Watching JSON: $json")
             val type = object : TypeToken<List<ContinueWatchingItem>>() {}.type
             val list = gson.fromJson<List<ContinueWatchingItem>>(json, type) ?: emptyList()
             // Heal stale relative poster URLs on read
@@ -144,38 +146,7 @@ class WatchHistoryPreferences(private val context: Context) {
         prefs.edit().remove(KEY_FAVORITES).apply()
     }
     
-    // Recently Watched operations
-    fun addRecentlyWatched(item: RecentlyWatchedItem) {
-        val currentList = getRecentlyWatchedList().toMutableList()
-        
-        // Remove existing item with same contentId if present
-        currentList.removeAll { it.contentId == item.contentId }
-        
-        // Add new item at the beginning
-        currentList.add(0, item)
-        
-        // Keep only last 30 items
-        if (currentList.size > MAX_RECENTLY_WATCHED) {
-            currentList.subList(MAX_RECENTLY_WATCHED, currentList.size).clear()
-        }
-        
-        val json = gson.toJson(currentList)
-        prefs.edit().putString(KEY_RECENTLY_WATCHED, json).apply()
-    }
-    
-    fun getRecentlyWatchedList(): List<RecentlyWatchedItem> {
-        val json = prefs.getString(KEY_RECENTLY_WATCHED, null) ?: return emptyList()
-        return try {
-            val type = object : TypeToken<List<RecentlyWatchedItem>>() {}.type
-            gson.fromJson<List<RecentlyWatchedItem>>(json, type) ?: emptyList()
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-    
-    fun clearRecentlyWatched() {
-        prefs.edit().remove(KEY_RECENTLY_WATCHED).apply()
-    }
+
     
     // Recent Live Channels operations (for live TV history)
     fun addRecentLiveChannel(item: RecentLiveChannelItem) {
@@ -197,15 +168,20 @@ class WatchHistoryPreferences(private val context: Context) {
     }
     
     fun getRecentLiveChannelsList(): List<RecentLiveChannelItem> {
+        android.util.Log.e("HISTORY_DEBUG", "WatchHistoryPreferences: getRecentLiveChannelsList called")
         val json = prefs.getString(KEY_RECENT_LIVE_CHANNELS, null) ?: return emptyList()
         return try {
+            android.util.Log.e("HISTORY_DEBUG", "Reading Recent Live JSON: $json")
             val type = object : TypeToken<List<RecentLiveChannelItem>>() {}.type
             val list = gson.fromJson<List<RecentLiveChannelItem>>(json, type) ?: emptyList()
             // Heal stale relative logo URLs on read
             list.map { item ->
-                val healed = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(item.channelLogo)
-                android.util.Log.d("IPTV_POSTER", "Healing Recent Live [${item.channelName}]: ${item.channelLogo} -> $healed")
-                item.copy(channelLogo = healed)
+                val resolved = GlobalConfig.resolveIconUrl(item.channelLogo)
+                if (resolved != item.channelLogo) {
+                    item.copy(channelLogo = resolved)
+                } else {
+                    item
+                }
             }
         } catch (e: Exception) {
             emptyList()
@@ -224,10 +200,10 @@ class WatchHistoryPreferences(private val context: Context) {
         private const val PREFS_NAME = "watch_history"
         private const val KEY_CONTINUE_WATCHING = "continue_watching"
         private const val KEY_FAVORITES = "favorites"
-        private const val KEY_RECENTLY_WATCHED = "recently_watched"
+
         private const val KEY_RECENT_LIVE_CHANNELS = "recent_live_channels"
         private const val MAX_CONTINUE_WATCHING = 20
-        private const val MAX_RECENTLY_WATCHED = 30
+
         private const val MAX_RECENT_LIVE_CHANNELS = 10
     }
 }

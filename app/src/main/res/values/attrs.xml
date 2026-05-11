@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cinematic Theme Semantic Attributes -->
+    <attr name="themeBackground" format="color|reference" />
+    <attr name="themeBackgroundSecondary" format="color|reference" />
+    <attr name="themeSurface" format="color|reference" />
+    <attr name="themeSurfaceElevated" format="color|reference" />
+    
+    <attr name="themeTextPrimary" format="color|reference" />
+    <attr name="themeTextSecondary" format="color|reference" />
+    <attr name="themeTextTertiary" format="color|reference" />
+    
+    <attr name="themeAccent" format="color|reference" />
+    <attr name="themeAccentGlow" format="color|reference" />
+    
+    <attr name="themeButtonPrimaryBg" format="color|reference" />
+    <attr name="themeButtonPrimaryText" format="color|reference" />
+    
+    <attr name="themeGlassBg" format="color|reference" />
+    <attr name="themeGlassStroke" format="color|reference" />
+    
+    <attr name="themeSidebarBg" format="color|reference" />
+    <attr name="themeSidebarActivePill" format="color|reference" />
+    <attr name="themeSidebarTextMuted" format="color|reference" />
+    <attr name="themeSidebarActiveText" format="color|reference" />
+    <attr name="themeSidebarInactiveText" format="color|reference" />
+    
+    <attr name="themeOverlayColor" format="color|reference" />
+    <attr name="themeOverlayColorSecondary" format="color|reference" />
+    
+    <attr name="themeCardRadius" format="dimension|reference" />
+    <attr name="themeButtonRadius" format="dimension|reference" />
+</resources>

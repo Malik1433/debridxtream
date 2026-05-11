@@ -1,13 +1,16 @@
 package com.tvonnet.debridxtreamiptv.util
+import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbImageUrl
 
 import android.graphics.drawable.Drawable
 import android.util.Log
 import android.widget.ImageView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.Target
@@ -22,68 +25,71 @@ fun ImageView.loadPosterOrPlaceholder(
     imageUrl: String?,
     placeholder: Int = R.drawable.tv_card_placeholder,
     error: Int = R.drawable.tv_card_placeholder,
-    cornerRadiusDp: Int = 12
+    cornerRadiusDp: Int = 12,
+    isBackdrop: Boolean = false
 ) {
-    if (!imageUrl.isNullOrBlank()) {
-        val cornerRadius = (cornerRadiusDp * resources.displayMetrics.density).toInt()
-        val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(imageUrl)
-        
-        val glideUrl = com.bumptech.glide.load.model.GlideUrl(
-            resolved,
-            com.bumptech.glide.load.model.LazyHeaders.Builder()
-                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                .addHeader("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
-                .build()
-        )
-        
-        Glide.with(context)
-            .load(glideUrl)
-            .listener(object : RequestListener<Drawable> {
-                override fun onLoadFailed(
-                    e: GlideException?,
-                    model: Any?,
-                    target: Target<Drawable>,
-                    isFirstResource: Boolean
-                ): Boolean {
-                    val errorMsg = "Glide Error: ${e?.message?.take(50)}"
-                    Log.e("GLIDE_DEBUG", "FAILED loading IPTV Picture: $model | Error: ${e?.message}")
-                    // On-screen debug feedback
-                    
-                    // Also print stack trace to see detailed causes (SSL, 404, etc)
-                    e?.logRootCauses("GLIDE_DEBUG")
-                    return false
-                }
-
-                override fun onResourceReady(
-                    resource: Drawable,
-                    model: Any,
-                    target: Target<Drawable>?,
-                    dataSource: DataSource,
-                    isFirstResource: Boolean
-                ): Boolean {
-                    var width = -1
-                    var height = -1
-                    if (resource is android.graphics.drawable.Drawable) {
-                        width = resource.intrinsicWidth
-                        height = resource.intrinsicHeight
-                    }
-                    val msg = "Glide Success! ${width}x${height}"
-                    android.util.Log.d("GLIDE_DEBUG", "SUCCESS loading IPTV Picture: $model | Size: ${width}x${height} | Type: ${resource.javaClass.simpleName}")
-                    return false
-                }
-            })
-            .apply(
-                RequestOptions()
-                    .transform(CenterCrop(), RoundedCorners(cornerRadius))
-                    .skipMemoryCache(true)
-                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)
-                    .override(com.bumptech.glide.request.target.Target.SIZE_ORIGINAL)
-            )
-            .placeholder(placeholder)
-            .error(error)
-            .into(this)
-    } else {
-        // Apply RoundedCorners/CenterCrop to placeholder if possible, or just set it
-        setImageResource(placeholder)
+    android.util.Log.e("GLIDE_DEBUG", "loadPosterOrPlaceholder entry: imageUrl=$imageUrl")
+    
+    // Step 1: Centralized resolution via GlobalConfig
+    val safeResolved = GlobalConfig.resolveIconUrl(imageUrl) ?: ""
+    
+    // Step 2: Determine final URL with intelligent fallback
+    val finalUrl = when {
+        safeResolved.startsWith("http") -> {
+            // Already absolute (IPTV or pre-resolved TMDB)
+            safeResolved
+        }
+        safeResolved.startsWith("/") && (imageUrl?.contains("tmdb", ignoreCase = true) == true || imageUrl?.startsWith("/") == true && !GlobalConfig.isInitialized()) -> {
+            // It's a relative path and either explicitly TMDB or we don't have an IPTV base yet
+            // Note: We use W500 for posters and W780 for backdrops
+            if (isBackdrop) TmdbImageUrl.getBackdropUrl(safeResolved)
+            else TmdbImageUrl.getPosterUrl(safeResolved, TmdbImageUrl.POSTER_SIZE_W500)
+        }
+        else -> {
+            // If it's still relative and we have a baseUrl, resolveIconUrl should have caught it.
+            // If it didn't, it might be a broken path.
+            safeResolved
+        }
     }
+
+    android.util.Log.d("GlideDiagnostics", "Loading: '$imageUrl' -> resolved: '$safeResolved' -> final: '$finalUrl' | BaseUrl: '${GlobalConfig.baseUrl}'")
+
+    if (finalUrl.isNullOrEmpty()) {
+        setImageResource(placeholder)
+        return
+    }
+
+    val density = resources.displayMetrics.density
+    val cornerRadius = (cornerRadiusDp * density).toInt()
+
+    Glide.with(context)
+        .load(finalUrl)
+        .diskCacheStrategy(DiskCacheStrategy.ALL)
+        .placeholder(placeholder)
+        .error(error)
+        .transform(CenterCrop(), RoundedCorners(cornerRadius))
+        .transition(DrawableTransitionOptions.withCrossFade())
+        .listener(object : RequestListener<Drawable> {
+            override fun onLoadFailed(
+                e: GlideException?,
+                model: Any?,
+                target: Target<Drawable>,
+                isFirstResource: Boolean
+            ): Boolean {
+                android.util.Log.e("GLIDE_DEBUG", "FAILED loading image: $finalUrl | Error: ${e?.message}")
+                return false
+            }
+
+            override fun onResourceReady(
+                resource: Drawable,
+                model: Any,
+                target: Target<Drawable>?,
+                dataSource: DataSource,
+                isFirstResource: Boolean
+            ): Boolean {
+                android.util.Log.e("GLIDE_DEBUG", "SUCCESS loading image: $finalUrl from $dataSource")
+                return false
+            }
+        })
+        .into(this)
 }

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- High-Visibility Light Blue Category Selector -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Focused State: Thick Electric Blue Border + Subtle Fill -->
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#2600A3FF" /> <!-- 15% opacity blue fill -->
+            <corners android:radius="8dp" />
+            <stroke android:width="3dp" android:color="@color/cin_gold_500" />
+        </shape>
+    </item>
+    
+    <!-- Selected State: Subtle Blue Border -->
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#1A00A3FF" />
+            <corners android:radius="8dp" />
+            <stroke android:width="2dp" android:color="#00E0FF" />
+        </shape>
+    </item>
+    
+    <!-- Default State: Transparent -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#00FFFFFF" />
+            <corners android:radius="8dp" />
+            <stroke android:width="0dp" android:color="#00000000" />
+        </shape>
+    </item>
+</selector>

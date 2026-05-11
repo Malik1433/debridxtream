@@ -80,7 +80,7 @@ class XtreamRepositoryStreamLookupTest {
         cacheHelper.writeCache(cache)
         
         // When: Looking up stream
-        val result = repository.getLiveStreamById("12345")
+        val result = runBlocking { repository.getLiveStreamById("12345") }
         
         // Then: Correct stream returned
         assertNotNull(result)
@@ -102,7 +102,7 @@ class XtreamRepositoryStreamLookupTest {
         cacheHelper.writeCache(cache)
         
         // When: Looking up non-existent stream
-        val result = repository.getLiveStreamById("99999")
+        val result = runBlocking { repository.getLiveStreamById("99999") }
         
         // Then: Null returned
         assertNull(result)
@@ -114,7 +114,7 @@ class XtreamRepositoryStreamLookupTest {
         cacheHelper.clearCache()
         
         // When: Looking up stream
-        val result = repository.getLiveStreamById("12345")
+        val result = runBlocking { repository.getLiveStreamById("12345") }
         
         // Then: Null returned
         assertNull(result)
@@ -146,7 +146,7 @@ class XtreamRepositoryStreamLookupTest {
         cacheHelper.writeCache(cache)
         
         // When: Looking up VOD
-        val result = repository.getVodById("vod123")
+        val result = runBlocking { repository.getVodById("vod123") }
         
         // Then: Correct VOD returned
         assertNotNull(result)
@@ -168,7 +168,7 @@ class XtreamRepositoryStreamLookupTest {
         cacheHelper.writeCache(cache)
         
         // When: Looking up non-existent VOD
-        val result = repository.getVodById("vod999")
+        val result = runBlocking { repository.getVodById("vod999") }
         
         // Then: Null returned
         assertNull(result)
@@ -199,7 +199,7 @@ class XtreamRepositoryStreamLookupTest {
         cacheHelper.writeCache(cache)
         
         // When: Looking up series
-        val result = repository.getSeriesById("series456")
+        val result = runBlocking { repository.getSeriesById("series456") }
         
         // Then: Correct series returned
         assertNotNull(result)
@@ -317,7 +317,7 @@ class XtreamRepositoryStreamLookupTest {
         cacheHelper.writeCache(cache)
         
         // When: Looking up non-existent series
-        val result = repository.getSeriesById("series999")
+        val result = runBlocking { repository.getSeriesById("series999") }
         
         // Then: Null returned
         assertNull(result)
@@ -417,9 +417,9 @@ class XtreamRepositoryStreamLookupTest {
         cacheHelper.writeCache(cache)
         
         // When: Looking up each type
-        val live = repository.getLiveStreamById("live1")
-        val vod = repository.getVodById("vod1")
-        val series = repository.getSeriesById("series1")
+        val live = runBlocking { repository.getLiveStreamById("live1") }
+        val vod = runBlocking { repository.getVodById("vod1") }
+        val series = runBlocking { repository.getSeriesById("series1") }
         
         // Then: All found correctly
         assertNotNull(live)
@@ -449,7 +449,7 @@ class XtreamRepositoryStreamLookupTest {
         
         // When: Looking up stream
         val startTime = System.currentTimeMillis()
-        val result = repository.getLiveStreamById("stream_500")
+        val result = runBlocking { repository.getLiveStreamById("stream_500") }
         val endTime = System.currentTimeMillis()
         
         // Then: Found and reasonably fast (< 100ms)

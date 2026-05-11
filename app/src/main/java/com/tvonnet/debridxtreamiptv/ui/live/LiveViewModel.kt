@@ -201,7 +201,7 @@ class LiveViewModel @Inject constructor(
         }
     }
 
-    private fun buildFavoriteChannels(
+    private suspend fun buildFavoriteChannels(
         favorites: List<FavoriteEntity>,
         searchQuery: String
     ): List<XtreamStream> {

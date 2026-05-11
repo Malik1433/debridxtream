@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Subtle Outer Glow -->
+    <item>
+        <shape>
+            <corners android:radius="24dp" />
+            <solid android:color="#0D3B82F6" /> <!-- 5% Blue Glow -->
+        </shape>
+    </item>
+    
+    <!-- Glass Background -->
+    <item android:bottom="1dp" android:left="1dp" android:right="1dp" android:top="1dp">
+        <shape>
+            <corners android:radius="23dp" />
+            <solid android:color="#E60F172A" /> <!-- 90% Navy Glass -->
+            <stroke
+                android:width="1.2dp"
+                android:color="#4D60A5FA" /> <!-- 30% Sky Blue Rim -->
+        </shape>
+    </item>
+</layer-list>

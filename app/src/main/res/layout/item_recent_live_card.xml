@@ -2,33 +2,55 @@
 <androidx.cardview.widget.CardView 
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="110dp"
-    android:layout_height="110dp"
-    android:layout_marginEnd="6dp"
+    android:layout_width="158dp"
+    android:layout_height="128dp"
+    android:layout_marginEnd="16dp"
+    android:layout_marginTop="8dp"
+    android:layout_marginBottom="12dp"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    app:cardBackgroundColor="@color/card_background"
-    app:cardCornerRadius="12dp"
+    app:cardBackgroundColor="@color/cin_ink_700"
+    app:cardCornerRadius="8dp"
     app:cardElevation="6dp"
     android:foreground="@drawable/card_focus_enhanced">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="@drawable/cin_channel_card_state"
         android:padding="12dp">
+
+        <TextView
+            android:id="@+id/tv_live_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="22dp"
+            android:background="@drawable/cin_badge_live"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:minWidth="42dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:text="LIVE"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <!-- Channel Logo -->
         <ImageView
             android:id="@+id/iv_channel_logo"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="0dp"
             android:scaleType="fitCenter"
             android:contentDescription="Channel Logo"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_live_badge"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintBottom_toTopOf="@id/tv_channel_name"
-            android:layout_marginBottom="4dp" />
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp" />
 
         <!-- Channel Name -->
         <TextView
@@ -36,9 +58,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Channel"
-            android:textSize="12sp"
+            android:textSize="13sp"
             android:textStyle="bold"
-            android:textColor="@color/text_primary"
+            android:textColor="@color/cin_text_primary"
             android:maxLines="1"
             android:ellipsize="end"
             android:gravity="center"

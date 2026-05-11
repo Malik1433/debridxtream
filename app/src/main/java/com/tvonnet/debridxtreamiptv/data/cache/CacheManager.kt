@@ -125,6 +125,22 @@ class CacheManager @Inject constructor(
     }
 
     /**
+     * Get a single channel by its ID from memory or Room.
+     */
+    suspend fun getChannelById(channelId: String): XtreamStream? {
+        // Level 1: Check memory cache (optional, could iterate over all categories but maybe slow)
+        // For simplicity, we'll go straight to Room as this is a specific lookup.
+        
+        // Level 2: Room database
+        return try {
+            channelDao.getChannelById(channelId)?.toXtreamStream()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get channel by ID: $channelId", e)
+            null
+        }
+    }
+
+    /**
      * Get channel count by category (fast path for UI badges/count labels).
      *
      * Returns null when the category has never been cached (unknown).

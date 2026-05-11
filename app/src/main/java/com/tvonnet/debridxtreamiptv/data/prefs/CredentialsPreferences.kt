@@ -5,6 +5,14 @@ import android.content.SharedPreferences
 
 class CredentialsPreferences(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val identityPrefs = IdentityPreferences(context)
+
+    init {
+        identityPrefs.migrateFromLegacy(
+            deviceId = prefs.getString(KEY_DEVICE_ID, null),
+            syncCode = prefs.getString(KEY_SYNC_CODE, null)
+        )
+    }
     
     fun saveCredentials(serverUrl: String, username: String, password: String) {
         prefs.edit().apply {
@@ -47,15 +55,22 @@ class CredentialsPreferences(private val context: Context) {
     }
     
     fun clearCredentials() {
-        prefs.edit().clear().apply()
+        prefs.edit().apply {
+            remove(KEY_SERVER_URL)
+            remove(KEY_USERNAME)
+            remove(KEY_PASSWORD)
+            remove(KEY_LOGGED_IN)
+            apply()
+        }
     }
 
     fun getSyncCode(): String? {
-        return prefs.getString(KEY_SYNC_CODE, null)
+        return prefs.getString(KEY_SYNC_CODE, null) ?: identityPrefs.getLegacySyncCode()
     }
 
     fun saveSyncCode(code: String) {
         prefs.edit().putString(KEY_SYNC_CODE, code).apply()
+        identityPrefs.saveLegacySyncCode(code)
     }
 
 
@@ -71,7 +86,7 @@ class CredentialsPreferences(private val context: Context) {
     fun getDeviceId(): String {
         val existing = prefs.getString(KEY_DEVICE_ID, null)
         if (existing != null) return existing
-        val newId = java.util.UUID.randomUUID().toString()
+        val newId = identityPrefs.getOrCreateInstallInstanceId()
         prefs.edit().putString(KEY_DEVICE_ID, newId).apply()
         return newId
     }

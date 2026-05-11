@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    PREMIUM SIDEBAR ITEM (Samsung One UI 2025 Style)
+    Used in fragment_live_premium.xml
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="56dp"
+    android:layout_marginBottom="4dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingHorizontal="16dp"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:clickable="true"
+    android:background="@drawable/cin_premium_sidebar_item_bg">
+
+    <!-- Active Indicator Bar -->
+    <View
+        android:id="@+id/view_active_indicator"
+        android:layout_width="4dp"
+        android:layout_height="24dp"
+        android:layout_marginEnd="12dp"
+        android:background="#3B82F6"
+        android:visibility="invisible"
+        tools:visibility="visible" />
+
+    <!-- Icon/Flag -->
+    <FrameLayout
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginEnd="14dp">
+
+        <ImageView
+            android:id="@+id/iv_category_icon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerInside"
+            tools:src="@drawable/flag_us" />
+
+        <TextView
+            android:id="@+id/tv_category_icon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textSize="16sp"
+            android:textColor="#B8C0CC"
+            android:fontFamily="@font/inter"
+            tools:text="US" />
+    </FrameLayout>
+
+    <!-- Name & Count -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_category_name_sidebar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:textColor="#B8C0CC"
+            android:fontFamily="@font/inter"
+            android:maxLines="1"
+            android:ellipsize="end"
+            tools:text="United States" />
+
+        <TextView
+            android:id="@+id/tv_category_count"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:textSize="11sp"
+            android:textColor="#424754"
+            android:fontFamily="@font/inter"
+            tools:text="148 CHANNELS" />
+    </LinearLayout>
+
+</LinearLayout>

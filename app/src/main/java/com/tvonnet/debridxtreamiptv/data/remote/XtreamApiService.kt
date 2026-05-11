@@ -10,7 +10,8 @@ interface XtreamApiService {
     @GET("player_api.php")
     suspend fun login(
         @Query("username") username: String,
-        @Query("password") password: String
+        @Query("password") password: String,
+        @Query("action") action: String = "login"
     ): Response<XtreamLoginResponse>
     
     @GET("player_api.php")

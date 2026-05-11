@@ -91,4 +91,7 @@ interface SeriesDao {
 
     @Query("UPDATE episodes SET is_watched = :isWatched, resume_position = :resumePosition, duration = :duration WHERE episodeId = :episodeId")
     suspend fun updatePlaybackStatus(episodeId: String, isWatched: Boolean, resumePosition: Long, duration: Long)
+
+    @Query("SELECT * FROM series_v2 WHERE seriesId = :seriesId")
+    suspend fun getSeriesById(seriesId: String): SeriesEntity?
 }

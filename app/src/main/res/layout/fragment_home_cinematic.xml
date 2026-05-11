@@ -34,13 +34,13 @@
             android:id="@+id/scroll_content"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="24dp"
+            android:layout_marginStart="32dp"
             android:clipToPadding="false"
             android:clipChildren="false"
             android:paddingStart="0dp"
-            android:paddingTop="48dp"
-            android:paddingEnd="0dp"
-            android:paddingBottom="48dp"
+            android:paddingTop="44dp"
+            android:paddingEnd="56dp"
+            android:paddingBottom="72dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/sidebar_panel"
@@ -66,12 +66,14 @@
                         android:fontFamily="@font/plus_jakarta_sans"
                         android:text="Featured Movie Title"
                         android:textColor="@color/white"
-                        android:textSize="48sp"
+                        android:textSize="46sp"
                         android:textStyle="bold"
                         android:shadowColor="@color/brand_cyan"
-                        android:shadowRadius="24"
+                        android:shadowRadius="18"
                         android:shadowDx="0"
                         android:shadowDy="0"
+                        android:maxLines="2"
+                        android:ellipsize="end"
                         android:layout_marginTop="12dp"
                         android:layout_marginBottom="8dp"
                         app:layout_constraintStart_toStartOf="parent"
@@ -100,14 +102,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginTop="24dp"
+                        android:layout_marginTop="20dp"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toBottomOf="@id/tv_hero_description">
                         
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_hero_watch"
                             android:layout_width="wrap_content"
-                            android:layout_height="44dp"
+                            android:layout_height="48dp"
                             android:text="PLAY NOW"
                             android:backgroundTint="@color/brand_cyan"
                             android:textColor="@color/velvet_black"
@@ -127,7 +129,7 @@
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_hero_details"
                             android:layout_width="wrap_content"
-                            android:layout_height="44dp"
+                            android:layout_height="48dp"
                             android:text="MORE INFO"
                             android:backgroundTint="@color/glass_card_bg_light"
                             android:textColor="@color/white"
@@ -141,6 +143,104 @@
                             android:nextFocusDown="@+id/rv_top_10_movies" />
                     </LinearLayout>
                 </androidx.constraintlayout.widget.ConstraintLayout>
+
+                <!-- Continue Watching Row -->
+                <LinearLayout
+                    android:id="@+id/section_continue_watching"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:layout_marginBottom="28dp"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="16dp">
+                        <View
+                            android:layout_width="4dp"
+                            android:layout_height="20dp"
+                            android:background="@color/brand_cyan"
+                            android:layout_marginEnd="12dp" />
+                        <TextView
+                            android:id="@+id/tv_title_continue_watching"
+                            android:text="@string/section_continue_watching"
+                            android:textSize="20sp"
+                            android:textColor="@color/white"
+                            android:fontFamily="@font/plus_jakarta_sans"
+                            android:textStyle="bold"
+                            android:letterSpacing="0"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_continue_watching"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingStart="0dp"
+                        android:paddingEnd="36dp"
+                        android:clipToPadding="false"
+                        android:clipChildren="false"
+                        tools:listitem="@layout/item_continue_watching_card"
+                        tools:itemCount="5"
+                        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+                </LinearLayout>
+
+                <!-- Recent Live Row -->
+                <LinearLayout
+                    android:id="@+id/section_recent_live"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:layout_marginBottom="28dp"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="16dp">
+                        <View
+                            android:layout_width="4dp"
+                            android:layout_height="20dp"
+                            android:background="@color/brand_cyan"
+                            android:layout_marginEnd="12dp" />
+                        <TextView
+                            android:id="@+id/tv_title_recent_live"
+                            android:text="@string/section_recent_live"
+                            android:textSize="20sp"
+                            android:textColor="@color/white"
+                            android:fontFamily="@font/plus_jakarta_sans"
+                            android:textStyle="bold"
+                            android:letterSpacing="0"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_recent_live_channels"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingStart="0dp"
+                        android:paddingEnd="36dp"
+                        android:clipToPadding="false"
+                        android:clipChildren="false"
+                        tools:listitem="@layout/item_recent_live_card"
+                        tools:itemCount="5"
+                        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+                </LinearLayout>
+
+
 
                 <!-- Top 10 Movies Row -->
                 <LinearLayout
@@ -161,7 +261,7 @@
                         android:textColor="@color/white"
                         android:fontFamily="@font/plus_jakarta_sans"
                         android:textStyle="bold"
-                        android:letterSpacing="0.05"
+                        android:letterSpacing="0"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
                 </LinearLayout>
@@ -172,6 +272,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:paddingStart="0dp"
+                    android:paddingEnd="36dp"
                     android:clipToPadding="false"
                     android:clipChildren="false"
                     android:layout_marginBottom="32dp"
@@ -198,7 +299,7 @@
                         android:textColor="@color/white"
                         android:fontFamily="@font/plus_jakarta_sans"
                         android:textStyle="bold"
-                        android:letterSpacing="0.05"
+                        android:letterSpacing="0"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
                 </LinearLayout>
@@ -209,6 +310,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:paddingStart="0dp"
+                    android:paddingEnd="36dp"
                     android:clipToPadding="false"
                     android:clipChildren="false"
                     android:layout_marginBottom="32dp"

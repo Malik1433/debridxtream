@@ -31,6 +31,8 @@ data class ContinueWatchingItem(
     val expiresAt: Long? = null
 ) {
     fun isExpired(): Boolean {
+        // Xtream content doesn't use expiresAt (null), but it's never 'expired' in the Debrid sense
+        if (source == "xtream") return false
         return expiresAt == null || System.currentTimeMillis() > expiresAt
     }
 
@@ -100,21 +102,14 @@ data class RecentLiveChannelItem(
     val channelLogo: String?,
     val lastWatchedTimestamp: Long,
     val streamUrl: String?,
-    val epgChannelId: String? = null
+    val epgChannelId: String? = null,
+    val categoryId: String? = null
 )
 
 /**
  * Model for recently watched content (different from continue watching - shows completed content too)
  */
-data class RecentlyWatchedItem(
-    val contentId: String,
-    val contentType: ContentType,
-    val title: String,
-    val posterUrl: String?,
-    val backdropUrl: String?,
-    val lastWatchedTimestamp: Long,
-    val streamUrl: String?
-)
+
 
 /**
  * Featured content item for home screen
@@ -185,7 +180,7 @@ fun String?.toAbsoluteUrl(serverUrl: String): String? = this.toAbsoluteUrl(Conte
 
 fun XtreamStream.toFeaturedItem(serverUrl: String, username: String, password: String): FeaturedItem {
     val streamUrl = "$serverUrl/live/$username/$password/${stream_id ?: ""}.ts"
-    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.LIVE_TV, name)
+    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.LIVE_TV, serverUrl)
     return FeaturedItem(
         contentId = stream_id ?: "",
         contentType = ContentType.LIVE_TV,
@@ -199,8 +194,8 @@ fun XtreamStream.toFeaturedItem(serverUrl: String, username: String, password: S
 
 fun XtreamVodInfo.toFeaturedItem(serverUrl: String, username: String, password: String): FeaturedItem {
     val streamUrl = "$serverUrl/movie/$username/$password/${stream_id ?: ""}.${container_extension ?: "mp4"}"
-    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.MOVIE, name)
-    val absoluteCover = cover.toAbsoluteUrl(ContentType.MOVIE, name)
+    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
+    val absoluteCover = cover.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
     
     return FeaturedItem(
         contentId = stream_id ?: "",
@@ -214,7 +209,7 @@ fun XtreamVodInfo.toFeaturedItem(serverUrl: String, username: String, password: 
 }
 
 fun XtreamSeriesInfo.toFeaturedItem(serverUrl: String): FeaturedItem {
-    val absoluteCover = cover.toAbsoluteUrl(ContentType.SERIES, name)
+    val absoluteCover = cover.toAbsoluteUrl(ContentType.SERIES, serverUrl)
     return FeaturedItem(
         contentId = series_id ?: "",
         contentType = ContentType.SERIES,
@@ -228,7 +223,7 @@ fun XtreamSeriesInfo.toFeaturedItem(serverUrl: String): FeaturedItem {
 
 fun XtreamStream.toFavoriteItem(serverUrl: String, username: String, password: String, addedTimestamp: Long): FavoriteItem {
     val streamUrl = "$serverUrl/live/$username/$password/${stream_id ?: ""}.ts"
-    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.LIVE_TV, name)
+    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.LIVE_TV, serverUrl)
     return FavoriteItem(
         contentId = stream_id ?: "",
         contentType = ContentType.LIVE_TV,
@@ -242,8 +237,8 @@ fun XtreamStream.toFavoriteItem(serverUrl: String, username: String, password: S
 
 fun XtreamVodInfo.toFavoriteItem(serverUrl: String, username: String, password: String, addedTimestamp: Long): FavoriteItem {
     val streamUrl = "$serverUrl/movie/$username/$password/${stream_id ?: ""}.${container_extension ?: "mp4"}"
-    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.MOVIE, name)
-    val absoluteCover = cover.toAbsoluteUrl(ContentType.MOVIE, name)
+    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
+    val absoluteCover = cover.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
     return FavoriteItem(
         contentId = stream_id ?: "",
         contentType = ContentType.MOVIE,
@@ -256,7 +251,7 @@ fun XtreamVodInfo.toFavoriteItem(serverUrl: String, username: String, password: 
 }
 
 fun XtreamSeriesInfo.toFavoriteItem(serverUrl: String, addedTimestamp: Long): FavoriteItem {
-    val absoluteCover = cover.toAbsoluteUrl(ContentType.SERIES, name)
+    val absoluteCover = cover.toAbsoluteUrl(ContentType.SERIES, serverUrl)
     return FavoriteItem(
         contentId = series_id ?: "",
         contentType = ContentType.SERIES,
@@ -271,8 +266,8 @@ fun XtreamSeriesInfo.toFavoriteItem(serverUrl: String, addedTimestamp: Long): Fa
 fun XtreamVodInfo.toNewAddedItem(serverUrl: String, username: String, password: String): NewAddedItem {
     val streamUrl = "$serverUrl/movie/$username/$password/${stream_id ?: ""}.${container_extension ?: "mp4"}"
     val addedTime = try { added?.toLong() ?: 0L } catch (e: Exception) { 0L }
-    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.MOVIE, name)
-    val absoluteCover = cover.toAbsoluteUrl(ContentType.MOVIE, name)
+    val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
+    val absoluteCover = cover.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
     
     return NewAddedItem(
         contentId = stream_id ?: "",
@@ -288,7 +283,7 @@ fun XtreamVodInfo.toNewAddedItem(serverUrl: String, username: String, password: 
 }
 
 fun XtreamSeriesInfo.toNewAddedItem(serverUrl: String): NewAddedItem {
-    val absoluteCover = cover.toAbsoluteUrl(ContentType.SERIES, name)
+    val absoluteCover = cover.toAbsoluteUrl(ContentType.SERIES, serverUrl)
     return NewAddedItem(
         contentId = series_id ?: "",
         contentType = ContentType.SERIES,

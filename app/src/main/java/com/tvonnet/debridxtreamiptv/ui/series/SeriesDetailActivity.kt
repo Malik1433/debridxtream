@@ -4,7 +4,6 @@ import android.app.Activity
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -99,7 +98,7 @@ class SeriesDetailActivity : AppCompatActivity() {
     private lateinit var btnWatchNow: Button
     private lateinit var btnWatchTrailer: Button
     private lateinit var btnAddFavorite: Button
-    private lateinit var btnRefresh: ImageButton
+    private lateinit var btnRefresh: Button
     private lateinit var loadingOverlay: View
     private lateinit var tvLoadingMessage: TextView
 
@@ -577,7 +576,7 @@ class SeriesDetailActivity : AppCompatActivity() {
         btnWatchNow.isEnabled = selectedEpisode != null
     }
 
-    private fun handleSeriesDetailError(error: Exception) {
+    private suspend fun handleSeriesDetailError(error: Exception) {
         showLoading(false)
 
         val fallbackSeries = seriesId?.let { repository.getSeriesById(it) }
@@ -811,10 +810,7 @@ class SeriesDetailActivity : AppCompatActivity() {
                         episodeTitle = episode.title,
                         seasonNumber = seasonNumber,
                         episodeNumber = episodeNumber,
-                        debridInfoHash = infoHash,
-                        debridMagnet = magnet,
-                        expiresAt = result.expiresAt,
-                        seriesId = seriesId
+                        debridMagnet = magnet
                     )
                     intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
                     playerLauncher.launch(intent)

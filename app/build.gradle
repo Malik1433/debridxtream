@@ -16,8 +16,8 @@ android {
         applicationId "com.debridxtream.tv"
         minSdk 21
         targetSdk 35  // Updated to match compileSdk for latest Android features
-        versionCode 3
-        versionName "1.2"
+        versionCode 20
+        versionName "2.0.0"
         multiDexEnabled true
         multiDexKeepFile file('multidex-keep.txt')
         multiDexKeepProguard file('multidex-keep.pro')
@@ -168,6 +168,9 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7'
     
+    // UI Components
+    implementation 'com.google.android.flexbox:flexbox:3.0.0'
+
     // Image Loading
     implementation 'io.coil-kt:coil-compose:2.6.0'
 

@@ -177,8 +177,18 @@ class XtreamRepository @Inject constructor(
                 return Result.Error(Exception("API service not initialized"))
             }
             val response = apiService!!.login(username, password)
-            if (response.isSuccessful && response.body() != null) {
-                Result.Success(response.body()!!)
+            val body = response.body()
+            if (response.isSuccessful && body != null) {
+                val userInfo = body.user_info
+                val isAuthenticated = userInfo?.auth == 1 ||
+                    userInfo?.status.equals("Active", ignoreCase = true)
+                if (userInfo != null && isAuthenticated) {
+                    Result.Success(body)
+                } else {
+                    val message = userInfo?.message?.takeIf { it.isNotBlank() }
+                        ?: "Account is not active or authorized"
+                    Result.Error(Exception(message))
+                }
             } else {
                 Result.Error(Exception("Login failed: ${response.code()}"))
             }
@@ -1845,22 +1855,33 @@ class XtreamRepository @Inject constructor(
      * Get live stream by stream ID from cache
      * Week 12: Used for favorites playback
      */
-    fun getLiveStreamById(streamId: String): XtreamStream? {
+    suspend fun getLiveStreamById(streamId: String): XtreamStream? {
         val cache = memoryCache
             ?: cacheHelper.memorySnapshot()?.also { memoryCache = it }
             ?: cacheHelper.readCache()?.also { memoryCache = it }
-        return cache?.live?.streams?.find { it.stream_id == streamId }
+        val memoryMatch = cache?.live?.streams?.find { it.stream_id == streamId }
+        if (memoryMatch != null) return memoryMatch
+
+        // Fallback: Check Room via CacheManager
+        return cacheManager.getChannelById(streamId)
     }
     
     /**
      * Get VOD stream by stream ID from cache
      * Week 12: Used for favorites playback
      */
-    fun getVodById(streamId: String): XtreamVodInfo? {
+    suspend fun getVodById(streamId: String): XtreamVodInfo? {
         val cache = memoryCache
             ?: cacheHelper.memorySnapshot()?.also { memoryCache = it }
             ?: cacheHelper.readCache()?.also { memoryCache = it }
-        return cache?.vod?.streams?.find { it.stream_id == streamId }
+        val memoryMatch = cache?.vod?.streams?.find { it.stream_id == streamId }
+        if (memoryMatch != null) return memoryMatch
+
+        // Fallback: Check local per-category cache
+        perCategoryVodCache.values.flatten().find { it.stream_id == streamId }?.let { return it }
+
+        // Fallback: Check Room
+        return vodDao?.getVodById(streamId)?.toXtreamVodInfo()
     }
     
     /**
@@ -1868,7 +1889,7 @@ class XtreamRepository @Inject constructor(
      * Week 12: Used for favorites playback
      * Updated: Also checks per-category cache for recently loaded series
      */
-    fun getSeriesById(streamId: String): XtreamSeriesInfo? {
+    suspend fun getSeriesById(streamId: String): XtreamSeriesInfo? {
         // First check per-category cache (more up-to-date)
         perCategorySeriesCache.values.forEach { seriesList ->
             seriesList.find { it.series_id == streamId }?.let { return it }
@@ -1878,7 +1899,11 @@ class XtreamRepository @Inject constructor(
         val cache = memoryCache
             ?: cacheHelper.memorySnapshot()?.also { memoryCache = it }
             ?: cacheHelper.readCache()?.also { memoryCache = it }
-        return cache?.series?.streams?.find { it.series_id == streamId }
+        val memoryMatch = cache?.series?.streams?.find { it.series_id == streamId }
+        if (memoryMatch != null) return memoryMatch
+
+        // Fallback: Check Room
+        return seriesDao?.getSeriesById(streamId)?.toXtreamSeriesInfo()
     }
     
     /**

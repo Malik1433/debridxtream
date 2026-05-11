@@ -79,7 +79,7 @@ class SeriesDetailActivityTest {
     fun `getSeriesById returns cached series`() = runTest {
         // Given
         val mockSeries = createMockSeriesInfo("series1", "Cached Series")
-        every { repository.getSeriesById("series1") } returns mockSeries
+        coEvery { repository.getSeriesById("series1") } returns mockSeries
 
         // When
         val result = repository.getSeriesById("series1")
@@ -93,7 +93,7 @@ class SeriesDetailActivityTest {
     @Test
     fun `getSeriesById returns null when not found`() = runTest {
         // Given
-        every { repository.getSeriesById("unknown") } returns null
+        coEvery { repository.getSeriesById("unknown") } returns null
 
         // When
         val result = repository.getSeriesById("unknown")

@@ -1,9 +1,12 @@
 package com.tvonnet.debridxtreamiptv.ui
 
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.fragment.app.Fragment
@@ -20,10 +23,10 @@ import kotlinx.coroutines.withContext
 import com.tvonnet.debridxtreamiptv.util.GlobalConfig
 
 /**
- * Premium split-screen login screen for DebridXtream.
+ * Cinematic 2.0 Login Screen for DebridXtream.
  *
- * Layout: Left branding panel | Right login card
- * Provides two entry paths: manual credentials and QR/Mobile connect.
+ * Features an immersive blurred mosaic background and a centered glassmorphism login panel.
+ * Optimized for high-end Android TV experience with radiant focus states.
  */
 @AndroidEntryPoint
 class LoginFragment : Fragment() {
@@ -31,15 +34,20 @@ class LoginFragment : Fragment() {
     private lateinit var etServerUrl: com.google.android.material.textfield.TextInputEditText
     private lateinit var etUsername: com.google.android.material.textfield.TextInputEditText
     private lateinit var etPassword: com.google.android.material.textfield.TextInputEditText
+    private lateinit var tilServerUrl: com.google.android.material.textfield.TextInputLayout
+    private lateinit var tilUsername: com.google.android.material.textfield.TextInputLayout
+    private lateinit var tilPassword: com.google.android.material.textfield.TextInputLayout
     private lateinit var btnLogin: View
     private lateinit var btnSetupPhone: View
     private lateinit var progressBar: ProgressBar
+    private var loginInProgress = false
+    private var autoSyncLoginAttempted = false
 
-    // Split-screen panels
-    private lateinit var panelLeft: View
-    private lateinit var panelRight: View
-    private lateinit var llTitleContainer: View
+    // UI Panels for Cinematic 2.0
+    private lateinit var bgMosaicContainer: View
+    private lateinit var ivBgMosaic: ImageView
     private lateinit var loginContainer: View
+    private lateinit var panelRight: View
     
     @Inject
     lateinit var repository: XtreamRepository
@@ -62,15 +70,18 @@ class LoginFragment : Fragment() {
         etServerUrl = view.findViewById(R.id.et_server_url)
         etUsername = view.findViewById(R.id.et_username)
         etPassword = view.findViewById(R.id.et_password)
+        tilServerUrl = view.findViewById(R.id.til_server_url)
+        tilUsername = view.findViewById(R.id.til_username)
+        tilPassword = view.findViewById(R.id.til_password)
         btnLogin = view.findViewById(R.id.btn_login)
         btnSetupPhone = view.findViewById(R.id.btn_setup_phone)
         progressBar = view.findViewById(R.id.progress_bar)
 
-        // Panels for animation
-        panelLeft = view.findViewById(R.id.panel_left)
-        panelRight = view.findViewById(R.id.panel_right)
-        llTitleContainer = view.findViewById(R.id.ll_title_container)
+        // Cinematic Containers
+        bgMosaicContainer = view.findViewById(R.id.bg_mosaic_container)
+        ivBgMosaic = view.findViewById(R.id.iv_bg_mosaic)
         loginContainer = view.findViewById(R.id.card_login_container)
+        panelRight = view.findViewById(R.id.panel_right)
         
         btnLogin.setOnClickListener {
             onLoginClick()
@@ -80,8 +91,18 @@ class LoginFragment : Fragment() {
             onSetupPhoneClick()
         }
 
+        etPassword.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                onLoginClick()
+                true
+            } else {
+                false
+            }
+        }
+
         setupFocusListeners()
         startEntranceAnimations()
+        etServerUrl.requestFocus()
     }
 
     override fun onResume() {
@@ -89,10 +110,9 @@ class LoginFragment : Fragment() {
         checkAutoSyncCredentials()
     }
 
-    /**
-     * Checks if credentials were saved via Companion Sync and triggers auto-login.
-     */
     private fun checkAutoSyncCredentials() {
+        if (loginInProgress || autoSyncLoginAttempted) return
+
         val server = credentialsPrefs.getServerUrl()
         val user = credentialsPrefs.getUsername()
         val pass = credentialsPrefs.getPassword()
@@ -100,24 +120,20 @@ class LoginFragment : Fragment() {
 
         if (!loggedIn && !server.isNullOrEmpty() && !user.isNullOrEmpty() && !pass.isNullOrEmpty()) {
             android.util.Log.i("LoginFragment", "Auto-sync credentials detected! Triggering login...")
+            autoSyncLoginAttempted = true
             
-            // Fill UI fields so user sees what's happening
             etServerUrl.setText(server)
             etUsername.setText(user)
             etPassword.setText(pass)
-            
-            // Initialize GlobalConfig immediately
-            GlobalConfig.baseUrl = server
-            GlobalConfig.username = user
-            GlobalConfig.password = pass
-            
-            // Trigger login
-            performLogin(server, user, pass)
+
+            validateInputs()?.let { normalizedServer ->
+                performLogin(normalizedServer, user.trim(), pass)
+            }
         }
     }
 
     /**
-     * Adds scale + elevation effects on D-pad focus for all interactive elements.
+     * Enhanced Focus Listeners: Radiant Glow + Scale + Elevation
      */
     private fun setupFocusListeners() {
         val viewsToScale = listOf(
@@ -126,40 +142,53 @@ class LoginFragment : Fragment() {
         
         viewsToScale.forEach { focusView ->
             focusView.setOnFocusChangeListener { v, hasFocus ->
+                // Visual feedback
                 val targetScale = if (hasFocus) 1.03f else 1.0f
-                val targetZ = if (hasFocus) 6f else 0f
+                val targetZ = if (hasFocus) 12f else 2f
+                
                 v.animate()
                     .scaleX(targetScale)
                     .scaleY(targetScale)
                     .translationZ(targetZ)
-                    .setDuration(250)
+                    .setDuration(200)
                     .setInterpolator(android.view.animation.DecelerateInterpolator())
                     .start()
+
+                // Special handling for InputLayout focus glow (simulated via background swap if needed, 
+                // but handled by Til boxStrokeColor in XML primarily. 
+                // Here we can add extra glow effects if we had a layer-list background)
+                if (v is com.google.android.material.textfield.TextInputEditText) {
+                    val parent = v.parent.parent
+                    if (parent is com.google.android.material.textfield.TextInputLayout) {
+                        if (hasFocus) {
+                            parent.setBoxStrokeWidth(3) // Thicker border on focus
+                        } else {
+                            parent.setBoxStrokeWidth(1)
+                        }
+                    }
+                }
             }
         }
     }
 
     /**
-     * Choreographed entrance animation sequence for both panels.
-     *
-     * Sequence:
-     *   1. Left panel slides in from left with fade
-     *   2. Right panel slides in from right with fade (slight delay)
-     *   3. Card content fields appear with staggered fade-up
+     * Cinematic 2.0 Entrance Sequence:
+     * 1. Background mosaic fades in and scales slightly (immersion)
+     * 2. Glass panel unfolds from the center (scale + fade)
+     * 3. Branding elements and fields emerge with staggered upward motion
      */
     private fun startEntranceAnimations() {
-        // Initial states
-        panelLeft.alpha = 0f
-        panelLeft.translationX = -80f
+        // Initial hidden states
+        bgMosaicContainer.alpha = 0f
+        ivBgMosaic.scaleX = 1.1f
+        ivBgMosaic.scaleY = 1.1f
         
-        panelRight.alpha = 0f
-        panelRight.translationX = 80f
-
         loginContainer.alpha = 0f
-        loginContainer.scaleX = 0.96f
-        loginContainer.scaleY = 0.96f
+        loginContainer.scaleX = 0.9f
+        loginContainer.scaleY = 0.9f
 
         val cardElements = listOf(
+            view?.findViewById<View>(R.id.iv_logo),
             view?.findViewById<View>(R.id.tv_card_heading),
             view?.findViewById<View>(R.id.tv_card_subtitle),
             view?.findViewById<View>(R.id.til_server_url),
@@ -169,50 +198,47 @@ class LoginFragment : Fragment() {
             view?.findViewById<View>(R.id.ll_or_divider),
             btnSetupPhone
         )
-        cardElements.forEach { it?.alpha = 0f; it?.translationY = 24f }
+        cardElements.forEach { it?.alpha = 0f; it?.translationY = 32f }
 
-        // 1. Left panel entrance
-        panelLeft.animate()
+        // 1. Background Entrance
+        bgMosaicContainer.animate()
             .alpha(1f)
-            .translationX(0f)
-            .setDuration(900)
-            .setInterpolator(android.view.animation.DecelerateInterpolator(1.5f))
+            .setDuration(1200)
+            .start()
+            
+        ivBgMosaic.animate()
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(3000) // Slow drift effect
+            .setInterpolator(android.view.animation.LinearInterpolator())
             .start()
 
-        // 2. Right panel entrance (delayed)
-        panelRight.animate()
-            .alpha(1f)
-            .translationX(0f)
-            .setDuration(900)
-            .setStartDelay(150)
-            .setInterpolator(android.view.animation.DecelerateInterpolator(1.5f))
-            .start()
-
-        // 3. Card container scale-in
+        // 2. Glass Panel "Unfolding"
         loginContainer.animate()
             .alpha(1f)
             .scaleX(1f)
             .scaleY(1f)
-            .setDuration(800)
-            .setStartDelay(400)
-            .setInterpolator(android.view.animation.OvershootInterpolator(0.6f))
+            .setDuration(1000)
+            .setStartDelay(200)
+            .setInterpolator(android.view.animation.OvershootInterpolator(0.7f))
             .start()
 
-        // 4. Staggered card elements
+        // 3. Staggered Elements
         cardElements.forEachIndexed { index, element ->
             element?.animate()
                 ?.alpha(1f)
                 ?.translationY(0f)
-                ?.setDuration(500)
-                ?.setStartDelay(600L + (index * 80L))
+                ?.setDuration(600)
+                ?.setStartDelay(500L + (index * 60L))
                 ?.setInterpolator(android.view.animation.DecelerateInterpolator())
                 ?.start()
         }
     }
     
     private fun onLoginClick() {
-        if (validateInputs()) {
-            val server = etServerUrl.text.toString().trim()
+        if (loginInProgress) return
+
+        validateInputs()?.let { server ->
             val username = etUsername.text.toString().trim()
             val password = etPassword.text.toString()
             
@@ -220,62 +246,38 @@ class LoginFragment : Fragment() {
         }
     }
     
-    /**
-     * Performs the actual IPTV login against the Xtream repository.
-     *
-     * @param server  The server URL.
-     * @param username The user's username.
-     * @param password The user's password.
-     */
     private fun performLogin(server: String, username: String, password: String) {
-        btnLogin.isEnabled = false
+        if (loginInProgress) return
+        loginInProgress = true
+        setLoginControlsEnabled(false)
         progressBar.visibility = View.VISIBLE
-        
-        android.util.Log.d("LoginFragment", "Starting login: server=$server, user=$username")
         
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                // Initialize repository
                 repository.initialize(server, username, password)
-                android.util.Log.d("LoginFragment", "Repository initialized")
                 
-                // Try login first
                 val loginResult = withContext(Dispatchers.IO) {
                     repository.login(username, password)
                 }
-                android.util.Log.d("LoginFragment", "Login result: ${loginResult.isSuccess}")
                 
                 if (loginResult.isSuccess) {
-                    android.util.Log.d("LoginFragment", "Login successful, saving credentials")
-                    // Save credentials
                     credentialsPrefs.saveCredentials(server, username, password)
-                    
-                    // Initialize GlobalConfig for session
                     GlobalConfig.baseUrl = server
                     GlobalConfig.username = username
                     GlobalConfig.password = password
                     
                     progressBar.visibility = View.GONE
-                    android.util.Log.d("LoginFragment", "Navigating to initial sync")
                     navigateToInitialSync()
                 } else {
-                    val errorMsg = "Login failed: ${loginResult.exceptionOrNull()?.message}"
-                    android.util.Log.e("LoginFragment", errorMsg, loginResult.exceptionOrNull())
-                    Toast.makeText(
-                        context,
-                        errorMsg,
-                        Toast.LENGTH_LONG
-                    ).show()
-                    btnLogin.isEnabled = true
+                    val errorMsg = loginResult.exceptionOrNull()?.message ?: "Login failed"
+                    Toast.makeText(requireContext(), errorMsg, Toast.LENGTH_LONG).show()
+                    loginInProgress = false
+                    setLoginControlsEnabled(true)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("LoginFragment", "Exception during login", e)
-                Toast.makeText(
-                    context,
-                    "Error: ${e.message}",
-                    Toast.LENGTH_LONG
-                ).show()
-                btnLogin.isEnabled = true
+                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                loginInProgress = false
+                setLoginControlsEnabled(true)
             } finally {
                 progressBar.visibility = View.GONE
             }
@@ -294,31 +296,56 @@ class LoginFragment : Fragment() {
         }
     }
     
-    /**
-     * Validates the three required input fields before attempting login.
-     *
-     * @return true if all fields are non-empty.
-     */
-    private fun validateInputs(): Boolean {
+    private fun validateInputs(): String? {
         val server = etServerUrl.text.toString().trim()
         val username = etUsername.text.toString().trim()
         val password = etPassword.text.toString()
+
+        tilServerUrl.error = null
+        tilUsername.error = null
+        tilPassword.error = null
         
         if (server.isEmpty()) {
-            etServerUrl.error = "Server URL is required"
-            return false
+            setServerError("Server URL is required")
+            return null
         }
         
         if (username.isEmpty()) {
-            etUsername.error = "Username is required"
-            return false
+            tilUsername.error = "Username is required"
+            return null
         }
         
         if (password.isEmpty()) {
-            etPassword.error = "Password is required"
-            return false
+            tilPassword.error = "Password is required"
+            return null
         }
         
-        return true
+        return normalizeServerUrl(server)
+    }
+
+    private fun normalizeServerUrl(rawServer: String): String? {
+        val candidate = if (rawServer.contains("://")) rawServer else "http://$rawServer"
+        val uri = Uri.parse(candidate)
+        val scheme = uri.scheme?.lowercase()
+        val host = uri.host
+
+        if ((scheme != "http" && scheme != "https") || host.isNullOrBlank()) {
+            setServerError("Enter a valid server URL")
+            return null
+        }
+
+        return candidate.trimEnd('/')
+    }
+
+    private fun setServerError(message: String) {
+        tilServerUrl.error = message
+    }
+
+    private fun setLoginControlsEnabled(enabled: Boolean) {
+        etServerUrl.isEnabled = enabled
+        etUsername.isEnabled = enabled
+        etPassword.isEnabled = enabled
+        btnLogin.isEnabled = enabled
+        btnSetupPhone.isEnabled = enabled
     }
 }

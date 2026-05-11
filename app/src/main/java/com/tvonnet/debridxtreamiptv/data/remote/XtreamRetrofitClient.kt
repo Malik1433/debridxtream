@@ -8,7 +8,6 @@ import com.tvonnet.debridxtreamiptv.data.remote.adapter.EpisodeDetailJsonAdapter
 import com.tvonnet.debridxtreamiptv.data.remote.interceptor.CacheInterceptor
 import okhttp3.Cache
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.converter.scalars.ScalarsConverterFactory
@@ -41,7 +40,7 @@ object XtreamRetrofitClient {
             .addInterceptor { chain ->
                 val original = chain.request()
                 val request = original.newBuilder()
-                    .header("User-Agent", "VLC/3.0.16 LibVLC/3.0.16")
+                    .header("User-Agent", "IPTVSmartersPlayer")
                     .header("Accept", "*/*")
                     .header("Connection", "keep-alive")
                     .method(original.method, original.body)
@@ -53,14 +52,6 @@ object XtreamRetrofitClient {
                 if (context != null) {
                     // Simplified cache interceptor that handles both online/offline scenarios
                     addInterceptor(CacheInterceptor(context))
-                }
-            }
-            // QA Rec #4: HttpLoggingInterceptor also DEBUG only
-            .apply {
-                if (BuildConfig.DEBUG) {
-                    addInterceptor(HttpLoggingInterceptor().apply {
-                        level = HttpLoggingInterceptor.Level.BASIC
-                    })
                 }
             }
             // Week 8: Add HTTP cache

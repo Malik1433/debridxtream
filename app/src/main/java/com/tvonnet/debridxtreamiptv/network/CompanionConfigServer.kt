@@ -116,18 +116,6 @@ class CompanionConfigServer @Inject constructor(
                         try {
                             val payload = call.receive<CompanionConfigPayload>()
                             
-                            // Validate IPTV if present
-                            payload.iptv?.let { iptv ->
-                                val validationResult = validateIptvCredentials(iptv)
-                                if (!validationResult.success) {
-                                    call.respond(HttpStatusCode.Unauthorized, mapOf(
-                                        "success" to false,
-                                        "message" to validationResult.message
-                                    ))
-                                    return@post
-                                }
-                            }
-                            
                             saveConfiguration(payload)
                             
                             // Notify listeners on the main thread
@@ -201,7 +189,7 @@ class CompanionConfigServer @Inject constructor(
         payload.iptv?.let { iptv ->
             if (iptv.serverUrl.isNotBlank() && iptv.username.isNotBlank()) {
                 Log.d("CompanionServer", "Syncing IPTV credentials for: ${iptv.username}")
-                credentialsPreferences.saveCredentials(
+                credentialsPreferences.saveSyncedCredentials(
                     serverUrl = iptv.serverUrl,
                     username = iptv.username,
                     password = iptv.password

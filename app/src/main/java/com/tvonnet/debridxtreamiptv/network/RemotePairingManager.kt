@@ -121,7 +121,7 @@ class RemotePairingManager @Inject constructor(
         // reuse the logic from CompanionConfigServer
         payload.iptv?.let { iptv ->
             if (iptv.serverUrl.isNotBlank() && iptv.username.isNotBlank()) {
-                credentialsPreferences.saveCredentials(
+                credentialsPreferences.saveSyncedCredentials(
                     serverUrl = iptv.serverUrl,
                     username = iptv.username,
                     password = iptv.password

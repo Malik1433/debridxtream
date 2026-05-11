@@ -35,6 +35,7 @@ object SidebarFocusHelper {
         sidebarContainer: View,
         focusTrigger: View,
         titleArea: View? = null,
+        focusGroupRoot: View = focusTrigger,
         onExpandedChanged: ((Boolean) -> Unit)? = null
     ) {
         var animator: ValueAnimator? = null
@@ -79,7 +80,7 @@ object SidebarFocusHelper {
         val focusListener = android.view.ViewTreeObserver.OnGlobalFocusChangeListener { _, newFocus ->
             if (!focusTrigger.isAttachedToWindow) return@OnGlobalFocusChangeListener
             
-            val isInside = isDescendantOf(newFocus, focusTrigger)
+            val isInside = isDescendantOf(newFocus, focusGroupRoot)
             
             if (isInside) {
                 performAnimation(true)
@@ -87,8 +88,8 @@ object SidebarFocusHelper {
                 // Focus left the sidebar. Use grace period to see if it refocuses (e.g. moving between items)
                 focusTrigger.postDelayed({
                     if (!focusTrigger.isAttachedToWindow) return@postDelayed
-                    val currentFocus = focusTrigger.findFocus()
-                    if (!isDescendantOf(currentFocus, focusTrigger)) {
+                    val currentFocus = focusGroupRoot.rootView?.findFocus()
+                    if (!isDescendantOf(currentFocus, focusGroupRoot)) {
                         performAnimation(false)
                     }
                 }, FOCUS_GRACE_PERIOD_MS)

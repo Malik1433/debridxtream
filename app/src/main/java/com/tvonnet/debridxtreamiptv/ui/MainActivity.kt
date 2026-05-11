@@ -209,11 +209,13 @@ class MainActivity : AppCompatActivity() {
             when (event.keyCode) {
                 // Phase 3.2: Voice search activation with microphone button
                 KeyEvent.KEYCODE_SEARCH -> {
+                    if (!::voiceSearchManager.isInitialized) return true
                     startVoiceSearch()
                     return true
                 }
                 // Alternative voice search trigger for TV remotes
                 KeyEvent.KEYCODE_VOICE_ASSIST -> {
+                    if (!::voiceSearchManager.isInitialized) return true
                     startVoiceSearch()
                     return true
                 }
@@ -250,6 +252,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        voiceSearchManager.destroy()
+        if (::voiceSearchManager.isInitialized) {
+            voiceSearchManager.destroy()
+        }
     }
 }

@@ -50,6 +50,7 @@ import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem
 import com.tvonnet.debridxtreamiptv.data.model.RecentLiveChannelItem
+
 import com.tvonnet.debridxtreamiptv.data.model.toAbsoluteUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
@@ -368,13 +369,17 @@ class PlayerActivity : AppCompatActivity() {
         streamHeaders = readStreamHeaders(intent)
         subtitleEntries = intent.getStringArrayListExtra(EXTRA_SUBTITLE_ENTRIES) ?: emptyList()
 
-        if (streamUrl.isNullOrBlank()) {
+        val isDebrid = playbackSource == PlaybackSource.DEBRID
+        val hasResInfo = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
+        val isExpired = expiresAtExtra?.let { System.currentTimeMillis() > it } ?: (isDebrid && streamUrl.isNullOrBlank())
+
+        if (streamUrl.isNullOrBlank() && !(isDebrid && hasResInfo)) {
             showError("Invalid stream URL")
             finish()
             return
         }
 
-        timeoutMs = resolveTimeoutMs(streamUrl)
+        timeoutMs = resolveTimeoutMs(streamUrl ?: "")
         currentUrl = streamUrl
         channelLogoUrl = intent.getStringExtra(EXTRA_CHANNEL_LOGO)
         startPositionMs = intent.getLongExtra(EXTRA_START_POSITION, 0L)
@@ -478,7 +483,13 @@ class PlayerActivity : AppCompatActivity() {
             observeDebridResolutionState()
         }
 
-        initializePlayer(streamUrl)
+        if (isDebrid && hasResInfo && (streamUrl.isNullOrBlank() || isExpired)) {
+            Log.i("PlayerActivity", "Debrid resume detected: URL is ${if (streamUrl.isNullOrBlank()) "missing" else "expired"}. Triggering resolution.")
+            isResolvingDebrid = true
+            viewModel.reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
+        } else {
+            initializePlayer(streamUrl ?: "")
+        }
         supportActionBar?.title = streamTitle ?: "Playing"
 
         if (contentType == ContentType.LIVE_TV) {
@@ -1615,9 +1626,72 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun formatTimeRangeCompact(program: com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity): String = "${timeFormatter.format(Date(program.start))}-${timeFormatter.format(Date(program.stop))}"
 
-    private fun recordPlaybackHistoryIfNeeded() { if (hasRecordedHistory) return; val type = contentType ?: return; val id = contentId ?: currentUrl ?: return; when (type) { ContentType.LIVE_TV -> recordLiveHistory(id); ContentType.MOVIE, ContentType.SERIES, ContentType.EPISODE -> recordContinueWatchingHistory(id, type) }; hasRecordedHistory = true }
-    private fun recordLiveHistory(channelId: String) { watchHistoryPrefs.addRecentLiveChannel(RecentLiveChannelItem(channelId, tvChannelName?.text?.toString() ?: pendingChannelName ?: originalTitle ?: getString(R.string.player_epg_channel_unknown), (channelLogoUrl ?: posterUrlExtra).toAbsoluteUrl(ContentType.LIVE_TV, baseServerUrl), System.currentTimeMillis(), currentUrl ?: "", currentEpgChannelId)) }
-    private fun recordContinueWatchingHistory(contentId: String, type: ContentType) { val p = player ?: return; val dur = p.duration; if (dur <= 0 || dur == C.TIME_UNSET || dur < MIN_DURATION_TO_TRACK_MS) return; val pos = p.currentPosition; if (pos < MIN_PROGRESS_TO_TRACK_MS) return; val isWatched = (pos / dur.toFloat()) >= COMPLETION_THRESHOLD_RATIO; if (type == ContentType.EPISODE) viewModel.updatePlaybackStatus(contentId, isWatched, if (isWatched) 0 else pos, dur); if (isWatched) { watchHistoryPrefs.removeContinueWatchingItem(resolveContinueWatchingId(type, contentId)); return }; watchHistoryPrefs.saveContinueWatchingItem(ContinueWatchingItem(resolveContinueWatchingId(type, contentId), type, if (type == ContentType.EPISODE) seriesTitleExtra ?: originalTitle ?: pendingChannelName ?: getString(R.string.player_epg_channel_unknown) else originalTitle ?: pendingChannelName ?: getString(R.string.player_epg_channel_unknown), (posterUrlExtra ?: channelLogoUrl).toAbsoluteUrl(type, baseServerUrl), backdropUrlExtra.toAbsoluteUrl(type, baseServerUrl), pos, dur, System.currentTimeMillis(), currentUrl, tmdbIdExtra, imdbIdExtra, seriesTitleExtra, episodeTitleExtra, seasonNumberExtra, episodeNumberExtra, debridInfoHashExtra, debridMagnetExtra, if (playbackSource == PlaybackSource.DEBRID) "debrid" else "xtream", expiresAtExtra)) }
+    private fun recordPlaybackHistoryIfNeeded() { 
+        if (hasRecordedHistory) return; 
+        val type = contentType ?: return; 
+        val id = contentId ?: currentUrl ?: return; 
+        when (type) { 
+            ContentType.LIVE_TV -> recordLiveHistory(id); 
+            ContentType.MOVIE, ContentType.SERIES, ContentType.EPISODE -> {
+                recordContinueWatchingHistory(id, type)
+            }
+        }; 
+        hasRecordedHistory = true 
+    }
+    private fun recordLiveHistory(channelId: String) { 
+        val logoToSave = channelLogoUrl ?: posterUrlExtra
+        val absoluteLogo = logoToSave.toAbsoluteUrl(ContentType.LIVE_TV, baseServerUrl)
+        
+        val item = RecentLiveChannelItem(
+            channelId = channelId,
+            channelName = tvChannelName?.text?.toString() ?: pendingChannelName ?: originalTitle ?: getString(R.string.player_epg_channel_unknown),
+            channelLogo = absoluteLogo,
+            lastWatchedTimestamp = System.currentTimeMillis(),
+            streamUrl = currentUrl ?: "",
+            epgChannelId = currentEpgChannelId,
+            categoryId = liveCategoryId
+        )
+        android.util.Log.e("HISTORY_DEBUG", "Saving Recent Live: $item")
+        watchHistoryPrefs.addRecentLiveChannel(item) 
+    }
+    private fun recordContinueWatchingHistory(contentId: String, type: ContentType) { 
+        val p = player ?: return; 
+        val dur = p.duration; 
+        if (dur <= 0 || dur == C.TIME_UNSET || dur < MIN_DURATION_TO_TRACK_MS) return; 
+        val pos = p.currentPosition; 
+        if (pos < MIN_PROGRESS_TO_TRACK_MS) return; 
+        val isWatched = (pos / dur.toFloat()) >= COMPLETION_THRESHOLD_RATIO; 
+        if (type == ContentType.EPISODE) viewModel.updatePlaybackStatus(contentId, isWatched, if (isWatched) 0 else pos, dur); 
+        if (isWatched) { 
+            watchHistoryPrefs.removeContinueWatchingItem(resolveContinueWatchingId(type, contentId)); 
+            return 
+        }; 
+        val item = ContinueWatchingItem(
+            contentId = resolveContinueWatchingId(type, contentId), 
+            contentType = type, 
+            title = if (type == ContentType.EPISODE) seriesTitleExtra ?: originalTitle ?: pendingChannelName ?: getString(R.string.player_epg_channel_unknown) else originalTitle ?: pendingChannelName ?: getString(R.string.player_epg_channel_unknown), 
+            posterUrl = (posterUrlExtra ?: channelLogoUrl).toAbsoluteUrl(type, baseServerUrl), 
+            backdropUrl = backdropUrlExtra.toAbsoluteUrl(type, baseServerUrl), 
+            currentPosition = pos, 
+            totalDuration = dur, 
+            lastWatchedTimestamp = System.currentTimeMillis(), 
+            streamUrl = currentUrl, 
+            tmdbId = tmdbIdExtra, 
+            imdbId = imdbIdExtra, 
+            seriesTitle = seriesTitleExtra, 
+            episodeTitle = episodeTitleExtra, 
+            seasonNumber = seasonNumberExtra, 
+            episodeNumber = episodeNumberExtra, 
+            debridInfoHash = debridInfoHashExtra, 
+            debridMagnet = debridMagnetExtra, 
+            source = if (playbackSource == PlaybackSource.DEBRID) "debrid" else "xtream", 
+            expiresAt = expiresAtExtra
+        )
+        android.util.Log.e("HISTORY_DEBUG", "Saving Continue Watching [${item.source}]: ${item.title} | pos=$pos dur=$dur | stream=${item.streamUrl} | poster=${item.posterUrl} | expires=${item.expiresAt}")
+        watchHistoryPrefs.saveContinueWatchingItem(item) 
+    }
+
+
     private fun resolveContinueWatchingId(type: ContentType, fallbackId: String): String = if (playbackSource != PlaybackSource.DEBRID) fallbackId else tmdbIdExtra?.let { if (type == ContentType.EPISODE && seasonNumberExtra != null && episodeNumberExtra != null) "$it:S${seasonNumberExtra}E${episodeNumberExtra}" else it } ?: debridInfoHashExtra ?: fallbackId
     private fun updateLastPlaybackPosition() { lastPlaybackPositionMs = player?.currentPosition ?: lastPlaybackPositionMs }
     private fun setExitResultIfNeeded() { if (exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete) return; val pos = player?.currentPosition ?: lastPlaybackPositionMs; if (manualExit || pos < RETURN_TO_SOURCES_THRESHOLD_MS) { exitResultHandled = true; setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RETURN_TO_SOURCES, true)) } }
