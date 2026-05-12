@@ -3,9 +3,9 @@
     
     <!-- Week 14: App Theme with Preference Support -->
     <style name="AppTheme" parent="Theme.MaterialComponents.NoActionBar">
-        <item name="colorPrimary">#FF0000</item>
-        <item name="colorPrimaryDark">#CC0000</item>
-        <item name="colorAccent">#FF0000</item>
+        <item name="colorPrimary">@color/cin_gold_500</item>
+        <item name="colorPrimaryDark">@color/cin_ink_900</item>
+        <item name="colorAccent">@color/cin_gold_500</item>
         <item name="android:windowBackground">@color/background_dark</item>
         <item name="preferenceTheme">@style/PreferenceThemeOverlay.v14.Material</item>
     </style>

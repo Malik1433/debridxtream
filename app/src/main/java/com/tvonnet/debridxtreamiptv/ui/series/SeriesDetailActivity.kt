@@ -150,8 +150,6 @@ class SeriesDetailActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // DEBUG: FORCE RED BACKGROUND
-        window.decorView.setBackgroundColor(android.graphics.Color.RED)
         
         setContentView(R.layout.fragment_series_detail)
 
@@ -196,8 +194,9 @@ class SeriesDetailActivity : AppCompatActivity() {
         rvSeasons.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         rvSeasons.setHasFixedSize(true)
         androidx.recyclerview.widget.LinearSnapHelper().attachToRecyclerView(rvSeasons)
-        rvEpisodes.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
+        rvEpisodes.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         rvEpisodes.setHasFixedSize(true)
+
     }
 
     private fun setupAdapters() {

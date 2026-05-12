@@ -2,11 +2,11 @@
 <androidx.cardview.widget.CardView 
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="158dp"
-    android:layout_height="128dp"
-    android:layout_marginEnd="16dp"
-    android:layout_marginTop="8dp"
-    android:layout_marginBottom="12dp"
+    android:layout_width="144dp"
+    android:layout_height="108dp"
+    android:layout_marginEnd="14dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="8dp"
     android:focusable="true"
     android:focusableInTouchMode="true"
     app:cardBackgroundColor="@color/cin_ink_700"
@@ -18,22 +18,22 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@drawable/cin_channel_card_state"
-        android:padding="12dp">
+        android:padding="10dp">
 
         <TextView
             android:id="@+id/tv_live_badge"
             android:layout_width="wrap_content"
-            android:layout_height="22dp"
+            android:layout_height="18dp"
             android:background="@drawable/cin_badge_live"
             android:fontFamily="@font/plus_jakarta_sans"
             android:gravity="center"
             android:includeFontPadding="false"
-            android:minWidth="42dp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
+            android:minWidth="36dp"
+            android:paddingStart="7dp"
+            android:paddingEnd="7dp"
             android:text="LIVE"
             android:textColor="@color/white"
-            android:textSize="10sp"
+            android:textSize="9sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -49,8 +49,8 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintBottom_toTopOf="@id/tv_channel_name"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp" />
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="6dp" />
 
         <!-- Channel Name -->
         <TextView
@@ -58,7 +58,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Channel"
-            android:textSize="13sp"
+            android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="@color/cin_text_primary"
             android:maxLines="1"

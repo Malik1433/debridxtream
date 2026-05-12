@@ -42,6 +42,25 @@ class SeriesDetailFragmentV2 : Fragment() {
     private var lastFocusedEpisodeId: String? = null
     private var lastFocusedSeasonNum: Int? = null
     private var isRestoringFocus = false
+    private var seriesPlot: String? = null
+
+    companion object {
+        const val ARG_SERIES_ID = "series_id"
+        const val ARG_TITLE = "title"
+        const val ARG_BACKDROP_URL = "backdrop_url"
+        const val ARG_POSTER_URL = "poster_url"
+
+        fun newInstance(seriesId: String, title: String?, backdropUrl: String?, posterUrl: String?): SeriesDetailFragmentV2 {
+            return SeriesDetailFragmentV2().apply {
+                arguments = Bundle().apply {
+                    putString(ARG_SERIES_ID, seriesId)
+                    putString(ARG_TITLE, title)
+                    putString(ARG_BACKDROP_URL, backdropUrl)
+                    putString(ARG_POSTER_URL, posterUrl)
+                }
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -66,9 +85,9 @@ class SeriesDetailFragmentV2 : Fragment() {
         // We render what we know immediately from arguments, without waiting for VM/Network.
         val args = arguments
         if (args != null) {
-            val title = args.getString("title")
-            val backdropUrl = args.getString("backdrop_url")
-            val posterUrl = args.getString("poster_url")
+            val title = args.getString(ARG_TITLE)
+            val backdropUrl = args.getString(ARG_BACKDROP_URL)
+            val posterUrl = args.getString(ARG_POSTER_URL)
 
             binding.tvTitle.text = title ?: "Loading..."
             
@@ -84,36 +103,32 @@ class SeriesDetailFragmentV2 : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        // Episodes Adapter
-        adapter = EpisodesAdapterV2 { episode ->
-            viewModel.onEpisodeClicked(episode)
-        }
-        
+        adapter = EpisodesAdapterV2(
+            onEpisodeClick = { episode ->
+                viewModel.onEpisodeClicked(episode)
+            },
+            onEpisodeFocused = { episode ->
+                // Update header with episode info
+                binding.tvEpisodeMeta.text = "Episode ${episode.episodeNumber} • ${episode.title}"
+                binding.tvEpisodeMeta.visibility = View.VISIBLE
+                binding.tvPlot.text = episode.plot ?: seriesPlot ?: ""
+                
+                // Track for restoration
+                lastFocusedEpisodeId = episode.episodeId
+            }
+        )
         binding.rvEpisodes.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
         binding.rvEpisodes.adapter = adapter
 
+        seasonsAdapter = SeasonsAdapterV2 { seasonNum ->
+            viewModel.onSeasonSelected(seasonNum)
+        }
         binding.rvSeasons.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
         binding.rvSeasons.adapter = seasonsAdapter
 
         // Null Animators: Prevent focus jitter during updates
         binding.rvEpisodes.itemAnimator = null
         binding.rvSeasons.itemAnimator = null
-
-        // Track episode focus for restoration
-        binding.rvEpisodes.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
-            override fun onChildViewAttachedToWindow(view: View) {
-                view.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
-                    if (hasFocus && !isRestoringFocus) {
-                        val pos = binding.rvEpisodes.getChildAdapterPosition(v)
-                        if (pos != RecyclerView.NO_POSITION) {
-                            val episode = adapter?.peek(pos)
-                            lastFocusedEpisodeId = episode?.episodeId
-                        }
-                    }
-                }
-            }
-            override fun onChildViewDetachedFromWindow(view: View) {}
-        })
 
         // Handle Loading State based on Paging LoadState
         lifecycleScope.launch {
@@ -233,7 +248,7 @@ class SeriesDetailFragmentV2 : Fragment() {
                 viewModel.navigationEvents.collect { event ->
                     when (event) {
                         is SeriesNavigationEvent.NavigateToPlayer -> {
-                            val seriesTitle = arguments?.getString("title")
+                            val seriesTitle = arguments?.getString(ARG_TITLE)
                                 ?: binding.tvTitle.text?.toString()
                             val intent = com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity.createIntent(
                                 context = requireContext(),
@@ -265,18 +280,20 @@ class SeriesDetailFragmentV2 : Fragment() {
     
     private fun bindMetadata(state: SeriesDetailUiState.Success) {
         val s = state.series
+        seriesPlot = s.plot
         binding.tvTitle.text = s.title ?: s.name
         binding.tvPlot.text = s.plot ?: "No plot available."
         
-        // Modern Pill Binding
-        binding.tvYear?.text = s.year ?: "N/A"
-        binding.tvGenre?.text = s.genre ?: "Genre"
+        // Single row meta row: Genre • Year
+        val genreText = s.genre ?: ""
+        val yearText = s.year ?: ""
+        val metaRowText = listOf(genreText, yearText).filter { it.isNotEmpty() }.joinToString(" • ")
+        binding.tvGenreYear.text = metaRowText
         
-        // Rating with Star
+        // Rating Badge
         val ratingText = s.rating ?: ""
-        binding.tvRating?.text = if (ratingText.isNotEmpty()) "★ $ratingText" else ""
-        binding.tvRating?.visibility = if (ratingText.isNotEmpty()) View.VISIBLE else View.GONE
-        
+        binding.tvRatingBadge.text = ratingText
+        binding.tvRatingBadge.visibility = if (ratingText.isNotEmpty()) View.VISIBLE else View.GONE
         
         // Fix 3: Pass cover to adapter for fallback
         if (!s.cover.isNullOrEmpty() && adapter?.seriesCoverUrl != s.cover) {
@@ -285,6 +302,7 @@ class SeriesDetailFragmentV2 : Fragment() {
             adapter?.notifyItemRangeChanged(0, adapter?.itemCount ?: 0, Any()) 
         }
     }
+
 
     private fun setupListeners() {
         binding.btnBack.setOnClickListener {

@@ -12,7 +12,8 @@ import com.tvonnet.debridxtreamiptv.databinding.ItemEpisodeV2Binding
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2
 
 class EpisodesAdapterV2(
-    private val onEpisodeClick: (EpisodeEntityV2) -> Unit
+    private val onEpisodeClick: (EpisodeEntityV2) -> Unit,
+    private val onEpisodeFocused: (EpisodeEntityV2) -> Unit = {}
 ) : PagingDataAdapter<EpisodeEntityV2, EpisodesAdapterV2.EpisodeViewHolder>(EpisodeDiffCallback) {
 
     init {
@@ -42,26 +43,23 @@ class EpisodesAdapterV2(
             }
             
             // Clean Focus Handling
-            binding.vFocusBorder.setBackgroundResource(com.tvonnet.debridxtreamiptv.R.drawable.border_focus_white)
+            binding.vFocusBorder.setBackgroundResource(com.tvonnet.debridxtreamiptv.R.drawable.bg_episode_focus_glow)
             binding.vFocusBorder.visibility = android.view.View.INVISIBLE
             
             binding.root.setOnFocusChangeListener { v, hasFocus ->
-                // Animate Scale
-                v.z = if (hasFocus) 20f else 0f
-                v.animate()
-                    .scaleX(if (hasFocus) 1.1f else 1.0f)
-                    .scaleY(if (hasFocus) 1.1f else 1.0f)
-                    .duration = 200
-                
                 // Toggle Border Visibility
                 binding.vFocusBorder.visibility = if (hasFocus) android.view.View.VISIBLE else android.view.View.INVISIBLE
+
+                if (hasFocus) {
+                    val item = getItem(bindingAdapterPosition)
+                    if (item != null) onEpisodeFocused(item)
+                }
             }
         }
 
         fun bind(episode: EpisodeEntityV2) {
-            binding.tvEpisodeNumber.text = "S${episode.seasonNumber}:E${episode.episodeNumber}"
+            binding.tvEpisodeNumber.text = "E${episode.episodeNumber}"
             
-            // Fix: Clean Title
             val rawTitle = episode.title
             val cleanTitle = if (rawTitle.isNullOrEmpty() || rawTitle.equals("null", ignoreCase = true)) {
                 "Episode ${episode.episodeNumber}"
@@ -70,26 +68,32 @@ class EpisodesAdapterV2(
             }
             binding.tvTitle.text = cleanTitle
             
-            // Plot is removed in horizontal card to save space, or use tvPlot if visible
+            // Format meta line: Episode X • Y mins • Plot
+            val durationText = formatDuration(episode.duration)
+            val plotSnippet = episode.plot?.take(30)?.let { if (it.length < (episode.plot?.length ?: 0)) "$it..." else it } ?: ""
+            val metaBuilder = StringBuilder("Episode ${episode.episodeNumber}")
+            if (durationText.isNotEmpty()) metaBuilder.append(" • $durationText")
+            if (plotSnippet.isNotEmpty()) metaBuilder.append(" • $plotSnippet")
+            
+            binding.tvDuration.text = metaBuilder.toString()
             binding.tvPlot.text = episode.plot ?: ""
-            binding.tvDuration.text = formatDuration(episode.duration)
 
-            // Fix: Fallback Image Logic
             val imageUrl = if (!episode.thumbnail.isNullOrEmpty()) episode.thumbnail else seriesCoverUrl
             
             Glide.with(binding.root.context)
                 .load(imageUrl)
                 .transition(DrawableTransitionOptions.withCrossFade())
-                .placeholder(android.R.drawable.ic_menu_gallery)
-                .error(android.R.drawable.ic_menu_gallery)
+                .placeholder(com.tvonnet.debridxtreamiptv.R.drawable.placeholder_poster)
+                .error(com.tvonnet.debridxtreamiptv.R.drawable.placeholder_poster)
                 .into(binding.ivEpisodeThumb)
         }
         
         private fun formatDuration(seconds: Long): String {
             if (seconds <= 0) return ""
             val m = seconds / 60
-            return "${m}m"
+            return "${m} min"
         }
+
     }
 
     object EpisodeDiffCallback : DiffUtil.ItemCallback<EpisodeEntityV2>() {

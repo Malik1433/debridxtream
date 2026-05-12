@@ -39,6 +39,8 @@ import com.tvonnet.debridxtreamiptv.util.FocusEffects
 import com.tvonnet.debridxtreamiptv.data.local.entity.FavoriteEntity
 import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
+import com.tvonnet.debridxtreamiptv.features.vodv2.ui.MovieDetailFragmentV2
+import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.SeriesDetailFragmentV2
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -1016,6 +1018,15 @@ class HomeFragment : Fragment() {
             addToBackStack(null)
         }
     }
+
+    private fun navigateToFragment(fragment: Fragment) {
+        if (!isAdded || parentFragmentManager.isStateSaved) return
+        isNavigatingFromHome = true
+        parentFragmentManager.commit {
+            replace(R.id.content_container, fragment)
+            addToBackStack(null)
+        }
+    }
     
     private fun onFeaturedItemClick(item: FeaturedItem) {
         // Update Hero immediately on click as well
@@ -1044,24 +1055,33 @@ class HomeFragment : Fragment() {
                 showHomeActionUnavailable()
             }
         } else {
-            // Legacy IPTV logic
-            if (item.contentType == ContentType.MOVIE) {
-                 item.streamUrl?.let { url ->
-                    val intent = PlayerActivity.createIntent(
-                        context = requireContext(),
-                        streamUrl = url,
+            // IPTV Routing
+            when (item.contentType) {
+                ContentType.MOVIE -> {
+                    val fragment = MovieDetailFragmentV2.newInstance(
+                        streamId = item.contentId,
                         title = item.title,
-                        contentId = item.contentId,
-                        contentType = item.contentType,
+                        backdropUrl = item.backdropUrl,
                         posterUrl = item.posterUrl,
-                        backdropUrl = item.backdropUrl
+                        plot = item.description,
+                        
+                        directSource = item.streamUrl
                     )
-                    startActivityPreservingContentFocus(intent)
-                } ?: showHomeActionUnavailable()
-            } else if (item.contentType == ContentType.LIVE_TV) {
-                 launchLiveStream(item.contentId, item.title, item.posterUrl, item.streamUrl)
-            } else {
-                showHomeActionUnavailable()
+                    navigateToFragment(fragment)
+                }
+                ContentType.SERIES -> {
+                    val fragment = SeriesDetailFragmentV2.newInstance(
+                        seriesId = item.contentId,
+                        title = item.title,
+                        backdropUrl = item.backdropUrl,
+                        posterUrl = item.posterUrl
+                    )
+                    navigateToFragment(fragment)
+                }
+                ContentType.LIVE_TV -> {
+                    launchLiveStream(item.contentId, item.title, item.posterUrl, item.streamUrl)
+                }
+                else -> showHomeActionUnavailable()
             }
         }
     }
@@ -1096,23 +1116,43 @@ class HomeFragment : Fragment() {
                     if (!canResumeDirectly) {
                         android.util.Log.e("HISTORY_DEBUG", "RESUME_PATH: FALLBACK to Detail (canResumeDirectly=false)")
                         if (item.contentType == ContentType.MOVIE) {
-                            val movieIntent = android.content.Intent(requireContext(), MovieDetailActivity::class.java).apply {
-                                putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.tmdbId ?: item.contentId)
-                                putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
-                                putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
-                                putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
-                                putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, if (isDebrid) "debrid" else "xtream")
+                            if (isDebrid) {
+                                val movieIntent = android.content.Intent(requireContext(), MovieDetailActivity::class.java).apply {
+                                    putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.tmdbId ?: item.contentId)
+                                    putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
+                                    putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
+                                    putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
+                                    putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
+                                }
+                                startActivityPreservingContentFocus(movieIntent)
+                            } else {
+                                val fragment = MovieDetailFragmentV2.newInstance(
+                                    streamId = item.contentId,
+                                    title = item.title,
+                                    backdropUrl = item.backdropUrl,
+                                    posterUrl = item.posterUrl
+                                )
+                                navigateToFragment(fragment)
                             }
-                            startActivityPreservingContentFocus(movieIntent)
                         } else {
-                            val seriesIntent = android.content.Intent(requireContext(), SeriesDetailActivity::class.java).apply {
-                                putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, item.tmdbId ?: item.contentId)
-                                putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.seriesTitle ?: item.title)
-                                putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
-                                putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
-                                putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, isDebrid)
+                            if (isDebrid) {
+                                val seriesIntent = android.content.Intent(requireContext(), SeriesDetailActivity::class.java).apply {
+                                    putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, item.tmdbId ?: item.contentId)
+                                    putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.seriesTitle ?: item.title)
+                                    putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
+                                    putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
+                                    putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
+                                }
+                                startActivityPreservingContentFocus(seriesIntent)
+                            } else {
+                                val fragment = SeriesDetailFragmentV2.newInstance(
+                                    seriesId = item.contentId,
+                                    title = item.seriesTitle ?: item.title,
+                                    backdropUrl = item.backdropUrl,
+                                    posterUrl = item.posterUrl
+                                )
+                                navigateToFragment(fragment)
                             }
-                            startActivityPreservingContentFocus(seriesIntent)
                         }
                         return@launch
                     }
@@ -1151,14 +1191,24 @@ class HomeFragment : Fragment() {
                         showHomeActionUnavailable()
                         return@launch
                     }
-                    val intent = android.content.Intent(requireContext(), SeriesDetailActivity::class.java).apply {
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, seriesId)
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.seriesTitle ?: item.title)
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
-                        putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, isDebrid)
+                    if (isDebrid) {
+                        val seriesIntent = android.content.Intent(requireContext(), SeriesDetailActivity::class.java).apply {
+                            putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, seriesId)
+                            putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.seriesTitle ?: item.title)
+                            putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
+                            putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
+                            putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
+                        }
+                        startActivityPreservingContentFocus(seriesIntent)
+                    } else {
+                        val fragment = com.tvonnet.debridxtreamiptv.features.seriesv2.ui.SeriesDetailFragmentV2.newInstance(
+                            seriesId = seriesId,
+                            title = item.seriesTitle ?: item.title,
+                            backdropUrl = item.backdropUrl,
+                            posterUrl = item.posterUrl
+                        )
+                        navigateToFragment(fragment)
                     }
-                    startActivityPreservingContentFocus(intent)
                 }
                 else -> {
                     android.util.Log.w("HISTORY_DEBUG", "Unsupported content type for resume: ${item.contentType}")
@@ -1180,33 +1230,56 @@ class HomeFragment : Fragment() {
     }
 
     private fun openFeaturedDetails(item: FeaturedItem) {
-        if (item.sourceType != SourceType.TMDB) {
-            showHomeActionUnavailable()
-            return
-        }
-
-        when (item.contentType) {
-            ContentType.MOVIE -> {
-                val intent = android.content.Intent(requireContext(), MovieDetailActivity::class.java).apply {
-                    putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.contentId)
-                    putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
-                    putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
-                    putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
-                    putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
+        if (item.sourceType == SourceType.TMDB) {
+            when (item.contentType) {
+                ContentType.MOVIE -> {
+                    val intent = android.content.Intent(requireContext(), MovieDetailActivity::class.java).apply {
+                        putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.contentId)
+                        putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
+                        putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
+                        putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
+                        putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
+                    }
+                    startActivityPreservingContentFocus(intent)
                 }
-                startActivityPreservingContentFocus(intent)
-            }
-            ContentType.SERIES -> {
-                val intent = android.content.Intent(requireContext(), SeriesDetailActivity::class.java).apply {
-                    putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, item.contentId)
-                    putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.title)
-                    putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
-                    putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
-                    putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
+                ContentType.SERIES -> {
+                    val intent = android.content.Intent(requireContext(), SeriesDetailActivity::class.java).apply {
+                        putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, item.contentId)
+                        putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.title)
+                        putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
+                        putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
+                        putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
+                    }
+                    startActivityPreservingContentFocus(intent)
                 }
-                startActivityPreservingContentFocus(intent)
+                else -> showHomeActionUnavailable()
             }
-            else -> showHomeActionUnavailable()
+        } else {
+            // IPTV Details
+            when (item.contentType) {
+                ContentType.MOVIE -> {
+                    val fragment = MovieDetailFragmentV2.newInstance(
+                        streamId = item.contentId,
+                        title = item.title,
+                        backdropUrl = item.backdropUrl,
+                        posterUrl = item.posterUrl,
+                        plot = item.description,
+                        
+                        directSource = item.streamUrl
+                    )
+                    navigateToFragment(fragment)
+                }
+                ContentType.SERIES -> {
+                    val fragment = SeriesDetailFragmentV2.newInstance(
+                        seriesId = item.contentId,
+                        title = item.title,
+                        backdropUrl = item.backdropUrl,
+                        posterUrl = item.posterUrl
+                    )
+                    navigateToFragment(fragment)
+                }
+                else -> showHomeActionUnavailable()
+            }
         }
     }
 

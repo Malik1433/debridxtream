@@ -42,9 +42,10 @@ class SeriesEpisodeAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EpisodeViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_episode_row, parent, false)
-        return EpisodeViewHolder(view)
+        val binding = com.tvonnet.debridxtreamiptv.databinding.ItemEpisodeV2Binding.inflate(
+            LayoutInflater.from(parent.context), parent, false
+        )
+        return EpisodeViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: EpisodeViewHolder, position: Int) {
@@ -52,80 +53,47 @@ class SeriesEpisodeAdapter(
         holder.bind(item, item.id == selectedEpisodeId)
     }
 
-    inner class EpisodeViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val ivThumb: ImageView = itemView.findViewById(R.id.iv_episode_thumb)
-        private val tvTitle: TextView = itemView.findViewById(R.id.tv_episode_title)
-        private val tvMeta: TextView = itemView.findViewById(R.id.tv_episode_meta)
+    inner class EpisodeViewHolder(private val binding: com.tvonnet.debridxtreamiptv.databinding.ItemEpisodeV2Binding) : 
+        RecyclerView.ViewHolder(binding.root) {
+        
+        init {
+            binding.vFocusBorder.setBackgroundResource(R.drawable.bg_episode_focus_glow)
+            binding.vFocusBorder.visibility = View.INVISIBLE
 
-        fun bind(item: EpisodeUiModel, isSelected: Boolean) {
-            tvTitle.text = item.title
-
-            val context = itemView.context
-            val episodeLabel = item.episodeNumber?.let { episodeNumber ->
-                if (item.durationMinutes != null) {
-                    val durationText = context.getString(
-                        R.string.series_detail_episode_duration_minutes,
-                        item.durationMinutes
-                    )
-                    context.getString(
-                        R.string.series_detail_episode_meta_format,
-                        episodeNumber,
-                        durationText
-                    )
-                } else {
-                    context.getString(R.string.series_detail_episode_meta_no_duration, episodeNumber)
-                }
-            }
-
-            val description = item.description?.takeIf { it.isNotBlank() }
-            val metaParts = buildList {
-                episodeLabel?.let { add(it) }
-                description?.let { add(it) }
-            }
-            tvMeta.text = metaParts.joinToString(separator = " �?� ")
-
-            val thumbnail = item.thumbnailUrl?.takeIf { it.isNotBlank() }
-            if (thumbnail == null) {
-                Glide.with(itemView).clear(ivThumb)
-                ivThumb.setImageResource(R.drawable.tv_card_placeholder)
-            } else {
-                Glide.with(itemView)
-                    .load(thumbnail)
-                    .placeholder(R.drawable.tv_card_placeholder)
-                    .error(R.drawable.tv_card_placeholder)
-                    .centerCrop()
-                    .into(ivThumb)
-            }
-
-            // Playback Status
-            val ivWatched: android.widget.ImageView = itemView.findViewById(R.id.iv_watched_indicator)
-            val pbResume: android.widget.ProgressBar = itemView.findViewById(R.id.pb_resume_progress)
-
-            if (item.isWatched) {
-                ivWatched.visibility = View.VISIBLE
-                pbResume.visibility = View.GONE
-            } else if (item.resumePosition > 0 && item.durationMinutes != null && item.durationMinutes > 0) {
-                ivWatched.visibility = View.GONE
-                pbResume.visibility = View.VISIBLE
-                val durationSecs = item.durationMinutes * 60L
-                val progress = ((item.resumePosition.toDouble() / durationSecs.toDouble()) * 100).toInt()
-                pbResume.progress = progress
-            } else {
-                ivWatched.visibility = View.GONE
-                pbResume.visibility = View.GONE
-            }
-
-            itemView.isSelected = isSelected
-
-            itemView.setOnClickListener {
+            binding.root.setOnClickListener {
+                val item = getItem(bindingAdapterPosition)
                 onEpisodeClick(item)
             }
 
-            itemView.setOnFocusChangeListener { _, hasFocus ->
+            binding.root.setOnFocusChangeListener { v, hasFocus ->
+                binding.vFocusBorder.visibility = if (hasFocus) View.VISIBLE else View.INVISIBLE
                 if (hasFocus) {
+                    val item = getItem(bindingAdapterPosition)
                     onEpisodeFocused(item)
                 }
             }
+        }
+
+        fun bind(item: EpisodeUiModel, isSelected: Boolean) {
+            binding.tvTitle.text = item.title
+            binding.tvEpisodeNumber.text = "E${item.episodeNumber ?: 0}"
+
+            val context = itemView.context
+            val episodeLabel = item.episodeNumber?.let { "Episode $it" } ?: "Episode"
+            val durationText = item.durationMinutes?.let { " • ${it} min" } ?: ""
+            val plotSnippet = item.description?.take(40)?.let { " • $it..." } ?: ""
+            
+            binding.tvDuration.text = "$episodeLabel$durationText$plotSnippet"
+
+            val thumbnail = item.thumbnailUrl?.takeIf { it.isNotBlank() }
+            Glide.with(itemView)
+                .load(thumbnail)
+                .placeholder(R.drawable.tv_card_placeholder)
+                .error(R.drawable.tv_card_placeholder)
+                .centerCrop()
+                .into(binding.ivEpisodeThumb)
+
+            itemView.isSelected = isSelected
         }
     }
 

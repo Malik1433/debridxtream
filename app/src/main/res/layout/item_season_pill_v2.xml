@@ -13,6 +13,6 @@
     android:text="Season 1"
     android:textColor="@color/color_selector_season_text"
     android:textStyle="bold"
-    android:fontFamily="sans-serif-medium"
-    android:layout_marginEnd="12dp"
-    android:textSize="15sp" />
+    android:fontFamily="@font/inter"
+    android:layout_marginEnd="16dp"
+    android:textSize="18sp" />

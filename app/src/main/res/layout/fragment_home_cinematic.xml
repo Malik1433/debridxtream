@@ -38,9 +38,9 @@
             android:clipToPadding="false"
             android:clipChildren="false"
             android:paddingStart="0dp"
-            android:paddingTop="44dp"
+            android:paddingTop="28dp"
             android:paddingEnd="56dp"
-            android:paddingBottom="72dp"
+            android:paddingBottom="44dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/sidebar_panel"
@@ -57,7 +57,7 @@
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="32dp">
+                    android:layout_marginBottom="20dp">
 
                     <TextView
                         android:id="@+id/tv_hero_title"
@@ -66,7 +66,7 @@
                         android:fontFamily="@font/plus_jakarta_sans"
                         android:text="Featured Movie Title"
                         android:textColor="@color/white"
-                        android:textSize="46sp"
+                        android:textSize="38sp"
                         android:textStyle="bold"
                         android:shadowColor="@color/brand_cyan"
                         android:shadowRadius="18"
@@ -74,8 +74,8 @@
                         android:shadowDy="0"
                         android:maxLines="2"
                         android:ellipsize="end"
-                        android:layout_marginTop="12dp"
-                        android:layout_marginBottom="8dp"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="4dp"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintWidth_percent="0.7" />
@@ -87,12 +87,12 @@
                         android:fontFamily="@font/plus_jakarta_sans"
                         android:text="This is a short description of the movie. It is very cinematic and cool."
                         android:textColor="@color/glass_text_secondary"
-                        android:textSize="16sp"
-                        android:maxLines="3"
+                        android:textSize="15sp"
+                        android:maxLines="2"
                         android:ellipsize="end"
-                        android:layout_marginTop="8dp"
-                        android:layout_marginBottom="24dp"
-                        android:lineSpacingExtra="4dp"
+                        android:layout_marginTop="6dp"
+                        android:layout_marginBottom="12dp"
+                        android:lineSpacingExtra="2dp"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toBottomOf="@id/tv_hero_title"
                         app:layout_constraintWidth_percent="0.6" />
@@ -102,14 +102,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginTop="20dp"
+                        android:layout_marginTop="14dp"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toBottomOf="@id/tv_hero_description">
                         
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_hero_watch"
                             android:layout_width="wrap_content"
-                            android:layout_height="48dp"
+                            android:layout_height="42dp"
                             android:text="PLAY NOW"
                             android:backgroundTint="@color/brand_cyan"
                             android:textColor="@color/velvet_black"
@@ -129,7 +129,7 @@
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_hero_details"
                             android:layout_width="wrap_content"
-                            android:layout_height="48dp"
+                            android:layout_height="42dp"
                             android:text="MORE INFO"
                             android:backgroundTint="@color/glass_card_bg_light"
                             android:textColor="@color/white"
@@ -144,53 +144,81 @@
                     </LinearLayout>
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
-                <!-- Continue Watching Row -->
+                <!-- Top 10 Movies Row -->
                 <LinearLayout
-                    android:id="@+id/section_continue_watching"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="10dp">
+                    <View
+                        android:layout_width="4dp"
+                        android:layout_height="18dp"
+                        android:background="@color/brand_cyan"
+                        android:layout_marginEnd="12dp" />
+                    <TextView
+                        android:id="@+id/tv_title_top_10_movies"
+                        android:text="TRENDING MOVIES"
+                        android:textSize="18sp"
+                        android:textColor="@color/white"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:textStyle="bold"
+                        android:letterSpacing="0"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_top_10_movies"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:clipChildren="false"
+                    android:orientation="horizontal"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="36dp"
                     android:clipToPadding="false"
-                    android:layout_marginBottom="28dp"
-                    android:visibility="gone">
+                    android:clipChildren="false"
+                    android:layout_marginBottom="22dp"
+                    tools:listitem="@layout/item_top_10_card"
+                    tools:itemCount="5"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
-                    <LinearLayout
+                <!-- Top 10 Series Row -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="10dp">
+                    <View
+                        android:layout_width="4dp"
+                        android:layout_height="18dp"
+                        android:background="@color/brand_cyan"
+                        android:layout_marginEnd="12dp" />
+                    <TextView
+                        android:id="@+id/tv_title_top_10_series"
+                        android:text="TRENDING SERIES"
+                        android:textSize="18sp"
+                        android:textColor="@color/white"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:textStyle="bold"
+                        android:letterSpacing="0"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:layout_marginBottom="16dp">
-                        <View
-                            android:layout_width="4dp"
-                            android:layout_height="20dp"
-                            android:background="@color/brand_cyan"
-                            android:layout_marginEnd="12dp" />
-                        <TextView
-                            android:id="@+id/tv_title_continue_watching"
-                            android:text="@string/section_continue_watching"
-                            android:textSize="20sp"
-                            android:textColor="@color/white"
-                            android:fontFamily="@font/plus_jakarta_sans"
-                            android:textStyle="bold"
-                            android:letterSpacing="0"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content" />
-                    </LinearLayout>
-
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/rv_continue_watching"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:paddingStart="0dp"
-                        android:paddingEnd="36dp"
-                        android:clipToPadding="false"
-                        android:clipChildren="false"
-                        tools:listitem="@layout/item_continue_watching_card"
-                        tools:itemCount="5"
-                        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+                        android:layout_height="wrap_content" />
                 </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_top_10_series"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="36dp"
+                    android:clipToPadding="false"
+                    android:clipChildren="false"
+                    android:layout_marginBottom="22dp"
+                    tools:listitem="@layout/item_top_10_card"
+                    tools:itemCount="5"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
                 <!-- Recent Live Row -->
                 <LinearLayout
@@ -200,7 +228,7 @@
                     android:orientation="vertical"
                     android:clipChildren="false"
                     android:clipToPadding="false"
-                    android:layout_marginBottom="28dp"
+                    android:layout_marginBottom="20dp"
                     android:visibility="gone">
 
                     <LinearLayout
@@ -208,16 +236,16 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:layout_marginBottom="16dp">
+                        android:layout_marginBottom="10dp">
                         <View
                             android:layout_width="4dp"
-                            android:layout_height="20dp"
+                            android:layout_height="18dp"
                             android:background="@color/brand_cyan"
                             android:layout_marginEnd="12dp" />
                         <TextView
                             android:id="@+id/tv_title_recent_live"
                             android:text="@string/section_recent_live"
-                            android:textSize="20sp"
+                            android:textSize="18sp"
                             android:textColor="@color/white"
                             android:fontFamily="@font/plus_jakarta_sans"
                             android:textStyle="bold"
@@ -240,83 +268,53 @@
                         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
                 </LinearLayout>
 
-
-
-                <!-- Top 10 Movies Row -->
+                <!-- Continue Watching Row -->
                 <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="16dp">
-                    <View
-                        android:layout_width="4dp"
-                        android:layout_height="20dp"
-                        android:background="@color/brand_cyan"
-                        android:layout_marginEnd="12dp" />
-                    <TextView
-                        android:id="@+id/tv_title_top_10_movies"
-                        android:text="TRENDING MOVIES"
-                        android:textSize="20sp"
-                        android:textColor="@color/white"
-                        android:fontFamily="@font/plus_jakarta_sans"
-                        android:textStyle="bold"
-                        android:letterSpacing="0"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
-                </LinearLayout>
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_top_10_movies"
+                    android:id="@+id/section_continue_watching"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingStart="0dp"
-                    android:paddingEnd="36dp"
-                    android:clipToPadding="false"
+                    android:orientation="vertical"
                     android:clipChildren="false"
-                    android:layout_marginBottom="32dp"
-                    tools:listitem="@layout/item_top_10_card"
-                    tools:itemCount="5"
-                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+                    android:clipToPadding="false"
+                    android:layout_marginBottom="20dp"
+                    android:visibility="gone">
 
-                <!-- Top 10 Series Row -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="16dp">
-                    <View
-                        android:layout_width="4dp"
-                        android:layout_height="20dp"
-                        android:background="@color/brand_cyan"
-                        android:layout_marginEnd="12dp" />
-                    <TextView
-                        android:id="@+id/tv_title_top_10_series"
-                        android:text="TRENDING SERIES"
-                        android:textSize="20sp"
-                        android:textColor="@color/white"
-                        android:fontFamily="@font/plus_jakarta_sans"
-                        android:textStyle="bold"
-                        android:letterSpacing="0"
+                    <LinearLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
-                </LinearLayout>
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="10dp">
+                        <View
+                            android:layout_width="4dp"
+                            android:layout_height="18dp"
+                            android:background="@color/brand_cyan"
+                            android:layout_marginEnd="12dp" />
+                        <TextView
+                            android:id="@+id/tv_title_continue_watching"
+                            android:text="@string/section_continue_watching"
+                            android:textSize="18sp"
+                            android:textColor="@color/white"
+                            android:fontFamily="@font/plus_jakarta_sans"
+                            android:textStyle="bold"
+                            android:letterSpacing="0"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_top_10_series"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingStart="0dp"
-                    android:paddingEnd="36dp"
-                    android:clipToPadding="false"
-                    android:clipChildren="false"
-                    android:layout_marginBottom="32dp"
-                    tools:listitem="@layout/item_top_10_card"
-                    tools:itemCount="5"
-                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_continue_watching"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingStart="0dp"
+                        android:paddingEnd="36dp"
+                        android:clipToPadding="false"
+                        android:clipChildren="false"
+                        tools:listitem="@layout/item_continue_watching_card"
+                        tools:itemCount="5"
+                        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+                </LinearLayout>
 
 
 

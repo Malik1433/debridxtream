@@ -244,5 +244,35 @@ class MovieDetailFragmentV2 : Fragment() {
         fun newInstance(args: Bundle): MovieDetailFragmentV2 {
             return MovieDetailFragmentV2().apply { arguments = args }
         }
+
+        fun newInstance(
+            streamId: String,
+            title: String?,
+            backdropUrl: String?,
+            posterUrl: String?,
+            plot: String? = null,
+            year: String? = null,
+            genre: String? = null,
+            rating: String? = null,
+            containerExt: String? = null,
+            directSource: String? = null,
+            trailer: String? = null
+        ): MovieDetailFragmentV2 {
+            return MovieDetailFragmentV2().apply {
+                arguments = Bundle().apply {
+                    putString(ARG_STREAM_ID, streamId)
+                    putString(ARG_TITLE, title)
+                    putString(ARG_BACKDROP_URL, backdropUrl)
+                    putString(ARG_POSTER_URL, posterUrl)
+                    putString(ARG_PLOT, plot)
+                    putString(ARG_YEAR, year)
+                    putString(ARG_GENRE, genre)
+                    putString(ARG_RATING, rating)
+                    putString(ARG_CONTAINER_EXT, containerExt)
+                    putString(ARG_DIRECT_SOURCE, directSource)
+                    putString(ARG_TRAILER, trailer)
+                }
+            }
+        }
     }
 }
