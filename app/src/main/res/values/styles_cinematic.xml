@@ -91,6 +91,12 @@
         <item name="backgroundTint">@null</item>
     </style>
 
+    <style name="Cin.Button.Primary.Blue">
+        <item name="android:background">@drawable/cin_btn_primary_blue</item>
+        <item name="android:textColor">@color/color_selector_cin_primary_blue_text</item>
+        <item name="backgroundTint">@null</item>
+    </style>
+
     <style name="Cin.Button.Secondary">
         <item name="android:background">@drawable/cin_btn_secondary_glass</item>
         <item name="android:textColor">@color/cin_text_primary</item>

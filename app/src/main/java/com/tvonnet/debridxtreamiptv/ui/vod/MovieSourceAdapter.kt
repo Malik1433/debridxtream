@@ -6,6 +6,7 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.databinding.ItemMovieSourceBinding
 import com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper
@@ -52,14 +53,7 @@ class MovieSourceAdapter(
     }
 
     override fun onBindViewHolder(holder: SourceViewHolder, position: Int) {
-        android.util.Log.d("MovieSourceAdapter", "Binding item at position $position: ${getItem(position).label}")
         holder.bind(getItem(position))
-    }
-
-    override fun getItemCount(): Int {
-        val count = super.getItemCount()
-        android.util.Log.d("MovieSourceAdapter", "getItemCount: $count")
-        return count
     }
 
     inner class SourceViewHolder(
@@ -69,11 +63,15 @@ class MovieSourceAdapter(
         fun bind(source: MovieSource) {
             binding.tvSourceLabel.text = source.label
             
+            // Provider Badge
+            bindProviderBadge(source)
+
             // Set language flags
             val languages = source.languages ?: listOf("multi")
             val flags = languages.map { getFlagEmoji(it) }.distinct().joinToString(" ")
             binding.tvLanguageFlag.text = flags
 
+            // Quality Badge
             val qualityLabel = source.quality
                 ?.trim()
                 ?.takeIf { it.isNotBlank() && it.lowercase(Locale.US) != "unknown" }
@@ -81,8 +79,24 @@ class MovieSourceAdapter(
             binding.tvBadgeQuality.isVisible = !qualityLabel.isNullOrBlank()
             if (!qualityLabel.isNullOrBlank()) {
                 binding.tvBadgeQuality.text = qualityLabel
+                // Apply color logic based on quality
+                when {
+                    qualityLabel.contains("4K") || qualityLabel.contains("2160") -> {
+                        binding.tvBadgeQuality.setBackgroundResource(R.drawable.cin_pill_4k_gold)
+                        binding.tvBadgeQuality.setTextColor(binding.root.context.getColor(R.color.black))
+                    }
+                    qualityLabel.contains("1080") -> {
+                        binding.tvBadgeQuality.setBackgroundResource(R.drawable.cin_pill_1080p_blue)
+                        binding.tvBadgeQuality.setTextColor(binding.root.context.getColor(R.color.white))
+                    }
+                    else -> {
+                        binding.tvBadgeQuality.setBackgroundResource(R.drawable.cin_pill_generic)
+                        binding.tvBadgeQuality.setTextColor(binding.root.context.getColor(R.color.white))
+                    }
+                }
             }
 
+            // Size Badge
             val sizeLabel = source.sizeBytes
                 ?.takeIf { it > 0 }
                 ?.let { formatSizeLabel(it) }
@@ -91,6 +105,7 @@ class MovieSourceAdapter(
                 binding.tvBadgeSize.text = sizeLabel
             }
 
+            // Seeders Badge
             val seedersLabel = source.seeders
                 ?.takeIf { it > 0 }
                 ?.let { buildSeedersLabel(it) }
@@ -99,41 +114,67 @@ class MovieSourceAdapter(
                 binding.tvBadgeSeeders.text = seedersLabel
             }
 
-            val cachedLabel = source.isCached?.let { if (it) "CACHED" else "UNCACHED" }
-            binding.tvBadgeCached.isVisible = !cachedLabel.isNullOrBlank()
-            if (!cachedLabel.isNullOrBlank()) {
-                binding.tvBadgeCached.text = cachedLabel
+            // Cached Badge
+            val isCached = source.isCached ?: false
+            binding.tvBadgeCached.isVisible = true
+            if (isCached) {
+                binding.tvBadgeCached.text = "CACHED"
+                binding.tvBadgeCached.setBackgroundResource(R.drawable.cin_pill_cached)
+            } else {
+                binding.tvBadgeCached.text = "UNCACHED"
+                binding.tvBadgeCached.setBackgroundResource(R.drawable.cin_pill_uncached)
             }
 
-            binding.layoutBadges.isVisible =
-                binding.tvBadgeQuality.isVisible ||
-                binding.tvBadgeSize.isVisible ||
-                binding.tvBadgeSeeders.isVisible ||
-                binding.tvBadgeCached.isVisible
+            binding.layoutBadges.isVisible = true
 
             val isSelectedItem = source.stream.stream_id == selectedStreamId
             binding.root.isSelected = isSelectedItem
 
-            // Setup the focus listener via the helper to prevent overwriting/nesting
-            com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.updateListener(binding.root) { _, hasFocus ->
+            // Focus management
+            FocusGlintHelper.updateListener(binding.root) { _, hasFocus ->
                 val stillSelected = source.stream.stream_id == selectedStreamId
                 binding.root.isSelected = stillSelected
+                
+                // Show play icon only on focus for a cleaner look
+                binding.ivPlayIcon.isVisible = hasFocus
+                binding.ivPlayIcon.alpha = if (hasFocus) 1.0f else 0.0f
+                
                 if (hasFocus) {
                     onSourceFocused(source)
                 }
             }
             
-            // Reset focus state before binding to prevent recycled highlights
-            com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.forceReset(binding.root)
+            FocusGlintHelper.forceReset(binding.root)
             
-            // If the view already has focus (e.g. after a data refresh), ensure effects are active
             if (binding.root.isFocused) {
-                com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attach(binding.root)
+                FocusGlintHelper.attach(binding.root)
+                binding.ivPlayIcon.isVisible = true
+                binding.ivPlayIcon.alpha = 1.0f
+            } else {
+                binding.ivPlayIcon.isVisible = false
             }
 
             binding.root.setOnClickListener {
                 onSourceClicked(source)
             }
+        }
+
+        private fun bindProviderBadge(source: MovieSource) {
+            val label = source.label?.uppercase(Locale.US) ?: ""
+            val provider = source.provider?.uppercase(Locale.US) ?: ""
+            
+            val (badgeText, badgeBg) = when {
+                label.contains("RD") || label.contains("REAL-DEBRID") || provider.contains("REALDEBRID") -> 
+                    "RD" to R.drawable.cin_src_badge_real
+                label.contains("AD") || label.contains("ALLDEBRID") || provider.contains("ALLDEBRID") -> 
+                    "AD" to R.drawable.cin_src_badge_all
+                label.contains("PM") || label.contains("PREMIUMIZE") || provider.contains("PREMIUMIZE") -> 
+                    "PM" to R.drawable.cin_src_badge_prem
+                else -> "SRC" to R.drawable.cin_src_badge_generic
+            }
+            
+            binding.tvProviderBadge.text = badgeText
+            binding.tvProviderBadge.setBackgroundResource(badgeBg)
         }
 
         private fun getFlagEmoji(languageCode: String): String {
@@ -176,12 +217,12 @@ class MovieSourceAdapter(
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
-        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attachScrollReset(recyclerView)
+        FocusGlintHelper.attachScrollReset(recyclerView)
     }
 
     override fun onViewRecycled(holder: SourceViewHolder) {
         super.onViewRecycled(holder)
-        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.forceReset(holder.itemView)
+        FocusGlintHelper.forceReset(holder.itemView)
     }
 
     companion object {

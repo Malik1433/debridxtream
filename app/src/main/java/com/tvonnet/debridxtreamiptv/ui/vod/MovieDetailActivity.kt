@@ -9,6 +9,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -99,6 +100,14 @@ class MovieDetailActivity : AppCompatActivity() {
     private lateinit var sizeFilterAdapter: SizeFilterAdapter
     private lateinit var languageFilterAdapter: LanguageFilterAdapter
 
+    // TASK 020 New Views
+    private lateinit var layoutRdSummary: View
+    private lateinit var tvRdSummaryText: TextView
+    private lateinit var btnPlay: Button
+    private lateinit var btnTrailer: Button
+    private lateinit var btnFavorite: Button
+    private lateinit var btnBack: ImageButton
+
     // Movie data
     private var movieId: String? = null
     private var movieName: String? = null
@@ -179,6 +188,7 @@ class MovieDetailActivity : AppCompatActivity() {
         
         // Start data loading chain
         if (movieCategoryId == "debrid" && movieId != null) {
+            layoutRdSummary.visibility = View.VISIBLE
             val id = movieId!!.toIntOrNull()
             if (id != null) {
                 fetchTmdbDetails(movieId!!)
@@ -191,8 +201,6 @@ class MovieDetailActivity : AppCompatActivity() {
             loadMovieSources(null)
         }
     }
-
-
 
     private fun fetchTmdbDetails(tmdbId: String) {
         lifecycleScope.launch {
@@ -278,6 +286,18 @@ class MovieDetailActivity : AppCompatActivity() {
 
         rvLanguageFilters = findViewById(R.id.rv_language_filters)
         rvSources = findViewById(R.id.rv_sources)
+
+        // TASK 020 View Binding
+        layoutRdSummary = findViewById(R.id.layout_rd_summary)
+        tvRdSummaryText = findViewById(R.id.tv_rd_summary_text)
+        btnPlay = findViewById(R.id.btn_play)
+        btnTrailer = findViewById(R.id.btn_trailer)
+        btnFavorite = findViewById(R.id.btn_favorite)
+        btnBack = findViewById(R.id.btn_back)
+
+        setupClickListeners()
+        setupFocusAnimations()
+
         sourcesAdapter = MovieSourceAdapter(
             onSourceFocused = { source -> applySelectedSource(source, shouldPlay = false, updateAdapterSelection = false) },
             onSourceClicked = { source -> applySelectedSource(source, shouldPlay = true) }
@@ -451,6 +471,10 @@ class MovieDetailActivity : AppCompatActivity() {
                 } else {
                     tvSourcesHeader.visibility = View.VISIBLE
                     allSources = sources
+                    
+                    // TASK 020: Update Summary
+                    updateRdSummary(sources)
+                    
                     updateSourceFilterOptions()
                     applySourceFilters(isInitialLoad = true)
                 }
@@ -518,18 +542,8 @@ class MovieDetailActivity : AppCompatActivity() {
         val updatedState = filterState.copy(preferredLanguage = preferredLanguage)
         val filteredSources = SourceFilterUtils.apply(allSources, updatedState)
         sourcesAdapter.submitList(filteredSources) {
-            if (filteredSources.isNotEmpty() && isInitialLoad) {
-                rvSources.scrollToPosition(0)
-                rvSources.post {
-                    rvSources.post {
-                        val holder = rvSources.findViewHolderForAdapterPosition(0)
-                        if (holder != null) {
-                            holder.itemView.requestFocus()
-                        } else {
-                            rvSources.requestFocus()
-                        }
-                    }
-                }
+            if (isInitialLoad) {
+                btnPlay.requestFocus()
             }
         }
 
@@ -551,8 +565,11 @@ class MovieDetailActivity : AppCompatActivity() {
                 debridFilterState = state
             },
             initialState = debridFilterState,
-            initialSelectedStreamId = selectedDebridStreamId
+            initialSelectedStreamId = selectedDebridStreamId,
+            contentTitle = movieName,
+            backdropUrl = movieBackdrop
         )
+
         bottomSheet.show(supportFragmentManager, com.tvonnet.debridxtreamiptv.ui.series.SourceSelectionBottomSheet.TAG)
 
         if (debridSources.isNotEmpty()) {
@@ -582,9 +599,13 @@ class MovieDetailActivity : AppCompatActivity() {
                 if (sources.isEmpty()) {
                     bottomSheet.showError(getString(R.string.movie_detail_sources_empty))
                 } else {
+                    // Update summary on main page as well
+                    updateRdSummary(sources)
+                    
                     bottomSheet.showSources(sources)
                     refreshMediaFusionCacheStatus(sources) { updated ->
                         debridSources = updated
+                        updateRdSummary(updated)
                         if (bottomSheet.isAdded) {
                             bottomSheet.showSources(updated)
                         }
@@ -596,6 +617,98 @@ class MovieDetailActivity : AppCompatActivity() {
             }
         }
     }
+
+    private fun updateRdSummary(sources: List<MovieSource>) {
+        if (sources.isEmpty()) {
+            layoutRdSummary.visibility = View.GONE
+            return
+        }
+
+        val cachedCount = sources.count { it.isCached == true }
+        val bestQuality = sources.mapNotNull { it.quality }.distinct()
+            .sortedByDescending { q -> 
+                when(q.uppercase()) {
+                    "4K" -> 100
+                    "2160P" -> 99
+                    "1080P" -> 80
+                    "720P" -> 60
+                    else -> 0
+                }
+            }.firstOrNull() ?: "HD"
+
+        val languages = sources.flatMap { it.languages ?: emptyList() }
+            .distinct()
+            .joinToString(", ")
+
+        layoutRdSummary.visibility = View.VISIBLE
+        val summary = buildString {
+            append("Real-Debrid Ready")
+            if (cachedCount > 0) {
+                append(" • $cachedCount cached sources")
+            } else {
+                append(" • ${sources.size} sources found")
+            }
+            append(" • Best: $bestQuality")
+            
+            if (languages.isNotBlank()) {
+                append("\nLanguages: $languages")
+            } else {
+                append("\nLanguages available after source selection")
+            }
+        }
+        tvRdSummaryText.text = summary
+    }
+
+    private fun setupClickListeners() {
+        btnPlay.setOnClickListener {
+            if (movieCategoryId == "debrid") {
+                showDebridSourcePicker()
+            } else {
+                playMovie()
+            }
+        }
+        btnTrailer.setOnClickListener {
+            launchTrailer()
+        }
+        btnFavorite.setOnClickListener {
+            toggleFavorite()
+        }
+        btnBack.setOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
+    }
+
+    private fun setupFocusAnimations() {
+        val buttons = listOf(btnPlay, btnTrailer, btnFavorite, btnBack)
+        buttons.forEach { view ->
+            view.alpha = 0.8f
+            view.setOnFocusChangeListener { v, hasFocus ->
+                if (hasFocus) {
+                    v.animate()
+                        .scaleX(1.1f)
+                        .scaleY(1.1f)
+                        .alpha(1.0f)
+                        .setDuration(200)
+                        .setInterpolator(android.view.animation.OvershootInterpolator())
+                        .start()
+                } else {
+                    v.animate()
+                        .scaleX(1.0f)
+                        .scaleY(1.0f)
+                        .alpha(0.8f)
+                        .setDuration(200)
+                        .start()
+                }
+            }
+        }
+    }
+
+    private fun toggleFavorite() {
+        // Logic to be implemented
+        Toast.makeText(this, "Added to favorites", Toast.LENGTH_SHORT).show()
+    }
+
+
 
     private fun applySelectedSource(
         source: MovieSource,

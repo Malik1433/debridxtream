@@ -4,42 +4,46 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="12dp"
-    android:background="@drawable/bg_glass_source_item"
+    android:layout_marginBottom="8dp"
+    android:background="@drawable/cin_source_row_bg"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    android:padding="16dp">
+    android:padding="12dp">
 
-    <!-- Language Flag / Icon -->
+    <!-- Provider Badge -->
     <TextView
-        android:id="@+id/tv_language_flag"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="🇫🇮"
-        android:textSize="24sp"
+        android:id="@+id/tv_provider_badge"
+        android:layout_width="40dp"
+        android:layout_height="24dp"
+        android:background="@drawable/cin_src_badge_real"
+        android:gravity="center"
+        android:text="RD"
+        android:textColor="@color/white"
+        android:textSize="10sp"
+        android:fontFamily="@font/inter"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <!-- Source Title -->
     <TextView
         android:id="@+id/tv_source_label"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
         android:ellipsize="end"
         android:maxLines="1"
-        android:text="TorrentIO • 4K HDR"
         android:textColor="@color/white"
         android:fontFamily="@font/inter"
-        android:textSize="17sp"
-        android:textStyle="bold"
+        android:textSize="15sp"
         app:layout_constraintBottom_toTopOf="@+id/layout_badges"
         app:layout_constraintEnd_toStartOf="@+id/tv_badge_size"
-        app:layout_constraintStart_toEndOf="@+id/tv_language_flag"
+        app:layout_constraintStart_toEndOf="@+id/tv_provider_badge"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_chainStyle="packed" />
+        app:layout_constraintVertical_chainStyle="packed"
+        tools:text="The.Boys.S03E01.2160p.WEB-DL.DDP5.1.H.265-CasStudio" />
 
     <!-- Badges Row -->
     <LinearLayout
@@ -48,79 +52,88 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:orientation="horizontal"
+        android:gravity="center_vertical"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/tv_badge_size"
+        app:layout_constraintEnd_toEndOf="@+id/tv_source_label"
         app:layout_constraintStart_toStartOf="@+id/tv_source_label"
         app:layout_constraintTop_toBottomOf="@+id/tv_source_label">
+
+        <TextView
+            android:id="@+id/tv_language_flag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            tools:text="EN" />
 
         <TextView
             android:id="@+id/tv_badge_quality"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            android:background="@drawable/bg_badge_4k_gold"
+            android:background="@drawable/cin_pill_4k_gold"
             android:paddingStart="6dp"
-            android:paddingTop="2dp"
+            android:paddingTop="1dp"
             android:paddingEnd="6dp"
-            android:paddingBottom="2dp"
+            android:paddingBottom="1dp"
             android:text="4K"
-            android:textColor="#FFD700"
+            android:textColor="@color/black"
             android:fontFamily="@font/inter"
-            android:textSize="11sp"
-            android:textStyle="bold" />
+        android:textStyle="bold"
+            android:textSize="10sp" />
 
         <TextView
             android:id="@+id/tv_badge_seeders"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            android:background="@drawable/bg_badge_chip"
-            android:paddingStart="6dp"
-            android:paddingTop="2dp"
-            android:paddingEnd="6dp"
-            android:paddingBottom="2dp"
-            android:text="5 SEEDS"
-            android:textColor="@color/ds_success"
-            android:drawableStart="@android:drawable/presence_online"
-            android:drawablePadding="4dp"
+            android:textColor="#4CAF50"
             android:fontFamily="@font/inter"
             android:textSize="11sp"
-            android:textStyle="bold" />
+            tools:text="5 SEEDS" />
 
         <TextView
             android:id="@+id/tv_badge_cached"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_badge_chip"
-            android:backgroundTint="@color/ds_accent_blue"
+            android:background="@drawable/cin_pill_cached"
             android:paddingStart="6dp"
-            android:paddingTop="2dp"
+            android:paddingTop="1dp"
             android:paddingEnd="6dp"
-            android:paddingBottom="2dp"
+            android:paddingBottom="1dp"
             android:text="CACHED"
             android:textColor="@color/white"
-            android:textSize="11sp"
-            android:textStyle="bold" />
+            android:textSize="9sp"
+            android:fontFamily="@font/inter"
+        android:textStyle="bold" />
 
     </LinearLayout>
 
-    <!-- File Size (Right Aligned) -->
+    <!-- File Size -->
     <TextView
         android:id="@+id/tv_badge_size"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_badge_chip"
-        android:paddingStart="8dp"
-        android:paddingTop="4dp"
-        android:paddingEnd="8dp"
-        android:paddingBottom="4dp"
-        android:text="16.4 GB"
+        android:layout_marginEnd="8dp"
         android:textColor="@color/white"
         android:fontFamily="@font/inter"
-        android:textSize="13sp"
         android:textStyle="bold"
+        android:textSize="14sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/iv_play_icon"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="16.4 GB" />
+
+    <!-- Action Icon -->
+    <ImageView
+        android:id="@+id/iv_play_icon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_play_arrow_24"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="#4DFFFFFF" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

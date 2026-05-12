@@ -4,10 +4,12 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
@@ -21,10 +23,15 @@ class SourceSelectionBottomSheet(
     private val onSourceSelected: (MovieSource) -> Unit,
     private val onStateChanged: ((SourceFilterState) -> Unit)? = null,
     initialState: SourceFilterState = SourceFilterState(),
-    initialSelectedStreamId: String? = null
+    initialSelectedStreamId: String? = null,
+    private val contentTitle: String? = null,
+    private val backdropUrl: String? = null
 ) : BottomSheetDialogFragment() {
 
     private lateinit var tvTitle: TextView
+    private lateinit var tvContentTitle: TextView
+    private lateinit var ivBackdrop: ImageView
+    private lateinit var tvSourceCount: TextView
     private lateinit var progressBar: ProgressBar
     private lateinit var tvStatus: TextView
     private lateinit var rvSources: RecyclerView
@@ -74,6 +81,9 @@ class SourceSelectionBottomSheet(
         super.onViewCreated(view, savedInstanceState)
 
         tvTitle = view.findViewById(R.id.tv_dialog_title)
+        tvContentTitle = view.findViewById(R.id.tv_content_title)
+        ivBackdrop = view.findViewById(R.id.iv_backdrop)
+        tvSourceCount = view.findViewById(R.id.tv_source_count)
         progressBar = view.findViewById(R.id.progress_bar)
         tvStatus = view.findViewById(R.id.tv_status)
         rvSources = view.findViewById(R.id.rv_sources)
@@ -83,10 +93,21 @@ class SourceSelectionBottomSheet(
         rvLanguageFilters = view.findViewById(R.id.rv_language_filters)
 
         setupAdapters()
+        setupContentInfo()
         updateUi()
         pendingSources?.let { sources ->
             pendingSources = null
             showSources(sources)
+        }
+    }
+
+    private fun setupContentInfo() {
+        tvContentTitle.text = contentTitle ?: ""
+        if (!backdropUrl.isNullOrBlank()) {
+            Glide.with(this)
+                .load(backdropUrl)
+                .centerCrop()
+                .into(ivBackdrop)
         }
     }
 
@@ -253,11 +274,14 @@ class SourceSelectionBottomSheet(
             tvStatus.text = statusMessage
             rvSources.visibility = View.GONE
             layoutSourceFilters.visibility = View.GONE
+            tvSourceCount.visibility = View.GONE
         } else {
             progressBar.visibility = View.GONE
             if (displayedSources.isNotEmpty()) {
                 tvStatus.visibility = View.GONE
                 rvSources.visibility = View.VISIBLE
+                tvSourceCount.visibility = View.VISIBLE
+                tvSourceCount.text = "• ${displayedSources.size} sources found"
                 sourcesAdapter.updateSelection(selectedStreamId, notify = false)
                 sourcesAdapter.submitList(displayedSources) {
                     sourcesAdapter.updateSelection(selectedStreamId)
@@ -281,6 +305,7 @@ class SourceSelectionBottomSheet(
                 tvStatus.visibility = View.VISIBLE
                 tvStatus.text = statusMessage ?: getString(R.string.source_filters_empty)
                 rvSources.visibility = View.GONE
+                tvSourceCount.visibility = View.GONE
             }
         }
     }

@@ -727,8 +727,11 @@ class SeriesDetailActivity : AppCompatActivity() {
                 debridFilterStateByEpisode[episode.id] = state
             },
             initialState = initialState,
-            initialSelectedStreamId = initialSelectedStreamId
+            initialSelectedStreamId = initialSelectedStreamId,
+            contentTitle = seriesName,
+            backdropUrl = seriesBackdrop
         )
+
         bottomSheet.show(supportFragmentManager, SourceSelectionBottomSheet.TAG)
         val cachedSources = cachedDebridSourcesByEpisode[episode.id]
         if (cachedSources != null) {

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- When focused (Light background), use dark text for contrast -->
+    <item android:state_focused="true" android:color="#0B0D10" />
+    <item android:state_pressed="true" android:color="#0B0D10" />
+    
+    <!-- Default state: White text on blue background -->
+    <item android:color="#FFFFFF" />
+</selector>
