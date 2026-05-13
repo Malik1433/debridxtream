@@ -129,6 +129,9 @@
     
     <!-- Spacing for Grid/List Items (Total gap between items = 40dp) -->
     <dimen name="grid_spacing_standard">40dp</dimen>
+    <dimen name="grid_spacing_large">48dp</dimen>
+    <dimen name="grid_spacing_medium">12dp</dimen>
+    <dimen name="grid_spacing_tight">12dp</dimen>
 
     <!-- Player -->
     <dimen name="player_overlay_control_spacing">72dp</dimen>
@@ -142,8 +145,8 @@
     <dimen name="spacing_section_distinct">32dp</dimen>
     <dimen name="poster_top_10_width">124dp</dimen>
     <dimen name="poster_top_10_height">186dp</dimen> <!-- 2:3 Ratio -->
-    <dimen name="sidebar_width_collapsed">80dp</dimen>
-    <dimen name="sidebar_width_expanded">240dp</dimen>
+    <dimen name="sidebar_width_collapsed">104dp</dimen>
+    <dimen name="sidebar_width_expanded">252dp</dimen>
     <dimen name="number_text_size">104sp</dimen>
     <dimen name="number_offset_x">-22dp</dimen>
     <dimen name="number_offset_y">24dp</dimen>

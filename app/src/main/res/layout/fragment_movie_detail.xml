@@ -114,13 +114,13 @@
                 android:layout_height="16dp"
                 android:src="@drawable/cin_src_badge_real"
                 android:layout_marginEnd="8dp"
-                app:tint="#3B82F6"/>
+                app:tint="@color/brand_cyan"/>
 
             <TextView
                 android:id="@+id/tv_rd_summary_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#3B82F6"
+                android:textColor="@color/brand_cyan"
                 android:textSize="14sp"
                 android:fontFamily="@font/inter"
                 android:textStyle="bold"
@@ -135,7 +135,7 @@
             android:textColor="#E2E8F0"
             android:textSize="20sp"
             android:lineSpacingMultiplier="1.4"
-            android:maxLines="3"
+            android:maxLines="5"
             android:ellipsize="end"
             tools:text="Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family." />
 
@@ -149,7 +149,6 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_play"
-                style="@style/Cin.Button.Primary.Blue"
                 android:layout_width="wrap_content"
                 android:layout_height="56dp"
                 android:layout_marginEnd="16dp"
@@ -160,10 +159,12 @@
                 android:nextFocusUp="@id/btn_back"
                 android:nextFocusDown="@id/rv_cast"
                 android:nextFocusRight="@id/btn_trailer"
+                android:backgroundTint="@color/brand_cyan"
+                android:textColor="@color/velvet_black"
                 app:icon="@drawable/ic_play"
                 app:iconSize="24dp"
                 app:iconPadding="12dp"
-                app:iconTint="@color/color_selector_cin_primary_blue_text"
+                app:iconTint="@color/velvet_black"
                 app:cornerRadius="12dp" />
 
             <com.google.android.material.button.MaterialButton
@@ -286,7 +287,7 @@
             android:layout_gravity="center"
             android:orientation="vertical"
             android:gravity="center_horizontal">
-            <ProgressBar android:layout_width="56dp" android:layout_height="56dp" android:indeterminateTint="#3B82F6" />
+            <ProgressBar android:layout_width="56dp" android:layout_height="56dp" android:indeterminateTint="@color/brand_cyan" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

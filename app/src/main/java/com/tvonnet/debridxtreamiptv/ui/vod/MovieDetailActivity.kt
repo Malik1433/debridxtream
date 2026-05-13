@@ -651,7 +651,7 @@ class MovieDetailActivity : AppCompatActivity() {
             append(" • Best: $bestQuality")
             
             if (languages.isNotBlank()) {
-                append("\nLanguages: $languages")
+                append("\nAvailable Languages: $languages")
             } else {
                 append("\nLanguages available after source selection")
             }
@@ -681,21 +681,22 @@ class MovieDetailActivity : AppCompatActivity() {
     private fun setupFocusAnimations() {
         val buttons = listOf(btnPlay, btnTrailer, btnFavorite, btnBack)
         buttons.forEach { view ->
-            view.alpha = 0.8f
+            // Unfocused state: slightly transparent for depth
+            view.alpha = 0.85f
             view.setOnFocusChangeListener { v, hasFocus ->
                 if (hasFocus) {
                     v.animate()
                         .scaleX(1.1f)
                         .scaleY(1.1f)
                         .alpha(1.0f)
-                        .setDuration(200)
-                        .setInterpolator(android.view.animation.OvershootInterpolator())
+                        .setDuration(250)
+                        .setInterpolator(android.view.animation.DecelerateInterpolator())
                         .start()
                 } else {
                     v.animate()
                         .scaleX(1.0f)
                         .scaleY(1.0f)
-                        .alpha(0.8f)
+                        .alpha(0.85f)
                         .setDuration(200)
                         .start()
                 }

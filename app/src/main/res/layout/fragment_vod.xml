@@ -22,23 +22,26 @@
         android:background="@drawable/gradient_backdrop_overlay" />
 
     <!-- Main Content Container -->
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/ll_main_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:elevation="10dp"
         android:clipChildren="false"
-        android:clipToPadding="false"
-        android:orientation="horizontal">
+        android:clipToPadding="false">
 
-        <!-- Left Sidebar -->
+        <!-- Left Sidebar (Collapsible with fixed grid space) -->
         <LinearLayout
             android:id="@+id/ll_vod_sidebar_container"
-            android:layout_width="80dp"
-            android:layout_height="match_parent"
+            android:layout_width="104dp"
+            android:layout_height="0dp"
             android:orientation="vertical"
-            android:background="#CC121212"
-            android:elevation="8dp"
-            android:zAdjustment="top">
+            android:background="#E60A0A0A"
+            android:elevation="12dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            xmlns:app="http://schemas.android.com/apk/res-auto">
 
             <!-- App Logo / Title Area -->
             <LinearLayout
@@ -46,10 +49,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingStart="24dp"
-                android:paddingTop="48dp"
-                android:paddingBottom="40dp"
+                android:paddingTop="32dp"
+                android:paddingBottom="24dp"
                 android:orientation="horizontal"
-                android:alpha="0"
+                android:alpha="1"
                 android:gravity="center_vertical">
                 
                 <!-- Using text for now as per design, can be replaced with logo image -->
@@ -58,14 +61,14 @@
                     android:layout_height="32dp"
                     android:src="@drawable/ic_movie"
                     android:padding="2dp"
-                    app:tint="@color/ds_primary"
+                    app:tint="@color/brand_cyan"
                     xmlns:app="http://schemas.android.com/apk/res-auto"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="CINEMA"
-                    android:textColor="@color/ds_primary"
+                    android:textColor="@color/brand_cyan"
                     android:textSize="24sp"
                     android:textStyle="bold"
                     android:letterSpacing="0.05"
@@ -82,7 +85,7 @@
                 android:layout_weight="1"
                 android:clipChildren="false"
                 android:clipToPadding="false"
-                android:padding="16dp"
+                android:padding="0dp"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
                 android:nextFocusRight="@id/rv_movies_grid"
@@ -118,14 +121,21 @@
 
         </LinearLayout>
 
-        <!-- Right Content Area -->
+        <!-- Right Content Area (Stable Margin based on collapsed sidebar) -->
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
+            android:layout_height="0dp"
+            android:layout_marginStart="104dp"
             android:clipChildren="false"
             android:clipToPadding="false"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:paddingStart="40dp"
+            android:paddingEnd="40dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            xmlns:app="http://schemas.android.com/apk/res-auto">
 
             <!-- Header Utility Bar -->
             <LinearLayout
@@ -133,9 +143,9 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="end|center_vertical"
-                android:paddingTop="40dp"
+                android:paddingTop="16dp"
                 android:paddingEnd="48dp"
-                android:paddingBottom="24dp"
+                android:paddingBottom="4dp"
                 android:clipToPadding="false">
 
                 <!-- Offline Mode Badge -->
@@ -153,7 +163,7 @@
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:src="@drawable/ic_cloud_off"
-                        app:tint="@color/ds_primary"
+                        app:tint="@color/brand_cyan"
                         xmlns:app="http://schemas.android.com/apk/res-auto"/>
                         
                     <TextView
@@ -170,8 +180,8 @@
                 <!-- Search Button -->
                 <FrameLayout
                     android:id="@+id/btn_search"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
                     android:layout_marginStart="24dp"
                     android:background="@drawable/bg_circle_glass"
                     android:clickable="true"
@@ -180,8 +190,8 @@
                     android:nextFocusLeft="@id/rv_categories_sidebar">
                     
                     <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
                         android:layout_gravity="center"
                         android:src="@drawable/ic_search"
                         app:tint="#CCFFFFFF"
@@ -207,13 +217,14 @@
                 </FrameLayout>
             </LinearLayout>
             
-            <!-- Category Title & Grid Container -->
+             <!-- Category Title & Grid Container -->
              <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
                 android:orientation="vertical"
-                android:paddingStart="48dp"
-                android:paddingEnd="48dp">
+                android:paddingStart="0dp"
+                android:paddingEnd="0dp">
 
                 <TextView
                     android:id="@+id/tv_category_title"
@@ -221,7 +232,7 @@
                     android:layout_height="wrap_content"
                     android:text="Recently Added"
                     android:textColor="@android:color/white"
-                    android:textSize="32sp"
+                    android:textSize="26sp"
                     android:textStyle="bold"
                     android:fontFamily="sans-serif-condensed"/>
                 
@@ -229,8 +240,8 @@
                     android:layout_width="80dp"
                     android:layout_height="4dp"
                     android:background="@drawable/bg_blue_pill"
-                    android:layout_marginTop="8dp"
-                    android:layout_marginBottom="24dp"/>
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="12dp"/>
 
                  <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rv_movies_grid"
@@ -248,18 +259,18 @@
 
             </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Loading State (Shimmer Skeleton Grid) -->
+    <!-- Loading State (Shimmer Skeleton Grid - Matches 4 Columns) -->
     <GridLayout
         android:id="@+id/ll_loading_state"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_gravity="center"
-        android:layout_marginStart="80dp"  
-        android:layout_marginTop="140dp"
-        android:paddingStart="48dp"
-        android:paddingEnd="48dp"
+        android:layout_marginStart="104dp"  
+        android:layout_marginTop="238dp"
+        android:paddingStart="32dp"
+        android:paddingEnd="32dp"
         android:columnCount="4"
         android:rowCount="3"
         android:visibility="gone">
