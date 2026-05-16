@@ -1987,11 +1987,18 @@ class XtreamRepository @Inject constructor(
             return Result.Success(it)
         }
 
-        // Attempt to use cached all-series list first
+        // Attempt to use cached all-series list first with RELAXED filtering
         allSeriesCacheFallback?.let { cachedAll ->
-            val filtered = cachedAll.filter { it.category_id == categoryId }
+            val filtered = cachedAll.filter { 
+                val catIdStr = it.category_id?.trim()
+                val targetIdStr = categoryId.trim()
+                val stringMatch = catIdStr == targetIdStr
+                val listMatch = it.category_ids?.contains(targetIdStr.toIntOrNull()) == true
+                val intMatch = catIdStr?.toIntOrNull() == targetIdStr.toIntOrNull()
+                stringMatch || listMatch || (intMatch && targetIdStr.toIntOrNull() != null)
+            }
             if (filtered.isNotEmpty()) {
-                Log.d(TAG, "Fallback (cached all-series) succeeded for category $categoryId: ${filtered.size} series")
+                Log.d(TAG, "Fallback (cached all-series) succeeded for category $categoryId: ${filtered.size} series (Relaxed Filter)")
                 updateSeriesCacheForCategory(categoryId, filtered)
                 return Result.Success(filtered)
             }
@@ -2002,12 +2009,19 @@ class XtreamRepository @Inject constructor(
             ?.takeIf { it.isNotEmpty() }
             ?.let { cachedStreams ->
                 // Promote disk snapshot into memory for future fallbacks
-                if (allSeriesCacheFallback == null) {
-                    allSeriesCacheFallback = cachedStreams
+                allSeriesCacheFallback = cachedStreams
+                
+                val filtered = cachedStreams.filter { 
+                    val catIdStr = it.category_id?.trim()
+                    val targetIdStr = categoryId.trim()
+                    val stringMatch = catIdStr == targetIdStr
+                    val listMatch = it.category_ids?.contains(targetIdStr.toIntOrNull()) == true
+                    val intMatch = catIdStr?.toIntOrNull() == targetIdStr.toIntOrNull()
+                    stringMatch || listMatch || (intMatch && targetIdStr.toIntOrNull() != null)
                 }
-                val filtered = cachedStreams.filter { it.category_id == categoryId }
+                
                 if (filtered.isNotEmpty()) {
-                    Log.d(TAG, "Fallback (persisted series cache) succeeded for category $categoryId: ${filtered.size} series")
+                    Log.d(TAG, "Fallback (disk cache all-series) succeeded for category $categoryId: ${filtered.size} series (Relaxed Filter)")
                     updateSeriesCacheForCategory(categoryId, filtered)
                     return Result.Success(filtered)
                 }
@@ -2017,7 +2031,14 @@ class XtreamRepository @Inject constructor(
         val allSeriesResult = fetchAllSeries()
         return when (allSeriesResult) {
             is Result.Success -> {
-                val filtered = allSeriesResult.data.filter { it.category_id == categoryId }
+                val filtered = allSeriesResult.data.filter { 
+                    val catIdStr = it.category_id?.trim()
+                    val targetIdStr = categoryId.trim()
+                    val stringMatch = catIdStr == targetIdStr
+                    val listMatch = it.category_ids?.contains(targetIdStr.toIntOrNull()) == true
+                    val intMatch = catIdStr?.toIntOrNull() == targetIdStr.toIntOrNull()
+                    stringMatch || listMatch || (intMatch && targetIdStr.toIntOrNull() != null)
+                }
                 if (filtered.isNotEmpty()) {
                     Log.d(TAG, "Fallback (network all-series) succeeded for category $categoryId: ${filtered.size} series")
                     updateSeriesCacheForCategory(categoryId, filtered)
@@ -2200,6 +2221,7 @@ class XtreamRepository @Inject constructor(
     private fun saveEpgLastSync(timestamp: Long = System.currentTimeMillis()) {
         epgPrefs.edit().putLong("last_sync_time", timestamp).apply()
     }
+
     
     companion object {
         private const val TAG = "XtreamRepository"

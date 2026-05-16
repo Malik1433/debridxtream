@@ -36,5 +36,8 @@ interface EpisodeDaoV2 {
     @Query("SELECT * FROM episodes_v2_core WHERE series_id = :seriesId AND season_number = :seasonNum ORDER BY episode_number ASC")
     suspend fun getEpisodesForSeasonList(seriesId: String, seasonNum: Int): List<EpisodeEntityV2>
 
+    @Query("SELECT * FROM episodes_v2_core WHERE episode_id = :episodeId LIMIT 1")
+    suspend fun getEpisodeById(episodeId: String): EpisodeEntityV2?
+
     // Added for Playlist Logic (Get specific episode logic potentially needed later or just use list)
 }

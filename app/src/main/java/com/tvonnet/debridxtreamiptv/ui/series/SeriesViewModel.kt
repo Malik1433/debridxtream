@@ -98,13 +98,15 @@ class SeriesViewModel @Inject constructor(
             val pagerFlow: Flow<PagingData<SeriesEntity>> = Pager(
                 config = PagingConfig(
                     pageSize = 20,
-                    enablePlaceholders = true,
+                    enablePlaceholders = false,
                     prefetchDistance = 5
                 ),
                 pagingSourceFactory = { seriesDao.getSeriesByCategory(categoryId, searchQuery) }
             ).flow
 
             pagerFlow.map { pagingData ->
+                // Clear error when data successfully emits from the PagingSource
+                _uiState.update { it.copy(error = null) }
                 pagingData.map { entity -> entity.toXtreamSeriesInfo() }
             }
         }
@@ -135,7 +137,11 @@ class SeriesViewModel @Inject constructor(
     fun onEvent(event: SeriesEvent) {
         when (event) {
             is SeriesEvent.LoadCategories -> loadCategories()
-            is SeriesEvent.SelectCategory -> loadSeriesForCategory(event.categoryId)
+            is SeriesEvent.SelectCategory -> {
+                // Clear error immediately on new selection to prevent stale messages
+                _uiState.update { it.copy(error = null) }
+                loadSeriesForCategory(event.categoryId)
+            }
             is SeriesEvent.PlaySeries -> handlePlaySeries(event.series)
             is SeriesEvent.SearchSeries -> searchSeries(event.query)
             is SeriesEvent.ClearSearch -> clearSearch()
@@ -189,7 +195,7 @@ class SeriesViewModel @Inject constructor(
                     
                     result.onSuccess { 
                         // Week 14: Clear transition flag after sync + propagation delay
-                        kotlinx.coroutines.delay(500)
+                        kotlinx.coroutines.delay(1000) // Increased delay for stability
                         _uiState.update { 
                             it.copy(
                                 isLoadingSeries = false,

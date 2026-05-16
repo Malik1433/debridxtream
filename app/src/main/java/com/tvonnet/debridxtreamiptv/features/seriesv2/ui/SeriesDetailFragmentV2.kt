@@ -262,7 +262,8 @@ class SeriesDetailFragmentV2 : Fragment() {
                                 seriesTitle = seriesTitle,
                                 episodeTitle = event.title,
                                 seasonNumber = event.seasonNumber,
-                                episodeNumber = event.episodeNumber
+                                episodeNumber = event.episodeNumber,
+                                seriesId = event.seriesId
                             )
                             startActivity(intent)
                         }

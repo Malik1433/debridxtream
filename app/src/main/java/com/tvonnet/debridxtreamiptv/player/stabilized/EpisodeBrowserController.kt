@@ -1,0 +1,265 @@
+package com.tvonnet.debridxtreamiptv.player.stabilized
+
+import android.view.LayoutInflater
+import android.view.KeyEvent
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
+import android.util.Log
+import androidx.core.view.isVisible
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
+import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2
+
+/**
+ * Controller for the shared Series Episode Browser overlay in PlayerActivity.
+ * Handles the display and selection of episodes for both IPTV and Debrid sources.
+ */
+class EpisodeBrowserController(
+    private val container: View,
+    private val onEpisodeSelected: (EpisodeEntityV2) -> Unit
+) {
+    private val rvEpisodes: RecyclerView = container.findViewById(R.id.rv_episodes)
+    private val tvTitle: TextView = container.findViewById(R.id.tv_episode_browser_title)
+    private val tvMessage: TextView = container.findViewById(R.id.tv_episode_browser_message)
+    private val pbLoading: View = container.findViewById(R.id.pb_loading)
+    private val adapter = EpisodeAdapter(onEpisodeSelected)
+    private var focusedPosition = RecyclerView.NO_POSITION
+    private var fallbackImageUrl: String? = null
+
+    init {
+        rvEpisodes.adapter = adapter
+        rvEpisodes.isFocusable = true
+        rvEpisodes.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        // Ensure container is hidden by default
+        container.isVisible = false
+    }
+
+    fun isVisible(): Boolean = container.isVisible
+
+    fun show(
+        episodes: List<EpisodeEntityV2>,
+        currentEpisodeId: String?,
+        seasonTitle: String? = null,
+        fallbackImageUrl: String? = null
+    ) {
+        seasonTitle?.let { tvTitle.text = it }
+        this.fallbackImageUrl = fallbackImageUrl
+        adapter.setFallbackImageUrl(fallbackImageUrl)
+        adapter.setCurrentEpisodeId(currentEpisodeId)
+        Log.e("IPTV_EP_LOAD_FIX", "CONTROLLER submit count=${episodes.size}")
+        adapter.submitList(episodes) {
+            // Scroll to current episode if list is not empty
+            val currentIndex = episodes.indexOfFirst { it.episodeId == currentEpisodeId }
+            if (currentIndex != -1) {
+                focusedPosition = currentIndex
+                requestFocusAt(currentIndex)
+            } else if (episodes.isNotEmpty()) {
+                focusedPosition = 0
+                requestFocusAt(0)
+            }
+        }
+        container.isVisible = true
+        tvMessage.isVisible = false
+        // If not loading, focus the list. If loading, focus the loading spinner or container.
+        if (pbLoading.isVisible) {
+            pbLoading.isFocusable = true
+            pbLoading.requestFocus()
+        } else {
+            rvEpisodes.post { rvEpisodes.requestFocus() }
+        }
+    }
+
+    fun hide() {
+        container.isVisible = false
+    }
+
+    fun handleKeyEvent(event: KeyEvent): Boolean {
+        if (!container.isVisible || event.action != KeyEvent.ACTION_DOWN) return false
+        val handled = when (event.keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                moveFocusBy(-1)
+                true
+            }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                moveFocusBy(1)
+                true
+            }
+            KeyEvent.KEYCODE_DPAD_UP,
+            KeyEvent.KEYCODE_DPAD_DOWN -> true
+            KeyEvent.KEYCODE_DPAD_CENTER,
+            KeyEvent.KEYCODE_ENTER,
+            KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                val position = focusedPosition.takeIf { it != RecyclerView.NO_POSITION }
+                    ?: rvEpisodes.getChildAdapterPosition(rvEpisodes.focusedChild ?: rvEpisodes)
+                adapter.currentList.getOrNull(position)?.let(onEpisodeSelected)
+                true
+            }
+            KeyEvent.KEYCODE_BACK -> {
+                hide()
+                true
+            }
+            else -> false
+        }
+        Log.d("EP_BROWSER_FOCUS_FIX", "browser visible key=${event.keyCode} handled=$handled")
+        return handled
+    }
+
+    fun setLoading(loading: Boolean) {
+        Log.e("IPTV_EP_LOAD_FIX", "CONTROLLER loading=$loading")
+        pbLoading.isVisible = loading
+        rvEpisodes.isVisible = !loading
+        tvMessage.isVisible = false
+        if (loading) {
+            pbLoading.isFocusable = true
+            pbLoading.requestFocus()
+        } else {
+            rvEpisodes.post { rvEpisodes.requestFocus() }
+        }
+    }
+
+    fun showMessage(message: String, seasonTitle: String? = null) {
+        seasonTitle?.let { tvTitle.text = it }
+        Log.e("IPTV_EP_LOAD_FIX", "CONTROLLER message=$message")
+        adapter.submitList(emptyList())
+        container.isVisible = true
+        pbLoading.isVisible = false
+        rvEpisodes.isVisible = false
+        tvMessage.text = message
+        tvMessage.isVisible = true
+        tvMessage.isFocusable = true
+        tvMessage.requestFocus()
+    }
+
+    fun requestFocus() {
+        if (pbLoading.isVisible) {
+            pbLoading.isFocusable = true
+            pbLoading.requestFocus()
+        } else {
+            val position = focusedPosition.takeIf { it != RecyclerView.NO_POSITION } ?: 0
+            requestFocusAt(position)
+        }
+    }
+
+    private fun moveFocusBy(delta: Int) {
+        val itemCount = adapter.itemCount
+        if (itemCount == 0) return
+        val current = focusedPosition.takeIf { it in 0 until itemCount }
+            ?: (rvEpisodes.getChildAdapterPosition(rvEpisodes.focusedChild ?: rvEpisodes)
+                .takeIf { it in 0 until itemCount } ?: 0)
+        val next = (current + delta).coerceIn(0, itemCount - 1)
+        focusedPosition = next
+        requestFocusAt(next)
+    }
+
+    private fun requestFocusAt(position: Int) {
+        rvEpisodes.scrollToPosition(position)
+        rvEpisodes.post {
+            val layoutManager = rvEpisodes.layoutManager as? LinearLayoutManager
+            layoutManager?.scrollToPositionWithOffset(position, 0)
+            rvEpisodes.post {
+                rvEpisodes.findViewHolderForAdapterPosition(position)?.itemView?.requestFocus()
+                    ?: rvEpisodes.requestFocus()
+            }
+        }
+    }
+
+    private class EpisodeAdapter(
+        private val onEpisodeSelected: (EpisodeEntityV2) -> Unit
+    ) : ListAdapter<EpisodeEntityV2, EpisodeViewHolder>(EpisodeDiffCallback()) {
+
+        private var currentEpisodeId: String? = null
+        private var fallbackImageUrl: String? = null
+
+        fun setCurrentEpisodeId(id: String?) {
+            currentEpisodeId = id
+            notifyDataSetChanged()
+        }
+
+        fun setFallbackImageUrl(url: String?) {
+            fallbackImageUrl = url?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+            notifyDataSetChanged()
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EpisodeViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_player_episode_browser, parent, false)
+            return EpisodeViewHolder(view, onEpisodeSelected)
+        }
+
+        override fun onBindViewHolder(holder: EpisodeViewHolder, position: Int) {
+            val episode = getItem(position)
+            holder.bind(episode, episode.episodeId == currentEpisodeId, fallbackImageUrl)
+        }
+    }
+
+    private class EpisodeViewHolder(
+        view: View,
+        private val onEpisodeSelected: (EpisodeEntityV2) -> Unit
+    ) : RecyclerView.ViewHolder(view) {
+        private val ivThumb: ImageView = view.findViewById(R.id.iv_episode_thumb)
+        private val placeholder: View = view.findViewById(R.id.layout_episode_placeholder)
+        private val tvPlaceholderNumber: TextView = view.findViewById(R.id.tv_placeholder_episode_number)
+        private val tvNumber: TextView = view.findViewById(R.id.tv_episode_number)
+        private val tvTitle: TextView = view.findViewById(R.id.tv_title)
+        private val tvPlayingBadge: TextView = view.findViewById(R.id.tv_playing_badge)
+
+        init {
+            itemView.setOnFocusChangeListener { view, hasFocus ->
+                view.isActivated = hasFocus
+                view.scaleX = if (hasFocus) 1.08f else 1.0f
+                view.scaleY = if (hasFocus) 1.08f else 1.0f
+                view.elevation = if (hasFocus) 24f else 0f
+                tvTitle.isSelected = hasFocus
+                tvTitle.isActivated = hasFocus
+            }
+        }
+
+        fun bind(episode: EpisodeEntityV2, isActive: Boolean, fallbackImageUrl: String?) {
+            tvNumber.text = "E${episode.episodeNumber}"
+            tvPlaceholderNumber.text = "E${episode.episodeNumber}"
+            tvTitle.text = episode.title ?: "Episode ${episode.episodeNumber}"
+            tvPlayingBadge.isVisible = isActive
+            itemView.isSelected = isActive
+
+            val imageUrl = episode.thumbnail
+                ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+                ?: fallbackImageUrl?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+
+            if (imageUrl == null) {
+                ivThumb.isVisible = false
+                placeholder.isVisible = true
+                Glide.with(ivThumb).clear(ivThumb)
+            } else {
+                placeholder.isVisible = false
+                ivThumb.isVisible = true
+                Glide.with(ivThumb)
+                    .load(imageUrl)
+                    .placeholder(R.drawable.placeholder_banner)
+                    .error(R.drawable.placeholder_banner)
+                    .transition(DrawableTransitionOptions.withCrossFade())
+                    .into(ivThumb)
+            }
+
+            itemView.setOnClickListener {
+                onEpisodeSelected(episode)
+            }
+        }
+    }
+
+    private class EpisodeDiffCallback : DiffUtil.ItemCallback<EpisodeEntityV2>() {
+        override fun areItemsTheSame(oldItem: EpisodeEntityV2, newItem: EpisodeEntityV2): Boolean {
+            return oldItem.episodeId == newItem.episodeId
+        }
+
+        override fun areContentsTheSame(oldItem: EpisodeEntityV2, newItem: EpisodeEntityV2): Boolean {
+            return oldItem == newItem
+        }
+    }
+}

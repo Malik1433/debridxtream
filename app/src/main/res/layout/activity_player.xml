@@ -42,6 +42,14 @@
         android:visibility="gone" />
 
     <include
+        android:id="@+id/view_episode_browser"
+        layout="@layout/view_player_episode_browser"
+        android:layout_width="match_parent"
+        android:layout_height="320dp"
+        android:layout_gravity="bottom"
+        android:visibility="gone" />
+
+    <include
         android:id="@+id/view_next_episode_prompt"
         layout="@layout/view_next_episode_prompt"
         android:layout_width="match_parent"

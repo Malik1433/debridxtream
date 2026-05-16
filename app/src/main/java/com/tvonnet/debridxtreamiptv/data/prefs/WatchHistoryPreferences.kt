@@ -91,6 +91,7 @@ class WatchHistoryPreferences(private val context: Context) {
         val isSeries = item.contentType == com.tvonnet.debridxtreamiptv.data.model.ContentType.EPISODE ||
             item.contentType == com.tvonnet.debridxtreamiptv.data.model.ContentType.SERIES
         val stableId = when {
+            !item.seriesId.isNullOrBlank() -> "seriesId:${item.seriesId}"
             !item.tmdbId.isNullOrBlank() -> "tmdb:${item.tmdbId}"
             !item.imdbId.isNullOrBlank() -> "imdb:${item.imdbId}"
             isSeries && !item.seriesTitle.isNullOrBlank() ->

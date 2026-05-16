@@ -21,6 +21,7 @@ data class ContinueWatchingItem(
     val streamUrl: String?,
     val tmdbId: String? = null,
     val imdbId: String? = null,
+    val seriesId: String? = null,
     val seriesTitle: String? = null,
     val episodeTitle: String? = null,
     val seasonNumber: Int? = null,

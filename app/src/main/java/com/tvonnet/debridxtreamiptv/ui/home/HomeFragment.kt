@@ -71,6 +71,10 @@ class HomeFragment : Fragment() {
     
     @Inject
     lateinit var repository: XtreamRepository
+
+    @Inject
+    lateinit var episodeDaoV2: com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.EpisodeDaoV2
+
     private val viewModel: HomeViewModel by viewModels()
     private lateinit var credentialsPrefs: CredentialsPreferences
     
@@ -518,28 +522,29 @@ class HomeFragment : Fragment() {
 
     private fun moveFocusUpFromArea(area: HomeContentFocusArea, position: Int): Boolean {
         return when (area) {
-            HomeContentFocusArea.CONTINUE_WATCHING -> focusHeroPrimaryButton()
-            HomeContentFocusArea.RECENT_LIVE -> {
-                if (getItemCount(rvContinueWatching) > 0) {
-                    requestContentFocus(rvContinueWatching, position)
-                } else {
-                    focusHeroPrimaryButton()
-                }
-            }
-            HomeContentFocusArea.MOVIES -> {
+            HomeContentFocusArea.CONTINUE_WATCHING -> {
                 when {
                     getItemCount(rvRecentLive) > 0 -> requestContentFocus(rvRecentLive, position)
-                    getItemCount(rvContinueWatching) > 0 -> requestContentFocus(rvContinueWatching, position)
+                    getItemCount(rvTop10Series) > 0 -> requestContentFocus(rvTop10Series, position)
+                    getItemCount(rvTop10Movies) > 0 -> requestContentFocus(rvTop10Movies, position)
+                    else -> focusHeroPrimaryButton()
+                }
+            }
+            HomeContentFocusArea.RECENT_LIVE -> {
+                when {
+                    getItemCount(rvTop10Series) > 0 -> requestContentFocus(rvTop10Series, position)
+                    getItemCount(rvTop10Movies) > 0 -> requestContentFocus(rvTop10Movies, position)
                     else -> focusHeroPrimaryButton()
                 }
             }
             HomeContentFocusArea.SERIES -> {
                 when {
                     getItemCount(rvTop10Movies) > 0 -> requestContentFocus(rvTop10Movies, position)
-                    getItemCount(rvRecentLive) > 0 -> requestContentFocus(rvRecentLive, position)
-                    getItemCount(rvContinueWatching) > 0 -> requestContentFocus(rvContinueWatching, position)
                     else -> focusHeroPrimaryButton()
                 }
+            }
+            HomeContentFocusArea.MOVIES -> {
+                focusHeroPrimaryButton()
             }
             HomeContentFocusArea.HERO -> false
         }
@@ -547,29 +552,37 @@ class HomeFragment : Fragment() {
 
     private fun moveFocusDownFromArea(area: HomeContentFocusArea, position: Int): Boolean {
         return when (area) {
-            HomeContentFocusArea.CONTINUE_WATCHING -> {
+            HomeContentFocusArea.HERO -> {
                 when {
+                    getItemCount(rvTop10Movies) > 0 -> requestContentFocus(rvTop10Movies, position)
+                    getItemCount(rvTop10Series) > 0 -> requestContentFocus(rvTop10Series, position)
                     getItemCount(rvRecentLive) > 0 -> requestContentFocus(rvRecentLive, position)
-                    getItemCount(rvTop10Movies) > 0 -> requestContentFocus(rvTop10Movies, position)
-                    getItemCount(rvTop10Series) > 0 -> requestContentFocus(rvTop10Series, position)
-                    else -> true
-                }
-            }
-            HomeContentFocusArea.RECENT_LIVE -> {
-                when {
-                    getItemCount(rvTop10Movies) > 0 -> requestContentFocus(rvTop10Movies, position)
-                    getItemCount(rvTop10Series) > 0 -> requestContentFocus(rvTop10Series, position)
+                    getItemCount(rvContinueWatching) > 0 -> requestContentFocus(rvContinueWatching, position)
                     else -> true
                 }
             }
             HomeContentFocusArea.MOVIES -> {
                 when {
                     getItemCount(rvTop10Series) > 0 -> requestContentFocus(rvTop10Series, position)
+                    getItemCount(rvRecentLive) > 0 -> requestContentFocus(rvRecentLive, position)
+                    getItemCount(rvContinueWatching) > 0 -> requestContentFocus(rvContinueWatching, position)
                     else -> true
                 }
             }
-            HomeContentFocusArea.SERIES -> true
-            HomeContentFocusArea.HERO -> false
+            HomeContentFocusArea.SERIES -> {
+                when {
+                    getItemCount(rvRecentLive) > 0 -> requestContentFocus(rvRecentLive, position)
+                    getItemCount(rvContinueWatching) > 0 -> requestContentFocus(rvContinueWatching, position)
+                    else -> true
+                }
+            }
+            HomeContentFocusArea.RECENT_LIVE -> {
+                when {
+                    getItemCount(rvContinueWatching) > 0 -> requestContentFocus(rvContinueWatching, position)
+                    else -> true
+                }
+            }
+            HomeContentFocusArea.CONTINUE_WATCHING -> true
         }
     }
 
@@ -993,11 +1006,26 @@ class HomeFragment : Fragment() {
     // Navigation and Click Handlers
     fun handleBackPress(): Boolean {
         val scrollContent = view?.findViewById<androidx.core.widget.NestedScrollView>(R.id.scroll_content)
+        
+        // Priority 1: Scroll to top if we are scrolled down
         if (scrollContent != null && scrollContent.scrollY > 0) {
             scrollContent.smoothScrollTo(0, 0)
             return true
         }
+
+        // Priority 2: If focus is on content (RVs or Hero), move focus to Sidebar
+        val currentFocus = view?.findFocus()
+        if (currentFocus != null && isFocusedInsideContentRowsOrHero(currentFocus)) {
+            returnToSidebar()
+            return true
+        }
+
         return false
+    }
+
+    private fun isFocusedInsideContentRowsOrHero(candidate: View?): Boolean {
+        if (candidate == null) return false
+        return isFocusedInsideContentRows(candidate) || isHeroButtonFocus(candidate)
     }
 
     private fun navigateToSection(section: String) {
@@ -1145,8 +1173,9 @@ class HomeFragment : Fragment() {
                                 }
                                 startActivityPreservingContentFocus(seriesIntent)
                             } else {
+                                val resolvedSeriesId = resolveIptvSeriesIdForContinueWatching(item)
                                 val fragment = SeriesDetailFragmentV2.newInstance(
-                                    seriesId = item.contentId,
+                                    seriesId = resolvedSeriesId ?: item.contentId,
                                     title = item.seriesTitle ?: item.title,
                                     backdropUrl = item.backdropUrl,
                                     posterUrl = item.posterUrl
@@ -1158,6 +1187,15 @@ class HomeFragment : Fragment() {
                     }
 
                     android.util.Log.e("HISTORY_DEBUG", "RESUME_PATH: DIRECT to PlayerActivity")
+                    val resumeSeriesId = if (!isDebrid && item.contentType == ContentType.EPISODE) {
+                        resolveIptvSeriesIdForContinueWatching(item)
+                    } else {
+                        null
+                    }
+                    android.util.Log.e(
+                        "TASK030_CW_SERIES",
+                        "DIRECT_RESUME type=${item.contentType} source=${item.source} contentId=${item.contentId} seriesId=$resumeSeriesId season=${item.seasonNumber} episode=${item.episodeNumber}"
+                    )
                     val intent = PlayerActivity.createIntent(
                         context = requireContext(),
                         streamUrl = streamUrl ?: "",
@@ -1181,12 +1219,17 @@ class HomeFragment : Fragment() {
                         debridInfoHash = item.debridInfoHash,
                         debridMagnet = item.debridMagnet,
                         expiresAt = item.expiresAt,
-                        baseServerUrl = serverUrl
+                        baseServerUrl = serverUrl,
+                        seriesId = resumeSeriesId
                     )
                     startActivityPreservingContentFocus(intent)
                 }
                 ContentType.SERIES -> {
-                    val seriesId = item.tmdbId?.takeIf { it.isNotBlank() } ?: item.contentId
+                    val seriesId = if (isDebrid) {
+                        item.tmdbId?.takeIf { it.isNotBlank() } ?: item.contentId
+                    } else {
+                        resolveIptvSeriesIdForContinueWatching(item) ?: item.contentId
+                    }
                     if (seriesId == null) {
                         showHomeActionUnavailable()
                         return@launch
@@ -1216,6 +1259,20 @@ class HomeFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private suspend fun resolveIptvSeriesIdForContinueWatching(item: ContinueWatchingItem): String? {
+        item.seriesId?.takeIf { it.isNotBlank() }?.let { return it }
+        if (item.source == "debrid") return null
+        if (item.contentType != ContentType.EPISODE && item.contentType != ContentType.SERIES) return null
+        val resolved = withContext(Dispatchers.IO) {
+            runCatching { episodeDaoV2.getEpisodeById(item.contentId)?.seriesId }.getOrNull()
+        }?.takeIf { it.isNotBlank() }
+        Log.d(
+            "TASK030_CW_SERIES",
+            "RESOLVE_SERIES_ID contentId=${item.contentId} saved=${item.seriesId} resolved=$resolved"
+        )
+        return resolved
     }
 
     private fun onRecentLiveItemClick(item: RecentLiveChannelItem) {

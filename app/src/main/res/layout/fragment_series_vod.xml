@@ -23,25 +23,24 @@
         android:background="@drawable/gradient_backdrop_overlay" />
 
     <!-- Main Content Container -->
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/ll_main_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipChildren="false"
-        android:clipToPadding="false"
-        android:orientation="horizontal">
+        android:clipToPadding="false">
 
-        <!-- Left Sidebar -->
+        <!-- Left Sidebar (Collapsible with fixed grid space) -->
         <LinearLayout
             android:id="@+id/ll_series_sidebar_container"
-            android:layout_width="80dp"
-            android:layout_height="match_parent"
+            android:layout_width="104dp"
+            android:layout_height="0dp"
             android:orientation="vertical"
-            android:background="#CC121212"
-            android:elevation="8dp"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:zAdjustment="top">
+            android:background="#E60A0A0A"
+            android:elevation="20dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
 
             <!-- App Logo / Title Area -->
             <LinearLayout
@@ -49,8 +48,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingStart="24dp"
-                android:paddingTop="48dp"
-                android:paddingBottom="40dp"
+                android:paddingTop="32dp"
+                android:paddingBottom="24dp"
                 android:orientation="horizontal"
                 android:alpha="0"
                 android:gravity="center_vertical">
@@ -60,17 +59,18 @@
                     android:layout_height="32dp"
                     android:src="@drawable/ic_series"
                     android:padding="2dp"
-                    app:tint="@color/ds_primary"/>
+                    app:tint="@color/brand_cyan"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="SERIES"
-                    android:textColor="@color/ds_primary"
+                    android:textColor="@color/brand_cyan"
                     android:textSize="24sp"
                     android:textStyle="bold"
                     android:letterSpacing="0.05"
                     android:layout_marginStart="8dp"
+                    android:singleLine="true"
                     android:fontFamily="sans-serif-medium"/>
             </LinearLayout>
 
@@ -82,7 +82,7 @@
                 android:layout_weight="1"
                 android:clipChildren="false"
                 android:clipToPadding="false"
-                android:padding="16dp"
+                android:padding="0dp"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
                 android:nextFocusRight="@id/rv_series_grid"
@@ -117,14 +117,21 @@
 
         </LinearLayout>
 
-        <!-- Right Content Area -->
+        <!-- Right Content Area (Stable Margin based on collapsed sidebar) -->
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
+            android:layout_height="0dp"
+            android:layout_marginStart="104dp"
             android:clipChildren="false"
             android:clipToPadding="false"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:paddingStart="40dp"
+            android:paddingEnd="40dp"
+            android:elevation="1dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
 
             <!-- Header Utility Bar -->
             <LinearLayout
@@ -132,9 +139,9 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="end|center_vertical"
-                android:paddingTop="40dp"
+                android:paddingTop="16dp"
                 android:paddingEnd="48dp"
-                android:paddingBottom="24dp"
+                android:paddingBottom="4dp"
                 android:clipToPadding="false">
 
                 <!-- Offline Mode Badge -->
@@ -152,7 +159,7 @@
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:src="@drawable/ic_cloud_off"
-                        app:tint="@color/ds_primary"/>
+                        app:tint="@color/brand_cyan"/>
                         
                     <TextView
                         android:id="@+id/tv_offline_label"
@@ -168,8 +175,8 @@
                 <!-- Search Button -->
                 <FrameLayout
                     android:id="@+id/btn_search"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
                     android:layout_marginStart="24dp"
                     android:background="@drawable/bg_circle_glass"
                     android:clickable="true"
@@ -178,39 +185,22 @@
                     android:nextFocusLeft="@id/rv_categories_sidebar">
                     
                     <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
                         android:layout_gravity="center"
                         android:src="@drawable/ic_search"
                         app:tint="#CCFFFFFF"/>
-                </FrameLayout>
-
-                <!-- Profile Avatar (Hidden per user request) -->
-                 <FrameLayout
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_marginStart="24dp"
-                    android:background="@drawable/bg_circle_gradient_blue"
-                    android:visibility="gone">
-                    
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:text="JD"
-                        android:textColor="@android:color/white"
-                        android:textSize="14sp"
-                        android:textStyle="bold"/>
                 </FrameLayout>
             </LinearLayout>
             
             <!-- Category Title & Grid Container -->
              <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
                 android:orientation="vertical"
-                android:paddingStart="48dp"
-                android:paddingEnd="48dp">
+                android:paddingStart="0dp"
+                android:paddingEnd="0dp">
 
                 <TextView
                     android:id="@+id/tv_category_title"
@@ -218,7 +208,7 @@
                     android:layout_height="wrap_content"
                     android:text="All Series"
                     android:textColor="@android:color/white"
-                    android:textSize="32sp"
+                    android:textSize="26sp"
                     android:textStyle="bold"
                     android:fontFamily="sans-serif-condensed"/>
                 
@@ -226,52 +216,61 @@
                     android:layout_width="80dp"
                     android:layout_height="4dp"
                     android:background="@drawable/bg_blue_pill"
-                    android:layout_marginTop="8dp"
-                    android:layout_marginBottom="24dp"/>
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="12dp"/>
 
-                 <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_series_grid"
+                <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="1"
-                    android:clipToPadding="false"
+                    android:layout_height="match_parent"
                     android:clipChildren="false"
-                    android:paddingBottom="48dp"
-                    android:focusable="true"
-                    android:focusableInTouchMode="true"
-                    android:nextFocusLeft="@id/rv_categories_sidebar"
-                    android:nextFocusRight="@id/rv_series_grid"
-                    android:nextFocusUp="@id/btn_search"/>
+                    android:clipToPadding="false">
+
+                     <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_series_grid"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:clipToPadding="false"
+                        android:clipChildren="false"
+                        android:paddingBottom="48dp"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:nextFocusLeft="@id/rv_categories_sidebar"
+                        android:nextFocusRight="@id/rv_series_grid"
+                        android:nextFocusUp="@id/btn_search"/>
+
+                    <!-- Loading State (Stable Overlay) - Center of content area -->
+                    <LinearLayout
+                        android:id="@+id/ll_loading_state"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:elevation="4dp"
+                        android:visibility="gone"
+                        android:alpha="1">
+
+                        <ProgressBar
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:indeterminate="true"
+                            android:indeterminateTint="@color/brand_cyan" />
+
+                        <TextView
+                            android:id="@+id/tv_loading_label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:text="Loading series..."
+                            android:textColor="@color/cin_text_secondary"
+                            android:textSize="16sp"
+                            android:fontFamily="sans-serif-medium" />
+                    </LinearLayout>
+                </FrameLayout>
 
             </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
-
-    <!-- Loading State (Shimmer Skeleton Grid) -->
-    <GridLayout
-        android:id="@+id/ll_loading_state"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_gravity="center"
-        android:layout_marginStart="80dp"  
-        android:layout_marginTop="140dp"
-        android:paddingStart="48dp"
-        android:paddingEnd="48dp"
-        android:columnCount="4"
-        android:rowCount="3"
-        android:clipChildren="false"
-        android:clipToPadding="false"
-        android:visibility="gone">
-
-        <include layout="@layout/item_series_loading" />
-        <include layout="@layout/item_series_loading" />
-        <include layout="@layout/item_series_loading" />
-        <include layout="@layout/item_series_loading" />
-        <include layout="@layout/item_series_loading" />
-        <include layout="@layout/item_series_loading" />
-        <include layout="@layout/item_series_loading" />
-        <include layout="@layout/item_series_loading" />
-    </GridLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Empty State -->
     <LinearLayout

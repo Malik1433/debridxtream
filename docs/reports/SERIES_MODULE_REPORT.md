@@ -1,31 +1,73 @@
-# Series Module Report
+# IPTV Series Module Retest & Fix Verification (TASK 025-RETEST)
 
-## Current Status
-Series Detail V2 is currently modernized with the "Orville" cinematic landscape layout.
+This document provides definitive evidence of the loading and error stabilization fixes applied in Build 27 (v2.0.6) specifically for the **IPTV Series section**.
 
-# TASK 018B — Series Detail Device QA and Regression Check
+## 1. Active Implementation Path (Verified)
+To avoid previous QA confusion, the exact active path for IPTV Series has been mapped:
+- **Sidebar**: Index 4 (5th item from top) labeled "Series".
+- **Fragment**: `com.tvonnet.debridxtreamiptv.ui.series.SeriesFragment`.
+- **Layout**: `app/src/main/res/layout/fragment_series_vod.xml`.
+- **ViewModel**: `com.tvonnet.debridxtreamiptv.ui.series.SeriesViewModel`.
+- **Grid ID**: `com.debridxtream.tv:id/rv_series_grid` (Verified via `uiautomator`).
 
-## 1. Summary
-Verifying the Series Detail V2 modernization on a physical Android TV / Fire TV device. This check focuses on visual fidelity, D-pad navigation stability, and regression testing for playback and Home navigation.
+## 2. Evidence of Fixes (Build 27 / v2.0.6)
 
-## 2. Methodology
-- **Device**: Fire TV Tester (`192.168.0.21:5555`)
-- **App Version**: TASK 018 Optimized Build
-- **Target Component**: `SeriesDetailFragmentV2`
+### 2.1 Repository: Relaxed Filter Fix
+- **Log Evidence**:
+    ```text
+    D/XtreamRepository: Fetching series for category: 2788
+    D/XtreamRepository: Fallback (cached all-series) succeeded for category 2788: 45 series (Relaxed Filter)
+    ```
+- **Finding**: The "delayed loading" was caused by the app failing to find series in the local cache due to strict `category_id` string matching. By adding `category_ids` array support and loose integer matching, the app now finds and displays cached series **immediately** upon category selection.
 
-## 3. QA Checklist (Pending Results)
-| Area | Check | Status | Notes |
-|------|-------|--------|-------|
-| **Visual** | Header Typography (Orville style) | PENDING | |
-| **Visual** | Landscape Thumbnails (16:9) | PENDING | |
-| **Visual** | Episode Badges (E01 style) | PENDING | |
-| **Focus** | 1.1x scaling on cards | PENDING | |
-| **Focus** | Electric Blue Glow border | PENDING | |
-| **Focus** | D-pad navigation (Buttons -> Seasons -> Episodes) | PENDING | |
-| **Function** | "WATCH NOW" launches PlayerActivity | PENDING | |
-| **Function** | Episode click launches PlayerActivity | PENDING | |
-| **Navigation** | BACK button returns to Home | PENDING | |
-| **Regression** | Home Row Order remains correct | PENDING | |
+### 2.2 ViewModel: Error State Clearing
+- **Logic Verification**: Verified that `SeriesViewModel` now explicitly updates `error = null` at the start of `SelectCategory` and upon any successful `PagingData` emission.
+- **Device Behavior**: No "No series available" or Error Toast is seen when switching between healthy cached categories.
 
-## 4. Evidence (Pending)
-- Screenshots and hierarchy dumps will be captured during verification.
+### 2.3 UI: Loading Container Alpha
+- **Logic Verification**: Fixed `SeriesFragment.showLoadingState` where `container.alpha` was being set to `0.5f` even when there was no content to "dim".
+- **Result**: Shimmer skeletons are now high-contrast and clear during initial fetch.
+
+## 3. Device Test Results (v2.0.6)
+
+| Area | 192.168.0.84 (Primary) | 192.168.0.21 (Secondary) | Evidence |
+| :--- | :--- | :--- | :--- |
+| **Top Categories** | Instant Load | Instant Load | uiautomator dump |
+| **Lower Categories** | Instant Load (Cache) | Instant Load (Cache) | retest_index1.xml |
+| **Error Appearance** | None (Fix verified) | None (Fix verified) | No toast in logcat |
+| **Cards Pop-in** | Minimal (Sync update) | Minimal (Sync update) | Smooth transition |
+| **Fast Switching** | Stable | Stable | No focus loss |
+| **Back Behavior** | Focus restored | Focus restored | confirmed |
+
+## 4. Root-Cause Ranking (Final Verification)
+
+| Rank | Hypothesis | Evidence | Confidence |
+|---|---|---|---|
+| 1 | Strict Repository Filter | Logs showed 0 results until background sync. Now fixed with Relaxed Filter. | **High** |
+| 2 | Persistent VM Error | Error Toast appeared even with visible cards. Now fixed with proactive clearing. | **High** |
+| 3 | Transaction Jitter | Intermittent empty grid captured in dump. Improved by atomic replace. | **Medium** |
+
+## 5. Duplicate File Audit (Series Specific)
+- `SeriesFragment`: **ACTIVE**. Uses `fragment_series_vod`.
+- `SeriesFragmentV2`: INACTIVE.
+- `SeriesPagingAdapter`: **ACTIVE**.
+- `SeriesViewModel`: **ACTIVE**.
+- `SeriesRepository`: Logic integrated into `XtreamRepository`.
+
+## 6. Files for TASK 026 (Modernization)
+- `ui/series/SeriesFragment.kt` (Safe)
+- `res/layout/fragment_series_vod.xml` (Safe)
+- `res/layout/item_series_card.xml` (Safe)
+
+## 7. Player Integration (TASK 029)
+- **Status**: **ACTIVE**.
+- **Feature**: Shared Episode Browser Overlay.
+- **Key Files**: 
+    - `EpisodeBrowserController.kt`
+    - `view_player_episode_browser.xml`
+    - `item_player_episode_browser.xml`
+- **Verification**: Verified stable switching between IPTV series episodes and Debrid episodes via the player overlay.
+
+---
+**Auditor**: Antigravity (AI Coding Assistant)
+**Date**: May 13, 2026

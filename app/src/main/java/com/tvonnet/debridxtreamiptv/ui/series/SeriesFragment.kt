@@ -47,13 +47,15 @@ class SeriesFragment : Fragment() {
     }
     
     private val viewModel: SeriesViewModel by viewModels()
+    private lateinit var llSidebarContainer: View
     private lateinit var rvCategoriesSidebar: RecyclerView
     private lateinit var rvSeriesGrid: RecyclerView
     private lateinit var tvCategoryTitle: TextView
     private lateinit var ivBackgroundBackdrop: ImageView
+    private var llLoadingState: View? = null
     private var llEmptyState: LinearLayout? = null
-    private var llLoadingState: ViewGroup? = null
     private var tvEmptyMessage: TextView? = null
+    private var selectedCategoryId: String? = null
 
     // Tracks ViewModel-driven loading to prevent "No series" flicker on category switch
     private var isSeriesLoadingFromViewModel: Boolean = false
@@ -101,6 +103,7 @@ class SeriesFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        android.util.Log.d("SeriesFragment", "IPTV_SERIES_SCREEN_ACTIVE: onViewCreated entry")
         
         initViews(view)
         setupRecyclerViews()
@@ -126,7 +129,57 @@ class SeriesFragment : Fragment() {
                     lastFocusedSeriesPosition != RecyclerView.NO_POSITION
         }
         
+        // Global Focus Engine for Sidebar Expansion (Lumina Style Overlay)
+        view.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus ->
+            if (newFocus == null || !isAdded) return@addOnGlobalFocusChangeListener
+            
+            val isSidebarFocused = isDescendantOf(newFocus, llSidebarContainer)
+            updateSidebarState(isSidebarFocused)
+        }
+        
         // Initial load is handled by ViewModel init block
+    }
+
+    private fun isDescendantOf(view: View, parent: View): Boolean {
+        var current: android.view.ViewParent? = view.parent
+        while (current != null) {
+            if (current === parent) return true
+            current = current.parent
+        }
+        return false
+    }
+
+    private fun updateSidebarState(expanded: Boolean) {
+        val targetWidth = if (expanded) {
+            resources.getDimensionPixelSize(R.dimen.sidebar_width_expanded)
+        } else {
+            resources.getDimensionPixelSize(R.dimen.sidebar_width_collapsed)
+        }
+        
+        if (llSidebarContainer.width == targetWidth) return
+        
+        // Update Adapter for name visibility
+        (rvCategoriesSidebar.adapter as? CategorySidebarAdapter)?.setExpanded(expanded)
+        
+        // Animate width without pushing grid (Lumina overlay pattern)
+        val params = llSidebarContainer.layoutParams
+        val startWidth = llSidebarContainer.width
+        
+        android.animation.ValueAnimator.ofInt(startWidth, targetWidth).apply {
+            duration = 250
+            interpolator = android.view.animation.DecelerateInterpolator()
+            addUpdateListener { animator ->
+                params.width = animator.animatedValue as Int
+                llSidebarContainer.layoutParams = params
+            }
+            start()
+        }
+        
+        // Handle Sidebar title visibility
+        view?.findViewById<View>(R.id.ll_sidebar_title_area)?.animate()
+            ?.alpha(if (expanded) 1f else 0f)
+            ?.setDuration(200)
+            ?.start()
     }
 
     override fun onResume() {
@@ -160,6 +213,7 @@ class SeriesFragment : Fragment() {
     }
 
     private fun initViews(view: View) {
+        llSidebarContainer = view.findViewById(R.id.ll_series_sidebar_container)
         rvCategoriesSidebar = view.findViewById(R.id.rv_categories_sidebar)
         rvSeriesGrid = view.findViewById(R.id.rv_series_grid)
         tvCategoryTitle = view.findViewById(R.id.tv_category_title)
@@ -173,45 +227,26 @@ class SeriesFragment : Fragment() {
         // Setup Grid (4 columns for cinematic look)
         rvSeriesGrid.layoutManager = GridLayoutManager(requireContext(), 4)
         
-        // Add explicit spacing decoration (32dp margins)
-        val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_standard)
+        // Add explicit spacing decoration (consistent gaps for 4 columns)
+        val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_medium)
         rvSeriesGrid.addItemDecoration(com.tvonnet.debridxtreamiptv.utils.GridSpacingItemDecoration(4, spacingPx, true))
         
         rvSeriesGrid.adapter = seriesPagingAdapter
-        // RecyclerViewAnimations.applySpringAnimation(rvSeriesGrid)
         
         // Null Animators: Prevent focus jitter during updates
         rvSeriesGrid.itemAnimator = null
         rvCategoriesSidebar.itemAnimator = null
 
-        // Setup Sidebar (temporarily empty or managed by observing categories)
+        // Setup Sidebar
         rvCategoriesSidebar.layoutManager = LinearLayoutManager(requireContext())
+        rvCategoriesSidebar.setHasFixedSize(true)
+        rvCategoriesSidebar.isFocusable = true
+        rvCategoriesSidebar.isFocusableInTouchMode = true
 
-        // Track focus for restore on back navigation
-        rvCategoriesSidebar.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
-            override fun onChildViewAttachedToWindow(view: View) {
-                val previousListener = view.onFocusChangeListener
-                view.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
-                    previousListener?.onFocusChange(v, hasFocus)
-                    if (hasFocus) {
-                        lastFocusTarget = FocusTarget.CATEGORIES
-                        lastFocusedCategoryPosition = rvCategoriesSidebar.getChildAdapterPosition(v)
-                        lastFocusedCategoryId = (v.getTag(R.id.tag_category_id) as? String)
-                    }
-                }
-            }
+        // Apply global TV focus rules
+        com.tvonnet.debridxtreamiptv.utils.FocusTrapHelper.attachFocusTrap(rvCategoriesSidebar, loopFocus = true)
 
-            override fun onChildViewDetachedFromWindow(view: View) {
-                // Do not nullify, let the adapter manage it
-            }
-        })
-        
-        // sidebarContainer is ll_series_sidebar_container
-        // Cinematic sidebar: fixed expanded width (288dp in the layout), no auto-collapse.
-        // The legacy SidebarFocusHelper.attachStandardSidebarAnimation was removed because
-        // it toggled between expanded and collapsed states based on focus, which felt jittery
-        // and is inconsistent with the cinematic Home sidebar.
-
+        // Track focus for backdrop updates (existing behavior)
         rvSeriesGrid.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
             override fun onChildViewAttachedToWindow(view: View) {
                 val previousListener = view.onFocusChangeListener
@@ -219,7 +254,6 @@ class SeriesFragment : Fragment() {
                     previousListener?.onFocusChange(v, hasFocus)
 
                     if (hasFocus) {
-                        v.z = 20f // Ensure cinematic card is topmost
                         lastFocusTarget = FocusTarget.SERIES
                         lastFocusedSeriesId = (v.getTag(R.id.tag_series_id) as? String)
                         lastFocusedSeriesPosition = rvSeriesGrid.getChildAdapterPosition(v)
@@ -232,23 +266,16 @@ class SeriesFragment : Fragment() {
                                 if (series != null) {
                                     updateBackdrop(series)
                                 }
-                            } catch (e: Exception) {
-                                // Ignore
-                            }
+                            } catch (e: Exception) {}
                         }
-                    } else {
-                        v.z = 0f
-                    }                }
+                    }
+                }
             }
 
-            override fun onChildViewDetachedFromWindow(view: View) {
-                // Do not nullify, let the adapter manage its own listeners
-            }
+            override fun onChildViewDetachedFromWindow(view: View) {}
         })
 
         // ── D-pad Navigation Guards ────────────────────────────────────────
-        // Prevent DPAD_UP on first row from jumping to the header/toolbar.
-        // Prevent DPAD_LEFT on first column from staying stuck.
         val gridColumns = (rvSeriesGrid.layoutManager as? GridLayoutManager)?.spanCount ?: 4
         rvSeriesGrid.setOnKeyListener { _, keyCode, event ->
             if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
@@ -315,6 +342,7 @@ class SeriesFragment : Fragment() {
         // Observe Paged Data
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.pagedSeries.collectLatest { pagingData ->
+                android.util.Log.d("SeriesFragment", "New PagingData submitted")
                 seriesPagingAdapter.submitData(pagingData)
             }
         }
@@ -341,6 +369,7 @@ class SeriesFragment : Fragment() {
 
                 // Keep sidebar selection in sync with selected category
                 state.selectedCategoryId?.let { selectedId ->
+                    selectedCategoryId = selectedId
                     (rvCategoriesSidebar.adapter as? CategorySidebarAdapter)?.setSelectedById(selectedId)
                 }
 
@@ -390,10 +419,11 @@ class SeriesFragment : Fragment() {
                 loadState.source.refresh is LoadState.Loading ||
                 loadState.mediator?.refresh is LoadState.Loading
 
-        val shouldShowLoading = (isSeriesLoadingFromViewModel || isPagingRefreshLoading)
+        // Robust loading state: track both VM and Paging status
+        val shouldShowLoading = (isSeriesLoadingFromViewModel || isPagingRefreshLoading || isSwitching)
         showLoadingState(shouldShowLoading, itemCount > 0)
 
-        // Only show empty state once we are sure refresh finished and VM isn't still loading.
+        // Only show empty state once we are sure refresh finished and VM isn't still loading/switching.
         val isListEmpty =
             !isSeriesLoadingFromViewModel &&
                 !isSwitching && 
@@ -402,6 +432,10 @@ class SeriesFragment : Fragment() {
                 (loadState.mediator?.refresh == null || loadState.mediator!!.refresh is LoadState.NotLoading) &&
                 itemCount == 0 &&
                 !isPagingRefreshLoading
+        
+        android.util.Log.d("SeriesFragment", "EmptyStateCheck: count=$itemCount, vmLoading=$isSeriesLoadingFromViewModel, isSwitching=$isSwitching, pagingLoading=$isPagingRefreshLoading -> showEmpty=$isListEmpty")
+        
+        // Hardened empty state: only show if we are definitively NOT loading anything
         showEmptyState(isListEmpty)
 
         val errorState = loadState.source.refresh as? LoadState.Error
@@ -507,55 +541,33 @@ class SeriesFragment : Fragment() {
     }
 
     /**
-     * Toggles the shimmer skeleton grid visibility.
-     * Persistent Grid Pattern: If keepContent is true, we show the shimmer as an 
-     * overlay (veil) over the existing content.
+     * Toggles the loading overlay visibility.
+     * Persistent Grid Pattern: If keepContent is true, we show the loading indicator
+     * as an overlay over the existing content.
      */
     private fun showLoadingState(show: Boolean, keepContent: Boolean = false) {
         val container = llLoadingState ?: return
         if (show) {
             container.visibility = View.VISIBLE
-            // If keeping content, dim the original series and show shimmer as a veil
+            container.alpha = 1.0f
+            
+            // If keeping content (e.g. background refresh), dim the original series grid
+            // Otherwise, hide it completely to avoid "skeleton" card misalignment
             if (keepContent) {
-                container.alpha = 0.5f 
-                rvSeriesGrid.alpha = 0.6f
+                rvSeriesGrid.alpha = 0.4f
             } else {
-                container.alpha = 1.0f
                 rvSeriesGrid.alpha = 0f
                 rvSeriesGrid.visibility = View.GONE
             }
-            startShimmerAnimations(container)
         } else {
-            stopShimmerAnimations(container)
             container.visibility = View.GONE
+            // Restore grid visibility; showEmptyState will handle hiding it if itemCount is 0
             rvSeriesGrid.visibility = View.VISIBLE
             rvSeriesGrid.alpha = 1.0f
         }
     }
 
-    private fun startShimmerAnimations(container: ViewGroup) {
-        for (i in 0 until container.childCount) {
-            val shimmer = container.getChildAt(i)?.findViewById<View>(R.id.v_shimmer) ?: continue
-            val anim = TranslateAnimation(
-                Animation.RELATIVE_TO_PARENT, -1.0f,
-                Animation.RELATIVE_TO_PARENT, 1.0f,
-                Animation.RELATIVE_TO_PARENT, 0f,
-                Animation.RELATIVE_TO_PARENT, 0f
-            ).apply {
-                duration = 1200L + (i * 80L)  // Stagger for organic feel
-                repeatCount = Animation.INFINITE
-                repeatMode = Animation.RESTART
-                interpolator = android.view.animation.LinearInterpolator()
-            }
-            shimmer.startAnimation(anim)
-        }
-    }
-
-    private fun stopShimmerAnimations(container: ViewGroup) {
-        for (i in 0 until container.childCount) {
-            container.getChildAt(i)?.findViewById<View>(R.id.v_shimmer)?.clearAnimation()
-        }
-    }
+    // Removed startShimmerAnimations and stopShimmerAnimations as they are no longer needed for the stable overlay.
 
     private fun onSeriesClick(series: XtreamSeriesInfo, sharedView: View) {
         val fragment = SeriesDetailFragmentV2().apply {

@@ -15,6 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
+import io.mockk.*
 
 /**
  * Unit Tests for XtreamRepository Stream Lookup Methods
@@ -40,15 +41,26 @@ class XtreamRepositoryStreamLookupTest {
         context = ApplicationProvider.getApplicationContext()
         cacheHelper = CacheHelper(context)
         val memoryManager = io.mockk.mockk<com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager>(relaxed = true)
+        val cacheManager = mockk<com.tvonnet.debridxtreamiptv.data.cache.CacheManager>(relaxed = true)
+        val favoriteDao = mockk<com.tvonnet.debridxtreamiptv.data.local.dao.FavoriteDao>(relaxed = true)
+        val searchHistoryDao = mockk<com.tvonnet.debridxtreamiptv.data.local.dao.SearchHistoryDao>(relaxed = true)
+        val epgDao = mockk<com.tvonnet.debridxtreamiptv.data.local.dao.EpgDao>(relaxed = true)
+        val vodDao = mockk<com.tvonnet.debridxtreamiptv.data.local.dao.VodDao>(relaxed = true)
+        val seriesDao = mockk<com.tvonnet.debridxtreamiptv.data.local.dao.SeriesDao>(relaxed = true)
+        
+        coEvery { cacheManager.getChannelById(any()) } returns null
+        coEvery { vodDao.getVodById(any()) } returns null
+        coEvery { seriesDao.getSeriesById(any()) } returns null
+        
         repository = XtreamRepository(
             context = context,
-            cacheManager = io.mockk.mockk(relaxed = true),
-            favoriteDao = io.mockk.mockk(relaxed = true),
-            searchHistoryDao = io.mockk.mockk(relaxed = true),
-            epgDao = io.mockk.mockk(relaxed = true),
-            vodDao = io.mockk.mockk(relaxed = true),
-            seriesDao = io.mockk.mockk(relaxed = true),
-            favoritesCache = io.mockk.mockk(relaxed = true),
+            cacheManager = cacheManager,
+            favoriteDao = favoriteDao,
+            searchHistoryDao = searchHistoryDao,
+            epgDao = epgDao,
+            vodDao = vodDao,
+            seriesDao = seriesDao,
+            favoritesCache = mockk(relaxed = true),
             memoryManager = memoryManager
         )
         cacheHelper.clearCache()

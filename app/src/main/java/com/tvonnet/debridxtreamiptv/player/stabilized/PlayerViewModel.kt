@@ -20,8 +20,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
@@ -85,9 +87,11 @@ data class PlayerOverlayUiState(
 data class SeriesPlaylistState(
     val originalList: List<EpisodeEntityV2>,
     val currentIndex: Int,
-    val currentEpisode: EpisodeEntityV2,
+    val currentEpisode: EpisodeEntityV2?,
     val hasNext: Boolean,
-    val hasPrev: Boolean
+    val hasPrev: Boolean,
+    val isLoading: Boolean = false,
+    val error: String? = null
 )
 
 @HiltViewModel
@@ -98,6 +102,7 @@ class PlayerViewModel @Inject constructor(
     private val debridPlaybackRepository: DebridPlaybackRepository,
     private val unifiedSourceProvider: UnifiedSourceProvider,
     private val playbackResolver: com.tvonnet.debridxtreamiptv.data.debrid.repository.PlaybackResolver,
+    private val tmdbRemote: com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -117,25 +122,268 @@ class PlayerViewModel @Inject constructor(
     private val _debridResolutionState = MutableStateFlow<DebridResolutionState>(DebridResolutionState.Idle)
     val debridResolutionState: StateFlow<DebridResolutionState> = _debridResolutionState.asStateFlow()
 
-    fun loadSeriesPlaylist(seriesId: String, seasonNum: Int, startEpisodeId: String) {
+    fun loadSeriesPlaylist(
+        seriesId: String,
+        seasonNum: Int,
+        startEpisodeId: String,
+        seriesTitle: String? = null
+    ) {
+        android.util.Log.e("IPTV_EP_LOAD_FIX", "START seriesId=$seriesId season=$seasonNum currentEpisode=$startEpisodeId")
         viewModelScope.launch {
-             try {
-                 val episodes = seriesRepository.getSeasonEpisodes(seriesId, seasonNum)
-                 if (episodes.isNotEmpty()) {
-                     val startIndex = episodes.indexOfFirst { it.episodeId == startEpisodeId }.takeIf { it >= 0 } ?: 0
-                     val current = episodes[startIndex]
-                     
-                     _seriesPlaylistState.value = SeriesPlaylistState(
-                         originalList = episodes,
-                         currentIndex = startIndex,
-                         currentEpisode = current,
-                         hasNext = startIndex < episodes.size - 1,
-                         hasPrev = startIndex > 0
-                     )
-                 }
-             } catch (e: Exception) {
-                 e.printStackTrace()
-             }
+            android.util.Log.e("IPTV_EP_LOAD_FIX", "EMIT loading=true")
+            _seriesPlaylistState.value = SeriesPlaylistState(
+                originalList = emptyList(),
+                currentIndex = -1,
+                currentEpisode = null,
+                hasNext = false,
+                hasPrev = false,
+                isLoading = true,
+                error = null
+            )
+
+            try {
+                val localBefore = withContext(Dispatchers.IO) {
+                    seriesRepository.getSeasonEpisodes(seriesId, seasonNum)
+                }
+                android.util.Log.e("IPTV_EP_LOAD_FIX", "LOCAL_BEFORE count=${localBefore.size}")
+
+                if (localBefore.isNotEmpty()) {
+                    emitSeriesPlaylist(
+                        enrichIptvEpisodeArtwork(localBefore, seriesTitle, seasonNum),
+                        startEpisodeId,
+                        null
+                    )
+                    return@launch
+                }
+
+                android.util.Log.e("IPTV_EP_LOAD_FIX", "NETWORK_FETCH_START timeoutMs=8000")
+                val result = withTimeoutOrNull(8000L) {
+                    seriesRepository.getSeriesById(seriesId).firstOrNull()
+                }
+                android.util.Log.e("IPTV_EP_LOAD_FIX", "NETWORK_FETCH_DONE result=${result?.javaClass?.simpleName ?: "timeout"}")
+
+                val localAfter = withContext(Dispatchers.IO) {
+                    seriesRepository.getSeasonEpisodes(seriesId, seasonNum)
+                }
+                android.util.Log.e("IPTV_EP_LOAD_FIX", "LOCAL_AFTER count=${localAfter.size}")
+
+                val mappedEpisodes = enrichIptvEpisodeArtwork(localAfter, seriesTitle, seasonNum)
+                val error = if (mappedEpisodes.isEmpty()) "No episodes available" else null
+                emitSeriesPlaylist(mappedEpisodes, startEpisodeId, error)
+            } catch (e: Exception) {
+                android.util.Log.e("IPTV_EP_LOAD_FIX", "NETWORK_FETCH_DONE result=error:${e.javaClass.simpleName}")
+                android.util.Log.e("IPTV_EP_LOAD_FIX", "LOCAL_AFTER count=0")
+                emitSeriesPlaylist(emptyList(), startEpisodeId, "Episodes unavailable")
+            }
+        }
+    }
+
+    private fun emitSeriesPlaylist(
+        episodes: List<EpisodeEntityV2>,
+        startEpisodeId: String,
+        error: String?
+    ) {
+        val startIndex = episodes.indexOfFirst { it.episodeId == startEpisodeId }.takeIf { it >= 0 } ?: if (episodes.isNotEmpty()) 0 else -1
+        val current = if (startIndex >= 0) episodes[startIndex] else null
+        android.util.Log.e("IPTV_EP_LOAD_FIX", "MAPPED count=${episodes.size}")
+        android.util.Log.e("IPTV_EP_LOAD_FIX", "EMIT loading=false count=${episodes.size} error=$error")
+        _seriesPlaylistState.value = SeriesPlaylistState(
+            originalList = episodes,
+            currentIndex = startIndex,
+            currentEpisode = current,
+            hasNext = startIndex >= 0 && startIndex < episodes.size - 1,
+            hasPrev = startIndex > 0,
+            isLoading = false,
+            error = error
+        )
+    }
+
+    private suspend fun enrichIptvEpisodeArtwork(
+        episodes: List<EpisodeEntityV2>,
+        seriesTitle: String?,
+        seasonNum: Int
+    ): List<EpisodeEntityV2> {
+        if (episodes.isEmpty()) return episodes
+        if (episodes.all { hasUsableArtworkUrl(it.thumbnail) }) {
+            return episodes
+        }
+        val cleanTitle = cleanSeriesTitleForTmdb(seriesTitle)
+            ?: return episodes
+
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                withTimeoutOrNull(7000L) {
+                    val tvId = findBestTmdbTvMatch(cleanTitle)
+                    if (tvId == null) {
+                        android.util.Log.d("IPTV_TMDB_POSTERS", "NO_TV_MATCH title=$cleanTitle")
+                        return@withTimeoutOrNull episodes
+                    }
+
+                    val season = tmdbRemote.getSeasonDetails(tvId, seasonNum)
+                    val stillsByEpisode = (season as? Result.Success)
+                        ?.data
+                        ?.episodes
+                        ?.mapNotNull { tmdbEpisode ->
+                            val episodeNumber = tmdbEpisode.episodeNumber ?: return@mapNotNull null
+                            val stillPath = tmdbEpisode.stillPath ?: return@mapNotNull null
+                            episodeNumber to "https://image.tmdb.org/t/p/w500$stillPath"
+                        }
+                        ?.toMap()
+                        .orEmpty()
+
+                    android.util.Log.d("IPTV_TMDB_POSTERS", "MATCH tvId=$tvId stills=${stillsByEpisode.size}")
+                    episodes.map { episode ->
+                        val stillUrl = stillsByEpisode[episode.episodeNumber]
+                        if (hasUsableArtworkUrl(episode.thumbnail) || stillUrl == null) {
+                            episode
+                        } else {
+                            episode.copy(thumbnail = stillUrl)
+                        }
+                    }
+                } ?: episodes
+            }.getOrElse { error ->
+                android.util.Log.d("IPTV_TMDB_POSTERS", "ERROR ${error.javaClass.simpleName}")
+                episodes
+            }
+        }
+    }
+
+    private suspend fun findBestTmdbTvMatch(title: String): Int? {
+        val queries = buildTmdbSearchQueries(title).take(4)
+        for (query in queries) {
+            android.util.Log.d("IPTV_TMDB_POSTERS", "SEARCH query=$query")
+            val response = tmdbRemote.searchTvShows(query).getOrNull() ?: continue
+            val results = response.results.orEmpty()
+            if (results.isEmpty()) continue
+
+            val target = normalizeTmdbTitle(query) ?: continue
+            val best = results
+                .asSequence()
+                .mapNotNull { show ->
+                    val id = show.id ?: return@mapNotNull null
+                    val candidateTitle = show.name ?: show.originalName ?: return@mapNotNull null
+                    val candidate = normalizeTmdbTitle(candidateTitle) ?: return@mapNotNull null
+                    val titleScore = when {
+                        candidate == target -> 0
+                        candidate.contains(target) || target.contains(candidate) -> 1
+                        tokenOverlapScore(target, candidate) >= 0.75f -> 2
+                        else -> 5
+                    }
+                    val popularity = show.popularity ?: 0.0
+                    Triple(titleScore, -popularity, id)
+                }
+                .filter { it.first <= 2 }
+                .minWithOrNull(compareBy<Triple<Int, Double, Int>> { it.first }.thenBy { it.second })
+
+            if (best != null) {
+                android.util.Log.d("IPTV_TMDB_POSTERS", "TV_MATCH query=$query id=${best.third} score=${best.first}")
+                return best.third
+            }
+        }
+        return null
+    }
+
+    private fun hasUsableArtworkUrl(value: String?): Boolean {
+        val trimmed = value?.trim().orEmpty()
+        return trimmed.isNotEmpty() &&
+            !trimmed.equals("null", ignoreCase = true) &&
+            !trimmed.equals("n/a", ignoreCase = true)
+    }
+
+    private fun cleanSeriesTitleForTmdb(rawTitle: String?): String? {
+        return rawTitle
+            ?.replace(Regex("\\bS\\d{1,2}\\s*E\\d{1,2}\\b", RegexOption.IGNORE_CASE), " ")
+            ?.replace(Regex("\\b\\d{1,2}x\\d{1,2}\\b", RegexOption.IGNORE_CASE), " ")
+            ?.replace(Regex("\\bSeason\\s+\\d+\\b", RegexOption.IGNORE_CASE), " ")
+            ?.replace(Regex("\\bEpisode\\s+\\d+\\b", RegexOption.IGNORE_CASE), " ")
+            ?.replace(Regex("^\\[[A-Za-z]{2,3}]\\s*"), " ")
+            ?.replace(Regex("^[A-Za-z]{2,3}\\s*[-|]\\s*"), " ")
+            ?.replace(Regex("\\b(multi|dual|audio|dubbed|hindi|english|french|spanish|arabic|turkish|portuguese)\\b", RegexOption.IGNORE_CASE), " ")
+            ?.replace(Regex("\\b(4k|2160p|1080p|720p|480p|hdr|dv|hevc|x265|x264|h\\.265|h\\.264|web[- ]?dl|webrip|bluray|brrip)\\b", RegexOption.IGNORE_CASE), " ")
+            ?.replace(Regex("\\(\\s*\\d{4}\\s*\\)$"), " ")
+            ?.replace(Regex("\\s+\\d{4}$"), " ")
+            ?.replace(Regex("[^\\p{L}\\p{N} ]"), " ")
+            ?.replace(Regex("\\s+"), " ")
+            ?.trim()
+            ?.takeIf { it.length >= 2 }
+    }
+
+    private fun buildTmdbSearchQueries(title: String): List<String> {
+        val withoutColonSuffix = title.substringBefore(":").trim()
+        val withoutDashSuffix = title.substringBefore(" - ").trim()
+        return listOf(title, withoutColonSuffix, withoutDashSuffix)
+            .map { it.trim() }
+            .filter { it.length >= 2 }
+            .distinct()
+    }
+
+    private fun normalizeTmdbTitle(value: String?): String? {
+        return value
+            ?.lowercase(Locale.ROOT)
+            ?.replace(Regex("\\bthe\\b"), " ")
+            ?.replace(Regex("[^a-z0-9]"), "")
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    private fun tokenOverlapScore(target: String, candidate: String): Float {
+        val targetTokens = target.chunked(3).toSet()
+        val candidateTokens = candidate.chunked(3).toSet()
+        if (targetTokens.isEmpty() || candidateTokens.isEmpty()) return 0f
+        return targetTokens.intersect(candidateTokens).size.toFloat() / targetTokens.size.toFloat()
+    }
+
+    fun loadDebridSeriesPlaylist(tmdbId: String, seasonNum: Int, currentEpisodeNumber: Int) {
+        android.util.Log.d("PlayerViewModel", "loadDebridSeriesPlaylist: tmdbId=$tmdbId, season=$seasonNum")
+        viewModelScope.launch {
+            try {
+                val cleanId = tmdbId.replace("tmdb:", "").replace("imdb:", "")
+                val tmdbIdInt = cleanId.toIntOrNull() ?: run {
+                    android.util.Log.e("PlayerViewModel", "Invalid TMDB ID: $cleanId")
+                    return@launch
+                }
+                val result = tmdbRemote.getSeasonDetails(tmdbIdInt, seasonNum)
+                if (result is Result.Success) {
+                    val tmdbEpisodes = result.data.episodes ?: emptyList()
+                    val episodes = tmdbEpisodes.map { tmdbEpisode ->
+                        val epId = "$tmdbId:$seasonNum:${tmdbEpisode.episodeNumber ?: 0}"
+                        EpisodeEntityV2(
+                            episodeId = epId,
+                            seriesId = tmdbId,
+                            seasonNumber = seasonNum,
+                            episodeNumber = tmdbEpisode.episodeNumber ?: 0,
+                            title = tmdbEpisode.name,
+                            containerExtension = "mp4",
+                            streamType = "series",
+                            durationSecs = (tmdbEpisode.runtime?.times(60))?.toString(),
+                            added = null,
+                            customSid = null,
+                            directSource = null,
+                            thumbnail = "https://image.tmdb.org/t/p/w500${tmdbEpisode.stillPath}",
+                            plot = tmdbEpisode.overview,
+                            cast = null,
+                            director = null,
+                            genre = null,
+                            releaseDate = tmdbEpisode.airDate,
+                            rating = tmdbEpisode.voteAverage?.toString()
+                        )
+                    }
+
+                    if (episodes.isNotEmpty()) {
+                        val startIndex = episodes.indexOfFirst { it.episodeNumber == currentEpisodeNumber }.takeIf { it >= 0 } ?: 0
+                        val current = episodes[startIndex]
+
+                        _seriesPlaylistState.value = SeriesPlaylistState(
+                            originalList = episodes,
+                            currentIndex = startIndex,
+                            currentEpisode = current,
+                            hasNext = startIndex < episodes.size - 1,
+                            hasPrev = startIndex > 0
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -248,6 +496,7 @@ class PlayerViewModel @Inject constructor(
         episode: Int?,
         title: String?
     ) {
+        android.util.Log.d("PlayerViewModel", "reResolveDebridUrl: infoHash=$infoHash, season=$season, episode=$episode, title=$title")
         viewModelScope.launch {
             _debridResolutionState.value = DebridResolutionState.Loading
             try {

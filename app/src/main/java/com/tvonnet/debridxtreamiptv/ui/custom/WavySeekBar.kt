@@ -121,6 +121,13 @@ class WavySeekBar @JvmOverloads constructor(
         val h = height.toFloat()
         val centerY = h / 2f
         val padding = 20f
+        val focused = isFocused || isScrubbing
+
+        playedPaint.color = if (focused) Color.parseColor("#31E6FF") else Color.WHITE
+        playedPaint.strokeWidth = (if (focused) 6f else 4f) * resources.displayMetrics.density
+        bufferedPaint.color = if (focused) Color.parseColor("#804ADFFF") else Color.parseColor("#80FFFFFF")
+        unplayedPaint.color = if (focused) Color.parseColor("#334ADFFF") else Color.parseColor("#26FFFFFF")
+        scrubberPaint.color = if (focused) Color.parseColor("#31E6FF") else Color.WHITE
 
         if (duration <= 0) {
             canvas.drawLine(padding, centerY, w - padding, centerY, unplayedPaint)
@@ -144,8 +151,15 @@ class WavySeekBar @JvmOverloads constructor(
         drawWave(canvas, padding, playedWidth, centerY)
 
         // 3. Draw Scrubber
-        val scrubberScale = if (isFocused || isScrubbing) 1.5f else 1.0f
+        val scrubberScale = if (focused) 1.7f else 1.0f
         val scrubberRadius = 8f * resources.displayMetrics.density * scrubberScale
+        if (focused) {
+            val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.FILL
+                color = Color.parseColor("#6631E6FF")
+            }
+            canvas.drawCircle(playedWidth, centerY, scrubberRadius * 1.9f, glowPaint)
+        }
         canvas.drawCircle(playedWidth, centerY, scrubberRadius, scrubberPaint)
     }
 

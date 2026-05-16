@@ -7,8 +7,12 @@ import com.tvonnet.debridxtreamiptv.data.prefs.HomePreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
+import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbImageUrl
+import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbTvShow
 import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.model.*
+import com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.EpisodeDaoV2
+import com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.SeriesDaoV2
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +20,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.Locale
 import javax.inject.Inject
 
 data class HomeUiState(
@@ -44,7 +50,9 @@ class HomeViewModel @Inject constructor(
     private val debridPrefs: DebridPreferences,
     private val homePrefs: HomePreferences,
     private val credentialsPrefs: CredentialsPreferences,
-    private val watchHistoryPrefs: WatchHistoryPreferences
+    private val watchHistoryPrefs: WatchHistoryPreferences,
+    private val seriesDaoV2: SeriesDaoV2,
+    private val episodeDaoV2: EpisodeDaoV2
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -173,11 +181,7 @@ class HomeViewModel @Inject constructor(
                                 } ?: item.also { android.util.Log.w("HISTORY_DEBUG", "VOD not found in repository: ${item.contentId}") }
                             }
                             ContentType.SERIES, ContentType.EPISODE -> {
-                                repository.getSeriesById(item.contentId)?.let { series ->
-                                    val cover = series.cover.toAbsoluteUrl(ContentType.SERIES, serverUrl)
-                                    android.util.Log.e("HISTORY_DEBUG", "Resolved Series artwork: cover=$cover")
-                                    item.copy(posterUrl = cover, backdropUrl = cover)
-                                } ?: item.also { android.util.Log.w("HISTORY_DEBUG", "Series not found in repository: ${item.contentId}") }
+                                enrichSeriesContinueWatchingArtwork(item, serverUrl)
                             }
                             else -> item
                         }
@@ -255,6 +259,114 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    private suspend fun enrichSeriesContinueWatchingArtwork(
+        item: ContinueWatchingItem,
+        serverUrl: String
+    ): ContinueWatchingItem {
+        val seriesId = resolveContinueWatchingSeriesId(item)
+        val legacySeries = seriesId?.let { repository.getSeriesById(it) }
+        val v2Series = seriesId?.let { seriesDaoV2.getSeriesById(it) }
+
+        val providerPoster = firstUsableUrl(
+            item.posterUrl.toAbsoluteUrl(ContentType.SERIES, serverUrl),
+            legacySeries?.cover.toAbsoluteUrl(ContentType.SERIES, serverUrl),
+            v2Series?.cover.toAbsoluteUrl(ContentType.SERIES, serverUrl)
+        )
+        val providerBackdrop = firstUsableUrl(
+            item.backdropUrl.toAbsoluteUrl(ContentType.SERIES, serverUrl),
+            v2Series?.backdropPath?.firstOrNull().toAbsoluteUrl(ContentType.SERIES, serverUrl),
+            legacySeries?.cover.toAbsoluteUrl(ContentType.SERIES, serverUrl),
+            v2Series?.cover.toAbsoluteUrl(ContentType.SERIES, serverUrl)
+        )
+        val resolvedTitle = firstNonBlank(
+            item.seriesTitle,
+            v2Series?.title,
+            v2Series?.name,
+            legacySeries?.name,
+            item.title
+        )
+        val tmdbArtwork = if (providerPoster == null) findTmdbSeriesArtwork(resolvedTitle) else null
+        val poster = providerPoster ?: tmdbArtwork?.first
+        val backdrop = providerBackdrop ?: tmdbArtwork?.second ?: poster
+
+        android.util.Log.e(
+            "CW_SERIES_ARTWORK",
+            "resolved contentId=${item.contentId} seriesId=$seriesId poster=${if (poster.isNullOrBlank()) "missing" else "present"} source=${if (providerPoster != null) "provider" else if (tmdbArtwork != null) "tmdb" else "none"}"
+        )
+
+        return item.copy(
+            posterUrl = poster,
+            backdropUrl = backdrop,
+            seriesId = item.seriesId ?: seriesId,
+            seriesTitle = item.seriesTitle ?: resolvedTitle
+        )
+    }
+
+    private suspend fun resolveContinueWatchingSeriesId(item: ContinueWatchingItem): String? {
+        item.seriesId?.takeIf { it.isNotBlank() }?.let { return it }
+        if (item.contentType == ContentType.SERIES) return item.contentId.takeIf { it.isNotBlank() }
+        if (item.contentType != ContentType.EPISODE) return null
+        return runCatching { episodeDaoV2.getEpisodeById(item.contentId)?.seriesId }.getOrNull()
+    }
+
+    private suspend fun findTmdbSeriesArtwork(title: String?): Pair<String?, String?>? {
+        val cleanTitle = cleanTmdbSeriesTitle(title) ?: return null
+        return runCatching {
+            withTimeoutOrNull(5000L) {
+                val response = tmdbRemoteDataSource.searchTvShows(cleanTitle).getOrNull()
+                val target = normalizeTmdbTitle(cleanTitle) ?: return@withTimeoutOrNull null
+                val best = response?.results.orEmpty()
+                    .asSequence()
+                    .mapNotNull { show ->
+                        val candidateTitle = show.name ?: show.originalName ?: return@mapNotNull null
+                        val candidate = normalizeTmdbTitle(candidateTitle) ?: return@mapNotNull null
+                        val score = when {
+                            candidate == target -> 0
+                            candidate.contains(target) || target.contains(candidate) -> 1
+                            else -> 5
+                        }
+                        Triple(score, -(show.popularity ?: 0.0), show)
+                    }
+                    .filter { it.first <= 1 }
+                    .minWithOrNull(compareBy<Triple<Int, Double, TmdbTvShow>> { it.first }.thenBy { it.second })
+                    ?.third
+
+                if (best == null) {
+                    android.util.Log.d("CW_SERIES_ARTWORK", "TMDB no match title=$cleanTitle")
+                    null
+                } else {
+                    android.util.Log.d("CW_SERIES_ARTWORK", "TMDB match title=$cleanTitle id=${best.id}")
+                    TmdbImageUrl.getPosterUrl(best.posterPath) to TmdbImageUrl.getBackdropUrl(best.backdropPath)
+                }
+            }
+        }.getOrNull()
+    }
+
+    private fun firstUsableUrl(vararg values: String?): String? =
+        values.firstOrNull { !it.isNullOrBlank() && !it.equals("null", ignoreCase = true) }
+
+    private fun firstNonBlank(vararg values: String?): String? =
+        values.firstOrNull { !it.isNullOrBlank() }?.trim()
+
+    private fun cleanTmdbSeriesTitle(rawTitle: String?): String? =
+        rawTitle
+            ?.replace(Regex("\\bS\\d{1,2}\\s*E\\d{1,2}\\b", RegexOption.IGNORE_CASE), " ")
+            ?.replace(Regex("\\b\\d{1,2}x\\d{1,2}\\b", RegexOption.IGNORE_CASE), " ")
+            ?.replace(Regex("\\bSeason\\s+\\d+\\b", RegexOption.IGNORE_CASE), " ")
+            ?.replace(Regex("\\bEpisode\\s+\\d+\\b", RegexOption.IGNORE_CASE), " ")
+            ?.replace(Regex("\\b(4k|2160p|1080p|720p|480p|hdr|hevc|x265|x264|web[- ]?dl|webrip|bluray)\\b", RegexOption.IGNORE_CASE), " ")
+            ?.replace(Regex("[^\\p{L}\\p{N} ]"), " ")
+            ?.replace(Regex("\\s+"), " ")
+            ?.trim()
+            ?.takeIf { it.length >= 2 }
+
+    private fun normalizeTmdbTitle(value: String?): String? =
+        value
+            ?.lowercase(Locale.ROOT)
+            ?.replace(Regex("\\bthe\\b"), " ")
+            ?.replace(Regex("[^a-z0-9]"), "")
+            ?.takeIf { it.isNotBlank() }
 
     fun refreshHomeData() {
         loadHomeData()

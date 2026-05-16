@@ -218,6 +218,7 @@ class PlayerActivity : AppCompatActivity() {
     private var hasAppliedIndexOverride = false
     private var preferredAudioLanguage: String? = null
     private var preferredSubtitleLanguage: String? = null
+    private lateinit var episodeBrowserController: EpisodeBrowserController
 
     companion object {
         const val EXTRA_STREAM_URL = "STREAM_URL"
@@ -290,7 +291,8 @@ class PlayerActivity : AppCompatActivity() {
             debridInfoHash: String? = null,
             debridMagnet: String? = null,
             subtitles: List<String>? = null,
-            expiresAt: Long? = null
+            expiresAt: Long? = null,
+            seriesId: String? = null
         ): Intent {
             return Intent(context, PlayerActivity::class.java).apply {
                 putExtra(EXTRA_STREAM_URL, streamUrl)
@@ -306,6 +308,7 @@ class PlayerActivity : AppCompatActivity() {
                 liveCategoryId?.let { putExtra(EXTRA_LIVE_CATEGORY_ID, it) }
                 liveChannelIds?.let { putStringArrayListExtra(EXTRA_LIVE_CHANNEL_IDS, it) }
                 baseServerUrl?.let { putExtra(EXTRA_BASE_SERVER_URL, it) }
+                putExtra(EXTRA_SERIES_ID, seriesId)
                 startPositionMs?.let { putExtra(EXTRA_START_POSITION, it) }
                 headers?.let { putExtra(EXTRA_STREAM_HEADERS, HashMap(it)) }
                 tmdbId?.let { putExtra(EXTRA_TMDB_ID, it) }
@@ -326,6 +329,10 @@ class PlayerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_player)
 
+        // VISUAL PROOF FOR TASK 029
+        Toast.makeText(this, "STABILIZED PLAYER - TASK 029 ACTIVE", Toast.LENGTH_LONG).show()
+        Log.i("PlayerActivity", "!!!! TASK 029 LOG PROOF - PLAYER STARTED !!!!")
+
         if (BuildConfig.DEBUG) {
             Log.d("PlayerActivity", "onCreate package=$packageName taskId=$taskId component=${intent.component}")
         }
@@ -342,6 +349,7 @@ class PlayerActivity : AppCompatActivity() {
 
         val contentTypeString = intent.getStringExtra(EXTRA_CONTENT_TYPE)
         contentType = contentTypeString?.let { runCatching { ContentType.valueOf(it) }.getOrNull() }
+        Log.d("PlayerActivity", "onCreate: contentTypeString=$contentTypeString, contentType=$contentType, contentId=$contentId")
         playbackSource = intent.getStringExtra(EXTRA_PLAYBACK_SOURCE)
             ?.let { runCatching { PlaybackSource.valueOf(it) }.getOrNull() }
             ?: PlaybackSource.IPTV
@@ -400,8 +408,12 @@ class PlayerActivity : AppCompatActivity() {
 
         val seriesId = intent.getStringExtra(EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
         val seasonNum = intent.getIntExtra(EXTRA_SEASON_NUM, -1)
-        if (seriesId != null && seasonNum != -1 && contentId != null) {
-            viewModel.loadSeriesPlaylist(seriesId, seasonNum, contentId!!)
+        if (seriesId != null && seasonNum != -1) {
+            if (playbackSource == PlaybackSource.DEBRID) {
+                viewModel.loadDebridSeriesPlaylist(seriesId, seasonNum, episodeNumberExtra ?: 1)
+            } else if (contentId != null) {
+                viewModel.loadSeriesPlaylist(seriesId, seasonNum, contentId!!, seriesTitleExtra)
+            }
         }
 
         if (contentType == ContentType.LIVE_TV) {
@@ -420,12 +432,9 @@ class PlayerActivity : AppCompatActivity() {
                     isControllerVisible = visibility == View.VISIBLE
                     if (isControllerVisible) {
                         com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("PLAYER_CONTROLLER") {
-                            val playBtn = playerView.findViewById<View>(R.id.exo_play)
-                            val pauseBtn = playerView.findViewById<View>(R.id.exo_pause)
-                            
-                            val targetBtn = if (playBtn?.isVisible == true) playBtn 
-                                           else if (pauseBtn?.isVisible == true) pauseBtn
-                                           else playerView.findViewById<View>(R.id.btn_player_shuffle)
+                            val targetBtn = playerView.findViewById<View>(R.id.exo_progress)
+                                ?: playerView.findViewById<View>(R.id.exo_play)
+                                ?: playerView.findViewById<View>(R.id.exo_pause)
                             
                             targetBtn?.post { 
                                 targetBtn.post { 
@@ -481,6 +490,7 @@ class PlayerActivity : AppCompatActivity() {
             setupNextEpisodeViews()
             observeSeriesPlaylistState()
             observeDebridResolutionState()
+            setupEpisodeBrowser()
         }
 
         if (isDebrid && hasResInfo && (streamUrl.isNullOrBlank() || isExpired)) {
@@ -885,16 +895,134 @@ class PlayerActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
                 viewModel.seriesPlaylistState.collect { state ->
+                    Log.d("PlayerActivity", "seriesPlaylistState collected: episodes=${state?.originalList?.size ?: 0}")
                     if (state == null) return@collect
+                    Log.e(
+                        "IPTV_EP_LOAD_FIX",
+                        "OBSERVED loading=${state.isLoading} count=${state.originalList.size} error=${state.error}"
+                    )
+                    
+                    // Sync episode browser if visible
+                    if (episodeBrowserController.isVisible()) {
+                        val seasonTitle = seriesTitleExtra ?: "Season ${seasonNumberExtra ?: ""}"
+                        if (state.isLoading) {
+                            episodeBrowserController.setLoading(true)
+                        } else if (state.originalList.isEmpty()) {
+                            episodeBrowserController.showMessage(
+                                state.error ?: "No episodes available",
+                                seasonTitle
+                            )
+                        } else {
+                            episodeBrowserController.setLoading(false)
+                            Log.e("IPTV_EP_LOAD_FIX", "SEND_TO_BROWSER count=${state.originalList.size}")
+                            episodeBrowserController.show(
+                                episodes = state.originalList,
+                                currentEpisodeId = contentId,
+                                seasonTitle = seasonTitle,
+                                fallbackImageUrl = getEpisodeBrowserFallbackImageUrl()
+                            )
+                        }
+                    }
+
                     val currentEpId = contentId
-                    if (currentEpId != state.currentEpisode.episodeId) {
+                    if (!state.isLoading && state.currentEpisode != null && currentEpId != state.currentEpisode.episodeId) {
                          if (playbackSource != PlaybackSource.DEBRID) {
-                             playSeriesEpisode(state.currentEpisode)
+                             state.currentEpisode?.let { playSeriesEpisode(it) }
                          }
                     }
                 }
             }
         }
+    }
+
+    private fun setupEpisodeBrowser() {
+        val browserContainer = findViewById<View>(R.id.view_episode_browser) ?: return
+        episodeBrowserController = EpisodeBrowserController(browserContainer) { episode ->
+            onEpisodeSelected(episode)
+        }
+    }
+
+    private fun showEpisodeBrowser() {
+        // FORCE HIDE the standard controller to prevent overlap
+        playerView.hideController()
+        
+        val browserView = findViewById<View>(R.id.view_episode_browser)
+        browserView?.bringToFront()
+
+        val state = viewModel.seriesPlaylistState.value
+        Log.d("PlayerActivity", "showEpisodeBrowser: state=$state, contentId=$contentId")
+        
+        // DEBUG TOAST
+        Toast.makeText(this, "EPISODE BROWSER TRIGGERED", Toast.LENGTH_SHORT).show()
+        
+        val seasonTitle = seriesTitleExtra ?: "Season ${seasonNumberExtra ?: ""}"
+        
+        if (state == null) {
+            // Show overlay in loading state immediately
+            episodeBrowserController.show(emptyList(), contentId, seasonTitle, getEpisodeBrowserFallbackImageUrl())
+            episodeBrowserController.setLoading(true)
+            
+            val seriesId = intent.getStringExtra(EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
+            val seasonNum = intent.getIntExtra(EXTRA_SEASON_NUM, -1)
+            Log.d("PlayerActivity", "showEpisodeBrowser: state is null, triggering load. seriesId=$seriesId, seasonNum=$seasonNum, contentId=$contentId")
+            if (seriesId != null && seasonNum != -1) {
+                 if (playbackSource == PlaybackSource.DEBRID) {
+                     viewModel.loadDebridSeriesPlaylist(seriesId, seasonNum, episodeNumberExtra ?: 1)
+                 } else if (contentId != null) {
+                     viewModel.loadSeriesPlaylist(seriesId, seasonNum, contentId!!, seriesTitleExtra)
+                 }
+            } else {
+                 Log.e("PlayerActivity", "showEpisodeBrowser: CANNOT load playlist, missing IDs! seriesId=$seriesId, seasonNum=$seasonNum")
+                 episodeBrowserController.showMessage("Episodes unavailable", seasonTitle)
+            }
+            return
+        }
+        if (state.isLoading) {
+            episodeBrowserController.show(emptyList(), contentId, seasonTitle, getEpisodeBrowserFallbackImageUrl())
+            episodeBrowserController.setLoading(true)
+        } else if (state.originalList.isEmpty()) {
+            episodeBrowserController.showMessage(state.error ?: "No episodes available", seasonTitle)
+        } else {
+            Log.e("IPTV_EP_LOAD_FIX", "SEND_TO_BROWSER count=${state.originalList.size}")
+            episodeBrowserController.show(
+                episodes = state.originalList,
+                currentEpisodeId = contentId,
+                seasonTitle = seriesTitleExtra ?: "Season ${seasonNumberExtra ?: ""}",
+                fallbackImageUrl = getEpisodeBrowserFallbackImageUrl()
+            )
+        }
+    }
+
+    private fun getEpisodeBrowserFallbackImageUrl(): String? {
+        return posterUrlExtra
+            ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+            ?: backdropUrlExtra?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+    }
+
+    private fun onEpisodeSelected(episode: EpisodeEntityV2) {
+        episodeBrowserController.hide()
+        if (playbackSource == PlaybackSource.DEBRID) {
+            // For Debrid, we need to resolve the new episode's link
+            contentId = episode.episodeId
+            episodeNumberExtra = episode.episodeNumber
+            episodeTitleExtra = episode.title
+            isResolvingDebrid = true
+            viewModel.loadNextDebridEpisode(
+                seriesId = tmdbIdExtra ?: "",
+                targetSeason = seasonNumberExtra ?: 1,
+                targetEpisode = episode.episodeNumber,
+                seriesTitle = seriesTitleExtra ?: episode.title,
+                infoHash = debridInfoHashExtra
+            )
+        } else {
+            playSeriesEpisode(episode)
+        }
+    }
+
+    private fun isSeriesEpisodePlayback(): Boolean {
+        val result = contentType == ContentType.SERIES || contentType == ContentType.EPISODE || !seriesTitleExtra.isNullOrBlank()
+        Log.d("PlayerActivity", "isSeriesEpisodePlayback: contentType=$contentType, seriesTitle=$seriesTitleExtra -> result=$result")
+        return result
     }
 
     private fun playSeriesEpisode(episode: EpisodeEntityV2) {
@@ -1561,17 +1689,66 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // LOG EVERY KEY FOR PROOF
+        Log.d("PlayerActivity", "dispatchKeyEvent: code=${event.keyCode}, action=${event.action}")
+        
         if (event.action == KeyEvent.ACTION_DOWN) {
-            if (contentType != ContentType.LIVE_TV && playerView.useController && !isNextPromptVisible && !playerView.isControllerFullyVisible) {
-                when (event.keyCode) { KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MENU -> { playerView.showController(); playerView.requestFocus(); return true } }
+            if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
+                playerView.hideController()
+                val handled = episodeBrowserController.handleKeyEvent(event)
+                Log.d("EP_BROWSER_FOCUS_FIX", "browser visible key=${event.keyCode} handled=$handled")
+                if (handled) return true
             }
+
+            // Priority 1: Handle DPAD_DOWN for Episode Browser
+            if (event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                val isSeries = isSeriesEpisodePlayback()
+                Log.d("PlayerActivity", "DPAD_DOWN detected: isSeries=$isSeries, browserVisible=${viewModel.browserState.value.isVisible}")
+                if (isSeries && !viewModel.browserState.value.isVisible) {
+                    if (!episodeBrowserController.isVisible()) {
+                        showEpisodeBrowser()
+                    } else {
+                        episodeBrowserController.requestFocus()
+                    }
+                    return true
+                }
+            }
+
+            // Priority 2: Standard Controller triggers
+            if (contentType != ContentType.LIVE_TV && playerView.useController && !isNextPromptVisible && !playerView.isControllerFullyVisible) {
+                // EXCLUDE DPAD_DOWN from showing the standard controller if it's a series (we want episode browser handled above)
+                val isSeriesDown = event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && isSeriesEpisodePlayback()
+                if (!isSeriesDown) {
+                    when (event.keyCode) {
+                        KeyEvent.KEYCODE_DPAD_LEFT,
+                        KeyEvent.KEYCODE_DPAD_RIGHT,
+                        KeyEvent.KEYCODE_DPAD_UP,
+                        KeyEvent.KEYCODE_DPAD_DOWN,
+                        KeyEvent.KEYCODE_DPAD_CENTER,
+                        KeyEvent.KEYCODE_ENTER,
+                        KeyEvent.KEYCODE_NUMPAD_ENTER,
+                        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                        KeyEvent.KEYCODE_MEDIA_PLAY,
+                        KeyEvent.KEYCODE_MEDIA_PAUSE,
+                        KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+                        KeyEvent.KEYCODE_MEDIA_REWIND,
+                        KeyEvent.KEYCODE_MENU -> {
+                            showControllerFocusedOnSeekBar(event)
+                            return true
+                        }
+                    }
+                }
+            }
+
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_LEFT -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible) { viewModel.toggleBrowser(true, viewModel.zapState.value?.categoryId ?: liveCategoryId, contentId); return true } }
                 KeyEvent.KEYCODE_CAPTIONS -> { if (contentType != ContentType.LIVE_TV) { showSubtitleSelection(); return true } }
                 KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_UP -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible) { zapChannel(direction = +1); return true } }
                 KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_DOWN -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible) { zapChannel(direction = -1); return true } }
                 KeyEvent.KEYCODE_DPAD_UP -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible) { zapChannel(direction = +1); return true } }
-                KeyEvent.KEYCODE_DPAD_DOWN -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible) { zapChannel(direction = -1); return true } }
+                KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible) { zapChannel(direction = -1); return true }
+                }
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { if (contentType == ContentType.LIVE_TV) { if (viewModel.browserState.value.isVisible) return super.dispatchKeyEvent(event); if (epgOverlayMode != EpgOverlayMode.HIDDEN && !epgOverlayPinned) hideEpgOverlay() else showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false); return true } }
                 KeyEvent.KEYCODE_INFO -> { if (contentType == ContentType.LIVE_TV) toggleEpgOverlayPinned() else { playerView.showController(); playerView.requestFocus() }; return true }
                 KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_GUIDE -> {
@@ -1582,7 +1759,15 @@ class PlayerActivity : AppCompatActivity() {
                     }
                     if (contentType == ContentType.LIVE_TV) { toggleEpgOverlayPinned(); return true }; if (playerView.isControllerFullyVisible) { showSubtitleSelection(); return true } 
                 }
-                KeyEvent.KEYCODE_BACK -> { if (viewModel.browserState.value.isVisible) { viewModel.toggleBrowser(false); return true }; if (contentType == ContentType.LIVE_TV && epgOverlayPinned && epgOverlayMode != EpgOverlayMode.HIDDEN) { hideEpgOverlay(); return true }; if (event.repeatCount > 0 && supportsPictureInPicture()) { enterPictureInPictureModeInternal(); return true } }
+                KeyEvent.KEYCODE_BACK -> {
+                    if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
+                        episodeBrowserController.hide()
+                        return true
+                    }
+                    if (viewModel.browserState.value.isVisible) { viewModel.toggleBrowser(false); return true }
+                    if (contentType == ContentType.LIVE_TV && epgOverlayPinned && epgOverlayMode != EpgOverlayMode.HIDDEN) { hideEpgOverlay(); return true }
+                    if (event.repeatCount > 0 && supportsPictureInPicture()) { enterPictureInPictureModeInternal(); return true }
+                }
             }
         }
         return super.dispatchKeyEvent(event)
@@ -1593,7 +1778,36 @@ class PlayerActivity : AppCompatActivity() {
         return super.onKeyLongPress(keyCode, event)
     }
 
-    override fun onUserInteraction() { super.onUserInteraction(); if (contentType == ContentType.LIVE_TV || isInPictureInPictureMode || !playerView.useController || isNextPromptVisible) return; if (!playerView.isControllerFullyVisible) { playerView.showController(); playerView.requestFocus() } }
+    override fun onUserInteraction() { 
+        super.onUserInteraction()
+        if (contentType == ContentType.LIVE_TV || isInPictureInPictureMode || !playerView.useController || isNextPromptVisible) return
+        
+        // Fix: Don't show controller if browser is open
+        if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
+            playerView.hideController()
+            return
+        }
+        
+        if (!playerView.isControllerFullyVisible) {
+            showControllerFocusedOnSeekBar()
+        }
+    }
+
+    private fun showControllerFocusedOnSeekBar(sourceEvent: KeyEvent? = null) {
+        playerView.showController()
+        val seekBar = playerView.findViewById<View>(R.id.exo_progress)
+        Log.d("PLAYER_SEEK_FOCUS", "show controller focusSeek key=${sourceEvent?.keyCode}")
+        seekBar?.postDelayed({
+            seekBar.requestFocus()
+            val keyCode = sourceEvent?.keyCode
+            if (sourceEvent?.action == KeyEvent.ACTION_DOWN &&
+                (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+            ) {
+                seekBar.dispatchKeyEvent(sourceEvent)
+                seekBar.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
+            }
+        }, 50L) ?: playerView.requestFocus()
+    }
 
     private fun supportsPictureInPicture(): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE) || packageManager.hasSystemFeature("android.software.picture_in_picture") else false
 
@@ -1678,6 +1892,7 @@ class PlayerActivity : AppCompatActivity() {
             streamUrl = currentUrl, 
             tmdbId = tmdbIdExtra, 
             imdbId = imdbIdExtra, 
+            seriesId = intent.getStringExtra(EXTRA_SERIES_ID),
             seriesTitle = seriesTitleExtra, 
             episodeTitle = episodeTitleExtra, 
             seasonNumber = seasonNumberExtra, 
@@ -1687,7 +1902,7 @@ class PlayerActivity : AppCompatActivity() {
             source = if (playbackSource == PlaybackSource.DEBRID) "debrid" else "xtream", 
             expiresAt = expiresAtExtra
         )
-        android.util.Log.e("HISTORY_DEBUG", "Saving Continue Watching [${item.source}]: ${item.title} | pos=$pos dur=$dur | stream=${item.streamUrl} | poster=${item.posterUrl} | expires=${item.expiresAt}")
+        android.util.Log.e("HISTORY_DEBUG", "Saving Continue Watching [${item.source}]: ${item.title} | type=${item.contentType} | contentId=${item.contentId} | seriesId=${item.seriesId} | season=${item.seasonNumber} | episode=${item.episodeNumber} | pos=$pos dur=$dur | stream=${if (item.streamUrl.isNullOrBlank()) "missing" else "present"} | poster=${if (item.posterUrl.isNullOrBlank()) "missing" else "present"} | expires=${item.expiresAt}")
         watchHistoryPrefs.saveContinueWatchingItem(item) 
     }
 
