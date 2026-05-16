@@ -343,3 +343,48 @@ Continue Watching episode rows can store the episode id as `contentId`. Home art
 - APK: `D:\cursor working\debxtrem\app\build\outputs\apk\debug\app-debug.apk`, 31,737,501 bytes, `16/05/2026 23:43:39`.
 - Install `192.168.0.84:5555`: PASS, force-stop PASS.
 - Install `192.168.0.21:5555`: PASS, force-stop PASS.
+
+# UI-POLISH-1  Continue Watching and Episode Browser Cards
+
+## Scope
+Home Continue Watching cards and player Episode Browser cards only. No playback, metadata, TMDB, Debrid, Live TV, or VOD behavior changes.
+
+## Fix Applied
+- Enlarged Continue Watching cards with a cleaner 2:3 poster presentation.
+- Added cyan TV focus ring, subtle focus scale, and elevation animation.
+- Replaced gold Continue Watching progress with a thinner cyan progress style.
+- Added small content type badges on Continue Watching cards.
+- Tightened Episode Browser focus ring and scale animation.
+- Added episode season metadata and runtime chip when duration is available.
+- Kept the existing Playing badge distinct from focus state.
+
+## Verification
+- `:app:compileDebugKotlin --no-daemon --offline --console plain`: PASS.
+- `:app:assembleDebug --no-daemon --offline --console plain`: PASS.
+- APK: `D:\cursor working\debxtrem\app\build\outputs\apk\debug\app-debug.apk`, 33,670,619 bytes, `17/05/2026 00:11:46`.
+- Install `192.168.0.84:5555`: PASS, force-stop PASS.
+- Install `192.168.0.21:5555`: PASS, force-stop PASS.
+
+## Remaining QA
+Manual TV pass should confirm cards do not overlap while focused, Continue Watching row spacing feels right at TV distance, and Episode Browser title/meta text remains readable for long episode titles.
+
+# Player Controller Navigation Fix After Episode Browser
+
+## Scope
+Series player DPAD focus handoff between Episode Browser and Media3 controller only.
+
+## Root Cause
+`DPAD_DOWN` opened the Episode Browser even when the player controller was already visible. Focus could land on the seek bar, but controller-visible navigation still conflicted with the episode-browser trigger, making it hard to reach rewind/play-pause/forward buttons.
+
+## Fix Applied
+- Episode Browser now opens from `DPAD_DOWN` only when the player controller is hidden.
+- `DPAD_UP` while Episode Browser is open closes the browser and shows/focuses the controller seek bar.
+- `DPAD_DOWN` from the focused seek bar explicitly moves focus to the visible play/pause button.
+- Added explicit next-focus links between controller seek and transport buttons.
+
+## Verification
+- `:app:compileDebugKotlin --no-daemon --offline --console plain`: PASS.
+- `:app:assembleDebug --no-daemon --offline --console plain`: PASS.
+- APK: `D:\cursor working\debxtrem\app\build\outputs\apk\debug\app-debug.apk`, 33,670,619 bytes, `17/05/2026 00:39:44`.
+- Install `192.168.0.84:5555`: PASS, force-stop PASS.
+- Install `192.168.0.21:5555`: PASS, force-stop PASS.

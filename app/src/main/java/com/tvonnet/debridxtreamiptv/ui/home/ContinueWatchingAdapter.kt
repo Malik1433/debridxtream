@@ -9,6 +9,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem
 import com.tvonnet.debridxtreamiptv.util.GlobalConfig
 import com.tvonnet.debridxtreamiptv.util.loadPosterOrPlaceholder
@@ -92,6 +93,7 @@ class ContinueWatchingAdapter(
         private val tvContinueTitle: TextView = itemView.findViewById(R.id.tv_continue_title)
         private val progressWatch: ProgressBar = itemView.findViewById(R.id.progress_watch)
         private val tvContinueProgress: TextView = itemView.findViewById(R.id.tv_continue_progress)
+        private val tvContinueTypeBadge: TextView = itemView.findViewById(R.id.tv_continue_type_badge)
         
         fun bind(
             item: ContinueWatchingItem,
@@ -100,7 +102,11 @@ class ContinueWatchingAdapter(
         ) {
             tvContinueTitle.text = formatTitle(item)
             tvContinueProgress.text = item.formattedProgress
+            tvContinueTypeBadge.text = formatTypeBadge(item)
             progressWatch.progress = item.progressPercentage
+            itemView.scaleX = if (itemView.hasFocus()) 1.06f else 1.0f
+            itemView.scaleY = if (itemView.hasFocus()) 1.06f else 1.0f
+            itemView.elevation = if (itemView.hasFocus()) 22f else 6f
             
             val resolvedUrl = GlobalConfig.resolveIconUrl(item.posterUrl ?: item.backdropUrl)
             // Debug Toast as requested
@@ -112,12 +118,28 @@ class ContinueWatchingAdapter(
                 onClick(item)
             }
 
-            itemView.setOnFocusChangeListener { _, hasFocus ->
+            itemView.setOnFocusChangeListener { view, hasFocus ->
+                view.animate()
+                    .scaleX(if (hasFocus) 1.06f else 1.0f)
+                    .scaleY(if (hasFocus) 1.06f else 1.0f)
+                    .setDuration(140L)
+                    .start()
+                view.elevation = if (hasFocus) 22f else 6f
+                tvContinueTitle.isActivated = hasFocus
                 if (!hasFocus) return@setOnFocusChangeListener
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
                     onFocused(position, item)
                 }
+            }
+        }
+
+        private fun formatTypeBadge(item: ContinueWatchingItem): String {
+            return when (item.contentType) {
+                ContentType.EPISODE -> "SERIES"
+                ContentType.SERIES -> "SERIES"
+                ContentType.MOVIE -> "MOVIE"
+                ContentType.LIVE_TV -> "LIVE"
             }
         }
 

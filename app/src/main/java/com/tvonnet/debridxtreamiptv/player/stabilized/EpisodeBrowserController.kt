@@ -208,16 +208,22 @@ class EpisodeBrowserController(
         private val tvPlaceholderNumber: TextView = view.findViewById(R.id.tv_placeholder_episode_number)
         private val tvNumber: TextView = view.findViewById(R.id.tv_episode_number)
         private val tvTitle: TextView = view.findViewById(R.id.tv_title)
+        private val tvMeta: TextView = view.findViewById(R.id.tv_episode_meta)
+        private val tvDuration: TextView = view.findViewById(R.id.tv_episode_duration)
         private val tvPlayingBadge: TextView = view.findViewById(R.id.tv_playing_badge)
 
         init {
             itemView.setOnFocusChangeListener { view, hasFocus ->
                 view.isActivated = hasFocus
-                view.scaleX = if (hasFocus) 1.08f else 1.0f
-                view.scaleY = if (hasFocus) 1.08f else 1.0f
+                view.animate()
+                    .scaleX(if (hasFocus) 1.06f else 1.0f)
+                    .scaleY(if (hasFocus) 1.06f else 1.0f)
+                    .setDuration(120L)
+                    .start()
                 view.elevation = if (hasFocus) 24f else 0f
                 tvTitle.isSelected = hasFocus
                 tvTitle.isActivated = hasFocus
+                tvMeta.isActivated = hasFocus
             }
         }
 
@@ -225,8 +231,13 @@ class EpisodeBrowserController(
             tvNumber.text = "E${episode.episodeNumber}"
             tvPlaceholderNumber.text = "E${episode.episodeNumber}"
             tvTitle.text = episode.title ?: "Episode ${episode.episodeNumber}"
+            tvMeta.text = "Season ${episode.seasonNumber}"
+            tvDuration.text = formatEpisodeDuration(episode.durationSecs, episode.duration)
+            tvDuration.isVisible = tvDuration.text.isNotBlank()
             tvPlayingBadge.isVisible = isActive
             itemView.isSelected = isActive
+            itemView.scaleX = if (itemView.hasFocus()) 1.06f else 1.0f
+            itemView.scaleY = if (itemView.hasFocus()) 1.06f else 1.0f
 
             val imageUrl = episode.thumbnail
                 ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
@@ -249,6 +260,21 @@ class EpisodeBrowserController(
 
             itemView.setOnClickListener {
                 onEpisodeSelected(episode)
+            }
+        }
+
+        private fun formatEpisodeDuration(durationSecs: String?, durationMs: Long): String {
+            val seconds = durationSecs?.toLongOrNull()
+                ?: durationMs.takeIf { it > 0L }?.div(1000L)
+                ?: return ""
+            val minutes = seconds / 60L
+            if (minutes <= 0L) return ""
+            val hours = minutes / 60L
+            val remainingMinutes = minutes % 60L
+            return if (hours > 0L) {
+                "${hours}h ${remainingMinutes}m"
+            } else {
+                "${minutes}m"
             }
         }
     }

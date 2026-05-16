@@ -1694,6 +1694,11 @@ class PlayerActivity : AppCompatActivity() {
         
         if (event.action == KeyEvent.ACTION_DOWN) {
             if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
+                if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    episodeBrowserController.hide()
+                    showControllerFocusedOnSeekBar()
+                    return true
+                }
                 playerView.hideController()
                 val handled = episodeBrowserController.handleKeyEvent(event)
                 Log.d("EP_BROWSER_FOCUS_FIX", "browser visible key=${event.keyCode} handled=$handled")
@@ -1704,7 +1709,7 @@ class PlayerActivity : AppCompatActivity() {
             if (event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 val isSeries = isSeriesEpisodePlayback()
                 Log.d("PlayerActivity", "DPAD_DOWN detected: isSeries=$isSeries, browserVisible=${viewModel.browserState.value.isVisible}")
-                if (isSeries && !viewModel.browserState.value.isVisible) {
+                if (isSeries && !viewModel.browserState.value.isVisible && !playerView.isControllerFullyVisible) {
                     if (!episodeBrowserController.isVisible()) {
                         showEpisodeBrowser()
                     } else {
@@ -1796,6 +1801,7 @@ class PlayerActivity : AppCompatActivity() {
     private fun showControllerFocusedOnSeekBar(sourceEvent: KeyEvent? = null) {
         playerView.showController()
         val seekBar = playerView.findViewById<View>(R.id.exo_progress)
+        installControllerSeekNavigation()
         Log.d("PLAYER_SEEK_FOCUS", "show controller focusSeek key=${sourceEvent?.keyCode}")
         seekBar?.postDelayed({
             seekBar.requestFocus()
@@ -1807,6 +1813,25 @@ class PlayerActivity : AppCompatActivity() {
                 seekBar.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
             }
         }, 50L) ?: playerView.requestFocus()
+    }
+
+    private fun installControllerSeekNavigation() {
+        val seekBar = playerView.findViewById<View>(R.id.exo_progress) ?: return
+        seekBar.setOnKeyListener { _, keyCode, event ->
+            if (event.action != KeyEvent.ACTION_DOWN || keyCode != KeyEvent.KEYCODE_DPAD_DOWN) {
+                return@setOnKeyListener false
+            }
+            focusVisiblePlayPause()
+            true
+        }
+    }
+
+    private fun focusVisiblePlayPause() {
+        val target = playerView.findViewById<View>(R.id.exo_pause)?.takeIf { it.isVisible }
+            ?: playerView.findViewById<View>(R.id.exo_play)?.takeIf { it.isVisible }
+            ?: playerView.findViewById<View>(R.id.exo_rew)
+        target?.requestFocus()
+        Log.d("PLAYER_SEEK_FOCUS", "focus transport target=${target?.resources?.getResourceEntryName(target.id)}")
     }
 
     private fun supportsPictureInPicture(): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE) || packageManager.hasSystemFeature("android.software.picture_in_picture") else false
