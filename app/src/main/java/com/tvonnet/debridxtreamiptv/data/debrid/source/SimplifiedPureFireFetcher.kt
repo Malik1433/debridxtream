@@ -8,11 +8,11 @@ import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonStream
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonSourceType
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.debrid.util.LanguageParser
+import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -36,13 +36,6 @@ class SimplifiedPureFireFetcher @Inject constructor(
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
-        .addInterceptor(HttpLoggingInterceptor().apply {
-            level = if (com.tvonnet.debridxtreamiptv.BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.BASIC
-            } else {
-                HttpLoggingInterceptor.Level.NONE
-            }
-        })
         .build()
 
     suspend fun fetchMovieSources(
@@ -71,7 +64,7 @@ class SimplifiedPureFireFetcher @Inject constructor(
                     "providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex|sort=qualitysize|quality=4k,1080p,720p,480p|limit=20"
                 }
 
-                Log.d(TAG, "🌐 Querying Torrentio (${if (!token.isNullOrBlank()) "Premium" else "Public"}) for: $identifier")
+                Log.d(TAG, "Querying Torrentio (${if (!token.isNullOrBlank()) "Premium" else "Public"}) for id=${SensitiveLogRedactor.describeHash(identifier)}")
                 val url = "$TORRENTIO_BASE_URL/$config/stream/movie/$identifier.json"
                 val request = Request.Builder()
                     .url(url)
@@ -149,7 +142,7 @@ class SimplifiedPureFireFetcher @Inject constructor(
                     "providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex|sort=qualitysize|quality=4k,1080p,720p,480p|limit=20"
                 }
 
-                Log.d(TAG, "🌐 Querying Torrentio (${if (!token.isNullOrBlank()) "Premium" else "Public"}) for: $identifier")
+                Log.d(TAG, "Querying Torrentio (${if (!token.isNullOrBlank()) "Premium" else "Public"}) for id=${SensitiveLogRedactor.describeHash(identifier)}")
                 val url = "$TORRENTIO_BASE_URL/$config/stream/series/$identifier.json"
                 val request = Request.Builder()
                     .url(url)

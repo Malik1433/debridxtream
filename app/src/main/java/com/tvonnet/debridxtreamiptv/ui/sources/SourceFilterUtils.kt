@@ -1,5 +1,6 @@
 package com.tvonnet.debridxtreamiptv.ui.sources
 
+import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 
 data class SourceFilterState(
@@ -28,7 +29,7 @@ object SourceFilterUtils {
         var filtered = sources
 
         if (state.cachedOnly) {
-            filtered = filtered.filter { it.isCached == true }
+            filtered = filtered.filter { it.cacheStatus == DebridCacheStatus.VERIFIED_CACHED }
         }
 
         val maxSize = state.maxSizeBytes
@@ -43,12 +44,35 @@ object SourceFilterUtils {
         if (preferred != null) {
             filtered = filtered.sortedWith(
                 compareByDescending<MovieSource> { getLanguageMatchScore(it, preferred) }
-                    .thenByDescending { it.isCached == true }
+                    .thenByDescending { getCachePriority(it) }
+                    .thenByDescending { it.seeders ?: -1 }
+            )
+        } else {
+            filtered = filtered.sortedWith(
+                compareByDescending<MovieSource> { getCachePriority(it) }
                     .thenByDescending { it.seeders ?: -1 }
             )
         }
 
         return filtered
+    }
+
+    fun hasCacheConfidence(source: MovieSource): Boolean {
+        return source.cacheStatus != DebridCacheStatus.UNKNOWN || source.isCached != null
+    }
+
+    fun isPlaybackReady(source: MovieSource): Boolean {
+        return source.cacheStatus == DebridCacheStatus.VERIFIED_CACHED ||
+            source.cacheStatus == DebridCacheStatus.DIRECT_STREAM
+    }
+
+    private fun getCachePriority(source: MovieSource): Int {
+        return when (source.cacheStatus) {
+            DebridCacheStatus.VERIFIED_CACHED -> 4
+            DebridCacheStatus.DIRECT_STREAM -> 3
+            DebridCacheStatus.UNKNOWN -> 1
+            DebridCacheStatus.NOT_CACHED -> 0
+        }
     }
 
     private fun getLanguageMatchScore(source: MovieSource, preferred: String): Int {

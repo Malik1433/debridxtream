@@ -1,6 +1,7 @@
 package com.tvonnet.debridxtreamiptv.ui.compose
 
 import androidx.compose.runtime.Immutable
+import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 
 @Immutable
 sealed interface MovieDetailUiState {
@@ -41,6 +42,7 @@ data class SourceUiModel(
     val languages: List<String>? = null,
     val source: String? = null, // RD, AD, etc.
     val isCached: Boolean? = null,
+    val cacheStatus: DebridCacheStatus = DebridCacheStatus.UNKNOWN,
     val extension: String? = null // mp4, mkv, etc.
 )
 

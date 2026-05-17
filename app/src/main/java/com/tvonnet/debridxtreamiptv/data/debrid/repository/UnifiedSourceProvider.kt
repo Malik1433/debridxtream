@@ -6,13 +6,16 @@ import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonStream
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonSourceType
 import com.tvonnet.debridxtreamiptv.data.debrid.source.AddonRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.debrid.source.DynamicAddonFetcher
+import com.tvonnet.debridxtreamiptv.data.debrid.source.RealDebridRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.debrid.source.SimplifiedPureFireFetcher
 import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
+import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
+import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import com.tvonnet.debridxtreamiptv.data.Result as AppResult
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -46,7 +49,8 @@ class UnifiedSourceProvider @Inject constructor(
     private val mediaFusionFetcher: com.tvonnet.debridxtreamiptv.data.debrid.source.MediaFusionFetcher,
     private val settingsPrefs: com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences,
     private val dynamicAddonFetcher: DynamicAddonFetcher,
-    private val debridPrefs: DebridPreferences
+    private val debridPrefs: DebridPreferences,
+    private val realDebridRemote: RealDebridRemoteDataSource
 ) {
 
     /** Limits how many scraper requests run at the same time. */
@@ -129,10 +133,8 @@ class UnifiedSourceProvider @Inject constructor(
                     Log.d(TAG, "📈 [SUMMARY] Final source count: ${finalSources.size}")
 
                     if (finalSources.isNotEmpty()) {
-                        Log.e(TAG, "🎯 [SUCCESS] Sample sources:")
-                        finalSources.take(10).forEach { source ->
-                            Log.e(TAG, "   📦 ${source.label} (Primary: ${source.isPrimary})")
-                        }
+                        val primaryCount = finalSources.count { it.isPrimary }
+                        Log.d(TAG, "[SUCCESS] Sources available: count=${finalSources.size}, primary=$primaryCount")
                     } else {
                         // Only log "NO-SOURCES" if we actually tried all providers and got nothing
                         if (isDebridMovie) {
@@ -264,7 +266,7 @@ class UnifiedSourceProvider @Inject constructor(
                     }
                     Log.d(TAG, "   ├─ $providerName: ${streams.size} sources")
 
-                    // Log sample sources from each provider with rich metadata
+                    // Log provider-level metadata without release names.
                     streams.take(2).forEach { stream ->
                         val displayTitle = stream.extras["displayTitle"] as? String
                         val languageFlag = stream.extras["languageFlag"] as? String ?: "🌍"
@@ -273,9 +275,9 @@ class UnifiedSourceProvider @Inject constructor(
 
                         val sampleInfo = buildString {
                             if (!displayTitle.isNullOrBlank()) {
-                                append("📦 $displayTitle")
+                                append("title=${SensitiveLogRedactor.describeSecret(displayTitle)}")
                             } else {
-                                append("📦 ${stream.title ?: "Unknown"}")
+                                append("title=${SensitiveLogRedactor.describeSecret(stream.title)}")
                                 append(" $languageFlag")
                                 if (!stream.quality.isNullOrBlank() && stream.quality != "Unknown") {
                                     append(" ${stream.quality}")
@@ -294,7 +296,8 @@ class UnifiedSourceProvider @Inject constructor(
                 }
                 Log.d(TAG, "   └─ Total: ${addonStreams.size} enhanced sources")
 
-                val movieSources = convertAddonStreamsToMovieSources(addonStreams, title)
+                val cacheStatusByHash = verifyRealDebridCacheStatuses(addonStreams)
+                val movieSources = convertAddonStreamsToMovieSources(addonStreams, title, cacheStatusByHash)
                 Log.d(TAG, "🔄 Converted ${addonStreams.size} enhanced addon streams to ${movieSources.size} movie sources")
 
                 // Log conversion success rate
@@ -421,7 +424,8 @@ class UnifiedSourceProvider @Inject constructor(
                     }
                     Log.e(TAG, "   - $providerName: ${streams.size} sources")
                 }
-                return@coroutineScope convertAddonStreamsToMovieSources(addonStreams, title)
+                val cacheStatusByHash = verifyRealDebridCacheStatuses(addonStreams)
+                return@coroutineScope convertAddonStreamsToMovieSources(addonStreams, title, cacheStatusByHash)
             } else {
                 Log.e(TAG, "📭 [NO-SOURCES] PureFire API returned no sources for Episode")
                 return@coroutineScope emptyList()
@@ -626,7 +630,8 @@ class UnifiedSourceProvider @Inject constructor(
      */
     private fun convertAddonStreamsToMovieSources(
         addonStreams: List<AddonStream>,
-        title: String?
+        title: String?,
+        cacheStatusByHash: Map<String, DebridCacheStatus>
     ): List<MovieSource> {
         val movieTitle = title ?: "Unknown Movie"
         Log.d(TAG, "🔄 Converting ${addonStreams.size} enhanced addon streams to MovieSource objects")
@@ -635,10 +640,11 @@ class UnifiedSourceProvider @Inject constructor(
             // Validate that we have a valid source (either url, infoHash or magnet)
             val validInfoHash = normalizeInfoHash(addonStream.infoHash)
             val validMagnet = addonStream.magnet?.takeIf { isValidMagnet(it) }
+            val magnetInfoHash = extractInfoHashFromMagnet(validMagnet)
             val hasValidSource = !addonStream.url.isNullOrBlank() || validInfoHash != null || validMagnet != null
 
             if (!hasValidSource) {
-                Log.w(TAG, "⚠️ [SKIP] Source '${addonStream.title}' skipped - no valid URL, magnet or infoHash")
+                Log.w(TAG, "⚠️ [SKIP] Source skipped - no valid URL, magnet or infoHash")
                 return@mapIndexedNotNull null
             }
 
@@ -660,7 +666,14 @@ class UnifiedSourceProvider @Inject constructor(
                 validInfoHash ?: addonStream.title.hashCode().toString()
             }
             val providerLabel = (addonStream.extras["providerName"] as? String) ?: getSourceLabel(addonStream.source)
-            val cachedFlag = inferCachedFlag(addonStream)
+            val cacheStatus = resolveCacheStatus(
+                addonStream = addonStream,
+                mediaFusionUrl = mediaFusionUrl,
+                directUrl = directUrl,
+                infoHash = validInfoHash ?: magnetInfoHash,
+                cacheStatusByHash = cacheStatusByHash
+            )
+            val cachedFlag = cacheStatus.toLegacyCachedFlag()
 
             // Enhanced label creation with rich metadata from extras
             val label = (addonStream.extras["displayTitle"] as? String)
@@ -705,7 +718,7 @@ class UnifiedSourceProvider @Inject constructor(
                 }
 
             // Enhanced conversion logging
-            Log.d(TAG, "✅ [CONVERT] Converted: $label")
+            Log.d(TAG, "✅ [CONVERT] Converted source: provider=${addonStream.source}, quality=${addonStream.quality ?: "Unknown"}")
             Log.d(TAG, "   📋 Source details:")
             Log.d(TAG, "      - Provider: ${addonStream.source}")
             Log.d(TAG, "      - Quality: ${addonStream.quality ?: "Unknown"}")
@@ -756,6 +769,7 @@ class UnifiedSourceProvider @Inject constructor(
                 sizeBytes = addonStream.sizeBytes,
                 seeders = addonStream.seeders,
                 isCached = cachedFlag,
+                cacheStatus = cacheStatus,
                 provider = providerLabel,
                 headers = addonStream.headers
             )
@@ -887,12 +901,12 @@ class UnifiedSourceProvider @Inject constructor(
                 val result = addonRemote.fetchAddonDefinitions(url)
                 if (result is AppResult.Success) {
                     allDefs.addAll(result.data)
-                    Log.d(TAG, "📥 Registry '$url' → ${result.data.size} definitions")
+                    Log.d(TAG, "Registry ${SensitiveLogRedactor.describeUrl(url)} -> ${result.data.size} definitions")
                 } else {
-                    Log.w(TAG, "⚠️ Registry fetch failed for: $url")
+                    Log.w(TAG, "Registry fetch failed for: ${SensitiveLogRedactor.describeUrl(url)}")
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "⚠️ Registry error for '$url': ${e.message}")
+                Log.w(TAG, "Registry error for ${SensitiveLogRedactor.describeUrl(url)}: ${e.message}")
             }
         }
 
@@ -925,7 +939,7 @@ class UnifiedSourceProvider @Inject constructor(
             if (existing == null) {
                 seen[hash] = stream
             } else {
-                // Keep the one with more metadata (prefer cached, larger size, seeders)
+                // Keep the one with more useful metadata; cache is verified later.
                 val existingScore = metadataScore(existing)
                 val newScore = metadataScore(stream)
                 if (newScore > existingScore) {
@@ -952,8 +966,62 @@ class UnifiedSourceProvider @Inject constructor(
         if (stream.seeders != null && stream.seeders > 0) score += 1
         if (!stream.quality.isNullOrBlank() && stream.quality != "Unknown") score += 1
         if (!stream.url.isNullOrBlank()) score += 1
-        if (stream.extras.containsKey("cached")) score += 2
         return score
+    }
+
+    private suspend fun verifyRealDebridCacheStatuses(
+        streams: List<AddonStream>
+    ): Map<String, DebridCacheStatus> = coroutineScope {
+        val hashes = streams.mapNotNull { stream ->
+            normalizeInfoHash(stream.infoHash) ?: extractInfoHashFromMagnet(stream.magnet)
+        }.distinct()
+
+        if (hashes.isEmpty()) return@coroutineScope emptyMap()
+
+        val availabilitySemaphore = Semaphore(4)
+        try {
+            withTimeout(8000L) {
+                hashes.map { hash ->
+                    async {
+                        availabilitySemaphore.withPermit {
+                            val status = when (val result = realDebridRemote.getInstantAvailability(hash)) {
+                                is AppResult.Success -> if (result.data) {
+                                    DebridCacheStatus.VERIFIED_CACHED
+                                } else {
+                                    DebridCacheStatus.NOT_CACHED
+                                }
+                                else -> DebridCacheStatus.UNKNOWN
+                            }
+                            hash to status
+                        }
+                    }
+                }.awaitAll().toMap()
+            }
+        } catch (e: Exception) {
+            coroutineContext.ensureActive()
+            Log.w(TAG, "RD cache verification incomplete; cache state remains unknown for ${hashes.size} hashes")
+            emptyMap()
+        }
+    }
+
+    private fun resolveCacheStatus(
+        addonStream: AddonStream,
+        mediaFusionUrl: String?,
+        directUrl: String?,
+        infoHash: String?,
+        cacheStatusByHash: Map<String, DebridCacheStatus>
+    ): DebridCacheStatus {
+        if (mediaFusionUrl != null || directUrl != null) {
+            return DebridCacheStatus.DIRECT_STREAM
+        }
+
+        val verified = infoHash?.let { cacheStatusByHash[it] }
+        if (verified != null) return verified
+
+        return when (parseCachedValue(addonStream.extras["cached"])) {
+            false -> DebridCacheStatus.NOT_CACHED
+            else -> DebridCacheStatus.UNKNOWN
+        }
     }
 
     /**
@@ -990,7 +1058,7 @@ class UnifiedSourceProvider @Inject constructor(
 
     private fun normalizeInfoHash(infoHash: String?): String? {
         val trimmed = infoHash?.trim() ?: return null
-        return if (trimmed.length >= 32) trimmed else null
+        return if (trimmed.length >= 32) trimmed.lowercase() else null
     }
 
     private fun isValidMagnet(magnet: String?): Boolean {
@@ -1003,29 +1071,19 @@ class UnifiedSourceProvider @Inject constructor(
         return hash.length >= 32
     }
 
-    private fun inferCachedFlag(stream: AddonStream): Boolean? {
-        val cachedExtra = parseCachedValue(stream.extras["cached"])
-        if (cachedExtra != null) return cachedExtra
+    private fun extractInfoHashFromMagnet(magnet: String?): String? {
+        if (magnet.isNullOrBlank()) return null
+        val btihIndex = magnet.indexOf("btih:", ignoreCase = true)
+        if (btihIndex == -1) return null
+        return normalizeInfoHash(magnet.substring(btihIndex + 5).substringBefore('&').substringBefore('#'))
+    }
 
-        val displayTitle = stream.extras["displayTitle"] as? String
-        val rawTitle = stream.extras["rawTitle"] as? String
-        val sourceName = stream.extras["sourceName"] as? String
-        val description = stream.extras["description"] as? String
-
-        val text = listOfNotNull(stream.title, displayTitle, rawTitle, sourceName, description)
-            .joinToString(" ")
-            .lowercase()
-
-        val hasRdMarker = Regex("\\brd\\b").containsMatchIn(text) ||
-            Regex("\\brd\\d").containsMatchIn(text) ||
-            text.contains("real-debrid") ||
-            text.contains("real debrid")
-
-        return when {
-            hasRdMarker -> true
-            text.contains("rd+") || text.contains("[rd+]") || text.contains("cached") || text.contains("instant") -> true
-            text.contains("rd-") || text.contains("[rd-]") || text.contains("uncached") -> false
-            else -> null
+    private fun DebridCacheStatus.toLegacyCachedFlag(): Boolean? {
+        return when (this) {
+            DebridCacheStatus.VERIFIED_CACHED,
+            DebridCacheStatus.DIRECT_STREAM -> true
+            DebridCacheStatus.NOT_CACHED -> false
+            DebridCacheStatus.UNKNOWN -> null
         }
     }
 

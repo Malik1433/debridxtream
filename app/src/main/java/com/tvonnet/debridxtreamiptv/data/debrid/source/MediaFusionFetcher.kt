@@ -5,6 +5,7 @@ import com.tvonnet.debridxtreamiptv.data.debrid.api.AddonCatalogService
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonStream
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonStreamMapper
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
+import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -48,7 +49,7 @@ class MediaFusionFetcher @Inject constructor(
 
     private suspend fun fetchInternal(url: String): List<AddonStream> {
         return try {
-            Log.d(TAG, "🌐 Querying MediaFusion: $url")
+            Log.d(TAG, "Querying MediaFusion: ${SensitiveLogRedactor.describeUrl(url)}")
             if (service == null) return emptyList() // For unit testing without mock
 
             val response = service.fetchMediaFusionStreams(url)
@@ -61,7 +62,7 @@ class MediaFusionFetcher @Inject constructor(
                 try {
                     AddonStreamMapper.fromMediaFusionExpanded(stream)
                 } catch (e: Exception) {
-                    Log.w(TAG, "?s??,? Skipping malformed MediaFusion stream: ${stream.infoHash ?: "unknown"}", e)
+                    Log.w(TAG, "Skipping malformed MediaFusion stream: infoHash=${SensitiveLogRedactor.describeHash(stream.infoHash)}", e)
                     emptyList()
                 }
             }
@@ -82,7 +83,7 @@ class MediaFusionFetcher @Inject constructor(
              val sanitizedUrl = storedUrl.trim().replace("stremio://", "https://")
              val cleanUrl = sanitizedUrl.replace("/manifest.json", "")
              val finalBase = if (cleanUrl.endsWith("/stream")) cleanUrl else "$cleanUrl/stream"
-             Log.e(TAG, "🔧 Built Base URL: $finalBase (from $storedUrl)")
+             Log.d(TAG, "Built Base URL: ${SensitiveLogRedactor.describeUrl(finalBase)} (stored=${SensitiveLogRedactor.describeUrl(storedUrl)})")
              finalBase
         } else {
             DEFAULT_BASE_URL

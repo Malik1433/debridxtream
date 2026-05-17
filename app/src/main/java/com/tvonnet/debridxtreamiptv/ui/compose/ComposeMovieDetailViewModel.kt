@@ -121,11 +121,12 @@ class ComposeMovieDetailViewModel @Inject constructor(
                         sizeBytes = source.sizeBytes,
                         languageFlag = languages.takeIf { it.isNotEmpty() }?.let { LanguageParser.getLanguageFlag(it) },
                         languages = languages.takeIf { it.isNotEmpty() },
-                        seeds = source.seeders,
-                        source = source.provider,
-                        isCached = source.isCached,
-                        extension = source.stream.container_extension
-                    )
+                      seeds = source.seeders,
+                      source = source.provider,
+                      isCached = source.isCached,
+                      cacheStatus = source.cacheStatus,
+                      extension = source.stream.container_extension
+                  )
                 }
 
                 _uiState.value = MovieDetailUiState.Success(

@@ -40,10 +40,6 @@ class FavoritesAdapter(
         
         fun bind(item: FavoriteItem, onClick: (FavoriteItem) -> Unit) {
             tvFavoriteTitle.text = item.title
-            
-            // Debug Toast as requested
-            
-            // Load poster image, fallback to placeholder when URL missing
             ivFavoritePoster.loadPosterOrPlaceholder(item.posterUrl)
             
             itemView.setOnClickListener {

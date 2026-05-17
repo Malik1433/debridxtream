@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.databinding.ItemMovieSourceBinding
 import com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper
@@ -114,15 +115,25 @@ class MovieSourceAdapter(
                 binding.tvBadgeSeeders.text = seedersLabel
             }
 
-            // Cached Badge
-            val isCached = source.isCached ?: false
+            // Cache confidence badge
             binding.tvBadgeCached.isVisible = true
-            if (isCached) {
-                binding.tvBadgeCached.text = "CACHED"
-                binding.tvBadgeCached.setBackgroundResource(R.drawable.cin_pill_cached)
-            } else {
-                binding.tvBadgeCached.text = "UNCACHED"
-                binding.tvBadgeCached.setBackgroundResource(R.drawable.cin_pill_uncached)
+            when (source.cacheStatus) {
+                DebridCacheStatus.VERIFIED_CACHED -> {
+                    binding.tvBadgeCached.text = "VERIFIED"
+                    binding.tvBadgeCached.setBackgroundResource(R.drawable.cin_pill_cached)
+                }
+                DebridCacheStatus.DIRECT_STREAM -> {
+                    binding.tvBadgeCached.text = "DIRECT"
+                    binding.tvBadgeCached.setBackgroundResource(R.drawable.cin_pill_cached)
+                }
+                DebridCacheStatus.NOT_CACHED -> {
+                    binding.tvBadgeCached.text = "UNCACHED"
+                    binding.tvBadgeCached.setBackgroundResource(R.drawable.cin_pill_uncached)
+                }
+                DebridCacheStatus.UNKNOWN -> {
+                    binding.tvBadgeCached.text = "UNKNOWN"
+                    binding.tvBadgeCached.setBackgroundResource(R.drawable.cin_pill_generic)
+                }
             }
 
             binding.layoutBadges.isVisible = true

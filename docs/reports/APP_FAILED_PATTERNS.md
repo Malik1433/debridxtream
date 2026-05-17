@@ -24,3 +24,34 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Avoid:** Creating `DebridPlayerActivity` vs `IptvPlayerActivity`.
 - **Reason:** Leads to fragmented player logic, mismatched key behaviors, and maintenance overhead for common overlays (subtitles, audio tracks).
 - **Fix:** Use a single `PlayerActivity` with source-aware controllers.
+
+## 6. Sensitive Stream Logging
+- **Avoid:** Logging direct stream URLs, Debrid provider URLs, magnets, access tokens, unrestricted download URLs, or full serialized watch history.
+- **Reason:** Debrid links and tokens are sensitive and can leak through logcat, QA artifacts, crash reports, or shared build output.
+- **Fix:** Use `SensitiveLogRedactor` and redacted structured logging that records source type, provider, cache status, and presence/absence of metadata without printing the secret value. Keep OkHttp BODY/BASIC logging disabled for token-bearing Debrid/addon/TMDB clients.
+
+## 7. Cosmetic Provider Support
+- **Avoid:** Treating provider badges or labels as proof that a Debrid provider is implemented.
+- **Reason:** Users and future agents may assume Real-Debrid, AllDebrid, Premiumize, and Stremio parity exists when only one provider has real auth/API/resolver support.
+- **Fix:** Keep provider claims tied to implemented auth, source fetch, cache verification, playback resolution, and QA evidence.
+
+## 8. Label-Inferred Cache State
+- **Avoid:** Marking sources cached because text contains `RD+`, `cached`, `instant`, provider names, or similar labels.
+- **Reason:** Provider labels are hints, not proof. Treating them as authoritative breaks cached-only filters and creates false Real-Debrid readiness claims.
+- **Fix:** Use provider API availability checks or actual playback readiness, and expose unknown cache state separately.
+
+## 9. Retrying Provider-Blocked Debrid Failures
+- **Avoid:** Retrying or auto-nexting aggressively after Real-Debrid legal/copyright blocks or HTTP `429` rate limits.
+- **Reason:** Legal/copyright failures are terminal for that source, and rate limits can worsen when repeated add-magnet/unrestrict calls continue immediately.
+- **Fix:** Classify Debrid failures by type, stop retries for terminal failures, apply cooldown for `429`, and show stable user-facing messages instead of raw backend errors.
+
+## 10. Buffering/Pre-processing Huge XML in Memory
+- **Avoid:** Using `readLine()` or regex replaces on large XMLTV strings to sanitize declarations or HTML.
+- **Reason:** XMLTV documents can exceed 100MB, and pre-processing them as strings easily causes OOM crashes on RAM-constrained TV hardware.
+- **Fix:** Use a streaming reader/parser that sanitizes characters on-the-fly.
+
+## 11. Ignoring EPG Timezone Suffixes
+- **Avoid:** Parsing XMLTV timestamps using UTC calendars without evaluating and subtracting local offset suffixes (e.g. `+0200`).
+- **Reason:** Causes program guide data to be shifted, showing incorrect listings.
+- **Fix:** Extract and subtract timezone offsets to normalize times back to UTC.
+

@@ -37,3 +37,22 @@ Do not show blank or broken IPTV episode thumbnails. Use episode thumbnail, then
 
 ## Continue Watching Series Metadata Rule
 Do not launch IPTV Series episodes from Continue Watching without `seriesId`, season number, episode number, and episode id. Player episode browser and next episode logic require the same metadata as the Series detail path.
+
+## Debrid Sensitive Logging Rule
+Do not log Debrid access tokens, provider URLs containing tokens, magnets, info hashes paired with titles, direct Debrid stream URLs, unrestricted download URLs, or full Continue Watching JSON.
+
+## Debrid Provider Parity Rule
+Do not claim AllDebrid, Premiumize, or Stremio parity from labels/badges alone. Each provider needs real auth, source fetch, cache verification, resolver, error handling, and QA evidence.
+
+## Debrid Cache Confidence Rule
+Do not treat text labels such as `RD+`, `cached`, `instant`, or provider names as authoritative cache state. Only Real-Debrid instant availability, explicit negative availability, or playback readiness may promote a source to verified cached/direct/not cached. Keep failed checks as unknown, not uncached.
+
+## Debrid Error Handling Rule
+Do not retry Real-Debrid legal/copyright failures or HTTP `429` rate-limit failures as generic playback errors. Classify these failures, stop immediate retry/auto-next cascades where appropriate, apply cooldown for rate limits, and never expose raw sensitive backend details to the user.
+
+## EPG Timezone Parsing Rule
+- **DO NOT** ignore timezone offset suffixes (like `+0200`) when converting XMLTV timestamps to epoch milliseconds. Ignoring offsets shifts EPG program schedules.
+
+## Companion Config Rule
+- **DO NOT** configure Ktor CORS with `anyHost()` as it exposes IPTV credentials to CSRF cross-origin script access. Use custom security headers and local subnets.
+

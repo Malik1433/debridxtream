@@ -8,6 +8,7 @@ import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonDefinition
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonSourceType
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonStream
 import com.tvonnet.debridxtreamiptv.data.debrid.util.LanguageParser
+import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -72,7 +73,7 @@ class DynamicAddonFetcher @Inject constructor(
             ?: "movie/$imdbId"
 
         val url = buildFinalUrl(definition, searchPart)
-        Log.d(TAG, "🌐 [${definition.name}] Movie fetch: $url")
+        Log.d(TAG, "Movie fetch [${definition.name}]: ${SensitiveLogRedactor.describeUrl(url)}")
         fetchAndParse(definition, url)
     }
 
@@ -105,7 +106,7 @@ class DynamicAddonFetcher @Inject constructor(
             ?: "series/$imdbId:$season:$episode"
 
         val url = buildFinalUrl(definition, searchPart)
-        Log.d(TAG, "🌐 [${definition.name}] Episode fetch: $url")
+        Log.d(TAG, "Episode fetch [${definition.name}]: ${SensitiveLogRedactor.describeUrl(url)}")
         fetchAndParse(definition, url)
     }
 

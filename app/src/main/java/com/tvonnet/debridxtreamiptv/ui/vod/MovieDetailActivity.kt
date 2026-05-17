@@ -25,6 +25,7 @@ import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.onSuccess
 import com.tvonnet.debridxtreamiptv.data.onFailure
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
+import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
@@ -49,6 +50,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider
 import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
+import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 
 @AndroidEntryPoint
 class MovieDetailActivity : AppCompatActivity() {
@@ -194,7 +196,7 @@ class MovieDetailActivity : AppCompatActivity() {
                 fetchTmdbDetails(movieId!!)
             } else {
                 // ID is likely an InfoHash from History
-                android.util.Log.d("MovieDetailActivity", "Detected Debrid Hash ID: $movieId")
+                android.util.Log.d("MovieDetailActivity", "Detected Debrid Hash ID: ${SensitiveLogRedactor.describeHash(movieId)}")
                 handleDebridHistoryItem(movieId!!)
             }
         } else {
@@ -526,7 +528,7 @@ class MovieDetailActivity : AppCompatActivity() {
             sizeFilterAdapter.submitList(emptyList())
         }
 
-        val showCached = allSources.any { it.isCached != null }
+        val showCached = allSources.any { SourceFilterUtils.hasCacheConfidence(it) }
         btnCachedOnly.isVisible = showCached
         if (!showCached) {
             filterState = filterState.copy(cachedOnly = false)
@@ -624,7 +626,8 @@ class MovieDetailActivity : AppCompatActivity() {
             return
         }
 
-        val cachedCount = sources.count { it.isCached == true }
+        val verifiedCount = sources.count { it.cacheStatus == DebridCacheStatus.VERIFIED_CACHED }
+        val directCount = sources.count { it.cacheStatus == DebridCacheStatus.DIRECT_STREAM }
         val bestQuality = sources.mapNotNull { it.quality }.distinct()
             .sortedByDescending { q -> 
                 when(q.uppercase()) {
@@ -643,8 +646,10 @@ class MovieDetailActivity : AppCompatActivity() {
         layoutRdSummary.visibility = View.VISIBLE
         val summary = buildString {
             append("Real-Debrid Ready")
-            if (cachedCount > 0) {
-                append(" • $cachedCount cached sources")
+            if (verifiedCount > 0) {
+                append(" • $verifiedCount verified cached")
+            } else if (directCount > 0) {
+                append(" • $directCount direct sources")
             } else {
                 append(" • ${sources.size} sources found")
             }
@@ -801,7 +806,7 @@ class MovieDetailActivity : AppCompatActivity() {
         }
         android.util.Log.d(
             "MovieDetailActivity",
-            "Playing movie: ${stream?.name ?: movieName} - URL: $streamUrl"
+            "Playing movie: ${stream?.name ?: movieName} - URL: ${SensitiveLogRedactor.describeUrl(streamUrl)}"
         )
 
         val tmdbId = movieId?.takeIf { it.toIntOrNull() != null }
@@ -946,11 +951,18 @@ class MovieDetailActivity : AppCompatActivity() {
 
             val updatedSources = sources.map { source ->
                 val cached = updates[source.stream.stream_id]
-                if (cached != null && source.isCached != cached) {
-                    source.copy(isCached = cached)
-                } else {
-                    source
-                }
+                    if (cached != null && source.isCached != cached) {
+                        source.copy(
+                            isCached = cached,
+                            cacheStatus = if (cached) {
+                                DebridCacheStatus.DIRECT_STREAM
+                            } else {
+                                DebridCacheStatus.NOT_CACHED
+                            }
+                        )
+                    } else {
+                        source
+                    }
             }
             if (updatedSources != sources) {
                 onUpdated(updatedSources)
@@ -961,7 +973,18 @@ class MovieDetailActivity : AppCompatActivity() {
     private fun markDebridSourceCached(streamId: String?, isCached: Boolean) {
         if (streamId.isNullOrBlank() || debridSources.isEmpty()) return
         debridSources = debridSources.map { source ->
-            if (source.stream.stream_id == streamId) source.copy(isCached = isCached) else source
+            if (source.stream.stream_id == streamId) {
+                source.copy(
+                    isCached = isCached,
+                    cacheStatus = if (isCached) {
+                        DebridCacheStatus.VERIFIED_CACHED
+                    } else {
+                        DebridCacheStatus.NOT_CACHED
+                    }
+                )
+            } else {
+                source
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 package com.tvonnet.debridxtreamiptv.data.debrid.api
 
+import com.google.gson.JsonObject
 import com.tvonnet.debridxtreamiptv.data.debrid.model.RealDebridCredentialsResponse
 import com.tvonnet.debridxtreamiptv.data.debrid.model.RealDebridDeviceCodeResponse
 import com.tvonnet.debridxtreamiptv.data.debrid.model.RealDebridTokenResponse
@@ -64,6 +65,9 @@ interface RealDebridApiService {
 
     @GET("rest/1.0/torrents/info/{id}")
     suspend fun getTorrentInfo(@Path("id") torrentId: String): RealDebridTorrentInfoResponse
+
+    @GET("rest/1.0/torrents/instantAvailability/{hash}")
+    suspend fun getInstantAvailability(@Path("hash") infoHash: String): JsonObject
 
     @FormUrlEncoded
     @POST("rest/1.0/unrestrict/link")

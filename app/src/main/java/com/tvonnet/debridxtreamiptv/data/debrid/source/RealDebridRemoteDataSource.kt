@@ -1,6 +1,8 @@
 package com.tvonnet.debridxtreamiptv.data.debrid.source
 
 import android.util.Log
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
 import com.tvonnet.debridxtreamiptv.data.Result
 import com.tvonnet.debridxtreamiptv.data.debrid.api.RealDebridApiService
 import com.tvonnet.debridxtreamiptv.data.debrid.di.RealDebridAuthorized
@@ -16,6 +18,7 @@ import com.tvonnet.debridxtreamiptv.data.debrid.model.RealDebridUserResponse
 import com.tvonnet.debridxtreamiptv.data.onFailure
 import com.tvonnet.debridxtreamiptv.data.onSuccess
 import com.tvonnet.debridxtreamiptv.data.resultOf
+import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import javax.inject.Inject
 
 /**
@@ -97,16 +100,16 @@ class RealDebridRemoteDataSource @Inject constructor(
     suspend fun fetchUserInfo(): Result<RealDebridUserResponse> = resultOf {
         Log.d("RealDebridRemote", "Fetching user info")
         val response = authorizedService.fetchUserInfo()
-        Log.d("RealDebridRemote", "User info received: username=${response.username}, id=${response.id}")
+        Log.d("RealDebridRemote", "User info received: id=${response.id}, username=${SensitiveLogRedactor.describeSecret(response.username)}")
         response
     }.onSuccess { response ->
-        Log.i("RealDebridRemote", "User info fetch successful: ${response.username} (${response.email})")
+        Log.i("RealDebridRemote", "User info fetch successful: username=${SensitiveLogRedactor.describeSecret(response.username)}, email=${SensitiveLogRedactor.describeSecret(response.email)}")
     }.onFailure { error ->
         Log.e("RealDebridRemote", "User info fetch failed", error)
     }
 
     suspend fun addMagnet(magnet: String, host: String? = null): Result<RealDebridTorrentAddResponse> = resultOf {
-        Log.d("RealDebridRemote", "Adding magnet link: ${magnet.take(30)}...")
+        Log.d("RealDebridRemote", "Adding magnet link: ${SensitiveLogRedactor.describeUrl(magnet)}")
         val response = authorizedService.addMagnet(magnet = magnet, host = host)
         Log.d("RealDebridRemote", "Magnet added successfully, id: ${response.id}")
         response
@@ -119,21 +122,32 @@ class RealDebridRemoteDataSource @Inject constructor(
     suspend fun getTorrentInfo(torrentId: String): Result<RealDebridTorrentInfoResponse> = resultOf {
         Log.d("RealDebridRemote", "Getting torrent info for id: $torrentId")
         val response = authorizedService.getTorrentInfo(torrentId)
-        Log.d("RealDebridRemote", "Torrent info received: status=${response.status}, filename=${response.filename}")
+        Log.d("RealDebridRemote", "Torrent info received: status=${response.status}, filename=${SensitiveLogRedactor.describeSecret(response.filename)}")
         response
     }.onSuccess { response ->
-        Log.i("RealDebridRemote", "Torrent info fetch successful: ${response.filename} (${response.status})")
+        Log.i("RealDebridRemote", "Torrent info fetch successful: filename=${SensitiveLogRedactor.describeSecret(response.filename)}, status=${response.status}")
     }.onFailure { error ->
         Log.e("RealDebridRemote", "Failed to get torrent info for id: $torrentId", error)
     }
 
+    suspend fun getInstantAvailability(infoHash: String): Result<Boolean> = resultOf {
+        val normalized = normalizeInfoHash(infoHash)
+        Log.d("RealDebridRemote", "Checking instant availability for hash=${maskHash(normalized)}")
+        val response = authorizedService.getInstantAvailability(normalized)
+        parseInstantAvailability(response, normalized)
+    }.onSuccess { cached ->
+        Log.i("RealDebridRemote", "Instant availability check completed: cached=$cached")
+    }.onFailure { error ->
+        Log.w("RealDebridRemote", "Instant availability check failed; source cache state remains unknown", error)
+    }
+
     suspend fun unrestrictLink(link: String, password: String? = null): Result<RealDebridUnrestrictLinkResponse> = resultOf {
-        Log.d("RealDebridRemote", "Unrestricting link: ${link.take(30)}...")
+        Log.d("RealDebridRemote", "Unrestricting link: ${SensitiveLogRedactor.describeUrl(link)}")
         val response = authorizedService.unrestrictLink(link = link, password = password)
-        Log.d("RealDebridRemote", "Link unrestricted successfully, filename: ${response.filename}")
+        Log.d("RealDebridRemote", "Link unrestricted successfully, filename=${SensitiveLogRedactor.describeSecret(response.filename)}")
         response
     }.onSuccess { response ->
-        Log.i("RealDebridRemote", "Link unrestrict successful: ${response.filename}")
+        Log.i("RealDebridRemote", "Link unrestrict successful: filename=${SensitiveLogRedactor.describeSecret(response.filename)}")
     }.onFailure { error ->
         Log.e("RealDebridRemote", "Failed to unrestrict link", error)
     }
@@ -162,6 +176,37 @@ class RealDebridRemoteDataSource @Inject constructor(
         return when {
             trimmed.length <= 2 -> "**"
             else -> trimmed.take(2) + "***"
+        }
+    }
+
+    private fun normalizeInfoHash(infoHash: String): String {
+        return infoHash.trim().lowercase()
+    }
+
+    private fun maskHash(value: String): String {
+        return when {
+            value.length <= 8 -> "***"
+            else -> "${value.take(4)}...${value.takeLast(4)}"
+        }
+    }
+
+    private fun parseInstantAvailability(root: JsonObject, infoHash: String): Boolean {
+        val hashNode = root.entrySet()
+            .firstOrNull { it.key.equals(infoHash, ignoreCase = true) }
+            ?.value
+            ?.takeIf { it.isJsonObject }
+            ?.asJsonObject
+            ?: root
+
+        return hashNode.entrySet().any { (_, value) -> hasAvailableItem(value) }
+    }
+
+    private fun hasAvailableItem(value: JsonElement?): Boolean {
+        if (value == null || value.isJsonNull) return false
+        return when {
+            value.isJsonArray -> value.asJsonArray.size() > 0
+            value.isJsonObject -> value.asJsonObject.entrySet().any { (_, child) -> hasAvailableItem(child) }
+            else -> false
         }
     }
 }

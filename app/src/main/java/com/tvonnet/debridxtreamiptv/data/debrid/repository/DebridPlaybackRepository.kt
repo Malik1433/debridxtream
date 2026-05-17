@@ -4,6 +4,7 @@ import com.tvonnet.debridxtreamiptv.data.Result
 import com.tvonnet.debridxtreamiptv.data.Result.Error
 import com.tvonnet.debridxtreamiptv.data.Result.Success
 import com.tvonnet.debridxtreamiptv.data.debrid.source.RealDebridRemoteDataSource
+import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -93,7 +94,7 @@ class DebridPlaybackRepository @Inject constructor(
         if (magnetLink.startsWith("http", ignoreCase = true) &&
             !magnetLink.endsWith(".torrent", ignoreCase = true)
         ) {
-            android.util.Log.d("DebridPlayback", "Detected direct URL, skipping torrent selection: $magnetLink")
+            android.util.Log.d("DebridPlayback", "Detected direct URL, skipping torrent selection: ${SensitiveLogRedactor.describeUrl(magnetLink)}")
             // Proceed directly to unrestrict (or return if already playable)
             // We use the 'magnetLink' as 'videoLink' for unrestrict logic
             if (isDirectStreamUrl(magnetLink)) {
@@ -200,13 +201,13 @@ class DebridPlaybackRepository @Inject constructor(
                 }
                 is Error -> {
                     val msg = unrestrictResult.exception.message ?: "Unknown error"
-                    android.util.Log.e("DebridPlayback", "Unrestrict failed for link '$link' (Attempt $attempts): $msg")
+                    android.util.Log.e("DebridPlayback", "Unrestrict failed for link ${SensitiveLogRedactor.describeUrl(link)} (Attempt $attempts): $msg")
                     
                     if (msg.contains("451") || unrestrictResult.exception.toString().contains("451")) {
                         return Error(Exception("Content Unavailable (Legal Restriction)"))
                     }
                     if (msg.contains("404")) {
-                         return Error(Exception("Link 404: $link"))
+                         return Error(Exception("Link 404: ${SensitiveLogRedactor.describeUrl(link)}"))
                     }
 
                     if (attempts < maxRetries - 1) {

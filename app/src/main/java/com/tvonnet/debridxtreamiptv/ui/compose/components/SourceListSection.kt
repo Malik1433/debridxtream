@@ -36,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.ui.compose.SourceUiModel
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
 import java.util.Locale
@@ -48,7 +49,7 @@ fun SourceListSection(
 ) {
     if (sources.isEmpty()) return
 
-    val showCachedFilter = sources.any { it.isCached != null }
+    val showCachedFilter = sources.any { hasCacheConfidence(it) }
     val showSizeFilters = sources.any { it.sizeBytes != null }
     val languageOptions = remember(sources) {
         sources.flatMap { it.languages ?: emptyList() }
@@ -317,7 +318,7 @@ private fun applySourceFilters(
     var filtered = sources
 
     if (cachedOnly) {
-        filtered = filtered.filter { it.isCached == true }
+        filtered = filtered.filter { it.cacheStatus == DebridCacheStatus.VERIFIED_CACHED }
     }
 
     if (maxSizeBytes != null) {
@@ -331,7 +332,12 @@ private fun applySourceFilters(
     if (preferred != null) {
         filtered = filtered.sortedWith(
             compareByDescending<SourceUiModel> { matchesPreferredLanguage(it, preferred) }
-                .thenByDescending { it.isCached == true }
+                .thenByDescending { cachePriority(it) }
+                .thenByDescending { it.seeds ?: -1 }
+        )
+    } else {
+        filtered = filtered.sortedWith(
+            compareByDescending<SourceUiModel> { cachePriority(it) }
                 .thenByDescending { it.seeds ?: -1 }
         )
     }
@@ -375,9 +381,25 @@ private fun buildBadges(source: SourceUiModel): List<String> {
         val label = if (it == 1) "SEED" else "SEEDS"
         badges.add("$it $label")
     }
-    source.isCached?.let { cached ->
-        badges.add(if (cached) "CACHED" else "UNCACHED")
+    when (source.cacheStatus) {
+        DebridCacheStatus.VERIFIED_CACHED -> badges.add("VERIFIED")
+        DebridCacheStatus.DIRECT_STREAM -> badges.add("DIRECT")
+        DebridCacheStatus.NOT_CACHED -> badges.add("UNCACHED")
+        DebridCacheStatus.UNKNOWN -> badges.add("UNKNOWN")
     }
 
     return badges
+}
+
+private fun hasCacheConfidence(source: SourceUiModel): Boolean {
+    return source.cacheStatus != DebridCacheStatus.UNKNOWN || source.isCached != null
+}
+
+private fun cachePriority(source: SourceUiModel): Int {
+    return when (source.cacheStatus) {
+        DebridCacheStatus.VERIFIED_CACHED -> 4
+        DebridCacheStatus.DIRECT_STREAM -> 3
+        DebridCacheStatus.UNKNOWN -> 1
+        DebridCacheStatus.NOT_CACHED -> 0
+    }
 }

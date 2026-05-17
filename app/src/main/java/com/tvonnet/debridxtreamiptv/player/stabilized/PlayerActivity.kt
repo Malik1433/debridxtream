@@ -72,6 +72,7 @@ import com.tvonnet.debridxtreamiptv.util.GlideUtils
 import com.tvonnet.debridxtreamiptv.util.DeviceProfile
 import com.tvonnet.debridxtreamiptv.util.isMissingImageUrl
 import com.tvonnet.debridxtreamiptv.util.PlayerCacheManager
+import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.CacheDataSink
@@ -329,10 +330,6 @@ class PlayerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_player)
 
-        // VISUAL PROOF FOR TASK 029
-        Toast.makeText(this, "STABILIZED PLAYER - TASK 029 ACTIVE", Toast.LENGTH_LONG).show()
-        Log.i("PlayerActivity", "!!!! TASK 029 LOG PROOF - PLAYER STARTED !!!!")
-
         if (BuildConfig.DEBUG) {
             Log.d("PlayerActivity", "onCreate package=$packageName taskId=$taskId component=${intent.component}")
         }
@@ -349,7 +346,7 @@ class PlayerActivity : AppCompatActivity() {
 
         val contentTypeString = intent.getStringExtra(EXTRA_CONTENT_TYPE)
         contentType = contentTypeString?.let { runCatching { ContentType.valueOf(it) }.getOrNull() }
-        Log.d("PlayerActivity", "onCreate: contentTypeString=$contentTypeString, contentType=$contentType, contentId=$contentId")
+        Log.d("PlayerActivity", "onCreate: contentTypeString=$contentTypeString, contentType=$contentType, contentId=${SensitiveLogRedactor.describeHash(contentId)}")
         playbackSource = intent.getStringExtra(EXTRA_PLAYBACK_SOURCE)
             ?.let { runCatching { PlaybackSource.valueOf(it) }.getOrNull() }
             ?: PlaybackSource.IPTV
@@ -636,7 +633,7 @@ class PlayerActivity : AppCompatActivity() {
         val playerSnapshot = player ?: return
         isSwitching = true
         switchCount++
-        Log.i("PlayerActivity", "Performing seamless switch to: $newUrl")
+        Log.i("PlayerActivity", "Performing seamless switch to: ${SensitiveLogRedactor.describeUrl(newUrl)}")
         
         timeoutHandler.removeCallbacks(timeoutRunnable)
         timeoutMs = resolveTimeoutMs(newUrl)
@@ -950,10 +947,10 @@ class PlayerActivity : AppCompatActivity() {
         browserView?.bringToFront()
 
         val state = viewModel.seriesPlaylistState.value
-        Log.d("PlayerActivity", "showEpisodeBrowser: state=$state, contentId=$contentId")
-        
-        // DEBUG TOAST
-        Toast.makeText(this, "EPISODE BROWSER TRIGGERED", Toast.LENGTH_SHORT).show()
+        Log.d(
+            "PlayerActivity",
+            "showEpisodeBrowser: episodes=${state?.originalList?.size ?: 0}, contentId=${SensitiveLogRedactor.describeHash(contentId)}"
+        )
         
         val seasonTitle = seriesTitleExtra ?: "Season ${seasonNumberExtra ?: ""}"
         
@@ -964,7 +961,7 @@ class PlayerActivity : AppCompatActivity() {
             
             val seriesId = intent.getStringExtra(EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
             val seasonNum = intent.getIntExtra(EXTRA_SEASON_NUM, -1)
-            Log.d("PlayerActivity", "showEpisodeBrowser: state is null, triggering load. seriesId=$seriesId, seasonNum=$seasonNum, contentId=$contentId")
+            Log.d("PlayerActivity", "showEpisodeBrowser: state is null, triggering load. seriesId=${SensitiveLogRedactor.describeHash(seriesId)}, seasonNum=$seasonNum, contentId=${SensitiveLogRedactor.describeHash(contentId)}")
             if (seriesId != null && seasonNum != -1) {
                  if (playbackSource == PlaybackSource.DEBRID) {
                      viewModel.loadDebridSeriesPlaylist(seriesId, seasonNum, episodeNumberExtra ?: 1)
@@ -1757,11 +1754,6 @@ class PlayerActivity : AppCompatActivity() {
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { if (contentType == ContentType.LIVE_TV) { if (viewModel.browserState.value.isVisible) return super.dispatchKeyEvent(event); if (epgOverlayMode != EpgOverlayMode.HIDDEN && !epgOverlayPinned) hideEpgOverlay() else showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false); return true } }
                 KeyEvent.KEYCODE_INFO -> { if (contentType == ContentType.LIVE_TV) toggleEpgOverlayPinned() else { playerView.showController(); playerView.requestFocus() }; return true }
                 KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_GUIDE -> {
-                    if (event.keyCode == KeyEvent.KEYCODE_MENU) {
-                        debugEnabled = !debugEnabled
-                        layoutDebugOverlay?.visibility = if (debugEnabled) View.VISIBLE else View.GONE
-                        startDebugOverlay()
-                    }
                     if (contentType == ContentType.LIVE_TV) { toggleEpgOverlayPinned(); return true }; if (playerView.isControllerFullyVisible) { showSubtitleSelection(); return true } 
                 }
                 KeyEvent.KEYCODE_BACK -> {
@@ -1890,7 +1882,10 @@ class PlayerActivity : AppCompatActivity() {
             epgChannelId = currentEpgChannelId,
             categoryId = liveCategoryId
         )
-        android.util.Log.e("HISTORY_DEBUG", "Saving Recent Live: $item")
+        android.util.Log.d(
+            "HISTORY_DEBUG",
+            "Saving Recent Live: channelId=${item.channelId}, name=${item.channelName}, stream=${SensitiveLogRedactor.describeUrl(item.streamUrl)}"
+        )
         watchHistoryPrefs.addRecentLiveChannel(item) 
     }
     private fun recordContinueWatchingHistory(contentId: String, type: ContentType) { 
@@ -1927,7 +1922,10 @@ class PlayerActivity : AppCompatActivity() {
             source = if (playbackSource == PlaybackSource.DEBRID) "debrid" else "xtream", 
             expiresAt = expiresAtExtra
         )
-        android.util.Log.e("HISTORY_DEBUG", "Saving Continue Watching [${item.source}]: ${item.title} | type=${item.contentType} | contentId=${item.contentId} | seriesId=${item.seriesId} | season=${item.seasonNumber} | episode=${item.episodeNumber} | pos=$pos dur=$dur | stream=${if (item.streamUrl.isNullOrBlank()) "missing" else "present"} | poster=${if (item.posterUrl.isNullOrBlank()) "missing" else "present"} | expires=${item.expiresAt}")
+        android.util.Log.d(
+            "HISTORY_DEBUG",
+            "Saving Continue Watching [${item.source}]: ${item.title} | type=${item.contentType} | contentId=${SensitiveLogRedactor.describeHash(item.contentId)} | seriesId=${SensitiveLogRedactor.describeHash(item.seriesId)} | season=${item.seasonNumber} | episode=${item.episodeNumber} | pos=$pos dur=$dur | stream=${if (item.streamUrl.isNullOrBlank()) "missing" else "present"} | poster=${if (item.posterUrl.isNullOrBlank()) "missing" else "present"} | expires=${item.expiresAt}"
+        )
         watchHistoryPrefs.saveContinueWatchingItem(item) 
     }
 

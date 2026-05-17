@@ -29,6 +29,8 @@ import java.util.*
 import javax.inject.Inject
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridPlaybackRepository
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider
+import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
+import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 
 sealed class DebridResolutionState {
     object Idle : DebridResolutionState()
@@ -435,7 +437,7 @@ class PlayerViewModel @Inject constructor(
                 val targetSource = if (exactMatch != null) {
                     exactMatch
                 } else {
-                    val cached = sources.filter { it.isCached == true }
+                    val cached = sources.filter { SourceFilterUtils.isPlaybackReady(it) }
                     if (cached.isNotEmpty()) {
                         cached.firstOrNull { it.quality?.contains("2160") == true }
                             ?: cached.firstOrNull { it.quality?.contains("1080") == true }
@@ -496,7 +498,10 @@ class PlayerViewModel @Inject constructor(
         episode: Int?,
         title: String?
     ) {
-        android.util.Log.d("PlayerViewModel", "reResolveDebridUrl: infoHash=$infoHash, season=$season, episode=$episode, title=$title")
+        android.util.Log.d(
+            "PlayerViewModel",
+            "reResolveDebridUrl: infoHash=${SensitiveLogRedactor.describeHash(infoHash)}, magnet=${SensitiveLogRedactor.describeUrl(magnet)}, season=$season, episode=$episode, hasTitle=${!title.isNullOrBlank()}"
+        )
         viewModelScope.launch {
             _debridResolutionState.value = DebridResolutionState.Loading
             try {

@@ -31,3 +31,24 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Definition:** Using a single Activity/Fragment for multiple content sources (IPTV vs Debrid) but gating specific UI overlays based on content type or source metadata.
 - **Benefits:** Reduces code duplication and ensures a consistent UX across different backend sources.
 - **Implementation:** In `dispatchKeyEvent`, use helper methods like `isSeriesEpisodePlayback()` to route keys to specific overlay controllers.
+
+## 6. Debrid Re-Resolution Metadata
+- **Definition:** Store durable Debrid metadata such as infoHash/magnet/source identity for resume, then re-resolve a fresh playable URL instead of trusting an old unrestricted stream URL.
+- **Benefits:** Avoids expired-link playback failures and keeps Debrid resume aligned with Real-Debrid token/link lifetimes.
+- **Implementation:** Route Debrid resume through `PlaybackResolver` using stored infoHash/magnet metadata and launch the shared `PlayerActivity` only after fresh resolution succeeds.
+
+## 7. Sensitive Log Redaction
+- **Definition:** Log only safe summaries for URLs, magnets, hashes, tokens, serialized history, and provider config paths.
+- **Benefits:** Keeps QA/debug logs useful without exposing Real-Debrid access tokens, unrestricted stream links, IPTV credentials, or watch-history payloads.
+- **Implementation:** Use `SensitiveLogRedactor.describeUrl`, `describeHash`, or `describeSecret`; disable OkHttp URL/body logging on token-bearing API clients. Do not stringify state objects or provider release labels when those objects can include stream URLs, source titles, hashes, or direct sources.
+
+## 8. Authoritative Debrid Cache Confidence
+- **Definition:** Represent Debrid source readiness with explicit confidence states instead of overloading a nullable Boolean or trusting provider text.
+- **Benefits:** Prevents `RD+`, `cached`, or addon labels from becoming false claims; lets the UI distinguish verified cached, direct stream, unknown, and not cached.
+- **Implementation:** Use Real-Debrid instant availability or playback readiness to set `DebridCacheStatus`; keep unknown as unknown and make cached-only filters require `VERIFIED_CACHED`.
+
+## 9. Streaming XML Declaration Stripping
+- **Definition:** Sanitizing redundant or malformed XML processing declarations (`<?xml ... ?>`) in a custom streaming `PushbackReader` wrapper without buffering the entire document as a String.
+- **Benefits:** Prevents large XML files from causing out-of-memory errors on TV devices while ensuring robust XML parsing.
+- **Implementation:** Stream character buffers in a custom `Reader` and skip extra instances of `<?xml` after the first header.
+

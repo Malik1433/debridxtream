@@ -109,9 +109,6 @@ class ContinueWatchingAdapter(
             itemView.elevation = if (itemView.hasFocus()) 22f else 6f
             
             val resolvedUrl = GlobalConfig.resolveIconUrl(item.posterUrl ?: item.backdropUrl)
-            // Debug Toast as requested
-            
-            // Load poster image (guard blank URLs)
             ivContinuePoster.loadPosterOrPlaceholder(resolvedUrl)
             
             itemView.setOnClickListener {

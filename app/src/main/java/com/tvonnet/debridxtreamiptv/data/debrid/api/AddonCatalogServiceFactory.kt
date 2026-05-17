@@ -1,8 +1,6 @@
 package com.tvonnet.debridxtreamiptv.data.debrid.api
 
-import com.tvonnet.debridxtreamiptv.BuildConfig
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
@@ -19,14 +17,6 @@ object AddonCatalogServiceFactory {
         val clientBuilder = OkHttpClient.Builder()
             .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-
-        if (BuildConfig.DEBUG) {
-            clientBuilder.addInterceptor(
-                HttpLoggingInterceptor().apply {
-                    level = HttpLoggingInterceptor.Level.BASIC
-                }
-            )
-        }
 
         val retrofit = Retrofit.Builder()
             .baseUrl(PLACEHOLDER_BASE_URL)

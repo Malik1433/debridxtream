@@ -1,6 +1,7 @@
 package com.tvonnet.debridxtreamiptv.data.debrid.repository
 
 import com.tvonnet.debridxtreamiptv.data.Result
+import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -35,7 +36,10 @@ class PlaybackResolver @Inject constructor(
         episodeNumber: Int? = null,
         episodeTitle: String? = null
     ): ResolutionResult {
-        android.util.Log.d("PlaybackResolver", "Resolving - source: $source, hasStreamUrl: ${!streamUrl.isNullOrBlank()}, isExpired: $isExpired, infoHash: $infoHash")
+        android.util.Log.d(
+            "PlaybackResolver",
+            "Resolving - source: $source, hasStreamUrl: ${!streamUrl.isNullOrBlank()}, isExpired: $isExpired, infoHash=${SensitiveLogRedactor.describeHash(infoHash)}, magnet=${SensitiveLogRedactor.describeUrl(magnet)}"
+        )
         
         if (source == "debrid") {
             // RULE: Debrid items MUST ALWAYS resolve via hash/magnet.

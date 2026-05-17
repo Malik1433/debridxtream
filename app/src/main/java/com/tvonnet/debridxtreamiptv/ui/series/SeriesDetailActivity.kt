@@ -29,6 +29,7 @@ import com.tvonnet.debridxtreamiptv.data.model.XtreamSeriesInfo
 import com.tvonnet.debridxtreamiptv.data.onFailure
 import com.tvonnet.debridxtreamiptv.data.onSuccess
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
+import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
@@ -898,7 +899,18 @@ class SeriesDetailActivity : AppCompatActivity() {
         if (streamId.isNullOrBlank()) return
         val current = cachedDebridSourcesByEpisode[episodeId] ?: return
         cachedDebridSourcesByEpisode[episodeId] = current.map { source ->
-            if (source.stream.stream_id == streamId) source.copy(isCached = isCached) else source
+            if (source.stream.stream_id == streamId) {
+                source.copy(
+                    isCached = isCached,
+                    cacheStatus = if (isCached) {
+                        DebridCacheStatus.VERIFIED_CACHED
+                    } else {
+                        DebridCacheStatus.NOT_CACHED
+                    }
+                )
+            } else {
+                source
+            }
         }
     }
 
@@ -934,11 +946,18 @@ class SeriesDetailActivity : AppCompatActivity() {
 
             val updatedSources = sources.map { source ->
                 val cached = updates[source.stream.stream_id]
-                if (cached != null && source.isCached != cached) {
-                    source.copy(isCached = cached)
+        if (cached != null && source.isCached != cached) {
+            source.copy(
+                isCached = cached,
+                cacheStatus = if (cached) {
+                    DebridCacheStatus.DIRECT_STREAM
                 } else {
-                    source
+                    DebridCacheStatus.NOT_CACHED
                 }
+            )
+        } else {
+            source
+        }
             }
             if (updatedSources != sources) {
                 cachedDebridSourcesByEpisode[episodeId] = updatedSources

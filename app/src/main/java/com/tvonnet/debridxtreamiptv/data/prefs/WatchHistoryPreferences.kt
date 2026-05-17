@@ -9,6 +9,7 @@ import com.tvonnet.debridxtreamiptv.data.model.FavoriteItem
 
 import com.tvonnet.debridxtreamiptv.data.model.RecentLiveChannelItem
 import com.tvonnet.debridxtreamiptv.util.GlobalConfig
+import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 
 class WatchHistoryPreferences(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -60,13 +61,16 @@ class WatchHistoryPreferences(private val context: Context) {
     private fun readContinueWatchingList(): List<ContinueWatchingItem> {
         val json = prefs.getString(KEY_CONTINUE_WATCHING, null) ?: return emptyList()
         return try {
-            android.util.Log.e("HISTORY_DEBUG", "Reading Continue Watching JSON: $json")
+            android.util.Log.d("HISTORY_DEBUG", "Reading Continue Watching list: jsonLength=${json.length}")
             val type = object : TypeToken<List<ContinueWatchingItem>>() {}.type
             val list = gson.fromJson<List<ContinueWatchingItem>>(json, type) ?: emptyList()
             // Heal stale relative poster URLs on read
             list.map { item ->
                 val healed = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(item.posterUrl)
-                android.util.Log.d("IPTV_POSTER", "Healing Continue Watching [${item.title}]: ${item.posterUrl} -> $healed")
+                android.util.Log.d(
+                    "IPTV_POSTER",
+                    "Healing Continue Watching poster [${item.title}]: from=${SensitiveLogRedactor.describeUrl(item.posterUrl)} to=${SensitiveLogRedactor.describeUrl(healed)}"
+                )
                 item.copy(posterUrl = healed)
             }
         } catch (e: Exception) {
@@ -172,7 +176,7 @@ class WatchHistoryPreferences(private val context: Context) {
         android.util.Log.e("HISTORY_DEBUG", "WatchHistoryPreferences: getRecentLiveChannelsList called")
         val json = prefs.getString(KEY_RECENT_LIVE_CHANNELS, null) ?: return emptyList()
         return try {
-            android.util.Log.e("HISTORY_DEBUG", "Reading Recent Live JSON: $json")
+            android.util.Log.d("HISTORY_DEBUG", "Reading Recent Live list: jsonLength=${json.length}")
             val type = object : TypeToken<List<RecentLiveChannelItem>>() {}.type
             val list = gson.fromJson<List<RecentLiveChannelItem>>(json, type) ?: emptyList()
             // Heal stale relative logo URLs on read

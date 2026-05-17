@@ -233,7 +233,7 @@ class SourceSelectionBottomSheet(
             sizeFilterAdapter.submitList(emptyList())
         }
 
-        val showCached = allSources.any { it.isCached != null }
+        val showCached = allSources.any { SourceFilterUtils.hasCacheConfidence(it) }
         btnCachedOnly.visibility = if (showCached) View.VISIBLE else View.GONE
         if (!showCached) {
             if (filterState.cachedOnly) {

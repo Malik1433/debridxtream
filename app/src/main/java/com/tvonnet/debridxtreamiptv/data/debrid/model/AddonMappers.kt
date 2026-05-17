@@ -1,5 +1,7 @@
 package com.tvonnet.debridxtreamiptv.data.debrid.model
 
+import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
+
 /**
  * Helpers to map raw add-on payloads into a normalized AddonStream representation.
  */
@@ -48,7 +50,10 @@ object AddonStreamMapper {
 
             url = source.url?.let { originalUrl ->
                 val processed = originalUrl.replace("stremio://", "https://")
-                android.util.Log.e("AddonMapper", "Mapping URL: Original='$originalUrl' -> Processed='$processed'")
+                android.util.Log.d(
+                    "AddonMapper",
+                    "Mapping URL: original=${SensitiveLogRedactor.describeUrl(originalUrl)} processed=${SensitiveLogRedactor.describeUrl(processed)}"
+                )
                 processed
             },
             infoHash = source.infoHash,

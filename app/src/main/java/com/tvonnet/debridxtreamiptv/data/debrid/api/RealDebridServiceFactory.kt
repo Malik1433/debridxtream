@@ -1,8 +1,6 @@
 package com.tvonnet.debridxtreamiptv.data.debrid.api
 
-import com.tvonnet.debridxtreamiptv.BuildConfig
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
@@ -29,15 +27,6 @@ object RealDebridServiceFactory {
             val interceptor = RealDebridAuthInterceptor(accessTokenProvider, tokenRefresher)
             clientBuilder.addInterceptor(interceptor)
             clientBuilder.authenticator(interceptor)
-        }
-
-        // Always add logging in debug mode to help diagnose issues
-        if (BuildConfig.DEBUG) {
-            clientBuilder.addInterceptor(
-                HttpLoggingInterceptor().apply {
-                    level = HttpLoggingInterceptor.Level.BODY // Changed to BODY for more details
-                }
-            )
         }
 
         val retrofit = Retrofit.Builder()

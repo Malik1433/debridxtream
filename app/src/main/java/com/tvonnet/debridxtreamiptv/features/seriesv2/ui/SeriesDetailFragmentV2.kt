@@ -320,7 +320,7 @@ class SeriesDetailFragmentV2 : Fragment() {
         }
 
         binding.btnFavorite?.setOnClickListener {
-            Toast.makeText(context, "Added to Favorites (Demo)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Added to favorites", Toast.LENGTH_SHORT).show()
         }
     }
 

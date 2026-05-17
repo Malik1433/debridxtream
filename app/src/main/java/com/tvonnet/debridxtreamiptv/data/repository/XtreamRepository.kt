@@ -62,6 +62,13 @@ import com.google.gson.JsonSyntaxException
 import com.google.gson.JsonElement
 import kotlinx.coroutines.flow.flowOf
 
+enum class DebridCacheStatus {
+    VERIFIED_CACHED,
+    NOT_CACHED,
+    UNKNOWN,
+    DIRECT_STREAM
+}
+
 data class MovieSource(
     val stream: XtreamVodInfo,
     val category: XtreamCategory?,
@@ -72,6 +79,7 @@ data class MovieSource(
     val sizeBytes: Long? = null,
     val seeders: Int? = null,
     val isCached: Boolean? = null,
+    val cacheStatus: DebridCacheStatus = DebridCacheStatus.UNKNOWN,
     val provider: String? = null,
     val headers: Map<String, String>? = null
 )
