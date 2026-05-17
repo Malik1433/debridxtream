@@ -50,9 +50,11 @@ Do not treat text labels such as `RD+`, `cached`, `instant`, or provider names a
 ## Debrid Error Handling Rule
 Do not retry Real-Debrid legal/copyright failures or HTTP `429` rate-limit failures as generic playback errors. Classify these failures, stop immediate retry/auto-next cascades where appropriate, apply cooldown for rate limits, and never expose raw sensitive backend details to the user.
 
+## Debrid Regional Source Rule
+Do not assume generic/default Torrentio or add-on requests are enough for Hindi/German playback. Keep provider config syntax current, include language priority when supported, keep built-in registries active, and make sure capped Real-Debrid availability checks include target-language and multi-audio candidates.
+
 ## EPG Timezone Parsing Rule
 - **DO NOT** ignore timezone offset suffixes (like `+0200`) when converting XMLTV timestamps to epoch milliseconds. Ignoring offsets shifts EPG program schedules.
 
 ## Companion Config Rule
 - **DO NOT** configure Ktor CORS with `anyHost()` as it exposes IPTV credentials to CSRF cross-origin script access. Use custom security headers and local subnets.
-

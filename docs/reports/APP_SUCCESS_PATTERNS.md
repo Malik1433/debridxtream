@@ -52,3 +52,18 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Prevents large XML files from causing out-of-memory errors on TV devices while ensuring robust XML parsing.
 - **Implementation:** Stream character buffers in a custom `Reader` and skip extra instances of `<?xml` after the first header.
 
+## 10. Typed Debrid Terminal Failures
+- **Definition:** Convert Real-Debrid HTTP/provider errors into typed failures before retry, auto-next, or user messaging decisions.
+- **Benefits:** Prevents legal/copyright blocks and `429` rate limits from being treated like transient network failures, reducing wasted API calls and clearer behavior under provider-side denial.
+- **Implementation:** Classify `429`, `451`, copyright/legal removal text, auth, not-cached/unavailable, network, and unknown failures; apply global/per-source cooldown where appropriate; retry only transient failure classes.
+
+## 11. Immediate Rate-Limit Feedback
+- **Definition:** Treat active provider cooldown as an immediate user-facing state, not as a hidden delay inside request scheduling.
+- **Benefits:** Prevents clicks from appearing dead while the app waits for a Real-Debrid cooldown window.
+- **Implementation:** Check global cooldown before playback resolution and background availability calls; return a typed `RATE_LIMITED` error with remaining wait time instead of sleeping silently.
+
+## 12. Language-Aware Debrid Source Discovery
+- **Definition:** Send provider requests with explicit target-language priority and preserve those candidates before cache-verification caps are applied.
+- **Benefits:** Prevents English-only/high-seeder entries from consuming the whole Real-Debrid availability budget when the target playback need is Hindi, German, or multi-audio.
+- **Implementation:** Use current add-on config keys such as Torrentio `language=...`, keep built-in registries active, parse regional release aliases, and sort Hindi/German/multi candidates before capped provider checks.
+

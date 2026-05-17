@@ -190,3 +190,98 @@ Implement typed Debrid failure classification, no-retry/cooldown rules for legal
 
 ## Final Status
 PARTIAL  Audit complete; implementation still required.
+
+---
+
+# TASK 004-DEBRID-PHASE3A-LITE-RD-ERROR-COOLDOWN
+
+## Scope
+Real-Debrid-only error handling and rate-limit reduction after manual QA found copyright/legal blocks, unknown availability, and HTTP `429` add-magnet failures. No AllDebrid/Premiumize support, UI redesign, Player DPAD changes, or Stremio parity claim was added.
+
+## Changes
+- Added typed Debrid failure classification for `429`, `451`, copyright/legal removal text, auth, not-cached/unavailable, network, and unknown failures.
+- Added a shared Real-Debrid request limiter with minimum request spacing, global `429` cooldown, and per-source cooldown for terminal blocked/unavailable sources.
+- Stopped immediate resolver retry for terminal Real-Debrid failures so blocked sources and rate-limit errors do not re-run the same expensive flow.
+- Applied limiter gates around add-magnet, torrent-info polling, file selection, delete/re-add, unrestrict, and instant-availability checks.
+- Added short TTL cache for Real-Debrid instant availability checks and capped each verification batch to reduce duplicate API calls.
+- Added focused unit coverage for failure classification.
+
+## Validation
+- `:app:compileDebugKotlin --offline --no-daemon --console plain`: PASS, `BUILD SUCCESSFUL`.
+- `:app:testDebugUnitTest --tests "com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureClassifierTest" --offline --no-daemon --console plain`: PASS, `BUILD SUCCESSFUL`.
+- `clean assembleDebug --offline --no-daemon --console plain`: command timed out after 15 minutes; the Gradle wrapper process later finished, but the final exit code was not captured.
+- `:app:assembleDebug --offline --no-daemon --console plain`: PASS, exit code `0`.
+- APK generated: `app/build/outputs/apk/debug/app-debug.apk`, timestamp `2026-05-17 20:55:14`, size `31,380,390` bytes.
+- Install QA: PASS on `192.168.0.21:5555` and `192.168.0.84:5555`.
+- Launch smoke QA: PASS on both devices via `com.debridxtream.tv/com.tvonnet.debridxtreamiptv.ui.MainActivity`.
+- Crash log scan: PASS for no `FATAL EXCEPTION`, no `AndroidRuntime`, and no `Process: com.debridxtream.tv` crash after launch smoke.
+
+## Remaining QA Gap
+Manual Real-Debrid playback QA is still required before claiming full functional PASS: pick several `VERIFIED` and `UNKNOWN` sources, confirm blocked/legal/copyright sources stop cleanly, confirm `429` produces cooldown behavior instead of rapid repeated add-magnet attempts, and confirm a known-good cached source still resolves and plays.
+
+## Final Status
+PARTIAL  Code/build/install/launch smoke passed, and rate-limit/error controls are integrated. Full Real-Debrid functional playback QA remains user-facing manual scope.
+
+---
+
+# TASK 004B-DEBRID-PHASE3A-RATE-LIMIT-FOLLOW-UP
+
+## Scope
+Follow-up from manual QA after Phase 3A Lite. User confirmed a known-good Real-Debrid source plays, but also reported that a blocked source tries once and then later clicks appear to do nothing, while rate-limit messages can still appear.
+
+## Findings
+- Known-good source playback was manually confirmed by the user after TASK 004.
+- Global `429` cooldown was being enforced inside `awaitPermit()`, which could silently delay user-initiated playback attempts and make a click look like no action.
+- Availability verification was still too optimistic for a strict Real-Debrid rate window because it could check up to 24 hashes with two concurrent checks.
+
+## Changes
+- Global rate-limit cooldown now returns an immediate typed `RATE_LIMITED` error instead of silently waiting.
+- Playback resolution checks the global cooldown before add-magnet/unrestrict work and shows the cooldown message immediately through the existing error path.
+- Real-Debrid availability verification now skips network calls during global cooldown.
+- Availability verification is more conservative: capped at 10 hashes, one Real-Debrid availability check at a time, and 1.2s minimum request spacing.
+- Added unit coverage for immediate global cooldown behavior.
+
+## Validation
+- `:app:compileDebugKotlin --offline --no-daemon --console plain`: PASS, `BUILD SUCCESSFUL`.
+- `:app:testDebugUnitTest --tests "com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureClassifierTest" --tests "com.tvonnet.debridxtreamiptv.data.debrid.repository.RealDebridRateLimiterTest" --offline --no-daemon --console plain`: PASS, `BUILD SUCCESSFUL`.
+- `:app:assembleDebug --offline --no-daemon --console plain`: PASS, exit code `0`.
+- Install QA: PASS on `192.168.0.21:5555` and `192.168.0.84:5555`.
+- Launch smoke QA: PASS on both devices via `com.debridxtream.tv/com.tvonnet.debridxtreamiptv.ui.MainActivity`.
+- Crash log scan: PASS for no `FATAL EXCEPTION`, no `AndroidRuntime`, and no `Process: com.debridxtream.tv` crash after launch smoke.
+
+## Remaining QA Gap
+Manual retest required: after a `429`, clicking another source should now immediately show the cooldown message instead of doing nothing. Source fetching should produce fewer Real-Debrid availability calls, but provider-side rate limit behavior still depends on current Real-Debrid account/IP state.
+
+## Final Status
+PARTIAL  Follow-up fix built, installed, and smoke-tested. Manual rate-limit retest is still required before claiming user-facing PASS.
+
+---
+
+# TASK 005-DEBRID-PHASE3D-HINDI-GERMAN-SOURCE-RECOVERY
+
+## Scope
+Improve Real-Debrid source discovery for Hindi/German playback after audit found many user-visible links dead or copyright-blocked and Torrentio returning mostly English/low-playability candidates. This stays Real-Debrid-only; no AllDebrid/Premiumize implementation, UI redesign, Player DPAD change, or Stremio parity claim was added.
+
+## Changes
+- Updated built-in Torrentio requests to use current config keys: expanded provider list, `sort=quality`, `limit=50`, `language=hindi,german` plus the user's mapped preferred language, and `debridoptions=nodownloadlinks` when Real-Debrid is present.
+- Removed the stale `quality=4k,1080p,720p,480p` Torrentio config segment because current Torrentio config uses `qualityfilter` for exclusions and the old key can behave like a no-op.
+- Enabled built-in dynamic registry loading by always including `DebridPreferences.DEFAULT_REGISTRY_URL` and `DebridPreferences.PUREFIRE_REGISTRY_URL` alongside saved registry URLs.
+- Prioritized Hindi/German/multi-language addon streams before the capped Real-Debrid instant-availability budget so the first 10 checks are not consumed by English-only sources.
+- Increased the Real-Debrid availability verification timeout to match the 10-hash, single-lane, 1.2s-spaced request budget caught by swarm review.
+- Improved language parsing for `deu`, `deutsch`, `german audio`, `hindi dubbed`, `hindi audio`, `bollywood`, and dual-audio/multi-audio release labels.
+- Added fallback source sorting boost for Hindi/German/multi-language sources when no explicit preferred language is configured.
+
+## Validation
+- `:app:compileDebugKotlin --no-daemon --console plain --max-workers=1`: PASS, exit code `0`.
+- `:app:testDebugUnitTest --tests "LanguageParserTest" --tests "DebridFailureClassifierTest" --tests "RealDebridRateLimiterTest" --no-daemon --console plain --max-workers=1`: PASS, exit code `0`.
+- `:app:assembleDebug --no-daemon --console plain --max-workers=1`: PASS, exit code `0`.
+- Swarm review: caught an 8s availability-timeout mismatch after the 10-hash single-lane limiter; fixed before final.
+- Install QA: PASS on `192.168.0.21:5555` and `192.168.0.84:5555`.
+- Launch smoke QA: PASS on both devices. `192.168.0.21:5555` required explicit `am start -n com.debridxtream.tv/com.tvonnet.debridxtreamiptv.ui.MainActivity`; `192.168.0.84:5555` launched via package launcher.
+- Crash log scan: PASS for no `FATAL EXCEPTION`, no `Unable to start activity`, and no `Process com.debridxtream.tv has died` after fresh launch smoke.
+
+## Remaining QA Gap
+Manual Real-Debrid playback QA is still required before functional PASS: use the same Hindi/German titles that were failing, verify provider breakdown includes more Torrentio/dynamic Hindi/German/multi candidates, then confirm at least one source resolves to playback without hitting immediate `429`. Copyright/legal removals are provider-side terminal failures and cannot be bypassed by client code.
+
+## Final Status
+PARTIAL  Source discovery recovery is integrated, built, installed, and smoke-tested. Real title playback still needs manual QA under the user's current Real-Debrid account/IP state.

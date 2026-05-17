@@ -3,7 +3,7 @@ package com.tvonnet.debridxtreamiptv.data.debrid.util
 object LanguageParser {
     
     private val LANGUAGE_MAP = mapOf(
-        "hi" to listOf("hin", "hindi"),
+        "hi" to listOf("hin", "hindi", "hindi dubbed", "hindi audio", "bollywood"),
         "ta" to listOf("tam", "tamil"),
         "te" to listOf("tel", "telugu"),
         "ml" to listOf("mal", "malayalam"),
@@ -12,7 +12,7 @@ object LanguageParser {
         "en" to listOf("eng", "english"),
         "es" to listOf("spa", "spanish", "espanol"),
         "fr" to listOf("fra", "french"),
-        "de" to listOf("ger", "german"),
+        "de" to listOf("ger", "german", "deu", "deutsch", "german dubbed", "german audio"),
         "it" to listOf("ita", "italian"),
         "ru" to listOf("rus", "russian"),
         "ja" to listOf("jpn", "japanese"),
@@ -28,7 +28,14 @@ object LanguageParser {
         val lowerTitle = title.lowercase()
 
         // Check for Multi Audio
-        if (lowerTitle.contains("multi")) {
+        if (
+            lowerTitle.contains("multi") ||
+            lowerTitle.contains("multi audio") ||
+            lowerTitle.contains("multi-audio") ||
+            lowerTitle.contains("dual audio") ||
+            lowerTitle.contains("dual-audio") ||
+            lowerTitle.contains("dualaudio")
+        ) {
             languages.add("multi")
         }
 

@@ -3,6 +3,7 @@ package com.tvonnet.debridxtreamiptv.data.debrid.repository
 import com.tvonnet.debridxtreamiptv.data.Result
 import com.tvonnet.debridxtreamiptv.data.Result.Error
 import com.tvonnet.debridxtreamiptv.data.Result.Success
+import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureClassifier
 import com.tvonnet.debridxtreamiptv.data.debrid.source.RealDebridRemoteDataSource
 import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import kotlinx.coroutines.delay
@@ -18,7 +19,8 @@ import javax.inject.Singleton
 class DebridPlaybackRepository @Inject constructor(
     private val realDebridRemote: RealDebridRemoteDataSource,
     private val debridAccountRepository: DebridAccountRepository,
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    private val realDebridRateLimiter: RealDebridRateLimiter
 ) {
     suspend fun isMediaFusionPlaybackReady(url: String): Result<Boolean> {
         if (!isMediaFusionPlaybackUrl(url)) {
@@ -89,6 +91,17 @@ class DebridPlaybackRepository @Inject constructor(
             !magnet.isNullOrBlank() -> magnet
             else -> "magnet:?xt=urn:btih:$infoHash"
         }
+        val sourceKey = normalizeSourceKey(infoHash, magnetLink)
+
+        realDebridRateLimiter.globalCooldown()?.let { cooldown ->
+            android.util.Log.w("DebridPlayback", "Skipping RD playback during global cooldown")
+            return Error(cooldown)
+        }
+
+        realDebridRateLimiter.sourceCooldown(sourceKey)?.let { cooldown ->
+            android.util.Log.w("DebridPlayback", "Skipping RD source on cooldown: ${cooldown.type}")
+            return Error(cooldown)
+        }
 
         // CHECK IF DIRECT LINK (HTTP/HTTPS) - Fix for TorrentIO/MediaFusion
         if (magnetLink.startsWith("http", ignoreCase = true) &&
@@ -101,20 +114,15 @@ class DebridPlaybackRepository @Inject constructor(
                  android.util.Log.d("DebridPlayback", "URL appears to be a direct stream, returning as is.")
                  return Success(magnetLink)
             }
-            return unrestrictLinkWithRetry(magnetLink, 3)
+            return unrestrictLinkWithRetry(magnetLink, 3, sourceKey)
         }
 
+        realDebridRateLimiter.awaitPermit()
         val addResult = realDebridRemote.addMagnet(magnetLink)
         var torrentId = when (addResult) {
             is Success -> addResult.data.id
             is Error -> {
-                val msg = addResult.exception.message ?: ""
-                android.util.Log.e("DebridPlayback", "Magnet addition failed: $msg")
-                if (msg.contains("451") || addResult.exception.toString().contains("451")) {
-                     android.util.Log.e("DebridPlayback", "Magnet blocked due to legal restrictions (451). Aborting.")
-                     return Error(Exception("Content Unavailable (Legal Restriction)"))
-                }
-                return Error(Exception("Failed to add magnet: ${addResult.exception.message}"))
+                return handleDebridFailure("add magnet", sourceKey, addResult.exception)
             }
             else -> null
         } ?: return Error(Exception("No torrent ID returned"))
@@ -127,6 +135,7 @@ class DebridPlaybackRepository @Inject constructor(
         var finalVideoLink: String? = null
 
         pollLoop@ while (attempts < maxAttempts) {
+            realDebridRateLimiter.awaitPermit()
             val infoResult = realDebridRemote.getTorrentInfo(torrentId)
             when (infoResult) {
                 is Success -> {
@@ -140,7 +149,9 @@ class DebridPlaybackRepository @Inject constructor(
                                 break@pollLoop // Ready to unrestrict
                             } else if (!hasReAddedTorrent) {
                                 android.util.Log.w("DebridPlayback", "Episode not found in selected files. Deleting and re-adding torrent.")
+                                realDebridRateLimiter.awaitPermit()
                                 realDebridRemote.deleteTorrent(torrentId)
+                                realDebridRateLimiter.awaitPermit()
                                 val reAddResult = realDebridRemote.addMagnet(magnetLink)
                                 if (reAddResult is Success) {
                                     torrentId = reAddResult.data.id ?: return Error(Exception("No torrent ID returned on re-add"))
@@ -148,7 +159,9 @@ class DebridPlaybackRepository @Inject constructor(
                                     attempts = 0
                                     continue@pollLoop
                                 } else {
-                                    return Error(Exception("Failed to re-add magnet after deletion"))
+                                    val error = (reAddResult as? Error)?.exception
+                                        ?: Exception("Failed to re-add magnet after deletion")
+                                    return handleDebridFailure("re-add magnet", sourceKey, error)
                                 }
                             } else {
                                 return Error(Exception("Desired episode not found in torrent after re-adding"))
@@ -158,7 +171,11 @@ class DebridPlaybackRepository @Inject constructor(
                             if (status == "waiting_files_selection") {
                                 val fileIds = selectFileIds(torrentInfo.files, episodeHint)
                                 if (fileIds.isNotEmpty()) {
-                                    realDebridRemote.selectFiles(torrentId, fileIds.joinToString(","))
+                                    realDebridRateLimiter.awaitPermit()
+                                    val selectResult = realDebridRemote.selectFiles(torrentId, fileIds.joinToString(","))
+                                    if (selectResult is Error) {
+                                        return handleDebridFailure("select files", sourceKey, selectResult.exception)
+                                    }
                                 }
                             }
                             delay(2000) // Wait 2s before retry
@@ -171,7 +188,7 @@ class DebridPlaybackRepository @Inject constructor(
                         }
                     }
                 }
-                is Error -> return Error(Exception("Failed to get torrent info: ${infoResult.exception.message}"))
+                is Error -> return handleDebridFailure("get torrent info", sourceKey, infoResult.exception)
                 else -> return Error(Exception("Unknown error during torrent info fetch"))
             }
             attempts++
@@ -186,12 +203,13 @@ class DebridPlaybackRepository @Inject constructor(
             ?: return Error(Exception("No links available in torrent for requested episode"))
 
         // Step 4: Unrestrict the link with retry
-        return unrestrictLinkWithRetry(videoLink, 3)
+        return unrestrictLinkWithRetry(videoLink, 3, sourceKey)
     }
 
-    private suspend fun unrestrictLinkWithRetry(link: String, maxRetries: Int): Result<String> {
+    private suspend fun unrestrictLinkWithRetry(link: String, maxRetries: Int, sourceKey: String?): Result<String> {
         var attempts = 0
         while (attempts < maxRetries) {
+            realDebridRateLimiter.awaitPermit()
             val unrestrictResult = realDebridRemote.unrestrictLink(link)
             when (unrestrictResult) {
                 is Success -> {
@@ -200,20 +218,21 @@ class DebridPlaybackRepository @Inject constructor(
                     return Success(streamUrl)
                 }
                 is Error -> {
-                    val msg = unrestrictResult.exception.message ?: "Unknown error"
-                    android.util.Log.e("DebridPlayback", "Unrestrict failed for link ${SensitiveLogRedactor.describeUrl(link)} (Attempt $attempts): $msg")
-                    
-                    if (msg.contains("451") || unrestrictResult.exception.toString().contains("451")) {
-                        return Error(Exception("Content Unavailable (Legal Restriction)"))
-                    }
-                    if (msg.contains("404")) {
-                         return Error(Exception("Link 404: ${SensitiveLogRedactor.describeUrl(link)}"))
+                    val failure = DebridFailureClassifier.classify(unrestrictResult.exception)
+                    android.util.Log.e(
+                        "DebridPlayback",
+                        "Unrestrict failed for link ${SensitiveLogRedactor.describeUrl(link)} (Attempt $attempts): ${failure.type}"
+                    )
+
+                    if (failure.terminal) {
+                        realDebridRateLimiter.recordFailure(sourceKey, failure)
+                        return Error(failure)
                     }
 
                     if (attempts < maxRetries - 1) {
                          delay(1000L * (attempts + 1))
                     } else {
-                        return Error(Exception("Unrestrict Failed: $msg"))
+                        return Error(failure)
                     }
                 }
                 else -> {
@@ -227,6 +246,17 @@ class DebridPlaybackRepository @Inject constructor(
             attempts++
         }
         return Error(Exception("Failed to unrestrict link after retries"))
+    }
+
+    private fun handleDebridFailure(
+        operation: String,
+        sourceKey: String?,
+        error: Exception
+    ): Error {
+        val failure = DebridFailureClassifier.classify(error)
+        android.util.Log.e("DebridPlayback", "Real-Debrid $operation failed: ${failure.type}")
+        realDebridRateLimiter.recordFailure(sourceKey, failure)
+        return Error(failure)
     }
 
 
@@ -402,6 +432,17 @@ class DebridPlaybackRepository @Inject constructor(
             message.contains("invalid token") ||
             message.contains("unauthorized") ||
             message.contains("forbidden")
+    }
+
+    private fun normalizeSourceKey(infoHash: String?, magnetLink: String?): String? {
+        val hash = infoHash?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
+            ?: magnetLink?.let { extractHashFromMagnet(it) }
+        return hash ?: magnetLink?.trim()?.lowercase()?.take(120)?.takeIf { it.isNotBlank() }
+    }
+
+    private fun extractHashFromMagnet(magnetLink: String): String? {
+        val match = Regex("btih:([a-fA-F0-9]{32,40})").find(magnetLink)
+        return match?.groupValues?.getOrNull(1)?.lowercase()
     }
 
     private fun isDirectStreamUrl(url: String): Boolean {

@@ -4,6 +4,7 @@ import android.util.Log
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonDefinition
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonStream
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonSourceType
+import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureClassifier
 import com.tvonnet.debridxtreamiptv.data.debrid.source.AddonRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.debrid.source.DynamicAddonFetcher
 import com.tvonnet.debridxtreamiptv.data.debrid.source.RealDebridRemoteDataSource
@@ -28,6 +29,7 @@ import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.coroutineContext
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Unified provider that combines IPTV and Debrid sources with intelligent routing
@@ -50,16 +52,22 @@ class UnifiedSourceProvider @Inject constructor(
     private val settingsPrefs: com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences,
     private val dynamicAddonFetcher: DynamicAddonFetcher,
     private val debridPrefs: DebridPreferences,
-    private val realDebridRemote: RealDebridRemoteDataSource
+    private val realDebridRemote: RealDebridRemoteDataSource,
+    private val realDebridRateLimiter: RealDebridRateLimiter
 ) {
 
     /** Limits how many scraper requests run at the same time. */
     private val scrapeSemaphore = Semaphore(10)
+    private val availabilityCache = ConcurrentHashMap<String, AvailabilityCacheEntry>()
 
     companion object {
         private const val TAG = "UnifiedSourceProvider"
         private const val TIMEOUT_MS = 30000L // 30 second timeout
         private const val BATCH_SIZE = 10 // Process sources in batches
+        private const val MAX_CACHE_VERIFICATION_HASHES = 10
+        private const val CACHED_STATUS_TTL_MS = 15L * 60L * 1000L
+        private const val NOT_CACHED_STATUS_TTL_MS = 3L * 60L * 1000L
+        private const val UNKNOWN_STATUS_TTL_MS = 60L * 1000L
     }
 
     /**
@@ -246,7 +254,9 @@ class UnifiedSourceProvider @Inject constructor(
             val dynamicStreams = dynamicDeferred.await()
 
             // Merge results
-            val addonStreams = deduplicateStreams(torrentioStreams + mediaFusionStreams + dynamicStreams)
+            val addonStreams = prioritizeAddonStreams(
+                deduplicateStreams(torrentioStreams + mediaFusionStreams + dynamicStreams)
+            )
 
             if (addonStreams.isNotEmpty()) {
                 // Enhanced logging with provider breakdown
@@ -408,7 +418,9 @@ class UnifiedSourceProvider @Inject constructor(
             val mediaFusionStreams = mediaFusionDeferred.await()
             val dynamicStreams = dynamicDeferred.await()
 
-            val addonStreams = deduplicateStreams(torrentioStreams + mediaFusionStreams + dynamicStreams)
+            val addonStreams = prioritizeAddonStreams(
+                deduplicateStreams(torrentioStreams + mediaFusionStreams + dynamicStreams)
+            )
 
             if (addonStreams.isNotEmpty()) {
                 Log.e(TAG, "✅ PureFire API returned ${addonStreams.size} sources for Episode")
@@ -892,7 +904,10 @@ class UnifiedSourceProvider @Inject constructor(
      * @return Flattened, deduplicated list of addon definitions.
      */
     private suspend fun loadAllDynamicDefinitions(): List<AddonDefinition> {
-        val urls = debridPrefs.getAddonRegistryUrls()
+        val urls = (debridPrefs.getAddonRegistryUrls() + DebridPreferences.DEFAULT_REGISTRY_URL + DebridPreferences.PUREFIRE_REGISTRY_URL)
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
         if (urls.isEmpty()) return emptyList()
 
         val allDefs = mutableListOf<AddonDefinition>()
@@ -957,6 +972,58 @@ class UnifiedSourceProvider @Inject constructor(
     }
 
     /**
+     * Puts user/recovery language streams early enough that limited RD cache
+     * checks do not spend the whole verification budget on English-only entries.
+     */
+    private fun prioritizeAddonStreams(streams: List<AddonStream>): List<AddonStream> {
+        if (streams.size <= 1) return streams
+
+        val preferred = settingsPrefs.getPreferredAudioLanguage()?.trim()?.lowercase()
+        val recoveryLanguages = listOfNotNull(preferred, "hi", "de").distinct()
+
+        return streams.sortedWith(
+            compareByDescending<AddonStream> { getAddonLanguageScore(it, recoveryLanguages) }
+                .thenByDescending { sourcePriority(it.source) }
+                .thenByDescending { qualityPriority(it.quality) }
+                .thenByDescending { it.seeders ?: -1 }
+                .thenByDescending { it.sizeBytes ?: -1L }
+        )
+    }
+
+    private fun getAddonLanguageScore(stream: AddonStream, preferredLanguages: List<String>): Int {
+        val languages = stream.languages?.map { it.lowercase() } ?: return 0
+        val preferredScore = preferredLanguages.firstOrNull { languages.contains(it) }?.let { lang ->
+            when (lang) {
+                preferredLanguages.firstOrNull() -> 4
+                "hi", "de" -> 3
+                else -> 2
+            }
+        } ?: 0
+        val multiScore = if (languages.contains("multi")) 2 else 0
+        return maxOf(preferredScore, multiScore)
+    }
+
+    private fun sourcePriority(source: AddonSourceType): Int {
+        return when (source) {
+            AddonSourceType.MEDIA_FUSION -> 4
+            AddonSourceType.DYNAMIC -> 3
+            AddonSourceType.TORRENTIO -> 2
+            AddonSourceType.ZILEAN -> 1
+            AddonSourceType.UNKNOWN -> 0
+        }
+    }
+
+    private fun qualityPriority(quality: String?): Int {
+        return when (quality?.lowercase()) {
+            "4k", "2160p" -> 4
+            "1080p" -> 3
+            "720p" -> 2
+            "480p" -> 1
+            else -> 0
+        }
+    }
+
+    /**
      * Scores a stream by how much useful metadata it carries.
      * Higher score = more informative stream entry.
      */
@@ -974,25 +1041,17 @@ class UnifiedSourceProvider @Inject constructor(
     ): Map<String, DebridCacheStatus> = coroutineScope {
         val hashes = streams.mapNotNull { stream ->
             normalizeInfoHash(stream.infoHash) ?: extractInfoHashFromMagnet(stream.magnet)
-        }.distinct()
+        }.distinct().take(MAX_CACHE_VERIFICATION_HASHES)
 
         if (hashes.isEmpty()) return@coroutineScope emptyMap()
 
-        val availabilitySemaphore = Semaphore(4)
+        val availabilitySemaphore = Semaphore(1)
         try {
-            withTimeout(8000L) {
+            withTimeout(20000L) {
                 hashes.map { hash ->
                     async {
                         availabilitySemaphore.withPermit {
-                            val status = when (val result = realDebridRemote.getInstantAvailability(hash)) {
-                                is AppResult.Success -> if (result.data) {
-                                    DebridCacheStatus.VERIFIED_CACHED
-                                } else {
-                                    DebridCacheStatus.NOT_CACHED
-                                }
-                                else -> DebridCacheStatus.UNKNOWN
-                            }
-                            hash to status
+                            hash to resolveCachedAvailability(hash)
                         }
                     }
                 }.awaitAll().toMap()
@@ -1003,6 +1062,54 @@ class UnifiedSourceProvider @Inject constructor(
             emptyMap()
         }
     }
+
+    private suspend fun resolveCachedAvailability(hash: String): DebridCacheStatus {
+        val now = System.currentTimeMillis()
+        availabilityCache[hash]?.let { entry ->
+            if (entry.expiresAtMillis > now) return entry.status
+            availabilityCache.remove(hash)
+        }
+
+        realDebridRateLimiter.globalCooldown()?.let {
+            val status = DebridCacheStatus.UNKNOWN
+            availabilityCache[hash] = AvailabilityCacheEntry(status, now + UNKNOWN_STATUS_TTL_MS)
+            return status
+        }
+
+        realDebridRateLimiter.sourceCooldown(hash)?.let {
+            val status = DebridCacheStatus.UNKNOWN
+            availabilityCache[hash] = AvailabilityCacheEntry(status, now + UNKNOWN_STATUS_TTL_MS)
+            return status
+        }
+
+        realDebridRateLimiter.awaitPermit()
+        val status = when (val result = realDebridRemote.getInstantAvailability(hash)) {
+            is AppResult.Success -> if (result.data) {
+                DebridCacheStatus.VERIFIED_CACHED
+            } else {
+                DebridCacheStatus.NOT_CACHED
+            }
+            is AppResult.Error -> {
+                val failure = DebridFailureClassifier.classify(result.exception)
+                realDebridRateLimiter.recordFailure(hash, failure)
+                DebridCacheStatus.UNKNOWN
+            }
+            else -> DebridCacheStatus.UNKNOWN
+        }
+
+        val ttl = when (status) {
+            DebridCacheStatus.VERIFIED_CACHED -> CACHED_STATUS_TTL_MS
+            DebridCacheStatus.NOT_CACHED -> NOT_CACHED_STATUS_TTL_MS
+            else -> UNKNOWN_STATUS_TTL_MS
+        }
+        availabilityCache[hash] = AvailabilityCacheEntry(status, now + ttl)
+        return status
+    }
+
+    private data class AvailabilityCacheEntry(
+        val status: DebridCacheStatus,
+        val expiresAtMillis: Long
+    )
 
     private fun resolveCacheStatus(
         addonStream: AddonStream,

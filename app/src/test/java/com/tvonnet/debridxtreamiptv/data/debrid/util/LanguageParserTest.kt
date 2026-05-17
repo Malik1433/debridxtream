@@ -71,4 +71,22 @@ class LanguageParserTest {
             assert(languages.contains(it)) { "Expected language $it not found in $languages" }
         }
     }
+
+    @Test
+    fun `detects German release aliases`() {
+        val languages = LanguageParser.extractLanguages("Movie.2024.1080p.WEB-DL.DEU.Deutsch")
+        assert(languages.contains("de")) { "Expected German language in $languages" }
+    }
+
+    @Test
+    fun `detects Hindi dubbed release aliases`() {
+        val languages = LanguageParser.extractLanguages("Movie.2024.1080p.WEB-DL.Hindi.Dubbed.Bollywood")
+        assert(languages.contains("hi")) { "Expected Hindi language in $languages" }
+    }
+
+    @Test
+    fun `detects dual audio as multi`() {
+        val languages = LanguageParser.extractLanguages("Movie.2024.1080p.WEB-DL.Dual-Audio")
+        assert(languages.contains("multi")) { "Expected multi language in $languages" }
+    }
 }

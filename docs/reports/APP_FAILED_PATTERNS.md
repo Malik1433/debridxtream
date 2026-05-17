@@ -55,3 +55,8 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Reason:** Causes program guide data to be shifted, showing incorrect listings.
 - **Fix:** Extract and subtract timezone offsets to normalize times back to UTC.
 
+## 12. Stale Add-on Config For Regional Debrid Sources
+- **Avoid:** Hardcoding old add-on config keys, tiny limits, English-biased provider lists, or source ordering that lets English-only results consume all Real-Debrid verification calls.
+- **Reason:** Regional sources can exist but never surface as playable candidates, making Hindi/German playback look broken even when add-ons can return candidates.
+- **Fix:** Verify current add-on config syntax, pass language priority where supported, include relevant built-in registries, and rank target-language/multi-audio sources before capped availability checks.
+

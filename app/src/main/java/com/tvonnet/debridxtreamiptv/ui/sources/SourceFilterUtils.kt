@@ -50,6 +50,7 @@ object SourceFilterUtils {
         } else {
             filtered = filtered.sortedWith(
                 compareByDescending<MovieSource> { getCachePriority(it) }
+                    .thenByDescending { getRecoveryLanguageScore(it) }
                     .thenByDescending { it.seeders ?: -1 }
             )
         }
@@ -79,6 +80,15 @@ object SourceFilterUtils {
         val languages = source.languages?.map { it.lowercase() } ?: return 0
         return when {
             languages.contains(preferred) -> 2
+            languages.contains("multi") -> 1
+            else -> 0
+        }
+    }
+
+    private fun getRecoveryLanguageScore(source: MovieSource): Int {
+        val languages = source.languages?.map { it.lowercase() } ?: return 0
+        return when {
+            languages.contains("hi") || languages.contains("de") -> 2
             languages.contains("multi") -> 1
             else -> 0
         }

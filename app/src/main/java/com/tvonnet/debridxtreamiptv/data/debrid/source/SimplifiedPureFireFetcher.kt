@@ -8,6 +8,7 @@ import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonStream
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonSourceType
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.debrid.util.LanguageParser
+import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,12 +26,18 @@ import javax.inject.Singleton
 @Singleton
 class SimplifiedPureFireFetcher @Inject constructor(
     private val gson: Gson,
-    private val debridAccountRepository: com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridAccountRepository
+    private val debridAccountRepository: com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridAccountRepository,
+    private val settingsPrefs: SettingsPreferences
 ) {
 
     companion object {
         private const val TAG = "SimplifiedPureFire"
         private const val TORRENTIO_BASE_URL = "https://torrentio.strem.fun"
+        private const val TORRENTIO_PROVIDERS =
+            "yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl," +
+                "horriblesubs,nyaasi,tokyotosho,anidex,nekobt,rutor,rutracker,torrent9," +
+                "ilcorsaronero,mejortorrent,wolfmax4k,cinecalidad,besttorrents"
+        private const val TORRENTIO_LIMIT = 50
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -58,11 +65,7 @@ class SimplifiedPureFireFetcher @Inject constructor(
 
             try {
                 val token = debridAccountRepository.getCachedAuthState()?.accessToken
-                val config = if (!token.isNullOrBlank()) {
-                    "providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex|sort=qualitysize|quality=4k,1080p,720p,480p|limit=20|realdebrid=$token"
-                } else {
-                    "providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex|sort=qualitysize|quality=4k,1080p,720p,480p|limit=20"
-                }
+                val config = buildTorrentioConfig(token)
 
                 Log.d(TAG, "Querying Torrentio (${if (!token.isNullOrBlank()) "Premium" else "Public"}) for id=${SensitiveLogRedactor.describeHash(identifier)}")
                 val url = "$TORRENTIO_BASE_URL/$config/stream/movie/$identifier.json"
@@ -136,11 +139,7 @@ class SimplifiedPureFireFetcher @Inject constructor(
 
             try {
                 val token = debridAccountRepository.getCachedAuthState()?.accessToken
-                val config = if (!token.isNullOrBlank()) {
-                    "providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex|sort=qualitysize|quality=4k,1080p,720p,480p|limit=20|realdebrid=$token"
-                } else {
-                    "providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex|sort=qualitysize|quality=4k,1080p,720p,480p|limit=20"
-                }
+                val config = buildTorrentioConfig(token)
 
                 Log.d(TAG, "Querying Torrentio (${if (!token.isNullOrBlank()) "Premium" else "Public"}) for id=${SensitiveLogRedactor.describeHash(identifier)}")
                 val url = "$TORRENTIO_BASE_URL/$config/stream/series/$identifier.json"
@@ -226,6 +225,48 @@ class SimplifiedPureFireFetcher @Inject constructor(
             Log.w(TAG, "Failed to parse Torrentio stream: ${e.message}")
             null
         }
+    }
+
+    private fun buildTorrentioConfig(token: String?): String {
+        val parts = mutableListOf(
+            "providers=$TORRENTIO_PROVIDERS",
+            "sort=quality",
+            "language=${buildTorrentioLanguagePriority()}",
+            "limit=$TORRENTIO_LIMIT"
+        )
+
+        if (!token.isNullOrBlank()) {
+            parts += "debridoptions=nodownloadlinks"
+            parts += "realdebrid=$token"
+        }
+
+        return parts.joinToString("|")
+    }
+
+    private fun buildTorrentioLanguagePriority(): String {
+        val preferred = settingsPrefs.getPreferredAudioLanguage()?.trim()?.lowercase()
+        val mappedPreferred = when (preferred) {
+            "hi", "hin", "hindi" -> "hindi"
+            "de", "deu", "ger", "german", "deutsch" -> "german"
+            "ta", "tam", "tamil" -> "tamil"
+            "te", "tel", "telugu" -> "telugu"
+            "ml", "mal", "malayalam" -> "malayalam"
+            "kn", "kan", "kannada" -> "kannada"
+            "pa", "pan", "punjabi" -> "punjabi"
+            "es", "spa", "spanish" -> "spanish"
+            "fr", "fra", "french" -> "french"
+            "it", "ita", "italian" -> "italian"
+            "ru", "rus", "russian" -> "russian"
+            "ja", "jpn", "japanese" -> "japanese"
+            "ko", "kor", "korean" -> "korean"
+            "zh", "chi", "chinese" -> "chinese"
+            "ar", "ara", "arabic" -> "arabic"
+            else -> null
+        }
+
+        return listOfNotNull(mappedPreferred, "hindi", "german")
+            .distinct()
+            .joinToString(",")
     }
 
     private fun extractSizeFromTitle(title: String): Long {
