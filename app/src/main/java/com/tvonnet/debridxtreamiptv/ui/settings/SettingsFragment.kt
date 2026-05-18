@@ -1,8 +1,5 @@
 package com.tvonnet.debridxtreamiptv.ui.settings
 
-import com.tvonnet.debridxtreamiptv.ui.settings.MediaFusionConfigActivity
-
-import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -224,19 +221,10 @@ class SettingsFragment : Fragment() {
                     }
                 ),
                 SettingItem.Action(
-                    key = "config_mediafusion",
-                    title = "Configure MediaFusion",
-                    description = "Setup catalogs via Companion App",
-                    onClick = {
-                        val intent = Intent(context, MediaFusionConfigActivity::class.java)
-                        startActivity(intent)
-                    }
-                ),
-                SettingItem.Action(
-                    key = "manage_scraper_sources",
-                    title = "Manage Scraper Sources",
-                    description = "${state.addonRegistryUrls.size} custom source(s) active  •  Add unlimited JSON registries",
-                    onClick = { showManageScraperSourcesDialog(state.addonRegistryUrls) }
+                    key = "manage_stremio_addons",
+                    title = "Manage Custom Stremio Addons",
+                    description = "${state.stremioAddonUrls.size} addon(s) active - paste full manifest.json URLs",
+                    onClick = { showManageStremioAddonsDialog(state.stremioAddonUrls) }
                 )
             )
             SettingCategory.ABOUT -> listOf(
@@ -418,6 +406,83 @@ class SettingsFragment : Fragment() {
             }
             .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
             .show()
+    }
+
+    private fun showManageStremioAddonsDialog(currentUrls: Set<String>) {
+        val urls = currentUrls.toMutableList()
+        val buildItems = {
+            if (urls.isEmpty()) {
+                arrayOf("No Stremio addons added yet.\nTap '+ Add Addon' below to add one.")
+            } else {
+                urls.mapIndexed { index, url ->
+                    val shortName = try {
+                        val uri = android.net.Uri.parse(url)
+                        val host = uri.host ?: "Stremio addon"
+                        val path = uri.pathSegments.takeLast(2).joinToString("/")
+                        "${index + 1}. $host/$path"
+                    } catch (_: Exception) {
+                        "${index + 1}. ${url.takeLast(60)}"
+                    }
+                    shortName
+                }.toTypedArray()
+            }
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Stremio Addons (${urls.size})")
+            .setItems(buildItems()) { _, which ->
+                if (urls.isNotEmpty() && which < urls.size) {
+                    val urlToRemove = urls[which]
+                    AlertDialog.Builder(requireContext())
+                        .setTitle("Remove Stremio Addon?")
+                        .setMessage(android.net.Uri.parse(urlToRemove).host ?: "Configured addon")
+                        .setPositiveButton("Remove") { d, _ ->
+                            viewModel.removeStremioAddonUrl(urlToRemove)
+                            Toast.makeText(context, "Stremio addon removed", Toast.LENGTH_SHORT).show()
+                            d.dismiss()
+                        }
+                        .setNegativeButton("Cancel") { d, _ -> d.dismiss() }
+                        .show()
+                }
+            }
+            .setPositiveButton("+ Add Addon") { dialog, _ ->
+                dialog.dismiss()
+                showAddStremioAddonInput()
+            }
+            .setNegativeButton("Close") { dialog, _ -> dialog.dismiss() }
+            .show()
+    }
+
+    private fun showAddStremioAddonInput() {
+        val input = android.widget.EditText(requireContext()).apply {
+            setHint("https://addon.example/config/manifest.json")
+            setTextColor(android.graphics.Color.WHITE)
+            setHintTextColor(android.graphics.Color.GRAY)
+            setPadding(40, 30, 40, 30)
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Add Stremio Addon")
+            .setMessage("Paste the full Stremio manifest.json URL:")
+            .setView(input)
+            .setPositiveButton("Add") { dialog, _ ->
+                val url = input.text.toString().trim()
+                if (isValidStremioManifestUrl(url)) {
+                    viewModel.addStremioAddonUrl(url)
+                    Toast.makeText(context, "Stremio addon added", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Invalid manifest URL", Toast.LENGTH_SHORT).show()
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
+            .show()
+    }
+
+    private fun isValidStremioManifestUrl(url: String): Boolean {
+        val lower = url.trim().lowercase()
+        return (lower.startsWith("https://") || lower.startsWith("stremio://")) &&
+            lower.contains("manifest.json")
     }
 
     private fun showEngineSelector(current: String) {

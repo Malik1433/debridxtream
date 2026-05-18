@@ -65,15 +65,6 @@ class DebridPlaybackRepository @Inject constructor(
             return Error(Exception("No infoHash or magnet provided"))
         }
 
-        val cachedAuth = debridAccountRepository.getCachedAuthState()
-        if (cachedAuth == null) {
-            return Error(com.tvonnet.debridxtreamiptv.data.debrid.model.NotAuthenticatedException("Real-Debrid configuration missing"))
-        }
-        val refreshResult = debridAccountRepository.refreshAuthStateIfNeeded()
-        if (refreshResult is Error && shouldForceReauth(refreshResult.exception)) {
-            return Error(com.tvonnet.debridxtreamiptv.data.debrid.model.NotAuthenticatedException("Real-Debrid session expired"))
-        }
-
         val episodeHint = if (seasonNumber != null && episodeNumber != null) {
             EpisodeHint(seasonNumber, episodeNumber, episodeTitle)
         } else {
@@ -93,6 +84,14 @@ class DebridPlaybackRepository @Inject constructor(
         }
         val sourceKey = normalizeSourceKey(infoHash, magnetLink)
 
+        if (magnetLink.startsWith("http", ignoreCase = true) &&
+            !magnetLink.endsWith(".torrent", ignoreCase = true) &&
+            isDirectStreamUrl(magnetLink)
+        ) {
+            android.util.Log.d("DebridPlayback", "Direct addon URL detected, skipping Real-Debrid auth: ${SensitiveLogRedactor.describeUrl(magnetLink)}")
+            return Success(magnetLink)
+        }
+
         realDebridRateLimiter.globalCooldown()?.let { cooldown ->
             android.util.Log.w("DebridPlayback", "Skipping RD playback during global cooldown")
             return Error(cooldown)
@@ -103,17 +102,19 @@ class DebridPlaybackRepository @Inject constructor(
             return Error(cooldown)
         }
 
-        // CHECK IF DIRECT LINK (HTTP/HTTPS) - Fix for TorrentIO/MediaFusion
+        val cachedAuth = debridAccountRepository.getCachedAuthState()
+        if (cachedAuth == null) {
+            return Error(com.tvonnet.debridxtreamiptv.data.debrid.model.NotAuthenticatedException("Real-Debrid configuration missing"))
+        }
+        val refreshResult = debridAccountRepository.refreshAuthStateIfNeeded()
+        if (refreshResult is Error && shouldForceReauth(refreshResult.exception)) {
+            return Error(com.tvonnet.debridxtreamiptv.data.debrid.model.NotAuthenticatedException("Real-Debrid session expired"))
+        }
+
         if (magnetLink.startsWith("http", ignoreCase = true) &&
             !magnetLink.endsWith(".torrent", ignoreCase = true)
         ) {
-            android.util.Log.d("DebridPlayback", "Detected direct URL, skipping torrent selection: ${SensitiveLogRedactor.describeUrl(magnetLink)}")
-            // Proceed directly to unrestrict (or return if already playable)
-            // We use the 'magnetLink' as 'videoLink' for unrestrict logic
-            if (isDirectStreamUrl(magnetLink)) {
-                 android.util.Log.d("DebridPlayback", "URL appears to be a direct stream, returning as is.")
-                 return Success(magnetLink)
-            }
+            android.util.Log.d("DebridPlayback", "HTTP link requires Real-Debrid unrestrict: ${SensitiveLogRedactor.describeUrl(magnetLink)}")
             return unrestrictLinkWithRetry(magnetLink, 3, sourceKey)
         }
 
@@ -449,6 +450,11 @@ class DebridPlaybackRepository @Inject constructor(
         val lowered = url.lowercase()
         if (!lowered.startsWith("http")) return false
         if (lowered.contains("mediafusion.elfhosted.com")) return true
+        if (lowered.contains("aiostreams.elfhosted.com")) return true
+        if (lowered.contains("/stremio/")) return true
+        if (lowered.contains("/stream/")) return true
+        if (lowered.contains("/play/")) return true
+        if (lowered.contains("/playback/")) return true
 
         val clean = lowered.substringBefore('?').substringBefore('#')
         return clean.endsWith(".mp4") ||

@@ -9,6 +9,7 @@ import com.tvonnet.debridxtreamiptv.data.debrid.source.AddonRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.debrid.source.DynamicAddonFetcher
 import com.tvonnet.debridxtreamiptv.data.debrid.source.RealDebridRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.debrid.source.SimplifiedPureFireFetcher
+import com.tvonnet.debridxtreamiptv.data.debrid.source.StremioAddonFetcher
 import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
@@ -51,6 +52,7 @@ class UnifiedSourceProvider @Inject constructor(
     private val mediaFusionFetcher: com.tvonnet.debridxtreamiptv.data.debrid.source.MediaFusionFetcher,
     private val settingsPrefs: com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences,
     private val dynamicAddonFetcher: DynamicAddonFetcher,
+    private val stremioAddonFetcher: StremioAddonFetcher,
     private val debridPrefs: DebridPreferences,
     private val realDebridRemote: RealDebridRemoteDataSource,
     private val realDebridRateLimiter: RealDebridRateLimiter
@@ -219,6 +221,18 @@ class UnifiedSourceProvider @Inject constructor(
                 Log.w(TAG, "⚠️ No IMDB ID provided for '$title', will proceed with title-based search")
             }
 
+            val stremioUrls = debridPrefs.getStremioAddonUrls()
+            if (stremioUrls.isNotEmpty()) {
+                Log.d(TAG, "Using ${stremioUrls.size} configured Stremio addon(s) as clean source path")
+                val addonStreams = prioritizeAddonStreams(
+                    deduplicateStreams(fetchStremioMovieSources(imdbId))
+                )
+                if (addonStreams.isEmpty()) return@coroutineScope emptyList()
+
+                val cacheStatusByHash = verifyRealDebridCacheStatuses(addonStreams)
+                return@coroutineScope convertAddonStreamsToMovieSources(addonStreams, title, cacheStatusByHash)
+            }
+
             // Step 2: Fetch real sources from Enhanced Simplified PureFire (REAL TORRENTIO API) AND MediaFusion
             Log.d(TAG, "🚀 Step 2: Fetching real Torrentio & MediaFusion sources (IMDB: $imdbId, Title: '$title')")
             val contentType = ContentType.MOVIE
@@ -270,6 +284,7 @@ class UnifiedSourceProvider @Inject constructor(
                     val providerName = when (source) {
                         AddonSourceType.TORRENTIO -> "Torrentio"
                         AddonSourceType.MEDIA_FUSION -> "MediaFusion"
+                        AddonSourceType.STREMIO -> "Stremio"
                         AddonSourceType.ZILEAN -> "Zilean"
                         AddonSourceType.DYNAMIC -> "Dynamic"
                         AddonSourceType.UNKNOWN -> "PureFire"
@@ -387,6 +402,18 @@ class UnifiedSourceProvider @Inject constructor(
                  return@coroutineScope emptyList()
             }
 
+            val stremioUrls = debridPrefs.getStremioAddonUrls()
+            if (stremioUrls.isNotEmpty()) {
+                Log.e(TAG, "Using ${stremioUrls.size} configured Stremio addon(s) as clean episode source path")
+                val addonStreams = prioritizeAddonStreams(
+                    deduplicateStreams(fetchStremioEpisodeSources(imdbId, seasonNumber, episodeNumber))
+                )
+                if (addonStreams.isEmpty()) return@coroutineScope emptyList()
+
+                val cacheStatusByHash = verifyRealDebridCacheStatuses(addonStreams)
+                return@coroutineScope convertAddonStreamsToMovieSources(addonStreams, title, cacheStatusByHash)
+            }
+
             // Fetch real sources from Enhanced Simplified PureFire AND MediaFusion
             Log.e(TAG, "🚀 Fetching episode sources from Torrentio & MediaFusion for IMDb ID: $imdbId")
 
@@ -430,6 +457,7 @@ class UnifiedSourceProvider @Inject constructor(
                     val providerName = when (source) {
                         AddonSourceType.TORRENTIO -> "Torrentio"
                         AddonSourceType.MEDIA_FUSION -> "MediaFusion"
+                        AddonSourceType.STREMIO -> "Stremio"
                         AddonSourceType.ZILEAN -> "Zilean"
                         AddonSourceType.DYNAMIC -> "Dynamic"
                         AddonSourceType.UNKNOWN -> "PureFire"
@@ -666,6 +694,7 @@ class UnifiedSourceProvider @Inject constructor(
             val directUrl = addonStream.url?.takeIf { addonStream.source != AddonSourceType.MEDIA_FUSION && isDirectStreamUrl(it) }
             val directSource = when {
                 mediaFusionUrl != null -> mediaFusionUrl
+                directUrl != null -> directUrl
                 validMagnet != null -> validMagnet
                 validInfoHash != null -> "magnet:?xt=urn:btih:$validInfoHash"
                 !addonStream.url.isNullOrBlank() -> addonStream.url
@@ -814,6 +843,7 @@ class UnifiedSourceProvider @Inject constructor(
     private fun getSourceLabel(source: AddonSourceType): String {
         return when (source) {
             AddonSourceType.MEDIA_FUSION -> "MediaFusion"
+            AddonSourceType.STREMIO -> "Stremio"
             AddonSourceType.ZILEAN -> "Zilean"
             AddonSourceType.TORRENTIO -> "TorrentIO"
             AddonSourceType.DYNAMIC -> "Dynamic"
@@ -903,6 +933,48 @@ class UnifiedSourceProvider @Inject constructor(
      *
      * @return Flattened, deduplicated list of addon definitions.
      */
+    private suspend fun fetchStremioMovieSources(imdbId: String?): List<AddonStream> = coroutineScope {
+        if (imdbId.isNullOrBlank()) return@coroutineScope emptyList()
+        val urls = debridPrefs.getStremioAddonUrls().toList()
+        if (urls.isEmpty()) return@coroutineScope emptyList()
+
+        urls.map { manifestUrl ->
+            async {
+                scrapeSemaphore.withPermit {
+                    try {
+                        stremioAddonFetcher.fetchMovieSources(manifestUrl, imdbId)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Stremio movie addon failed: ${SensitiveLogRedactor.describeUrl(manifestUrl)} ${e.message}")
+                        emptyList()
+                    }
+                }
+            }
+        }.awaitAll().flatten()
+    }
+
+    private suspend fun fetchStremioEpisodeSources(
+        imdbId: String?,
+        season: Int,
+        episode: Int
+    ): List<AddonStream> = coroutineScope {
+        if (imdbId.isNullOrBlank()) return@coroutineScope emptyList()
+        val urls = debridPrefs.getStremioAddonUrls().toList()
+        if (urls.isEmpty()) return@coroutineScope emptyList()
+
+        urls.map { manifestUrl ->
+            async {
+                scrapeSemaphore.withPermit {
+                    try {
+                        stremioAddonFetcher.fetchEpisodeSources(manifestUrl, imdbId, season, episode)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Stremio episode addon failed: ${SensitiveLogRedactor.describeUrl(manifestUrl)} ${e.message}")
+                        emptyList()
+                    }
+                }
+            }
+        }.awaitAll().flatten()
+    }
+
     private suspend fun loadAllDynamicDefinitions(): List<AddonDefinition> {
         val urls = (debridPrefs.getAddonRegistryUrls() + DebridPreferences.DEFAULT_REGISTRY_URL + DebridPreferences.PUREFIRE_REGISTRY_URL)
             .map { it.trim() }
@@ -1006,6 +1078,7 @@ class UnifiedSourceProvider @Inject constructor(
     private fun sourcePriority(source: AddonSourceType): Int {
         return when (source) {
             AddonSourceType.MEDIA_FUSION -> 4
+            AddonSourceType.STREMIO -> 4
             AddonSourceType.DYNAMIC -> 3
             AddonSourceType.TORRENTIO -> 2
             AddonSourceType.ZILEAN -> 1
@@ -1150,6 +1223,11 @@ class UnifiedSourceProvider @Inject constructor(
         val lowered = url.lowercase()
         if (!lowered.startsWith("http")) return false
         if (lowered.contains("mediafusion.elfhosted.com")) return true
+        if (lowered.contains("aiostreams.elfhosted.com")) return true
+        if (lowered.contains("/stremio/")) return true
+        if (lowered.contains("/stream/")) return true
+        if (lowered.contains("/play/")) return true
+        if (lowered.contains("/playback/")) return true
 
         val clean = lowered.substringBefore('?').substringBefore('#')
         return clean.endsWith(".mp4") ||

@@ -24,6 +24,7 @@ class DebridPreferences @Inject constructor(
     private val gson = Gson()
     private val authStateType = object : TypeToken<RealDebridAuthState>() {}.type
     private val rowConfigListType = object : TypeToken<List<DebridRowConfig>>() {}.type
+    private val stringListType = object : TypeToken<List<String>>() {}.type
 
     private val sharedPreferences by lazy {
         val masterKey = MasterKey.Builder(context)
@@ -138,6 +139,7 @@ class DebridPreferences @Inject constructor(
         private const val KEY_UI_SCALE_ANIMATION = "pref_ui_scale_animation"
         private const val KEY_ADDON_REGISTRY_URL = "pref_addon_registry_url"
         private const val KEY_ADDON_REGISTRY_URLS = "pref_addon_registry_urls"
+        private const val KEY_STREMIO_ADDON_URLS = "pref_stremio_addon_urls"
         
         const val DEFAULT_REGISTRY_URL = "https://raw.githubusercontent.com/DebridXtream/registry/main/addons.json"
         const val PUREFIRE_REGISTRY_URL = "https://raw.githubusercontent.com/PureFireHindi/registry/main/addons.json"
@@ -195,6 +197,43 @@ class DebridPreferences @Inject constructor(
         sharedPreferences.edit()
             .putString(KEY_ADDON_REGISTRY_URLS, gson.toJson(current.toList()))
             .apply()
+    }
+
+    fun getStremioAddonUrls(): Set<String> {
+        val json = sharedPreferences.getString(KEY_STREMIO_ADDON_URLS, null)
+            ?: return emptySet()
+        return runCatching {
+            gson.fromJson<List<String>>(json, stringListType)
+                .map { normalizeStremioAddonUrl(it) }
+                .filter { it.isNotBlank() }
+                .toSet()
+        }.getOrDefault(emptySet())
+    }
+
+    fun addStremioAddonUrl(url: String) {
+        val normalized = normalizeStremioAddonUrl(url)
+        if (normalized.isBlank()) return
+
+        val current = getStremioAddonUrls().toMutableSet()
+        current.add(normalized)
+        sharedPreferences.edit()
+            .putString(KEY_STREMIO_ADDON_URLS, gson.toJson(current.toList()))
+            .apply()
+    }
+
+    fun removeStremioAddonUrl(url: String) {
+        val normalized = normalizeStremioAddonUrl(url)
+        val current = getStremioAddonUrls().toMutableSet()
+        current.remove(normalized)
+        sharedPreferences.edit()
+            .putString(KEY_STREMIO_ADDON_URLS, gson.toJson(current.toList()))
+            .apply()
+    }
+
+    private fun normalizeStremioAddonUrl(url: String): String {
+        return url.trim()
+            .replaceFirst("stremio://", "https://", ignoreCase = true)
+            .trimEnd('/')
     }
 
     fun getMediaFusionUrl(): String? {

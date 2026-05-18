@@ -294,3 +294,40 @@ User-facing debug/toast cleanup only.
 
 ## Final Status
 PASS  visible debug/OEM-style player toasts and accidental debug overlay toggle removed.
+
+# TASK 010-STREMIO-DIRECT-DEBRID-LABEL-FIX  Player Source Identity Guard
+
+## Scope
+Player launch/source handling for direct Stremio/AIOStreams Debrid playback only. No global DPAD behavior, Live TV behavior, player layout, or duplicate player activity was changed.
+
+## Fix Applied
+- Added `EXTRA_DIRECT_DEBRID_PLAYBACK`.
+- Kept `PlaybackSource.DEBRID` for direct Debrid playback so controls/history show Debrid instead of IPTV.
+- Added `canUseDebridResolver()` and used it to gate Debrid re-resolution, Debrid series playlist loading, retry re-resolution, timeout re-resolution, and Debrid next-episode resolving.
+- Prevented direct Debrid series from falling through to IPTV playlist loading.
+
+## Verification
+- `:app:compileDebugKotlin --offline --no-daemon --console plain --max-workers=1` with in-process Kotlin compiler: PASS.
+- `:app:assembleDebug --offline --no-daemon --console plain --max-workers=1` with in-process Kotlin compiler: PASS.
+- Install and launch smoke: PASS on `192.168.0.84:5555` and `192.168.0.21:5555`.
+- Crash scan: PASS for no targeted fatal crash lines after launch smoke.
+
+## Final Status
+PARTIAL  code/build/install completed; manual affected-source playback retest remains.
+
+# TASK 011-READINESS-STREMIO-PLAYBACK-STABILITY-DEEP-AUDIT
+
+## Scope
+Audit-only review of player stability after user reported direct Debrid series `DPAD_DOWN` shows unavailable.
+
+## Finding
+Direct Debrid playback now correctly skips app-side Real-Debrid resolver/API paths, but the player has no separate playlist loader for direct Stremio/Debrid episodes. `showEpisodeBrowser()` therefore reaches the direct-Debrid guard and displays `Episodes unavailable`.
+
+## Plan
+Add a direct-Debrid episode-browser path that loads TMDB season episodes and resolves the selected episode through Stremio/addon sources, while preserving the existing shared `EpisodeBrowserController` and all Live TV/IPTV DPAD guards.
+
+## Report
+See `docs/reports/STREMIO_PLAYBACK_STABILITY_DEEP_AUDIT.md`.
+
+## Final Status
+PASS  Player audit complete; code fix remains next task.

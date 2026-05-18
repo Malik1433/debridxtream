@@ -20,6 +20,7 @@ import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.Result
+import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureType
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.model.XtreamEpisodeInfo
 import com.tvonnet.debridxtreamiptv.data.model.XtreamSeasonInfo
@@ -778,6 +779,31 @@ class SeriesDetailActivity : AppCompatActivity() {
         val episodeNumber = episode.episodeNumber
         val tmdbId = seriesId
         val seriesTitle = seriesName
+        val isDirectHttp = magnet?.startsWith("http", ignoreCase = true) == true &&
+            magnet.endsWith(".torrent", ignoreCase = true).not()
+
+        if (isDirectHttp && !magnet.isNullOrBlank()) {
+            val intent = PlayerActivity.createIntent(
+                context = this@SeriesDetailActivity,
+                streamUrl = magnet,
+                title = "${seriesName} - S${selectedSeasonKey}E${episode.episodeNumber}",
+                contentId = "$seriesId:$seasonNumber:$episodeNumber",
+                contentType = ContentType.EPISODE,
+                playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
+                posterUrl = episode.thumbnailUrl,
+                backdropUrl = seriesBackdrop,
+                headers = source.headers,
+                tmdbId = tmdbId,
+                seriesTitle = seriesTitle,
+                episodeTitle = episode.title,
+                seasonNumber = seasonNumber,
+                episodeNumber = episodeNumber,
+                directDebridPlayback = true
+            )
+            intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
+            playerLauncher.launch(intent)
+            return
+        }
 
         lifecycleScope.launch {
             showLoading(true)
@@ -822,9 +848,29 @@ class SeriesDetailActivity : AppCompatActivity() {
                     Toast.makeText(this@SeriesDetailActivity, "Refresh required", Toast.LENGTH_SHORT).show()
                 }
                 is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Error -> {
-                    Toast.makeText(this@SeriesDetailActivity, result.message, Toast.LENGTH_LONG).show()
+                    markDebridEpisodeSourceCached(episode.id, infoHash, false)
+                    if (shouldTryNextDebridSource(result.failureType) && !infoHash.isNullOrBlank()) {
+                        notifyDebridFailure(result.message, autoPlayNext = true)
+                        autoPlayNextDebridEpisodeSource(episode, infoHash)
+                    } else {
+                        Toast.makeText(this@SeriesDetailActivity, result.message, Toast.LENGTH_LONG).show()
+                    }
                 }
             }
+        }
+    }
+
+    private fun shouldTryNextDebridSource(failureType: DebridFailureType?): Boolean {
+        return when (failureType) {
+            DebridFailureType.COPYRIGHT_BLOCKED,
+            DebridFailureType.LEGAL_RESTRICTION,
+            DebridFailureType.NOT_CACHED,
+            DebridFailureType.UNAVAILABLE -> true
+            DebridFailureType.RATE_LIMITED,
+            DebridFailureType.AUTH_REQUIRED,
+            DebridFailureType.NETWORK,
+            DebridFailureType.UNKNOWN,
+            null -> false
         }
     }
 

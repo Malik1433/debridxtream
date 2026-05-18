@@ -285,3 +285,191 @@ Manual Real-Debrid playback QA is still required before functional PASS: use the
 
 ## Final Status
 PARTIAL  Source discovery recovery is integrated, built, installed, and smoke-tested. Real title playback still needs manual QA under the user's current Real-Debrid account/IP state.
+
+---
+
+# TASK 006-DEBRID-CUSTOM-SCRAPER-BLOCKED-SOURCE-FOLLOW-UP
+
+## Scope
+Follow-up for Manage Scraper Sources custom JSON registries where selecting a returned source can produce `This source is blocked by Real-Debrid`. This is a Real-Debrid terminal-source failure, not a bypassable client error.
+
+## Findings
+- Custom scraper registries can return hashes/magnets that Real-Debrid blocks only during add-magnet, torrent-info, or unrestrict.
+- Prior behavior showed the blocked-source message and reopened the picker, but did not automatically skip to the next candidate.
+- Auto-next must not run for `RATE_LIMITED` or `AUTH_REQUIRED` because that can worsen throttling or hide session problems.
+
+## Changes
+- Movie Debrid playback now marks terminal blocked/unavailable/not-cached selections as `UNCACHED` for the current source list and automatically tries the next source.
+- Series Debrid playback now applies the same next-source behavior for terminal source failures.
+- Auto-next is limited to `COPYRIGHT_BLOCKED`, `LEGAL_RESTRICTION`, `NOT_CACHED`, and `UNAVAILABLE`.
+- `RATE_LIMITED`, `AUTH_REQUIRED`, `NETWORK`, and `UNKNOWN` still stop with the error message instead of cascading through more sources.
+
+## Validation
+- `:app:compileDebugKotlin --no-daemon --console plain --max-workers=1`: PASS, exit code `0`.
+- `:app:assembleDebug --no-daemon --console plain --max-workers=1`: PASS, exit code `0`.
+- Install QA: PASS on `192.168.0.21:5555` and `192.168.0.84:5555`.
+- Launch smoke QA: PASS on both devices via `com.debridxtream.tv/com.tvonnet.debridxtreamiptv.ui.MainActivity`.
+- Crash log scan: PASS for no `FATAL EXCEPTION`, no `Unable to start activity`, and no `Process com.debridxtream.tv has died` after launch smoke.
+
+## Remaining QA Gap
+Manual custom-registry QA is still required: add the same JSON URL, open the same title, click the blocked source, and confirm the app marks/skips it and tries the next source instead of stopping on the blocked Real-Debrid message. If every source from that registry is blocked, playback still cannot succeed.
+
+## Final Status
+PARTIAL  Blocked custom-scraper sources now auto-skip to the next candidate where safe. Real playback depends on whether the registry has at least one unblocked Real-Debrid-compatible source.
+
+---
+
+# TASK 007-STREMIO-ADDON-CLEAN-SLATE-PLAN
+
+## Scope
+Planning-only review of the proposed clean-slate Stremio addon URL integration. No Android app source, UI, Player, Home, Series, Live, VOD, or Debrid implementation files were changed.
+
+## Findings
+- The clean-slate direction is correct because custom Stremio addon URLs should eventually replace mixed legacy hardcoded scrapers and registry sources.
+- A delete-first migration is unsafe because the current dynamic addon path is registry-definition based and should not be assumed to consume raw Stremio `manifest.json` URLs without a native manifest/stream parser.
+- Real-Debrid should remain the only debrid provider for this phase; AllDebrid/Premiumize work stays out of scope.
+- The migration should preserve current typed Debrid failures, safe auto-skip behavior, rate-limit discipline, and Hindi/German/multi-audio ranking.
+
+## Artifact
+- Created `docs/reports/STREMIO_ADDON_CLEAN_SLATE_PLAN.md`.
+
+## Recommendation
+Use a staged clean-slate cutover: add and validate the native Stremio addon URL pipeline first, then remove `SimplifiedPureFireFetcher`, `MediaFusionFetcher`, legacy registry loading, and old scraper-source UI after build and device QA prove the new path.
+
+## Validation
+- Documentation-only task. No Gradle build or device install was required.
+
+## Final Status
+PASS  Plan file created and Debrid report updated. No app code was changed.
+
+---
+
+# TASK 008-STREMIO-ADDON-URL-PHASE1
+
+## Scope
+Implemented the first staged clean-slate Stremio addon URL path for Debrid sources while keeping Real-Debrid as the only debrid provider. This phase adds native `manifest.json` handling and Debrid settings storage/UI. It does not remove the legacy classes yet, does not add AllDebrid/Premiumize, and does not change Player DPAD, Home, IPTV/EPG, Live, or VOD UI outside the existing Debrid source entry.
+
+## Changes
+- Added typed Stremio manifest and stream response models.
+- Added `StremioAddonFetcher` for native Stremio `manifest.json` URLs.
+- Preserved configured manifest path and query-token suffixes when deriving stream endpoints.
+- Added secure `stremioAddonUrls` storage separate from old JSON registry URLs.
+- Replaced the Debrid settings source row with `Manage Custom Stremio Addons`.
+- Wired configured Stremio addon URLs into `UnifiedSourceProvider` as the clean primary source path when at least one Stremio manifest URL is configured.
+- Preserved existing Real-Debrid cache verification, rate-limit discipline, typed failure handling, and terminal-source auto-skip behavior.
+- Kept legacy Torrentio/MediaFusion/dynamic registry classes as fallback when no Stremio manifest URL is configured.
+- Expanded direct playback classification for addon playback paths such as AIOStreams, `/stream/`, `/play/`, and `/playback/`.
+
+## Swarm Review
+- Explorer audit confirmed raw Stremio manifests must not be forced through the old `DynamicAddonFetcher` registry model.
+- Explorer flagged enum exhaustiveness, query-token URL handling, direct playback policy, and `fileIdx` handling as risks.
+- Fixed enum exhaustiveness and query-token stream URL derivation in this phase.
+- Remaining known limitation: `fileIdx` is preserved in source extras/label but not yet passed into Real-Debrid file selection.
+
+## Validation
+- `:app:compileDebugKotlin --offline --no-daemon --console plain --max-workers=1` initially timed out under the Kotlin daemon.
+- `:app:compileDebugKotlin --offline --no-daemon --console plain --max-workers=1` with `-Dkotlin.compiler.execution.strategy=in-process`: PASS, `BUILD SUCCESSFUL`.
+- `:app:testDebugUnitTest --tests "com.tvonnet.debridxtreamiptv.data.debrid.source.StremioAddonFetcherTest" --offline --no-daemon --console plain --max-workers=1` with in-process Kotlin compiler: PASS, `BUILD SUCCESSFUL`.
+- `clean :app:assembleDebug --offline --no-daemon --console plain --max-workers=1` timed out after 15 minutes and did not leave an APK because `clean` had removed outputs.
+- `:app:assembleDebug --offline --no-daemon --console plain --max-workers=1` with in-process Kotlin compiler: PASS, `BUILD SUCCESSFUL`.
+- APK generated: `app/build/outputs/apk/debug/app-debug.apk`, size `31,405,179` bytes, timestamp `2026-05-18 03:57:53`.
+- Install QA: PASS on `192.168.0.84:5555` and `192.168.0.21:5555`.
+- Launch smoke QA: PASS on both devices via `com.debridxtream.tv/com.tvonnet.debridxtreamiptv.ui.MainActivity`.
+- Crash log scan: PASS for no matching `FATAL EXCEPTION`, `AndroidRuntime`, or `Process: com.debridxtream.tv` lines after launch smoke.
+
+## Remaining QA Gap
+Manual functional QA is still required before user-facing PASS: open Settings -> Debrid, add a real configured Stremio `manifest.json` URL, fetch movie and series sources, verify Hindi/German/multi candidates, and test playback for both direct addon URL streams and Real-Debrid infoHash/magnet streams. If every returned source is blocked by Real-Debrid or rate-limited, app behavior should stop/skip according to the existing typed failure rules but cannot bypass provider-side blocks.
+
+## Final Status
+PARTIAL  Native Stremio addon URL path is integrated, compiled, tested, assembled, installed, and launch-smoke tested. Real addon playback QA remains required.
+
+---
+
+# TASK 009-STREMIO-DIRECT-PLAYBACK-RD-CONFIG-FIX
+
+## Scope
+Follow-up from manual QA after Stremio links started appearing but playback showed a Real-Debrid configuration missing message. This is a Debrid/Stremio playback routing fix only. No provider expansion, Player DPAD change, Home change, IPTV/EPG change, Live change, or VOD UI redesign was made.
+
+## Findings
+- Stremio/AIOStreams direct HTTP playback URLs were being treated as Debrid playback metadata in some paths.
+- Movie direct HTTP sources from the Debrid category still launched `PlayerActivity` with `PlaybackSource.DEBRID`, so Player resume/re-resolution logic could attempt app-side Real-Debrid resolution and show the app's Real-Debrid configuration missing message.
+- Series direct HTTP sources always went through `PlaybackResolver` with `source = "debrid"`, so direct addon URLs could hit the app Real-Debrid auth check before playback.
+- `DebridPlaybackRepository` also checked app Real-Debrid auth before direct addon URL bypass in resolver fallback paths.
+
+## Changes
+- Movie direct HTTP addon sources now launch as direct playback instead of Debrid re-resolution metadata.
+- Series direct HTTP addon sources now launch `PlayerActivity` directly with source headers and without Real-Debrid resolver metadata.
+- `DebridPlaybackRepository` now returns recognized direct addon playback URLs before app Real-Debrid auth/cooldown checks.
+- Direct playback recognition now includes AIOStreams and common addon paths: `/stremio/`, `/stream/`, `/play/`, and `/playback/`.
+- Magnet/infoHash and non-direct HTTP unrestrict paths still require app Real-Debrid auth and existing rate-limit controls.
+
+## Validation
+- `:app:compileDebugKotlin --offline --no-daemon --console plain --max-workers=1` timed out under the local Gradle/Kotlin daemon behavior.
+- `:app:assembleDebug --offline --no-daemon --console plain --max-workers=1` with in-process Kotlin compiler: PASS, `BUILD SUCCESSFUL`.
+- Install QA: PASS on `192.168.0.84:5555` and `192.168.0.21:5555`.
+- Launch smoke QA: PASS on both devices via `com.debridxtream.tv/com.tvonnet.debridxtreamiptv.ui.MainActivity`.
+- Crash log scan: PASS for no matching `FATAL EXCEPTION`, `AndroidRuntime`, or `Process: com.debridxtream.tv` lines after launch smoke.
+
+## Remaining QA Gap
+Manual retest required: click the same Stremio/AIOStreams source that showed Real-Debrid configuration missing and confirm the direct URL starts playback instead of opening the app Real-Debrid auth/config error. If the addon server itself returns a Real-Debrid config missing video/error page, then the configured manifest URL is missing provider credentials and must be regenerated in that addon.
+
+## Final Status
+PARTIAL  Routing fix is built, installed, and launch-smoke tested. User-facing playback PASS depends on retesting the same Stremio source.
+
+---
+
+# TASK 010-STREMIO-DIRECT-DEBRID-LABEL-FIX
+
+## Scope
+Follow-up from manual QA after direct Stremio/AIOStreams movie and series playback started working, but player controls showed `IPTV` instead of Debrid and an `API exception please try again` message could still appear. This change is limited to direct Debrid/Stremio playback routing and player source identity. No Home, Live, VOD layout, global DPAD behavior, or provider expansion was added.
+
+## Findings
+- The prior direct-play fix avoided app-side Real-Debrid auth by launching direct addon URLs without Debrid playback source identity.
+- `PlayerActivity` defaults a missing playback source to IPTV, so controls/history showed IPTV even when the stream came from Debrid/Stremio.
+- Direct Debrid series could also enter IPTV series playlist loading because it no longer had a Debrid source guard, which can explain the `API exception please try again` symptom.
+
+## Changes
+- Added `EXTRA_DIRECT_DEBRID_PLAYBACK` to `PlayerActivity.createIntent`.
+- Direct Stremio/AIOStreams movie and series launches now pass `PlaybackSource.DEBRID` for identity and `directDebridPlayback = true` for resolver/API bypass.
+- Player UI labels, Continue Watching source, and return-to-sources behavior continue to treat these streams as Debrid.
+- Debrid resolver, Debrid playlist loading, retry re-resolution, timeout re-resolution, and Debrid next-episode resolution are gated behind `PlaybackSource.DEBRID && !directDebridPlayback`.
+- Direct Debrid series no longer falls through to IPTV playlist loading.
+
+## Validation
+- `:app:compileDebugKotlin --offline --no-daemon --console plain --max-workers=1` with in-process Kotlin compiler: PASS.
+- `:app:assembleDebug --offline --no-daemon --console plain --max-workers=1` with in-process Kotlin compiler: PASS.
+- Install QA: PASS on `192.168.0.84:5555` and `192.168.0.21:5555`.
+- Launch smoke QA: PASS on both devices via `com.debridxtream.tv/com.tvonnet.debridxtreamiptv.ui.MainActivity`.
+- Crash log scan: PASS for no matching `FATAL EXCEPTION`, `AndroidRuntime`, or `Process: com.debridxtream.tv` lines after launch smoke.
+
+## Remaining QA Gap
+Manual playback retest is required on the same movie and series direct Stremio/AIOStreams sources: confirm the player controls show Debrid, playback still starts, and the IPTV/API exception path no longer appears.
+
+## Final Status
+PARTIAL  Build, install, and launch smoke passed. Full user-facing PASS requires manual playback retest on the affected direct Debrid sources.
+
+---
+
+# TASK 011-READINESS-STREMIO-PLAYBACK-STABILITY-DEEP-AUDIT
+
+## Scope
+Audit-only review after direct Stremio/Debrid playback became usable but manual QA found `DPAD_DOWN` episode browser unavailable and Stremio source counts lower than expected.
+
+## Report
+Full audit and phased plan written to:
+- `docs/reports/STREMIO_PLAYBACK_STABILITY_DEEP_AUDIT.md`
+
+## Key Findings
+- `DPAD_DOWN -> Episodes unavailable` is caused by direct Debrid playback intentionally skipping both Debrid resolver playlist loading and IPTV playlist loading. A separate direct-Debrid episode-list/source-switch path is needed.
+- Stremio source count is lower because configured Stremio URLs currently switch the provider into Stremio-only mode, skipping built-in Torrentio, MediaFusion, and dynamic registry supplemental fetchers.
+- IMDb dependency, manifest capability ambiguity, same-hash deduplication, and capped Real-Debrid availability checks also reduce visible source count.
+- Playback stability is improved, but direct Stremio episode switching, addon health diagnostics, `fileIdx`, subtitles, and full manual QA remain open.
+
+## Recommendation
+Start with `TASK 011-STREMIO-DIRECT-DEBRID-EPISODE-BROWSER`, then implement hybrid source aggregation and addon diagnostics in separate phases.
+
+## Validation
+Documentation-only audit. No Gradle build or device install was required.
+
+## Final Status
+PASS  Audit/report/plan completed. Implementation remains next task.

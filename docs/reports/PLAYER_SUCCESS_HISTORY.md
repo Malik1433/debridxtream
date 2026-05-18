@@ -29,3 +29,10 @@ This document tracks all successful changes and structural improvements applied 
     - Persist `seriesId` in `ContinueWatchingItem`.
     - Pass `seriesId` back into `PlayerActivity.createIntent()` for IPTV episode resumes.
     - Heal older history rows with a local episode-id lookup before launching the player.
+
+## Successful Pattern - Source Identity Separate From Resolver Eligibility
+- **Achievement**: Direct Stremio/AIOStreams Debrid streams can show Debrid in player controls/history without being sent through app-side Real-Debrid resolver logic.
+- **Key Implementation**:
+    - Keep `PlaybackSource.DEBRID` for player identity.
+    - Use a dedicated direct Debrid playback extra to disable resolver, Debrid playlist load, retry re-resolution, timeout re-resolution, and Debrid next-episode resolver paths.
+    - Do not let direct Debrid series fall through to IPTV playlist/API loading.

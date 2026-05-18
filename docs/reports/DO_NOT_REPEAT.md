@@ -50,8 +50,20 @@ Do not treat text labels such as `RD+`, `cached`, `instant`, or provider names a
 ## Debrid Error Handling Rule
 Do not retry Real-Debrid legal/copyright failures or HTTP `429` rate-limit failures as generic playback errors. Classify these failures, stop immediate retry/auto-next cascades where appropriate, apply cooldown for rate limits, and never expose raw sensitive backend details to the user.
 
+## Debrid Auto-Skip Rule
+Do not auto-next on every Debrid failure. Auto-skip only terminal per-source failures such as copyright/legal blocked, not cached, or unavailable. Do not auto-skip on `429`, auth/session, network, or unknown failures because those can affect every source and create request storms.
+
 ## Debrid Regional Source Rule
 Do not assume generic/default Torrentio or add-on requests are enough for Hindi/German playback. Keep provider config syntax current, include language priority when supported, keep built-in registries active, and make sure capped Real-Debrid availability checks include target-language and multi-audio candidates.
+
+## Debrid Stremio Manifest Rule
+Do not put Stremio `manifest.json` URLs into legacy JSON scraper registry storage or delete legacy fetchers before the native Stremio path is validated. Preserve the exact configured manifest path and query token when deriving stream endpoints, redact full addon URLs in logs, and do not claim Stremio parity until movie, series, direct URL, and Real-Debrid infoHash playback are manually verified.
+
+## Debrid Direct Addon Playback Rule
+Do not send direct Stremio/AIOStreams HTTP playback URLs through app-side Real-Debrid auth or re-resolution. Preserve addon headers and launch them as direct playback. Use app-side Real-Debrid only for magnet/infoHash/torrent/unrestrict paths.
+
+## Debrid Direct Playback Identity Rule
+Do not fix direct Stremio/AIOStreams playback by downgrading the player source to IPTV/null. Keep Debrid identity for player controls, Continue Watching, and return-to-sources behavior, but use a dedicated direct-play guard to skip Debrid resolver/API and Debrid playlist loading.
 
 ## EPG Timezone Parsing Rule
 - **DO NOT** ignore timezone offset suffixes (like `+0200`) when converting XMLTV timestamps to epoch milliseconds. Ignoring offsets shifts EPG program schedules.

@@ -25,6 +25,7 @@ import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.onSuccess
 import com.tvonnet.debridxtreamiptv.data.onFailure
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
+import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureType
 import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
@@ -811,7 +812,13 @@ class MovieDetailActivity : AppCompatActivity() {
 
         val tmdbId = movieId?.takeIf { it.toIntOrNull() != null }
         val playbackSource =
-            if (movieCategoryId == "debrid") com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID else null
+            if (movieCategoryId == "debrid") {
+                com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID
+            } else {
+                null
+            }
+        val directDebridPlayback = isDirectHttp && movieCategoryId == "debrid"
+        val resolverBackedDebridPlayback = playbackSource != null && !directDebridPlayback
 
         val launchPlayer = {
             val intent = PlayerActivity.createIntent(
@@ -825,8 +832,9 @@ class MovieDetailActivity : AppCompatActivity() {
                 headers = sourceOverride?.headers,
                 tmdbId = tmdbId,
                 imdbId = currentImdbId,
-                debridInfoHash = if (playbackSource != null) stream?.stream_id else null,
-                debridMagnet = if (playbackSource != null) stream?.direct_source else null,
+                debridInfoHash = if (resolverBackedDebridPlayback) stream?.stream_id else null,
+                debridMagnet = if (resolverBackedDebridPlayback) stream?.direct_source else null,
+                directDebridPlayback = directDebridPlayback,
                 playbackSource = playbackSource
             )
             startActivity(intent)
@@ -1056,10 +1064,33 @@ class MovieDetailActivity : AppCompatActivity() {
                     showDebridSourcePicker()
                 }
                 is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Error -> {
-                    Toast.makeText(this@MovieDetailActivity, result.message, Toast.LENGTH_LONG).show()
-                    showDebridSourcePicker()
+                    val failedStreamId = stream?.stream_id
+                    markDebridSourceCached(failedStreamId, false)
+                    updateRdSummary(debridSources)
+
+                    if (shouldTryNextDebridSource(result.failureType) && !failedStreamId.isNullOrBlank()) {
+                        notifyDebridFailure(result.message, autoPlayNext = true)
+                        autoPlayNextDebridSource(failedStreamId)
+                    } else {
+                        Toast.makeText(this@MovieDetailActivity, result.message, Toast.LENGTH_LONG).show()
+                        showDebridSourcePicker()
+                    }
                 }
             }
+        }
+    }
+
+    private fun shouldTryNextDebridSource(failureType: DebridFailureType?): Boolean {
+        return when (failureType) {
+            DebridFailureType.COPYRIGHT_BLOCKED,
+            DebridFailureType.LEGAL_RESTRICTION,
+            DebridFailureType.NOT_CACHED,
+            DebridFailureType.UNAVAILABLE -> true
+            DebridFailureType.RATE_LIMITED,
+            DebridFailureType.AUTH_REQUIRED,
+            DebridFailureType.NETWORK,
+            DebridFailureType.UNKNOWN,
+            null -> false
         }
     }
 

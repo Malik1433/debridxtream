@@ -70,6 +70,43 @@ data class MediaFusionBehaviorHints(
 
 /**
  * ===================
+ * Stremio JSON Models
+ * ===================
+ */
+data class StremioManifest(
+    @SerializedName("id") val id: String?,
+    @SerializedName("name") val name: String?,
+    @SerializedName("resources") val resources: List<com.google.gson.JsonElement>? = null,
+    @SerializedName("types") val types: List<String>? = null
+)
+
+data class StremioStreamResponse(
+    @SerializedName("streams") val streams: List<StremioStream> = emptyList()
+)
+
+data class StremioStream(
+    @SerializedName("name") val name: String?,
+    @SerializedName("title") val title: String?,
+    @SerializedName("description") val description: String?,
+    @SerializedName("url") val url: String?,
+    @SerializedName("externalUrl") val externalUrl: String?,
+    @SerializedName("infoHash") val infoHash: String?,
+    @SerializedName("fileIdx") val fileIdx: Int?,
+    @SerializedName("behaviorHints") val behaviorHints: StremioBehaviorHints? = null,
+    @SerializedName("sources") val sources: List<String>? = null,
+    @SerializedName("videoSize") val videoSize: Long? = null
+)
+
+data class StremioBehaviorHints(
+    @SerializedName("filename") val filename: String?,
+    @SerializedName("videoSize") val videoSize: Long?,
+    @SerializedName("bingeGroup") val bingeGroup: String?,
+    @SerializedName("proxyHeaders") val proxyHeaders: Map<String, String>? = null,
+    @SerializedName("headers") val headers: Map<String, String>? = null
+)
+
+/**
+ * ===================
  * Zilean JSON Models
  * ===================
  */
@@ -110,6 +147,7 @@ data class AddonStream(
 
 enum class AddonSourceType {
     MEDIA_FUSION,
+    STREMIO,
     ZILEAN,
     TORRENTIO,
     DYNAMIC,

@@ -23,3 +23,6 @@ If the episode browser is visible but LEFT/RIGHT/OK/BACK are allowed to continue
 
 ## Failed Pattern - Continue Watching Without Series Metadata
 Launching an IPTV episode from Continue Watching with only the episode id is not enough for player overlays. Episode browser and next episode need the parent `seriesId`, season number, episode number, and title metadata just like the Series detail launch path.
+
+## Failed Pattern - Using IPTV Identity To Bypass Debrid Resolver
+Direct Debrid/Stremio streams must not be launched with null/IPTV playback source just to avoid app-side Real-Debrid re-resolution. That makes player controls and Continue Watching show IPTV and can route direct Debrid series into IPTV playlist/API loading. Keep Debrid identity and gate resolver eligibility separately.

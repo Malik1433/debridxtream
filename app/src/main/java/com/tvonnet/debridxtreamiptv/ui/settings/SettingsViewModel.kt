@@ -23,6 +23,7 @@ data class SettingsUiState(
     val isDebridAuthenticated: Boolean = false,
     val addonRegistryUrl: String = "",
     val addonRegistryUrls: Set<String> = emptySet(),
+    val stremioAddonUrls: Set<String> = emptySet(),
     val isEpgAutoSyncEnabled: Boolean = true,
     val epgSyncIntervalHours: String = "6",
     val isSoftwareAudioEnabled: Boolean = true
@@ -59,6 +60,7 @@ class SettingsViewModel @Inject constructor(
                 isDebridAuthenticated = prefs.getRealDebridToken() != null,
                 addonRegistryUrl = prefs.getAddonRegistryUrl(),
                 addonRegistryUrls = prefs.getAddonRegistryUrls(),
+                stremioAddonUrls = prefs.getStremioAddonUrls(),
                 isEpgAutoSyncEnabled = defaultPrefs.getBoolean("epg_auto_sync", true),
                 epgSyncIntervalHours = defaultPrefs.getString("epg_sync_interval", "6") ?: "6",
                 isSoftwareAudioEnabled = audioPrefs.isSoftwareAudioEnabled()
@@ -124,6 +126,16 @@ class SettingsViewModel @Inject constructor(
     fun removeAddonRegistryUrl(url: String) {
         prefs.removeAddonRegistryUrl(url)
         _uiState.update { it.copy(addonRegistryUrls = prefs.getAddonRegistryUrls()) }
+    }
+
+    fun addStremioAddonUrl(url: String) {
+        prefs.addStremioAddonUrl(url)
+        _uiState.update { it.copy(stremioAddonUrls = prefs.getStremioAddonUrls()) }
+    }
+
+    fun removeStremioAddonUrl(url: String) {
+        prefs.removeStremioAddonUrl(url)
+        _uiState.update { it.copy(stremioAddonUrls = prefs.getStremioAddonUrls()) }
     }
 
     fun toggleEpgAutoSync(enabled: Boolean) {

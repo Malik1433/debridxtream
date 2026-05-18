@@ -60,3 +60,18 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Reason:** Regional sources can exist but never surface as playable candidates, making Hindi/German playback look broken even when add-ons can return candidates.
 - **Fix:** Verify current add-on config syntax, pass language priority where supported, include relevant built-in registries, and rank target-language/multi-audio sources before capped availability checks.
 
+## 13. Mixing Stremio Manifests With Registry Scrapers
+- **Avoid:** Storing Stremio `manifest.json` URLs in the old scraper registry list or feeding raw manifests into registry-definition fetchers.
+- **Reason:** A Stremio manifest describes addon resources; it is not the same shape as DebridXtream JSON registry definitions. Mixing them creates duplicate searches, failed parsing, and confusing source management.
+- **Fix:** Keep separate Stremio manifest URL storage, parse manifests natively, and remove legacy scraper UI only after the native Stremio path is proven by build and device QA.
+
+## 14. Routing Direct Addon URLs Through App Debrid Auth
+- **Avoid:** Launching direct Stremio/AIOStreams HTTP playback URLs with `PlaybackSource.DEBRID` metadata or sending them through app-side Real-Debrid auth checks.
+- **Reason:** Direct/proxied addon playback URLs may already include provider configuration in the addon URL. App-side Debrid re-resolution can show false Real-Debrid configuration missing errors.
+- **Fix:** Direct addon URLs should play as direct sources with headers preserved. Only magnet, infoHash, torrent files, or non-direct unrestrict links should enter app-side Real-Debrid resolver/auth flow.
+
+## 15. Downgrading Direct Debrid Playback To IPTV
+- **Avoid:** Using `PlaybackSource.IPTV` or a null playback source for direct Stremio/AIOStreams Debrid playback just to avoid Real-Debrid re-resolution.
+- **Reason:** The player then shows IPTV in controls/history and can enter IPTV episode playlist/API paths, causing misleading labels and possible `API exception please try again` errors.
+- **Fix:** Keep `PlaybackSource.DEBRID` for source identity and add a separate direct-play guard that disables Debrid resolver/API work for direct addon URLs.
+

@@ -67,3 +67,18 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Prevents English-only/high-seeder entries from consuming the whole Real-Debrid availability budget when the target playback need is Hindi, German, or multi-audio.
 - **Implementation:** Use current add-on config keys such as Torrentio `language=...`, keep built-in registries active, parse regional release aliases, and sort Hindi/German/multi candidates before capped provider checks.
 
+## 13. Safe Debrid Terminal-Source Auto-Skip
+- **Definition:** When a selected Real-Debrid source is terminally blocked, unavailable, or not cached, mark it unavailable for the current list and move to the next candidate.
+- **Benefits:** Keeps playback attempts moving through scraper results without retrying the same blocked hash or worsening rate limits.
+- **Implementation:** Auto-skip only `COPYRIGHT_BLOCKED`, `LEGAL_RESTRICTION`, `NOT_CACHED`, and `UNAVAILABLE`; stop on `RATE_LIMITED`, auth, network, and unknown failures.
+
+## 14. Native Stremio Manifest Source Path
+- **Definition:** Treat user-pasted Stremio `manifest.json` URLs as first-class addon sources instead of forcing them through legacy JSON registry definitions.
+- **Benefits:** Preserves configured path/token segments, avoids duplicate scraper registry mixing, and matches Stremio addon stream endpoint behavior for movies and series.
+- **Implementation:** Store Stremio manifest URLs separately, derive `/stream/movie/{imdb}.json` and `/stream/series/{imdb}:{season}:{episode}.json` from the exact manifest URL, parse stream objects into `AddonStream`, and keep Real-Debrid infoHash/magnet handling separate from direct addon playback URLs.
+
+## 15. Direct Debrid Playback Identity Guard
+- **Definition:** Launch direct Stremio/AIOStreams playback URLs with Debrid source identity while using a separate direct-play flag to skip app-side Debrid resolver/API calls.
+- **Benefits:** Player controls, history, and source return behavior still show Debrid, while direct addon URLs do not trigger false IPTV labeling, IPTV playlist API calls, or Real-Debrid re-resolution.
+- **Implementation:** Pass `PlaybackSource.DEBRID` plus a direct Debrid playback flag for direct HTTP addon streams; gate resolver, Debrid playlist loading, timeout re-resolution, and Debrid next-episode resolution behind a non-direct Debrid resolver check.
+
