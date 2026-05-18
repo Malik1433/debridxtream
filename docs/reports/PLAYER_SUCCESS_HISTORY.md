@@ -36,3 +36,11 @@ This document tracks all successful changes and structural improvements applied 
     - Keep `PlaybackSource.DEBRID` for player identity.
     - Use a dedicated direct Debrid playback extra to disable resolver, Debrid playlist load, retry re-resolution, timeout re-resolution, and Debrid next-episode resolver paths.
     - Do not let direct Debrid series fall through to IPTV playlist/API loading.
+
+## Successful Pattern - Direct Debrid Source Continuity
+- **Achievement**: Direct Stremio/AIOStreams Debrid episode switching uses the shared episode browser and preserves selected source profile.
+- **Key Implementation**:
+    - Load direct Debrid series episodes through the existing Debrid/TMDB playlist state.
+    - Carry provider, source type/name, language, quality, stream id, Stremio binge group, and file index through player intents and Continue Watching.
+    - Rank next-episode candidates by same source family/provider and language before generic cache/quality/seeders fallback.
+    - Fresh-resolve direct Debrid Continue Watching entries from stable metadata instead of trusting old direct addon URLs.

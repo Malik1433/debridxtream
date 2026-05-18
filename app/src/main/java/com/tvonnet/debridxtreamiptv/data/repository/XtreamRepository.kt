@@ -81,6 +81,10 @@ data class MovieSource(
     val isCached: Boolean? = null,
     val cacheStatus: DebridCacheStatus = DebridCacheStatus.UNKNOWN,
     val provider: String? = null,
+    val sourceType: String? = null,
+    val sourceName: String? = null,
+    val bingeGroup: String? = null,
+    val fileIdx: Int? = null,
     val headers: Map<String, String>? = null
 )
 

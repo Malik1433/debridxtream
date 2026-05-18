@@ -707,6 +707,14 @@ class UnifiedSourceProvider @Inject constructor(
                 validInfoHash ?: addonStream.title.hashCode().toString()
             }
             val providerLabel = (addonStream.extras["providerName"] as? String) ?: getSourceLabel(addonStream.source)
+            val sourceName = addonStream.extras["sourceName"] as? String
+            val bingeGroup = addonStream.extras["bingeGroup"] as? String
+            val fileIdx = when (val rawFileIdx = addonStream.extras["fileIdx"]) {
+                is Int -> rawFileIdx
+                is Number -> rawFileIdx.toInt()
+                is String -> rawFileIdx.toIntOrNull()
+                else -> null
+            }
             val cacheStatus = resolveCacheStatus(
                 addonStream = addonStream,
                 mediaFusionUrl = mediaFusionUrl,
@@ -812,6 +820,10 @@ class UnifiedSourceProvider @Inject constructor(
                 isCached = cachedFlag,
                 cacheStatus = cacheStatus,
                 provider = providerLabel,
+                sourceType = addonStream.source.name,
+                sourceName = sourceName,
+                bingeGroup = bingeGroup,
+                fileIdx = fileIdx,
                 headers = addonStream.headers
             )
         }.also { filteredSources ->

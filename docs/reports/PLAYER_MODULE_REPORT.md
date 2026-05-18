@@ -326,8 +326,34 @@ Direct Debrid playback now correctly skips app-side Real-Debrid resolver/API pat
 ## Plan
 Add a direct-Debrid episode-browser path that loads TMDB season episodes and resolves the selected episode through Stremio/addon sources, while preserving the existing shared `EpisodeBrowserController` and all Live TV/IPTV DPAD guards.
 
+Additional continuity requirement from user:
+- Episode browser selection, Next button, and auto-next must preserve the currently selected Debrid/Stremio source family/provider and language when a matching next-episode source exists.
+- The current fallback in `PlayerViewModel.loadNextDebridEpisode()` only tries exact same infoHash before cache/quality ranking, so it can switch provider or language. The implementation phase must carry a selected-source profile and rank next-episode candidates by same provider/source family, same language, playback readiness, then quality/seeders.
+
 ## Report
 See `docs/reports/STREMIO_PLAYBACK_STABILITY_DEEP_AUDIT.md`.
 
 ## Final Status
 PASS  Player audit complete; code fix remains next task.
+
+# TASK 012-STREMIO-DIRECT-DEBRID-EPISODE-CONTINUITY-RESUME
+
+## Scope
+Player-side fix for direct Stremio/AIOStreams Debrid episode browser, next episode continuity, and fresh resume. No global DPAD behavior changed; the existing player and existing `EpisodeBrowserController` remain the only player/browser implementation.
+
+## Fix Applied
+- Direct Debrid series now load the existing Debrid/TMDB season playlist, so `DPAD_DOWN` can populate the shared episode browser instead of reporting unavailable.
+- `onEpisodeSelected()`, Next button, and auto-next all use the same Debrid episode resolution path for direct and resolver-backed Debrid playback.
+- Added source profile intent/history fields for provider, source type/name, languages, quality, stream id, Stremio binge group, file index, and direct-play flag.
+- Added continuity ranking in `PlayerViewModel` so next episode selection prefers the same source family/provider and language before quality/seeders.
+- Re-resolution success now initializes the player when resume starts without a trusted URL, instead of attempting seamless switch against a missing player.
+
+## Validation
+- `:app:compileDebugKotlin --offline --no-daemon --console plain --max-workers=1`: PASS.
+- Clean `assembleDebug` produced `app/build/outputs/apk/debug/app-debug.apk` after the command timeout while the Gradle process continued.
+- Follow-up `:app:assembleDebug --offline --no-daemon --console plain --max-workers=1`: PASS with captured exit code.
+- Install and launch smoke: PASS on `192.168.0.84:5555`.
+- `192.168.0.21:5555`: unavailable, adb connect timed out.
+
+## Final Status
+PARTIAL  build/install/launch smoke passed on the reachable device; direct Debrid episode browser, same-source/language next episode, and fresh resume still require manual playback QA.

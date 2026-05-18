@@ -835,6 +835,14 @@ class MovieDetailActivity : AppCompatActivity() {
                 debridInfoHash = if (resolverBackedDebridPlayback) stream?.stream_id else null,
                 debridMagnet = if (resolverBackedDebridPlayback) stream?.direct_source else null,
                 directDebridPlayback = directDebridPlayback,
+                debridProvider = sourceOverride?.provider,
+                debridSourceType = sourceOverride?.sourceType,
+                debridSourceName = sourceOverride?.sourceName,
+                debridLanguages = sourceOverride?.languages,
+                debridQuality = sourceOverride?.quality,
+                debridStreamId = sourceOverride?.stream?.stream_id,
+                debridBingeGroup = sourceOverride?.bingeGroup,
+                debridFileIdx = sourceOverride?.fileIdx,
                 playbackSource = playbackSource
             )
             startActivity(intent)
@@ -1050,7 +1058,15 @@ class MovieDetailActivity : AppCompatActivity() {
                         tmdbId = tmdbId,
                         imdbId = currentImdbId,
                         debridInfoHash = infoHash,
-                        debridMagnet = magnet
+                        debridMagnet = magnet,
+                        debridProvider = source?.provider,
+                        debridSourceType = source?.sourceType,
+                        debridSourceName = source?.sourceName,
+                        debridLanguages = source?.languages,
+                        debridQuality = source?.quality,
+                        debridStreamId = source?.stream?.stream_id,
+                        debridBingeGroup = source?.bingeGroup,
+                        debridFileIdx = source?.fileIdx
                     )
                     if (returnToSources) {
                         intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)

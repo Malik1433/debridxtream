@@ -201,6 +201,14 @@ class PlayerActivity : AppCompatActivity() {
     private var episodeNumberExtra: Int? = null
     private var debridInfoHashExtra: String? = null
     private var debridMagnetExtra: String? = null
+    private var debridProviderExtra: String? = null
+    private var debridSourceTypeExtra: String? = null
+    private var debridSourceNameExtra: String? = null
+    private var debridLanguagesExtra: List<String>? = null
+    private var debridQualityExtra: String? = null
+    private var debridStreamIdExtra: String? = null
+    private var debridBingeGroupExtra: String? = null
+    private var debridFileIdxExtra: Int? = null
     private var expiresAtExtra: Long? = null
     private var originalTitle: String? = null
     private var hasRecordedHistory = false
@@ -261,6 +269,14 @@ class PlayerActivity : AppCompatActivity() {
         const val EXTRA_DEBRID_INFOHASH = "EXTRA_DEBRID_INFOHASH"
         const val EXTRA_DEBRID_MAGNET = "EXTRA_DEBRID_MAGNET"
         const val EXTRA_DIRECT_DEBRID_PLAYBACK = "EXTRA_DIRECT_DEBRID_PLAYBACK"
+        const val EXTRA_DEBRID_PROVIDER = "EXTRA_DEBRID_PROVIDER"
+        const val EXTRA_DEBRID_SOURCE_TYPE = "EXTRA_DEBRID_SOURCE_TYPE"
+        const val EXTRA_DEBRID_SOURCE_NAME = "EXTRA_DEBRID_SOURCE_NAME"
+        const val EXTRA_DEBRID_LANGUAGES = "EXTRA_DEBRID_LANGUAGES"
+        const val EXTRA_DEBRID_QUALITY = "EXTRA_DEBRID_QUALITY"
+        const val EXTRA_DEBRID_STREAM_ID = "EXTRA_DEBRID_STREAM_ID"
+        const val EXTRA_DEBRID_BINGE_GROUP = "EXTRA_DEBRID_BINGE_GROUP"
+        const val EXTRA_DEBRID_FILE_IDX = "EXTRA_DEBRID_FILE_IDX"
         const val EXTRA_EXPIRES_AT = "EXTRA_EXPIRES_AT"
         const val EXTRA_RETURN_TO_SOURCES = "EXTRA_RETURN_TO_SOURCES"
         const val EXTRA_FAILED_STREAM_ID = "EXTRA_FAILED_STREAM_ID"
@@ -294,6 +310,14 @@ class PlayerActivity : AppCompatActivity() {
             debridInfoHash: String? = null,
             debridMagnet: String? = null,
             directDebridPlayback: Boolean = false,
+            debridProvider: String? = null,
+            debridSourceType: String? = null,
+            debridSourceName: String? = null,
+            debridLanguages: List<String>? = null,
+            debridQuality: String? = null,
+            debridStreamId: String? = null,
+            debridBingeGroup: String? = null,
+            debridFileIdx: Int? = null,
             subtitles: List<String>? = null,
             expiresAt: Long? = null,
             seriesId: String? = null
@@ -324,6 +348,14 @@ class PlayerActivity : AppCompatActivity() {
                 debridInfoHash?.let { putExtra(EXTRA_DEBRID_INFOHASH, it) }
                 debridMagnet?.let { putExtra(EXTRA_DEBRID_MAGNET, it) }
                 putExtra(EXTRA_DIRECT_DEBRID_PLAYBACK, directDebridPlayback)
+                debridProvider?.let { putExtra(EXTRA_DEBRID_PROVIDER, it) }
+                debridSourceType?.let { putExtra(EXTRA_DEBRID_SOURCE_TYPE, it) }
+                debridSourceName?.let { putExtra(EXTRA_DEBRID_SOURCE_NAME, it) }
+                debridLanguages?.let { putStringArrayListExtra(EXTRA_DEBRID_LANGUAGES, ArrayList(it)) }
+                debridQuality?.let { putExtra(EXTRA_DEBRID_QUALITY, it) }
+                debridStreamId?.let { putExtra(EXTRA_DEBRID_STREAM_ID, it) }
+                debridBingeGroup?.let { putExtra(EXTRA_DEBRID_BINGE_GROUP, it) }
+                debridFileIdx?.let { putExtra(EXTRA_DEBRID_FILE_IDX, it) }
                 expiresAt?.let { putExtra(EXTRA_EXPIRES_AT, it) }
                 subtitles?.let { putStringArrayListExtra(EXTRA_SUBTITLE_ENTRIES, ArrayList(it)) }
             }
@@ -371,6 +403,14 @@ class PlayerActivity : AppCompatActivity() {
         debridInfoHashExtra = intent.getStringExtra(EXTRA_DEBRID_INFOHASH)
         debridMagnetExtra = intent.getStringExtra(EXTRA_DEBRID_MAGNET)
             ?: intent.getStringExtra("DEBRID_MAGNET")
+        debridProviderExtra = intent.getStringExtra(EXTRA_DEBRID_PROVIDER)
+        debridSourceTypeExtra = intent.getStringExtra(EXTRA_DEBRID_SOURCE_TYPE)
+        debridSourceNameExtra = intent.getStringExtra(EXTRA_DEBRID_SOURCE_NAME)
+        debridLanguagesExtra = intent.getStringArrayListExtra(EXTRA_DEBRID_LANGUAGES)
+        debridQualityExtra = intent.getStringExtra(EXTRA_DEBRID_QUALITY)
+        debridStreamIdExtra = intent.getStringExtra(EXTRA_DEBRID_STREAM_ID)
+        debridBingeGroupExtra = intent.getStringExtra(EXTRA_DEBRID_BINGE_GROUP)
+        debridFileIdxExtra = intent.getIntExtra(EXTRA_DEBRID_FILE_IDX, -1).takeIf { it >= 0 }
         expiresAtExtra = intent.getLongExtra(EXTRA_EXPIRES_AT, -1L).takeIf { it > 0 }
 
         val streamUrl = intent.getStringExtra(EXTRA_STREAM_URL)
@@ -382,9 +422,10 @@ class PlayerActivity : AppCompatActivity() {
         val isDebrid = playbackSource == PlaybackSource.DEBRID
         val canResolveDebrid = canUseDebridResolver()
         val hasResInfo = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
+        val canFreshResolveDirectDebrid = isDebrid && directDebridPlayback && (tmdbIdExtra?.isNotBlank() == true || imdbIdExtra?.isNotBlank() == true)
         val isExpired = expiresAtExtra?.let { System.currentTimeMillis() > it } ?: (isDebrid && streamUrl.isNullOrBlank())
 
-        if (streamUrl.isNullOrBlank() && !(canResolveDebrid && hasResInfo)) {
+        if (streamUrl.isNullOrBlank() && !(canResolveDebrid && hasResInfo) && !canFreshResolveDirectDebrid) {
             showError("Invalid stream URL")
             finish()
             return
@@ -412,7 +453,7 @@ class PlayerActivity : AppCompatActivity() {
         val seriesId = intent.getStringExtra(EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
         val seasonNum = intent.getIntExtra(EXTRA_SEASON_NUM, -1)
         if (seriesId != null && seasonNum != -1) {
-            if (canResolveDebrid) {
+            if (isDebrid) {
                 viewModel.loadDebridSeriesPlaylist(seriesId, seasonNum, episodeNumberExtra ?: 1)
             } else if (!isDebrid && contentId != null) {
                 viewModel.loadSeriesPlaylist(seriesId, seasonNum, contentId!!, seriesTitleExtra)
@@ -500,6 +541,26 @@ class PlayerActivity : AppCompatActivity() {
             Log.i("PlayerActivity", "Debrid resume detected: URL is ${if (streamUrl.isNullOrBlank()) "missing" else "expired"}. Triggering resolution.")
             isResolvingDebrid = true
             viewModel.reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
+        } else if (canFreshResolveDirectDebrid && isExpired) {
+            Log.i("PlayerActivity", "Direct Debrid resume detected: refreshing source from metadata before playback.")
+            isResolvingDebrid = true
+            if (contentType == ContentType.EPISODE && seasonNumberExtra != null && episodeNumberExtra != null) {
+                viewModel.loadNextDebridEpisode(
+                    seriesId = debridSeriesLookupId(),
+                    targetSeason = seasonNumberExtra ?: 1,
+                    targetEpisode = episodeNumberExtra ?: 1,
+                    seriesTitle = seriesTitleExtra ?: originalTitle,
+                    infoHash = debridInfoHashExtra ?: debridStreamIdExtra,
+                    sourceProfile = currentDebridSourceProfile()
+                )
+            } else {
+                viewModel.refreshDebridMovieSource(
+                    streamId = tmdbIdExtra ?: contentId,
+                    title = originalTitle,
+                    imdbId = imdbIdExtra,
+                    sourceProfile = currentDebridSourceProfile()
+                )
+            }
         } else {
             initializePlayer(streamUrl ?: "")
         }
@@ -969,7 +1030,7 @@ class PlayerActivity : AppCompatActivity() {
             val seasonNum = intent.getIntExtra(EXTRA_SEASON_NUM, -1)
             Log.d("PlayerActivity", "showEpisodeBrowser: state is null, triggering load. seriesId=${SensitiveLogRedactor.describeHash(seriesId)}, seasonNum=$seasonNum, contentId=${SensitiveLogRedactor.describeHash(contentId)}")
             if (seriesId != null && seasonNum != -1) {
-                 if (canUseDebridResolver()) {
+                 if (playbackSource == PlaybackSource.DEBRID) {
                      viewModel.loadDebridSeriesPlaylist(seriesId, seasonNum, episodeNumberExtra ?: 1)
                  } else if (playbackSource != PlaybackSource.DEBRID && contentId != null) {
                      viewModel.loadSeriesPlaylist(seriesId, seasonNum, contentId!!, seriesTitleExtra)
@@ -1006,28 +1067,62 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun onEpisodeSelected(episode: EpisodeEntityV2) {
         episodeBrowserController.hide()
-        if (canUseDebridResolver()) {
+        if (playbackSource == PlaybackSource.DEBRID) {
             // For Debrid, we need to resolve the new episode's link
             contentId = episode.episodeId
             episodeNumberExtra = episode.episodeNumber
             episodeTitleExtra = episode.title
             isResolvingDebrid = true
             viewModel.loadNextDebridEpisode(
-                seriesId = tmdbIdExtra ?: "",
+                seriesId = debridSeriesLookupId(),
                 targetSeason = seasonNumberExtra ?: 1,
                 targetEpisode = episode.episodeNumber,
                 seriesTitle = seriesTitleExtra ?: episode.title,
-                infoHash = debridInfoHashExtra
+                infoHash = debridInfoHashExtra ?: debridStreamIdExtra,
+                sourceProfile = currentDebridSourceProfile()
             )
         } else if (playbackSource != PlaybackSource.DEBRID) {
             playSeriesEpisode(episode)
-        } else {
-            showError("Episode switching unavailable for this direct Debrid stream")
         }
     }
 
     private fun canUseDebridResolver(): Boolean {
         return playbackSource == PlaybackSource.DEBRID && !directDebridPlayback
+    }
+
+    private fun currentDebridSourceProfile(): DebridSourceProfile? {
+        if (playbackSource != PlaybackSource.DEBRID) return null
+        return DebridSourceProfile(
+            provider = debridProviderExtra,
+            sourceType = debridSourceTypeExtra,
+            sourceName = debridSourceNameExtra,
+            languages = debridLanguagesExtra,
+            quality = debridQualityExtra,
+            streamId = debridStreamIdExtra ?: debridInfoHashExtra,
+            bingeGroup = debridBingeGroupExtra,
+            fileIdx = debridFileIdxExtra,
+            directPlayback = directDebridPlayback
+        )
+    }
+
+    private fun debridSeriesLookupId(): String {
+        return tmdbIdExtra
+            ?: intent.getStringExtra(EXTRA_SERIES_ID)
+            ?: imdbIdExtra
+            ?: contentId?.substringBefore(':')
+            ?: ""
+    }
+
+    private fun applyDebridSourceProfile(profile: DebridSourceProfile?) {
+        if (profile == null) return
+        debridProviderExtra = profile.provider
+        debridSourceTypeExtra = profile.sourceType
+        debridSourceNameExtra = profile.sourceName
+        debridLanguagesExtra = profile.languages
+        debridQualityExtra = profile.quality
+        debridStreamIdExtra = profile.streamId
+        debridBingeGroupExtra = profile.bingeGroup
+        debridFileIdxExtra = profile.fileIdx
     }
 
     private fun isSeriesEpisodePlayback(): Boolean {
@@ -1120,10 +1215,10 @@ class PlayerActivity : AppCompatActivity() {
     private fun playNextEpisode() {
         nextEpisodeTimer?.cancel()
 
-        if (canUseDebridResolver() && contentType == ContentType.EPISODE) {
+        if (playbackSource == PlaybackSource.DEBRID && contentType == ContentType.EPISODE) {
              val currentSeason = seasonNumberExtra ?: -1
              val currentEpisode = episodeNumberExtra ?: -1
-             val tmdbId = tmdbIdExtra
+             val tmdbId = debridSeriesLookupId().takeIf { it.isNotBlank() }
              
               if (tmdbId != null && currentSeason != -1 && currentEpisode != -1) {
                   val nextEp = viewModel.getNextEpisode()
@@ -1142,7 +1237,8 @@ class PlayerActivity : AppCompatActivity() {
                       targetSeason = targetSeason,
                       targetEpisode = targetEpisode,
                       seriesTitle = seriesTitleExtra,
-                      infoHash = debridInfoHashExtra 
+                      infoHash = debridInfoHashExtra ?: debridStreamIdExtra,
+                      sourceProfile = currentDebridSourceProfile()
                   )
              } else {
                  showError("Next episode data missing")
@@ -1933,6 +2029,15 @@ class PlayerActivity : AppCompatActivity() {
             episodeNumber = episodeNumberExtra, 
             debridInfoHash = debridInfoHashExtra, 
             debridMagnet = debridMagnetExtra, 
+            directDebridPlayback = directDebridPlayback,
+            debridProvider = debridProviderExtra,
+            debridSourceType = debridSourceTypeExtra,
+            debridSourceName = debridSourceNameExtra,
+            debridLanguages = debridLanguagesExtra,
+            debridQuality = debridQualityExtra,
+            debridStreamId = debridStreamIdExtra ?: debridInfoHashExtra,
+            debridBingeGroup = debridBingeGroupExtra,
+            debridFileIdx = debridFileIdxExtra,
             source = if (playbackSource == PlaybackSource.DEBRID) "debrid" else "xtream", 
             expiresAt = expiresAtExtra
         )
@@ -1957,15 +2062,25 @@ class PlayerActivity : AppCompatActivity() {
                     is DebridResolutionState.Loading -> { layoutDebridResolving?.isVisible = true; tvResolvingStatus?.text = "Resolving source via Debrid..." }
                     is DebridResolutionState.Success -> {
                         layoutDebridResolving?.isVisible = false; isResolvingDebrid = false
+                        directDebridPlayback = state.directDebridPlayback
+                        streamHeaders = state.headers
+                        applyDebridSourceProfile(state.sourceProfile)
+                        debridMagnetExtra = state.magnet ?: debridMagnetExtra
                         if (state.season != null && state.episode != null) {
                             val isSame = seasonNumberExtra == state.season && episodeNumberExtra == state.episode
                             seasonNumberExtra = state.season; episodeNumberExtra = state.episode; episodeTitleExtra = state.title
                             if (!isSame) startPositionMs = 0L
                             bindModernMetadata("${seriesTitleExtra ?: ""} - S${state.season}:E${state.episode}")
                             if (state.infoHash != null) debridInfoHashExtra = state.infoHash
+                            if (state.sourceProfile?.streamId != null) debridStreamIdExtra = state.sourceProfile.streamId
                             hasRecordedHistory = false; hideNextEpisodePrompt(false); nextPromptShownForThisEpisode = false
                         }
-                        currentUrl = state.url; performSeamlessSwitch(state.url)
+                        currentUrl = state.url
+                        if (player == null) {
+                            initializePlayer(state.url)
+                        } else {
+                            performSeamlessSwitch(state.url)
+                        }
                     }
                     is DebridResolutionState.Error -> { layoutDebridResolving?.isVisible = false; isResolvingDebrid = false; showError("Failed: ${state.message}") }
                     is DebridResolutionState.Idle -> { layoutDebridResolving?.isVisible = false; isResolvingDebrid = false }

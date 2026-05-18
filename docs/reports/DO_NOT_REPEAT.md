@@ -65,6 +65,12 @@ Do not send direct Stremio/AIOStreams HTTP playback URLs through app-side Real-D
 ## Debrid Direct Playback Identity Rule
 Do not fix direct Stremio/AIOStreams playback by downgrading the player source to IPTV/null. Keep Debrid identity for player controls, Continue Watching, and return-to-sources behavior, but use a dedicated direct-play guard to skip Debrid resolver/API and Debrid playlist loading.
 
+## Debrid Direct Resume Rule
+Do not trust saved direct Stremio/AIOStreams playback URLs as long-lived resume links. Persist stable TMDB/IMDb/season/episode metadata plus selected provider/source/language profile, then fresh-resolve before playback when relaunching Continue Watching.
+
+## Debrid Episode Continuity Rule
+Do not pick the next Debrid episode by quality alone. Episode browser selection, Next, and auto-next must prefer the same provider/source family and language as the current source when a matching candidate exists, then fall back to playback readiness, quality, and seeders.
+
 ## EPG Timezone Parsing Rule
 - **DO NOT** ignore timezone offset suffixes (like `+0200`) when converting XMLTV timestamps to epoch milliseconds. Ignoring offsets shifts EPG program schedules.
 

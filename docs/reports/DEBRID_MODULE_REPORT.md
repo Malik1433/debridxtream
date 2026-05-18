@@ -466,10 +466,46 @@ Full audit and phased plan written to:
 - Playback stability is improved, but direct Stremio episode switching, addon health diagnostics, `fileIdx`, subtitles, and full manual QA remain open.
 
 ## Recommendation
-Start with `TASK 011-STREMIO-DIRECT-DEBRID-EPISODE-BROWSER`, then implement hybrid source aggregation and addon diagnostics in separate phases.
+Start with `TASK 011-STREMIO-DIRECT-DEBRID-EPISODE-BROWSER`, including source continuity: episode browser selection, Next button, and auto-next should prefer the same provider/source family and same language as the currently playing source when available. Then implement hybrid source aggregation and addon diagnostics in separate phases.
 
 ## Validation
 Documentation-only audit. No Gradle build or device install was required.
 
 ## Final Status
 PASS  Audit/report/plan completed. Implementation remains next task.
+
+---
+
+# TASK 012-STREMIO-DIRECT-DEBRID-EPISODE-CONTINUITY-RESUME
+
+## Scope
+Implementation phase for direct Stremio/AIOStreams Debrid playback stability. No duplicate player activity, duplicate episode browser, duplicate source provider, Live TV behavior, Home layout, or global DPAD behavior was added.
+
+## Findings
+- Direct Debrid series had Debrid identity but no episode playlist load, so `DPAD_DOWN` could show `Episodes unavailable`.
+- Next episode selection reused the Debrid resolver method but only matched exact infoHash before falling back to cache/quality, which could switch provider or language.
+- Continue Watching stored the direct playback URL but not enough selected-source metadata to refresh expired direct addon links the way Stremio does.
+
+## Changes
+- Reused the existing `EpisodeBrowserController` and `PlayerViewModel.loadDebridSeriesPlaylist()` for direct Debrid/Stremio series episode lists.
+- Added selected Debrid source profile metadata to `MovieSource`, `PlayerActivity` intent extras, and `ContinueWatchingItem`.
+- `PlayerViewModel.loadNextDebridEpisode()` now ranks candidates by same source type/provider, same Stremio binge group/source name, same language, direct-play readiness, playback readiness, quality, and seeders.
+- Episode browser selection, Next button, and auto-next now call the same Debrid next-episode resolver path for both resolver-backed and direct Debrid playback.
+- Direct Debrid Continue Watching can relaunch with an empty saved URL and refresh a fresh source from stable TMDB/IMDb/season/episode/source-profile metadata before playback.
+- Re-resolution success now initializes the player if the player was not created yet, avoiding a blank resume path when no saved URL is trusted.
+
+## Validation
+- `:app:compileDebugKotlin --offline --no-daemon --console plain --max-workers=1` with in-process Kotlin compiler: PASS.
+- `clean assembleDebug --offline --no-daemon --console plain --max-workers=1` with in-process Kotlin compiler exceeded the command timeout, but the Gradle process continued and produced `app/build/outputs/apk/debug/app-debug.apk`.
+- Follow-up `:app:assembleDebug --offline --no-daemon --console plain --max-workers=1` with in-process Kotlin compiler: PASS, exit code captured.
+- APK generated: `app-debug.apk`, size `31,418,386` bytes, timestamp `2026-05-18 11:04:55`.
+- Install QA on `192.168.0.84:5555`: PASS.
+- Launch smoke on `192.168.0.84:5555`: PASS via `com.debridxtream.tv/com.tvonnet.debridxtreamiptv.ui.MainActivity`, PID `10026`.
+- Crash log scan on `192.168.0.84:5555`: PASS for no matching `FATAL EXCEPTION` / `AndroidRuntime` fatal crash lines after launch.
+- `192.168.0.21:5555`: BLOCKED, `adb connect` timed out with `10060`.
+
+## Remaining QA Gap
+Manual playback QA is still required with a real configured Stremio/AIOStreams source: play a direct Debrid series episode, press `DPAD_DOWN`, choose another episode, use Next, let auto-next trigger, and resume from Continue Watching after relaunch. Verify the selected provider/source family and Hindi/German/multi language are preserved when matching candidates exist.
+
+## Final Status
+PARTIAL  Code, compile, clean APK generation, install, and launch smoke passed on the reachable device. Full functional PASS requires manual playback QA and the second device coming online.

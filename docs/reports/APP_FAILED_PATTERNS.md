@@ -75,3 +75,8 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Reason:** The player then shows IPTV in controls/history and can enter IPTV episode playlist/API paths, causing misleading labels and possible `API exception please try again` errors.
 - **Fix:** Keep `PlaybackSource.DEBRID` for source identity and add a separate direct-play guard that disables Debrid resolver/API work for direct addon URLs.
 
+## 16. Trusting Expired Direct Addon URLs
+- **Avoid:** Treating a saved direct Stremio/AIOStreams playback URL as durable Continue Watching state.
+- **Reason:** Direct/proxied addon URLs can expire or be revoked, causing resume failures even though the same title still works after a fresh addon lookup.
+- **Fix:** Store stable content ids and selected source profile metadata, then re-fetch sources and choose the closest matching provider/language/source before playback.
+

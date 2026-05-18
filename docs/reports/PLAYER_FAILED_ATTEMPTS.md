@@ -26,3 +26,6 @@ Launching an IPTV episode from Continue Watching with only the episode id is not
 
 ## Failed Pattern - Using IPTV Identity To Bypass Debrid Resolver
 Direct Debrid/Stremio streams must not be launched with null/IPTV playback source just to avoid app-side Real-Debrid re-resolution. That makes player controls and Continue Watching show IPTV and can route direct Debrid series into IPTV playlist/API loading. Keep Debrid identity and gate resolver eligibility separately.
+
+## Failed Pattern - Direct Debrid Without Playlist/Profile Metadata
+Direct Debrid/Stremio playback cannot skip both Debrid playlist loading and IPTV playlist loading, or the shared episode browser will show unavailable. It also cannot rely only on the current infoHash/direct URL for next episode and resume. Use the existing Debrid/TMDB playlist state and carry the selected source profile so browser selection, Next, auto-next, and Continue Watching can fresh-resolve a matching provider/language source.

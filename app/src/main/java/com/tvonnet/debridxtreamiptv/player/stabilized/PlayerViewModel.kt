@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.cache.CacheManager
 import com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity
+import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.data.Result
 import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
@@ -40,10 +41,26 @@ sealed class DebridResolutionState {
         val season: Int? = null,
         val episode: Int? = null,
         val title: String? = null,
-        val infoHash: String? = null
+        val infoHash: String? = null,
+        val magnet: String? = null,
+        val headers: Map<String, String>? = null,
+        val directDebridPlayback: Boolean = false,
+        val sourceProfile: DebridSourceProfile? = null
     ) : DebridResolutionState()
     data class Error(val message: String) : DebridResolutionState()
 }
+
+data class DebridSourceProfile(
+    val provider: String? = null,
+    val sourceType: String? = null,
+    val sourceName: String? = null,
+    val languages: List<String>? = null,
+    val quality: String? = null,
+    val streamId: String? = null,
+    val bingeGroup: String? = null,
+    val fileIdx: Int? = null,
+    val directPlayback: Boolean = false
+)
 
 data class BrowserUiState(
     val isVisible: Boolean = false,
@@ -410,7 +427,8 @@ class PlayerViewModel @Inject constructor(
         targetSeason: Int,
         targetEpisode: Int,
         seriesTitle: String?,
-        infoHash: String?
+        infoHash: String?,
+        sourceProfile: DebridSourceProfile? = null
     ) {
         viewModelScope.launch {
             _debridResolutionState.value = DebridResolutionState.Loading
@@ -430,65 +448,207 @@ class PlayerViewModel @Inject constructor(
                     return@launch
                 }
 
-                val exactMatch = infoHash?.let { hash -> 
-                    sources.firstOrNull { it.stream.stream_id == hash } 
-                }
-                
-                val targetSource = if (exactMatch != null) {
-                    exactMatch
-                } else {
-                    val cached = sources.filter { SourceFilterUtils.isPlaybackReady(it) }
-                    if (cached.isNotEmpty()) {
-                        cached.firstOrNull { it.quality?.contains("2160") == true }
-                            ?: cached.firstOrNull { it.quality?.contains("1080") == true }
-                            ?: cached.first()
-                    } else {
-                        sources.first()
-                    }
-                }
-                
-                val magnet = targetSource.stream.direct_source
-                val hashToResolve = targetSource.stream.stream_id
-
-                if (magnet.isNullOrBlank() && hashToResolve.isNullOrBlank()) {
-                    _debridResolutionState.value = DebridResolutionState.Error("Invalid source data.")
-                    return@launch
-                }
-
-                val result = withContext(Dispatchers.IO) {
-                    playbackResolver.resolve(
-                        source = "debrid",
-                        streamUrl = null,
-                        isExpired = true, // Force resolution for next episode
-                        infoHash = hashToResolve,
-                        magnet = magnet,
-                        seasonNumber = targetSeason,
-                        episodeNumber = targetEpisode,
-                        episodeTitle = seriesTitle
-                    )
-                }
-
-                when (result) {
-                    is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Success -> {
-                        _debridResolutionState.value = DebridResolutionState.Success(
-                            url = result.url,
-                            season = targetSeason,
-                            episode = targetEpisode,
-                            title = seriesTitle,
-                            infoHash = hashToResolve
-                        )
-                    }
-                    is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
-                        _debridResolutionState.value = DebridResolutionState.Error("Refresh required to play this episode.")
-                    }
-                    is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Error -> {
-                        _debridResolutionState.value = DebridResolutionState.Error(result.message)
-                    }
-                }
+                val targetSource = pickDebridSourceForContinuity(sources, infoHash, sourceProfile)
+                resolveDebridMovieSource(
+                    targetSource = targetSource,
+                    season = targetSeason,
+                    episode = targetEpisode,
+                    title = seriesTitle,
+                    directPreferred = sourceProfile?.directPlayback == true
+                )
             } catch (e: Exception) {
                 _debridResolutionState.value = DebridResolutionState.Error("Failed to fetch sources: ${e.message}")
             }
         }
+    }
+
+    fun refreshDebridMovieSource(
+        streamId: String?,
+        title: String?,
+        imdbId: String?,
+        sourceProfile: DebridSourceProfile?
+    ) {
+        viewModelScope.launch {
+            _debridResolutionState.value = DebridResolutionState.Loading
+            try {
+                val sources = withContext(Dispatchers.IO) {
+                    unifiedSourceProvider.getMovieSources(
+                        streamId = streamId,
+                        title = title,
+                        primaryCategoryId = "debrid",
+                        yearHint = null,
+                        imdbId = imdbId
+                    )
+                }
+                if (sources.isEmpty()) {
+                    _debridResolutionState.value = DebridResolutionState.Error("No fresh movie sources found.")
+                    return@launch
+                }
+                resolveDebridMovieSource(
+                    targetSource = pickDebridSourceForContinuity(sources, sourceProfile?.streamId, sourceProfile),
+                    season = null,
+                    episode = null,
+                    title = title,
+                    directPreferred = sourceProfile?.directPlayback == true
+                )
+            } catch (e: Exception) {
+                _debridResolutionState.value = DebridResolutionState.Error("Failed to refresh source: ${e.message}")
+            }
+        }
+    }
+
+    private suspend fun resolveDebridMovieSource(
+        targetSource: MovieSource,
+        season: Int?,
+        episode: Int?,
+        title: String?,
+        directPreferred: Boolean
+    ) {
+        val magnet = targetSource.stream.direct_source
+        val hashToResolve = targetSource.stream.stream_id
+        val profile = targetSource.toDebridSourceProfile(
+            directPlayback = directPreferred && isDirectPlayableUrl(magnet)
+        )
+
+        if (directPreferred && isDirectPlayableUrl(magnet)) {
+            _debridResolutionState.value = DebridResolutionState.Success(
+                url = magnet!!,
+                season = season,
+                episode = episode,
+                title = title,
+                infoHash = hashToResolve,
+                magnet = magnet,
+                headers = targetSource.headers,
+                directDebridPlayback = true,
+                sourceProfile = profile
+            )
+            return
+        }
+
+        if (magnet.isNullOrBlank() && hashToResolve.isNullOrBlank()) {
+            _debridResolutionState.value = DebridResolutionState.Error("Invalid source data.")
+            return
+        }
+
+        val result = withContext(Dispatchers.IO) {
+            playbackResolver.resolve(
+                source = "debrid",
+                streamUrl = null,
+                isExpired = true,
+                infoHash = hashToResolve,
+                magnet = magnet,
+                seasonNumber = season,
+                episodeNumber = episode,
+                episodeTitle = title
+            )
+        }
+
+        when (result) {
+            is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Success -> {
+                _debridResolutionState.value = DebridResolutionState.Success(
+                    url = result.url,
+                    season = season,
+                    episode = episode,
+                    title = title,
+                    infoHash = hashToResolve,
+                    magnet = magnet,
+                    headers = targetSource.headers,
+                    directDebridPlayback = false,
+                    sourceProfile = targetSource.toDebridSourceProfile(directPlayback = false)
+                )
+            }
+            is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
+                _debridResolutionState.value = DebridResolutionState.Error("Refresh required to play this episode.")
+            }
+            is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Error -> {
+                _debridResolutionState.value = DebridResolutionState.Error(result.message)
+            }
+        }
+    }
+
+    private fun pickDebridSourceForContinuity(
+        sources: List<MovieSource>,
+        infoHash: String?,
+        profile: DebridSourceProfile?
+    ): MovieSource {
+        val exactId = profile?.streamId ?: infoHash
+        sources.firstOrNull { source ->
+            !exactId.isNullOrBlank() && source.stream.stream_id.equals(exactId, ignoreCase = true)
+        }?.let { return it }
+
+        val ranked = sources.sortedWith(
+            compareByDescending<MovieSource> { debridContinuityScore(it, profile) }
+                .thenByDescending { SourceFilterUtils.isPlaybackReady(it) }
+                .thenByDescending { qualityScore(it.quality) }
+                .thenByDescending { it.seeders ?: -1 }
+        )
+        return ranked.first()
+    }
+
+    private fun debridContinuityScore(source: MovieSource, profile: DebridSourceProfile?): Int {
+        if (profile == null) return 0
+        var score = 0
+        if (!profile.sourceType.isNullOrBlank() && source.sourceType.equals(profile.sourceType, ignoreCase = true)) score += 40
+        if (!profile.provider.isNullOrBlank() && source.provider.equals(profile.provider, ignoreCase = true)) score += 35
+        if (!profile.bingeGroup.isNullOrBlank() && source.bingeGroup.equals(profile.bingeGroup, ignoreCase = true)) score += 30
+        if (!profile.sourceName.isNullOrBlank() && source.sourceName.equals(profile.sourceName, ignoreCase = true)) score += 15
+        if (!profile.quality.isNullOrBlank() && source.quality.equals(profile.quality, ignoreCase = true)) score += 10
+        val requestedLanguages = normalizeLanguageSet(profile.languages)
+        val candidateLanguages = normalizeLanguageSet(source.languages)
+        if (requestedLanguages.isNotEmpty()) {
+            val overlap = requestedLanguages.intersect(candidateLanguages)
+            score += overlap.size * 20
+            if (candidateLanguages.contains("multi")) score += 8
+        }
+        if (profile.directPlayback && isDirectPlayableUrl(source.stream.direct_source)) score += 20
+        if (SourceFilterUtils.isPlaybackReady(source)) score += 12
+        return score
+    }
+
+    private fun normalizeLanguageSet(languages: List<String>?): Set<String> {
+        return languages.orEmpty()
+            .flatMap { it.split(',', '/', '|', '+', '&') }
+            .map { it.trim().lowercase(Locale.US) }
+            .filter { it.isNotBlank() }
+            .map {
+                when (it) {
+                    "hindi", "hin" -> "hi"
+                    "german", "deu", "ger" -> "de"
+                    "english", "eng" -> "en"
+                    "multi", "dual audio", "dual" -> "multi"
+                    else -> it
+                }
+            }
+            .toSet()
+    }
+
+    private fun qualityScore(quality: String?): Int {
+        return when {
+            quality?.contains("2160", ignoreCase = true) == true || quality?.contains("4K", ignoreCase = true) == true -> 4
+            quality?.contains("1080", ignoreCase = true) == true -> 3
+            quality?.contains("720", ignoreCase = true) == true -> 2
+            quality?.contains("480", ignoreCase = true) == true -> 1
+            else -> 0
+        }
+    }
+
+    private fun isDirectPlayableUrl(url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        return url.startsWith("http", ignoreCase = true) && !url.endsWith(".torrent", ignoreCase = true)
+    }
+
+    private fun MovieSource.toDebridSourceProfile(directPlayback: Boolean): DebridSourceProfile {
+        return DebridSourceProfile(
+            provider = provider,
+            sourceType = sourceType,
+            sourceName = sourceName,
+            languages = languages,
+            quality = quality,
+            streamId = stream.stream_id,
+            bingeGroup = bingeGroup,
+            fileIdx = fileIdx,
+            directPlayback = directPlayback
+        )
     }
 
     fun reResolveDebridUrl(

@@ -1125,6 +1125,9 @@ class HomeFragment : Fragment() {
         val streamUrl = item.streamUrl?.takeIf { it.isNotBlank() }
         val isDebrid = item.source == "debrid"
         val hasResolutionInfo = !item.debridInfoHash.isNullOrBlank() || !item.debridMagnet.isNullOrBlank()
+        val canFreshResolveDirectDebrid = isDebrid &&
+            item.directDebridPlayback &&
+            (!item.tmdbId.isNullOrBlank() || !item.imdbId.isNullOrBlank())
         val expired = item.isExpired()
 
         android.util.Log.e("HISTORY_DEBUG", "Click: ${item.title} | source=${item.source} | stream=$streamUrl | expired=$expired | hasResInfo=$hasResolutionInfo")
@@ -1137,7 +1140,9 @@ class HomeFragment : Fragment() {
 
                     // Direct play if URL is valid and not expired, OR if it's debrid and we have re-resolution info
                     // Note: Xtream items are never 'expired' (fixed in model)
-                    val canResumeDirectly = (streamUrl != null && !expired) || (isDebrid && hasResolutionInfo)
+                    val canResumeDirectly = (streamUrl != null && !expired) ||
+                        (isDebrid && hasResolutionInfo) ||
+                        canFreshResolveDirectDebrid
                     
                     android.util.Log.e("HISTORY_DEBUG", "RESUME_DECISION: canResumeDirectly=$canResumeDirectly | isDebrid=$isDebrid | hasResInfo=$hasResolutionInfo | streamUrl=$streamUrl")
 
@@ -1198,7 +1203,7 @@ class HomeFragment : Fragment() {
                     )
                     val intent = PlayerActivity.createIntent(
                         context = requireContext(),
-                        streamUrl = streamUrl ?: "",
+                        streamUrl = if (canFreshResolveDirectDebrid) "" else streamUrl ?: "",
                         title = item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title,
                         startPositionMs = item.currentPosition,
                         contentId = item.tmdbId?.takeIf { it.isNotBlank() } ?: item.contentId,
@@ -1218,6 +1223,15 @@ class HomeFragment : Fragment() {
                         episodeNumber = item.episodeNumber,
                         debridInfoHash = item.debridInfoHash,
                         debridMagnet = item.debridMagnet,
+                        directDebridPlayback = item.directDebridPlayback,
+                        debridProvider = item.debridProvider,
+                        debridSourceType = item.debridSourceType,
+                        debridSourceName = item.debridSourceName,
+                        debridLanguages = item.debridLanguages,
+                        debridQuality = item.debridQuality,
+                        debridStreamId = item.debridStreamId,
+                        debridBingeGroup = item.debridBingeGroup,
+                        debridFileIdx = item.debridFileIdx,
                         expiresAt = item.expiresAt,
                         baseServerUrl = serverUrl,
                         seriesId = resumeSeriesId

@@ -116,6 +116,7 @@ What is stable:
 Remaining risks:
 - Direct Debrid episode browser has no playlist/source-switch implementation.
 - Direct addon next-episode auto-play is disabled by the resolver guard.
+- Next-episode source selection does not preserve the user's chosen source family/provider/language. `loadNextDebridEpisode()` currently tries exact same infoHash, then falls back to cache/quality ordering, which can switch from Hindi/German/multi to English or from one addon/provider to another.
 - Stremio `fileIdx` is displayed but not passed into Real-Debrid file selection.
 - Stremio subtitles are not mapped yet.
 - Some logs still include noisy debug tags and mojibake characters, reducing QA readability.
@@ -129,6 +130,7 @@ Required manual tests after implementation:
 - Series direct Stremio source plays and label says Debrid.
 - `DPAD_DOWN` on direct Debrid episode opens episode list instead of unavailable.
 - Selecting next episode from browser fetches sources and starts playback.
+- Episode browser selection, Next button, and auto-next preserve the selected source family/provider and language when a matching next-episode source exists.
 - Back from player returns to sources when playback fails early.
 - Blocked/copyright/429 sources do not trigger request storms.
 - Live TV `DPAD_DOWN` still zaps channel down.
@@ -143,11 +145,23 @@ Goal: Fix `DPAD_DOWN -> Episodes unavailable`.
 Implementation plan:
 - Add a direct Debrid playlist loader in `PlayerViewModel`, likely reusing TMDB season details from `loadDebridSeriesPlaylist()`.
 - Allow `PlayerActivity.showEpisodeBrowser()` to load that playlist when `directDebridPlayback == true`.
+- Add a `SelectedSourceProfile`/playback continuity profile for Debrid series:
+  - provider/addon name (`MovieSource.provider`)
+  - source type/family where available (`Stremio`, `Torrentio`, `MediaFusion`, `Dynamic`)
+  - languages (`MovieSource.languages`)
+  - quality preference
+  - cache/direct readiness
+  - optional `bingeGroup`/`fileIdx` when available
 - Add a direct Debrid episode selection path:
   - fetch `UnifiedSourceProvider.getSeriesEpisodeSources(tmdbId, targetSeason, targetEpisode, seriesTitle, null)`.
-  - prefer direct stream and playback-ready sources.
+  - rank candidates by same provider/source family first, same language second, playback-ready/direct third, then quality/seeders.
   - if selected source is direct HTTP, switch with headers and keep `directDebridPlayback = true`.
   - if selected source is magnet/infoHash, use resolver-backed Debrid path.
+- Use the same continuity profile for all next-episode entry points:
+  - episode browser selection
+  - Next button
+  - auto-next countdown
+- If no same-provider/same-language source exists, fall back to the best playable source and show/record that continuity degraded instead of silently picking a random source.
 - Keep controller and DPAD behavior unchanged.
 
 Validation:
@@ -155,6 +169,7 @@ Validation:
 - assembleDebug
 - install both devices
 - manual player `DPAD_DOWN` test on affected direct Stremio series
+- manual continuity test: start with a Hindi/German/multi source, then use episode browser, Next button, and auto-next; each should choose the same provider/language when available
 
 ### Phase 2: Hybrid Source Aggregation
 Goal: Increase source count without mixing old broken UI/storage paths.
@@ -250,3 +265,17 @@ Definition of done:
 
 ## 11. Final Audit Status
 PARTIAL  Architecture is now stable enough to continue, but direct Debrid episode navigation and hybrid source aggregation are still required before the Stremio path feels complete and Stremio-level.
+
+---
+
+## 12. Phase 1 Implementation Update
+`TASK 012-STREMIO-DIRECT-DEBRID-EPISODE-CONTINUITY-RESUME` implemented the Phase 1 player-side foundation:
+- Direct Debrid/Stremio series now use the existing Debrid/TMDB playlist state for episode browser data.
+- Episode browser selection, Next, and auto-next use one Debrid source-selection path.
+- Selected source profile metadata is carried through source conversion, player launch, and Continue Watching.
+- Direct Debrid Continue Watching can refresh from stable metadata instead of trusting expired direct addon URLs.
+
+Status:
+- Build/install/launch smoke passed on `192.168.0.84:5555`.
+- `192.168.0.21:5555` was unreachable during QA.
+- Manual playback QA is still required before marking this user-facing behavior PASS.

@@ -82,3 +82,8 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Player controls, history, and source return behavior still show Debrid, while direct addon URLs do not trigger false IPTV labeling, IPTV playlist API calls, or Real-Debrid re-resolution.
 - **Implementation:** Pass `PlaybackSource.DEBRID` plus a direct Debrid playback flag for direct HTTP addon streams; gate resolver, Debrid playlist loading, timeout re-resolution, and Debrid next-episode resolution behind a non-direct Debrid resolver check.
 
+## 16. Direct Debrid Source Profile Continuity
+- **Definition:** Treat the selected Debrid/Stremio source as a profile, not just a URL, when moving between episodes or resuming playback.
+- **Benefits:** Episode browser selection, Next, auto-next, and Continue Watching can prefer the same provider/source family and same language, reducing unstable jumps to unrelated English-only or lower-quality sources.
+- **Implementation:** Persist provider, source type/name, languages, quality, stream id, Stremio binge group, file index, and direct-play flag through source conversion, player intents, and Continue Watching. On next/resume, re-fetch sources and rank matching profile/language before cache/quality/seeders fallback.
+

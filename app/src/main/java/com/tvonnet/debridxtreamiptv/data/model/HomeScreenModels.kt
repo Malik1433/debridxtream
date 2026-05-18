@@ -28,6 +28,15 @@ data class ContinueWatchingItem(
     val episodeNumber: Int? = null,
     val debridInfoHash: String? = null,
     val debridMagnet: String? = null,
+    val directDebridPlayback: Boolean = false,
+    val debridProvider: String? = null,
+    val debridSourceType: String? = null,
+    val debridSourceName: String? = null,
+    val debridLanguages: List<String>? = null,
+    val debridQuality: String? = null,
+    val debridStreamId: String? = null,
+    val debridBingeGroup: String? = null,
+    val debridFileIdx: Int? = null,
     val source: String = "xtream", // "xtream" or "debrid"
     val expiresAt: Long? = null
 ) {

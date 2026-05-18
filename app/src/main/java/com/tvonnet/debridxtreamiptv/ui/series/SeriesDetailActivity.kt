@@ -798,7 +798,15 @@ class SeriesDetailActivity : AppCompatActivity() {
                 episodeTitle = episode.title,
                 seasonNumber = seasonNumber,
                 episodeNumber = episodeNumber,
-                directDebridPlayback = true
+                directDebridPlayback = true,
+                debridProvider = source.provider,
+                debridSourceType = source.sourceType,
+                debridSourceName = source.sourceName,
+                debridLanguages = source.languages,
+                debridQuality = source.quality,
+                debridStreamId = source.stream.stream_id,
+                debridBingeGroup = source.bingeGroup,
+                debridFileIdx = source.fileIdx
             )
             intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
             playerLauncher.launch(intent)
@@ -839,7 +847,16 @@ class SeriesDetailActivity : AppCompatActivity() {
                         episodeTitle = episode.title,
                         seasonNumber = seasonNumber,
                         episodeNumber = episodeNumber,
-                        debridMagnet = magnet
+                        debridInfoHash = infoHash,
+                        debridMagnet = magnet,
+                        debridProvider = source.provider,
+                        debridSourceType = source.sourceType,
+                        debridSourceName = source.sourceName,
+                        debridLanguages = source.languages,
+                        debridQuality = source.quality,
+                        debridStreamId = source.stream.stream_id,
+                        debridBingeGroup = source.bingeGroup,
+                        debridFileIdx = source.fileIdx
                     )
                     intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
                     playerLauncher.launch(intent)
