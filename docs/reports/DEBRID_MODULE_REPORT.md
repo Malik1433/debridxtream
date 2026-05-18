@@ -507,5 +507,175 @@ Implementation phase for direct Stremio/AIOStreams Debrid playback stability. No
 ## Remaining QA Gap
 Manual playback QA is still required with a real configured Stremio/AIOStreams source: play a direct Debrid series episode, press `DPAD_DOWN`, choose another episode, use Next, let auto-next trigger, and resume from Continue Watching after relaunch. Verify the selected provider/source family and Hindi/German/multi language are preserved when matching candidates exist.
 
+## Manual QA Update
+- User QA on direct Debrid/Stremio series:
+  - Smooth playback: PASS.
+  - `DPAD_DOWN` episode browser: PASS.
+  - Episode selection from browser: PASS.
+  - Next button: PASS.
+  - Auto-next: PASS.
+  - Continue Watching resume: PASS for same-day retest; expired-link/fresh-resolve behavior remains pending until next-day retest.
+
 ## Final Status
-PARTIAL  Code, compile, clean APK generation, install, and launch smoke passed on the reachable device. Full functional PASS requires manual playback QA and the second device coming online.
+PARTIAL  Code, compile, APK generation, install, launch smoke, and core direct Debrid episode navigation QA passed. Resume fresh-resolution across expired direct addon links remains pending next-day confirmation.
+
+---
+
+# TASK 013-COMPANION-CONFIG-STREMIO-SCHEMA-COMPAT
+
+## Scope
+Companion configuration ingestion update so the phone/web companion can send the new Debrid/Stremio config without breaking legacy payloads. No Player/Home/Series behavior changes.
+
+## Changes
+- Companion (Ktor) `/api/config` payload now supports:
+  - `debrid.stremioAddonUrls: string[]`
+  - `debrid.addonRegistryUrls: string[]` (legacy registry list, if still used)
+  - keeps `debrid.token` and `debrid.mediaFusionUrl` working
+- Firestore companion (`CompanionSetupActivity`) now supports both schemas:
+  - legacy: `debrid` (string token), `mediafusion` (string), `stremioAddonUrls` (array)
+  - new: `debridConfig { token, mediaFusionUrl, stremioAddonUrls }`
+- Debrid prefs gained `setStremioAddonUrls()` for replace semantics during companion sync.
+
+## Validation
+- `:app:compileDebugKotlin --offline --no-daemon --console plain --max-workers=1` with in-process Kotlin compiler: PASS.
+
+## Notes / Recommended Companion Web Update
+- Update the companion web app to send `debridConfig` and include `stremioAddonUrls` in the payload, rather than only token/mediafusion.
+- Add a `schemaVersion` field to avoid future breaking changes.
+
+## Final Status
+PASS  App accepts new companion config schema while remaining backward compatible.
+
+---
+
+# TASK 014-COMPANION-WEB-STREMIO-UI-UPDATE
+
+## Scope
+Update the existing companion flow, not a duplicate path. The phone/web companion now accepts IPTV data plus Stremio `manifest.json` URLs, while the TV app's legacy companion screen is repurposed to match the same current config shape. No Player/Home/Series/Live/VOD behavior changes were intended.
+
+## Changes
+- Web companion UI now exposes only the active primary surfaces:
+  - IPTV provider config
+  - Stremio addon manifest URLs
+- Web companion payload now writes:
+  - `iptv`
+  - `debridConfig.stremioAddonUrls`
+  - top-level `stremioAddonUrls`
+  - legacy `debrid` / `mediafusion` only if present
+- Web companion logging was reduced to safe summary fields instead of raw config dumps.
+- TV-side companion screen was repurposed to save Stremio addon URLs, normalize `stremio://` links, and show Stremio labels/messages instead of MediaFusion wording.
+- Existing companion entrypoints were kept; no second pairing flow or duplicate config UI was introduced.
+
+## Validation
+- `npm run build` in `web-dashboard`: PASS.
+- `:app:compileDebugKotlin --no-daemon --console plain --max-workers=1`: PASS.
+- `:app:assembleDebug --no-daemon --console plain --max-workers=1`: PASS.
+
+## Notes
+- `clean assembleDebug` timed out once before daemon cleanup, but the follow-up cached `assembleDebug` completed successfully.
+- The remaining legacy MediaFusion classes and labels are still present elsewhere in the app, but this companion update does not add a new parallel companion path.
+
+## Final Status
+PASS  Existing companion flow updated for IPTV data plus Stremio manifest URLs without introducing a duplicate pairing path.
+
+---
+
+# TASK 015-COMPANION-UI-LABEL-CLEANUP
+
+## Scope
+Fix the live settings surface that still read as Real-Debrid-first / MediaFusion-legacy after fresh install. No duplicate companion path, no new settings surface, and no Player/Home/Series/Live/VOD behavior changes.
+
+## Changes
+- Reordered the live Debrid settings section so `Manage Custom Stremio Addons` is primary and the Real-Debrid action is explicitly labeled as a legacy fallback.
+- Updated the settings category label from `Real-Debrid` to `Stremio Addons`.
+- Reworded the legacy RD auth screen and login prompt to make it clear that it is optional fallback, not the main path.
+- Updated the legacy settings XML surface to remove old Real-Debrid/MediaFusion copy so stale paths no longer present as primary UI.
+
+## Validation
+- `:app:assembleDebug --no-daemon --console plain --max-workers=1`: PASS.
+- Fresh reinstall on `192.168.0.84:5555`: PASS.
+
+## Notes
+- A first `:app:compileDebugKotlin` run timed out at the command layer, but the follow-up `:app:assembleDebug` completed successfully and produced the APK used for reinstall.
+- The old companion/config compatibility fields remain in code for backward compatibility, but the visible settings surface is now Stremio-first.
+
+## Final Status
+PASS  Fresh-install settings surface is Stremio-first and legacy RD wording is downgraded to fallback.
+
+---
+
+# TASK 016-COMPANION-WEB-CANONICAL-SCHEMA
+
+## Scope
+Companion web-dashboard payload cleanup only. The visible companion UI was already Stremio-first; this step canonicalized the outgoing Firestore payload so the web companion no longer emits legacy top-level RD/MediaFusion fields by default. No app-side playback behavior was changed.
+
+## Changes
+- Added `schemaVersion: 2` to the web companion payload.
+- Kept `iptv`, `debridConfig.stremioAddonUrls`, and top-level `stremioAddonUrls` as the canonical outgoing shape.
+- Stopped emitting top-level `debrid` / `mediafusion` keys from the web dashboard push path.
+- Reduced companion logging to summary fields only.
+
+## Validation
+- `npm run build` in `web-dashboard`: PASS.
+
+## Final Status
+PASS  Web companion now emits one canonical Stremio-first payload shape without introducing a duplicate companion flow.
+
+---
+
+# TASK 017-DEBRID-AUTH-LEGACY-API-HIDE
+
+## Scope
+Hide the legacy manual Real-Debrid API-key affordance from the active Debrid auth surface while preserving device-code auth and Stremio-first settings labels. No playback logic, source selection, or companion payload shape was changed.
+
+## Changes
+- Hidden the manual API-key entry controls on the Debrid auth fragment so they no longer appear as a primary visible option.
+- Kept the existing device-code auth flow intact.
+- Left legacy fallback code paths in place for compatibility, but removed their visible prominence.
+
+## Validation
+- `:app:assembleDebug --no-daemon --console plain --max-workers=1`: PASS.
+- Fresh install on `192.168.0.84:5555`: PASS.
+- Launch smoke on `192.168.0.84:5555` via `com.debridxtream.tv/com.tvonnet.debridxtreamiptv.ui.MainActivity`: PASS.
+
+## Final Status
+ PASS  Legacy API-key affordance hidden from the visible Debrid auth surface and validated by build, fresh install, and launch smoke.
+
+---
+
+# TASK 018-COMPANION-MOBILE-FORM-IPTV-PREFLIGHT
+
+## Scope
+Updated the companion site entrypoint so `/setup` now shows the actual mobile-friendly IPTV plus Stremio form instead of a redirect-only bridge. This task stayed on the companion web path and did not change app-side playback logic.
+
+## Changes
+- Routed `/setup` to the active companion config form.
+- Reworked the companion form into a mobile-first stacked layout.
+- Added multiple Stremio manifest URL rows with add/remove controls.
+- Added IPTV preflight verification before payload sync.
+- Prevented blank IPTV fields from being written into the Firestore payload.
+- Added a Vercel API endpoint for IPTV verification.
+
+## Validation
+- `npm run build` in `web-dashboard`: PASS.
+
+## Final Status
+PASS  Companion setup now opens the actual mobile form, supports multiple Stremio links, and blocks bad IPTV details before sync.
+
+---
+
+# TASK 019-COMPANION-CANONICAL-ROOT
+
+## Scope
+Removed the duplicate companion entrypoints by making the root route the canonical config form and redirecting `/setup` and `/config` back to it. This kept one visible companion surface while preserving old links as redirects.
+
+## Changes
+- Routed `/` to the active companion config form.
+- Redirected `/setup` and `/config` to the canonical root route.
+- Preserved query strings during redirect so device codes still flow through.
+
+## Validation
+- `npm run build` in `web-dashboard`: PASS.
+
+## Final Status
+PASS  Companion now has one canonical visible entrypoint instead of duplicate same-page routes.

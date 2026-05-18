@@ -76,3 +76,11 @@ Do not pick the next Debrid episode by quality alone. Episode browser selection,
 
 ## Companion Config Rule
 - **DO NOT** configure Ktor CORS with `anyHost()` as it exposes IPTV credentials to CSRF cross-origin script access. Use custom security headers and local subnets.
+- **DO NOT** add a second companion pairing page or duplicate config screen just to switch from MediaFusion fields to Stremio manifest URLs. Update the existing route in place and keep one payload contract.
+- **DO NOT** leave Real-Debrid or MediaFusion wording as the primary label on the live settings surface after Stremio becomes the main addon path. Legacy fallback must be clearly secondary.
+- **DO NOT** let the web companion emit both new Stremio-first fields and old top-level `debrid` / `mediafusion` payload keys by default. Keep the outgoing schema canonical and legacy names only in compatibility parsers.
+- **DO NOT** leave the manual Real-Debrid API-key entry visible on the main Debrid auth screen after the device-code/Stremio flow exists. Hide it by default and keep legacy fallback behavior out of the primary UI.
+- **DO NOT** keep `/setup` as a redirect-only bridge when the user expects the actual companion form. The first opened page must be the real mobile form.
+- **DO NOT** serialize an empty IPTV object into the companion payload when IPTV is optional. Omit the field entirely unless the credentials were filled and verified.
+- **DO NOT** cap Stremio addon input to a single field when the user needs multiple manifest URLs. Use add/remove rows on the same form.
+- **DO NOT** leave `/`, `/setup`, and `/config` all as active same-screen companion pages. Choose one canonical visible route and redirect the others.

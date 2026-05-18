@@ -79,7 +79,7 @@ class SettingsCategoryAdapter(
                 SettingCategory.HOME -> "Home Screen"
                 SettingCategory.PLAYER -> "Player"
                 SettingCategory.VISUALS -> "Visuals"
-                SettingCategory.DEBRID -> "Real-Debrid"
+                SettingCategory.DEBRID -> "Stremio Addons"
                 SettingCategory.ABOUT -> "About"
                 SettingCategory.LOGOUT -> "Logout"
             }

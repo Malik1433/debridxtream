@@ -2,11 +2,19 @@ import { db } from '../firebase'
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 
 export interface AppConfig {
+    schemaVersion?: number
     iptv?: {
         url: string
         username: string
         password: string
     }
+    debridConfig?: {
+        token?: string
+        mediaFusionUrl?: string
+        stremioAddonUrls?: string[]
+        addonRegistryUrls?: string[]
+    }
+    stremioAddonUrls?: string[]
     debrid?: string
     mediafusion?: string
 }
@@ -42,16 +50,35 @@ export const FirestoreService = {
      */
     async pushConfig(code: string, config: AppConfig): Promise<void> {
         try {
-            console.log(`Pushing config for code: ${code}`, config);
             const docRef = doc(db, 'device_codes', code)
-            // Wrap setDoc with a 15s timeout
-            await withTimeout(setDoc(docRef, {
-                iptv: config.iptv,
-                debrid: config.debrid,
-                mediafusion: config.mediafusion,
+            const addonUrls = config.stremioAddonUrls ?? config.debridConfig?.stremioAddonUrls ?? []
+            const payload: Record<string, unknown> = {
+                schemaVersion: config.schemaVersion ?? 2,
+                debridConfig: {
+                    ...(config.debridConfig ?? {}),
+                    stremioAddonUrls: addonUrls
+                },
+                stremioAddonUrls: addonUrls,
                 status: 'completed',
                 updatedAt: serverTimestamp()
-            }, { merge: true }), 15000)
+            }
+
+            if (config.iptv) {
+                payload.iptv = config.iptv
+            }
+
+            console.log(
+                'Pushing companion config',
+                {
+                    code,
+                    schemaVersion: payload.schemaVersion,
+                    hasIptv: Boolean(config.iptv),
+                    addonCount: addonUrls.length
+                }
+            );
+
+            // Wrap setDoc with a 15s timeout
+            await withTimeout(setDoc(docRef, payload, { merge: true }), 15000)
             console.log('Config pushed successfully');
         } catch (error) {
             console.error('Detailed Error pushing config:', error)

@@ -36,3 +36,4 @@ Skills are invoked using `$skill-name` syntax. Each skill has:
 - Main instructions: `AGENTS.md` (project root)
 - Local overrides: `.codex/AGENTS.override.md` (gitignored)
 - Claude Flow: https://github.com/ruvnet/claude-flow
+- Agent model routing is defined in `AGENTS.md` and should be applied explicitly per agent role.

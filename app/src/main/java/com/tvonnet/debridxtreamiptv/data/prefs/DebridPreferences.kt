@@ -230,6 +230,16 @@ class DebridPreferences @Inject constructor(
             .apply()
     }
 
+    fun setStremioAddonUrls(urls: Collection<String>) {
+        val normalized = urls
+            .map { normalizeStremioAddonUrl(it) }
+            .filter { it.isNotBlank() }
+            .distinct()
+        sharedPreferences.edit()
+            .putString(KEY_STREMIO_ADDON_URLS, gson.toJson(normalized))
+            .apply()
+    }
+
     private fun normalizeStremioAddonUrl(url: String): String {
         return url.trim()
             .replaceFirst("stremio://", "https://", ignoreCase = true)

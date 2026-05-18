@@ -140,11 +140,11 @@
         android:textColor="#FFCCCCCC"
         android:layout_marginTop="16dp" />
 
-    <!-- Real-Debrid Section -->
+    <!-- Stremio Addons Section -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Real-Debrid"
+        android:text="Stremio Addons"
         android:textSize="18sp"
         android:textColor="#FFFFFFFF"
         android:textStyle="bold"
@@ -165,7 +165,7 @@
         android:id="@+id/btn_debrid_action"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Connect Real-Debrid"
+        android:text="Legacy Real-Debrid Fallback"
         android:textColor="#FFFFFFFF"
         android:background="@drawable/tv_menu_item_bg"
         android:focusable="true"
@@ -182,7 +182,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="Connect MediaFusion (Desi/Extra)"
+        android:text="Manage Stremio Addons"
         android:textColor="#FFFFFFFF"
         android:background="@drawable/tv_menu_item_bg"
         android:focusable="true"

@@ -279,3 +279,8 @@ Status:
 - Build/install/launch smoke passed on `192.168.0.84:5555`.
 - `192.168.0.21:5555` was unreachable during QA.
 - Manual playback QA is still required before marking this user-facing behavior PASS.
+
+Follow-up:
+- `192.168.0.21:5555` came online later; install/launch smoke passed.
+- User manual QA confirmed smooth playback, `DPAD_DOWN` episode browser, browser episode selection, Next, and auto-next are working.
+- Continue Watching resume works same-day; next-day expired-link fresh-resolution still needs confirmation.

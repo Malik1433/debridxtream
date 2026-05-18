@@ -87,3 +87,38 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Episode browser selection, Next, auto-next, and Continue Watching can prefer the same provider/source family and same language, reducing unstable jumps to unrelated English-only or lower-quality sources.
 - **Implementation:** Persist provider, source type/name, languages, quality, stream id, Stremio binge group, file index, and direct-play flag through source conversion, player intents, and Continue Watching. On next/resume, re-fetch sources and rank matching profile/language before cache/quality/seeders fallback.
 
+## 17. Backward-Compatible Companion Schemas
+- **Definition:** Companion config ingestion must accept new fields without breaking old companion payloads.
+- **Benefits:** Phone/web companion can be updated incrementally while older versions keep working.
+- **Implementation:** Add additive fields (arrays/objects) with defaults, support legacy field names, and prefer a `schemaVersion` discriminator for future changes.
+
+## 18. Single Companion Surface For Stremio Addons
+- **Definition:** Update the existing companion flow in place and expose Stremio manifest URLs as the primary addon input rather than creating a second companion screen.
+- **Benefits:** Keeps the current working pairing route stable, avoids duplicate settings/pages, and lets IPTV data and Stremio addon links sync together from one payload.
+- **Implementation:** Reuse the same Firestore/device-code entrypoint and TV-side companion screen, write `debridConfig.stremioAddonUrls` plus top-level `stremioAddonUrls`, and keep legacy `debrid` / `mediafusion` only as backward-compatible fallback data.
+
+## 19. Stremio-First Settings Labels
+- **Definition:** Present Stremio Addons as the primary live settings surface and label Real-Debrid only as legacy fallback when the feature is still needed.
+- **Benefits:** Fresh installs read as current instead of RD-first, reducing user confusion after schema migrations.
+- **Implementation:** Reorder the DEBRID settings items, rename the category/title copy, and make the legacy auth prompts explicitly say fallback or legacy.
+
+## 20. Canonical Companion Payload
+- **Definition:** Keep the companion web payload Stremio-first by emitting one canonical schema with `schemaVersion: 2`, `iptv`, `debridConfig.stremioAddonUrls`, and top-level `stremioAddonUrls`.
+- **Benefits:** Prevents the web companion from reintroducing legacy top-level RD/MediaFusion fields while still letting the TV app accept older payloads.
+- **Implementation:** Build the Firestore payload from the active addon URL list, keep legacy fields only in backward-compatible parsers, and log summary counts instead of raw config internals.
+
+## 21. Hidden Legacy Auth Affordance
+- **Definition:** Keep deprecated manual auth controls out of the visible primary Debrid auth surface once device-code and Stremio-first flows are in place.
+- **Benefits:** Reduces user confusion and prevents the old API-key path from looking like the preferred setup method.
+- **Implementation:** Hide legacy manual-entry controls by default, keep device-code auth visible, and preserve hidden fallback code only when required for compatibility.
+
+## 22. Mobile Companion Form With IPTV Preflight
+- **Definition:** Make the companion opening route show the actual mobile form with IPTV inputs and multiple Stremio addon rows, then verify IPTV before any payload is sent.
+- **Benefits:** Users can configure everything on one phone-friendly screen, bad IPTV credentials are blocked inline, and blank IPTV details are not serialized.
+- **Implementation:** Route `/setup` to the config form, use stacked mobile sections, allow add/remove addon rows, call a companion verification endpoint, and omit IPTV from the payload unless it is complete and verified.
+
+## 23. Canonical Companion Root
+- **Definition:** Keep one visible companion entrypoint by making the root route canonical and redirecting old companion paths back to it.
+- **Benefits:** Removes duplicate-looking same-page routes and prevents users from landing on two different URLs that show the same config surface.
+- **Implementation:** Render the config form at `/` and redirect `/setup` and `/config` to `/` while preserving the query string.
+

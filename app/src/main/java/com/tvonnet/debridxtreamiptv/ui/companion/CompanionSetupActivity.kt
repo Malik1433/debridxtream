@@ -100,8 +100,10 @@ class CompanionSetupActivity : AppCompatActivity() {
         if (data == null) return
 
         val iptv = data["iptv"] as? Map<*, *>
-        val debrid = data["debrid"] as? String
-        val mediafusion = data["mediafusion"] as? String
+        val debridTokenLegacy = data["debrid"] as? String
+        val mediafusionLegacy = data["mediafusion"] as? String
+        val debridConfig = data["debridConfig"] as? Map<*, *>
+        val stremioUrlsLegacy = data["stremioAddonUrls"] as? List<*>
 
         // Save IPTV Config using project-standard CredentialsPreferences
         // We set loggedIn to FALSE initially so LoginFragment can trigger its own validation/login flow
@@ -117,19 +119,37 @@ class CompanionSetupActivity : AppCompatActivity() {
 
 
         // Save Debrid Config using project-standard DebridPreferences
-        debrid?.let {
-            if (it.isNotEmpty()) {
-                val debridPrefs = DebridPreferences(applicationContext)
-                debridPrefs.saveRealDebridToken(it)
+        val debridPrefs = DebridPreferences(applicationContext)
+
+        // New schema: debridConfig { token, mediaFusionUrl, stremioAddonUrls }
+        debridConfig?.let { cfg ->
+            val token = cfg["token"] as? String
+            val mediaFusionUrl = cfg["mediaFusionUrl"] as? String
+            val stremioAddonUrls = (cfg["stremioAddonUrls"] as? List<*>)
+                ?.mapNotNull { it as? String }
+                ?.filter { it.isNotBlank() }
+                .orEmpty()
+
+            if (!token.isNullOrBlank()) {
+                debridPrefs.saveRealDebridToken(token)
+            }
+            if (!mediaFusionUrl.isNullOrBlank()) {
+                debridPrefs.saveMediaFusionUrl(mediaFusionUrl)
+            }
+            if (stremioAddonUrls.isNotEmpty()) {
+                debridPrefs.setStremioAddonUrls(stremioAddonUrls)
             }
         }
 
-        // Save MediaFusion Config if present
-        mediafusion?.let {
-            if (it.isNotEmpty()) {
-                val debridPrefs = DebridPreferences(applicationContext)
-                debridPrefs.saveMediaFusionUrl(it)
-            }
+        // Legacy fields (backward compatible)
+        debridTokenLegacy?.takeIf { it.isNotBlank() }?.let { debridPrefs.saveRealDebridToken(it) }
+        mediafusionLegacy?.takeIf { it.isNotBlank() }?.let { debridPrefs.saveMediaFusionUrl(it) }
+        val stremioAddonUrls = stremioUrlsLegacy
+            ?.mapNotNull { it as? String }
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
+        if (stremioAddonUrls.isNotEmpty()) {
+            debridPrefs.setStremioAddonUrls(stremioAddonUrls)
         }
 
         Toast.makeText(this, "Configuration Received! Happy Streaming.", Toast.LENGTH_LONG).show()

@@ -114,7 +114,7 @@
 
         <activity
             android:name=".ui.settings.MediaFusionConfigActivity"
-            android:label="Connect MediaFusion"
+            android:label="Connect Stremio Addons"
             android:theme="@style/AppTheme"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />

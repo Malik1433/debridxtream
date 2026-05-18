@@ -90,6 +90,9 @@ class DebridAuthFragment : Fragment() {
         btnSubmitManual = view.findViewById(R.id.btn_submit_manual)
         llAuthButtons = view.findViewById(R.id.ll_auth_buttons)
 
+        btnShowManual.visibility = View.GONE
+        llManualEntry.visibility = View.GONE
+
         btnShowManual.setOnClickListener {
             llManualEntry.visibility = if (llManualEntry.visibility == View.VISIBLE) View.GONE else View.VISIBLE
             if (llManualEntry.visibility == View.VISIBLE) {
@@ -170,20 +173,12 @@ class DebridAuthFragment : Fragment() {
                 btnStartAuth.visibility = View.VISIBLE
                 btnStartAuth.isEnabled = true
                 llAuthButtons.visibility = View.VISIBLE
-                btnShowManual.visibility = View.VISIBLE
                 android.util.Log.e("DebridAuthFragment", "Authentication error: ${state.message}")
             }
         }
-        
-        // Hide manual entry during active OAuth or Fetching
-        if (state is DebridAuthState.FetchingCode || state is DebridAuthState.ShowingCode) {
-            btnShowManual.visibility = View.GONE
-            llManualEntry.visibility = View.GONE
-            llAuthButtons.visibility = if (state is DebridAuthState.ShowingCode) View.VISIBLE else View.GONE
-        } else if (state is DebridAuthState.Idle) {
-            btnShowManual.visibility = View.VISIBLE
-            llAuthButtons.visibility = View.VISIBLE
-        }
+        llManualEntry.visibility = View.GONE
+        btnShowManual.visibility = View.GONE
+        llAuthButtons.visibility = View.VISIBLE
     }
 
     private fun maskCode(value: String?): String {

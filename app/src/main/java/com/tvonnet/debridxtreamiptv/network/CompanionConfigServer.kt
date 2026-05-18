@@ -207,6 +207,19 @@ class CompanionConfigServer @Inject constructor(
                 Log.d("CompanionServer", "Syncing MediaFusion URL: ${debrid.mediaFusionUrl}")
                 debridPreferences.saveMediaFusionUrl(debrid.mediaFusionUrl)
             }
+            val stremioUrls = debrid.stremioAddonUrls?.filter { it.isNotBlank() }.orEmpty()
+            if (stremioUrls.isNotEmpty()) {
+                Log.d("CompanionServer", "Syncing Stremio addon URLs: count=${stremioUrls.size}")
+                debridPreferences.setStremioAddonUrls(stremioUrls)
+            }
+            val registryUrls = debrid.addonRegistryUrls?.filter { it.isNotBlank() }.orEmpty()
+            if (registryUrls.isNotEmpty()) {
+                Log.d("CompanionServer", "Syncing addon registry URLs: count=${registryUrls.size}")
+                // Replace semantics: remove all then re-add. We keep this scoped to companion sync only.
+                val existing = debridPreferences.getAddonRegistryUrls()
+                existing.forEach { debridPreferences.removeAddonRegistryUrl(it) }
+                registryUrls.forEach { debridPreferences.addAddonRegistryUrl(it) }
+            }
         }
     }
 }
@@ -227,5 +240,7 @@ data class IptvConfig(
 
 data class DebridConfig(
     val token: String? = null,
-    val mediaFusionUrl: String? = null
+    val mediaFusionUrl: String? = null,
+    val stremioAddonUrls: List<String>? = null,
+    val addonRegistryUrls: List<String>? = null
 )

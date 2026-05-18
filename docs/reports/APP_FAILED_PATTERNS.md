@@ -80,3 +80,43 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Reason:** Direct/proxied addon URLs can expire or be revoked, causing resume failures even though the same title still works after a fresh addon lookup.
 - **Fix:** Store stable content ids and selected source profile metadata, then re-fetch sources and choose the closest matching provider/language/source before playback.
 
+## 17. Breaking Companion Payloads With Schema Changes
+- **Avoid:** Replacing companion config keys/shape without backward compatibility.
+- **Reason:** Users get stuck with “companion config purani” where the web sends old keys and the TV expects new ones (or vice versa).
+- **Fix:** Keep additive fields with defaults, accept legacy names, and introduce a `schemaVersion` to make transitions explicit.
+
+
+## 18. Creating A Second Companion Path For A Schema Refresh
+- **Avoid:** Adding a parallel companion page, duplicate pairing route, or new TV-side config screen just to support Stremio addon URLs.
+- **Reason:** Duplicate surfaces split maintenance, confuse users, and make it easy to break the existing working flow.
+- **Fix:** Update the active companion route in place, keep one Firestore/device-code payload contract, and repurpose the existing TV-side screen instead of spawning a second flow.
+
+## 19. Leaving Legacy RD Labels As The Primary Live Settings Copy
+- **Avoid:** Keeping `Real-Debrid` and `MediaFusion` as the first thing shown on the active settings screen after moving Stremio addon URLs to the new primary path.
+- **Reason:** The app looks unchanged after reinstall, even though the underlying schema has moved forward.
+- **Fix:** Label the live settings surface as `Stremio Addons`, keep the RD auth path as explicit legacy fallback, and remove MediaFusion wording from the visible copy.
+
+## 20. Mixed Companion Payload Emission
+- **Avoid:** Having the web companion emit both the new canonical Stremio-first payload and the old top-level RD/MediaFusion fields by default.
+- **Reason:** It keeps the contract ambiguous and can reintroduce legacy shape drift even when the visible UI is already cleaned up.
+- **Fix:** Emit one canonical payload from the web dashboard and reserve legacy field names only for backward-compatible parsers.
+
+## 21. Visible Legacy API-Key Auth
+- **Avoid:** Leaving manual Real-Debrid API-key entry visible on the main Debrid auth surface after the device-code/Stremio-first flow is in place.
+- **Reason:** It makes the deprecated path look primary and causes fresh installs to read as old after the companion refresh.
+- **Fix:** Hide the manual API-key affordance by default and keep only the device-code auth path visible.
+
+## 22. Redirect-Only Companion Entry
+- **Avoid:** Leaving `/setup` as a bridge page that immediately redirects to the real form.
+- **Reason:** Users land on the companion link and do not see any visible change, which makes it look like the update did not work.
+- **Fix:** Route the opening entrypoint directly to the config form so the actual IPTV and Stremio fields are visible immediately.
+
+## 23. Serializing Blank Optional IPTV Data
+- **Avoid:** Writing an `iptv` object with undefined values when the user leaves IPTV blank.
+- **Reason:** Optional fields should stay out of the Firestore payload entirely when they are not being used.
+- **Fix:** Build the payload conditionally and omit IPTV unless all three IPTV fields are present and verified.
+
+## 24. Duplicate Companion Entrypoints
+- **Avoid:** Leaving both `/setup` and `/config` as active same-screen companion routes alongside a separate root landing page.
+- **Reason:** It makes the update look inconsistent and leaves users with multiple URLs that appear to be the same page.
+- **Fix:** Pick one canonical route, redirect the old ones, and keep only one visible companion surface.

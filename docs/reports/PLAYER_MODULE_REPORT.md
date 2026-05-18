@@ -354,6 +354,8 @@ Player-side fix for direct Stremio/AIOStreams Debrid episode browser, next episo
 - Follow-up `:app:assembleDebug --offline --no-daemon --console plain --max-workers=1`: PASS with captured exit code.
 - Install and launch smoke: PASS on `192.168.0.84:5555`.
 - `192.168.0.21:5555`: unavailable, adb connect timed out.
+- Follow-up install/launch smoke on `192.168.0.21:5555` after device came online: PASS.
+- User manual QA: playback smooth, `DPAD_DOWN` episode browser working, browser episode select working, Next working, auto-next working, same-day Continue Watching resume working.
 
 ## Final Status
-PARTIAL  build/install/launch smoke passed on the reachable device; direct Debrid episode browser, same-source/language next episode, and fresh resume still require manual playback QA.
+PARTIAL  direct Debrid episode browser and next/auto-next manual QA passed; expired-link resume freshness remains pending next-day confirmation.

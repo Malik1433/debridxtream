@@ -1,317 +1,575 @@
-import React, { useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Server, Key, ArrowLeft, Save, Globe, User, Lock, Activity, CheckCircle2, AlertCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+    ArrowLeft,
+    AlertCircle,
+    CheckCircle2,
+    Globe,
+    Link2,
+    Loader2,
+    Lock,
+    Plus,
+    Save,
+    Server,
+    Trash2,
+    User,
+    ShieldCheck
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { FirestoreService } from '../services/FirestoreService';
+
+type AddonRow = {
+    id: string;
+    value: string;
+};
+
+type FieldErrors = {
+    general?: string;
+    iptv?: string;
+    addons?: string;
+    addonRows?: Record<string, string>;
+};
+
+type SaveState = 'idle' | 'verifying' | 'saving' | 'success' | 'error';
+
+const createRowId = () =>
+    (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+
+const normalizeAddonUrl = (value: string): string => {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    return trimmed
+        .replace(/^stremio:\/\//i, 'https://')
+        .replace(/\/+$/, '');
+};
+
+const isManifestUrl = (value: string): boolean => {
+    const lower = value.toLowerCase();
+    return (lower.startsWith('https://') || lower.startsWith('http://')) && lower.includes('manifest.json');
+};
+
+const normalizeServerUrl = (value: string): string => {
+    const trimmed = value.trim().replace(/\/+$/, '');
+    return trimmed;
+};
+
+const hasAnyIptvValue = (serverUrl: string, username: string, password: string): boolean => {
+    return [serverUrl, username, password].some((value) => value.trim().length > 0);
+};
+
+const hasCompleteIptvValue = (serverUrl: string, username: string, password: string): boolean => {
+    return [serverUrl, username, password].every((value) => value.trim().length > 0);
+};
 
 const ConfigPage: React.FC = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const code = (searchParams.get('code') || '').toUpperCase();
-    const [activeTab, setActiveTab] = useState<'iptv' | 'debrid' | 'mediafusion'>('iptv');
-
 
     const [iptvConfig, setIptvConfig] = useState({
         url: '',
         username: '',
         password: ''
     });
+    const [addonRows, setAddonRows] = useState<AddonRow[]>([{ id: createRowId(), value: '' }]);
+    const [saveState, setSaveState] = useState<SaveState>('idle');
+    const [statusMessage, setStatusMessage] = useState('');
+    const [errors, setErrors] = useState<FieldErrors>({});
 
-    const [debridKey, setDebridKey] = useState('');
-    const [mediaFusionUrl, setMediaFusionUrl] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
-    const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const activeAddonUrls = useMemo(() => {
+        const seen = new Set<string>();
+        const urls: string[] = [];
 
+        addonRows.forEach((row) => {
+            const normalized = normalizeAddonUrl(row.value);
+            if (!normalized || !isManifestUrl(normalized)) return;
+            if (seen.has(normalized)) return;
+            seen.add(normalized);
+            urls.push(normalized);
+        });
+
+        return urls;
+    }, [addonRows]);
+
+    const updateAddonRow = (id: string, value: string) => {
+        setAddonRows((rows) => rows.map((row) => (row.id === id ? { ...row, value } : row)));
+        setErrors((current) => {
+            if (!current.addonRows?.[id]) return current;
+            const nextAddonRows = { ...(current.addonRows ?? {}) };
+            delete nextAddonRows[id];
+            return { ...current, addonRows: nextAddonRows };
+        });
+    };
+
+    const addAddonRow = () => {
+        setAddonRows((rows) => [...rows, { id: createRowId(), value: '' }]);
+    };
+
+    const removeAddonRow = (id: string) => {
+        setAddonRows((rows) => {
+            if (rows.length === 1) {
+                return [{ id: createRowId(), value: '' }];
+            }
+            return rows.filter((row) => row.id !== id);
+        });
+        setErrors((current) => {
+            if (!current.addonRows?.[id]) return current;
+            const nextAddonRows = { ...(current.addonRows ?? {}) };
+            delete nextAddonRows[id];
+            return { ...current, addonRows: nextAddonRows };
+        });
+    };
+
+    const verifyIptvCredentials = async (serverUrl: string, username: string, password: string) => {
+        const payload = {
+            serverUrl: normalizeServerUrl(serverUrl),
+            username: username.trim(),
+            password: password.trim()
+        };
+
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 12000);
+
+        try {
+            const response = await fetch('/api/verify-iptv', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload),
+                signal: controller.signal
+            });
+
+            if (response.ok) {
+                const data = await response.json().catch(() => ({}));
+                return {
+                    ok: Boolean(data.ok),
+                    message: typeof data.message === 'string' && data.message.trim()
+                        ? data.message.trim()
+                        : (Boolean(data.ok) ? 'IPTV verified.' : 'IPTV verification failed.')
+                };
+            }
+
+            const fallbackMessage = await response.text().catch(() => '');
+            return {
+                ok: false,
+                message: fallbackMessage.trim() || `Verification service returned ${response.status}.`
+            };
+        } catch (error: any) {
+            return {
+                ok: false,
+                message: error?.name === 'AbortError'
+                    ? 'IPTV verification timed out.'
+                    : 'Unable to verify IPTV from the companion service.'
+            };
+        } finally {
+            window.clearTimeout(timeout);
+        }
+    };
 
     const handleSave = async () => {
         if (!code) return;
-        setIsSaving(true);
-        setSaveStatus('idle');
 
-        // Create a timeout promise to prevent indefinite hanging
+        const nextErrors: FieldErrors = {};
+        const normalizedServerUrl = normalizeServerUrl(iptvConfig.url);
+        const normalizedUsername = iptvConfig.username.trim();
+        const normalizedPassword = iptvConfig.password.trim();
+        const iptvFilled = hasAnyIptvValue(normalizedServerUrl, normalizedUsername, normalizedPassword);
+        const iptvComplete = hasCompleteIptvValue(normalizedServerUrl, normalizedUsername, normalizedPassword);
+
+        const addonRowErrors: Record<string, string> = {};
+        const seen = new Set<string>();
+        const addonUrls: string[] = [];
+
+        addonRows.forEach((row) => {
+            const normalized = normalizeAddonUrl(row.value);
+            if (!normalized) return;
+            if (!isManifestUrl(normalized)) {
+                addonRowErrors[row.id] = 'Use a full manifest.json URL.';
+                return;
+            }
+            if (seen.has(normalized)) return;
+            seen.add(normalized);
+            addonUrls.push(normalized);
+        });
+
+        if (Object.keys(addonRowErrors).length > 0) {
+            nextErrors.addonRows = addonRowErrors;
+        }
+
+        if (iptvFilled && !iptvComplete) {
+            nextErrors.iptv = 'Fill server URL, username, and password together.';
+        } else if (iptvComplete && !/^https?:\/\//i.test(normalizedServerUrl)) {
+            nextErrors.iptv = 'IPTV server URL must start with http:// or https://.';
+        }
+
+        if (!iptvFilled && addonUrls.length === 0) {
+            nextErrors.general = 'Add IPTV details or at least one Stremio manifest URL.';
+        }
+
+        setErrors(nextErrors);
+        if (Object.keys(nextErrors).length > 0) {
+            setSaveState('error');
+            setStatusMessage(nextErrors.general || nextErrors.iptv || 'Please fix the highlighted fields.');
+            return;
+        }
+
+        setSaveState('verifying');
+        setStatusMessage('Verifying IPTV credentials...');
+
+        if (iptvComplete) {
+            const verification = await verifyIptvCredentials(normalizedServerUrl, normalizedUsername, normalizedPassword);
+            if (!verification.ok) {
+                setErrors((current) => ({
+                    ...current,
+                    iptv: verification.message
+                }));
+                setSaveState('error');
+                setStatusMessage(verification.message);
+                return;
+            }
+        }
+
+        setSaveState('saving');
+        setStatusMessage('Synchronizing with TV...');
+
         const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => reject(new Error('TIMEOUT')), 15000);
         });
 
         try {
-            // Race the Firestore push against our timeout
             await Promise.race([
                 FirestoreService.pushConfig(code, {
-                    iptv: iptvConfig,
-                    debrid: debridKey,
-                    mediafusion: mediaFusionUrl
+                    schemaVersion: 2,
+                    iptv: iptvComplete ? {
+                        url: normalizedServerUrl,
+                        username: normalizedUsername,
+                        password: normalizedPassword
+                    } : undefined,
+                    debridConfig: {
+                        stremioAddonUrls: addonUrls
+                    },
+                    stremioAddonUrls: addonUrls
                 }),
-
                 timeoutPromise
             ]);
 
-            setSaveStatus('success');
-            setTimeout(() => setSaveStatus('idle'), 5000);
+            setSaveState('success');
+            setStatusMessage('Sync successful. Check your TV.');
+            window.setTimeout(() => {
+                setSaveState('idle');
+                setStatusMessage('');
+            }, 5000);
         } catch (error: any) {
-            console.error('Detailed push failure:', error);
-            if (error.message === 'TIMEOUT') {
-                alert('Connection timed out. This is usually caused by an invalid Firebase APP ID configuration.');
-            } else {
-                alert('Push failed: ' + (error.message || 'Unknown error'));
-            }
-            setSaveStatus('error');
-        } finally {
-            setIsSaving(false);
+            const message = error?.message === 'TIMEOUT'
+                ? 'Connection timed out. Please check the companion service.'
+                : `Push failed: ${error?.message || 'Unknown error'}`;
+            setSaveState('error');
+            setStatusMessage(message);
+            setErrors((current) => ({ ...current, general: message }));
         }
     };
 
     return (
-        <div className="min-h-screen p-4 md:p-12 flex flex-col items-center relative overflow-hidden">
-            {/* Ambient Background Glows */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gold-500/10 blur-[120px] rounded-full" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-gold-500/5 blur-[120px] rounded-full" />
-
-            <div className="max-w-4xl w-full relative z-10">
-                {/* Header Navigation */}
-                <div className="flex items-center justify-between mb-12">
+        <div className="min-h-screen bg-neutral-950 p-4 sm:p-6 lg:p-8 text-white">
+            <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+                <div className="flex items-center justify-between gap-4">
                     <button
                         onClick={() => navigate('/')}
-                        className="nav-btn group"
+                        className="nav-btn group shrink-0"
                     >
-                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                        <ArrowLeft className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
                     </button>
 
-                    <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex items-center gap-3 px-6 py-2.5 rounded-full glass-gold"
-                    >
-                        <div className="w-2 h-2 rounded-full bg-gold-500 animate-pulse" />
-                        <span className="text-[10px] font-black text-gold-500 uppercase tracking-[0.3em]">
-                            Session: {code || 'N/A'}
-                        </span>
-                    </motion.div>
+                    <div className="flex flex-1 justify-end">
+                        <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur">
+                            <div className="h-2 w-2 rounded-full bg-gold-500 animate-pulse" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.28em] text-gold-500">
+                                Session: {code || 'N/A'}
+                            </span>
+                        </div>
+                    </div>
                 </div>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="glass-gold rounded-[2.5rem] overflow-hidden"
-                >
-                    {/* Primary Tabs */}
-                    <div className="flex bg-white/2 border-b border-white/5">
-                        <button
-                            onClick={() => setActiveTab('iptv')}
-                            className={`flex-1 flex items-center justify-center gap-3 py-8 font-black uppercase tracking-[0.2em] text-xs transition-all
-                                ${activeTab === 'iptv' ? 'text-gold-500 bg-gold-500/5 shadow-[inset_0_-2px_0_rgba(212,175,55,1)]' : 'text-neutral-500 hover:text-neutral-300'}`}
-                        >
-                            <Server className="w-4 h-4" />
-                            Provider Config
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('debrid')}
-                            className={`flex-1 flex items-center justify-center gap-3 py-8 font-black uppercase tracking-[0.2em] text-xs transition-all
-                                ${activeTab === 'debrid' ? 'text-gold-500 bg-gold-500/5 shadow-[inset_0_-2px_0_rgba(212,175,55,1)]' : 'text-neutral-500 hover:text-neutral-300'}`}
-                        >
-                            <Key className="w-4 h-4" />
-                            Premium Debrid
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('mediafusion')}
-                            className={`flex-1 flex items-center justify-center gap-3 py-8 font-black uppercase tracking-[0.2em] text-xs transition-all
-                                ${activeTab === 'mediafusion' ? 'text-gold-500 bg-gold-500/5 shadow-[inset_0_-2px_0_rgba(212,175,55,1)]' : 'text-neutral-500 hover:text-neutral-300'}`}
-                        >
-                            <Activity className="w-4 h-4" />
-                            MediaFusion
-                        </button>
-
+                <div className="rounded-[2rem] border border-white/5 bg-white/[0.03] p-5 sm:p-6">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.35em] text-neutral-500">
+                                Companion Setup
+                            </p>
+                            <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+                                IPTV and Stremio links in one mobile form
+                            </h1>
+                        </div>
+                        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-black uppercase tracking-[0.25em] text-neutral-300">
+                            <ShieldCheck className="h-4 w-4 text-gold-500" />
+                            Schema v2
+                        </div>
                     </div>
+                    <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400">
+                        Fill IPTV details only if you need them. Add one or more Stremio manifest URLs below.
+                        Save will verify IPTV first and block wrong details before anything is sent.
+                    </p>
+                </div>
 
-                    {/* Form Container */}
-                    <div className="p-8 md:p-16">
-                        <AnimatePresence mode="wait">
-                            {activeTab === 'iptv' ? (
-                                <motion.div
-                                    key="iptv"
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: 20 }}
-                                    className="space-y-10"
-                                >
-                                    <div className="space-y-3">
-                                        <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500 ml-2">
-                                            Server URL
-                                        </label>
-                                        <div className="relative group">
-                                            <Globe className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-600 group-focus-within:text-gold-500 transition-colors" />
-                                            <input
-                                                type="text"
-                                                placeholder="http://line.spainott.site:8080"
-                                                className="input-field pl-16"
-                                                value={iptvConfig.url}
-                                                onChange={(e) => setIptvConfig({ ...iptvConfig, url: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
+                <div className="grid gap-4 lg:grid-cols-[1fr_1.12fr]">
+                    <section className="rounded-[1.75rem] border border-white/5 bg-white/[0.03] p-5 sm:p-6">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/10 text-gold-500">
+                                <Server className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-bold">IPTV Provider</h2>
+                                <p className="text-xs text-neutral-500">Verified before sync. Wrong info stays here.</p>
+                            </div>
+                        </div>
 
-                                    <div className="grid md:grid-cols-2 gap-8">
-                                        <div className="space-y-3">
-                                            <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500 ml-2">
-                                                Username
-                                            </label>
-                                            <div className="relative group">
-                                                <User className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-600 group-focus-within:text-gold-500 transition-colors" />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Username"
-                                                    className="input-field pl-16"
-                                                    value={iptvConfig.username}
-                                                    onChange={(e) => setIptvConfig({ ...iptvConfig, username: e.target.value })}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-3">
-                                            <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500 ml-2">
-                                                Password
-                                            </label>
-                                            <div className="relative group">
-                                                <Lock className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-600 group-focus-within:text-gold-500 transition-colors" />
-                                                <input
-                                                    type="password"
-                                                    placeholder="••••••••"
-                                                    className="input-field pl-16"
-                                                    value={iptvConfig.password}
-                                                    onChange={(e) => setIptvConfig({ ...iptvConfig, password: e.target.value })}
-                                                />
-                                            </div>
-                                        </div>
+                        <div className="mt-5 space-y-4">
+                            <div className="space-y-2">
+                                <label className="ml-1 block text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500">
+                                    Server URL
+                                </label>
+                                <div className="relative">
+                                    <Globe className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-600" />
+                                    <input
+                                        type="text"
+                                        inputMode="url"
+                                        placeholder="http://line.example.com:8080"
+                                        className={`input-field w-full pl-12 ${errors.iptv ? 'border-rose-500/50' : ''}`}
+                                        value={iptvConfig.url}
+                                        onChange={(e) => {
+                                            setIptvConfig({ ...iptvConfig, url: e.target.value });
+                                            if (errors.iptv) {
+                                                setErrors((current) => ({ ...current, iptv: undefined }));
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <label className="ml-1 block text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500">
+                                        Username
+                                    </label>
+                                    <div className="relative">
+                                        <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-600" />
+                                        <input
+                                            type="text"
+                                            placeholder="Username"
+                                            className={`input-field w-full pl-12 ${errors.iptv ? 'border-rose-500/50' : ''}`}
+                                            value={iptvConfig.username}
+                                            onChange={(e) => {
+                                                setIptvConfig({ ...iptvConfig, username: e.target.value });
+                                                if (errors.iptv) {
+                                                    setErrors((current) => ({ ...current, iptv: undefined }));
+                                                }
+                                            }}
+                                        />
                                     </div>
-                                </motion.div>
-                            ) : activeTab === 'debrid' ? (
-                                <motion.div
-                                    key="debrid"
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -20 }}
-                                    className="space-y-10"
-                                >
-                                    <div className="space-y-4">
-                                        <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500 ml-2">
-                                            Real-Debrid API Context
-                                        </label>
-                                        <div className="relative group">
-                                            <Key className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-600 group-focus-within:text-gold-500 transition-colors" />
-                                            <input
-                                                type="text"
-                                                placeholder="Paste your private API key..."
-                                                className="input-field pl-16 font-mono text-sm tracking-widest"
-                                                value={debridKey}
-                                                onChange={(e) => setDebridKey(e.target.value)}
-                                            />
-                                        </div>
-                                        <p className="text-[10px] text-neutral-600 italic px-2 leading-relaxed">
-                                            You can find this in your Real-Debrid dashboard under the "API" section. This allows high-speed 4K streaming without buffering.
-                                        </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="ml-1 block text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500">
+                                        Password
+                                    </label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-600" />
+                                        <input
+                                            type="password"
+                                            placeholder="••••••••"
+                                            className={`input-field w-full pl-12 ${errors.iptv ? 'border-rose-500/50' : ''}`}
+                                            value={iptvConfig.password}
+                                            onChange={(e) => {
+                                                setIptvConfig({ ...iptvConfig, password: e.target.value });
+                                                if (errors.iptv) {
+                                                    setErrors((current) => ({ ...current, iptv: undefined }));
+                                                }
+                                            }}
+                                        />
                                     </div>
-                                </motion.div>
-                            ) : (
-                                <motion.div
-                                    key="mediafusion"
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -20 }}
-                                    className="space-y-10"
-                                >
-                                    <div className="space-y-6">
-                                        <div className="flex flex-col gap-4 p-6 rounded-2xl bg-gold-500/5 border border-gold-500/10">
-                                            <p className="text-xs text-neutral-400 leading-relaxed font-bold">
-                                                To set up MediaFusion, first configure your manifest on their portal, then copy the result link below.
-                                            </p>
-                                            <a
-                                                href="https://mediafusion.elfhosted.com/configure"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex items-center justify-center gap-2 py-3 px-6 rounded-xl bg-gold-500/10 hover:bg-gold-500/20 text-gold-500 text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-gold-500/20"
+                                </div>
+                            </div>
+
+                            <p className="text-[10px] leading-relaxed text-neutral-500">
+                                If you only want Stremio addons, leave IPTV blank and it will not be sent.
+                            </p>
+
+                            <AnimatePresence>
+                                {errors.iptv && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -4 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -4 }}
+                                        className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-300"
+                                    >
+                                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                                        <span>{errors.iptv}</span>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </section>
+
+                    <section className="rounded-[1.75rem] border border-white/5 bg-white/[0.03] p-5 sm:p-6">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/10 text-gold-500">
+                                    <Link2 className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-bold">Stremio Addons</h2>
+                                    <p className="text-xs text-neutral-500">Add as many manifest URLs as you need.</p>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={addAddonRow}
+                                className="inline-flex items-center gap-2 rounded-full border border-gold-500/20 bg-gold-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-gold-500 transition-colors hover:bg-gold-500/15"
+                            >
+                                <Plus className="h-3.5 w-3.5" />
+                                Add Link
+                            </button>
+                        </div>
+
+                        <div className="mt-5 space-y-3">
+                            {addonRows.map((row, index) => {
+                                const rowError = errors.addonRows?.[row.id];
+                                return (
+                                    <div key={row.id} className="space-y-2 rounded-2xl border border-white/5 bg-black/20 p-3 sm:p-4">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <label className="text-[10px] font-black uppercase tracking-[0.28em] text-neutral-500">
+                                                Link {index + 1}
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeAddonRow(row.id)}
+                                                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300 transition-colors hover:border-rose-500/40 hover:text-rose-300"
                                             >
-                                                <Globe className="w-4 h-4" />
-                                                Open MediaFusion Config Portal
-                                            </a>
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                                Remove
+                                            </button>
                                         </div>
 
-                                        <div className="space-y-3">
-                                            <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500 ml-2">
-                                                MediaFusion Manifest URL
-                                            </label>
-                                            <div className="relative group">
-                                                <Activity className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-600 group-focus-within:text-gold-500 transition-colors" />
-                                                <input
-                                                    type="text"
-                                                    placeholder="https://mediafusion.elfhosted.com/..."
-                                                    className="input-field pl-16"
-                                                    value={mediaFusionUrl}
-                                                    onChange={(e) => setMediaFusionUrl(e.target.value)}
-                                                />
-                                            </div>
-                                            <p className="text-[10px] text-neutral-600 italic px-2 leading-relaxed">
-                                                Example: https://mediafusion.elfhosted.com/RealDebrid=XYZ/manifest.json
-                                            </p>
+                                        <div className="relative">
+                                            <Link2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-600" />
+                                            <input
+                                                type="text"
+                                                inputMode="url"
+                                                placeholder="https://addon.example/config/manifest.json"
+                                                className={`input-field w-full pl-12 ${rowError ? 'border-rose-500/50' : ''}`}
+                                                value={row.value}
+                                                onChange={(e) => {
+                                                    updateAddonRow(row.id, e.target.value);
+                                                }}
+                                            />
                                         </div>
+
+                                        <AnimatePresence>
+                                            {rowError && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: -4 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -4 }}
+                                                    className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-300"
+                                                >
+                                                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                                                    <span>{rowError}</span>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
+                                );
+                            })}
+                        </div>
+
+                        <p className="mt-4 text-[10px] leading-relaxed text-neutral-500">
+                            Paste one full `manifest.json` URL per row. `stremio://` links are normalized automatically.
+                            Duplicate links are ignored.
+                        </p>
+
+                        <AnimatePresence>
+                            {errors.general && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -4 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -4 }}
+                                    className="mt-4 flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-300"
+                                >
+                                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                                    <span>{errors.general}</span>
                                 </motion.div>
                             )}
-
                         </AnimatePresence>
+                    </section>
+                </div>
 
-                        {/* Action Bar */}
-                        <div className="mt-16 pt-10 border-t border-white/5 flex flex-col items-center">
+                <div className="rounded-[1.75rem] border border-white/5 bg-white/[0.03] p-4 sm:p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">
+                                <Server className="h-3.5 w-3.5 text-gold-500" />
+                                {activeAddonUrls.length} addon(s)
+                            </span>
+                            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">
+                                <ShieldCheck className="h-3.5 w-3.5 text-gold-500" />
+                                Verify before save
+                            </span>
+                        </div>
+
+                        <div className="flex flex-col gap-3 sm:items-end">
                             <AnimatePresence mode="wait">
-                                {saveStatus === 'success' ? (
+                                {saveState !== 'idle' && (
                                     <motion.div
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        className="mb-6 flex items-center gap-3 text-gold-500"
+                                        key={saveState}
+                                        initial={{ opacity: 0, y: 4 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 4 }}
+                                        className={`flex items-center gap-2 text-sm ${
+                                            saveState === 'success'
+                                                ? 'text-emerald-400'
+                                                : saveState === 'error'
+                                                    ? 'text-rose-400'
+                                                    : 'text-gold-500'
+                                        }`}
                                     >
-                                        <CheckCircle2 className="w-5 h-5" />
-                                        <span className="font-bold text-sm tracking-wide">Sync Successful! Check your TV.</span>
+                                        {saveState === 'verifying' || saveState === 'saving' ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : saveState === 'success' ? (
+                                            <CheckCircle2 className="h-4 w-4" />
+                                        ) : (
+                                            <AlertCircle className="h-4 w-4" />
+                                        )}
+                                        <span className="font-medium">{statusMessage}</span>
                                     </motion.div>
-                                ) : saveStatus === 'error' ? (
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        className="mb-6 flex items-center gap-3 text-rose-500"
-                                    >
-                                        <AlertCircle className="w-5 h-5" />
-                                        <span className="font-bold text-sm tracking-wide">Failed to push. Verify link code.</span>
-                                    </motion.div>
-                                ) : null}
+                                )}
                             </AnimatePresence>
 
                             <button
                                 onClick={handleSave}
-                                disabled={isSaving || !code}
-                                className={`w-full btn-gold group ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={saveState === 'verifying' || saveState === 'saving' || !code}
+                                className={`btn-gold inline-flex w-full justify-center gap-3 px-6 py-4 text-sm font-black uppercase tracking-[0.18em] sm:w-auto sm:min-w-[220px] ${
+                                    saveState === 'verifying' || saveState === 'saving' ? 'opacity-60 cursor-not-allowed' : ''
+                                }`}
                             >
-                                <span className="flex items-center justify-center gap-4">
-                                    {isSaving ? (
-                                        <>
-                                            <Activity className="w-5 h-5 animate-spin" />
-                                            Encrypting & Pushing...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Save className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-                                            Synchronize with TV
-                                        </>
-                                    )}
-                                </span>
+                                {saveState === 'verifying' || saveState === 'saving' ? (
+                                    <>
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                        {saveState === 'verifying' ? 'Verifying IPTV' : 'Synchronizing'}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="h-5 w-5" />
+                                        Synchronize with TV
+                                    </>
+                                )}
                             </button>
-
-                            <p className="mt-6 text-[9px] text-neutral-700 font-bold uppercase tracking-[0.4em]">
-                                Secured by DebridXtream 128-bit Encryption
-                            </p>
                         </div>
                     </div>
-                </motion.div>
 
-                {/* Footer Signature */}
-                <div className="mt-12 text-center">
-                    <p className="text-neutral-600 text-[10px] font-black uppercase tracking-[0.5em]">
-                        Powered by DebridXtream Elite
+                    <p className="mt-4 text-[9px] font-black uppercase tracking-[0.38em] text-neutral-600">
+                        Schema v2 • Stremio-first • mobile friendly
                     </p>
                 </div>
             </div>

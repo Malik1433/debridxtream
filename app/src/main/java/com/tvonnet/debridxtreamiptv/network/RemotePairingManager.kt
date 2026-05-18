@@ -136,6 +136,16 @@ class RemotePairingManager @Inject constructor(
             if (!debrid.mediaFusionUrl.isNullOrBlank()) {
                 debridPreferences.saveMediaFusionUrl(debrid.mediaFusionUrl)
             }
+            val stremioUrls = debrid.stremioAddonUrls?.filter { it.isNotBlank() }.orEmpty()
+            if (stremioUrls.isNotEmpty()) {
+                debridPreferences.setStremioAddonUrls(stremioUrls)
+            }
+            val registryUrls = debrid.addonRegistryUrls?.filter { it.isNotBlank() }.orEmpty()
+            if (registryUrls.isNotEmpty()) {
+                val existing = debridPreferences.getAddonRegistryUrls()
+                existing.forEach { debridPreferences.removeAddonRegistryUrl(it) }
+                registryUrls.forEach { debridPreferences.addAddonRegistryUrl(it) }
+            }
         }
         
         _pairingState.value = PairingState.Success("Credentials synced remotely!")

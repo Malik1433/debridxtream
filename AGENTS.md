@@ -218,6 +218,27 @@ Use `$skill-name` syntax to invoke:
 | `tester` | Test creation | Quality assurance |
 | `reviewer` | Code review | Security and quality |
 
+### Agent Model Routing
+
+Use explicit model routing by agent role instead of relying on one global default for all work.
+
+| Agent type | Preferred model |
+|------------|-----------------|
+| `researcher` | `gpt-5.4-mini` |
+| `explorer` | `gpt-5.4-mini` |
+| `coder` | `gpt-5.3-codex` |
+| `worker` | `gpt-5.3-codex` |
+| `tester` | `gpt-5.4` |
+| `reviewer` | `gpt-5.5` |
+| `architect` | `gpt-5.5` |
+| `planner` | `gpt-5.5` |
+
+Routing rules:
+- Always assign an explicit model when spawning an agent.
+- Escalate one step for cross-module, security-sensitive, ambiguous, or high-risk work.
+- Use `gpt-5.3-codex` as the fallback default when no role mapping applies.
+- Keep the chosen model explainable in task notes and reports.
+
 ## Code Standards
 
 ### File Organization

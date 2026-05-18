@@ -206,9 +206,15 @@ class SettingsFragment : Fragment() {
             )
             SettingCategory.DEBRID -> listOf(
                 SettingItem.Action(
+                    key = "manage_stremio_addons",
+                    title = "Manage Custom Stremio Addons",
+                    description = "${state.stremioAddonUrls.size} addon(s) active - primary addon path",
+                    onClick = { showManageStremioAddonsDialog(state.stremioAddonUrls) }
+                ),
+                SettingItem.Action(
                     key = "manage_debrid",
-                    title = if (state.isDebridAuthenticated) "Manage Real-Debrid" else "Login to Real-Debrid",
-                    description = if (state.isDebridAuthenticated) "Status: Authorized (Click to Logout)" else "Link your account to unlock premium streams",
+                    title = "Legacy Real-Debrid Fallback",
+                    description = if (state.isDebridAuthenticated) "Status: Authorized (raw magnet fallback only)" else "Optional legacy raw magnet fallback",
                     onClick = {
                         if (state.isDebridAuthenticated) {
                             showLogoutConfirmation()
@@ -219,12 +225,6 @@ class SettingsFragment : Fragment() {
                                 .commit()
                         }
                     }
-                ),
-                SettingItem.Action(
-                    key = "manage_stremio_addons",
-                    title = "Manage Custom Stremio Addons",
-                    description = "${state.stremioAddonUrls.size} addon(s) active - paste full manifest.json URLs",
-                    onClick = { showManageStremioAddonsDialog(state.stremioAddonUrls) }
                 )
             )
             SettingCategory.ABOUT -> listOf(
@@ -550,12 +550,12 @@ class SettingsFragment : Fragment() {
 
     private fun showLogoutConfirmation() {
         AlertDialog.Builder(requireContext())
-            .setTitle("Log Out of Real-Debrid?")
-            .setMessage("You will lose access to premium cached streams. Are you sure?")
+            .setTitle("Log Out of Legacy Real-Debrid Fallback?")
+            .setMessage("You will lose access to the raw magnet fallback. Are you sure?")
             .setPositiveButton("Log Out") { dialog, _ ->
                 viewModel.logoutDebrid()
                 dialog.dismiss()
-                Toast.makeText(context, "Logged out of Real-Debrid", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Logged out of legacy fallback", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel") { dialog, _ ->
                 dialog.dismiss()
