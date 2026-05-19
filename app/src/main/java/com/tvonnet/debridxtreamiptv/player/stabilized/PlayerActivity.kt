@@ -50,6 +50,7 @@ import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem
 import com.tvonnet.debridxtreamiptv.data.model.RecentLiveChannelItem
+import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 
 import com.tvonnet.debridxtreamiptv.data.model.toAbsoluteUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
@@ -246,6 +247,12 @@ class PlayerActivity : AppCompatActivity() {
         const val EXTRA_LIVE_CATEGORY_ID = "LIVE_CATEGORY_ID"
         const val EXTRA_LIVE_CHANNEL_IDS = "LIVE_CHANNEL_IDS"
         const val EXTRA_BASE_SERVER_URL = "BASE_SERVER_URL"
+        const val EXTRA_LIVE_RETURN_CHANNEL_ID = "LIVE_RETURN_CHANNEL_ID"
+        const val EXTRA_LIVE_RETURN_CHANNEL_NAME = "LIVE_RETURN_CHANNEL_NAME"
+        const val EXTRA_LIVE_RETURN_CHANNEL_LOGO = "LIVE_RETURN_CHANNEL_LOGO"
+        const val EXTRA_LIVE_RETURN_EPG_CHANNEL_ID = "LIVE_RETURN_EPG_CHANNEL_ID"
+        const val EXTRA_LIVE_RETURN_STREAM_URL = "LIVE_RETURN_STREAM_URL"
+        const val EXTRA_LIVE_RETURN_CATEGORY_ID = "LIVE_RETURN_CATEGORY_ID"
         private const val TIMEOUT_MS = 25000L
         private const val MEDIAFUSION_TIMEOUT_MS = 35000L
         private const val OVERLAY_TIMEOUT = 6000L
@@ -1741,7 +1748,11 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun resolveTimeoutMs(url: String): Long = if (url.lowercase().contains("mediafusion.elfhosted.com")) MEDIAFUSION_TIMEOUT_MS else TIMEOUT_MS
 
-    override fun finish() { setExitResultIfNeeded(); super.finish() }
+    override fun finish() {
+        setLiveExitResultIfNeeded()
+        setExitResultIfNeeded()
+        super.finish()
+    }
 
     private lateinit var browserCategoryAdapter: BrowserCategoryAdapter
     private lateinit var browserChannelAdapter: BrowserChannelAdapter
@@ -1762,7 +1773,9 @@ class PlayerActivity : AppCompatActivity() {
         browserChannelAdapter = BrowserChannelAdapter { stream ->
             stream.stream_id?.let { id ->
                 val serverUrl = baseServerUrl ?: prefs.getServerUrl() ?: ""
-                val newUrl = "$serverUrl/live/${prefs.getUsername()}/${prefs.getPassword()}/$id.ts"
+                val username = prefs.getUsername().orEmpty()
+                val password = prefs.getPassword().orEmpty()
+                val newUrl = stream.toLiveStreamUrl(serverUrl, username, password)
                 performSeamlessSwitch(newUrl)
                 contentId = id; currentUrl = newUrl; channelLogoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon); currentEpgChannelId = stream.epg_channel_id ?: id
                 bindChannelMeta(stream.name); supportActionBar?.title = stream.name
@@ -1968,16 +1981,18 @@ class PlayerActivity : AppCompatActivity() {
     private fun formatTimeRangeCompact(program: com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity): String = "${timeFormatter.format(Date(program.start))}-${timeFormatter.format(Date(program.stop))}"
 
     private fun recordPlaybackHistoryIfNeeded() { 
-        if (hasRecordedHistory) return; 
         val type = contentType ?: return; 
         val id = contentId ?: currentUrl ?: return; 
         when (type) { 
             ContentType.LIVE_TV -> recordLiveHistory(id); 
             ContentType.MOVIE, ContentType.SERIES, ContentType.EPISODE -> {
+                if (hasRecordedHistory) return
                 recordContinueWatchingHistory(id, type)
             }
         }; 
-        hasRecordedHistory = true 
+        if (type != ContentType.LIVE_TV) {
+            hasRecordedHistory = true
+        }
     }
     private fun recordLiveHistory(channelId: String) { 
         val logoToSave = channelLogoUrl ?: posterUrlExtra
@@ -2051,6 +2066,21 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun resolveContinueWatchingId(type: ContentType, fallbackId: String): String = if (playbackSource != PlaybackSource.DEBRID) fallbackId else tmdbIdExtra?.let { if (type == ContentType.EPISODE && seasonNumberExtra != null && episodeNumberExtra != null) "$it:S${seasonNumberExtra}E${episodeNumberExtra}" else it } ?: debridInfoHashExtra ?: fallbackId
     private fun updateLastPlaybackPosition() { lastPlaybackPositionMs = player?.currentPosition ?: lastPlaybackPositionMs }
+    private fun setLiveExitResultIfNeeded() {
+        if (contentType != ContentType.LIVE_TV || exitResultHandled) return
+        val streamId = contentId?.takeIf { it.isNotBlank() } ?: return
+        setResult(
+            Activity.RESULT_OK,
+            Intent()
+                .putExtra(EXTRA_LIVE_RETURN_CHANNEL_ID, streamId)
+                .putExtra(EXTRA_LIVE_RETURN_CHANNEL_NAME, tvChannelName?.text?.toString() ?: pendingChannelName)
+                .putExtra(EXTRA_LIVE_RETURN_CHANNEL_LOGO, channelLogoUrl)
+                .putExtra(EXTRA_LIVE_RETURN_EPG_CHANNEL_ID, currentEpgChannelId)
+                .putExtra(EXTRA_LIVE_RETURN_STREAM_URL, currentUrl)
+                .putExtra(EXTRA_LIVE_RETURN_CATEGORY_ID, liveCategoryId)
+        )
+    }
+
     private fun setExitResultIfNeeded() { if (exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete) return; val pos = player?.currentPosition ?: lastPlaybackPositionMs; if (manualExit || pos < RETURN_TO_SOURCES_THRESHOLD_MS) { exitResultHandled = true; setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RETURN_TO_SOURCES, true)) } }
     private fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean { if (!returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || exitResultHandled) return false; exitResultHandled = true; setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RETURN_TO_SOURCES, true).putExtra(EXTRA_FAILED_STREAM_ID, contentId ?: debridInfoHashExtra ?: currentUrl).putExtra(EXTRA_FAIL_REASON, reason).putExtra(EXTRA_AUTO_PLAY_NEXT, autoPlayNext)); releasePlayer(); finish(); return true }
     private fun updatePlayPauseVisibility(isPlaying: Boolean) { playerView.findViewById<View>(R.id.exo_play)?.isVisible = !isPlaying; playerView.findViewById<View>(R.id.exo_pause)?.isVisible = isPlaying; if (isControllerVisible) { val play = playerView.findViewById<View>(R.id.exo_play); val pause = playerView.findViewById<View>(R.id.exo_pause); if (isPlaying && play?.isFocused == true) pause?.post { pause.requestFocus() } else if (!isPlaying && pause?.isFocused == true) play?.post { play.requestFocus() } } }

@@ -66,8 +66,9 @@ To avoid previous QA confusion, the exact active path for IPTV Series has been m
     - `EpisodeBrowserController.kt`
     - `view_player_episode_browser.xml`
     - `item_player_episode_browser.xml`
-- **Verification**: Verified stable switching between IPTV series episodes and Debrid episodes via the player overlay.
+## 8. Deep Technical Audit Findings (May 2026)
+- **V1/V2 Hybrid Architecture:** Category browsing uses V1 schemas and `XtreamRepository`, whereas details and episodes browsing uses V2 schemas (`series_v2_core`/`episodes_v2_core`) and `XtreamSeriesRepositoryV2`.
+- **Details Actions Container:** The `container_actions` in `fragment_series_detail_v2.xml` is set to `visibility="gone"` and `0dp` height/width, disabling the "Watch Now" and "Favorite" action buttons on the details page.
+- **TV focus guards:** Sidebar width animation (`ValueAnimator`), grid escape guards (consuming DPAD_LEFT on the first column), and null item animators on `RecyclerView`s are active and verified.
+- **Reference Report:** See detailed analysis in `docs/reports/IPTV_SERIES_DEEP_AUDIT.md`.
 
----
-**Auditor**: Antigravity (AI Coding Assistant)
-**Date**: May 13, 2026

@@ -1,5 +1,7 @@
 package com.tvonnet.debridxtreamiptv.ui.live
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -10,6 +12,7 @@ import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import androidx.fragment.app.viewModels
@@ -32,6 +35,7 @@ import com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
 import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
+import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
@@ -70,6 +74,8 @@ class LiveFragment : Fragment() {
 
     companion object {
         // Enforced 3-column layout
+        private const val CHANNEL_FOCUS_RETRY_COUNT = 3
+        private const val CHANNEL_FOCUS_RETRY_DELAY_MS = 50L
     }
 
     @Inject
@@ -124,6 +130,14 @@ class LiveFragment : Fragment() {
     private var categorySearchQuery: String = ""
     private var displayCategories: List<XtreamCategory> = emptyList()
     private var lastUiState: LiveUiState? = null
+    private var pendingChannelFocusPosition: Int? = null
+    private var lastEpgWarmupSignature: String? = null
+
+    private val livePlayerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        handleLivePlayerResult(result.resultCode, result.data)
+    }
 
     // Paging adapter for channels
     private val channelPagingAdapter by lazy {
@@ -157,6 +171,9 @@ class LiveFragment : Fragment() {
             },
             onChannelFocused = { stream, position ->
                 stream.stream_id?.let { viewModel.onEvent(LiveEvent.RememberChannelFocus(it, position)) }
+            },
+            onChannelKey = { position, keyCode, event ->
+                handleChannelItemKey(position, keyCode, event)
             }
         ).apply {
             registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
@@ -258,11 +275,7 @@ class LiveFragment : Fragment() {
             if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    rvChannels.post {
-                        rvChannels.post {
-                            rvChannels.requestFocus()
-                        }
-                    }
+                    focusChannelItem(viewModel.uiState.value.lastFocusedChannelPosition ?: 0)
                     return@setOnKeyListener true
                 }
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
@@ -282,10 +295,10 @@ class LiveFragment : Fragment() {
             
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> {
-                    val focused = rvChannels.findFocus() ?: return@setOnKeyListener false
-                    val holder = rvChannels.findContainingViewHolder(focused) ?: return@setOnKeyListener false
-                    val position = holder.bindingAdapterPosition
-                    position == 0
+                    moveChannelFocusBy(delta = -1)
+                }
+                KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    moveChannelFocusBy(delta = 1)
                 }
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
                     rvCategories.post {
@@ -347,6 +360,9 @@ class LiveFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         val state = viewModel.uiState.value
+        if (!state.restoreFromFullscreenPending) {
+            com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.restoreFocus(requireView())
+        }
         if (state.restoreFromFullscreenPending) {
             didRestoreFocusForThisView = false
             blockCategoryFocusForReturnRestore()
@@ -356,9 +372,6 @@ class LiveFragment : Fragment() {
         restoreChannelFocusIfNeeded()
         lastChannelLoadStates?.let { renderChannelLoadState(it) }
         viewModel.onEvent(LiveEvent.ConsumeReturnFromFullscreen)
-        
-        // Restore Focus Memory globally
-        com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.restoreFocus(requireView())
     }
     
     override fun onPause() {
@@ -592,6 +605,9 @@ class LiveFragment : Fragment() {
                     try {
                         if (!isAdded) return@collectLatest
                         lastChannelLoadStates = loadStates
+                        viewModel.onEvent(
+                            LiveEvent.ChannelLoadStateChanged(loadStates.refresh is LoadState.Loading)
+                        )
                         if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@collectLatest
 
                         renderChannelLoadState(loadStates)
@@ -796,27 +812,112 @@ class LiveFragment : Fragment() {
         if (didRestoreFocusForThisView) return
         val state = viewModel.uiState.value
         val position = state.lastFocusedChannelPosition ?: 0
-        val safePosition = minOf(position, channelPagingAdapter.itemCount - 1)
-        
-        if (safePosition >= 0) {
-            com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("LIVE_GRID") {
-                rvChannels.post {
-                    rvChannels.scrollToPosition(safePosition)
-                    rvChannels.post {
-                        try {
-                            val vh = rvChannels.findViewHolderForAdapterPosition(safePosition)
-                            if (vh != null) {
-                                vh.itemView.requestFocus()
-                                didRestoreFocusForThisView = true
-                                unblockCategoryFocusAfterRestore()
-                            }
-                        } finally {
-                            com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
+        focusChannelItem(position, markRestored = true)
+    }
+
+    private fun focusChannelItem(
+        position: Int,
+        markRestored: Boolean = false,
+        attempt: Int = 0
+    ) {
+        if (!isAdded || channelPagingAdapter.itemCount <= 0) return
+        val safePosition = position.coerceIn(0, channelPagingAdapter.itemCount - 1)
+        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("LIVE_GRID") {
+            rvChannels.post {
+                rvChannels.scrollToPosition(safePosition)
+                rvChannels.postDelayed({
+                    try {
+                        val itemView = rvChannels.findViewHolderForAdapterPosition(safePosition)?.itemView
+                        val focused = itemView?.requestFocus() == true
+                        if (focused) {
+                            pendingChannelFocusPosition = null
+                            if (markRestored) didRestoreFocusForThisView = true
+                            unblockCategoryFocusAfterRestore()
+                        } else if (attempt < CHANNEL_FOCUS_RETRY_COUNT) {
+                            focusChannelItem(safePosition, markRestored, attempt + 1)
+                        } else {
+                            pendingChannelFocusPosition = null
+                            unblockCategoryFocusAfterRestore()
                         }
+                    } finally {
+                        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
                     }
-                }
+                }, CHANNEL_FOCUS_RETRY_DELAY_MS)
             }
         }
+    }
+
+    private fun warmVisibleEpgCache() {
+        if (!isAdded) return
+        val items = channelPagingAdapter.snapshot().items
+        if (items.isEmpty()) return
+
+        val ids = items.asSequence()
+            .take(12)
+            .mapNotNull { stream ->
+                stream.epg_channel_id?.takeIf { it.isNotBlank() } ?: stream.stream_id
+            }
+            .distinct()
+            .toList()
+
+        if (ids.isEmpty()) return
+
+        val signature = "${viewModel.uiState.value.selectedCategoryId.orEmpty()}:${ids.joinToString(",")}"
+        if (signature == lastEpgWarmupSignature) return
+        lastEpgWarmupSignature = signature
+        EpgCache.preloadEpgData(ids)
+    }
+
+    private fun moveChannelFocusBy(delta: Int): Boolean {
+        val itemCount = channelPagingAdapter.itemCount
+        if (itemCount <= 0) return true
+
+        val currentPosition = currentFocusedChannelPosition()
+            ?: viewModel.uiState.value.lastFocusedChannelPosition
+            ?: (rvChannels.layoutManager as? LinearLayoutManager)?.findFirstVisibleItemPosition()
+            ?: 0
+        if (currentPosition == RecyclerView.NO_POSITION) return true
+
+        val basePosition = pendingChannelFocusPosition ?: currentPosition
+        val targetPosition = (basePosition + delta).coerceIn(0, itemCount - 1)
+        if (targetPosition == basePosition) return true
+
+        pendingChannelFocusPosition = targetPosition
+        focusChannelItem(targetPosition)
+        return true
+    }
+
+    private fun handleChannelItemKey(position: Int, keyCode: Int, event: KeyEvent): Boolean {
+        if (event.action != KeyEvent.ACTION_DOWN) return false
+        return when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_UP -> moveChannelFocusFrom(position, delta = -1)
+            KeyEvent.KEYCODE_DPAD_DOWN -> moveChannelFocusFrom(position, delta = 1)
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                pendingChannelFocusPosition = null
+                rvCategories.post { rvCategories.requestFocus() }
+                true
+            }
+            else -> false
+        }
+    }
+
+    private fun moveChannelFocusFrom(position: Int, delta: Int): Boolean {
+        val itemCount = channelPagingAdapter.itemCount
+        if (itemCount <= 0) return true
+
+        val basePosition = pendingChannelFocusPosition ?: position
+        val targetPosition = (basePosition + delta).coerceIn(0, itemCount - 1)
+        if (targetPosition == basePosition) return true
+
+        pendingChannelFocusPosition = targetPosition
+        focusChannelItem(targetPosition)
+        return true
+    }
+
+    private fun currentFocusedChannelPosition(): Int? {
+        val focused = rvChannels.findFocus() ?: return null
+        val holder = rvChannels.findContainingViewHolder(focused) ?: return null
+        return holder.bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }
     }
 
     private fun maybeRestorePreviewFromState(state: LiveUiState) {
@@ -890,36 +991,108 @@ class LiveFragment : Fragment() {
      */
     private fun launchFullscreen(stream: XtreamStream) {
         viewModel.onEvent(LiveEvent.RememberFullscreenLaunch(stream))
-        val credentialsPrefs = CredentialsPreferences(requireContext())
-        val serverUrl = credentialsPrefs.getServerUrl() ?: return
-        val username = credentialsPrefs.getUsername() ?: return
-        val password = credentialsPrefs.getPassword() ?: return
-        val streamId = stream.stream_id ?: return
-        
-        val streamUrl = "$serverUrl/live/$username/$password/$streamId.ts"
-        val categoryId = stream.category_id ?: viewModel.uiState.value.selectedCategoryId
-        val channelIds = ArrayList(channelPagingAdapter.snapshot().items.mapNotNull { it.stream_id }.distinct())
-        
-        val intent = PlayerActivity.createIntent(
-            context = requireContext(),
-            streamUrl = streamUrl,
-            title = stream.name ?: getString(R.string.player_epg_channel_unknown),
-            channelName = stream.name,
-            channelLogo = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
-            epgChannelId = stream.epg_channel_id?.takeIf { it.isNotBlank() } ?: stream.stream_id?.toString(),
-            contentId = stream.stream_id ?: streamUrl,
-            contentType = ContentType.LIVE_TV,
-            posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
-            liveCategoryId = categoryId,
-            liveChannelIds = channelIds.takeIf { it.isNotEmpty() },
-            baseServerUrl = serverUrl
+        viewLifecycleOwner.lifecycleScope.launch {
+            val credentialsPrefs = CredentialsPreferences(requireContext())
+            val serverUrl = credentialsPrefs.getServerUrl() ?: return@launch
+            val username = credentialsPrefs.getUsername() ?: return@launch
+            val password = credentialsPrefs.getPassword() ?: return@launch
+            val categoryId = stream.category_id ?: viewModel.uiState.value.selectedCategoryId
+            val streamUrl = stream.toLiveStreamUrl(serverUrl, username, password)
+            val channelIds = resolveLiveChannelIds(categoryId, stream.stream_id)
+
+            val intent = PlayerActivity.createIntent(
+                context = requireContext(),
+                streamUrl = streamUrl,
+                title = stream.name ?: getString(R.string.player_epg_channel_unknown),
+                channelName = stream.name,
+                channelLogo = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
+                epgChannelId = stream.epg_channel_id?.takeIf { it.isNotBlank() } ?: stream.stream_id?.toString(),
+                contentId = stream.stream_id ?: streamUrl,
+                contentType = ContentType.LIVE_TV,
+                posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
+                liveCategoryId = categoryId,
+                liveChannelIds = channelIds.takeIf { it.isNotEmpty() },
+                baseServerUrl = serverUrl
+            )
+            val options = ActivityOptionsCompat.makeCustomAnimation(
+                requireContext(),
+                R.anim.fade_in,
+                R.anim.fade_out
+            )
+            livePlayerLauncher.launch(intent, options)
+        }
+    }
+
+    private fun handleLivePlayerResult(resultCode: Int, data: Intent?) {
+        if (resultCode != Activity.RESULT_OK || data == null) return
+
+        val streamId = data.getStringExtra(PlayerActivity.EXTRA_LIVE_RETURN_CHANNEL_ID)
+            ?.takeIf { it.isNotBlank() }
+            ?: return
+        val streamUrl = data.getStringExtra(PlayerActivity.EXTRA_LIVE_RETURN_STREAM_URL)
+            ?.takeIf { it.isNotBlank() }
+        val channelName = data.getStringExtra(PlayerActivity.EXTRA_LIVE_RETURN_CHANNEL_NAME)
+            ?.takeIf { it.isNotBlank() }
+        val logoUrl = data.getStringExtra(PlayerActivity.EXTRA_LIVE_RETURN_CHANNEL_LOGO)
+            ?.takeIf { it.isNotBlank() }
+        val epgChannelId = data.getStringExtra(PlayerActivity.EXTRA_LIVE_RETURN_EPG_CHANNEL_ID)
+            ?.takeIf { it.isNotBlank() }
+        val categoryId = data.getStringExtra(PlayerActivity.EXTRA_LIVE_RETURN_CATEGORY_ID)
+            ?: viewModel.uiState.value.selectedCategoryId
+
+        val returnedStream = XtreamStream(
+            num = null,
+            name = channelName,
+            stream_type = "live",
+            stream_id = streamId,
+            stream_icon = logoUrl,
+            epg_channel_id = epgChannelId,
+            added = null,
+            category_id = categoryId,
+            category_ids = null,
+            container_extension = null,
+            custom_sid = null,
+            direct_source = streamUrl,
+            tv_archive = null,
+            tv_archive_duration = null
         )
-        val options = ActivityOptionsCompat.makeCustomAnimation(
-            requireContext(),
-            R.anim.fade_in,
-            R.anim.fade_out
-        )
-        startActivity(intent, options.toBundle())
+
+        didRestorePreviewForThisView = true
+        previewPlayerPanel?.play(returnedStream, streamUrl)
+        updatePreviewEpg(returnedStream)
+        updateFavoriteButtonState(returnedStream)
+        viewModel.onEvent(LiveEvent.RememberPreviewStream(returnedStream))
+
+        val index = channelPagingAdapter.snapshot().items.indexOfFirst { it.stream_id == streamId }
+        if (index >= 0) {
+            focusChannelItem(index, markRestored = true)
+        } else {
+            restoreChannelFocusIfNeeded()
+        }
+    }
+
+    private suspend fun resolveLiveChannelIds(
+        categoryId: String?,
+        currentStreamId: String?
+    ): ArrayList<String> {
+        val snapshotIds = channelPagingAdapter.snapshot().items.mapNotNull { it.stream_id }.distinct()
+        val cachedIds = if (!categoryId.isNullOrBlank() && categoryId != FAVORITES_CATEGORY_ID) {
+            withContext(Dispatchers.IO) {
+                repository.getCachedLiveStreams(categoryId)
+                    ?.mapNotNull { it.stream_id }
+                    .orEmpty()
+            }
+        } else {
+            emptyList()
+        }
+
+        val merged = linkedSetOf<String>()
+        if (cachedIds.isNotEmpty()) {
+            cachedIds.forEach { merged.add(it) }
+        }
+        snapshotIds.forEach { merged.add(it) }
+        currentStreamId?.let { merged.add(it) }
+        return ArrayList(merged)
     }
 
     private fun restoreChannelFocusIfNeeded() {
@@ -931,14 +1104,7 @@ class LiveFragment : Fragment() {
         val index = channelPagingAdapter.snapshot().items.indexOfFirst { it.stream_id == targetStreamId }
         if (index < 0) return
 
-        rvChannels.post {
-            rvChannels.scrollToPosition(index)
-            rvChannels.post {
-                rvChannels.findViewHolderForAdapterPosition(index)?.itemView?.requestFocus()
-                didRestoreFocusForThisView = true
-                unblockCategoryFocusAfterRestore()
-            }
-        }
+        focusChannelItem(index, markRestored = true)
     }
 
     private fun blockCategoryFocusForReturnRestore() {
@@ -1015,6 +1181,7 @@ class LiveFragment : Fragment() {
                     showEmptyState(getString(R.string.live_no_channels))
                 } else {
                     hideEmptyState()
+                    warmVisibleEpgCache()
                     restoreChannelFocusIfNeeded()
                 }
             }

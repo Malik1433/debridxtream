@@ -147,6 +147,7 @@ class XtreamRepository @Inject constructor(
     private val vodFetchSemaphore = Semaphore(MAX_CONCURRENT_VOD_FETCHES)
 
     private val syncMutex = Mutex()
+    private val epgSyncMutex = Mutex()
     private val _syncProgress = MutableStateFlow(SyncProgress.idle())
     val syncProgress: StateFlow<SyncProgress> = _syncProgress.asStateFlow()
 
@@ -1587,7 +1588,8 @@ class XtreamRepository @Inject constructor(
      * Parses XML and stores in Room database
      */
     suspend fun fetchAndSaveEpg(): Result<Int> {
-        return withContext(Dispatchers.IO) {
+        return epgSyncMutex.withLock {
+            withContext(Dispatchers.IO) {
             try {
                 // Check memory pressure before starting EPG fetch
                 val memoryPressure = memoryManager.checkMemoryPressure()
@@ -1710,6 +1712,7 @@ class XtreamRepository @Inject constructor(
                 Log.e(TAG, "Failed to fetch/save EPG", e)
                 Result.Error(e)
             }
+        }
         }
     }
 
@@ -1923,9 +1926,7 @@ class XtreamRepository @Inject constructor(
      * Week 12: Helper for playback
      */
     fun buildLiveStreamUrl(stream: XtreamStream, baseServerUrl: String): String {
-        // Format: http://server:port/live/username/password/streamId.ext
-        val url = baseServerUrl.trimEnd('/')
-        return "$url/live/$username/$password/${stream.stream_id}.${stream.container_extension ?: "ts"}"
+        return stream.toLiveStreamUrl(baseServerUrl, username, password)
     }
     
     /**

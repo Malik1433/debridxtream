@@ -120,3 +120,49 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Avoid:** Leaving both `/setup` and `/config` as active same-screen companion routes alongside a separate root landing page.
 - **Reason:** It makes the update look inconsistent and leaves users with multiple URLs that appear to be the same page.
 - **Fix:** Pick one canonical route, redirect the old ones, and keep only one visible companion surface.
+
+## 25. Live Loading-State Drift
+- **Avoid:** Clearing LiveTV `isLoadingChannels` inside the ViewModel before Paging has actually settled.
+- **Reason:** The UI can flicker between loading and loaded states even though the adapter is still working.
+- **Fix:** Drive loading state from Paging3 refresh load state and only treat the ViewModel flag as a mirror of that source.
+
+## 26. Hardcoded Live `.ts` URLs
+- **Avoid:** Rebuilding live stream URLs with `.../$id.ts` in every playback entrypoint.
+- **Reason:** Some providers expose different container extensions and hardcoding `.ts` makes those paths brittle.
+- **Fix:** Use the shared live URL helper and preserve `container_extension` when it exists.
+
+## 27. Snapshot-Only Live HandOff
+- **Avoid:** Passing fullscreen live channel IDs from the visible adapter snapshot only.
+- **Reason:** Large live categories may have more channels cached than are currently visible, so the handoff list can be incomplete.
+- **Fix:** Prefer cached live streams for the selected category, then merge with the adapter snapshot as a fallback.
+
+## 28. History-As-Return-State
+- **Avoid:** Restoring the caller UI from watch-history storage after a player screen exits.
+- **Reason:** History writes depend on Activity lifecycle timing and can lag behind the actual user action, especially after fullscreen zapping.
+- **Fix:** Use an explicit Activity Result payload for immediate caller state, and keep history only as persistent fallback.
+
+## 29. RecyclerView Container Focus Requests
+- **Avoid:** Calling `requestFocus()` on a RecyclerView that is configured with `isFocusable = false`.
+- **Reason:** Android TV focus will often fall back to the previous focusable area, which looks like list focus jumping back to categories.
+- **Fix:** Request focus on a laid-out child item view after scrolling to the desired adapter position.
+
+## 30. Native Focus Search During Rapid Paged List Scroll
+- **Avoid:** Leaving rapid DPAD_UP/DOWN inside a paged TV list entirely to Android's native focus-search.
+- **Reason:** During fast repeats, the next ViewHolder may not be laid out yet, so focus can escape to side rails or preview buttons.
+- **Fix:** Handle UP/DOWN on the focused item, move by adapter position, and keep a pending target while scroll/layout catches up.
+
+## 31. Empty EPG Cached As Fresh Data
+- **Avoid:** Caching `(null, null)` guide responses as if they were a valid EPG hit.
+- **Reason:** The app can hide later XMLTV syncs or short-provider refreshes for several minutes and leave the preview stuck on "guide unavailable."
+- **Fix:** Only cache positive current/next results and let empty lookups retry on the next visible refresh or warmup pass.
+
+## 32. Double-Starting Manual EPG Sync
+- **Avoid:** Calling both WorkManager immediate sync and a direct repository EPG sync from the same settings action.
+- **Reason:** The two jobs can race through the same parser/database path and crash or corrupt the visible sync state.
+- **Fix:** Use one manual sync path, keep scheduled sync separate, and add a repository-level single-flight guard for EPG fetches.
+
+## 33. Mismatched Code and XML Visibilities
+- **Avoid:** Registering Kotlin click listeners or bindings on layout elements that are configured as completely hidden (e.g. `visibility="gone"` and `0dp` dimensions).
+- **Reason:** Creates dead or unreachable functional routes that look active in the source code but are disabled in the UI.
+- **Fix:** Always verify that elements bound to click handlers are visible, focusable, and properly sized in the layout configurations.
+

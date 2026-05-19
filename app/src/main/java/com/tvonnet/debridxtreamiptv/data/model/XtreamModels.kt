@@ -189,3 +189,29 @@ data class EpgProgram(
     val category: String?
 )
 
+fun XtreamStream.toLiveStreamUrl(
+    baseServerUrl: String,
+    username: String,
+    password: String
+): String = buildLiveStreamUrl(baseServerUrl, username, password, stream_id.orEmpty(), container_extension)
+
+fun toLiveStreamUrl(
+    baseServerUrl: String,
+    username: String,
+    password: String,
+    streamId: String,
+    containerExtension: String? = null
+): String = buildLiveStreamUrl(baseServerUrl, username, password, streamId, containerExtension)
+
+fun buildLiveStreamUrl(
+    baseServerUrl: String,
+    username: String,
+    password: String,
+    streamId: String,
+    containerExtension: String?
+): String {
+    val url = baseServerUrl.trimEnd('/')
+    val extension = containerExtension?.takeIf { it.isNotBlank() } ?: "ts"
+    return "$url/live/$username/$password/$streamId.$extension"
+}
+

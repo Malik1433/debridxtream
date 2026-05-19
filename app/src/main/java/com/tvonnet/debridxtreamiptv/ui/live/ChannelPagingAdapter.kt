@@ -1,6 +1,7 @@
 package com.tvonnet.debridxtreamiptv.ui.live
 
 import android.view.LayoutInflater
+import android.view.KeyEvent
 import android.view.ViewGroup
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.DiffUtil
@@ -24,7 +25,8 @@ class ChannelPagingAdapter(
     private val onChannelLongClick: ((XtreamStream) -> Unit)? = null,
     private val epgProvider: ((XtreamStream) -> Pair<EpgEntity?, EpgEntity?>)? = null, // (stream) -> (current, next)
     private val favoriteChecker: ((String) -> Boolean)? = null, // Week 12: (streamId) -> isFavorite
-    private val onChannelFocused: ((XtreamStream, Int) -> Unit)? = null
+    private val onChannelFocused: ((XtreamStream, Int) -> Unit)? = null,
+    private val onChannelKey: ((Int, Int, KeyEvent) -> Boolean)? = null
 ) : PagingDataAdapter<XtreamStream, ChannelPagingViewHolder>(CHANNEL_COMPARATOR) {
 
 // PagingDataAdapter handles stable IDs efficiently via DiffUtil.
@@ -48,7 +50,7 @@ class ChannelPagingAdapter(
             val epgData = epgProvider?.invoke(channel)
             // Week 12: Check if channel is favorited
             val isFavorite = channel.stream_id?.toString()?.let { favoriteChecker?.invoke(it) } ?: false
-            holder.bind(channel, onChannelClick, onChannelLongClick, epgData, isFavorite, onChannelFocused)
+            holder.bind(channel, onChannelClick, onChannelLongClick, epgData, isFavorite, onChannelFocused, onChannelKey)
             prefetchLogos(holder.itemView.context, position)
         }
     }
@@ -160,10 +162,19 @@ class ChannelPagingViewHolder(
         onLongClick: ((XtreamStream) -> Unit)? = null,
         epgData: Pair<EpgEntity?, EpgEntity?>? = null,
         isFavorite: Boolean = false,
-        onFocused: ((XtreamStream, Int) -> Unit)? = null
+        onFocused: ((XtreamStream, Int) -> Unit)? = null,
+        onKey: ((Int, Int, KeyEvent) -> Boolean)? = null
     ) {
         itemView.onFocusChangeListener = android.view.View.OnFocusChangeListener { _, hasFocus ->
             if (hasFocus) onFocused?.invoke(channel, bindingAdapterPosition)
+        }
+        itemView.setOnKeyListener { _, keyCode, event ->
+            val position = bindingAdapterPosition
+            if (position == RecyclerView.NO_POSITION) {
+                false
+            } else {
+                onKey?.invoke(position, keyCode, event) == true
+            }
         }
         when {
             useHorizontalCard -> bindHorizontalCard(channel, onClick, onLongClick, epgData, isFavorite)

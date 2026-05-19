@@ -58,14 +58,13 @@ object EpgCache {
     fun getEpgData(channelKey: String, streamId: String? = null): Pair<EpgEntity?, EpgEntity?> {
         val now = System.currentTimeMillis()
         val lastUpdate = lastUpdateTimes[channelKey] ?: 0L
+        val cached = epgCache[channelKey]
 
-        // Check if cache is fresh
-        if (now - lastUpdate < cacheExpirationMs) {
-            val cached = epgCache[channelKey]
-            if (cached != null) {
-                Log.d(TAG, "EPG cache hit for channel $channelKey")
-                return cached
-            }
+        // Treat only real EPG data as a fresh cache hit.
+        // Empty/null pairs are a miss so late XMLTV syncs or short-EPG retries can repopulate.
+        if (now - lastUpdate < cacheExpirationMs && cached != null && (cached.first != null || cached.second != null)) {
+            Log.d(TAG, "EPG cache hit for channel $channelKey")
+            return cached
         }
 
         // Cache miss or stale, return null and trigger background refresh
@@ -102,16 +101,24 @@ object EpgCache {
                     null to null
                 }
 
-                // Update cache
-                val epgData = Pair(current, next)
-                epgCache[channelKey] = epgData
-                lastUpdateTimes[channelKey] = System.currentTimeMillis()
-                _updates.tryEmit(channelKey)
+                // Only cache positive results. Empty results stay eligible for future retries
+                // so late XMLTV syncs or provider data refreshes can be picked up.
+                if (current != null || next != null) {
+                    val epgData = Pair(current, next)
+                    epgCache[channelKey] = epgData
+                    lastUpdateTimes[channelKey] = System.currentTimeMillis()
+                    _updates.tryEmit(channelKey)
+                } else {
+                    epgCache.remove(channelKey)
+                    lastUpdateTimes.remove(channelKey)
+                }
 
                 Log.d(TAG, "EPG data refreshed for channel $channelKey: current=${current?.title}, next=${next?.title}")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to refresh EPG data for channel $channelKey", e)
+            } finally {
+                inFlightRefresh.remove(channelKey)
             }
         }
         inFlightRefresh[channelKey] = job
@@ -132,8 +139,14 @@ object EpgCache {
                         val current = repo.getCurrentProgram(channelId)
                         val next = repo.getNextProgram(channelId)
 
-                        epgCache[channelId] = Pair(current, next)
-                        lastUpdateTimes[channelId] = System.currentTimeMillis()
+                        if (current != null || next != null) {
+                            epgCache[channelId] = Pair(current, next)
+                            lastUpdateTimes[channelId] = System.currentTimeMillis()
+                            _updates.tryEmit(channelId)
+                        } else {
+                            epgCache.remove(channelId)
+                            lastUpdateTimes.remove(channelId)
+                        }
 
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to preload EPG for channel $channelId", e)

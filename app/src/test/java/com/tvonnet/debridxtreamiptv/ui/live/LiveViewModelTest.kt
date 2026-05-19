@@ -287,6 +287,18 @@ class LiveViewModelTest {
         }
     }
 
+    @Test
+    fun `ChannelLoadStateChanged should update loading state`() {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEvent(LiveEvent.ChannelLoadStateChanged(true))
+        assertTrue(viewModel.uiState.value.isLoadingChannels)
+
+        viewModel.onEvent(LiveEvent.ChannelLoadStateChanged(false))
+        assertFalse(viewModel.uiState.value.isLoadingChannels)
+    }
+
     private fun advanceUntilIdle() {
         testScheduler.advanceUntilIdle()
     }

@@ -380,6 +380,19 @@ class XtreamRepositoryStreamLookupTest {
         // Then: Default .ts extension used
         assert(result.endsWith(".ts"))
     }
+
+    @Test
+    fun `buildLiveStreamUrl preserves non ts extension`() {
+        // Given: Stream with m3u8 extension
+        val stream = createLiveStream(streamId = "12345", containerExtension = "m3u8")
+        val serverUrl = "http://example.com:8080"
+
+        // When: Building URL
+        val result = repository.buildLiveStreamUrl(stream, serverUrl)
+
+        // Then: Extension is preserved
+        assertEquals("http://example.com:8080/live/username/password/12345.m3u8", result)
+    }
     
     // ========== buildVodStreamUrl() Tests ==========
     

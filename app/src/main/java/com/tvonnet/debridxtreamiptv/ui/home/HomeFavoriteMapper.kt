@@ -3,6 +3,7 @@ package com.tvonnet.debridxtreamiptv.ui.home
 import com.tvonnet.debridxtreamiptv.data.local.entity.FavoriteEntity
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.model.FavoriteItem
+import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 import com.tvonnet.debridxtreamiptv.data.model.toAbsoluteUrl
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 
@@ -27,7 +28,12 @@ object HomeFavoriteMapper {
                 val streamUrl = if (stream != null && !serverUrl.isNullOrBlank()) {
                     repository.buildLiveStreamUrl(stream, serverUrl)
                 } else if (!serverUrl.isNullOrBlank() && !username.isNullOrBlank() && !password.isNullOrBlank()) {
-                    "$finalServerUrl/live/$username/$password/${entity.streamId}.ts"
+                    toLiveStreamUrl(
+                        finalServerUrl,
+                        username,
+                        password,
+                        entity.streamId
+                    )
                 } else {
                     null
                 }

@@ -18,6 +18,7 @@ import okhttp3.OkHttpClient
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity
 import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
+import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -90,9 +91,9 @@ class PreviewPlayerPanel(
         btnPreviewFavorite?.isEnabled = true
     }
 
-    fun play(stream: XtreamStream) {
+    fun play(stream: XtreamStream, streamUrlOverride: String? = null) {
         // If same stream, just resume.
-        if (currentStream?.stream_id == stream.stream_id && previewPlayer != null) {
+        if (currentStream?.stream_id == stream.stream_id && previewPlayer != null && streamUrlOverride == null) {
             previewPlayer?.playWhenReady = true
             previewPlayer?.play()
             return
@@ -105,8 +106,7 @@ class PreviewPlayerPanel(
         val serverUrl = credentialsPrefs.getServerUrl() ?: return
         val username = credentialsPrefs.getUsername() ?: return
         val password = credentialsPrefs.getPassword() ?: return
-        val streamId = stream.stream_id ?: return
-        val streamUrl = "$serverUrl/live/$username/$password/$streamId.ts"
+        val streamUrl = streamUrlOverride ?: stream.toLiveStreamUrl(serverUrl, username, password)
         
         // Setup/reuse Player
         val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)

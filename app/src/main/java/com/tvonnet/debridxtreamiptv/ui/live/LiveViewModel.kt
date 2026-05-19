@@ -66,6 +66,7 @@ sealed class LiveEvent {
     data class SelectCategory(val categoryId: String) : LiveEvent()
     data class PlayChannel(val stream: XtreamStream) : LiveEvent()
     data class SearchChannels(val query: String) : LiveEvent()
+    data class ChannelLoadStateChanged(val isLoading: Boolean) : LiveEvent()
     object ClearSearch : LiveEvent()
     object Retry : LiveEvent()
     data class RememberCategoryFocus(val categoryId: String, val position: Int) : LiveEvent()
@@ -241,6 +242,7 @@ class LiveViewModel @Inject constructor(
             is LiveEvent.SelectCategory -> loadChannelsForCategory(event.categoryId)
             is LiveEvent.PlayChannel -> handlePlayChannel(event.stream)
             is LiveEvent.SearchChannels -> searchChannels(event.query)
+            is LiveEvent.ChannelLoadStateChanged -> updateChannelLoadingState(event.isLoading)
             is LiveEvent.ClearSearch -> clearSearch()
             is LiveEvent.Retry -> retry()
             is LiveEvent.RememberCategoryFocus -> rememberCategoryFocus(event.categoryId, event.position)
@@ -439,8 +441,7 @@ class LiveViewModel @Inject constructor(
                         categoryChannelCounts + (categoryId to cachedCount)
                     } else {
                         categoryChannelCounts
-                    },
-                    isLoadingChannels = false
+                    }
                 )
             }
         }
@@ -467,6 +468,12 @@ class LiveViewModel @Inject constructor(
             currentState.selectedCategoryId?.let { categoryId ->
                 onEvent(LiveEvent.SelectCategory(categoryId))
             }
+        }
+    }
+
+    private fun updateChannelLoadingState(isLoading: Boolean) {
+        updateState {
+            copy(isLoadingChannels = isLoading)
         }
     }
     

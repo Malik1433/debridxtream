@@ -23,7 +23,6 @@ import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.databinding.FragmentSettingsV2Binding
 import com.tvonnet.debridxtreamiptv.ui.LoginFragment
-import com.tvonnet.debridxtreamiptv.worker.EpgSyncScheduler
 import com.tvonnet.debridxtreamiptv.ui.settings.adapters.SettingItem
 import com.tvonnet.debridxtreamiptv.ui.settings.adapters.SettingsCategoryAdapter
 import com.tvonnet.debridxtreamiptv.ui.settings.adapters.SettingsDetailAdapter
@@ -517,7 +516,6 @@ class SettingsFragment : Fragment() {
 
     private fun syncEpgNow() {
         Toast.makeText(requireContext(), "Syncing EPG data...", Toast.LENGTH_SHORT).show()
-        EpgSyncScheduler.scheduleImmediateSync(requireContext())
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val result = repository.fetchAndSaveEpg()

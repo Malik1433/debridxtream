@@ -122,3 +122,49 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Removes duplicate-looking same-page routes and prevents users from landing on two different URLs that show the same config surface.
 - **Implementation:** Render the config form at `/` and redirect `/setup` and `/config` to `/` while preserving the query string.
 
+## 24. Live Load-State Source Of Truth
+- **Definition:** Use Paging3 refresh state to drive LiveTV channel loading rather than clearing ViewModel loading state early.
+- **Benefits:** Prevents stale loading flags and keeps the Live overlay aligned with actual adapter readiness.
+- **Implementation:** Emit a loading-state event from the fragment when Paging refresh changes and let NotLoading/Error clear the ViewModel flag.
+
+## 25. Shared Live URL Helper
+- **Definition:** Build LiveTV stream URLs from the shared stream helper instead of repeating `.ts` URL strings across fragments and player handoff paths.
+- **Benefits:** Preserves non-TS `container_extension` values, reduces duplicate URL logic, and keeps live zapping/preview/fullscreen consistent.
+- **Implementation:** Use the shared `toLiveStreamUrl` helper for live preview, fullscreen, favorites, search playback, and zapping.
+
+## 26. Explicit Live Fullscreen Return Contract
+- **Definition:** Return the final LiveTV channel from `PlayerActivity` to the Live screen through an Activity Result payload.
+- **Benefits:** Keeps the mini-player aligned with the channel actually playing after fullscreen zapping instead of relying on lifecycle-timed watch-history writes.
+- **Implementation:** Return channel id, title, logo, EPG id, category id, and current stream URL; let the Live preview use that exact URL.
+
+## 27. Child-Targeted TV List Focus
+- **Definition:** For Android TV RecyclerViews that are not focusable containers, request focus on a bound child item after scrolling/layout.
+- **Benefits:** Prevents focus from bouncing back to the previous rail or category list.
+- **Implementation:** Scroll to the target adapter position, wait briefly for the ViewHolder, retry a few times, and request focus on `itemView`.
+
+## 28. Deterministic Paged TV List Navigation
+- **Definition:** For paged Android TV lists, let the focused item view consume DPAD_UP/DOWN and move focus by adapter position instead of relying only on native focus-search.
+- **Benefits:** Fast remote repeats stay inside the list even while RecyclerView/Paging is binding or scrolling.
+- **Implementation:** Track a pending target position during repeated key events, scroll to that position, focus the bound child view, and clear the pending target after focus succeeds or retries finish.
+
+## 29. Negative-Cache-Safe EPG Refresh
+- **Definition:** Treat empty guide lookups as retryable misses instead of fresh cache hits.
+- **Benefits:** Late XMLTV syncs and short-EPG provider updates can repopulate rows that initially had no current/next program data.
+- **Implementation:** Cache only positive EPG results, remove empty entries from the cache, and warm the first visible LiveTV rows once Paging settles.
+
+## 30. Single-Flight Manual EPG Sync
+- **Definition:** Route manual EPG refresh through one code path at a time and serialize it with a mutex.
+- **Benefits:** Prevents settings clicks from racing WorkManager and direct repository parsing against the same XMLTV/database state.
+- **Implementation:** Use one manual sync entrypoint, keep scheduled sync separate, and guard the repository fetch with a mutex so only one EPG parse runs at once.
+
+## 31. Zero-Latency Detail Metadata Rendering
+- **Definition:** Render optimistic UI metadata on details/action screens immediately using bundle arguments from the caller before background repository or database fetches settle.
+- **Benefits:** Creates a native, instant-loading feel and prevents empty screen flashes.
+- **Implementation:** Bind title/backdrop from Bundle arguments in `onViewCreated()` before collecting StateFlow emissions.
+
+## 32. TV Recycler Null Item Animators
+- **Definition:** Disable RecyclerView item animations on TV scroll lists.
+- **Benefits:** Prevents focus shifts, card jitter, and layout bouncing when rapid D-Pad updates trigger adapter changes.
+- **Implementation:** Call `recyclerView.itemAnimator = null` on paging lists.
+
+

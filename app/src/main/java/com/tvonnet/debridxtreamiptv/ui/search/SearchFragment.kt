@@ -22,6 +22,7 @@ import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.model.XtreamSeriesInfo
 import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
 import com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo
+import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.SeriesDetailFragmentV2
 import com.tvonnet.debridxtreamiptv.features.vodv2.ui.MovieDetailFragmentV2
@@ -613,7 +614,12 @@ class SearchFragment : Fragment() {
         // Ideally, we should fetch it, but to keep UI responsive, we'll blast the intent with what we have.
         // The PlayerActivity will just handle playing. Metadata might be missing initially.
 
-        val streamUrl = "$serverUrl/live/$username/$password/$channelId.ts"
+        val streamUrl = toLiveStreamUrl(
+            serverUrl,
+            username,
+            password,
+            channelId
+        )
         val intent = PlayerActivity.createIntent(
             context = requireContext(),
             streamUrl = streamUrl,
@@ -629,7 +635,7 @@ class SearchFragment : Fragment() {
     }
 
     private fun launchPlayer(stream: XtreamStream, serverUrl: String, username: String, password: String) {
-        val streamUrl = "$serverUrl/live/$username/$password/${stream.stream_id}.ts"
+        val streamUrl = stream.toLiveStreamUrl(serverUrl, username, password)
         
         val intent = PlayerActivity.createIntent(
             context = requireContext(),

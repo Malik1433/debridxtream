@@ -84,3 +84,21 @@ Do not pick the next Debrid episode by quality alone. Episode browser selection,
 - **DO NOT** serialize an empty IPTV object into the companion payload when IPTV is optional. Omit the field entirely unless the credentials were filled and verified.
 - **DO NOT** cap Stremio addon input to a single field when the user needs multiple manifest URLs. Use add/remove rows on the same form.
 - **DO NOT** leave `/`, `/setup`, and `/config` all as active same-screen companion pages. Choose one canonical visible route and redirect the others.
+
+## LiveTV Rules
+- **DO NOT** clear `isLoadingChannels` in `LiveViewModel` before Paging refresh settles.
+- **DO NOT** hardcode `.ts` into Live preview/fullscreen/search/favorite playback URLs when `container_extension` is available.
+- **DO NOT** build fullscreen live channel handoff lists from the adapter snapshot only when cached live streams are available.
+- **DO NOT** add a second Live screen or a parallel Live loading path just to work around paging state drift.
+- **DO NOT** use recent live history as the primary return signal from fullscreen playback; use an explicit Activity Result payload for the final zapped channel.
+- **DO NOT** call `requestFocus()` on a non-focusable Live channel RecyclerView container; focus a bound channel item view after scroll/layout.
+- **DO NOT** let rapid Live channel-list DPAD_UP/DOWN fall through to native RecyclerView focus-search only. The focused channel card must consume it and move by adapter position.
+- **DO NOT** cache empty `(null, null)` EPG responses as if they were fresh guide data.
+- **DO NOT** wait for the first focus bind alone to warm Live EPG rows; prefetch the visible rows after Paging settles.
+- **DO NOT** trigger WorkManager immediate EPG sync and a direct repository EPG sync from the same settings click.
+- **DO NOT** allow two EPG sync jobs to run concurrently against the same parser/database state without a mutex or single-flight guard.
+
+## Layout & Cache Sync Rules
+- **DO NOT** bind click listeners to action buttons on detail screens without verifying that the layout XML actually renders and exposes those buttons.
+- **DO NOT** mix V1 and V2 database models without manual schema sync policies. Updating V1 categories or favorites will not automatically sync to V2 details tables unless handled explicitly.
+
