@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import retrofit2.HttpException
 import javax.inject.Inject
 
@@ -40,22 +41,19 @@ class DebridViewModel @Inject constructor(
     
     private var loadJob: Job? = null
     private var cachedRows: List<DebridRow> = emptyList()
+    private var catalogStateVersion: Long = 0L
     
     fun checkAuthStatus() {
         viewModelScope.launch {
             val authState = debridAccountRepo.getCachedAuthState()
-            
-            // ALWAYS load catalog (browsing allowed for everyone)
+
+            // Start catalog bootstrap immediately so startup is cache-first / non-blocking.
             loadCatalog()
-            
-            if (authState == null) {
-                // We don't block UI anymore, just set state if needed for specific UI elements
-                // For now, we rely on loadCatalog updating the state to Content
-            } else {
+
+            if (authState != null) {
                 val refreshResult = debridAccountRepo.refreshAuthStateIfNeeded()
                 if (refreshResult is Result.Error && shouldClearAuthState(refreshResult.exception)) {
                     debridPrefs.clearRealDebridToken()
-                    return@launch
                 }
 
                 // Verify token is still valid (force refresh once on auth error)
@@ -78,6 +76,7 @@ class DebridViewModel @Inject constructor(
         loadJob?.cancel()
         val cachedSnapshot = cachedRows
         val hasCache = cachedSnapshot.isNotEmpty()
+        val requestVersion = catalogStateVersion
 
         _uiState.value = if (hasCache) {
             DebridUiState.Content(cachedSnapshot, DebridRefreshState.Refreshing)
@@ -87,14 +86,28 @@ class DebridViewModel @Inject constructor(
 
         loadJob = viewModelScope.launch {
             try {
-                val result = fetchCatalogRows()
+                val result = withTimeoutOrNull(15_000L) { fetchCatalogRows() }
+
+                if (result == null) {
+                    if (requestVersion != catalogStateVersion) return@launch
+                    _uiState.value = if (hasCache) {
+                        DebridUiState.Content(cachedSnapshot, DebridRefreshState.Failed)
+                    } else {
+                        DebridUiState.Error("Timed out loading Debrid catalog. Check your connection and try again.")
+                    }
+                    return@launch
+                }
 
                 if (result.rows.isNotEmpty()) {
+                    if (requestVersion != catalogStateVersion) return@launch
                     cachedRows = result.rows
+                    catalogStateVersion++
                     _uiState.value = DebridUiState.Content(result.rows, DebridRefreshState.Idle)
                 } else if (hasCache) {
+                    if (requestVersion != catalogStateVersion) return@launch
                     _uiState.value = DebridUiState.Content(cachedSnapshot, DebridRefreshState.Failed)
                 } else {
+                    if (requestVersion != catalogStateVersion) return@launch
                     _uiState.value = DebridUiState.Error(buildErrorMessage(result.errors))
                 }
             } catch (e: CancellationException) {
@@ -141,6 +154,7 @@ class DebridViewModel @Inject constructor(
                 }
 
                 cachedRows = existingRows
+                catalogStateVersion++
                 _uiState.value = DebridUiState.Content(existingRows, DebridRefreshState.Idle)
             } catch (e: Exception) {
                 // Non-fatal: silently ignore refresh errors to avoid disrupting the UI
@@ -241,6 +255,7 @@ class DebridViewModel @Inject constructor(
                         }
                         _uiState.value = DebridUiState.Content(updatedRows, DebridRefreshState.Idle)
                         cachedRows = updatedRows
+                        catalogStateVersion++
                     }
                 } else {
                      // End of list reached

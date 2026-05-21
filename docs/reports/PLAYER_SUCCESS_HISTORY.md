@@ -44,3 +44,38 @@ This document tracks all successful changes and structural improvements applied 
     - Carry provider, source type/name, language, quality, stream id, Stremio binge group, and file index through player intents and Continue Watching.
     - Rank next-episode candidates by same source family/provider and language before generic cache/quality/seeders fallback.
     - Fresh-resolve direct Debrid Continue Watching entries from stable metadata instead of trusting old direct addon URLs.
+
+## Successful Pattern - State-Aware Series Next Control
+- **Achievement**: Added a visible `Next Episode` control to the shared player controller without creating a second player surface.
+- **Key Implementation**:
+    - Reused the existing `btn_next_episode` in `custom_player_control_view.xml`.
+    - Gated visibility, focusability, and click handling on `SeriesPlaylistState.hasNext`.
+    - Kept non-series playback free of the control and avoided guessed episode jumps when playlist state is not ready.
+
+## Successful Pattern - Single Runtime Controller File
+- **Achievement**: Confirmed the player controller has one runtime XML path and no shadowed source-set duplicate.
+- **Key Implementation**:
+    - `activity_player.xml` points directly at `custom_player_control_view.xml`.
+    - No alternate `custom_player_control_view.xml` or `activity_player.xml` exists under another `app/src` source set.
+    - Visual restyles must target the single runtime controller file, not documentation-only design notes.
+
+## Successful Pattern - Direct Audio and Subtitle Track Buttons
+- **Achievement**: Restored direct audio and subtitle controls on the shared player controller instead of forcing an intermediate chooser dialog.
+- **Key Implementation**:
+    - Wired separate runtime buttons to `showAudioSelection()` and `showSubtitleSelection()`.
+    - Kept the existing `TrackSelectionDialogBuilder` flows for audio and subtitles.
+    - Removed the combined `showPlayerSettings()` chooser so track access stays one tap away.
+
+## Successful Pattern - Separate Debrid Language Source Picker
+- **Achievement**: Added a dedicated language button for Debrid playback without reintroducing the old combined chooser.
+- **Key Implementation**:
+    - Used `debridLanguagesExtra` as the source-language list.
+    - For Debrid movies, the selected language refreshes the source profile and re-picks a matching source.
+    - Kept audio and subtitle buttons on their direct track-selection flows.
+
+## Successful Pattern - Straight Controller Seek Bar
+- **Achievement**: Flattened the player seek control to match the rest of the controller surface while preserving Media3 TimeBar behavior.
+- **Key Implementation**:
+    - Kept the custom `TimeBar` integration for sync and scrubbing.
+    - Removed the animated wave path and rendered a straight played segment instead.
+    - Matched the seek bar height and button glass styling to the compact overlay.

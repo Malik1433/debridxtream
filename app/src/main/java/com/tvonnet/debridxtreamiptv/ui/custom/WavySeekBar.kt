@@ -1,22 +1,17 @@
 package com.tvonnet.debridxtreamiptv.ui.custom
 
-import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Path
 import android.util.AttributeSet
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
-import android.view.animation.LinearInterpolator
 import androidx.media3.ui.TimeBar
-import kotlin.math.sin
 
 /**
- * A modern wavy seek bar for Media3 player.
- * Draws an animated sine wave for the played portion of the bar.
+ * A straight, focus-aware seek bar for Media3 player.
  */
 class WavySeekBar @JvmOverloads constructor(
     context: Context,
@@ -60,21 +55,7 @@ class WavySeekBar @JvmOverloads constructor(
         color = Color.WHITE
     }
 
-    // Wave properties
-    private val wavePath = Path()
-    private var waveOffset = 0f
-    private val waveAnimator = ValueAnimator.ofFloat(0f, (2 * Math.PI).toFloat()).apply {
-        duration = 2000
-        repeatCount = ValueAnimator.INFINITE
-        interpolator = LinearInterpolator()
-        addUpdateListener {
-            waveOffset = it.animatedValue as Float
-            invalidate()
-        }
-    }
-
     init {
-        waveAnimator.start()
         isFocusable = true
     }
 
@@ -147,10 +128,10 @@ class WavySeekBar @JvmOverloads constructor(
         // 2. Draw Buffered (Semi-transparent straight line)
         canvas.drawLine(padding, centerY, bufferedWidth, centerY, bufferedPaint)
 
-        // 3. Draw Played (Wavy path)
-        drawWave(canvas, padding, playedWidth, centerY)
+        // 3. Draw Played (straight path)
+        canvas.drawLine(padding, centerY, playedWidth, centerY, playedPaint)
 
-        // 3. Draw Scrubber
+        // 4. Draw Scrubber
         val scrubberScale = if (focused) 1.7f else 1.0f
         val scrubberRadius = 8f * resources.displayMetrics.density * scrubberScale
         if (focused) {
@@ -166,27 +147,6 @@ class WavySeekBar @JvmOverloads constructor(
     override fun onFocusChanged(gainFocus: Boolean, direction: Int, previouslyFocusedRect: android.graphics.Rect?) {
         super.onFocusChanged(gainFocus, direction, previouslyFocusedRect)
         invalidate()
-    }
-
-    private fun drawWave(canvas: Canvas, startX: Float, endX: Float, centerY: Float) {
-        wavePath.reset()
-        wavePath.moveTo(startX, centerY)
-
-        val waveAmplitude = 3f * resources.displayMetrics.density
-        val waveFrequency = 0.08f
-        
-        var x = startX
-        while (x <= endX) {
-            val relativeX = x - startX
-            val y = centerY + (waveAmplitude * sin(waveFrequency * relativeX + waveOffset)).toFloat()
-            wavePath.lineTo(x, y)
-            x += 1f // Finer resolution for smoother curve
-        }
-        
-        // Ensure it ends at the exact scrubber position
-        wavePath.lineTo(endX, centerY)
-        
-        canvas.drawPath(wavePath, playedPaint)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {

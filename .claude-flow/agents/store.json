@@ -1,0 +1,173 @@
+{
+  "agents": {
+    "agent-1779322418224-izpwbr": {
+      "agentId": "agent-1779322418224-izpwbr",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-21T00:13:57.210Z",
+      "domain": "android",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779322424860-lyymue": {
+      "agentId": "agent-1779322424860-lyymue",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-21T00:13:44.860Z",
+      "domain": "android",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779322431922-xa9vce": {
+      "agentId": "agent-1779322431922-xa9vce",
+      "agentType": "reviewer",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "opus"
+      },
+      "createdAt": "2026-05-21T00:13:51.922Z",
+      "domain": "android",
+      "model": "opus",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779322547427-dbqv3e": {
+      "agentId": "agent-1779322547427-dbqv3e",
+      "agentType": "planner",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "opus"
+      },
+      "createdAt": "2026-05-21T00:15:47.427Z",
+      "domain": "android",
+      "model": "opus",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779322547620-3welyu": {
+      "agentId": "agent-1779322547620-3welyu",
+      "agentType": "reviewer",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "opus"
+      },
+      "createdAt": "2026-05-21T00:15:47.620Z",
+      "domain": "android",
+      "model": "opus",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779322812487-gj687w": {
+      "agentId": "agent-1779322812487-gj687w",
+      "agentType": "worker",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-21T00:20:12.487Z",
+      "domain": "android",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779322817099-7j2hi1": {
+      "agentId": "agent-1779322817099-7j2hi1",
+      "agentType": "worker",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-21T00:20:17.099Z",
+      "domain": "android",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779326457786-1so5si": {
+      "agentId": "agent-1779326457786-1so5si",
+      "agentType": "worker",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-21T01:20:57.787Z",
+      "domain": "android",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779326465573-zqedis": {
+      "agentId": "agent-1779326465573-zqedis",
+      "agentType": "worker",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-21T01:21:05.574Z",
+      "domain": "android",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "player-runtime-path-audit": {
+      "agentId": "player-runtime-path-audit",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "haiku"
+      },
+      "createdAt": "2026-05-21T01:40:10.641Z",
+      "domain": "android",
+      "model": "haiku",
+      "modelRoutedBy": "explicit"
+    },
+    "player-duplicate-resource-audit": {
+      "agentId": "player-duplicate-resource-audit",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "haiku"
+      },
+      "createdAt": "2026-05-21T01:40:16.922Z",
+      "domain": "android",
+      "model": "haiku",
+      "modelRoutedBy": "explicit"
+    },
+    "player-ui-stack-audit": {
+      "agentId": "player-ui-stack-audit",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "haiku"
+      },
+      "createdAt": "2026-05-21T03:10:17.489Z",
+      "domain": "android",
+      "model": "haiku",
+      "modelRoutedBy": "explicit"
+    }
+  },
+  "version": "3.0.0"
+}

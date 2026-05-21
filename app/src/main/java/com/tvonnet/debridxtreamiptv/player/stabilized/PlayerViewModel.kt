@@ -497,6 +497,33 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    suspend fun getDebridLanguageOptions(
+        streamId: String?,
+        title: String?,
+        imdbId: String?,
+        sourceProfile: DebridSourceProfile?
+    ): List<String> {
+        return withContext(Dispatchers.IO) {
+            val sources = unifiedSourceProvider.getMovieSources(
+                streamId = streamId,
+                title = title,
+                primaryCategoryId = "debrid",
+                yearHint = null,
+                imdbId = imdbId
+            )
+
+            val languageSet = linkedSetOf<String>()
+            sourceProfile?.languages.orEmpty().forEach { languageSet.add(it) }
+            sources.forEach { source ->
+                source.languages.orEmpty().forEach { languageSet.add(it) }
+            }
+
+            languageSet.map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+        }
+    }
+
     private suspend fun resolveDebridMovieSource(
         targetSource: MovieSource,
         season: Int?,

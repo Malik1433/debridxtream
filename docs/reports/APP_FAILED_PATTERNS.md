@@ -166,3 +166,13 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Reason:** Creates dead or unreachable functional routes that look active in the source code but are disabled in the UI.
 - **Fix:** Always verify that elements bound to click handlers are visible, focusable, and properly sized in the layout configurations.
 
+## 34. Guessing Next Episode Continuity
+- **Avoid:** Advancing a series player by assuming `currentEpisode + 1` or exposing `Next` before `SeriesPlaylistState` confirms the next entry exists.
+- **Reason:** The controller can show an action that does nothing or resolve the wrong episode when the playlist is incomplete or still loading.
+- **Fix:** Gate the control on `SeriesPlaylistState.hasNext`, and use the resolved next item from playlist state instead of a guessed episode number.
+
+## 35. Restyling A Non-Runtime Copy
+- **Avoid:** Editing documentation-only design notes or a guessed duplicate layout when the actual runtime path is a single XML controller file.
+- **Reason:** The APK can build successfully and still look unchanged on device if the wrong file is edited.
+- **Fix:** Audit `AndroidManifest.xml`, the host activity, and the controller/layout include chain first; then change the one file that is actually inflated.
+

@@ -167,4 +167,14 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Prevents focus shifts, card jitter, and layout bouncing when rapid D-Pad updates trigger adapter changes.
 - **Implementation:** Call `recyclerView.itemAnimator = null` on paging lists.
 
+## 33. State-Gated TV Action Buttons
+- **Definition:** Show TV controller actions only when the underlying playlist or playback state can actually satisfy them.
+- **Benefits:** Prevents dead buttons, reduces focus dead-ends, and keeps the controller honest about available navigation.
+- **Implementation:** Bind series-only actions like `Next Episode` to `SeriesPlaylistState.hasNext`, and keep them disabled or hidden until the next item is real.
+
+## 34. Single Runtime UI Path Audit
+- **Definition:** Verify the runtime XML host/layout path before changing a TV controller or overlay.
+- **Benefits:** Prevents restyling documentation-only copies or assuming a duplicate source-set file exists when the app uses only one active layout.
+- **Implementation:** Trace `AndroidManifest.xml` -> Activity -> layout include/controller id -> actual resource file before editing visuals.
+
 

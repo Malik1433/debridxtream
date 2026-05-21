@@ -35,6 +35,11 @@ Do not let browser-visible DPAD or OK/BACK events fall through to Media3 or gene
 ## Episode Browser Image Rule
 Do not show blank or broken IPTV episode thumbnails. Use episode thumbnail, then player poster/backdrop fallback, then a clean episode-number placeholder.
 
+## Series Controller Next Rule
+- **DO NOT** make the series `Next Episode` button always active or guess continuity from the current episode number.
+- **DO NOT** show the control for non-series playback.
+- **DO NOT** let the button point at a dead action when `SeriesPlaylistState.hasNext` is false.
+
 ## Continue Watching Series Metadata Rule
 Do not launch IPTV Series episodes from Continue Watching without `seriesId`, season number, episode number, and episode id. Player episode browser and next episode logic require the same metadata as the Series detail path.
 
@@ -101,4 +106,8 @@ Do not pick the next Debrid episode by quality alone. Episode browser selection,
 ## Layout & Cache Sync Rules
 - **DO NOT** bind click listeners to action buttons on detail screens without verifying that the layout XML actually renders and exposes those buttons.
 - **DO NOT** mix V1 and V2 database models without manual schema sync policies. Updating V1 categories or favorites will not automatically sync to V2 details tables unless handled explicitly.
+- **DO NOT** assume a player UI restyle needs a duplicate source-set controller file. If the runtime path is `activity_player.xml` -> `custom_player_control_view.xml`, update that single file and verify the install on device.
+- **DO NOT** collapse direct audio/subtitle track actions into one combined chooser when the player already exposes track-specific selection dialogs.
+- **DO NOT** use current audio/text tracks as a substitute for Debrid source-language metadata when you need to re-pick a different source.
+- **DO NOT** leave the player progress bar in a decorative wave style if the controller design is meant to be flat and compact.
 

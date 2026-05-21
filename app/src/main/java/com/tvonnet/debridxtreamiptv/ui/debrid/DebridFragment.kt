@@ -348,9 +348,6 @@ class DebridFragment : Fragment() {
                     errorContainer.visibility = View.GONE
                     loginPrompt.visibility = View.GONE
                     contentArea.visibility = View.VISIBLE
-                    
-                    // Load catalog content
-                    viewModel.loadCatalog()
                 }
                 is DebridUiState.Content -> {
                     progressBar.visibility = View.GONE

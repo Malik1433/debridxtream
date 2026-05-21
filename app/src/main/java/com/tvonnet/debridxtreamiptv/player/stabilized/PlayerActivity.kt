@@ -501,8 +501,16 @@ class PlayerActivity : AppCompatActivity() {
                 }
             })
             
-            playerView.findViewById<View>(R.id.btn_player_shuffle)?.setOnClickListener {
-                showPlayerSettings()
+            playerView.findViewById<View>(R.id.btn_player_audio)?.setOnClickListener {
+                showAudioSelection()
+            }
+
+            playerView.findViewById<View>(R.id.btn_player_language)?.setOnClickListener {
+                showLanguageSelection()
+            }
+
+            playerView.findViewById<View>(R.id.btn_player_subtitles)?.setOnClickListener {
+                showSubtitleSelection()
             }
 
             playerView.findViewById<View>(R.id.exo_play)?.setOnClickListener {
@@ -537,7 +545,7 @@ class PlayerActivity : AppCompatActivity() {
             playerView.findViewById<View>(R.id.btn_aspect_ratio)?.setOnClickListener {
                 cycleResizeMode()
             }
-            
+
             setupNextEpisodeViews()
             observeSeriesPlaylistState()
             observeDebridResolutionState()
@@ -815,24 +823,6 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun showPlayerSettings() {
-        if (isInPictureInPictureMode) return
-        val options = arrayOf(
-            getString(R.string.player_settings_audio),
-            getString(R.string.player_settings_subtitles)
-        )
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle(R.string.player_settings_title)
-            .setItems(options) { dialog, which ->
-                when (which) {
-                    0 -> showAudioSelection()
-                    1 -> showSubtitleSelection()
-                }
-                dialog.dismiss()
-            }
-            .show()
-    }
-
     private fun showAudioSelection() {
         if (isInPictureInPictureMode) return
         val playerSnapshot = player ?: return
@@ -874,6 +864,88 @@ class PlayerActivity : AppCompatActivity() {
         )
             .setShowDisableOption(true)
             .setAllowAdaptiveSelections(false)
+            .setAllowMultipleOverrides(false)
+            .setTrackNameProvider(DefaultTrackNameProvider(resources))
+            .build()
+            .show()
+    }
+
+    private fun showLanguageSelection() {
+        if (isInPictureInPictureMode) return
+        lifecycleScope.launch {
+            val options = if (playbackSource == PlaybackSource.DEBRID && contentType == ContentType.MOVIE) {
+                runCatching {
+                    viewModel.getDebridLanguageOptions(
+                        streamId = tmdbIdExtra ?: contentId,
+                        title = originalTitle,
+                        imdbId = imdbIdExtra,
+                        sourceProfile = currentDebridSourceProfile()
+                    )
+                }.getOrElse { emptyList() }
+            } else {
+                debridLanguagesExtra.orEmpty()
+            }
+
+            val distinctOptions = options
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+
+            if (distinctOptions.isEmpty()) {
+                Toast.makeText(this@PlayerActivity, "No language options available", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            androidx.appcompat.app.AlertDialog.Builder(this@PlayerActivity)
+                .setTitle(R.string.player_language_title)
+                .setItems(distinctOptions.toTypedArray()) { dialog, which ->
+                    val selected = distinctOptions[which]
+                    applyDebridLanguagePreference(selected)
+                    dialog.dismiss()
+                }
+                .show()
+        }
+    }
+
+    private fun applyDebridLanguagePreference(language: String) {
+        preferredAudioLanguage = language
+        preferredSubtitleLanguage = language
+        settingsPreferences.savePreferredAudioLanguage(language)
+        settingsPreferences.savePreferredSubtitleLanguage(language)
+
+        if (playbackSource == PlaybackSource.DEBRID && contentType == ContentType.MOVIE) {
+            isResolvingDebrid = true
+            val profile = currentDebridSourceProfile()?.copy(languages = listOf(language))
+            debridLanguagesExtra = profile?.languages
+            viewModel.refreshDebridMovieSource(
+                streamId = tmdbIdExtra ?: contentId,
+                title = originalTitle,
+                imdbId = imdbIdExtra,
+                sourceProfile = profile
+            )
+        } else {
+            Toast.makeText(this, "Language preference saved", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showVideoSelection() {
+        if (isInPictureInPictureMode) return
+        val playerSnapshot = player ?: return
+        val hasVideoTracks = playerSnapshot.currentTracks.groups.any { group ->
+            group.type == C.TRACK_TYPE_VIDEO && group.isSupported
+        }
+        if (!hasVideoTracks) {
+            Toast.makeText(this, "No video tracks available", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        TrackSelectionDialogBuilder(
+            this,
+            getString(R.string.player_video_title),
+            playerSnapshot,
+            C.TRACK_TYPE_VIDEO
+        )
+            .setAllowAdaptiveSelections(true)
             .setAllowMultipleOverrides(false)
             .setTrackNameProvider(DefaultTrackNameProvider(resources))
             .build()
@@ -2142,10 +2214,20 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun setupInteractiveAnimations() {
-        listOf(R.id.btn_player_shuffle, R.id.exo_rew, R.id.exo_play, R.id.exo_pause, R.id.exo_ffwd, R.id.btn_aspect_ratio, R.id.btn_next_episode).forEach { id ->
+        listOf(
+            R.id.exo_rew,
+            R.id.exo_play,
+            R.id.exo_pause,
+            R.id.exo_ffwd,
+            R.id.btn_aspect_ratio,
+            R.id.btn_next_episode,
+            R.id.btn_player_audio,
+            R.id.btn_player_language,
+            R.id.btn_player_subtitles
+        ).forEach { id ->
             playerView.findViewById<View>(id)?.let { v ->
                 v.alpha = 0.7f; v.scaleX = 1f; v.scaleY = 1f
-                v.setOnFocusChangeListener { view, f -> if (f) { view.animate().scaleX(1.15f).scaleY(1.15f).alpha(1f).setDuration(200).start(); if (view.id == R.id.btn_player_shuffle) view.animate().rotationBy(90f).setDuration(400).start() } else view.animate().scaleX(1f).scaleY(1f).alpha(0.7f).setDuration(200).start() }
+                v.setOnFocusChangeListener { view, f -> if (f) { view.animate().scaleX(1.15f).scaleY(1.15f).alpha(1f).setDuration(200).start() } else view.animate().scaleX(1f).scaleY(1f).alpha(0.7f).setDuration(200).start() }
                 v.setOnTouchListener { view, e -> when (e.action) { android.view.MotionEvent.ACTION_DOWN -> view.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).start(); android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> view.animate().scaleX(if (view.hasFocus()) 1.15f else 1f).scaleY(if (view.hasFocus()) 1.15f else 1f).setDuration(100).start() }; false }
             }
         }

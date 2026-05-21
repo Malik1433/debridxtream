@@ -174,7 +174,12 @@
     <string name="player_subtitles_none">None</string>
     <string name="player_settings_subtitles">Subtitles</string>
     <string name="player_settings_audio">Audio Selection</string>
+    <string name="player_settings_language">Language</string>
     <string name="player_settings_title">Player Settings</string>
+    <string name="player_settings_video">Video Quality</string>
+    <string name="player_video_title">Video Track Selection</string>
+    <string name="player_language_title">Available Languages</string>
+    <string name="player_control_next_episode">Next Episode</string>
     
     <!-- Home Screen Redesign (Week 14) -->
     <string name="nav_debrid">DEBRID</string>

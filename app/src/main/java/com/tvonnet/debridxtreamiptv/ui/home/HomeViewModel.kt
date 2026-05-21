@@ -120,112 +120,132 @@ class HomeViewModel @Inject constructor(
                 val serverUrl = credentialsPrefs.getServerUrl() ?: ""
                 val username = credentialsPrefs.getUsername() ?: ""
                 val password = credentialsPrefs.getPassword() ?: ""
-
-                // 1. Fetch TMDB Trending Movies
-                val trendingMoviesResult = tmdbRemoteDataSource.getTrendingMovies()
-                val top10MoviesList = if (trendingMoviesResult.isSuccess) {
-                    val list = trendingMoviesResult.getOrNull()?.results?.take(10)?.map { it.toFeaturedItem() } ?: emptyList()
-                    android.util.Log.e("HISTORY_DEBUG", "Fetched ${list.size} TMDB Trending Movies")
-                    list
-                } else {
-                    // Fallback to IPTV VOD sorted by added date
-                    val vods = cache.vod?.streams ?: emptyList()
-                    val list = vods.sortedByDescending { it.added }.take(10).map {
-                        it.toFeaturedItem(serverUrl, username, password)
+                val nextState = withTimeoutOrNull(12_000L) {
+                    // 1. Fetch TMDB Trending Movies
+                    val trendingMoviesResult = tmdbRemoteDataSource.getTrendingMovies()
+                    val top10MoviesList = if (trendingMoviesResult.isSuccess) {
+                        val list = trendingMoviesResult.getOrNull()?.results?.take(10)?.map { it.toFeaturedItem() } ?: emptyList()
+                        android.util.Log.e("HISTORY_DEBUG", "Fetched ${list.size} TMDB Trending Movies")
+                        list
+                    } else {
+                        // Fallback to IPTV VOD sorted by added date
+                        val vods = cache.vod?.streams ?: emptyList()
+                        val list = vods.sortedByDescending { it.added }.take(10).map {
+                            it.toFeaturedItem(serverUrl, username, password)
+                        }
+                        android.util.Log.w("HISTORY_DEBUG", "TMDB Trending Movies failed, fallback to cache: ${list.size} items")
+                        list
                     }
-                    android.util.Log.w("HISTORY_DEBUG", "TMDB Trending Movies failed, fallback to cache: ${list.size} items")
-                    list
-                }
 
-                // 2. Fetch TMDB Trending Series
-                val trendingSeriesResult = tmdbRemoteDataSource.getTrendingTvShows()
-                val top10SeriesList = if (trendingSeriesResult.isSuccess) {
-                    val list = trendingSeriesResult.getOrNull()?.results?.take(10)?.map { it.toFeaturedItem() } ?: emptyList()
-                    android.util.Log.e("HISTORY_DEBUG", "Fetched ${list.size} TMDB Trending Series")
-                    list
-                } else {
-                    // Fallback to IPTV Series
-                    val series = cache.series?.streams ?: emptyList()
-                    val list = series.take(10).map { it.toFeaturedItem(serverUrl) }
-                    android.util.Log.w("HISTORY_DEBUG", "TMDB Trending Series failed, fallback to cache: ${list.size} items")
-                    list
-                }
+                    // 2. Fetch TMDB Trending Series
+                    val trendingSeriesResult = tmdbRemoteDataSource.getTrendingTvShows()
+                    val top10SeriesList = if (trendingSeriesResult.isSuccess) {
+                        val list = trendingSeriesResult.getOrNull()?.results?.take(10)?.map { it.toFeaturedItem() } ?: emptyList()
+                        android.util.Log.e("HISTORY_DEBUG", "Fetched ${list.size} TMDB Trending Series")
+                        list
+                    } else {
+                        // Fallback to IPTV Series
+                        val series = cache.series?.streams ?: emptyList()
+                        val list = series.take(10).map { it.toFeaturedItem(serverUrl) }
+                        android.util.Log.w("HISTORY_DEBUG", "TMDB Trending Series failed, fallback to cache: ${list.size} items")
+                        list
+                    }
 
-                val heroFeatured = top10MoviesList.firstOrNull() ?: top10SeriesList.firstOrNull()
-                val heroContent = heroFeatured?.let { f ->
-                    HeroContent(
-                        title = f.title,
-                        description = f.description ?: "Experience high-quality streaming on DebridXtream.",
-                        imageUrl = f.backdropUrl ?: f.posterUrl,
-                        rating = f.rating ?: "N/A",
-                        type = if (f.contentType == ContentType.MOVIE) "MOVIE" else "SERIES",
-                        streamId = f.contentId
+                    val heroFeatured = top10MoviesList.firstOrNull() ?: top10SeriesList.firstOrNull()
+                    val heroContent = heroFeatured?.let { f ->
+                        HeroContent(
+                            title = f.title,
+                            description = f.description ?: "Experience high-quality streaming on DebridXtream.",
+                            imageUrl = f.backdropUrl ?: f.posterUrl,
+                            rating = f.rating ?: "N/A",
+                            type = if (f.contentType == ContentType.MOVIE) "MOVIE" else "SERIES",
+                            streamId = f.contentId
+                        )
+                    }
+
+                    // 3. Enrich History Data (Artwork Restoration)
+                    android.util.Log.e("HISTORY_DEBUG", "Enriching ${continueWatching.size} Continue Watching items and ${recentLiveChannels.size} Recent Live items")
+
+                    val enrichedContinueWatching = mutableListOf<ContinueWatchingItem>()
+                    for (item in continueWatching) {
+                        val enriched = if (item.source == "xtream" && (item.posterUrl.isNullOrBlank() || !item.posterUrl.startsWith("http"))) {
+                            val serverUrl = credentialsPrefs.getServerUrl() ?: ""
+                            android.util.Log.e("HISTORY_DEBUG", "Enriching Xtream VOD/EP: ${item.title} (id=${item.contentId}) using server: $serverUrl")
+                            when (item.contentType) {
+                                ContentType.MOVIE -> {
+                                    repository.getVodById(item.contentId)?.let { vod ->
+                                        val icon = vod.stream_icon.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
+                                        val cover = vod.cover.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
+                                        android.util.Log.e("HISTORY_DEBUG", "Resolved VOD artwork: icon=$icon | cover=$cover")
+                                        item.copy(posterUrl = icon ?: cover, backdropUrl = cover ?: icon)
+                                    } ?: item.also { android.util.Log.w("HISTORY_DEBUG", "VOD not found in repository: ${item.contentId}") }
+                                }
+                                ContentType.SERIES, ContentType.EPISODE -> {
+                                    enrichSeriesContinueWatchingArtwork(item, serverUrl)
+                                }
+                                else -> item
+                            }
+                        } else {
+                            item
+                        }
+                        enrichedContinueWatching.add(enriched)
+                    }
+
+                    val enrichedRecentLive = mutableListOf<RecentLiveChannelItem>()
+                    for (item in recentLiveChannels) {
+                        val enriched = if (item.channelLogo.isNullOrBlank() || !item.channelLogo.startsWith("http")) {
+                            val serverUrl = credentialsPrefs.getServerUrl() ?: ""
+                            android.util.Log.e("HISTORY_DEBUG", "Enriching Live Channel: ${item.channelName} (id=${item.channelId}) using server: $serverUrl")
+                            repository.getLiveStreamById(item.channelId)?.let { stream ->
+                                val icon = stream.stream_icon.toAbsoluteUrl(ContentType.LIVE_TV, serverUrl)
+                                android.util.Log.e("HISTORY_DEBUG", "Resolved Live logo: $icon")
+                                item.copy(channelLogo = icon)
+                            } ?: item.also { android.util.Log.w("HISTORY_DEBUG", "Live stream not found in repository: ${item.channelId}") }
+                        } else {
+                            item
+                        }
+                        enrichedRecentLive.add(enriched)
+                    }
+
+                    val newSections = emptyList<HomeSection>()
+                    // Legacy rows removed as requested to focus on Cinematic Top 10s
+                    val hasAnyContent = top10MoviesList.isNotEmpty() ||
+                        top10SeriesList.isNotEmpty() ||
+                        enrichedContinueWatching.isNotEmpty() ||
+                        enrichedRecentLive.isNotEmpty() ||
+                        heroContent != null
+
+                    HomeUiState(
+                        isLoading = false,
+                        errorMessage = if (hasAnyContent) null else "Content is not available yet.",
+                        isEmpty = !hasAnyContent,
+                        top10Movies = top10MoviesList,
+                        top10Series = top10SeriesList,
+                        continueWatching = enrichedContinueWatching,
+                        recentLiveChannels = enrichedRecentLive,
+                        heroItem = heroContent,
+                        sections = newSections
                     )
                 }
 
-                // 3. Enrich History Data (Artwork Restoration)
-                android.util.Log.e("HISTORY_DEBUG", "Enriching ${continueWatching.size} Continue Watching items and ${recentLiveChannels.size} Recent Live items")
-                
-                val enrichedContinueWatching = mutableListOf<ContinueWatchingItem>()
-                for (item in continueWatching) {
-                    val enriched = if (item.source == "xtream" && (item.posterUrl.isNullOrBlank() || !item.posterUrl.startsWith("http"))) {
-                        val serverUrl = credentialsPrefs.getServerUrl() ?: ""
-                        android.util.Log.e("HISTORY_DEBUG", "Enriching Xtream VOD/EP: ${item.title} (id=${item.contentId}) using server: $serverUrl")
-                        when (item.contentType) {
-                            ContentType.MOVIE -> {
-                                repository.getVodById(item.contentId)?.let { vod ->
-                                    val icon = vod.stream_icon.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
-                                    val cover = vod.cover.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
-                                    android.util.Log.e("HISTORY_DEBUG", "Resolved VOD artwork: icon=$icon | cover=$cover")
-                                    item.copy(posterUrl = icon ?: cover, backdropUrl = cover ?: icon)
-                                } ?: item.also { android.util.Log.w("HISTORY_DEBUG", "VOD not found in repository: ${item.contentId}") }
-                            }
-                            ContentType.SERIES, ContentType.EPISODE -> {
-                                enrichSeriesContinueWatchingArtwork(item, serverUrl)
-                            }
-                            else -> item
-                        }
-                    } else {
-                        item
-                    }
-                    enrichedContinueWatching.add(enriched)
+                if (nextState != null) {
+                    nextState
+                } else {
+                    android.util.Log.w("HISTORY_DEBUG", "HomeViewModel: load timed out, falling back to local content")
+                    val hasLocalContent = continueWatching.isNotEmpty() || recentLiveChannels.isNotEmpty()
+                    val localState = HomeUiState(
+                        isLoading = false,
+                        errorMessage = if (hasLocalContent) null else "Home content could not be loaded.",
+                        isEmpty = !hasLocalContent,
+                        top10Movies = emptyList(),
+                        top10Series = emptyList(),
+                        continueWatching = continueWatching,
+                        recentLiveChannels = recentLiveChannels,
+                        heroItem = null,
+                        sections = emptyList()
+                    )
+                    localState
                 }
-
-                val enrichedRecentLive = mutableListOf<RecentLiveChannelItem>()
-                for (item in recentLiveChannels) {
-                    val enriched = if (item.channelLogo.isNullOrBlank() || !item.channelLogo.startsWith("http")) {
-                        val serverUrl = credentialsPrefs.getServerUrl() ?: ""
-                        android.util.Log.e("HISTORY_DEBUG", "Enriching Live Channel: ${item.channelName} (id=${item.channelId}) using server: $serverUrl")
-                        repository.getLiveStreamById(item.channelId)?.let { stream ->
-                            val icon = stream.stream_icon.toAbsoluteUrl(ContentType.LIVE_TV, serverUrl)
-                            android.util.Log.e("HISTORY_DEBUG", "Resolved Live logo: $icon")
-                            item.copy(channelLogo = icon)
-                        } ?: item.also { android.util.Log.w("HISTORY_DEBUG", "Live stream not found in repository: ${item.channelId}") }
-                    } else {
-                        item
-                    }
-                    enrichedRecentLive.add(enriched)
-                }
-
-                val newSections = emptyList<HomeSection>()
-                // Legacy rows removed as requested to focus on Cinematic Top 10s
-                val hasAnyContent = top10MoviesList.isNotEmpty() ||
-                    top10SeriesList.isNotEmpty() ||
-                    enrichedContinueWatching.isNotEmpty() ||
-                    enrichedRecentLive.isNotEmpty() ||
-                    heroContent != null
-
-                HomeUiState(
-                    isLoading = false,
-                    errorMessage = if (hasAnyContent) null else "Content is not available yet.",
-                    isEmpty = !hasAnyContent,
-                    top10Movies = top10MoviesList,
-                    top10Series = top10SeriesList,
-                    continueWatching = enrichedContinueWatching,
-                    recentLiveChannels = enrichedRecentLive,
-                    heroItem = heroContent,
-                    sections = newSections
-                )
             }.onSuccess { nextState ->
                 _uiState.update { current ->
                     if (

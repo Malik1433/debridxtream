@@ -64,8 +64,26 @@
                                                                             - **Debrid Resolution**: Selection in browser triggers `reResolveDebridUrl` for Debrid source.
 
                                                                             ---
-                                                                            **Auditor**: Antigravity
-                                                                            **Date**: May 13, 2026
+**Auditor**: Antigravity
+**Date**: May 13, 2026
+
+## 11. TASK 030 â€” State-Aware Series Next Button
+
+### 11.1 Scope
+Add the series-only `Next Episode` control to the shared player controller without creating a duplicate overlay or changing global DPAD routing.
+
+### 11.2 Implementation
+- Reused the existing `btn_next_episode` in `custom_player_control_view.xml`.
+- Wired button visibility and focusability to `SeriesPlaylistState.hasNext`.
+- Kept the control hidden for non-series playback and disabled when there is no next episode.
+- Kept playback handoff inside the existing `PlayerActivity` / `PlayerViewModel` next-episode flow.
+
+### 11.3 Verification
+- `:app:compileDebugKotlin` PASS
+- `:app:assembleDebug` PASS
+
+### 11.4 Notes
+- This preserves the shared controller architecture and avoids a parallel series controller path.
 
                                                                             # TASK 029-IPTV-FIX-4  Blocking Playlist Load Root Cause
 
@@ -359,3 +377,76 @@ Player-side fix for direct Stremio/AIOStreams Debrid episode browser, next episo
 
 ## Final Status
 PARTIAL  direct Debrid episode browser and next/auto-next manual QA passed; expired-link resume freshness remains pending next-day confirmation.
+
+## 13. TASK 031 - Player Controller Runtime Path Audit and Visual Restyle
+
+### 13.1 Scope
+Re-audited the player controller after the duplicate-file suspicion. Confirmed the runtime path is the single `PlayerActivity` host plus `app/src/main/res/layout/custom_player_control_view.xml`.
+
+### 13.2 Result
+- No alternate `custom_player_control_view.xml` or `activity_player.xml` exists in another source set.
+- The visible controller restyle was applied to the actual runtime layout file.
+- The controller now uses stronger gold/glass assets and a more distinct surface.
+
+### 13.3 Verification
+- `:app:compileDebugKotlin` PASS
+- `:app:assembleDebug` PASS
+- Installed on `192.168.0.21:5555`
+
+## 14. TASK 032 - Mockup-Alignment Correction
+
+### 14.1 Scope
+Corrected the player controller away from an oversized premium-gold treatment and back toward the thin dark overlay shown in the Stitch mockup.
+
+### 14.2 Result
+- Reworked `custom_player_control_view.xml` into a compact top/bottom chrome layout.
+- Kept the existing runtime IDs used by `PlayerActivity`.
+- Added the missing `btn_aspect_ratio` control back into the layout so the build remains valid.
+
+### 14.3 Verification
+- `:app:compileDebugKotlin` PASS
+- `:app:assembleDebug` PASS
+- Installed on `192.168.0.21:5555`
+
+## 15. TASK 033 - Direct Audio and Subtitle Controls Restored
+
+### 15.1 Scope
+Replaced the combined player settings chooser with direct audio and subtitle buttons while keeping the existing selection dialogs and removing the extra intermediate dialog path.
+
+### 15.2 Result
+- Restored separate runtime buttons for audio track selection and subtitles in `custom_player_control_view.xml`.
+- Bound those buttons directly to `showAudioSelection()` and `showSubtitleSelection()` in `PlayerActivity`.
+- Removed `showPlayerSettings()` and the old chooser button wiring.
+
+### 15.3 Verification
+- `:app:assembleDebug` PASS
+- Installed on `192.168.0.21:5555`
+
+## 16. TASK 034 - Separate Language Source Picker
+
+### 16.1 Scope
+Added a separate language picker for Debrid playback so source-language options can be surfaced without merging them back into the old combined chooser.
+
+### 16.2 Result
+- Added `btn_player_language` to the shared controller.
+- Wired it to a Debrid language picker that uses `debridLanguagesExtra`.
+- For Debrid movie playback, the selected language refreshes the source profile and re-runs source selection.
+- Audio and subtitle buttons remain direct track selectors.
+
+### 16.3 Verification
+- `:app:assembleDebug` PASS
+- Install pending on `192.168.0.21:5555`
+
+## 17. TASK 035 - Controller Visual Cleanup
+
+### 17.1 Scope
+Flattened the custom seek bar into a straight progress line and aligned the next-episode control with the same glass treatment used by the rest of the controller.
+
+### 17.2 Result
+- Removed the wave animation from `WavySeekBar` while keeping Media3 TimeBar behavior.
+- Changed the seek bar height and tone to match the compact controller chrome.
+- Restyled `btn_next_episode` with the glass panel treatment.
+
+### 17.3 Verification
+- `:app:assembleDebug` PASS
+- Installed on `192.168.0.21:5555`
