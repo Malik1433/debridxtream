@@ -15,6 +15,10 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.http.content.*
 import io.ktor.http.*
+import java.net.InetAddress
+import java.net.Inet4Address
+import java.net.NetworkInterface
+import java.net.URI
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +37,13 @@ class CompanionConfigServer @Inject constructor(
     private val credentialsPreferences: CredentialsPreferences,
     private val debridPreferences: DebridPreferences
 ) {
+    private val pinAbuseLock = Any()
+    private var wrongPinAttempts = 0
+    private var pinLockoutUntilMs = 0L
+
+    private val maxWrongPinAttempts = 3
+    private val pinLockoutDurationMs = 30_000L
+
     private var server: ApplicationEngine? = null
     
     /**
@@ -65,7 +76,9 @@ class CompanionConfigServer @Inject constructor(
                     gson()
                 }
                 install(CORS) {
-                    anyHost() // Required for local network companion app access
+                    buildCorsAllowedHosts(8085).forEach { allowedHost ->
+                        allowHost(allowedHost, schemes = listOf("http"))
+                    }
                     allowMethod(HttpMethod.Options)
                     allowMethod(HttpMethod.Post)
                     allowMethod(HttpMethod.Get)
@@ -76,7 +89,7 @@ class CompanionConfigServer @Inject constructor(
                 install(StatusPages) {
                     exception<Throwable> { call, cause ->
                         Log.e("CompanionServer", "Uncaught exception in server", cause)
-                        call.respond(HttpStatusCode.InternalServerError, mapOf("error" to cause.message))
+                        call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Server error"))
                     }
                 }
                 routing {
@@ -123,13 +136,57 @@ class CompanionConfigServer @Inject constructor(
                     // Main configuration endpoint
                     post("/api/config") {
                         try {
-                            val pinHeader = call.request.header("X-Pairing-PIN")
-                            if (pinHeader != currentPin) {
-                                call.respond(HttpStatusCode.Unauthorized, mapOf(
-                                    "success" to false, 
-                                    "message" to "Incorrect or missing X-Pairing-PIN"
+                            if (!isRequestFromLocalNetwork(call)) {
+                                call.respond(HttpStatusCode.Forbidden, mapOf(
+                                    "success" to false,
+                                    "message" to "Companion config is only available from the local network"
                                 ))
                                 return@post
+                            }
+
+                            val now = System.currentTimeMillis()
+                            val lockoutUntilMs = synchronized(pinAbuseLock) { pinLockoutUntilMs }
+                            if (now < lockoutUntilMs) {
+                                val retryAfterSeconds = ((lockoutUntilMs - now + 999) / 1000).coerceAtLeast(1)
+                                call.response.headers.append(HttpHeaders.RetryAfter, retryAfterSeconds.toString())
+                                call.respond(HttpStatusCode.TooManyRequests, mapOf(
+                                    "success" to false,
+                                    "message" to "Too many incorrect PIN attempts. Try again in ${retryAfterSeconds}s."
+                                ))
+                                return@post
+                            }
+
+                            val pinHeader = call.request.header("X-Pairing-PIN")
+                            if (pinHeader != currentPin) {
+                                val lockoutTriggered = synchronized(pinAbuseLock) {
+                                    wrongPinAttempts += 1
+                                    if (wrongPinAttempts >= maxWrongPinAttempts) {
+                                        wrongPinAttempts = 0
+                                        pinLockoutUntilMs = now + pinLockoutDurationMs
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
+
+                                if (lockoutTriggered) {
+                                    call.response.headers.append(HttpHeaders.RetryAfter, (pinLockoutDurationMs / 1000).toString())
+                                    call.respond(HttpStatusCode.TooManyRequests, mapOf(
+                                        "success" to false,
+                                        "message" to "Too many incorrect PIN attempts. Try again in ${pinLockoutDurationMs / 1000}s."
+                                    ))
+                                } else {
+                                    call.respond(HttpStatusCode.Unauthorized, mapOf(
+                                        "success" to false,
+                                        "message" to "Incorrect or missing X-Pairing-PIN"
+                                    ))
+                                }
+                                return@post
+                            }
+
+                            synchronized(pinAbuseLock) {
+                                wrongPinAttempts = 0
+                                pinLockoutUntilMs = 0L
                             }
 
                             val payload = call.receive<CompanionConfigPayload>()
@@ -161,7 +218,7 @@ class CompanionConfigServer @Inject constructor(
                             Log.e("CompanionServer", "Failed to parse or validate config payload", e)
                             call.respond(HttpStatusCode.BadRequest, mapOf(
                                 "success" to false, 
-                                "message" to "Error: ${e.message}"
+                                "message" to "Invalid config payload"
                             ))
                         }
                     }
@@ -218,7 +275,7 @@ class CompanionConfigServer @Inject constructor(
         // 1. Sync IPTV Credentials
         payload.iptv?.let { iptv ->
             if (iptv.serverUrl.isNotBlank() && iptv.username.isNotBlank()) {
-                Log.d("CompanionServer", "Syncing IPTV credentials for: ${iptv.username}")
+                Log.d("CompanionServer", "Syncing IPTV credentials")
                 credentialsPreferences.saveSyncedCredentials(
                     serverUrl = iptv.serverUrl,
                     username = iptv.username,
@@ -233,25 +290,134 @@ class CompanionConfigServer @Inject constructor(
                 Log.d("CompanionServer", "Syncing Real-Debrid token")
                 debridPreferences.saveRealDebridToken(debrid.token)
             }
-            if (!debrid.mediaFusionUrl.isNullOrBlank()) {
-                Log.d("CompanionServer", "Syncing MediaFusion URL: ${debrid.mediaFusionUrl}")
-                debridPreferences.saveMediaFusionUrl(debrid.mediaFusionUrl)
+            val mediaFusionUrl = debrid.mediaFusionUrl?.trim().orEmpty()
+            if (mediaFusionUrl.isNotEmpty()) {
+                if (isSafeHttpUrl(mediaFusionUrl)) {
+                    Log.d("CompanionServer", "Syncing MediaFusion URL")
+                    debridPreferences.saveMediaFusionUrl(mediaFusionUrl)
+                } else {
+                    Log.w("CompanionServer", "Rejected invalid MediaFusion URL from companion payload")
+                }
             }
-            val stremioUrls = debrid.stremioAddonUrls?.filter { it.isNotBlank() }.orEmpty()
+            val stremioUrls = debrid.stremioAddonUrls?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
             if (stremioUrls.isNotEmpty()) {
                 Log.d("CompanionServer", "Syncing Stremio addon URLs: count=${stremioUrls.size}")
                 debridPreferences.setStremioAddonUrls(stremioUrls)
             }
-            val registryUrls = debrid.addonRegistryUrls?.filter { it.isNotBlank() }.orEmpty()
+            val registryUrls = debrid.addonRegistryUrls
+                ?.map { it.trim() }
+                ?.filter { it.isNotEmpty() && isSafeHttpUrl(it) }
+                .orEmpty()
             if (registryUrls.isNotEmpty()) {
                 Log.d("CompanionServer", "Syncing addon registry URLs: count=${registryUrls.size}")
                 // Replace semantics: remove all then re-add. We keep this scoped to companion sync only.
                 val existing = debridPreferences.getAddonRegistryUrls()
                 existing.forEach { debridPreferences.removeAddonRegistryUrl(it) }
                 registryUrls.forEach { debridPreferences.addAddonRegistryUrl(it) }
+            } else if (!debrid.addonRegistryUrls.isNullOrEmpty()) {
+                Log.w("CompanionServer", "Rejected invalid addon registry URLs from companion payload")
             }
         }
     }
+
+    private fun isSafeHttpUrl(candidate: String): Boolean {
+        val parsed = runCatching { URI(candidate.trim()) }.getOrNull() ?: return false
+        val scheme = parsed.scheme?.lowercase() ?: return false
+        if (scheme != "http" && scheme != "https") return false
+
+        val host = parsed.host?.trim().orEmpty()
+        return host.isNotEmpty()
+    }
+
+    private fun buildCorsAllowedHosts(port: Int): Set<String> {
+        val hosts = linkedSetOf(
+            "localhost:$port",
+            "127.0.0.1:$port"
+        )
+
+        val interfaces = NetworkInterface.getNetworkInterfaces() ?: return hosts
+        while (interfaces.hasMoreElements()) {
+            val networkInterface = interfaces.nextElement()
+            val addresses = networkInterface.inetAddresses
+
+            while (addresses.hasMoreElements()) {
+                val address = addresses.nextElement()
+                if (address is Inet4Address && !address.isLoopbackAddress && address.isSiteLocalAddress) {
+                    hosts.add("${address.hostAddress}:$port")
+                }
+            }
+        }
+
+        return hosts
+    }
+
+    private fun isRequestFromLocalNetwork(call: ApplicationCall): Boolean {
+        val remoteAddress = call.request.local.remoteHost.trim()
+        val requestAddress = runCatching { InetAddress.getByName(remoteAddress) }.getOrNull() ?: return false
+
+        if (requestAddress.isLoopbackAddress || requestAddress.isAnyLocalAddress) {
+            return true
+        }
+
+        if (requestAddress is Inet4Address) {
+            val localSubnets = buildLocalIpv4Subnets()
+            if (localSubnets.isNotEmpty()) {
+                return localSubnets.any { subnet ->
+                    requestAddress.matchesSubnet(subnet.address, subnet.prefixLength)
+                }
+            }
+
+            return requestAddress.isSiteLocalAddress || requestAddress.isLinkLocalAddress
+        }
+
+        return false
+    }
+
+    private fun buildLocalIpv4Subnets(): List<LocalIpv4Subnet> {
+        val subnets = mutableListOf<LocalIpv4Subnet>()
+        val interfaces = NetworkInterface.getNetworkInterfaces() ?: return subnets
+
+        while (interfaces.hasMoreElements()) {
+            val networkInterface = interfaces.nextElement()
+            if (!networkInterface.isUp || networkInterface.isLoopback || networkInterface.isVirtual) {
+                continue
+            }
+
+            for (interfaceAddress in networkInterface.interfaceAddresses) {
+                val localAddress = interfaceAddress.address
+                val prefixLength = interfaceAddress.networkPrefixLength.toInt()
+                if (localAddress is Inet4Address && prefixLength in 0..32) {
+                    subnets.add(LocalIpv4Subnet(localAddress.address, prefixLength))
+                }
+            }
+        }
+
+        return subnets
+    }
+
+    private fun Inet4Address.matchesSubnet(networkAddress: ByteArray, prefixLength: Int): Boolean {
+        val targetAddress = address
+        val fullBytes = prefixLength / 8
+        val remainingBits = prefixLength % 8
+
+        for (index in 0 until fullBytes) {
+            if (targetAddress[index] != networkAddress[index]) {
+                return false
+            }
+        }
+
+        if (remainingBits == 0) {
+            return true
+        }
+
+        val mask = (0xFF shl (8 - remainingBits)) and 0xFF
+        return (targetAddress[fullBytes].toInt() and mask) == (networkAddress[fullBytes].toInt() and mask)
+    }
+
+    private data class LocalIpv4Subnet(
+        val address: ByteArray,
+        val prefixLength: Int
+    )
 }
 
 /**

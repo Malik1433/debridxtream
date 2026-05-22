@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.net.URI
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -120,7 +121,7 @@ class RemotePairingManager @Inject constructor(
     fun handleConfigPayload(payload: CompanionConfigPayload) {
         // reuse the logic from CompanionConfigServer
         payload.iptv?.let { iptv ->
-            if (iptv.serverUrl.isNotBlank() && iptv.username.isNotBlank()) {
+            if (iptv.username.isNotBlank() && isSafeHttpUrl(iptv.serverUrl)) {
                 credentialsPreferences.saveSyncedCredentials(
                     serverUrl = iptv.serverUrl,
                     username = iptv.username,
@@ -133,14 +134,21 @@ class RemotePairingManager @Inject constructor(
             if (!debrid.token.isNullOrBlank()) {
                 debridPreferences.saveRealDebridToken(debrid.token)
             }
-            if (!debrid.mediaFusionUrl.isNullOrBlank()) {
-                debridPreferences.saveMediaFusionUrl(debrid.mediaFusionUrl)
+            val mediaFusionUrl = debrid.mediaFusionUrl?.trim().orEmpty()
+            if (mediaFusionUrl.isNotEmpty() && isSafeHttpUrl(mediaFusionUrl)) {
+                debridPreferences.saveMediaFusionUrl(mediaFusionUrl)
             }
-            val stremioUrls = debrid.stremioAddonUrls?.filter { it.isNotBlank() }.orEmpty()
+            val stremioUrls = debrid.stremioAddonUrls
+                ?.map { it.trim() }
+                ?.filter { it.isNotEmpty() && isSafeHttpUrl(it) }
+                .orEmpty()
             if (stremioUrls.isNotEmpty()) {
                 debridPreferences.setStremioAddonUrls(stremioUrls)
             }
-            val registryUrls = debrid.addonRegistryUrls?.filter { it.isNotBlank() }.orEmpty()
+            val registryUrls = debrid.addonRegistryUrls
+                ?.map { it.trim() }
+                ?.filter { it.isNotEmpty() && isSafeHttpUrl(it) }
+                .orEmpty()
             if (registryUrls.isNotEmpty()) {
                 val existing = debridPreferences.getAddonRegistryUrls()
                 existing.forEach { debridPreferences.removeAddonRegistryUrl(it) }
@@ -149,5 +157,14 @@ class RemotePairingManager @Inject constructor(
         }
         
         _pairingState.value = PairingState.Success("Credentials synced remotely!")
+    }
+
+    private fun isSafeHttpUrl(candidate: String): Boolean {
+        val parsed = runCatching { URI(candidate.trim()) }.getOrNull() ?: return false
+        val scheme = parsed.scheme?.lowercase() ?: return false
+        if (scheme != "http" && scheme != "https") return false
+
+        val host = parsed.host?.trim().orEmpty()
+        return host.isNotEmpty()
     }
 }

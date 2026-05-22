@@ -144,6 +144,7 @@ Added DebridXtream mandatory project rules:
 - Dev profile allows `danger-full-access` and approval `never`; safe for local trusted use only, risky as a shared default.
 - Generic Claude Flow instructions remain in `AGENTS.md` after the new DebridXtream rules. The project-specific rules now appear before those generic sections and should take precedence.
 - `tttt-AGENTS.md` is untracked and appears to be a leftover backup of the previous verification rule.
+- Stitch MCP should be configured as a direct remote HTTP server with `url` plus `headers`, not via `mcp-remote` stdio bridging. The bridge path can trigger OAuth-style handshake behavior that Stitch does not complete in this setup.
 
 ## 10. Final Status
 PASS  setup usable and project rules integrated.

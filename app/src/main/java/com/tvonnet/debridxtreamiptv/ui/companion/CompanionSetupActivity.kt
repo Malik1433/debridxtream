@@ -75,9 +75,9 @@ class CompanionSetupActivity : AppCompatActivity() {
     }
 
     private fun startListening() {
-        // Enable Firestore verbose logging
+        // Keep Firestore logging quiet to avoid leaking setup payload details in debug output.
         try {
-            FirebaseFirestore.setLoggingEnabled(true)
+            FirebaseFirestore.setLoggingEnabled(false)
         } catch (e: Exception) {
             android.util.Log.w("CompanionSetup", "Could not enable Firestore logging", e)
         }
@@ -123,7 +123,7 @@ class CompanionSetupActivity : AppCompatActivity() {
             if (snapshot != null && snapshot.exists()) {
                 val isFromCache = snapshot.metadata.isFromCache
                 val status = snapshot.getString("status")
-                android.util.Log.d("CompanionSetup", "Snapshot updated! Status: $status, isFromCache: $isFromCache, Data: ${snapshot.data}")
+                android.util.Log.d("CompanionSetup", "Snapshot updated. Status=$status, isFromCache=$isFromCache")
                 
                 if (status == "completed" || status == "success") {
                     binding.tvConnectionStatus.text = "Credentials sync completed!"

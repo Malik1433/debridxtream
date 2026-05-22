@@ -218,6 +218,17 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Prevents stale rank badges and duplication when items shift positions or reorder, without causing card blinking or unnecessary network re-fetches.
 - **Implementation:** Return `false` in `areContentsTheSame(oldItemPosition, newItemPosition)` if `oldItemPosition != newItemPosition`.
 
+## 42. Fragment Decoupling and Manager Delegation
+- **Definition:** Delegate fragment duties (focus, routing, key listening, navigation) to specialized manager classes to satisfy class length constraints. Nullify fragment and adapter/view bindings in `onDestroyView()` / `cleanup()` to prevent memory leaks on exit.
+- **Benefits:** Keeps fragment class size small (e.g. under 300 lines), isolates concerns (navigation vs focus vs UI state), and prevents memory leaks when swapping fragments.
+- **Implementation:** Introduce lifecycle-aware manager classes (like `HomeFocusManager`, `HomeKeyRoutingManager`, `HomeNavigationRouter`) that hold transient references to the Fragment, and explicitly nullify/cleanup views, adapters, and listeners in `onDestroyView()`.
+
+## 43. Companion LAN Security Gate
+- **Definition:** Restrict companion config CORS to localhost and site-local IPv4 origins, while still requiring a per-session pairing PIN before saving settings.
+- **Benefits:** Removes the broad browser-origin exposure from `anyHost()` without breaking same-LAN pairing flows, and keeps the config endpoint from accepting unauthenticated browser requests.
+- **Implementation:** Build the CORS allowlist from runtime network interfaces, allow only `http` for those hosts, retain `X-Pairing-PIN`, and keep credential validation before persistence.
+
+
 
 
 

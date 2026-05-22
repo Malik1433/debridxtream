@@ -19,10 +19,22 @@ Historical Home findings and QA evidence are currently in:
 - Document any row/focus change here and in the Home success or failed history.
 
 ## Current Status
-Created during `TASK 000-CODEX-SETUP-AUDIT` so future agents have the expected Home report path.
+- Successfully refactored and audited `HomeFragment` and all focus/routing managers.
+- `HomeFragment.kt` is under 300 lines (295 lines).
+- All managers (`HomeFocusManager.kt`, `HomeKeyRoutingManager.kt`, `HomeNavigationRouter.kt`, `HomeSidebarManager.kt`, `HomeHeroManager.kt`) are under 500 lines.
+- Complete cleanup of adapters and listener cleanup is now guarded in `onDestroyView()` so partially initialized managers do not crash fragment teardown.
+- Verified with clean `assembleDebug` and all unit tests passing.
 
-## Current Task
-- Added Continue Watching quick actions on Home with D-pad long-press support, clear-status suppression, and browse-only detail entry from the action menu.
-- Polished Continue Watching long-press action menu visuals to a compact TV chip style in `HomeFragment` + dedicated menu drawables/layout, while preserving existing long-press detection and short-press resume flow.
-- Enforced a position-based re-bind check in `Top10Adapter.kt` under `DiffUtil.Callback.areContentsTheSame` to fix the visual bug where reordered Trending Movies and Trending Series cards retain stale or duplicate rank badges (1-10) on database updates.
+## Current Task / Verification
+- Audited `HomeFragment` and separated D-pad key routing into `HomeKeyRoutingManager.kt`.
+- Relocated 15 focus/navigation state properties from `HomeFragment.kt` to `HomeFocusManager.kt`.
+- Cleaned up fragment view bindings and adapters in `onDestroyView()` to prevent memory leaks on screen exit.
+- Guarded manager cleanup in `onDestroyView()` so partial initialization cannot trigger late `lateinit` crashes during teardown.
+- Verified zero regressions in lateral navigation, focus restoration, and sidebar transitions on the real TV device at `192.168.0.21:5555`.
+  - **APK Installation:** Successfully installed `app-debug.apk` onto `192.168.0.21:5555`.
+  - **Initial Focus:** MainActivity launched successfully, and focus correctly landed on the Rank 1 item in the "Trending Movies" row.
+  - **Sidebar Navigation:** Sent D-pad Left (`keyevent 21`); verified focus transitioned to the "Home" item on the navigation sidebar and the sidebar width expanded from 160 to 520, exposing all navigation labels.
+  - **Sidebar Collapse:** Sent D-pad Right (`keyevent 22`); verified focus correctly restored to the Rank 1 item in the "Trending Movies" row and the sidebar collapsed back to a compact width of 160.
+  - **Security Smoke:** `CompanionConfigServer` CORS now uses runtime LAN host allowlisting instead of `anyHost()`, build passed, and launch smoke on `192.168.0.84:5555` remained stable.
+
 

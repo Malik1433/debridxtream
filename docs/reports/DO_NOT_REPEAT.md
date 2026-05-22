@@ -121,5 +121,8 @@ Do not pick the next Debrid episode by quality alone. Episode browser selection,
 - **DO NOT** inflate Continue Watching long-press menus into large panel/dialog spacing when the action set is only 1-2 items; keep them compact chip-style with clear focused state.
 - **DO NOT** send exhausted playback failures back through the same retry/result path that handles transient player errors. Redirect terminal failures to the owning detail screen with a failure-origin guard so the detail view stays in browse mode.
 - **DO NOT** skip position comparisons in `areContentsTheSame` of a RecyclerView `DiffUtil.Callback` when the adapter uses stable IDs and binds position-dependent UI (e.g. 1-10 ranking badges). Otherwise, moved items will skip re-binding, leading to stale or duplicate visual overlays.
+- **DO NOT** exceed 300 lines in `HomeFragment` or 500 lines in its managers (`HomeFocusManager`, `HomeKeyRoutingManager`, `HomeNavigationRouter`, `HomeSidebarManager`, `HomeHeroManager`). When refactoring, keep classes highly focused, avoid duplicate logic, and ensure all imports match package declarations. Always explicitly clean up/nullify views and adapter references in `onDestroyView()` to prevent memory leaks on exit.
+- **DO NOT** leave `CompanionConfigServer` on `anyHost()` or return raw exception messages to the companion client. Keep CORS limited to localhost/site-local hosts, keep `X-Pairing-PIN`, and redact or summarize sensitive config/log data before persistence or error responses.
+- **DO NOT** call `cleanup()` on Home manager fields unguarded if the fragment can partially initialize. Guard each `lateinit` manager in `onDestroyView()` so teardown cannot crash after a failed init path.
 
 
