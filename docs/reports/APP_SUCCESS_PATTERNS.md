@@ -197,5 +197,27 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Improves readability and perceived polish at 10-foot distance while preserving fast remote interaction.
 - **Implementation:** Use a wrap-content glass container with focused/default chip selectors, small paddings, and initial chip focus after dialog show.
 
+## 39. Firestore Cache-Resilient Listener
+- **Definition:** Checking document status fields (`success` or `completed`) before inspecting `snapshot.metadata.isFromCache` in Firestore listener callbacks.
+- **Benefits:** Prevents the Android Firestore SDK from ignoring cloud updates when it serves cached local metadata first, ensuring pairing/configuration screens resolve without freezing.
+- **Implementation:**
+    ```kotlin
+    registration = docRef.addSnapshotListener { snapshot, e ->
+        if (e != null) return@addSnapshotListener
+        if (snapshot != null && snapshot.exists()) {
+            val status = snapshot.getString("status")
+            if (status == "success" || status == "completed") {
+                // Process synced credentials
+            }
+        }
+    }
+    ```
+
+## 40. Dynamic Rank Invalidation under Stable IDs
+- **Definition:** Enforcing that position changes invalidate content equality when displaying index-based overlays (like a 1-10 ranking badge) inside adapters with stable IDs enabled.
+- **Benefits:** Prevents stale rank badges and duplication when items shift positions or reorder, without causing card blinking or unnecessary network re-fetches.
+- **Implementation:** Return `false` in `areContentsTheSame(oldItemPosition, newItemPosition)` if `oldItemPosition != newItemPosition`.
+
+
 
 

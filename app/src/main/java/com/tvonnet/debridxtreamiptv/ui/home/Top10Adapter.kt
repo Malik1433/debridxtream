@@ -46,7 +46,7 @@ class Top10Adapter(
             }
 
             override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                return oldItems[oldItemPosition] == newItems[newItemPosition]
+                return oldItemPosition == newItemPosition && oldItems[oldItemPosition] == newItems[newItemPosition]
             }
         })
         items = newItems

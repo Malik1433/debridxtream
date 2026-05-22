@@ -95,6 +95,7 @@ Do not pick the next Debrid episode by quality alone. Episode browser selection,
 - **DO NOT** serialize an empty IPTV object into the companion payload when IPTV is optional. Omit the field entirely unless the credentials were filled and verified.
 - **DO NOT** cap Stremio addon input to a single field when the user needs multiple manifest URLs. Use add/remove rows on the same form.
 - **DO NOT** leave `/`, `/setup`, and `/config` all as active same-screen companion pages. Choose one canonical visible route and redirect the others.
+- **DO NOT** ignore Firestore pairing document updates in the companion listener solely because the snapshot metadata indicates it is loaded from cache. Firestore emits cached local metadata first, which will cause the pairing listener to freeze if updates are rejected based on cache flags alone. Check the document status payload first.
 
 ## LiveTV Rules
 - **DO NOT** clear `isLoadingChannels` in `LiveViewModel` before Paging refresh settles.
@@ -119,4 +120,6 @@ Do not pick the next Debrid episode by quality alone. Episode browser selection,
 - **DO NOT** rely on touch-only long-press handling for Home cards that must work on TV remotes. Handle D-pad repeat-press detection and suppress the follow-up click so action menus do not double-fire.
 - **DO NOT** inflate Continue Watching long-press menus into large panel/dialog spacing when the action set is only 1-2 items; keep them compact chip-style with clear focused state.
 - **DO NOT** send exhausted playback failures back through the same retry/result path that handles transient player errors. Redirect terminal failures to the owning detail screen with a failure-origin guard so the detail view stays in browse mode.
+- **DO NOT** skip position comparisons in `areContentsTheSame` of a RecyclerView `DiffUtil.Callback` when the adapter uses stable IDs and binds position-dependent UI (e.g. 1-10 ranking badges). Otherwise, moved items will skip re-binding, leading to stale or duplicate visual overlays.
+
 

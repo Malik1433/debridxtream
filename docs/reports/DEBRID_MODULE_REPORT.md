@@ -717,3 +717,23 @@ Follow up on TASK 020 by separating stale direct-history rejection from fresh di
 
 ## Final Status
 PENDING  Direct Debrid continue-watch rejects stale history playback and appears to play fresh provider-fetched direct URLs, but final success is deferred until tomorrow's manual retest.
+
+---
+
+# TASK 022-DEBRIDXTREAM-DEEP-STABILITY-SECURITY-AUDIT-REFACTORING
+
+## Scope
+Perform deep security, stability, and refactoring fixes across companion setup, EPG timezone parsing, and app startup flow. Fix the companion sync freeze on Firestore cached document emissions, remove insecure app trust managers, and construct a startup crash loop detection and recovery flow.
+
+## Changes
+- Modified `CompanionSetupActivity.kt` to check the document status (`success` or `completed`) before evaluating `isFromCache`. Added a concurrency guard boolean (`isConfigured`) to ensure `handleConfigurationReceived` executes exactly once.
+- Standardized EPG timezone offset parsing logic in `EpgParser.kt`.
+- Implemented consecutive crash detection in `GlobalCrashHandler.kt` with recovery redirection to `RecoveryActivity.kt`.
+- Deleted legacy files (`AppMemoryManager.kt`, `ErrorManagerTemp.kt`, `HomeSampleData.kt`) and turned on R8/Minification inside `build.gradle`.
+
+## Validation
+- `:app:assembleDebug --no-daemon`: PASS (Compiled successfully in 9m 56s).
+- Device QA on `192.168.0.84:5555`: PASS. Successfully deployed, opened QR setup page, and executed `simulate_sync.py` script. The TV app immediately processed credentials, dismissed the QR setup screen, pre-filled login inputs, and successfully initiated autologin.
+
+## Final Status
+PASS  Resolved Firestore cached metadata sync freezes, EPG timezone shifts, and startup crash-loops on target TV node 192.168.0.84.

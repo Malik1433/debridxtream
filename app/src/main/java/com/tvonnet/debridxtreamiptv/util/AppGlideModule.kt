@@ -53,25 +53,7 @@ class AppGlideModule : AppGlideModule() {
 
     override fun registerComponents(context: Context, glide: com.bumptech.glide.Glide, registry: Registry) {
         try {
-            // Create a trust manager that does not validate certificate chains
-            val trustAllCerts = arrayOf<javax.net.ssl.TrustManager>(
-                object : javax.net.ssl.X509TrustManager {
-                    override fun checkClientTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) {}
-                    override fun checkServerTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) {}
-                    override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = arrayOf()
-                }
-            )
-
-            // Install the all-trusting trust manager
-            val sslContext = javax.net.ssl.SSLContext.getInstance("SSL")
-            sslContext.init(null, trustAllCerts, java.security.SecureRandom())
-            
-            // Create an ssl socket factory with our all-trusting manager
-            val sslSocketFactory = sslContext.socketFactory
-
             val client = OkHttpClient.Builder()
-                .sslSocketFactory(sslSocketFactory, trustAllCerts[0] as javax.net.ssl.X509TrustManager)
-                .hostnameVerifier { _, _ -> true }
                 .addInterceptor { chain ->
                     val request = chain.request().newBuilder()
                         .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
@@ -89,7 +71,7 @@ class AppGlideModule : AppGlideModule() {
             
             registry.replace(GlideUrl::class.java, InputStream::class.java, OkHttpUrlLoader.Factory(client))
         } catch (e: Exception) {
-            android.util.Log.e("GLIDE_DEBUG", "Failed to create unsafe OkHttpClient", e)
+            android.util.Log.e("GLIDE_DEBUG", "Failed to create OkHttpClient", e)
         }
     }
 

@@ -426,47 +426,7 @@ object EpgParser {
         }
     }
 
-    /**
-     * Pre-process XML content to remove problematic HTML/JavaScript content
-     */
-    private fun preprocessXml(xmlContent: String): String {
-        return xmlContent
-            // Remove Cloudflare email protection tags
-            .replace(Regex("<a[^>]*class=[\"'][^\"']*__cf_email__[^\"']*[\"'][^>]*>[^<]*</a>"), "")
-            // Remove script tags and their content
-            .replace(Regex("<script[^>]*>.*?</script>", setOf(RegexOption.DOT_MATCHES_ALL)), "")
-            // Remove noscript tags
-            .replace(Regex("<noscript[^>]*>.*?</noscript>", setOf(RegexOption.DOT_MATCHES_ALL)), "")
-            // Remove style tags
-            .replace(Regex("<style[^>]*>.*?</style>", setOf(RegexOption.DOT_MATCHES_ALL)), "")
-            // Remove HTML comments that might contain JavaScript
-            .replace(Regex("<!--.*?-->", setOf(RegexOption.DOT_MATCHES_ALL)), "")
-            // Remove data-cfemail attributes
-            .replace(Regex("data-cfemail=[\"'][^\"']*[\"']"), "")
-            // Remove cdn-cgi/l/email-protection hrefs
-            .replace(Regex("href=[\"'][^\"']*cdn-cgi/l/email-protection[^\"']*[\"']"), "")
-    }
 
-    /**
-     * Phase 2.8: Fix multiple XML declarations issue
-     */
-    private fun fixMultipleXmlDeclarations(xmlContent: String): String {
-        val xmlDeclaration = Regex("""<\?xml[^>]*\?>""")
-        val declarations = xmlDeclaration.findAll(xmlContent).toList()
-
-        if (declarations.size <= 1) {
-            return xmlContent
-        }
-
-        Log.w(TAG, "Found ${declarations.size} XML declarations, keeping only the first")
-        val firstDeclaration = declarations.first().value
-
-        // Remove all declarations and add back the first one at the beginning
-        val withoutDeclarations = xmlContent.replace(xmlDeclaration, "")
-        val cleaned = withoutDeclarations.trimStart()
-
-        return firstDeclaration + "\n" + cleaned
-    }
 
     /**
      * Clean text content by removing HTML entities and normalizing
@@ -510,9 +470,9 @@ object EpgParser {
         }
     }
     
-    private fun parseTimestamp(timestamp: String?): Long {
-        // Parse XMLTV format: YYYYMMDDHHmmss +0000
-        // Example: "20231105143000 +0000" = Nov 5, 2023 14:30:00 UTC
+    internal fun parseTimestamp(timestamp: String?): Long {
+        // Parse XMLTV format: YYYYMMDDHHmmss [+-]HHmm
+        // Example: "20231105143000 +0200" or "20231105143000 +02:00"
         return try {
             if (timestamp == null || timestamp.length < 14) {
                 Log.w(TAG, "Invalid timestamp: $timestamp")
@@ -532,9 +492,31 @@ object EpgParser {
             calendar.set(year, month - 1, day, hour, minute, second) // Month is 0-indexed
             calendar.set(java.util.Calendar.MILLISECOND, 0)
             
-            val result = calendar.timeInMillis
-            Log.d(TAG, "Parsed timestamp: $timestamp -> $result")
-            result
+            var baseTime = calendar.timeInMillis
+            
+            // Handle timezone offset if present
+            if (timestamp.length > 14) {
+                val offsetStr = timestamp.substring(14).trim()
+                if (offsetStr.isNotEmpty()) {
+                    val signStr = offsetStr.substring(0, 1)
+                    val isPositive = signStr != "-" // Defaults to positive if no sign, or +
+                    val timePart = offsetStr.substring(if (signStr == "+" || signStr == "-") 1 else 0).replace(":", "")
+                    if (timePart.length >= 4) {
+                        val offsetHours = timePart.substring(0, 2).toIntOrNull() ?: 0
+                        val offsetMinutes = timePart.substring(2, 4).toIntOrNull() ?: 0
+                        val offsetMillis = (offsetHours * 60 * 60 * 1000) + (offsetMinutes * 60 * 1000)
+                        
+                        // XMLTV timestamp is local time at that timezone offset, so subtract the offset to get canonical UTC.
+                        if (isPositive) {
+                            baseTime -= offsetMillis
+                        } else {
+                            baseTime += offsetMillis
+                        }
+                    }
+                }
+            }
+            
+            baseTime
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse timestamp: $timestamp", e)
             System.currentTimeMillis()

@@ -24,3 +24,5 @@ Created during `TASK 000-CODEX-SETUP-AUDIT` so future agents have the expected H
 ## Current Task
 - Added Continue Watching quick actions on Home with D-pad long-press support, clear-status suppression, and browse-only detail entry from the action menu.
 - Polished Continue Watching long-press action menu visuals to a compact TV chip style in `HomeFragment` + dedicated menu drawables/layout, while preserving existing long-press detection and short-press resume flow.
+- Enforced a position-based re-bind check in `Top10Adapter.kt` under `DiffUtil.Callback.areContentsTheSame` to fix the visual bug where reordered Trending Movies and Trending Series cards retain stale or duplicate rank badges (1-10) on database updates.
+

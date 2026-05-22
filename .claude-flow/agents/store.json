@@ -256,6 +256,20 @@
       "domain": "android",
       "model": "sonnet",
       "modelRoutedBy": "explicit"
+    },
+    "agent-1779413968269-5oh21s": {
+      "agentId": "agent-1779413968269-5oh21s",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-22T01:39:28.271Z",
+      "domain": "android-audit",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
     }
   },
   "version": "3.0.0"

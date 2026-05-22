@@ -196,3 +196,14 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Reason:** Cosmetic-only updates can silently regress core remote interaction flow.
 - **Fix:** Keep adapter/fragment action wiring and IDs intact, and constrain polish work to dialog sizing, paddings, and drawable selectors.
 
+## 40. Rejecting Firestore Cache Snapshots
+- **Avoid:** Checking `snapshot.metadata.isFromCache` and exiting early in the companion sync listener before inspecting the document payload status.
+- **Reason:** The Firestore Android SDK frequently serves cached or local metadata first (triggering `isFromCache = true` or `hasPendingWrites`), which leads to the TV app ignoring the incoming synced credentials and staying frozen in an offline waiting state.
+- **Fix:** First verify if the document contains a successful/completed status code, and process it regardless of the metadata cache flag.
+
+## 41. Skipping ViewHolder Bind on Position Shift with Stable IDs
+- **Avoid:** Assuming `areContentsTheSame` only needs to compare item data properties when the ViewHolder binds index-dependent state (like rank numbers `position + 1`).
+- **Reason:** With `setHasStableIds(true)`, RecyclerView will skip calling `onBindViewHolder` if both item identity and content properties match, leaving rank/position overlays displaying stale values after a list reorder.
+- **Fix:** Incorporate position equality checks in `areContentsTheSame` to force a re-bind when items change position.
+
+

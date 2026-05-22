@@ -20,6 +20,7 @@ class CompanionSetupActivity : AppCompatActivity() {
     private lateinit var binding: ActivityCompanionSetupBinding
     private val db = FirebaseFirestore.getInstance()
     private lateinit var deviceCode: String
+    private var isConfigured = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,30 +75,96 @@ class CompanionSetupActivity : AppCompatActivity() {
     }
 
     private fun startListening() {
+        // Enable Firestore verbose logging
+        try {
+            FirebaseFirestore.setLoggingEnabled(true)
+        } catch (e: Exception) {
+            android.util.Log.w("CompanionSetup", "Could not enable Firestore logging", e)
+        }
+
         val docRef = db.collection("device_codes").document(deviceCode)
         
+        // Update initial status
+        binding.tvConnectionStatus.text = "Initializing sync document..."
+        binding.vStatusIndicator.setBackgroundTintList(
+            android.content.res.ColorStateList.valueOf(
+                androidx.core.content.ContextCompat.getColor(this, R.color.warning_yellow)
+            )
+        )
+
         // Initialize the document for the web app to find
         docRef.set(mapOf(
             "status" to "waiting",
             "createdAt" to System.currentTimeMillis()
-        ))
+        )).addOnSuccessListener {
+            android.util.Log.d("CompanionSetup", "Document initialized successfully on Firestore.")
+        }.addOnFailureListener { exception ->
+            android.util.Log.e("CompanionSetup", "Failed to initialize document on Firestore.", exception)
+            binding.tvConnectionStatus.text = "Initialization failed: ${exception.localizedMessage}. Press BACK to retry."
+            binding.vStatusIndicator.setBackgroundTintList(
+                android.content.res.ColorStateList.valueOf(
+                    androidx.core.content.ContextCompat.getColor(this, R.color.error_red)
+                )
+            )
+        }
 
         docRef.addSnapshotListener { snapshot, e ->
             if (e != null) {
+                android.util.Log.e("CompanionSetup", "Listen failed.", e)
+                binding.tvConnectionStatus.text = "Connection error: ${e.localizedMessage}. Press BACK to retry."
+                binding.vStatusIndicator.setBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(
+                        androidx.core.content.ContextCompat.getColor(this, R.color.error_red)
+                    )
+                )
                 return@addSnapshotListener
             }
 
             if (snapshot != null && snapshot.exists()) {
+                val isFromCache = snapshot.metadata.isFromCache
                 val status = snapshot.getString("status")
-                if (status == "completed") {
+                android.util.Log.d("CompanionSetup", "Snapshot updated! Status: $status, isFromCache: $isFromCache, Data: ${snapshot.data}")
+                
+                if (status == "completed" || status == "success") {
+                    binding.tvConnectionStatus.text = "Credentials sync completed!"
+                    binding.vStatusIndicator.setBackgroundTintList(
+                        android.content.res.ColorStateList.valueOf(
+                            androidx.core.content.ContextCompat.getColor(this, R.color.success_green)
+                        )
+                    )
                     handleConfigurationReceived(snapshot.data)
+                } else {
+                    if (isFromCache) {
+                        binding.tvConnectionStatus.text = "Running offline. Waiting to connect to server..."
+                        binding.vStatusIndicator.setBackgroundTintList(
+                            android.content.res.ColorStateList.valueOf(
+                                androidx.core.content.ContextCompat.getColor(this, R.color.warning_yellow)
+                            )
+                        )
+                    } else {
+                        binding.tvConnectionStatus.text = "Connected to server. Ready for companion setup..."
+                        binding.vStatusIndicator.setBackgroundTintList(
+                            android.content.res.ColorStateList.valueOf(
+                                androidx.core.content.ContextCompat.getColor(this, R.color.success_green)
+                            )
+                        )
+                    }
                 }
+            } else {
+                binding.tvConnectionStatus.text = "Waiting for server connection..."
+                binding.vStatusIndicator.setBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(
+                        androidx.core.content.ContextCompat.getColor(this, R.color.warning_yellow)
+                    )
+                )
             }
         }
     }
 
     private fun handleConfigurationReceived(data: Map<String, Any>?) {
         if (data == null) return
+        if (isConfigured) return
+        isConfigured = true
 
         val iptv = data["iptv"] as? Map<*, *>
         val debridTokenLegacy = data["debrid"] as? String

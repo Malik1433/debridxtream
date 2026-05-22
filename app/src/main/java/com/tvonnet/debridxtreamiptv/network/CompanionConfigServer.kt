@@ -39,6 +39,11 @@ class CompanionConfigServer @Inject constructor(
      * Callback for UI synchronization feedback
      */
     var onConfigSynced: (() -> Unit)? = null
+    
+    /**
+     * The dynamic PIN required for requests to be accepted.
+     */
+    var currentPin: String = ""
 
     /**
      * Starts the Ktor server on port 8080.
@@ -51,6 +56,9 @@ class CompanionConfigServer @Inject constructor(
         }
         
         try {
+            // Generate a dynamic 4-digit PIN for this session
+            currentPin = (1000..9999).random().toString()
+            
             // Changed port to 8085 to avoid potential conflicts
             server = embeddedServer(CIO, port = 8085, host = "0.0.0.0") {
                 install(ContentNegotiation) {
@@ -63,6 +71,7 @@ class CompanionConfigServer @Inject constructor(
                     allowMethod(HttpMethod.Get)
                     allowHeader(HttpHeaders.ContentType)
                     allowHeader(HttpHeaders.Authorization)
+                    allowHeader("X-Pairing-PIN")
                 }
                 install(StatusPages) {
                     exception<Throwable> { call, cause ->
@@ -114,7 +123,28 @@ class CompanionConfigServer @Inject constructor(
                     // Main configuration endpoint
                     post("/api/config") {
                         try {
+                            val pinHeader = call.request.header("X-Pairing-PIN")
+                            if (pinHeader != currentPin) {
+                                call.respond(HttpStatusCode.Unauthorized, mapOf(
+                                    "success" to false, 
+                                    "message" to "Incorrect or missing X-Pairing-PIN"
+                                ))
+                                return@post
+                            }
+
                             val payload = call.receive<CompanionConfigPayload>()
+                            
+                            // Validate IPTV credentials before saving
+                            if (payload.iptv != null && payload.iptv.serverUrl.isNotBlank() && payload.iptv.username.isNotBlank()) {
+                                val validation = validateIptvCredentials(payload.iptv)
+                                if (!validation.success) {
+                                    call.respond(HttpStatusCode.BadRequest, mapOf(
+                                        "success" to false, 
+                                        "message" to "IPTV Validation Failed: ${validation.message}"
+                                    ))
+                                    return@post
+                                }
+                            }
                             
                             saveConfiguration(payload)
                             

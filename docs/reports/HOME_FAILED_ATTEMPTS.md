@@ -11,3 +11,5 @@ Canonical failed-attempts file for Home module tasks.
 - `TASK 000-CODEX-SETUP-AUDIT`: No Home app failure was investigated. File created only to complete report/history integration.
 - `TASK 031-CONTINUE-WATCHING-QUICK-ACTIONS`: Avoid the old click-only adapter path for TV remotes; long-press must be handled at the D-pad level and clear-status must suppress the next watch-history write so the item does not reappear immediately.
 - `TASK 031A-CONTINUE-WATCHING-MENU-POLISH`: No functional failure observed; guardrail is to avoid replacing existing long-press detection or short-press resume wiring while polishing UI.
+- `TASK 032-TRENDING-RANK-NUMBERING-FIX`: Avoid omitting adapter position checks in `areContentsTheSame` when using `setHasStableIds(true)`; otherwise, RecyclerView skips re-binding shifted cards, keeping visual overlays (like rank numbers) stuck at outdated values on list updates.
+

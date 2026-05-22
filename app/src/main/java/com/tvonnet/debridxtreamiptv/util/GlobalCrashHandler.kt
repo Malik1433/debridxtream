@@ -12,28 +12,35 @@ class GlobalCrashHandler(private val context: Context) : Thread.UncaughtExceptio
 
     private val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
 
+    internal var exitLogic: () -> Unit = {
+        android.os.Process.killProcess(android.os.Process.myPid())
+        exitProcess(1)
+    }
+
     override fun uncaughtException(thread: Thread, throwable: Throwable) {
         Log.e("GlobalCrashHandler", "CRASH DETECTED: ${throwable.message}", throwable)
 
         try {
-            // Show toast on UI thread
-            Thread {
-                Looper.prepare()
-                Toast.makeText(context, "App crashed. Restarting to recover...", Toast.LENGTH_LONG).show()
-                Looper.loop()
-            }.start()
-            
-            Thread.sleep(1000)
+            val prefs = context.getSharedPreferences("app_stability", Context.MODE_PRIVATE)
+            val count = prefs.getInt("startup_crash_count", 0) + 1
+            prefs.edit().putInt("startup_crash_count", count).apply()
 
-            // Restart app
-            val intent = Intent(context, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            if (count >= 3) {
+                // Start RecoveryActivity
+                val intent = Intent(context, com.tvonnet.debridxtreamiptv.ui.recovery.RecoveryActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                }
+                context.startActivity(intent)
+            } else {
+                // Normal restart to MainActivity
+                val intent = Intent(context, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                }
+                context.startActivity(intent)
             }
-            context.startActivity(intent)
 
-            // Kill current process
-            android.os.Process.killProcess(android.os.Process.myPid())
-            exitProcess(1)
+            // Kill current process via exitLogic
+            exitLogic()
 
         } catch (e: Exception) {
             // Fallback to default if restart fails

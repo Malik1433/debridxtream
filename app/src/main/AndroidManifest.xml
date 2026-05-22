@@ -118,6 +118,12 @@
             android:theme="@style/AppTheme"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+            
+        <activity
+            android:name=".ui.recovery.RecoveryActivity"
+            android:label="Recovery Mode"
+            android:theme="@style/AppTheme"
+            android:exported="false" />
     </application>
 
 </manifest>

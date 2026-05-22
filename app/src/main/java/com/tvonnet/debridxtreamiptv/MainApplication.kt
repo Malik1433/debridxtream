@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 @HiltAndroidApp
 class MainApplication : Application(), Configuration.Provider {
@@ -14,6 +15,15 @@ class MainApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        
+        com.tvonnet.debridxtreamiptv.util.GlobalCrashHandler.init(this)
+        
+        // Reset crash counter if app stays alive for 15 seconds
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            kotlinx.coroutines.delay(15000)
+            val prefs = getSharedPreferences("app_stability", android.content.Context.MODE_PRIVATE)
+            prefs.edit().putInt("startup_crash_count", 0).apply()
+        }
     }
 
     override val workManagerConfiguration: Configuration

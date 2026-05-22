@@ -110,12 +110,14 @@
         android:layout_margin="40dp">
         
         <View
+            android:id="@+id/v_status_indicator"
             android:layout_width="8dp"
             android:layout_height="8dp"
             android:background="@drawable/bg_circle_card"
             android:backgroundTint="@color/epg_playing" />
             
         <TextView
+            android:id="@+id/tv_connection_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Waiting for connection..."
