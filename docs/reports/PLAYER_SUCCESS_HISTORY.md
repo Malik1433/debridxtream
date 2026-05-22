@@ -4,6 +4,7 @@ Scope: confirmed player wins.
 
 Done:
 - Shared player routing and series episode overlay work are verified.
+- Track control logic was consolidated into `PlayerActivity` and verified by build.
 
 Open:
 - Append only new confirmed wins.

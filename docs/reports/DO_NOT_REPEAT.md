@@ -25,6 +25,7 @@ Critical warnings for future development in the IPTV Series and VOD modules.
 5. **DO NOT** log stream URLs, Debrid links, tokens, usernames, or passwords.
 6. **DO NOT** claim Player task PASS without testing IPTV Series, Debrid Series, Live TV, VOD, and Debrid Movie regression.
 7. **DO NOT** omit `EXTRA_SERIES_ID` when launching `PlayerActivity` for Series/Episodes; it is required for playlist loading and the episode browser.
+8. **DO NOT** reintroduce a separate player-track manager if track and source-profile logic already live safely inside `PlayerActivity`.
 
 ## IPTV Episode Browser Rule
 Do not block UI state emission on a long-running provider collect. For player overlays, emit loading/empty/error states quickly, use bounded fetches, and never allow infinite spinner.

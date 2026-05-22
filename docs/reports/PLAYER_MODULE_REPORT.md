@@ -6,12 +6,13 @@ Done:
 - Series episode overlay is shared instead of duplicated.
 - Episode browser and next-episode control are wired through the existing player spine.
 - Global player routing remains source-aware.
+- Track selection and source-profile handling now live directly in `PlayerActivity`; `PlayerTrackManager` has been removed.
 
 Open:
 - Keep remote-control edge cases under the player task docs.
 
 Proof:
-- Build and device QA already passed for the current player spine.
+- `:app:clean`, `:app:compileDebugKotlin`, and `:app:assembleDebug` passed after the player consolidation pass.
 
 Next:
 - Use this file as the compact canonical summary only.

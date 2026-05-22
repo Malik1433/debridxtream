@@ -233,6 +233,11 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Cuts report churn, reduces token usage, and makes future audits faster because the current truth is easy to scan.
 - **Implementation:** Keep one canonical file per topic, record only `Status`, `Done`, `Open`, `Risk`, `Proof`, and `Next`, and add short delta updates instead of rewriting the whole report.
 
+## 45. Consolidated Player Track Control
+- **Definition:** Keep audio, subtitle, language, video, and source-profile handling inside the active `PlayerActivity` when it already owns the playback lifecycle.
+- **Benefits:** Removes a redundant helper layer, keeps track UI and playback state in one lifecycle boundary, and reduces coordination cost for future player changes.
+- **Implementation:** Let `PlayerActivity` own track selection and source-profile logic directly, and avoid reintroducing a separate track manager unless the lifecycle boundary changes.
+
 
 
 
