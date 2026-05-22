@@ -127,6 +127,7 @@ class SeriesDetailActivity : AppCompatActivity() {
     private val cachedDebridSourcesByEpisode = mutableMapOf<String, List<com.tvonnet.debridxtreamiptv.data.repository.MovieSource>>()
     private val debridFilterStateByEpisode = mutableMapOf<String, com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterState>()
     private val selectedDebridStreamIdByEpisode = mutableMapOf<String, String?>()
+    private var openedFromPlaybackFailure: Boolean = false
 
     private val playerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -140,9 +141,10 @@ class SeriesDetailActivity : AppCompatActivity() {
                 data?.getBooleanExtra(PlayerActivity.EXTRA_AUTO_PLAY_NEXT, false) == true
             val failedStreamId = data?.getStringExtra(PlayerActivity.EXTRA_FAILED_STREAM_ID)
             val failReason = data?.getStringExtra(PlayerActivity.EXTRA_FAIL_REASON)
-            notifyDebridFailure(failReason, autoPlayNext)
+            val allowAutoPlayNext = autoPlayNext && !openedFromPlaybackFailure
+            notifyDebridFailure(failReason, allowAutoPlayNext)
             val episode = lastDebridEpisode
-            if (autoPlayNext && !failedStreamId.isNullOrBlank() && episode != null) {
+            if (allowAutoPlayNext && !failedStreamId.isNullOrBlank() && episode != null) {
                 autoPlayNextDebridEpisodeSource(episode, failedStreamId)
             } else {
                 lastDebridEpisode?.let { fetchAndShowDebridSources(it) }
@@ -161,6 +163,7 @@ class SeriesDetailActivity : AppCompatActivity() {
         initViews()
         setupAdapters()
         getSeriesDataFromIntent()
+        openedFromPlaybackFailure = intent.getBooleanExtra(PlayerActivity.EXTRA_OPENED_FROM_PLAYBACK_FAILURE, false)
         
         displaySeriesInfo()
         updateFavoriteState()

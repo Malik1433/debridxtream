@@ -391,4 +391,12 @@ class HomeViewModel @Inject constructor(
     fun refreshHomeData() {
         loadHomeData()
     }
+
+    fun clearContinueWatchingItem(item: ContinueWatchingItem) {
+        watchHistoryPrefs.removeContinueWatchingItem(item)
+        watchHistoryPrefs.suppressContinueWatchingWrite(item)
+        loadHomeDataJob?.cancel()
+        loadHomeDataJob = null
+        loadHomeData()
+    }
 }

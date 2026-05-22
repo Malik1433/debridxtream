@@ -79,3 +79,10 @@ This document tracks all successful changes and structural improvements applied 
     - Kept the custom `TimeBar` integration for sync and scrubbing.
     - Removed the animated wave path and rendered a straight played segment instead.
     - Matched the seek bar height and button glass styling to the compact overlay.
+
+## Successful Pattern - Terminal Playback-Failure Redirect
+- **Achievement**: Exhausted resume/init/timeout failures now land on the correct detail screen instead of looping back through the same player result path.
+- **Key Implementation**:
+    - Kept the existing retry budget for transient playback failures.
+    - Redirected only after retries, refresh attempts, and stall handling are exhausted.
+    - Passed a failure-origin flag into the detail screens so they stay in browse mode and do not auto-play the same failed source again.

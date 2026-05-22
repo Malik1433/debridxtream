@@ -1,5 +1,6 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
+import android.view.KeyEvent
 import android.graphics.Typeface
 import android.view.LayoutInflater
 import android.view.View
@@ -16,7 +17,8 @@ import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
 import com.tvonnet.debridxtreamiptv.util.GlideUtils
 
 class BrowserCategoryAdapter(
-    private val onCategoryClick: (XtreamCategory) -> Unit
+    private val onCategoryClick: (XtreamCategory) -> Unit,
+    private val onRightPressed: (() -> Unit)? = null
 ) : ListAdapter<XtreamCategory, BrowserCategoryAdapter.ViewHolder>(CategoryDiffCallback) {
 
     private var selectedCategoryId: String? = null
@@ -30,6 +32,11 @@ class BrowserCategoryAdapter(
         val newIndex = if (id != null) list.indexOfFirst { it.category_id == id } else -1
         if (oldIndex != -1) notifyItemChanged(oldIndex)
         if (newIndex != -1) notifyItemChanged(newIndex)
+    }
+
+    fun getSelectedPosition(): Int {
+        val id = selectedCategoryId ?: return -1
+        return currentList.indexOfFirst { it.category_id == id }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -46,35 +53,106 @@ class BrowserCategoryAdapter(
 
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tvName: TextView = itemView.findViewById(R.id.tv_category_name)
+        private val tvCode: TextView = itemView.findViewById(R.id.tv_category_code)
         private val indicator: View = itemView.findViewById(R.id.v_active_indicator)
 
         fun bind(category: XtreamCategory, isSelected: Boolean) {
             itemView.isFocusable = true
             itemView.isFocusableInTouchMode = true
-            tvName.text = category.category_name ?: "Unknown"
+            
+            val rawName = category.category_name ?: "Unknown"
+            tvName.text = rawName
+            tvName.visibility = View.VISIBLE
 
-            if (isSelected) {
+            // Parsed Code Logic
+            val codeRegex = Regex("""(?i)[\|\[\(\s]*(MULTI|EN|FR|IT|ES|DE|RU|TR|AR|NL|PT|PL|UK|US|IN|PK|CA|AU|BR)[\|\]\)\s]*""")
+            val match = codeRegex.find(rawName)
+            val parsedCode = match?.groupValues?.get(1)?.uppercase(java.util.Locale.ROOT)
+            
+            val finalCode = when {
+                parsedCode != null -> parsedCode
+                rawName.contains("Favorite", true) -> "FAV"
+                rawName.contains("Netflix", true) -> "NFLX"
+                rawName.contains("Amazon", true) -> "PRME"
+                rawName.contains("Disney", true) -> "DSNY"
+                else -> {
+                    val words = rawName.split(" ", "|", "/", "-").filter { it.isNotBlank() }
+                    if (words.size >= 2) {
+                        words.take(3).mapNotNull { it.firstOrNull()?.uppercaseChar() }.joinToString("")
+                    } else {
+                        rawName.take(3).uppercase(java.util.Locale.ROOT).trim()
+                    }
+                }
+            }
+            tvCode.text = finalCode
+            tvCode.visibility = View.VISIBLE
+
+            // Active indicator
+            indicator.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
+            indicator.alpha = if (isSelected) 1f else 0f
+
+            // Initial visual styling based on current state
+            val hasFocus = itemView.hasFocus()
+            itemView.scaleX = if (hasFocus) 1.05f else 1.0f
+            itemView.scaleY = if (hasFocus) 1.05f else 1.0f
+
+            if (hasFocus) {
+                itemView.setBackgroundResource(R.drawable.bg_sidebar_item_focused_glass)
                 tvName.setTextColor(itemView.context.getColor(R.color.white))
+                tvCode.setTextColor(itemView.context.getColor(R.color.white))
                 tvName.setTypeface(null, Typeface.BOLD)
-                indicator.visibility = View.VISIBLE
-                indicator.alpha = 1f
             } else {
-                tvName.setTextColor(itemView.context.getColor(R.color.white_opacity_70))
-                tvName.setTypeface(null, Typeface.NORMAL)
-                indicator.visibility = View.INVISIBLE
-                indicator.alpha = 0f
+                if (isSelected) {
+                    itemView.setBackgroundResource(R.color.sidebar_emerald_soft_bg)
+                    tvName.setTextColor(itemView.context.getColor(R.color.white))
+                    tvCode.setTextColor(itemView.context.getColor(R.color.white))
+                    tvName.setTypeface(null, Typeface.BOLD)
+                } else {
+                    itemView.setBackgroundResource(android.R.color.transparent)
+                    tvName.setTextColor(itemView.context.getColor(R.color.white_opacity_70))
+                    tvCode.setTextColor(itemView.context.getColor(R.color.brand_cyan))
+                    tvName.setTypeface(null, Typeface.NORMAL)
+                }
             }
 
             itemView.setOnClickListener {
                 onCategoryClick(category)
             }
 
-            itemView.setOnFocusChangeListener { v, hasFocus ->
+            itemView.setOnKeyListener { _, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    onRightPressed?.invoke()
+                    onRightPressed != null
+                } else {
+                    false
+                }
+            }
+
+            itemView.setOnFocusChangeListener { v, focus ->
                 v.animate()
-                    .scaleX(if (hasFocus) 1.05f else 1.0f)
-                    .scaleY(if (hasFocus) 1.05f else 1.0f)
+                    .scaleX(if (focus) 1.05f else 1.0f)
+                    .scaleY(if (focus) 1.05f else 1.0f)
                     .setDuration(120)
                     .start()
+                
+                if (focus) {
+                    v.setBackgroundResource(R.drawable.bg_sidebar_item_focused_glass)
+                    tvName.setTextColor(itemView.context.getColor(R.color.white))
+                    tvCode.setTextColor(itemView.context.getColor(R.color.white))
+                    tvName.setTypeface(null, Typeface.BOLD)
+                } else {
+                    if (isSelected) {
+                        v.setBackgroundResource(R.color.sidebar_emerald_soft_bg)
+                        tvName.setTextColor(itemView.context.getColor(R.color.white))
+                        tvCode.setTextColor(itemView.context.getColor(R.color.white))
+                        tvName.setTypeface(null, Typeface.BOLD)
+                    } else {
+                        v.setBackgroundResource(android.R.color.transparent)
+                        tvName.setTextColor(itemView.context.getColor(R.color.white_opacity_70))
+                        tvCode.setTextColor(itemView.context.getColor(R.color.brand_cyan))
+                        tvName.setTypeface(null, Typeface.NORMAL)
+                    }
+                }
             }
         }
     }
@@ -89,7 +167,8 @@ class BrowserCategoryAdapter(
 }
 
 class BrowserChannelAdapter(
-    private val onChannelClick: (XtreamStream) -> Unit
+    private val onChannelClick: (XtreamStream) -> Unit,
+    private val onLeftPressedAtZero: (() -> Unit)? = null
 ) : ListAdapter<XtreamStream, BrowserChannelAdapter.ViewHolder>(ChannelDiffCallback) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -171,6 +250,20 @@ class BrowserChannelAdapter(
             
             itemView.setOnClickListener {
                 onChannelClick(channel)
+            }
+
+            itemView.setOnKeyListener { _, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    val pos = bindingAdapterPosition
+                    if (pos != RecyclerView.NO_POSITION && pos % 4 == 0) {
+                        onLeftPressedAtZero?.invoke()
+                        onLeftPressedAtZero != null
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
             }
         }
     }

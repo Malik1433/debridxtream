@@ -79,6 +79,8 @@ import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.DataSink
 import androidx.media3.datasource.FileDataSource
+import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
+import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
 
 @UnstableApi
 @AndroidEntryPoint
@@ -290,6 +292,7 @@ class PlayerActivity : AppCompatActivity() {
         const val EXTRA_FAIL_REASON = "EXTRA_FAIL_REASON"
         const val EXTRA_AUTO_PLAY_NEXT = "EXTRA_AUTO_PLAY_NEXT"
         const val EXTRA_SUBTITLE_ENTRIES = "EXTRA_SUBTITLE_ENTRIES"
+        const val EXTRA_OPENED_FROM_PLAYBACK_FAILURE = "EXTRA_OPENED_FROM_PLAYBACK_FAILURE"
 
         fun createIntent(
             context: Context,
@@ -429,7 +432,12 @@ class PlayerActivity : AppCompatActivity() {
         val isDebrid = playbackSource == PlaybackSource.DEBRID
         val canResolveDebrid = canUseDebridResolver()
         val hasResInfo = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
-        val canFreshResolveDirectDebrid = isDebrid && directDebridPlayback && (tmdbIdExtra?.isNotBlank() == true || imdbIdExtra?.isNotBlank() == true)
+        val canFreshResolveDirectDebrid = isDebrid && directDebridPlayback && (
+            tmdbIdExtra?.isNotBlank() == true ||
+                imdbIdExtra?.isNotBlank() == true ||
+                contentId?.isNotBlank() == true ||
+                originalTitle?.isNotBlank() == true
+            )
         val isExpired = expiresAtExtra?.let { System.currentTimeMillis() > it } ?: (isDebrid && streamUrl.isNullOrBlank())
 
         if (streamUrl.isNullOrBlank() && !(canResolveDebrid && hasResInfo) && !canFreshResolveDirectDebrid) {
@@ -566,16 +574,21 @@ class PlayerActivity : AppCompatActivity() {
                     targetEpisode = episodeNumberExtra ?: 1,
                     seriesTitle = seriesTitleExtra ?: originalTitle,
                     infoHash = debridInfoHashExtra ?: debridStreamIdExtra,
-                    sourceProfile = currentDebridSourceProfile()
+                    sourceProfile = currentDebridSourceProfile(),
+                    allowDirectHttpPassthrough = false
                 )
             } else {
                 viewModel.refreshDebridMovieSource(
                     streamId = tmdbIdExtra ?: contentId,
                     title = originalTitle,
                     imdbId = imdbIdExtra,
-                    sourceProfile = currentDebridSourceProfile()
+                    sourceProfile = currentDebridSourceProfile(),
+                    allowDirectHttpPassthrough = false
                 )
             }
+        } else if (isDebrid && directDebridPlayback && isExpired) {
+            Log.w("PlayerActivity", "Direct Debrid resume is expired and cannot be refreshed; blocking stale passthrough playback.")
+            handleTerminalPlaybackFailure("Expired direct source could not be refreshed")
         } else {
             initializePlayer(streamUrl ?: "")
         }
@@ -1703,7 +1716,14 @@ class PlayerActivity : AppCompatActivity() {
             if (canUseDebridResolver() && !isResolvingDebrid && (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())) {
                   isResolvingDebrid = true
                   if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
-                  viewModel.reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
+                  viewModel.reResolveDebridUrl(
+                      debridInfoHashExtra,
+                      debridMagnetExtra,
+                      seasonNumberExtra,
+                      episodeNumberExtra,
+                      episodeTitleExtra,
+                      allowDirectHttpPassthrough = !directDebridPlayback
+                  )
                   return
             }
             showToast("Retrying... ($retryCount/$maxRetries)")
@@ -1711,7 +1731,7 @@ class PlayerActivity : AppCompatActivity() {
             player?.release(); player = null
             Handler(Looper.getMainLooper()).postDelayed({ currentUrl?.let { initializePlayer(it) } }, retryCount * 1000L)
         } else {
-            if (!finishWithReturnToSources(autoPlayNext = true, reason = errorMessage)) showSupportQr()
+            handleTerminalPlaybackFailure(errorMessage)
         }
     }
     
@@ -1747,10 +1767,7 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun handleInitializationError(error: Exception) {
-        if (!finishWithReturnToSources(autoPlayNext = true, reason = "Init failed: ${error.message}")) {
-            showError("Failed to initialize player: ${error.message}")
-            Handler(Looper.getMainLooper()).postDelayed({ finish() }, 3000)
-        }
+        handleTerminalPlaybackFailure("Init failed: ${error.message}")
     }
 
     private fun handleTimeout() {
@@ -1768,10 +1785,7 @@ class PlayerActivity : AppCompatActivity() {
                 player?.release(); player = null
                 Handler(Looper.getMainLooper()).postDelayed({ currentUrl?.let { initializePlayer(it) } }, 2000)
             } else {
-                if (!finishWithReturnToSources(autoPlayNext = true, reason = "Connection timeout")) {
-                    showError("Connection timeout\n\nStream is too slow or unavailable")
-                    Handler(Looper.getMainLooper()).postDelayed({ finish() }, 3000)
-                }
+                handleTerminalPlaybackFailure("Connection timeout")
             }
         }
     }
@@ -1839,23 +1853,49 @@ class PlayerActivity : AppCompatActivity() {
 
         tvClock.text = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(java.util.Date())
 
-        browserCategoryAdapter = BrowserCategoryAdapter { category -> category.category_id?.let { viewModel.selectBrowserCategory(it) } }
+        browserCategoryAdapter = BrowserCategoryAdapter(
+            onCategoryClick = { category -> category.category_id?.let { viewModel.selectBrowserCategory(it) } },
+            onRightPressed = {
+                if (browserChannelAdapter.itemCount > 0) {
+                    rvChannels.post {
+                        val targetIndex = if (contentId != null) {
+                            browserChannelAdapter.currentList.indexOfFirst { it.stream_id == contentId }.coerceAtLeast(0)
+                        } else 0
+                        rvChannels.scrollToPosition(targetIndex)
+                        rvChannels.post {
+                            rvChannels.findViewHolderForAdapterPosition(targetIndex)?.itemView?.requestFocus()
+                                ?: rvChannels.requestFocus()
+                        }
+                    }
+                }
+            }
+        )
         rvCategories.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this); rvCategories.adapter = browserCategoryAdapter
 
-        browserChannelAdapter = BrowserChannelAdapter { stream ->
-            stream.stream_id?.let { id ->
-                val serverUrl = baseServerUrl ?: prefs.getServerUrl() ?: ""
-                val username = prefs.getUsername().orEmpty()
-                val password = prefs.getPassword().orEmpty()
-                val newUrl = stream.toLiveStreamUrl(serverUrl, username, password)
-                performSeamlessSwitch(newUrl)
-                contentId = id; currentUrl = newUrl; channelLogoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon); currentEpgChannelId = stream.epg_channel_id ?: id
-                bindChannelMeta(stream.name); supportActionBar?.title = stream.name
-                viewModel.initLiveZapping(viewModel.browserState.value.selectedCategoryId, id, serverUrl, null)
-                viewModel.observeEpg(stream.epg_channel_id ?: id, id)
-                viewModel.toggleBrowser(false)
+        browserChannelAdapter = BrowserChannelAdapter(
+            onChannelClick = { stream ->
+                stream.stream_id?.let { id ->
+                    val serverUrl = baseServerUrl ?: prefs.getServerUrl() ?: ""
+                    val username = prefs.getUsername().orEmpty()
+                    val password = prefs.getPassword().orEmpty()
+                    val newUrl = stream.toLiveStreamUrl(serverUrl, username, password)
+                    performSeamlessSwitch(newUrl)
+                    contentId = id; currentUrl = newUrl; channelLogoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon); currentEpgChannelId = stream.epg_channel_id ?: id
+                    bindChannelMeta(stream.name); supportActionBar?.title = stream.name
+                    viewModel.initLiveZapping(viewModel.browserState.value.selectedCategoryId, id, serverUrl, null)
+                    viewModel.observeEpg(stream.epg_channel_id ?: id, id)
+                    viewModel.toggleBrowser(false)
+                }
+            },
+            onLeftPressedAtZero = {
+                val selectedPos = browserCategoryAdapter.getSelectedPosition().coerceAtLeast(0)
+                rvCategories.scrollToPosition(selectedPos)
+                rvCategories.post {
+                    rvCategories.findViewHolderForAdapterPosition(selectedPos)?.itemView?.requestFocus()
+                        ?: rvCategories.requestFocus()
+                }
             }
-        }
+        )
         rvChannels.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 4); rvChannels.adapter = browserChannelAdapter
         
         lifecycleScope.launch {
@@ -2155,6 +2195,48 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun setExitResultIfNeeded() { if (exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete) return; val pos = player?.currentPosition ?: lastPlaybackPositionMs; if (manualExit || pos < RETURN_TO_SOURCES_THRESHOLD_MS) { exitResultHandled = true; setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RETURN_TO_SOURCES, true)) } }
     private fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean { if (!returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || exitResultHandled) return false; exitResultHandled = true; setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RETURN_TO_SOURCES, true).putExtra(EXTRA_FAILED_STREAM_ID, contentId ?: debridInfoHashExtra ?: currentUrl).putExtra(EXTRA_FAIL_REASON, reason).putExtra(EXTRA_AUTO_PLAY_NEXT, autoPlayNext)); releasePlayer(); finish(); return true }
+    private fun handleTerminalPlaybackFailure(reason: String) {
+        val redirected = redirectToFailureDetail(reason)
+        if (redirected) {
+            return
+        }
+        if (!finishWithReturnToSources(autoPlayNext = false, reason = reason)) {
+            showError(
+                if (reason.contains("timeout", ignoreCase = true)) {
+                    "Connection timeout\n\nStream is too slow or unavailable"
+                } else {
+                    "Playback failed\n\n$reason"
+                }
+            )
+            Handler(Looper.getMainLooper()).postDelayed({ finish() }, 3000)
+        }
+    }
+    private fun redirectToFailureDetail(reason: String): Boolean {
+        if (playbackSource != PlaybackSource.DEBRID || contentType == ContentType.LIVE_TV || isFinishing) return false
+        val detailIntent = when (contentType) {
+            ContentType.MOVIE -> Intent(this, MovieDetailActivity::class.java).apply {
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, tmdbIdExtra ?: contentId ?: debridStreamIdExtra ?: debridInfoHashExtra)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, originalTitle)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, posterUrlExtra)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, backdropUrlExtra)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
+            }
+            ContentType.SERIES, ContentType.EPISODE -> Intent(this, SeriesDetailActivity::class.java).apply {
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, debridSeriesLookupId())
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, seriesTitleExtra ?: originalTitle)
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, posterUrlExtra)
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, backdropUrlExtra)
+            }
+            null, ContentType.LIVE_TV -> null
+        } ?: return false
+
+        detailIntent.putExtra(EXTRA_OPENED_FROM_PLAYBACK_FAILURE, true)
+        detailIntent.putExtra(EXTRA_FAIL_REASON, reason)
+        releasePlayer()
+        startActivity(detailIntent)
+        finish()
+        return true
+    }
     private fun updatePlayPauseVisibility(isPlaying: Boolean) { playerView.findViewById<View>(R.id.exo_play)?.isVisible = !isPlaying; playerView.findViewById<View>(R.id.exo_pause)?.isVisible = isPlaying; if (isControllerVisible) { val play = playerView.findViewById<View>(R.id.exo_play); val pause = playerView.findViewById<View>(R.id.exo_pause); if (isPlaying && play?.isFocused == true) pause?.post { pause.requestFocus() } else if (!isPlaying && pause?.isFocused == true) play?.post { play.requestFocus() } } }
 
     private fun observeDebridResolutionState() {
@@ -2184,7 +2266,11 @@ class PlayerActivity : AppCompatActivity() {
                             performSeamlessSwitch(state.url)
                         }
                     }
-                    is DebridResolutionState.Error -> { layoutDebridResolving?.isVisible = false; isResolvingDebrid = false; showError("Failed: ${state.message}") }
+                    is DebridResolutionState.Error -> {
+                        layoutDebridResolving?.isVisible = false
+                        isResolvingDebrid = false
+                        handleTerminalPlaybackFailure("Failed: ${state.message}")
+                    }
                     is DebridResolutionState.Idle -> { layoutDebridResolving?.isVisible = false; isResolvingDebrid = false }
                 }
             }

@@ -167,6 +167,95 @@
       "domain": "android",
       "model": "haiku",
       "modelRoutedBy": "explicit"
+    },
+    "cw-resume-research": {
+      "agentId": "cw-resume-research",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "ownership": [
+          "app/src/main/java/com/tvonnet/debridxtreamiptv/data/model/HomeScreenModels.kt",
+          "app/src/main/java/com/tvonnet/debridxtreamiptv/data/prefs/WatchHistoryPreferences.kt",
+          "app/src/main/java/com/tvonnet/debridxtreamiptv/ui/home/HomeFragment.kt",
+          "app/src/main/java/com/tvonnet/debridxtreamiptv/player/stabilized/PlayerActivity.kt"
+        ],
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-21T16:12:08.550Z",
+      "domain": "android-kotlin-bugfix",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "cw-resolver-research": {
+      "agentId": "cw-resolver-research",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "ownership": [
+          "app/src/main/java/com/tvonnet/debridxtreamiptv/player/stabilized/PlayerActivity.kt",
+          "app/src/main/java/com/tvonnet/debridxtreamiptv/player/stabilized/PlayerViewModel.kt",
+          "app/src/main/java/com/tvonnet/debridxtreamiptv/data/debrid/repository/PlaybackResolver.kt",
+          "app/src/main/java/com/tvonnet/debridxtreamiptv/data/debrid/repository/DebridPlaybackRepository.kt"
+        ],
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-21T16:13:49.362Z",
+      "domain": "android-kotlin-bugfix",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779383698206-lv9y10": {
+      "agentId": "agent-1779383698206-lv9y10",
+      "agentType": "coder",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "swarmId": "swarm-1779383687093-6p9kr5",
+        "ownership": "resume-refresh-root-cause",
+        "workspace": "E:\\running project baxkups\\lmsd working but loading issues\\debxtrem",
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-21T17:14:58.207Z",
+      "domain": "android-kotlin",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779383743152-f56fh7": {
+      "agentId": "agent-1779383743152-f56fh7",
+      "agentType": "tester",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "swarmId": "swarm-1779383687093-6p9kr5",
+        "ownership": "qa-device-21-only",
+        "workspace": "E:\\running project baxkups\\lmsd working but loading issues\\debxtrem",
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-21T17:15:43.153Z",
+      "domain": "android-qa",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779404560756-172dax": {
+      "agentId": "agent-1779404560756-172dax",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "forkContext": true,
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-21T23:02:40.759Z",
+      "domain": "android",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
     }
   },
   "version": "3.0.0"

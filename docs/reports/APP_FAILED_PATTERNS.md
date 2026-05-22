@@ -176,3 +176,23 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Reason:** The APK can build successfully and still look unchanged on device if the wrong file is edited.
 - **Fix:** Audit `AndroidManifest.xml`, the host activity, and the controller/layout include chain first; then change the one file that is actually inflated.
 
+## 36. Direct Debrid Resume Metadata Gate
+- **Avoid:** Requiring only TMDB/IMDb metadata before allowing a direct Debrid Continue Watching item to fresh-resolve.
+- **Reason:** Older history entries can still have stable title/content identity and source profile data even when the TMDB/IMDb fields are missing, and replaying the stale URL leaves the player stuck on resolving.
+- **Fix:** Allow direct Debrid resume to use the saved title/content identity plus provider/source profile to refresh the source, then retry on buffering or resume-time playback errors instead of falling back to the expired URL.
+
+## 37. Fresh Direct URL Forced Into No-Passthrough
+- **Avoid:** Using the same no-passthrough branch for stale direct history and fresh direct metadata refresh.
+- **Reason:** The stale URL must be blocked, but the newly resolved provider URL must still be allowed to play. Collapsing both paths into one branch can create a blank or never-ready player even after the refresh succeeds.
+- **Fix:** Split the branches and only disable passthrough for history replay, not for fresh direct-provider results.
+
+## 38. Reusing The Same Player Return Path For Exhausted Failures
+- **Avoid:** Routing terminal playback failures back through the same `EXTRA_RETURN_TO_SOURCES` or source-retry result path that handles transient errors.
+- **Reason:** The same path can re-open source selection, auto-advance, or re-enter the failed playback loop instead of landing on the detail screen.
+- **Fix:** Redirect only after the retry budget is exhausted and launch the content detail screen with a failure-origin guard that disables auto-play-next behavior.
+
+## 39. TV Action Menu Restyle That Breaks Interaction Contracts
+- **Avoid:** Rebuilding Continue Watching long-press menus in a way that changes long-press detection, click suppression, or short-press resume behavior.
+- **Reason:** Cosmetic-only updates can silently regress core remote interaction flow.
+- **Fix:** Keep adapter/fragment action wiring and IDs intact, and constrain polish work to dialog sizing, paddings, and drawable selectors.
+

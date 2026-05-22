@@ -6,10 +6,10 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem
 import com.tvonnet.debridxtreamiptv.data.model.FavoriteItem
-
 import com.tvonnet.debridxtreamiptv.data.model.RecentLiveChannelItem
 import com.tvonnet.debridxtreamiptv.util.GlobalConfig
 import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
+import java.util.concurrent.ConcurrentHashMap
 
 class WatchHistoryPreferences(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -17,8 +17,13 @@ class WatchHistoryPreferences(private val context: Context) {
     
     // Continue Watching operations
     fun saveContinueWatchingItem(item: ContinueWatchingItem) {
-        val currentList = readContinueWatchingList().toMutableList()
         val itemKey = continueWatchingKey(item)
+        if (consumeSuppressedContinueWatchingKey(itemKey)) {
+            android.util.Log.d("HISTORY_DEBUG", "Skipping Continue Watching save for suppressed key=${SensitiveLogRedactor.describeHash(itemKey)}")
+            return
+        }
+
+        val currentList = readContinueWatchingList().toMutableList()
         
         // Remove existing item with same contentId if present
         currentList.removeAll { it.contentId == item.contentId }
@@ -49,13 +54,72 @@ class WatchHistoryPreferences(private val context: Context) {
     
     fun removeContinueWatchingItem(contentId: String) {
         val currentList = getContinueWatchingList().toMutableList()
-        currentList.removeAll { it.contentId == contentId }
+        currentList.removeAll { it.contentId == contentId || continueWatchingKey(it) == contentId }
         val json = gson.toJson(currentList)
         prefs.edit().putString(KEY_CONTINUE_WATCHING, json).apply()
     }
-    
+
+    fun removeContinueWatchingItem(item: ContinueWatchingItem) {
+        val currentList = getContinueWatchingList().toMutableList()
+        val itemKey = continueWatchingKey(item)
+        currentList.removeAll { it.contentId == item.contentId || continueWatchingKey(it) == itemKey }
+        val json = gson.toJson(currentList)
+        prefs.edit().putString(KEY_CONTINUE_WATCHING, json).apply()
+    }
+
+    fun suppressContinueWatchingWrite(item: ContinueWatchingItem) {
+        suppressContinueWatchingWrite(continueWatchingKey(item))
+    }
+
     fun clearContinueWatching() {
         prefs.edit().remove(KEY_CONTINUE_WATCHING).apply()
+    }
+
+    companion object {
+        private const val PREFS_NAME = "watch_history"
+        private const val KEY_CONTINUE_WATCHING = "continue_watching"
+        private const val KEY_FAVORITES = "favorites"
+
+        private const val KEY_RECENT_LIVE_CHANNELS = "recent_live_channels"
+        private const val MAX_CONTINUE_WATCHING = 20
+        private const val CONTINUE_WATCHING_SUPPRESSION_TTL_MS = 60_000L
+
+        private const val MAX_RECENT_LIVE_CHANNELS = 10
+
+        private val suppressedContinueWatchingKeys = ConcurrentHashMap<String, Long>()
+
+        fun continueWatchingKey(item: ContinueWatchingItem): String {
+            val isSeries = item.contentType == com.tvonnet.debridxtreamiptv.data.model.ContentType.EPISODE ||
+                item.contentType == com.tvonnet.debridxtreamiptv.data.model.ContentType.SERIES
+            val stableId = when {
+                !item.seriesId.isNullOrBlank() -> "seriesId:${item.seriesId}"
+                !item.tmdbId.isNullOrBlank() -> "tmdb:${item.tmdbId}"
+                !item.imdbId.isNullOrBlank() -> "imdb:${item.imdbId}"
+                isSeries && !item.seriesTitle.isNullOrBlank() ->
+                    "title:${normalizeKey(item.seriesTitle)}"
+                !item.title.isNullOrBlank() -> "title:${normalizeKey(item.title)}"
+                else -> "content:${item.contentId}"
+            }
+            return if (isSeries) "series:$stableId" else "movie:$stableId"
+        }
+
+        fun suppressContinueWatchingWrite(itemKey: String) {
+            suppressedContinueWatchingKeys[itemKey] = System.currentTimeMillis()
+        }
+
+        fun consumeSuppressedContinueWatchingKey(itemKey: String): Boolean {
+            val timestamp = suppressedContinueWatchingKeys[itemKey] ?: return false
+            if (System.currentTimeMillis() - timestamp > CONTINUE_WATCHING_SUPPRESSION_TTL_MS) {
+                suppressedContinueWatchingKeys.remove(itemKey, timestamp)
+                return false
+            }
+            suppressedContinueWatchingKeys.remove(itemKey, timestamp)
+            return true
+        }
+
+        private fun normalizeKey(value: String?): String {
+            return value?.trim()?.lowercase().orEmpty()
+        }
     }
 
     private fun readContinueWatchingList(): List<ContinueWatchingItem> {
@@ -89,25 +153,6 @@ class WatchHistoryPreferences(private val context: Context) {
             }
         }
         return result
-    }
-
-    private fun continueWatchingKey(item: ContinueWatchingItem): String {
-        val isSeries = item.contentType == com.tvonnet.debridxtreamiptv.data.model.ContentType.EPISODE ||
-            item.contentType == com.tvonnet.debridxtreamiptv.data.model.ContentType.SERIES
-        val stableId = when {
-            !item.seriesId.isNullOrBlank() -> "seriesId:${item.seriesId}"
-            !item.tmdbId.isNullOrBlank() -> "tmdb:${item.tmdbId}"
-            !item.imdbId.isNullOrBlank() -> "imdb:${item.imdbId}"
-            isSeries && !item.seriesTitle.isNullOrBlank() ->
-                "title:${normalizeKey(item.seriesTitle)}"
-            !item.title.isNullOrBlank() -> "title:${normalizeKey(item.title)}"
-            else -> "content:${item.contentId}"
-        }
-        return if (isSeries) "series:$stableId" else "movie:$stableId"
-    }
-
-    private fun normalizeKey(value: String?): String {
-        return value?.trim()?.lowercase().orEmpty()
     }
     
     // Favorites operations
@@ -199,16 +244,5 @@ class WatchHistoryPreferences(private val context: Context) {
     
     fun clearAll() {
         prefs.edit().clear().apply()
-    }
-    
-    companion object {
-        private const val PREFS_NAME = "watch_history"
-        private const val KEY_CONTINUE_WATCHING = "continue_watching"
-        private const val KEY_FAVORITES = "favorites"
-
-        private const val KEY_RECENT_LIVE_CHANNELS = "recent_live_channels"
-        private const val MAX_CONTINUE_WATCHING = 20
-
-        private const val MAX_RECENT_LIVE_CHANNELS = 10
     }
 }

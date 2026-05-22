@@ -138,6 +138,7 @@ class MovieDetailActivity : AppCompatActivity() {
     private var filterState: SourceFilterState = SourceFilterState()
     private var debridFilterState: SourceFilterState = SourceFilterState()
     private var selectedDebridStreamId: String? = null
+    private var openedFromPlaybackFailure: Boolean = false
 
     private val playerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -151,8 +152,9 @@ class MovieDetailActivity : AppCompatActivity() {
                 data?.getBooleanExtra(PlayerActivity.EXTRA_AUTO_PLAY_NEXT, false) == true
             val failedStreamId = data?.getStringExtra(PlayerActivity.EXTRA_FAILED_STREAM_ID)
             val failReason = data?.getStringExtra(PlayerActivity.EXTRA_FAIL_REASON)
-            notifyDebridFailure(failReason, autoPlayNext)
-            if (autoPlayNext && !failedStreamId.isNullOrBlank()) {
+            val allowAutoPlayNext = autoPlayNext && !openedFromPlaybackFailure
+            notifyDebridFailure(failReason, allowAutoPlayNext)
+            if (allowAutoPlayNext && !failedStreamId.isNullOrBlank()) {
                 autoPlayNextDebridSource(failedStreamId)
             } else {
                 showDebridSourcePicker()
@@ -186,6 +188,7 @@ class MovieDetailActivity : AppCompatActivity() {
 
         initViews()
         getMovieDataFromIntent()
+        openedFromPlaybackFailure = intent.getBooleanExtra(PlayerActivity.EXTRA_OPENED_FROM_PLAYBACK_FAILURE, false)
         displayMovieDetails()
         configureTabs()
         
@@ -1121,7 +1124,8 @@ class MovieDetailActivity : AppCompatActivity() {
                     streamUrl = null,
                     isExpired = true,
                     infoHash = infoHash,
-                    magnet = null
+                    magnet = null,
+                    allowDirectHttpPassthrough = false
                 )
             }
             

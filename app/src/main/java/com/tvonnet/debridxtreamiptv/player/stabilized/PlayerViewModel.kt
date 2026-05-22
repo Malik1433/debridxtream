@@ -428,7 +428,8 @@ class PlayerViewModel @Inject constructor(
         targetEpisode: Int,
         seriesTitle: String?,
         infoHash: String?,
-        sourceProfile: DebridSourceProfile? = null
+        sourceProfile: DebridSourceProfile? = null,
+        allowDirectHttpPassthrough: Boolean = true
     ) {
         viewModelScope.launch {
             _debridResolutionState.value = DebridResolutionState.Loading
@@ -454,7 +455,8 @@ class PlayerViewModel @Inject constructor(
                     season = targetSeason,
                     episode = targetEpisode,
                     title = seriesTitle,
-                    directPreferred = sourceProfile?.directPlayback == true
+                    directPreferred = sourceProfile?.directPlayback == true,
+                    allowDirectHttpPassthrough = allowDirectHttpPassthrough
                 )
             } catch (e: Exception) {
                 _debridResolutionState.value = DebridResolutionState.Error("Failed to fetch sources: ${e.message}")
@@ -466,10 +468,15 @@ class PlayerViewModel @Inject constructor(
         streamId: String?,
         title: String?,
         imdbId: String?,
-        sourceProfile: DebridSourceProfile?
+        sourceProfile: DebridSourceProfile?,
+        allowDirectHttpPassthrough: Boolean = true
     ) {
         viewModelScope.launch {
             _debridResolutionState.value = DebridResolutionState.Loading
+            if (streamId.isNullOrBlank() && imdbId.isNullOrBlank() && title.isNullOrBlank()) {
+                _debridResolutionState.value = DebridResolutionState.Error("Missing metadata to refresh direct source.")
+                return@launch
+            }
             try {
                 val sources = withContext(Dispatchers.IO) {
                     unifiedSourceProvider.getMovieSources(
@@ -489,7 +496,8 @@ class PlayerViewModel @Inject constructor(
                     season = null,
                     episode = null,
                     title = title,
-                    directPreferred = sourceProfile?.directPlayback == true
+                    directPreferred = sourceProfile?.directPlayback == true,
+                    allowDirectHttpPassthrough = allowDirectHttpPassthrough
                 )
             } catch (e: Exception) {
                 _debridResolutionState.value = DebridResolutionState.Error("Failed to refresh source: ${e.message}")
@@ -529,7 +537,8 @@ class PlayerViewModel @Inject constructor(
         season: Int?,
         episode: Int?,
         title: String?,
-        directPreferred: Boolean
+        directPreferred: Boolean,
+        allowDirectHttpPassthrough: Boolean
     ) {
         val magnet = targetSource.stream.direct_source
         val hashToResolve = targetSource.stream.stream_id
@@ -537,7 +546,7 @@ class PlayerViewModel @Inject constructor(
             directPlayback = directPreferred && isDirectPlayableUrl(magnet)
         )
 
-        if (directPreferred && isDirectPlayableUrl(magnet)) {
+        if (allowDirectHttpPassthrough && directPreferred && isDirectPlayableUrl(magnet)) {
             _debridResolutionState.value = DebridResolutionState.Success(
                 url = magnet!!,
                 season = season,
@@ -566,7 +575,8 @@ class PlayerViewModel @Inject constructor(
                 magnet = magnet,
                 seasonNumber = season,
                 episodeNumber = episode,
-                episodeTitle = title
+                episodeTitle = title,
+                allowDirectHttpPassthrough = allowDirectHttpPassthrough
             )
         }
 
@@ -683,7 +693,8 @@ class PlayerViewModel @Inject constructor(
         magnet: String?,
         season: Int?,
         episode: Int?,
-        title: String?
+        title: String?,
+        allowDirectHttpPassthrough: Boolean = true
     ) {
         android.util.Log.d(
             "PlayerViewModel",
@@ -701,7 +712,8 @@ class PlayerViewModel @Inject constructor(
                         magnet = magnet,
                         seasonNumber = season,
                         episodeNumber = episode,
-                        episodeTitle = title
+                        episodeTitle = title,
+                        allowDirectHttpPassthrough = allowDirectHttpPassthrough
                     )
                 }
 

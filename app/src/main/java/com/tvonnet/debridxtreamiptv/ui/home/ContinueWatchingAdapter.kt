@@ -1,6 +1,7 @@
 package com.tvonnet.debridxtreamiptv.ui.home
 
 import android.view.LayoutInflater
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -17,7 +18,8 @@ import com.tvonnet.debridxtreamiptv.util.loadPosterOrPlaceholder
 class ContinueWatchingAdapter(
     private var items: List<ContinueWatchingItem>,
     private val onItemClick: (ContinueWatchingItem) -> Unit,
-    private val onItemFocused: (Int, ContinueWatchingItem) -> Unit = { _, _ -> }
+    private val onItemFocused: (Int, ContinueWatchingItem) -> Unit = { _, _ -> },
+    private val onItemLongPress: (ContinueWatchingItem) -> Unit = {}
 ) : RecyclerView.Adapter<ContinueWatchingAdapter.ContinueWatchingViewHolder>() {
 
     init {
@@ -52,7 +54,7 @@ class ContinueWatchingAdapter(
     
     override fun onBindViewHolder(holder: ContinueWatchingViewHolder, position: Int) {
         android.util.Log.e("HISTORY_DEBUG", "ContinueWatchingAdapter: onBindViewHolder position=$position")
-        holder.bind(items[position], onItemClick, onItemFocused)
+        holder.bind(items[position], onItemClick, onItemFocused, onItemLongPress)
     }
     
     override fun getItemCount() = items.size
@@ -98,8 +100,11 @@ class ContinueWatchingAdapter(
         fun bind(
             item: ContinueWatchingItem,
             onClick: (ContinueWatchingItem) -> Unit,
-            onFocused: (Int, ContinueWatchingItem) -> Unit
+            onFocused: (Int, ContinueWatchingItem) -> Unit,
+            onLongPress: (ContinueWatchingItem) -> Unit
         ) {
+            var suppressNextClick = false
+            var longPressHandled = false
             tvContinueTitle.text = formatTitle(item)
             tvContinueProgress.text = item.formattedProgress
             tvContinueTypeBadge.text = formatTypeBadge(item)
@@ -112,7 +117,43 @@ class ContinueWatchingAdapter(
             ivContinuePoster.loadPosterOrPlaceholder(resolvedUrl)
             
             itemView.setOnClickListener {
+                if (suppressNextClick) {
+                    suppressNextClick = false
+                    return@setOnClickListener
+                }
                 onClick(item)
+            }
+
+            itemView.isLongClickable = true
+            itemView.setOnLongClickListener {
+                if (!longPressHandled) {
+                    longPressHandled = true
+                    suppressNextClick = true
+                    onLongPress(item)
+                }
+                true
+            }
+
+            itemView.setOnKeyListener { _, keyCode, event ->
+                val isSelectKey =
+                    keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+                        keyCode == KeyEvent.KEYCODE_ENTER ||
+                        keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
+                when {
+                    event.action == KeyEvent.ACTION_DOWN &&
+                    event.repeatCount > 0 &&
+                        isSelectKey && !longPressHandled -> {
+                        longPressHandled = true
+                        suppressNextClick = true
+                        onLongPress(item)
+                        true
+                    }
+                    event.action == KeyEvent.ACTION_UP && isSelectKey -> {
+                        longPressHandled = false
+                        false
+                    }
+                    else -> false
+                }
             }
 
             itemView.setOnFocusChangeListener { view, hasFocus ->
@@ -123,6 +164,10 @@ class ContinueWatchingAdapter(
                     .start()
                 view.elevation = if (hasFocus) 22f else 6f
                 tvContinueTitle.isActivated = hasFocus
+                if (!hasFocus) {
+                    suppressNextClick = false
+                    longPressHandled = false
+                }
                 if (!hasFocus) return@setOnFocusChangeListener
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {

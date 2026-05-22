@@ -59,7 +59,8 @@ class DebridPlaybackRepository @Inject constructor(
         magnet: String?,
         seasonNumber: Int? = null,
         episodeNumber: Int? = null,
-        episodeTitle: String? = null
+        episodeTitle: String? = null,
+        allowDirectStreamUrlPassthrough: Boolean = true
     ): Result<String> {
         if (infoHash.isNullOrBlank() && magnet.isNullOrBlank()) {
             return Error(Exception("No infoHash or magnet provided"))
@@ -72,6 +73,19 @@ class DebridPlaybackRepository @Inject constructor(
         }
 
         // Step 1: Add magnet to Real-Debrid
+        val directStreamUrl = magnet?.takeIf { isDirectStreamUrl(it) && !it.endsWith(".torrent", ignoreCase = true) }
+        if (directStreamUrl != null && allowDirectStreamUrlPassthrough) {
+            android.util.Log.d(
+                "DebridPlayback",
+                "Direct addon URL detected, using fresh passthrough: ${SensitiveLogRedactor.describeUrl(directStreamUrl)}"
+            )
+            return Success(directStreamUrl)
+        }
+
+        if (directStreamUrl != null && infoHash.isNullOrBlank()) {
+            return Error(Exception("Direct addon URL requires fresh metadata"))
+        }
+
         val magnetLink = when {
             !magnet.isNullOrBlank() &&
                 magnet.startsWith("http", ignoreCase = true) &&
@@ -79,18 +93,13 @@ class DebridPlaybackRepository @Inject constructor(
                 !infoHash.isNullOrBlank() -> {
                 "magnet:?xt=urn:btih:$infoHash"
             }
+            directStreamUrl != null && !infoHash.isNullOrBlank() -> {
+                "magnet:?xt=urn:btih:$infoHash"
+            }
             !magnet.isNullOrBlank() -> magnet
             else -> "magnet:?xt=urn:btih:$infoHash"
         }
         val sourceKey = normalizeSourceKey(infoHash, magnetLink)
-
-        if (magnetLink.startsWith("http", ignoreCase = true) &&
-            !magnetLink.endsWith(".torrent", ignoreCase = true) &&
-            isDirectStreamUrl(magnetLink)
-        ) {
-            android.util.Log.d("DebridPlayback", "Direct addon URL detected, skipping Real-Debrid auth: ${SensitiveLogRedactor.describeUrl(magnetLink)}")
-            return Success(magnetLink)
-        }
 
         realDebridRateLimiter.globalCooldown()?.let { cooldown ->
             android.util.Log.w("DebridPlayback", "Skipping RD playback during global cooldown")

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>StreamFlow - IPTV Premium</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Hanken Grotesk', sans-serif;
+            background-color: #0b1326;
+            color: #dae2fd;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(23, 31, 51, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(133, 148, 144, 0.1);
+        }
+        .channel-card-hover:hover {
+            border-color: #57f1db;
+            box-shadow: 0 0 15px rgba(87, 241, 219, 0.2);
+            transform: translateY(-4px);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-background": "#dae2fd",
+                      "secondary-container": "#00a6e0",
+                      "primary-fixed": "#62fae3",
+                      "surface-bright": "#31394d",
+                      "surface-container-lowest": "#060e20",
+                      "tertiary-fixed-dim": "#ffb875",
+                      "on-error-container": "#ffdad6",
+                      "on-surface-variant": "#bacac5",
+                      "on-secondary": "#00354a",
+                      "on-tertiary": "#4b2800",
+                      "on-tertiary-container": "#744000",
+                      "on-secondary-fixed-variant": "#004c69",
+                      "error-container": "#93000a",
+                      "secondary": "#7bd0ff",
+                      "tertiary": "#ffd1aa",
+                      "on-tertiary-fixed": "#2d1600",
+                      "tertiary-container": "#ffac5a",
+                      "secondary-fixed-dim": "#7bd0ff",
+                      "background": "#0b1326",
+                      "outline-variant": "#3c4a46",
+                      "inverse-surface": "#dae2fd",
+                      "surface": "#0b1326",
+                      "on-primary-fixed": "#00201c",
+                      "on-secondary-container": "#00374d",
+                      "on-surface": "#dae2fd",
+                      "inverse-primary": "#006b5f",
+                      "surface-variant": "#2d3449",
+                      "primary": "#57f1db",
+                      "outline": "#859490",
+                      "inverse-on-surface": "#283044",
+                      "on-error": "#690005",
+                      "surface-container-highest": "#2d3449",
+                      "on-primary": "#003731",
+                      "surface-container-high": "#222a3d",
+                      "on-secondary-fixed": "#001e2c",
+                      "primary-container": "#2dd4bf",
+                      "surface-tint": "#3cddc7",
+                      "surface-dim": "#0b1326",
+                      "on-primary-container": "#00574d",
+                      "surface-container": "#171f33",
+                      "primary-fixed-dim": "#3cddc7",
+                      "tertiary-fixed": "#ffdcc0",
+                      "error": "#ffb4ab",
+                      "on-primary-fixed-variant": "#005047",
+                      "on-tertiary-fixed-variant": "#6b3b00",
+                      "secondary-fixed": "#c4e7ff",
+                      "surface-container-low": "#131b2e"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "stack_sm": "8px",
+                      "stack_lg": "32px",
+                      "sidebar_width": "280px",
+                      "grid_gutter": "24px",
+                      "page_margin": "48px",
+                      "stack_md": "16px",
+                      "sidebar_collapsed": "80px"
+              },
+              "fontFamily": {
+                      "headline-lg": ["Hanken Grotesk"],
+                      "body-lg": ["Hanken Grotesk"],
+                      "title-md": ["Hanken Grotesk"],
+                      "label-md": ["Hanken Grotesk"],
+                      "body-sm": ["Hanken Grotesk"],
+                      "display-lg": ["Hanken Grotesk"]
+              },
+              "fontSize": {
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "title-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="overflow-hidden">
+<!-- Sidebar Navigation Shell -->
+<aside class="fixed left-0 top-0 h-full w-sidebar_width bg-surface/80 backdrop-blur-xl border-r border-outline-variant/30 flex flex-col py-page_margin z-50">
+<div class="px-8 mb-10">
+<h1 class="font-headline-lg text-headline-lg font-bold text-primary">Cinematic IPTV</h1>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest mt-1">Premium Ultra HD</p>
+</div>
+<nav class="flex-1 space-y-2 px-4 overflow-y-auto">
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant font-medium hover:bg-surface-variant/50 hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-body-lg text-body-lg">Home</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-primary font-bold border-l-4 border-primary bg-primary/10 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">live_tv</span>
+<span class="font-body-lg text-body-lg">Live TV</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant font-medium hover:bg-surface-variant/50 hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">movie</span>
+<span class="font-body-lg text-body-lg">Movies</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant font-medium hover:bg-surface-variant/50 hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">video_library</span>
+<span class="font-body-lg text-body-lg">Series</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant font-medium hover:bg-surface-variant/50 hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">favorite</span>
+<span class="font-body-lg text-body-lg">Favorites</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant font-medium hover:bg-surface-variant/50 hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-lg text-body-lg">Settings</span>
+</a>
+</nav>
+<div class="px-4 mt-auto pt-8 border-t border-outline-variant/20">
+<button class="w-full bg-primary text-on-primary font-bold py-3 rounded-xl mb-4 hover:brightness-110 active:scale-95 transition-all">
+                Upgrade to Pro
+            </button>
+<div class="space-y-1">
+<a class="flex items-center gap-4 px-4 py-2 text-on-surface-variant font-medium hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-md text-label-md">Help</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-2 text-on-surface-variant font-medium hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-label-md text-label-md">Logout</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 right-0 w-[calc(100%-280px)] h-20 bg-surface/50 backdrop-blur-md z-40 flex justify-between items-center px-grid_gutter border-b border-surface-container-low/40">
+<div class="flex items-center gap-8">
+<span class="font-title-md text-title-md font-black text-primary">StreamFlow</span>
+<nav class="hidden md:flex gap-6 items-center">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">All Channels</a>
+<a class="font-label-md text-label-md text-primary border-b-2 border-primary pb-1" href="#">USA</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">UK</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Canada</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Germany</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Sports</a>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative group">
+<input class="bg-surface-container-high border-none rounded-full px-5 py-2 w-64 focus:ring-2 focus:ring-primary text-sm transition-all outline-none" placeholder="Search channels..." type="text"/>
+<span class="material-symbols-outlined absolute right-4 top-2 text-on-surface-variant">search</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">notifications</button>
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center overflow-hidden border-2 border-outline-variant/30">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="A professional studio portrait of a modern tech professional with a friendly smile, set against a dark cinematic background with subtle teal rim lighting to match the premium IPTV interface aesthetic. High detail, high-end commercial photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8aD0bxK0t4pzKMkczaBr5CskovHxs9q7EsweOunUQKXR9sGVt1bmvXgQHh5I0jALuATqcEuwvF-lSQmAgc_yHtkkziWihdAKqhUiaXPL6-gd28U76e123Ev75Hj3940c6-LQtgTY1tbeF517eqRuCanv0oMJaMwonugW5FO16KD_x8uOApeP2B02cKxC4wzB2HwprsxG1wmaIMjKWPNDZaoAnjSCIMV4TfALS3A9pwo15Uq7nDCIYNn6VGwAyRHify3ER78ktJNib"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-[280px] pt-20 h-screen overflow-y-auto">
+<div class="p-page_margin">
+<!-- Category Header -->
+<div class="flex items-end justify-between mb-stack_lg">
+<div>
+<h2 class="font-display-lg text-display-lg text-on-surface mb-2">USA Premium</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant">8 Channels live right now in Ultra HD</p>
+</div>
+<div class="flex gap-2">
+<button class="p-2 rounded-lg bg-surface-container-high text-on-surface-variant hover:bg-primary/20 hover:text-primary transition-all">
+<span class="material-symbols-outlined">grid_view</span>
+</button>
+<button class="p-2 rounded-lg bg-surface-container-high text-on-surface-variant hover:bg-primary/20 hover:text-primary transition-all">
+<span class="material-symbols-outlined">view_list</span>
+</button>
+</div>
+</div>
+<!-- Channels Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-grid_gutter">
+<!-- HBO Card -->
+<div class="glass-card channel-card-hover rounded-xl overflow-hidden transition-all duration-300 group cursor-pointer">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="A dramatic, high-contrast cinematic still of a medieval iron throne in a dark, cold stone chamber illuminated by narrow shafts of golden light. Dark moody atmosphere, deep blue and gray tones with sharp teal accents on the metal textures. Cinematic film grain." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqPF35Gj5_73mGU21Nc2c_Z3a578jAo7Xrm9vX2o53a3LLaOw8BlJyQeWjEjM9YSeBj_4JTHrBgV4gGTk7nvmYegenjHv_VRIad61FsYWSZsxTxfshkIbybeFGjLAWtPoVEuKp-Yl50bjIgn2rvQ21M8oIagycTqxVE8_i_3Fq7equauAP48-cGfc0ETgZFH4KniPO3B6G_CwTKjTMGHt4aMfIpjxpSCfLM223RFSNNy9xArlzVqFJhOAWhC3EjCj6q0MTvmAiiBx_"/>
+<div class="absolute top-4 left-4 bg-error text-on-error px-3 py-1 rounded-full text-[10px] font-bold tracking-widest flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span> LIVE
+                        </div>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-surface-container-highest">
+<div class="h-full bg-primary" style="width: 65%;"></div>
+</div>
+</div>
+<div class="p-stack_md">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-8 h-8 rounded-lg bg-black flex items-center justify-center p-1.5">
+<span class="font-black text-white text-[10px]">HBO</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface">HBO</h3>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">Now Playing: Game of Thrones</p>
+</div>
+</div>
+<!-- ESPN Card -->
+<div class="glass-card channel-card-hover rounded-xl overflow-hidden transition-all duration-300 group cursor-pointer">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="A vibrant, fast-motion wide shot of a professional basketball game in a modern arena. The court is brightly lit under dramatic spotlighting, with motion-blurred players and a glowing teal digital scoreboard in the background. High-energy sports photography style with deep saturated colors." src="https://lh3.googleusercontent.com/aida-public/AB6AXuARfCXbpPBvWJL1ybDLlQa6gPUsxHXpimSJgf7SeK9guAVLrlzi4HobhKQMmLHAVcwXgzHyrB0WR4aJouaIxZgKMJMzDXYjDonpR9wIBKVkZrPPpB0iMcvsX4uCMjVApPHhGf5YRnQ9goumivkQiQ3JiNFKBaxAIPEyB49564HZx0HTmSiRfB3etKoWtTsVoDSuUZ30I5F3rcnJ2Lnq2wODBVoAt4O6ODJEK8MYQNEjZ50RZzNHg2kp_mhDGw-DXYtCHwWnRm5uETIt"/>
+<div class="absolute top-4 left-4 bg-error text-on-error px-3 py-1 rounded-full text-[10px] font-bold tracking-widest flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span> LIVE
+                        </div>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-surface-container-highest">
+<div class="h-full bg-primary" style="width: 40%;"></div>
+</div>
+</div>
+<div class="p-stack_md">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-8 h-8 rounded-lg bg-[#cc0000] flex items-center justify-center p-1">
+<span class="font-black text-white text-[10px]">ESPN</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface">ESPN</h3>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">Now Playing: NBA Today</p>
+</div>
+</div>
+<!-- BBC News Card -->
+<div class="glass-card channel-card-hover rounded-xl overflow-hidden transition-all duration-300 group cursor-pointer">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="A sleek, futuristic television news studio with massive glowing digital screens showing a world map in deep blues and teals. A polished glass anchor desk reflects the ambient lights. Clean, professional broadcast aesthetic with soft bokeh in the background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBnpp4yIsohqKgbVtwlCiY9LgnkuBsRsXbPOm3tAaNdo0YgvNjH-w7th6EzX_gNd78XXbRs1CFUXZJ9iiMO_yj1mDQ9pU1_C_TXO-sLj5WkAGPiNhhHJIGu_Xxn3j2Y-EjDYO9fDaP_WCD4dpbxz9BJAcGBOqF6rH1A9ZuFg0xBbHfl_1HZo-5aReRxdlxXGjkDeHlutMLWEECtXKakX2vr65UAjQI4_tKkvHWCVR34M-sVt5sLK23ht9oNUaKG8sBYFe9sjzos6XzM"/>
+<div class="absolute top-4 right-4 bg-surface-container-high text-on-surface-variant px-2 py-1 rounded text-[10px] font-bold">4K</div>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-surface-container-highest">
+<div class="h-full bg-primary" style="width: 85%;"></div>
+</div>
+</div>
+<div class="p-stack_md">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-8 h-8 rounded-lg bg-[#bb1919] flex items-center justify-center p-1">
+<span class="font-bold text-white text-[10px]">BBC</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface">BBC News</h3>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">Now Playing: Global News</p>
+</div>
+</div>
+<!-- CNN Card -->
+<div class="glass-card channel-card-hover rounded-xl overflow-hidden transition-all duration-300 group cursor-pointer">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="A close-up of a broadcast camera focusing on a news anchor, with the studio background in a soft, cinematic blur. Cool blue lighting with sharp highlights. Professional television production environment, tech-heavy with glowing status monitors." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBtgnjxkVkw8e7zJ3zT6CO93csHxRIpQuK10B302T59kySGOe4hjiKm85mjglQEy_Q_0ePnz5pTOX0kfD8C76yrec1whb6FG8g6f9X1pK2xZUIjLhrUqoFVvmzoyfUtfnZubmjU-JiSTk1DK6FzWBoFFmzPhi8Vn5IUKBH-zVek4k_RgVw8ontVgHkvXh51ohrxjeIqzQA_i3UVPrv6e4n0L2oKu-QTdCL36OTGOw3Pnmkxvt_qrRKO4W5m1fFyGl9sIMmEjlmULVoU"/>
+<div class="absolute top-4 left-4 bg-error text-on-error px-3 py-1 rounded-full text-[10px] font-bold tracking-widest flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span> LIVE
+                        </div>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-surface-container-highest">
+<div class="h-full bg-primary" style="width: 15%;"></div>
+</div>
+</div>
+<div class="p-stack_md">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-8 h-8 rounded-lg bg-[#cc0000] flex items-center justify-center p-1">
+<span class="font-black text-white text-[10px]">CNN</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface">CNN</h3>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">Now Playing: Anderson Cooper 360</p>
+</div>
+</div>
+<!-- Sky Sports Card -->
+<div class="glass-card channel-card-hover rounded-xl overflow-hidden transition-all duration-300 group cursor-pointer">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="An atmospheric, low-angle shot of a massive soccer stadium under bright floodlights at night. The lush green grass is illuminated intensely, with a subtle mist in the air and a cool-toned color grade. Cinematic sports grandeur with deep shadows." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA0MrOwRCun2vMpwWSFaAYxAn928_Z_FO--iWL6YY5wVg8NprmVQwXiDu9WNEx13QmOnvTAk82oXspUvq6nQPo4CtxWpiGPeCDzw7Ky2ZpxUAR3fjzhQB5RMBQ_gI9tf7swxVCnFU1ccfrj2hQDO1f6Z2ReJY11NFNDUviP-nJe7uS1ukMun_0vlSQ2nL1O22lemkHzVWfk2PJ_J0aS4oK0zcBSdSfz7GARBMmpHCZkVn9zeNqORL_A6DGpeAojyWHm4vokvdX218CI"/>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-surface-container-highest">
+<div class="h-full bg-primary" style="width: 55%;"></div>
+</div>
+</div>
+<div class="p-stack_md">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-8 h-8 rounded-lg bg-[#005ea5] flex items-center justify-center p-1">
+<span class="font-bold text-white text-[8px] uppercase">Sky</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface">Sky Sports</h3>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">Now Playing: Premier League Live</p>
+</div>
+</div>
+<!-- Canal+ Card -->
+<div class="glass-card channel-card-hover rounded-xl overflow-hidden transition-all duration-300 group cursor-pointer">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="A mysterious and moody noir-style shot of a Parisian street at night, wet with rain and reflecting flickering neon lights. Deep shadows and high contrast, focused on a solitary figure in a trench coat. European cinematic aesthetic with a teal and slate color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCUDEuZmiYn31uKnK8BJC3iVK6uz7N0WGAFlEIxC_S5cOa4eA23G08Th7Fc_H0i3KLpjo2_s-QuNeDuiLTYOPZZvx1wOgQb88ee0rAkuw9v1rf_GEqUUVrTTOCcGTzlqvT8_wP1SiBmoIOHBm2GT-F1X1h7_kgWIkfKaXPM3v0WRY-MkA9doaM1fC17DtiqKLc4P_FL7VkMtK8whyTIekCHafrNS57kZPp_Oa0a2j5yVs_I6FMHUxTgxywERMDeWSeYM_tVV1lBZ4jS"/>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-surface-container-highest">
+<div class="h-full bg-primary" style="width: 90%;"></div>
+</div>
+</div>
+<div class="p-stack_md">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center p-1">
+<span class="font-black text-black text-[12px]">+</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface">Canal+</h3>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">Now Playing: Le Bureau des Légendes</p>
+</div>
+</div>
+<!-- Eurosport Card -->
+<div class="glass-card channel-card-hover rounded-xl overflow-hidden transition-all duration-300 group cursor-pointer">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="A group of professional cyclists racing down a scenic mountain road, captured with a low-shutter-speed motion blur. The sunlight filters through the trees, creating a warm contrast against the cool shadows. Dynamic action photography with high saturation and sharp focus on the leaders." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsi3EgTZels_1xq3u3dq8PkYV_WBd4-lMLRxkebvha2abuaP2mW19v1LNrWSj3X4a0XAEVziStCaxQkoX5hK5Vg5FgzJlta5z12W70Z_zHLWmMdPOWBlKJ35EAYGGPW5WAV1pgQnUTvmMbv9Ir3xTyjo6lvLVOE1d0lGpkgDX7gWolbKoMYG_o9jRrwgxeNn6VyMWG1SdtGwUTQeDuhScv1uFwLhjdem_dGzhRO8dyHpAsEKsRMWy-sJ9QGBOO7hC-iwIoxrLo3hNw"/>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-surface-container-highest">
+<div class="h-full bg-primary" style="width: 30%;"></div>
+</div>
+</div>
+<div class="p-stack_md">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-8 h-8 rounded-lg bg-[#141b2a] border border-primary/30 flex items-center justify-center p-1">
+<span class="font-bold text-primary text-[8px]">EURO</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface">Eurosport</h3>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">Now Playing: Cycling World</p>
+</div>
+</div>
+<!-- Netflix Card -->
+<div class="glass-card channel-card-hover rounded-xl overflow-hidden transition-all duration-300 group cursor-pointer">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="A stylized sci-fi landscape with a giant red glowing portal in the center of a dark, foggy forest. High-key red lighting contrasting with deep blue-black forest tones. Atmospheric synth-wave aesthetic, highly detailed digital art style with cinematic framing." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDww3LyaeJxd62uWKgX97mUkIAenuXcFwMHs9BbElRtOyjnlxURVCTJR_9a2uCmxo6-fyXLw-P6AiHJFLjaa7yiRZ6dSUq20ij4E3q6gGJ2sAI8QDg5AnLJIKbnkJFEWpyFEN7P__hWaxfUoSKfXFucUNQCnilU_GnZu_tj-WGZ2BGJ4Rht1rYEpu8Qvr2-D4EPNz0aOBjA7XINYc6OMMguFHvkTUI6KUVZWsm10_J48BfMEf3whX6G-azbHsJP_78et9B5Wl8ut5cA"/>
+<div class="absolute top-4 left-4 bg-primary text-on-primary px-3 py-1 rounded-full text-[10px] font-bold tracking-widest">NEW</div>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-surface-container-highest">
+<div class="h-full bg-primary" style="width: 10%;"></div>
+</div>
+</div>
+<div class="p-stack_md">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-8 h-8 rounded-lg bg-black flex items-center justify-center p-1">
+<span class="font-black text-[#e50914] text-[10px]">N</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface">Netflix</h3>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">Now Playing: Stranger Things</p>
+</div>
+</div>
+</div>
+<!-- Country Pagination / Bottom Filter -->
+<div class="mt-stack_lg pt-stack_lg border-t border-outline-variant/10">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest mb-4">Browse by Country</p>
+<div class="flex flex-wrap gap-3">
+<button class="px-6 py-2 rounded-full bg-primary text-on-primary font-bold transition-all">USA</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-all">UK</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-all">Canada</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-all">France</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-all">Germany</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-all">Spain</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-all">Italy</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-all">Australia</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-all">Brazil</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-all">India</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Contextual FAB (Only for Home/Live Screens) -->
+<button class="fixed bottom-10 right-10 w-16 h-16 rounded-full bg-primary text-on-primary shadow-2xl flex items-center justify-center group active:scale-90 transition-all z-50">
+<span class="material-symbols-outlined text-3xl group-hover:rotate-12 transition-transform">bolt</span>
+</button>
+<script>
+        // Micro-interaction for cards
+        document.querySelectorAll('.channel-card-hover').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                // Potential for adding haptic/sound or JS glow effects
+            });
+        });
+
+        // Simple tab switching logic for demo
+        const countryTabs = document.querySelectorAll('.flex-wrap button');
+        countryTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                countryTabs.forEach(t => {
+                    t.classList.remove('bg-primary', 'text-on-primary');
+                    t.classList.add('bg-surface-container-high', 'text-on-surface-variant');
+                });
+                tab.classList.remove('bg-surface-container-high', 'text-on-surface-variant');
+                tab.classList.add('bg-primary', 'text-on-primary');
+            });
+        });
+    </script>
+</body></html>

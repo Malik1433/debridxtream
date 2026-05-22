@@ -73,6 +73,12 @@ Do not fix direct Stremio/AIOStreams playback by downgrading the player source t
 ## Debrid Direct Resume Rule
 Do not trust saved direct Stremio/AIOStreams playback URLs as long-lived resume links. Persist stable TMDB/IMDb/season/episode metadata plus selected provider/source/language profile, then fresh-resolve before playback when relaunching Continue Watching.
 
+## Debrid Direct Resume Metadata Fallback Rule
+Do not block direct Debrid fresh-resolve just because older history entries are missing TMDB/IMDb fields. If the item still has stable title/content identity and source profile metadata, use that to refresh the source instead of replaying the expired URL.
+
+## Debrid Direct Freshness Split Rule
+Do not use one no-passthrough branch for both stale direct history replay and fresh provider-fetched direct URLs. Block the history URL, but let fresh direct metadata refresh results pass through and play.
+
 ## Debrid Episode Continuity Rule
 Do not pick the next Debrid episode by quality alone. Episode browser selection, Next, and auto-next must prefer the same provider/source family and language as the current source when a matching candidate exists, then fall back to playback readiness, quality, and seeders.
 
@@ -110,4 +116,7 @@ Do not pick the next Debrid episode by quality alone. Episode browser selection,
 - **DO NOT** collapse direct audio/subtitle track actions into one combined chooser when the player already exposes track-specific selection dialogs.
 - **DO NOT** use current audio/text tracks as a substitute for Debrid source-language metadata when you need to re-pick a different source.
 - **DO NOT** leave the player progress bar in a decorative wave style if the controller design is meant to be flat and compact.
+- **DO NOT** rely on touch-only long-press handling for Home cards that must work on TV remotes. Handle D-pad repeat-press detection and suppress the follow-up click so action menus do not double-fire.
+- **DO NOT** inflate Continue Watching long-press menus into large panel/dialog spacing when the action set is only 1-2 items; keep them compact chip-style with clear focused state.
+- **DO NOT** send exhausted playback failures back through the same retry/result path that handles transient player errors. Redirect terminal failures to the owning detail screen with a failure-origin guard so the detail view stays in browse mode.
 

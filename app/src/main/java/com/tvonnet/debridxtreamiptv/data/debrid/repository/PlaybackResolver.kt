@@ -40,7 +40,8 @@ class PlaybackResolver @Inject constructor(
         magnet: String?,
         seasonNumber: Int? = null,
         episodeNumber: Int? = null,
-        episodeTitle: String? = null
+        episodeTitle: String? = null,
+        allowDirectHttpPassthrough: Boolean = true
     ): ResolutionResult {
         android.util.Log.d(
             "PlaybackResolver",
@@ -64,7 +65,8 @@ class PlaybackResolver @Inject constructor(
                     magnet = magnet,
                     seasonNumber = seasonNumber,
                     episodeNumber = episodeNumber,
-                    episodeTitle = episodeTitle
+                    episodeTitle = episodeTitle,
+                    allowDirectStreamUrlPassthrough = allowDirectHttpPassthrough
                 )
 
                 when (result) {

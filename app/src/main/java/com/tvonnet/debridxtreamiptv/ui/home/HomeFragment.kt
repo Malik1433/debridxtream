@@ -2,10 +2,13 @@ package com.tvonnet.debridxtreamiptv.ui.home
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.app.AlertDialog
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -47,6 +50,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import android.view.WindowManager
 
 @AndroidEntryPoint
 class HomeFragment : Fragment() {
@@ -1127,7 +1131,8 @@ class HomeFragment : Fragment() {
         val hasResolutionInfo = !item.debridInfoHash.isNullOrBlank() || !item.debridMagnet.isNullOrBlank()
         val canFreshResolveDirectDebrid = isDebrid &&
             item.directDebridPlayback &&
-            (!item.tmdbId.isNullOrBlank() || !item.imdbId.isNullOrBlank())
+            !item.contentId.isNullOrBlank() &&
+            !((item.seriesTitle ?: item.title).isNullOrBlank())
         val expired = item.isExpired()
 
         android.util.Log.e("HISTORY_DEBUG", "Click: ${item.title} | source=${item.source} | stream=$streamUrl | expired=$expired | hasResInfo=$hasResolutionInfo")
@@ -1148,46 +1153,7 @@ class HomeFragment : Fragment() {
 
                     if (!canResumeDirectly) {
                         android.util.Log.e("HISTORY_DEBUG", "RESUME_PATH: FALLBACK to Detail (canResumeDirectly=false)")
-                        if (item.contentType == ContentType.MOVIE) {
-                            if (isDebrid) {
-                                val movieIntent = android.content.Intent(requireContext(), MovieDetailActivity::class.java).apply {
-                                    putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.tmdbId ?: item.contentId)
-                                    putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
-                                    putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
-                                    putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
-                                    putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
-                                }
-                                startActivityPreservingContentFocus(movieIntent)
-                            } else {
-                                val fragment = MovieDetailFragmentV2.newInstance(
-                                    streamId = item.contentId,
-                                    title = item.title,
-                                    backdropUrl = item.backdropUrl,
-                                    posterUrl = item.posterUrl
-                                )
-                                navigateToFragment(fragment)
-                            }
-                        } else {
-                            if (isDebrid) {
-                                val seriesIntent = android.content.Intent(requireContext(), SeriesDetailActivity::class.java).apply {
-                                    putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, item.tmdbId ?: item.contentId)
-                                    putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.seriesTitle ?: item.title)
-                                    putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
-                                    putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
-                                    putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
-                                }
-                                startActivityPreservingContentFocus(seriesIntent)
-                            } else {
-                                val resolvedSeriesId = resolveIptvSeriesIdForContinueWatching(item)
-                                val fragment = SeriesDetailFragmentV2.newInstance(
-                                    seriesId = resolvedSeriesId ?: item.contentId,
-                                    title = item.seriesTitle ?: item.title,
-                                    backdropUrl = item.backdropUrl,
-                                    posterUrl = item.posterUrl
-                                )
-                                navigateToFragment(fragment)
-                            }
-                        }
+                        openContinueWatchingDetail(item)
                         return@launch
                     }
 
@@ -1238,7 +1204,73 @@ class HomeFragment : Fragment() {
                     )
                     startActivityPreservingContentFocus(intent)
                 }
-                ContentType.SERIES -> {
+                ContentType.SERIES -> openContinueWatchingDetail(item)
+                else -> {
+                    android.util.Log.w("HISTORY_DEBUG", "Unsupported content type for resume: ${item.contentType}")
+                    showHomeActionUnavailable()
+                }
+            }
+        }
+    }
+
+    private fun showContinueWatchingActions(item: ContinueWatchingItem) {
+        if (!isAdded) return
+        val dialogView = layoutInflater.inflate(R.layout.view_continue_watching_action_menu, null, false)
+        dialogView.findViewById<TextView>(R.id.tv_cw_menu_title).text =
+            item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title
+        val openDetailChip = dialogView.findViewById<View>(R.id.chip_cw_open_detail)
+        val clearStatusChip = dialogView.findViewById<View>(R.id.chip_cw_clear_status)
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .create()
+
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setLayout(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT
+        )
+        dialog.setCanceledOnTouchOutside(true)
+
+        openDetailChip.setOnClickListener {
+            dialog.dismiss()
+            viewLifecycleOwner.lifecycleScope.launch { openContinueWatchingDetail(item) }
+        }
+
+        clearStatusChip.setOnClickListener {
+            dialog.dismiss()
+            viewModel.clearContinueWatchingItem(item)
+            Toast.makeText(requireContext(), "Continue Watching cleared", Toast.LENGTH_SHORT).show()
+        }
+
+        dialog.show()
+        openDetailChip.requestFocus()
+    }
+
+    private suspend fun openContinueWatchingDetail(item: ContinueWatchingItem) {
+        val isDebrid = item.source == "debrid"
+        when (item.contentType) {
+            ContentType.MOVIE, ContentType.EPISODE -> {
+                if (item.contentType == ContentType.MOVIE) {
+                    if (isDebrid) {
+                        val movieIntent = android.content.Intent(requireContext(), MovieDetailActivity::class.java).apply {
+                            putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.tmdbId ?: item.contentId)
+                            putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
+                            putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
+                            putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
+                            putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
+                        }
+                        startActivityPreservingContentFocus(movieIntent)
+                    } else {
+                        val fragment = MovieDetailFragmentV2.newInstance(
+                            streamId = item.contentId,
+                            title = item.title,
+                            backdropUrl = item.backdropUrl,
+                            posterUrl = item.posterUrl
+                        )
+                        navigateToFragment(fragment)
+                    }
+                } else {
                     val seriesId = if (isDebrid) {
                         item.tmdbId?.takeIf { it.isNotBlank() } ?: item.contentId
                     } else {
@@ -1246,7 +1278,7 @@ class HomeFragment : Fragment() {
                     }
                     if (seriesId == null) {
                         showHomeActionUnavailable()
-                        return@launch
+                        return
                     }
                     if (isDebrid) {
                         val seriesIntent = android.content.Intent(requireContext(), SeriesDetailActivity::class.java).apply {
@@ -1267,11 +1299,37 @@ class HomeFragment : Fragment() {
                         navigateToFragment(fragment)
                     }
                 }
-                else -> {
-                    android.util.Log.w("HISTORY_DEBUG", "Unsupported content type for resume: ${item.contentType}")
+            }
+            ContentType.SERIES -> {
+                val seriesId = if (isDebrid) {
+                    item.tmdbId?.takeIf { it.isNotBlank() } ?: item.contentId
+                } else {
+                    resolveIptvSeriesIdForContinueWatching(item) ?: item.contentId
+                }
+                if (seriesId == null) {
                     showHomeActionUnavailable()
+                    return
+                }
+                if (isDebrid) {
+                    val seriesIntent = android.content.Intent(requireContext(), SeriesDetailActivity::class.java).apply {
+                        putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, seriesId)
+                        putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.seriesTitle ?: item.title)
+                        putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
+                        putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
+                        putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
+                    }
+                    startActivityPreservingContentFocus(seriesIntent)
+                } else {
+                    val fragment = com.tvonnet.debridxtreamiptv.features.seriesv2.ui.SeriesDetailFragmentV2.newInstance(
+                        seriesId = seriesId,
+                        title = item.seriesTitle ?: item.title,
+                        backdropUrl = item.backdropUrl,
+                        posterUrl = item.posterUrl
+                    )
+                    navigateToFragment(fragment)
                 }
             }
+            else -> showHomeActionUnavailable()
         }
     }
 
@@ -1401,7 +1459,8 @@ class HomeFragment : Fragment() {
             onItemClick = { item -> onContinueWatchingItemClick(item) },
             onItemFocused = { index, _ ->
                 rememberContentFocus(HomeContentFocusArea.CONTINUE_WATCHING, index)
-            }
+            },
+            onItemLongPress = { item -> showContinueWatchingActions(item) }
         )
         rvContinueWatching.adapter = continueWatchingAdapter
 

@@ -12,3 +12,5 @@ Use these existing reports until entries are consolidated here:
 
 ## Entries
 - `TASK 000-CODEX-SETUP-AUDIT`: Created this canonical file so future Home tasks can record successful Home patterns in the expected location.
+- `TASK 031-CONTINUE-WATCHING-QUICK-ACTIONS`: Added a TV-safe long-press action menu for Continue Watching items, including `Clear Status` and `Open Detail`, while preserving short-press resume behavior.
+- `TASK 031A-CONTINUE-WATCHING-MENU-POLISH`: Tightened Continue Watching long-press menu into a compact chip-style TV dialog (smaller paddings, focused chip selector, compact glass container) and kept existing long-press/short-press behavior unchanged.

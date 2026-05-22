@@ -48,3 +48,11 @@ Reason: Track dialogs only expose the current media's available tracks; the sour
 ## Failed Pattern - Leaving Decorative Wave Motion In the Seek Bar
 Do not keep the animated wave path in the player progress bar when the rest of the controller is using a flat glass style.
 Reason: The wave draws attention away from the controls and breaks visual consistency on TV.
+
+## Failed Pattern - Collapsing Stale History and Fresh Direct Refresh Into One Branch
+- Do not send both stale direct history replay and freshly fetched direct URLs through the same no-passthrough path.
+- Reason: One branch blocks the bad URL and the other must still be allowed to play; combining them can leave the player stuck or never-ready after a successful refresh.
+
+## Failed Pattern - Returning Terminal Failures To The Same Player Loop
+- Do not send the final exhausted playback failure back through `EXTRA_RETURN_TO_SOURCES` or the same player result contract that handles transient source retries.
+- Reason: That path can re-open source selection, auto-play the next candidate, or loop straight back into the failed player flow instead of landing on the content detail screen.

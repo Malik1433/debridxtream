@@ -450,3 +450,33 @@ Flattened the custom seek bar into a straight progress line and aligned the next
 ### 17.3 Verification
 - `:app:assembleDebug` PASS
 - Installed on `192.168.0.21:5555`
+
+## 18. TASK 036 - Direct Debrid Continue Watching Resume Recovery
+
+### 18.1 Scope
+Separate stale direct history rejection from fresh direct-provider passthrough so long-gap Debrid resumes still play on the player host.
+
+### 18.2 Root Cause
+- Device 21 still had expired direct addon history rows for `Jack Ryan` and `Nemesis`.
+- The first fix correctly blocked stale history replay, but the direct metadata refresh path was then forced through the no-passthrough branch.
+- That overcorrection risked breaking the fresh provider-fetched direct URL path and produced a stuck/non-ready player state for one series until the refresh path was allowed to pass through again.
+
+### 18.3 Verification
+- `:app:assembleDebug --no-daemon --offline` PASS.
+- `192.168.0.21:5555` QA showed the resume path working for `Jack Ryan` and `Nemesis`, but final confirmation is deferred until the user's next-day retest.
+- `192.168.0.84:5555` was not used in this pass.
+
+## 19. TASK 037 - Resume-Failure Redirect And Detail Recovery
+
+### 19.1 Scope
+Redirect exhausted playback failures to the owning detail screen instead of sending the user back through the same player retry/result path.
+
+### 19.2 Result
+- Kept transient retry handling intact in `PlayerActivity`.
+- Redirected terminal failure, initialization failure, and timeout exhaustion to `MovieDetailActivity` or `SeriesDetailActivity` based on content type.
+- Added a failure-origin flag so detail screens open in browse mode and do not auto-play the same failed source again.
+
+### 19.3 Verification
+- `:app:compileDebugKotlin` PASS
+- `:app:assembleDebug` PASS
+- Targeted unit test for Continue Watching keying PASS

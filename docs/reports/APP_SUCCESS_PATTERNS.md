@@ -177,4 +177,25 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Prevents restyling documentation-only copies or assuming a duplicate source-set file exists when the app uses only one active layout.
 - **Implementation:** Trace `AndroidManifest.xml` -> Activity -> layout include/controller id -> actual resource file before editing visuals.
 
+## 35. Direct Debrid Resume Refresh Fallback
+- **Definition:** When a direct Debrid resume URL has expired, fall back to a fresh source lookup even if older history entries are missing TMDB/IMDb fields.
+- **Benefits:** Prevents expired addon links from being replayed as if they were still valid and keeps older Continue Watching entries recoverable.
+- **Implementation:** Use the saved content/title identity plus provider/source profile to trigger a direct Debrid metadata refresh, then retry on resume-time playback errors or buffering timeouts instead of looping the stale URL.
+
+## 36. TV Long-Press Action Menus
+- **Definition:** When a TV card needs secondary actions, support both touch long-press and D-pad repeat-press detection instead of relying on `setOnLongClickListener` alone.
+- **Benefits:** Makes action menus reliable on TV remotes while keeping the normal short-press resume path intact.
+- **Implementation:** Handle `DPAD_CENTER`, `ENTER`, or `NUMPAD_ENTER` repeat events in the adapter and suppress the follow-up click so the menu does not double-trigger.
+
+## 37. Terminal Failure Detail Redirect
+- **Definition:** After all resume retries, refresh attempts, and stall handling are exhausted, route playback failures directly to the owning movie or series detail screen.
+- **Benefits:** Prevents failure loops that bounce through the same player result path and gives the user a stable recovery surface.
+- **Implementation:** Add a failure-origin extra so detail screens open in browse mode and do not auto-play the same failed source again.
+
+## 38. Compact TV Chip Action Menus
+- **Definition:** Keep secondary-action long-press menus compact and chip-based for TV rows instead of full-sheet spacing.
+- **Benefits:** Improves readability and perceived polish at 10-foot distance while preserving fast remote interaction.
+- **Implementation:** Use a wrap-content glass container with focused/default chip selectors, small paddings, and initial chip focus after dialog show.
+
+
 

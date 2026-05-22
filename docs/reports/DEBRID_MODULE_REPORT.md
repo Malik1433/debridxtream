@@ -679,3 +679,41 @@ Removed the duplicate companion entrypoints by making the root route the canonic
 
 ## Final Status
 PASS  Companion now has one canonical visible entrypoint instead of duplicate same-page routes.
+
+---
+
+# TASK 020-DEBRID-CONTINUE-WATCH-DIRECT-RESUME-RECOVERY
+
+## Scope
+Fix direct Debrid Continue Watching entries that resume within a few hours but get stuck on the next-day path when the saved direct addon URL has expired and the older history entry is missing enough stable metadata to trigger a fresh lookup.
+
+## Changes
+- Broadened the Home continue-watch gate so direct Debrid entries can still fresh-resolve from stable content/title identity, even when TMDB/IMDb fields are missing from older saved history.
+- Added a direct Debrid refresh helper in `PlayerActivity` so resume-time playback errors and buffering timeouts can retry a fresh metadata lookup instead of looping the stale direct URL.
+- Kept resolver-backed Debrid behavior intact for infoHash/magnet-based items.
+
+## Validation
+- `:app:compileDebugKotlin --no-daemon`: PASS.
+- `:app:assembleDebug --no-daemon`: PASS.
+
+## Final Status
+PASS  Direct Debrid continue-watch resume now has a fallback refresh path for older entries with incomplete metadata.
+
+---
+
+# TASK 021-DEBRID-CONTINUE-WATCH-DIRECT-RESUME-RECOVERY-FOLLOWUP
+
+## Scope
+Follow up on TASK 020 by separating stale direct-history rejection from fresh direct-provider passthrough so the actual series/movie refresh path still plays after a long delay.
+
+## Changes
+- Kept stale direct Debrid history URLs from replaying as valid resume targets.
+- Allowed the direct metadata refresh path to preserve passthrough for freshly fetched provider URLs.
+- Left resolver-backed hash/magnet resume unchanged.
+
+## Validation
+- `:app:assembleDebug --no-daemon --offline`: PASS.
+- Device QA on `192.168.0.21:5555` only showed the resume path working for `Tom Clancys Jack Ryan Ghost War` and `Nemesis - S1:E3`, but the user requested a next-day manual retest before the change is finalized.
+
+## Final Status
+PENDING  Direct Debrid continue-watch rejects stale history playback and appears to play fresh provider-fetched direct URLs, but final success is deferred until tomorrow's manual retest.
