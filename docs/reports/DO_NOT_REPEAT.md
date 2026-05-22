@@ -124,5 +124,6 @@ Do not pick the next Debrid episode by quality alone. Episode browser selection,
 - **DO NOT** exceed 300 lines in `HomeFragment` or 500 lines in its managers (`HomeFocusManager`, `HomeKeyRoutingManager`, `HomeNavigationRouter`, `HomeSidebarManager`, `HomeHeroManager`). When refactoring, keep classes highly focused, avoid duplicate logic, and ensure all imports match package declarations. Always explicitly clean up/nullify views and adapter references in `onDestroyView()` to prevent memory leaks on exit.
 - **DO NOT** leave `CompanionConfigServer` on `anyHost()` or return raw exception messages to the companion client. Keep CORS limited to localhost/site-local hosts, keep `X-Pairing-PIN`, and redact or summarize sensitive config/log data before persistence or error responses.
 - **DO NOT** call `cleanup()` on Home manager fields unguarded if the fragment can partially initialize. Guard each `lateinit` manager in `onDestroyView()` so teardown cannot crash after a failed init path.
+- **DO NOT** rewrite a report with long narrative when `Status`, `Done`, `Open`, `Risk`, `Proof`, and `Next` are enough. Update the delta only and keep one canonical report per topic.
 
 

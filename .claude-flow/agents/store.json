@@ -270,6 +270,124 @@
       "domain": "android-audit",
       "model": "sonnet",
       "modelRoutedBy": "explicit"
+    },
+    "agent-1779465633649-5p6q1l": {
+      "agentId": "agent-1779465633649-5p6q1l",
+      "agentType": "audit",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "readonly": true,
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-22T16:00:33.649Z",
+      "domain": "android-kotlin-security",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779465634047-jvv1sy": {
+      "agentId": "agent-1779465634047-jvv1sy",
+      "agentType": "audit",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "readonly": true,
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-22T16:00:34.048Z",
+      "domain": "android-kotlin-security",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779465737964-03v9tw": {
+      "agentId": "agent-1779465737964-03v9tw",
+      "agentType": "auditor",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-22T16:02:17.964Z",
+      "domain": "android-security",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779465738041-xg6h6m": {
+      "agentId": "agent-1779465738041-xg6h6m",
+      "agentType": "auditor",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-22T16:02:18.041Z",
+      "domain": "android-stability",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779465807593-h53kcz": {
+      "agentId": "agent-1779465807593-h53kcz",
+      "agentType": "explorer",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "focus": "security",
+        "scope": "CompanionConfigServer.kt",
+        "model": "inherit"
+      },
+      "createdAt": "2026-05-22T16:03:27.594Z",
+      "domain": "debxtrem",
+      "model": "inherit",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779465807858-8rxigu": {
+      "agentId": "agent-1779465807858-8rxigu",
+      "agentType": "explorer",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "focus": "stability",
+        "scope": "HomeFragment.kt",
+        "model": "inherit"
+      },
+      "createdAt": "2026-05-22T16:03:27.859Z",
+      "domain": "debxtrem",
+      "model": "inherit",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779484105690-uul4nt": {
+      "agentId": "agent-1779484105690-uul4nt",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "haiku"
+      },
+      "createdAt": "2026-05-22T21:08:25.802Z",
+      "domain": "docs-reports",
+      "model": "haiku",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779484106295-30hffh": {
+      "agentId": "agent-1779484106295-30hffh",
+      "agentType": "coder",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "haiku"
+      },
+      "createdAt": "2026-05-22T21:08:26.295Z",
+      "domain": "docs-reports",
+      "model": "haiku",
+      "modelRoutedBy": "explicit"
     }
   },
   "version": "3.0.0"

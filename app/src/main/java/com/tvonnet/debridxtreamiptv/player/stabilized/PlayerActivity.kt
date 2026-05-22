@@ -85,7 +85,7 @@ import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
 @UnstableApi
 @AndroidEntryPoint
 class PlayerActivity : AppCompatActivity() {
-    private val viewModel: PlayerViewModel by viewModels()
+    internal val viewModel: PlayerViewModel by viewModels()
 
     @Inject
     lateinit var okHttpClient: OkHttpClient
@@ -98,8 +98,8 @@ class PlayerActivity : AppCompatActivity() {
     private var isInPictureInPictureMode = false
     private var wasPlayingBeforePiP = true
 
-    private var player: ExoPlayer? = null
-    private lateinit var playerView: PlayerView
+    internal var player: ExoPlayer? = null
+    internal lateinit var playerView: PlayerView
     private lateinit var watchHistoryPrefs: WatchHistoryPreferences
 
     private var retryCount = 0
@@ -185,10 +185,10 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private var channelLogoUrl: String? = null
-    private var contentType: ContentType? = null
-    private var playbackSource: PlaybackSource = PlaybackSource.IPTV
+    internal var contentType: ContentType? = null
+    internal var playbackSource: PlaybackSource = PlaybackSource.IPTV
     private var directDebridPlayback: Boolean = false
-    private var contentId: String? = null
+    internal var contentId: String? = null
     private var returnToSourcesOnExit: Boolean = false
     private var didPlaybackComplete: Boolean = false
     private var manualExit: Boolean = false
@@ -196,8 +196,8 @@ class PlayerActivity : AppCompatActivity() {
     private var lastPlaybackPositionMs: Long = 0L
     private var posterUrlExtra: String? = null
     private var backdropUrlExtra: String? = null
-    private var tmdbIdExtra: String? = null
-    private var imdbIdExtra: String? = null
+    internal var tmdbIdExtra: String? = null
+    internal var imdbIdExtra: String? = null
     private var seriesTitleExtra: String? = null
     private var episodeTitleExtra: String? = null
     private var seasonNumberExtra: Int? = null
@@ -207,13 +207,13 @@ class PlayerActivity : AppCompatActivity() {
     private var debridProviderExtra: String? = null
     private var debridSourceTypeExtra: String? = null
     private var debridSourceNameExtra: String? = null
-    private var debridLanguagesExtra: List<String>? = null
+    internal var debridLanguagesExtra: List<String>? = null
     private var debridQualityExtra: String? = null
     private var debridStreamIdExtra: String? = null
     private var debridBingeGroupExtra: String? = null
     private var debridFileIdxExtra: Int? = null
     private var expiresAtExtra: Long? = null
-    private var originalTitle: String? = null
+    internal var originalTitle: String? = null
     private var hasRecordedHistory = false
     private val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
     private var startPositionMs: Long = 0L
@@ -227,10 +227,10 @@ class PlayerActivity : AppCompatActivity() {
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var networkAvailable = true
-    private var isResolvingDebrid = false
+    internal var isResolvingDebrid = false
     private var hasAppliedIndexOverride = false
-    private var preferredAudioLanguage: String? = null
-    private var preferredSubtitleLanguage: String? = null
+    internal var preferredAudioLanguage: String? = null
+    internal var preferredSubtitleLanguage: String? = null
     private lateinit var episodeBrowserController: EpisodeBrowserController
 
     companion object {
@@ -1182,7 +1182,7 @@ class PlayerActivity : AppCompatActivity() {
         return playbackSource == PlaybackSource.DEBRID && !directDebridPlayback
     }
 
-    private fun currentDebridSourceProfile(): DebridSourceProfile? {
+    internal fun currentDebridSourceProfile(): DebridSourceProfile? {
         if (playbackSource != PlaybackSource.DEBRID) return null
         return DebridSourceProfile(
             provider = debridProviderExtra,

@@ -228,6 +228,11 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Removes the broad browser-origin exposure from `anyHost()` without breaking same-LAN pairing flows, and keeps the config endpoint from accepting unauthenticated browser requests.
 - **Implementation:** Build the CORS allowlist from runtime network interfaces, allow only `http` for those hosts, retain `X-Pairing-PIN`, and keep credential validation before persistence.
 
+## 44. Compact Report Standard
+- **Definition:** Keep task reports in a short state/proof/next format instead of re-explaining already verified work.
+- **Benefits:** Cuts report churn, reduces token usage, and makes future audits faster because the current truth is easy to scan.
+- **Implementation:** Keep one canonical file per topic, record only `Status`, `Done`, `Open`, `Risk`, `Proof`, and `Next`, and add short delta updates instead of rewriting the whole report.
+
 
 
 
