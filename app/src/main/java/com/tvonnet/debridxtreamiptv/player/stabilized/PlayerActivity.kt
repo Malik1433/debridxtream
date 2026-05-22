@@ -2,6 +2,7 @@ package com.tvonnet.debridxtreamiptv.player.stabilized
 
 import android.app.Activity
 import android.app.ActivityManager
+import android.app.Dialog
 import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.Intent
@@ -107,6 +108,7 @@ class PlayerActivity : AppCompatActivity() {
     private var currentUrl: String? = null
     private var streamHeaders: Map<String, String>? = null
     private var subtitleEntries: List<String> = emptyList()
+    private var activeTrackDialog: Dialog? = null
     private val subtitleUrlRegex = Regex("https?://\\S+", RegexOption.IGNORE_CASE)
     private val languageCodeRegex = Regex("^[a-z]{2,3}(-[a-z0-9]{2,8})?$", RegexOption.IGNORE_CASE)
     private var timeoutMs: Long = TIMEOUT_MS
@@ -840,7 +842,7 @@ class PlayerActivity : AppCompatActivity() {
         if (isInPictureInPictureMode) return
         val playerSnapshot = player ?: return
         
-        TrackSelectionDialogBuilder(
+        val dialog = TrackSelectionDialogBuilder(
             this,
             getString(R.string.player_audio_title),
             playerSnapshot,
@@ -850,7 +852,7 @@ class PlayerActivity : AppCompatActivity() {
             .setAllowMultipleOverrides(false)
             .setTrackNameProvider(DefaultTrackNameProvider(resources))
             .build()
-            .show()
+        showManagedTrackDialog(dialog)
     }
 
     private fun showSubtitleSelection() {
@@ -869,7 +871,7 @@ class PlayerActivity : AppCompatActivity() {
             return
         }
 
-        TrackSelectionDialogBuilder(
+        val dialog = TrackSelectionDialogBuilder(
             this,
             getString(R.string.player_settings_subtitles),
             playerSnapshot,
@@ -880,7 +882,7 @@ class PlayerActivity : AppCompatActivity() {
             .setAllowMultipleOverrides(false)
             .setTrackNameProvider(DefaultTrackNameProvider(resources))
             .build()
-            .show()
+        showManagedTrackDialog(dialog)
     }
 
     private fun showLanguageSelection() {
@@ -909,14 +911,15 @@ class PlayerActivity : AppCompatActivity() {
                 return@launch
             }
 
-            androidx.appcompat.app.AlertDialog.Builder(this@PlayerActivity)
+            val dialog = androidx.appcompat.app.AlertDialog.Builder(this@PlayerActivity)
                 .setTitle(R.string.player_language_title)
                 .setItems(distinctOptions.toTypedArray()) { dialog, which ->
                     val selected = distinctOptions[which]
                     applyDebridLanguagePreference(selected)
                     dialog.dismiss()
                 }
-                .show()
+                .create()
+            showManagedTrackDialog(dialog)
         }
     }
 
@@ -952,7 +955,7 @@ class PlayerActivity : AppCompatActivity() {
             return
         }
 
-        TrackSelectionDialogBuilder(
+        val dialog = TrackSelectionDialogBuilder(
             this,
             getString(R.string.player_video_title),
             playerSnapshot,
@@ -962,7 +965,24 @@ class PlayerActivity : AppCompatActivity() {
             .setAllowMultipleOverrides(false)
             .setTrackNameProvider(DefaultTrackNameProvider(resources))
             .build()
-            .show()
+        showManagedTrackDialog(dialog)
+    }
+
+    private fun showManagedTrackDialog(dialog: Dialog) {
+        dismissActiveTrackDialog()
+        activeTrackDialog = dialog
+        dialog.setOnDismissListener {
+            if (activeTrackDialog === dialog) {
+                activeTrackDialog = null
+            }
+        }
+        dialog.show()
+    }
+
+    private fun dismissActiveTrackDialog() {
+        activeTrackDialog?.setOnDismissListener(null)
+        activeTrackDialog?.dismiss()
+        activeTrackDialog = null
     }
 
     private fun setupOverlayViews() {
@@ -1815,7 +1835,7 @@ class PlayerActivity : AppCompatActivity() {
     override fun onResume() { super.onResume(); startDebugOverlay(); if (player == null) currentUrl?.let { initializePlayer(it) } else startStallMonitor() }
     override fun onStart() { super.onStart(); registerNetworkCallback(); nextCheckHandler.post(nextCheckRunnable) }
     override fun onPause() { super.onPause(); player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
-    override fun onStop() { super.onStop(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); unregisterNetworkCallback(); recordPlaybackHistoryIfNeeded(); releasePlayer() }
+    override fun onStop() { super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); unregisterNetworkCallback(); recordPlaybackHistoryIfNeeded(); releasePlayer() }
 
     private fun releasePlayer() {
         updateLastPlaybackPosition(); timeoutHandler.removeCallbacks(timeoutRunnable); overlayHandler.removeCallbacks(overlayHideRunnable); nextCheckHandler.removeCallbacks(nextCheckRunnable); nextEpisodeTimer?.cancel(); stopStallMonitor()
@@ -1830,7 +1850,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun stopStallMonitor() = stallHandler.removeCallbacks(stallRunnable)
 
-    override fun onDestroy() { super.onDestroy(); recordPlaybackHistoryIfNeeded(); releasePlayer() }
+    override fun onDestroy() { super.onDestroy(); dismissActiveTrackDialog(); recordPlaybackHistoryIfNeeded(); releasePlayer() }
 
     private fun resolveTimeoutMs(url: String): Long = if (url.lowercase().contains("mediafusion.elfhosted.com")) MEDIAFUSION_TIMEOUT_MS else TIMEOUT_MS
 

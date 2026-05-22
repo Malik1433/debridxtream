@@ -7,12 +7,13 @@ Done:
 - Episode browser and next-episode control are wired through the existing player spine.
 - Global player routing remains source-aware.
 - Track selection and source-profile handling now live directly in `PlayerActivity`; `PlayerTrackManager` has been removed.
+- Track dialogs are lifecycle-managed and dismissed during player teardown.
 
 Open:
 - Keep remote-control edge cases under the player task docs.
 
 Proof:
-- `:app:clean`, `:app:compileDebugKotlin`, and `:app:assembleDebug` passed after the player consolidation pass.
+- `:app:compileDebugKotlin` passed after the track-dialog lifecycle fix.
 
 Next:
 - Use this file as the compact canonical summary only.
