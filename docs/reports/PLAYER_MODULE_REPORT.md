@@ -12,7 +12,7 @@ Done:
 
 Open:
 - Keep remote-control edge cases under the player task docs.
-- Manual IPTV Series episode-browser content QA remains open; automated install/launch smoke passed on `192.168.0.21:5555`.
+- Continue broader Player regression checks before changing more shared-spine code.
 
 Proof:
 - `:app:compileDebugKotlin` passed after the track-dialog lifecycle fix.
@@ -20,6 +20,7 @@ Proof:
 - 2026-05-23: `:app:assembleDebug` passed.
 - 2026-05-23: install, launch, PID check, and crash scan passed on `192.168.0.84:5555`.
 - 2026-05-23: install, launch, PID check, PlayerActivity display, and crash scan passed on `192.168.0.21:5555`.
+- 2026-05-23: manual QA passed for IPTV Series and Debrid Series episode browser plus Next Episode behavior.
 
 Next:
 - Use this file as the compact canonical summary only.
