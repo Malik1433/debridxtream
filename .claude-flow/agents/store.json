@@ -388,6 +388,20 @@
       "domain": "docs-reports",
       "model": "haiku",
       "modelRoutedBy": "explicit"
+    },
+    "doc-audit-reviewer": {
+      "agentId": "doc-audit-reviewer",
+      "agentType": "reviewer",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-05-22T22:09:00.725Z",
+      "domain": "debxtrem-docs-and-build",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
     }
   },
   "version": "3.0.0"

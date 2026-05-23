@@ -251,4 +251,16 @@ Established engineering and UI patterns that have proven stable and performant i
 
 
 
+## 43. Player Navigation and Zapping Integrity
+- **Context**: DPAD up/down bindings on the player seekbar were trapping focus. Zapping initialization was omitted.
+- **Pattern**: When extracting player logic into managers, always verify lifecycle callbacks like onCreate initialization triggers (e.g. initLiveZapping) remain intact. Explicitly route UP/DOWN bounds off the progress bar to target elements based on layout topology rather than hardcoding static overrides.
 
+## 47. Latest-Zap-Wins Player Identity
+- **Definition**: When switching streams rapidly, discard asynchronous state updates (EPG data, video loading) from older zap requests.
+- **Benefits**: Prevents race conditions where video plays one channel while metadata/EPG shows another. Ensures the UI stays in sync with the user's final selection.
+- **Implementation**: Tag UI overlay states with `streamId` and filter them inside the view collector. Pass a monotonic `zapRequestId` to the seamless switch method to safely drop overlapping legacy Exoplayer preparation requests.
+
+## 48. Lifecycle-Aware Async Player Initialization
+- **Definition**: Check `isFinishing || isDestroyed` before initializing or replacing video players inside delayed callbacks or retry handlers.
+- **Benefits**: Prevents orphaned playback instances from running in the background (phantom audio) if the user exits the Activity while an asynchronous network retry is pending.
+- **Implementation**: In methods like `initializePlayer`, `playUrl`, or `performSeamlessSwitch`, exit immediately if `isFinishing` or `isDestroyed` is true.

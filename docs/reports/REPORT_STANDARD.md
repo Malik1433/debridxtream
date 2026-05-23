@@ -1,21 +1,51 @@
-# Compact Report Standard
+# Report Standard
 
-Use this format for future task reports, QA notes, and memory-style status files.
+Use this format for canonical module reports and compact task reports. Keep logs, screenshots, XML dumps, and long narratives out of report files; link or summarize exact evidence only when needed.
 
 ## Rules
-- Keep one canonical file per topic.
-- Write state, proof, and next step only.
-- Prefer deltas over full rewrites.
-- Use short IDs instead of repeated paragraphs.
-- Keep logs out of the report; link or summarize only.
+- One canonical module report per module.
+- Prefer short current-state bullets over historical narrative.
+- Put old detail in history/task reports, not in canonical reports.
+- Keep reports useful for low-credit AI bug fixing.
+- Update only the relevant report after a task.
 
-## Template
+## Canonical Module Report Template
 ```md
-# <Topic>
-Status: verified | open | blocked | deferred
+# <Module> Module Report
+Status: canonical/current | canonical/partial | archived
+Scope: <one short line>
+
+## Current Active Runtime Flow
+- <active flow only>
+
+## Important Active Files
+- `<path>` - <purpose>
+
+## What Must Not Break
+- <guardrail>
+
+## Known Bugs / Open Issues
+- <open item or "None documented">
+
+## Recent Fixes
+- <date or short fix>
+
+## Failed Approaches / Avoid
+- <avoid item>
+
+## QA Checklist
+- <build/test/device/manual checks>
+
+## Last Verified State
+- <latest verified state or known gap>
+```
+
+## Compact Task Report Template
+```md
+# <Task>
+Status: verified | open | blocked | archived
 Scope: <one short line>
 Done:
-- <item>
 - <item>
 Open:
 - <item>
@@ -25,32 +55,4 @@ Proof:
 - <build/test/device result>
 Next:
 - <next step>
-```
-
-## Delta Log Template
-```md
-## Updates
-- 2026-05-22: <short change>
-- 2026-05-22: <short change>
-```
-
-## Good Example
-```md
-# Companion Security
-Status: verified
-Scope: companion sync and payload handling
-Done:
-- local-network guard
-- PIN lockout
-- URL validation
-Open:
-- manual payload round-trip
-Risk:
-- transport and edge-case payloads
-Proof:
-- assembleDebug OK
-- install OK on 192.168.0.84 and 192.168.0.21
-- launch OK on both devices
-Next:
-- run the manual payload QA checklist
 ```

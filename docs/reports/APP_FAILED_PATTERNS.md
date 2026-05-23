@@ -206,6 +206,123 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Reason:** Cosmetic-only updates can silently regress core remote interaction flow.
 - **Fix:** Keep adapter/fragment action wiring and IDs intact, and constrain polish work to dialog sizing, paddings, and drawable selectors.
 
+
+## 17. Breaking Companion Payloads With Schema Changes
+- **Avoid:** Replacing companion config keys/shape without backward compatibility.
+- **Reason:** Users get stuck with “companion config purani” where the web sends old keys and the TV expects new ones (or vice versa).
+- **Fix:** Keep additive fields with defaults, accept legacy names, and introduce a `schemaVersion` to make transitions explicit.
+
+
+## 18. Creating A Second Companion Path For A Schema Refresh
+- **Avoid:** Adding a parallel companion page, duplicate pairing route, or new TV-side config screen just to support Stremio addon URLs.
+- **Reason:** Duplicate surfaces split maintenance, confuse users, and make it easy to break the existing working flow.
+- **Fix:** Update the active companion route in place, keep one Firestore/device-code payload contract, and repurpose the existing TV-side screen instead of spawning a second flow.
+
+## 19. Leaving Legacy RD Labels As The Primary Live Settings Copy
+- **Avoid:** Keeping `Real-Debrid` and `MediaFusion` as the first thing shown on the active settings screen after moving Stremio addon URLs to the new primary path.
+- **Reason:** The app looks unchanged after reinstall, even though the underlying schema has moved forward.
+- **Fix:** Label the live settings surface as `Stremio Addons`, keep the RD auth path as explicit legacy fallback, and remove MediaFusion wording from the visible copy.
+
+## 20. Mixed Companion Payload Emission
+- **Avoid:** Having the web companion emit both the new canonical Stremio-first payload and the old top-level RD/MediaFusion fields by default.
+- **Reason:** It keeps the contract ambiguous and can reintroduce legacy shape drift even when the visible UI is already cleaned up.
+- **Fix:** Emit one canonical payload from the web dashboard and reserve legacy field names only for backward-compatible parsers.
+
+## 21. Visible Legacy API-Key Auth
+- **Avoid:** Leaving manual Real-Debrid API-key entry visible on the main Debrid auth surface after the device-code/Stremio-first flow is in place.
+- **Reason:** It makes the deprecated path look primary and causes fresh installs to read as old after the companion refresh.
+- **Fix:** Hide the manual API-key affordance by default and keep only the device-code auth path visible.
+
+## 22. Redirect-Only Companion Entry
+- **Avoid:** Leaving `/setup` as a bridge page that immediately redirects to the real form.
+- **Reason:** Users land on the companion link and do not see any visible change, which makes it look like the update did not work.
+- **Fix:** Route the opening entrypoint directly to the config form so the actual IPTV and Stremio fields are visible immediately.
+
+## 23. Serializing Blank Optional IPTV Data
+- **Avoid:** Writing an `iptv` object with undefined values when the user leaves IPTV blank.
+- **Reason:** Optional fields should stay out of the Firestore payload entirely when they are not being used.
+- **Fix:** Build the payload conditionally and omit IPTV unless all three IPTV fields are present and verified.
+
+## 24. Duplicate Companion Entrypoints
+- **Avoid:** Leaving both `/setup` and `/config` as active same-screen companion routes alongside a separate root landing page.
+- **Reason:** It makes the update look inconsistent and leaves users with multiple URLs that appear to be the same page.
+- **Fix:** Pick one canonical route, redirect the old ones, and keep only one visible companion surface.
+
+## 25. Live Loading-State Drift
+- **Avoid:** Clearing LiveTV `isLoadingChannels` inside the ViewModel before Paging has actually settled.
+- **Reason:** The UI can flicker between loading and loaded states even though the adapter is still working.
+- **Fix:** Drive loading state from Paging3 refresh load state and only treat the ViewModel flag as a mirror of that source.
+
+## 26. Hardcoded Live `.ts` URLs
+- **Avoid:** Rebuilding live stream URLs with `.../$id.ts` in every playback entrypoint.
+- **Reason:** Some providers expose different container extensions and hardcoding `.ts` makes those paths brittle.
+- **Fix:** Use the shared live URL helper and preserve `container_extension` when it exists.
+
+## 27. Snapshot-Only Live HandOff
+- **Avoid:** Passing fullscreen live channel IDs from the visible adapter snapshot only.
+- **Reason:** Large live categories may have more channels cached than are currently visible, so the handoff list can be incomplete.
+- **Fix:** Prefer cached live streams for the selected category, then merge with the adapter snapshot as a fallback.
+
+## 28. History-As-Return-State
+- **Avoid:** Restoring the caller UI from watch-history storage after a player screen exits.
+- **Reason:** History writes depend on Activity lifecycle timing and can lag behind the actual user action, especially after fullscreen zapping.
+- **Fix:** Use an explicit Activity Result payload for immediate caller state, and keep history only as persistent fallback.
+
+## 29. RecyclerView Container Focus Requests
+- **Avoid:** Calling `requestFocus()` on a RecyclerView that is configured with `isFocusable = false`.
+- **Reason:** Android TV focus will often fall back to the previous focusable area, which looks like list focus jumping back to categories.
+- **Fix:** Request focus on a laid-out child item view after scrolling to the desired adapter position.
+
+## 30. Native Focus Search During Rapid Paged List Scroll
+- **Avoid:** Leaving rapid DPAD_UP/DOWN inside a paged TV list entirely to Android's native focus-search.
+- **Reason:** During fast repeats, the next ViewHolder may not be laid out yet, so focus can escape to side rails or preview buttons.
+- **Fix:** Handle UP/DOWN on the focused item, move by adapter position, and keep a pending target while scroll/layout catches up.
+
+## 31. Empty EPG Cached As Fresh Data
+- **Avoid:** Caching `(null, null)` guide responses as if they were a valid EPG hit.
+- **Reason:** The app can hide later XMLTV syncs or short-provider refreshes for several minutes and leave the preview stuck on "guide unavailable."
+- **Fix:** Only cache positive current/next results and let empty lookups retry on the next visible refresh or warmup pass.
+
+## 32. Double-Starting Manual EPG Sync
+- **Avoid:** Calling both WorkManager immediate sync and a direct repository EPG sync from the same settings action.
+- **Reason:** The two jobs can race through the same parser/database path and crash or corrupt the visible sync state.
+- **Fix:** Use one manual sync path, keep scheduled sync separate, and add a repository-level single-flight guard for EPG fetches.
+
+## 33. Mismatched Code and XML Visibilities
+- **Avoid:** Registering Kotlin click listeners or bindings on layout elements that are configured as completely hidden (e.g. `visibility="gone"` and `0dp` dimensions).
+- **Reason:** Creates dead or unreachable functional routes that look active in the source code but are disabled in the UI.
+- **Fix:** Always verify that elements bound to click handlers are visible, focusable, and properly sized in the layout configurations.
+
+## 34. Guessing Next Episode Continuity
+- **Avoid:** Advancing a series player by assuming `currentEpisode + 1` or exposing `Next` before `SeriesPlaylistState` confirms the next entry exists.
+- **Reason:** The controller can show an action that does nothing or resolve the wrong episode when the playlist is incomplete or still loading.
+- **Fix:** Gate the control on `SeriesPlaylistState.hasNext`, and use the resolved next item from playlist state instead of a guessed episode number.
+
+## 35. Restyling A Non-Runtime Copy
+- **Avoid:** Editing documentation-only design notes or a guessed duplicate layout when the actual runtime path is a single XML controller file.
+- **Reason:** The APK can build successfully and still look unchanged on device if the wrong file is edited.
+- **Fix:** Audit `AndroidManifest.xml`, the host activity, and the controller/layout include chain first; then change the one file that is actually inflated.
+
+## 36. Direct Debrid Resume Metadata Gate
+- **Avoid:** Requiring only TMDB/IMDb metadata before allowing a direct Debrid Continue Watching item to fresh-resolve.
+- **Reason:** Older history entries can still have stable title/content identity and source profile data even when the TMDB/IMDb fields are missing, and replaying the stale URL leaves the player stuck on resolving.
+- **Fix:** Allow direct Debrid resume to use the saved title/content identity plus provider/source profile to refresh the source, then retry on buffering or resume-time playback errors instead of falling back to the expired URL.
+
+## 37. Fresh Direct URL Forced Into No-Passthrough
+- **Avoid:** Using the same no-passthrough branch for stale direct history and fresh direct metadata refresh.
+- **Reason:** The stale URL must be blocked, but the newly resolved provider URL must still be allowed to play. Collapsing both paths into one branch can create a blank or never-ready player even after the refresh succeeds.
+- **Fix:** Split the branches and only disable passthrough for history replay, not for fresh direct-provider results.
+
+## 38. Reusing The Same Player Return Path For Exhausted Failures
+- **Avoid:** Routing terminal playback failures back through the same `EXTRA_RETURN_TO_SOURCES` or source-retry result path that handles transient errors.
+- **Reason:** The same path can re-open source selection, auto-advance, or re-enter the failed playback loop instead of landing on the detail screen.
+- **Fix:** Redirect only after the retry budget is exhausted and launch the content detail screen with a failure-origin guard that disables auto-play-next behavior.
+
+## 39. TV Action Menu Restyle That Breaks Interaction Contracts
+- **Avoid:** Rebuilding Continue Watching long-press menus in a way that changes long-press detection, click suppression, or short-press resume behavior.
+- **Reason:** Cosmetic-only updates can silently regress core remote interaction flow.
+- **Fix:** Keep adapter/fragment action wiring and IDs intact, and constrain polish work to dialog sizing, paddings, and drawable selectors.
+
 ## 40. Rejecting Firestore Cache Snapshots
 - **Avoid:** Checking `snapshot.metadata.isFromCache` and exiting early in the companion sync listener before inspecting the document payload status.
 - **Reason:** The Firestore Android SDK frequently serves cached or local metadata first (triggering `isFromCache = true` or `hasPendingWrites`), which leads to the TV app ignoring the incoming synced credentials and staying frozen in an offline waiting state.
@@ -216,4 +333,7 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Reason:** With `setHasStableIds(true)`, RecyclerView will skip calling `onBindViewHolder` if both item identity and content properties match, leaving rank/position overlays displaying stale values after a list reorder.
 - **Fix:** Incorporate position equality checks in `areContentsTheSame` to force a re-bind when items change position.
 
-
+## 42. Unintentional Debrid Resolver Passthrough Breakage
+- **Avoid:** Routing direct Debrid/addon HTTP streams through Real-Debrid config validation, or losing `PlaybackSource.DEBRID` and source profile metadata during PlayerActivity edits.
+- **Reason:** Affects the Debrid/direct playback path, causing "Real Debrid config missing" errors for perfectly valid direct addon URLs.
+- **Fix:** Preserve `PlaybackSource.DEBRID` and do not change `PlayerActivity` Debrid passthrough/resolver behavior while fixing unrelated systems like the Episode Browser.

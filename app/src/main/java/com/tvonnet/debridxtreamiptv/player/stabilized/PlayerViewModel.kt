@@ -93,7 +93,8 @@ data class PlayerOverlayUiState(
     val epgAvailable: Boolean = true,
     val lastSyncTime: Long? = null,
     val isSyncing: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val streamId: String? = null
 ) {
     fun formattedLastSync(): String? {
         return lastSyncTime?.let {
@@ -780,7 +781,8 @@ class PlayerViewModel @Inject constructor(
             epgAvailable = false,
             lastSyncTime = readLastSyncTime(),
             isSyncing = true,
-            errorMessage = null
+            errorMessage = null,
+            streamId = streamId
         )
 
         epgJob = viewModelScope.launch {
@@ -808,12 +810,14 @@ class PlayerViewModel @Inject constructor(
                         epgAvailable = true,
                         lastSyncTime = readLastSyncTime(),
                         isSyncing = false,
-                        errorMessage = null
+                        errorMessage = null,
+                        streamId = streamId
                     )
                 } else {
                     _overlayState.value = PlayerOverlayUiState(
                         epgAvailable = false,
-                        errorMessage = context.getString(R.string.player_epg_unavailable_generic)
+                        errorMessage = context.getString(R.string.player_epg_unavailable_generic),
+                        streamId = streamId
                     )
                 }
                 return@launch
@@ -825,7 +829,8 @@ class PlayerViewModel @Inject constructor(
                     _overlayState.value = _overlayState.value.copy(
                         epgAvailable = false,
                         isSyncing = true,
-                        errorMessage = null
+                        errorMessage = null,
+                        streamId = streamId
                     )
                     val fallback = streamId
                         ?.takeIf { it.isNotBlank() }
@@ -848,14 +853,16 @@ class PlayerViewModel @Inject constructor(
                             epgAvailable = true,
                             lastSyncTime = readLastSyncTime(),
                             isSyncing = false,
-                            errorMessage = null
+                            errorMessage = null,
+                            streamId = streamId
                         )
                     } else {
                         _overlayState.value = PlayerOverlayUiState(
                             epgAvailable = false,
                             lastSyncTime = readLastSyncTime(),
                             isSyncing = false,
-                            errorMessage = context.getString(R.string.player_epg_no_guide)
+                            errorMessage = context.getString(R.string.player_epg_no_guide),
+                            streamId = streamId
                         )
                     }
                     return@collect
@@ -873,7 +880,8 @@ class PlayerViewModel @Inject constructor(
                     epgAvailable = true,
                     lastSyncTime = readLastSyncTime(),
                     isSyncing = false,
-                    errorMessage = null
+                    errorMessage = null,
+                    streamId = streamId
                 )
             }
         }

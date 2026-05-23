@@ -1,17 +1,12 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
-import android.content.Context
-import com.tvonnet.debridxtreamiptv.data.cache.CacheManager
-import com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridPlaybackRepository
+import android.util.Log
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.PlaybackResolver
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider
 import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
 import com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
-import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
-import com.tvonnet.debridxtreamiptv.features.seriesv2.data.repository.XtreamSeriesRepositoryV2
-import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.every
@@ -30,43 +25,25 @@ import kotlin.reflect.jvm.isAccessible
 
 class PlayerViewModelDebridDirectPassthroughTest {
 
-    private lateinit var repository: XtreamRepository
-    private lateinit var seriesRepository: XtreamSeriesRepositoryV2
-    private lateinit var cacheManager: CacheManager
-    private lateinit var debridPlaybackRepository: DebridPlaybackRepository
     private lateinit var unifiedSourceProvider: UnifiedSourceProvider
     private lateinit var playbackResolver: PlaybackResolver
-    private lateinit var tmdbRemote: TmdbRemoteDataSource
-    private lateinit var context: Context
-    private lateinit var viewModel: PlayerViewModel
+    private lateinit var debridResolutionManager: DebridResolutionManager
 
     @Before
     fun setup() {
-        mockkStatic(android.util.Log::class)
-        every { android.util.Log.d(any(), any()) } returns 0
-        every { android.util.Log.i(any(), any()) } returns 0
-        every { android.util.Log.w(any(), any<String>()) } returns 0
-        every { android.util.Log.e(any(), any<String>()) } returns 0
-        every { android.util.Log.e(any(), any<String>(), any()) } returns 0
+        mockkStatic(Log::class)
+        every { Log.d(any(), any()) } returns 0
+        every { Log.i(any(), any()) } returns 0
+        every { Log.w(any(), any<String>()) } returns 0
+        every { Log.e(any(), any<String>()) } returns 0
+        every { Log.e(any(), any<String>(), any()) } returns 0
 
-        repository = mockk(relaxed = true)
-        seriesRepository = mockk(relaxed = true)
-        cacheManager = mockk(relaxed = true)
-        debridPlaybackRepository = mockk(relaxed = true)
         unifiedSourceProvider = mockk(relaxed = true)
         playbackResolver = mockk(relaxed = true)
-        tmdbRemote = mockk(relaxed = true)
-        context = mockk(relaxed = true)
 
-        viewModel = PlayerViewModel(
-            repository = repository,
-            seriesRepository = seriesRepository,
-            cacheManager = cacheManager,
-            debridPlaybackRepository = debridPlaybackRepository,
+        debridResolutionManager = DebridResolutionManager(
             unifiedSourceProvider = unifiedSourceProvider,
-            playbackResolver = playbackResolver,
-            tmdbRemote = tmdbRemote,
-            context = context
+            playbackResolver = playbackResolver
         )
     }
 
@@ -108,7 +85,7 @@ class PlayerViewModelDebridDirectPassthroughTest {
             allowDirectHttpPassthrough = false
         )
 
-        val state = viewModel.debridResolutionState.value
+        val state = debridResolutionManager.debridResolutionState.value
         assertTrue(state is DebridResolutionState.Success)
         assertEquals(freshUrl, (state as DebridResolutionState.Success).url)
     }
@@ -145,7 +122,7 @@ class PlayerViewModelDebridDirectPassthroughTest {
             allowDirectHttpPassthrough = false
         )
 
-        val state = viewModel.debridResolutionState.value
+        val state = debridResolutionManager.debridResolutionState.value
         assertTrue(state is DebridResolutionState.Success)
         assertEquals(freshUrl, (state as DebridResolutionState.Success).url)
     }
@@ -194,10 +171,10 @@ class PlayerViewModelDebridDirectPassthroughTest {
         directPreferred: Boolean,
         allowDirectHttpPassthrough: Boolean
     ) {
-        val method = PlayerViewModel::class.declaredFunctions.first { it.name == "resolveDebridMovieSource" }
+        val method = DebridResolutionManager::class.declaredFunctions.first { it.name == "resolveDebridMovieSource" }
         method.isAccessible = true
         method.callSuspend(
-            viewModel,
+            debridResolutionManager,
             targetSource,
             season,
             episode,

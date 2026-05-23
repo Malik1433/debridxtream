@@ -234,6 +234,7 @@ class PlayerActivity : AppCompatActivity() {
     private var preferredAudioLanguage: String? = null
     private var preferredSubtitleLanguage: String? = null
     private lateinit var episodeBrowserController: EpisodeBrowserController
+    private var currentZapRequestId = 0L
 
     companion object {
         const val EXTRA_STREAM_URL = "STREAM_URL"
@@ -652,6 +653,9 @@ class PlayerActivity : AppCompatActivity() {
             return
         }
 
+        currentZapRequestId++
+        val reqId = currentZapRequestId
+
         contentId = target.streamId
         currentUrl = target.streamUrl
         channelLogoUrl = target.logoUrl
@@ -665,10 +669,11 @@ class PlayerActivity : AppCompatActivity() {
         val keepPinned = epgOverlayPinned && epgOverlayMode != EpgOverlayMode.HIDDEN
         showEpgOverlay(mode = EpgOverlayMode.COMPACT, pinned = keepPinned)
 
-        performSeamlessSwitch(target.streamUrl)
+        performSeamlessSwitch(target.streamUrl, reqId)
     }
 
     private fun playUrl(url: String) {
+        if (isFinishing || isDestroyed) return
         if (isSwitching) return
         isSwitching = true
         try {
@@ -727,9 +732,15 @@ class PlayerActivity : AppCompatActivity() {
         } catch (e: Exception) { }
     }
 
-    private fun performSeamlessSwitch(newUrl: String) {
-        if (isSwitching) return
+    private fun performSeamlessSwitch(newUrl: String, requestId: Long = -1L) {
+        if (isFinishing || isDestroyed) return
         val playerSnapshot = player ?: return
+        
+        if (requestId != -1L && requestId != currentZapRequestId) {
+            Log.w("SWITCH_DEBUG", "Dropping stale switch request: $requestId vs latest $currentZapRequestId")
+            return
+        }
+        
         isSwitching = true
         switchCount++
         Log.i("PlayerActivity", "Performing seamless switch to: ${SensitiveLogRedactor.describeUrl(newUrl)}")
@@ -1019,7 +1030,10 @@ class PlayerActivity : AppCompatActivity() {
     private fun observeOverlayState() {
         lifecycleScope.launch {
             repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                viewModel.overlayState.collect { renderOverlay(it) }
+                viewModel.overlayState.collect { 
+                    if (it.streamId != null && it.streamId != contentId) return@collect
+                    renderOverlay(it) 
+                }
             }
         }
     }
@@ -1561,6 +1575,10 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun initializePlayer(streamUrl: String) {
+        if (isFinishing || isDestroyed) {
+            Log.w("PlayerActivity", "initializePlayer aborted: Activity is finishing or destroyed")
+            return
+        }
         try {
             // RULE: Prevent Memory Leaks. ALWAYS release existing player before creating new one.
             if (player != null) {

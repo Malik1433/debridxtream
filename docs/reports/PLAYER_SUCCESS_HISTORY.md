@@ -1,4 +1,4 @@
-﻿# Player Success History
+# Player Success History
 Status: compacted
 Scope: confirmed player wins.
 
@@ -20,3 +20,14 @@ Proof:
 
 Next:
 - Keep this file short and state-based.
+
+### DPAD Navigation & Next Episode Logic
+- **Date**: 2026-05-23
+- **Change**: Fixed isSeriesEpisodePlayback() to explicitly check ContentType.SERIES instead of relying on Debrid status. This resolved the missing 'Next Episode Prompt' for IPTV.
+- **Change**: Added explicit playSeriesEpisode(nextEp) inside playNextEpisode() for IPTV to resume auto-play.
+- **Change**: Rewrote DPAD controller overrides in PlayerKeyDispatcher.kt so UP navigates to audio/subtitles instead of bottom controls, and DOWN does not erroneously trigger the episode browser while the controller is visible.
+- **Change**: Restored missing initLiveZapping() call in Live TV setup to prevent endless 'Loading channels' toast.
+
+### Episode Browser State Integrity
+- **Date**: 2026-05-23
+- **Change**: Added seriesId, seasonNum, and sourceType into SeriesPlaylistState in PlayerViewModel.kt to verify episode browser identity. PlayerBrowserManager now compares the loaded list identity with the intent's identity, clearing the Singleton playlist state when navigating between different series to avoid displaying stale episodes.

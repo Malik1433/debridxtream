@@ -263,6 +263,7 @@ class LiveFragment : Fragment() {
             setHasFixedSize(true)
             isFocusable = false
             isFocusableInTouchMode = false
+            descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
             setItemViewCacheSize(40)
             recycledViewPool.setMaxRecycledViews(0, 60)
             adapter = channelPagingAdapter
@@ -303,7 +304,7 @@ class LiveFragment : Fragment() {
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
                     rvCategories.post {
                         rvCategories.post {
-                            rvCategories.requestFocus()
+                            focusSelectedCategoryItem()
                         }
                     }
                     true
@@ -798,8 +799,7 @@ class LiveFragment : Fragment() {
             com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("LIVE_GRID") {
                 rvCategories.post {
                     try {
-                        rvCategories.requestFocus()
-                        didRestoreFocusForThisView = true
+                        didRestoreFocusForThisView = focusSelectedCategoryItem()
                     } finally {
                         com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
                     }
@@ -894,7 +894,7 @@ class LiveFragment : Fragment() {
             KeyEvent.KEYCODE_DPAD_DOWN -> moveChannelFocusFrom(position, delta = 1)
             KeyEvent.KEYCODE_DPAD_LEFT -> {
                 pendingChannelFocusPosition = null
-                rvCategories.post { rvCategories.requestFocus() }
+                rvCategories.post { focusSelectedCategoryItem() }
                 true
             }
             else -> false
@@ -1118,7 +1118,26 @@ class LiveFragment : Fragment() {
         if (!categoriesFocusBlockedForRestore) return
         categoriesFocusBlockedForRestore = false
         rvCategories.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
-        rvCategories.isFocusable = true
+        rvCategories.isFocusable = false
+        rvCategories.isFocusableInTouchMode = false
+    }
+
+    private fun focusSelectedCategoryItem(): Boolean {
+        if (!isAdded || displayCategories.isEmpty()) return false
+        val state = viewModel.uiState.value
+        val targetId = state.selectedCategoryId ?: state.lastFocusedCategoryId
+        val targetPosition = targetId
+            ?.let { id -> displayCategories.indexOfFirst { it.category_id == id } }
+            ?.takeIf { it >= 0 }
+            ?: state.lastFocusedCategoryPosition
+                ?.takeIf { it in displayCategories.indices }
+            ?: 0
+
+        rvCategories.scrollToPosition(targetPosition)
+        rvCategories.post {
+            rvCategories.findViewHolderForAdapterPosition(targetPosition)?.itemView?.requestFocus()
+        }
+        return true
     }
     
 
@@ -1328,7 +1347,7 @@ class LiveFragment : Fragment() {
         view.findViewById<android.widget.ImageView>(R.id.icon_live_tv)?.apply {
             isFocusable = true
             isClickable = true
-            setOnClickListener { rvCategories.requestFocus() }
+            setOnClickListener { focusSelectedCategoryItem() }
         }
         // Favorites logic moved to PreviewPlayerPanel
         // btnPreviewFavorite initialization removed from here as it creates conflict / duplication
