@@ -147,9 +147,9 @@ class PlayerViewModel @Inject constructor(
         startEpisodeId: String,
         seriesTitle: String? = null
     ) {
-        android.util.Log.e("IPTV_EP_LOAD_FIX", "START seriesId=$seriesId season=$seasonNum currentEpisode=$startEpisodeId")
+        android.util.Log.d("IPTV_EP_LOAD_FIX", "START series=${SensitiveLogRedactor.describeHash(seriesId)} season=$seasonNum currentEpisode=${SensitiveLogRedactor.describeHash(startEpisodeId)}")
         viewModelScope.launch {
-            android.util.Log.e("IPTV_EP_LOAD_FIX", "EMIT loading=true")
+            android.util.Log.d("IPTV_EP_LOAD_FIX", "EMIT loading=true")
             _seriesPlaylistState.value = SeriesPlaylistState(
                 originalList = emptyList(),
                 currentIndex = -1,
@@ -164,7 +164,7 @@ class PlayerViewModel @Inject constructor(
                 val localBefore = withContext(Dispatchers.IO) {
                     seriesRepository.getSeasonEpisodes(seriesId, seasonNum)
                 }
-                android.util.Log.e("IPTV_EP_LOAD_FIX", "LOCAL_BEFORE count=${localBefore.size}")
+                android.util.Log.d("IPTV_EP_LOAD_FIX", "LOCAL_BEFORE count=${localBefore.size}")
 
                 if (localBefore.isNotEmpty()) {
                     emitSeriesPlaylist(
@@ -175,23 +175,23 @@ class PlayerViewModel @Inject constructor(
                     return@launch
                 }
 
-                android.util.Log.e("IPTV_EP_LOAD_FIX", "NETWORK_FETCH_START timeoutMs=8000")
+                android.util.Log.d("IPTV_EP_LOAD_FIX", "NETWORK_FETCH_START timeoutMs=8000")
                 val result = withTimeoutOrNull(8000L) {
                     seriesRepository.getSeriesById(seriesId).firstOrNull()
                 }
-                android.util.Log.e("IPTV_EP_LOAD_FIX", "NETWORK_FETCH_DONE result=${result?.javaClass?.simpleName ?: "timeout"}")
+                android.util.Log.d("IPTV_EP_LOAD_FIX", "NETWORK_FETCH_DONE result=${result?.javaClass?.simpleName ?: "timeout"}")
 
                 val localAfter = withContext(Dispatchers.IO) {
                     seriesRepository.getSeasonEpisodes(seriesId, seasonNum)
                 }
-                android.util.Log.e("IPTV_EP_LOAD_FIX", "LOCAL_AFTER count=${localAfter.size}")
+                android.util.Log.d("IPTV_EP_LOAD_FIX", "LOCAL_AFTER count=${localAfter.size}")
 
                 val mappedEpisodes = enrichIptvEpisodeArtwork(localAfter, seriesTitle, seasonNum)
                 val error = if (mappedEpisodes.isEmpty()) "No episodes available" else null
                 emitSeriesPlaylist(mappedEpisodes, startEpisodeId, error)
             } catch (e: Exception) {
-                android.util.Log.e("IPTV_EP_LOAD_FIX", "NETWORK_FETCH_DONE result=error:${e.javaClass.simpleName}")
-                android.util.Log.e("IPTV_EP_LOAD_FIX", "LOCAL_AFTER count=0")
+                android.util.Log.d("IPTV_EP_LOAD_FIX", "NETWORK_FETCH_DONE result=error:${e.javaClass.simpleName}")
+                android.util.Log.d("IPTV_EP_LOAD_FIX", "LOCAL_AFTER count=0")
                 emitSeriesPlaylist(emptyList(), startEpisodeId, "Episodes unavailable")
             }
         }
@@ -202,10 +202,10 @@ class PlayerViewModel @Inject constructor(
         startEpisodeId: String,
         error: String?
     ) {
-        val startIndex = episodes.indexOfFirst { it.episodeId == startEpisodeId }.takeIf { it >= 0 } ?: if (episodes.isNotEmpty()) 0 else -1
+        val startIndex = episodes.indexOfFirst { it.episodeId == startEpisodeId }.takeIf { it >= 0 } ?: -1
         val current = if (startIndex >= 0) episodes[startIndex] else null
-        android.util.Log.e("IPTV_EP_LOAD_FIX", "MAPPED count=${episodes.size}")
-        android.util.Log.e("IPTV_EP_LOAD_FIX", "EMIT loading=false count=${episodes.size} error=$error")
+        android.util.Log.d("IPTV_EP_LOAD_FIX", "MAPPED count=${episodes.size}")
+        android.util.Log.d("IPTV_EP_LOAD_FIX", "EMIT loading=false count=${episodes.size} currentFound=${current != null} error=$error")
         _seriesPlaylistState.value = SeriesPlaylistState(
             originalList = episodes,
             currentIndex = startIndex,
@@ -388,14 +388,14 @@ class PlayerViewModel @Inject constructor(
                     }
 
                     if (episodes.isNotEmpty()) {
-                        val startIndex = episodes.indexOfFirst { it.episodeNumber == currentEpisodeNumber }.takeIf { it >= 0 } ?: 0
-                        val current = episodes[startIndex]
+                        val startIndex = episodes.indexOfFirst { it.episodeNumber == currentEpisodeNumber }.takeIf { it >= 0 } ?: -1
+                        val current = if (startIndex >= 0) episodes[startIndex] else null
 
                         _seriesPlaylistState.value = SeriesPlaylistState(
                             originalList = episodes,
                             currentIndex = startIndex,
                             currentEpisode = current,
-                            hasNext = startIndex < episodes.size - 1,
+                            hasNext = startIndex >= 0 && startIndex < episodes.size - 1,
                             hasPrev = startIndex > 0
                         )
                     }

@@ -6,7 +6,7 @@ Use the compact report standard in [REPORT_STANDARD.md](./REPORT_STANDARD.md).
 | Phase | Scope | Files | Change | Validation | Device | Restore | Status |
 |---|---|---|---|---|---|---|---|
 | 0 | Whole-app blockers | Crash handler, companion config, EPG parser | minimal hunks only | compile + targeted test + crash scan | `192.168.0.84:5555` | yes | partial: companion URL gate verified |
-| 1 | Shared runtime spine | Player activity, player viewmodel, repository | minimal hunks only | compile + relevant tests | `192.168.0.84:5555` + `192.168.0.21:5555` | yes | partial: IPTV episode-id guard smoke + manual QA verified |
+| 1 | Shared runtime spine | Player activity, player viewmodel, repository | minimal hunks only | compile + relevant tests | `192.168.0.84:5555` + `192.168.0.21:5555` | yes | partial: player episode identity and fallback guards verified |
 | 2 | High-churn surfaces | Home, Live, Series, VOD | minimal hunks only | compile + relevant tests | `192.168.0.84:5555` | yes | pending |
 | 3 | Cleanup-only files | Dead/duplicate code | delete only if safe | final verify build/test | `192.168.0.84:5555` | yes | pending |
 | 4 | Release hardening | Build config | last | final build validation | `192.168.0.84:5555` | yes | pending |
@@ -37,6 +37,8 @@ Use the compact report standard in [REPORT_STANDARD.md](./REPORT_STANDARD.md).
 - Proof: `:app:compileDebugKotlin`, `:app:assembleDebug`, install/launch/PID/crash scan passed on `192.168.0.84:5555`.
 - Proof: install/launch/PID, PlayerActivity display, and crash scan passed on `192.168.0.21:5555` after reconnect.
 - Manual QA: IPTV Series and Debrid Series episode browser plus Next Episode behavior confirmed working by user.
+- 2026-05-23: Guarded `PlayerViewModel` playlist state so missing current episode identity does not select episode 0 or enable a false Next state.
+- Proof: `:app:compileDebugKotlin`, `:app:assembleDebug`, and install/launch/PID/crash scan passed on `192.168.0.21:5555` and `192.168.0.84:5555`.
 
 ## Fail Criteria
 - Build error

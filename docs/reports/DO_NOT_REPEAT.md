@@ -27,6 +27,7 @@ Critical warnings for future development in the IPTV Series and VOD modules.
 7. **DO NOT** omit `EXTRA_SERIES_ID` when launching `PlayerActivity` for Series/Episodes; it is required for playlist loading and the episode browser.
 8. **DO NOT** reintroduce a separate player-track manager if track and source-profile logic already live safely inside `PlayerActivity`.
 9. **DO NOT** use `EXTRA_STREAM_URL` or `currentUrl` as an IPTV Series episode id. Playlist and episode-browser loading must use the real episode/content id only.
+10. **DO NOT** fall back to episode 0 when playlist state cannot find the requested current episode. Keep the list visible but leave current/next state unselected until the user chooses an episode.
 
 ## IPTV Episode Browser Rule
 Do not block UI state emission on a long-running provider collect. For player overlays, emit loading/empty/error states quickly, use bounded fetches, and never allow infinite spinner.

@@ -85,6 +85,11 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Reason:** Stream URLs are transport endpoints, not stable episode identities; using them in repository playlist calls can return empty/error states or unstable episode matching.
 - **Fix:** Require a real episode/content id for IPTV Series playlist loading and show an unavailable state when that identity is absent.
 
+## 16B. Playlist Episode-Zero Fallback
+- **Avoid:** Selecting episode 0/first episode when the requested current episode is missing from IPTV or Debrid playlist state.
+- **Reason:** A missing identity is not the same as episode 1; falling back can auto-play or auto-next the wrong episode.
+- **Fix:** Keep the playlist visible, but set `currentEpisode = null`, `currentIndex = -1`, and `hasNext = false` until the user selects a valid episode.
+
 ## 17. Breaking Companion Payloads With Schema Changes
 - **Avoid:** Replacing companion config keys/shape without backward compatibility.
 - **Reason:** Users get stuck with “companion config purani” where the web sends old keys and the TV expects new ones (or vice versa).
