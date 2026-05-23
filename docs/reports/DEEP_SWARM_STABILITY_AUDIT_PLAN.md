@@ -5,7 +5,7 @@ Use the compact report standard in [REPORT_STANDARD.md](./REPORT_STANDARD.md).
 ## Phase Tracker
 | Phase | Scope | Files | Change | Validation | Device | Restore | Status |
 |---|---|---|---|---|---|---|---|
-| 0 | Whole-app blockers | Crash handler, companion config, EPG parser | minimal hunks only | compile + targeted test + crash scan | `192.168.0.84:5555` | yes | pending |
+| 0 | Whole-app blockers | Crash handler, companion config, EPG parser | minimal hunks only | compile + targeted test + crash scan | `192.168.0.84:5555` | yes | partial: companion URL gate verified |
 | 1 | Shared runtime spine | Player activity, player viewmodel, repository | minimal hunks only | compile + relevant tests | `192.168.0.84:5555` | yes | pending |
 | 2 | High-churn surfaces | Home, Live, Series, VOD | minimal hunks only | compile + relevant tests | `192.168.0.84:5555` | yes | pending |
 | 3 | Cleanup-only files | Dead/duplicate code | delete only if safe | final verify build/test | `192.168.0.84:5555` | yes | pending |

@@ -97,6 +97,7 @@ Do not pick the next Debrid episode by quality alone. Episode browser selection,
 - **DO NOT** cap Stremio addon input to a single field when the user needs multiple manifest URLs. Use add/remove rows on the same form.
 - **DO NOT** leave `/`, `/setup`, and `/config` all as active same-screen companion pages. Choose one canonical visible route and redirect the others.
 - **DO NOT** ignore Firestore pairing document updates in the companion listener solely because the snapshot metadata indicates it is loaded from cache. Firestore emits cached local metadata first, which will cause the pairing listener to freeze if updates are rejected based on cache flags alone. Check the document status payload first.
+- **DO NOT** validate companion URLs in only one ingress path. Local server, remote pairing, and Firestore companion setup must all use the same URL policy before persistence.
 
 ## LiveTV Rules
 - **DO NOT** clear `isLoadingChannels` in `LiveViewModel` before Paging refresh settles.

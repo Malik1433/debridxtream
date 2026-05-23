@@ -238,6 +238,11 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Removes a redundant helper layer, keeps track UI and playback state in one lifecycle boundary, and reduces coordination cost for future player changes.
 - **Implementation:** Let `PlayerActivity` own track selection and source-profile logic directly, and avoid reintroducing a separate track manager unless the lifecycle boundary changes.
 
+## 46. Shared Companion URL Validation
+- **Definition:** Validate and normalize companion-provided URLs through one shared boundary before saving any IPTV, MediaFusion, Stremio, or registry endpoint.
+- **Benefits:** Prevents one companion ingress path from accepting unsafe schemes while another path rejects them.
+- **Implementation:** Use `CompanionUrlValidator`; keep strict HTTP validation for IPTV/MediaFusion and addon URL normalization for Stremio/registry inputs.
+
 
 
 

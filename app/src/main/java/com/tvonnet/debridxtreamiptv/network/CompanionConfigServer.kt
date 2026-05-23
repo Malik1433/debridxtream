@@ -18,7 +18,6 @@ import io.ktor.http.*
 import java.net.InetAddress
 import java.net.Inet4Address
 import java.net.NetworkInterface
-import java.net.URI
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
@@ -292,22 +291,22 @@ class CompanionConfigServer @Inject constructor(
             }
             val mediaFusionUrl = debrid.mediaFusionUrl?.trim().orEmpty()
             if (mediaFusionUrl.isNotEmpty()) {
-                if (isSafeHttpUrl(mediaFusionUrl)) {
+                val safeMediaFusionUrl = CompanionUrlValidator.normalizeSafeHttpUrl(mediaFusionUrl)
+                if (safeMediaFusionUrl != null) {
                     Log.d("CompanionServer", "Syncing MediaFusion URL")
-                    debridPreferences.saveMediaFusionUrl(mediaFusionUrl)
+                    debridPreferences.saveMediaFusionUrl(safeMediaFusionUrl)
                 } else {
                     Log.w("CompanionServer", "Rejected invalid MediaFusion URL from companion payload")
                 }
             }
-            val stremioUrls = debrid.stremioAddonUrls?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
+            val stremioUrls = CompanionUrlValidator.normalizeSafeAddonUrls(debrid.stremioAddonUrls)
             if (stremioUrls.isNotEmpty()) {
                 Log.d("CompanionServer", "Syncing Stremio addon URLs: count=${stremioUrls.size}")
                 debridPreferences.setStremioAddonUrls(stremioUrls)
+            } else if (!debrid.stremioAddonUrls.isNullOrEmpty()) {
+                Log.w("CompanionServer", "Rejected invalid Stremio addon URLs from companion payload")
             }
-            val registryUrls = debrid.addonRegistryUrls
-                ?.map { it.trim() }
-                ?.filter { it.isNotEmpty() && isSafeHttpUrl(it) }
-                .orEmpty()
+            val registryUrls = CompanionUrlValidator.normalizeSafeAddonUrls(debrid.addonRegistryUrls)
             if (registryUrls.isNotEmpty()) {
                 Log.d("CompanionServer", "Syncing addon registry URLs: count=${registryUrls.size}")
                 // Replace semantics: remove all then re-add. We keep this scoped to companion sync only.
@@ -318,15 +317,6 @@ class CompanionConfigServer @Inject constructor(
                 Log.w("CompanionServer", "Rejected invalid addon registry URLs from companion payload")
             }
         }
-    }
-
-    private fun isSafeHttpUrl(candidate: String): Boolean {
-        val parsed = runCatching { URI(candidate.trim()) }.getOrNull() ?: return false
-        val scheme = parsed.scheme?.lowercase() ?: return false
-        if (scheme != "http" && scheme != "https") return false
-
-        val host = parsed.host?.trim().orEmpty()
-        return host.isNotEmpty()
     }
 
     private fun buildCorsAllowedHosts(port: Int): Set<String> {

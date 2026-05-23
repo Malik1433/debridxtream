@@ -12,6 +12,7 @@ import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.databinding.ActivityCompanionSetupBinding
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
+import com.tvonnet.debridxtreamiptv.network.CompanionUrlValidator
 import java.util.*
 
 
@@ -179,8 +180,9 @@ class CompanionSetupActivity : AppCompatActivity() {
             val username = it["username"] as? String
             val password = it["password"] as? String
             
-            if (server != null && username != null && password != null) {
-                CredentialsPreferences(applicationContext).saveSyncedCredentials(server, username, password)
+            val safeServer = server?.let { CompanionUrlValidator.normalizeSafeHttpUrl(it) }
+            if (safeServer != null && username != null && password != null) {
+                CredentialsPreferences(applicationContext).saveSyncedCredentials(safeServer, username, password)
             }
         }
 
@@ -192,16 +194,17 @@ class CompanionSetupActivity : AppCompatActivity() {
         debridConfig?.let { cfg ->
             val token = cfg["token"] as? String
             val mediaFusionUrl = cfg["mediaFusionUrl"] as? String
-            val stremioAddonUrls = (cfg["stremioAddonUrls"] as? List<*>)
+            val stremioAddonUrls = CompanionUrlValidator.normalizeSafeAddonUrls(
+                (cfg["stremioAddonUrls"] as? List<*>)
                 ?.mapNotNull { it as? String }
-                ?.filter { it.isNotBlank() }
-                .orEmpty()
+            )
 
             if (!token.isNullOrBlank()) {
                 debridPrefs.saveRealDebridToken(token)
             }
-            if (!mediaFusionUrl.isNullOrBlank()) {
-                debridPrefs.saveMediaFusionUrl(mediaFusionUrl)
+            val safeMediaFusionUrl = mediaFusionUrl?.let { CompanionUrlValidator.normalizeSafeHttpUrl(it) }
+            if (safeMediaFusionUrl != null) {
+                debridPrefs.saveMediaFusionUrl(safeMediaFusionUrl)
             }
             if (stremioAddonUrls.isNotEmpty()) {
                 debridPrefs.setStremioAddonUrls(stremioAddonUrls)
@@ -210,11 +213,13 @@ class CompanionSetupActivity : AppCompatActivity() {
 
         // Legacy fields (backward compatible)
         debridTokenLegacy?.takeIf { it.isNotBlank() }?.let { debridPrefs.saveRealDebridToken(it) }
-        mediafusionLegacy?.takeIf { it.isNotBlank() }?.let { debridPrefs.saveMediaFusionUrl(it) }
-        val stremioAddonUrls = stremioUrlsLegacy
+        mediafusionLegacy
+            ?.let { CompanionUrlValidator.normalizeSafeHttpUrl(it) }
+            ?.let { debridPrefs.saveMediaFusionUrl(it) }
+        val stremioAddonUrls = CompanionUrlValidator.normalizeSafeAddonUrls(
+            stremioUrlsLegacy
             ?.mapNotNull { it as? String }
-            ?.filter { it.isNotBlank() }
-            .orEmpty()
+        )
         if (stremioAddonUrls.isNotEmpty()) {
             debridPrefs.setStremioAddonUrls(stremioAddonUrls)
         }
