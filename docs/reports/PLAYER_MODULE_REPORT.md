@@ -12,13 +12,14 @@ Done:
 
 Open:
 - Keep remote-control edge cases under the player task docs.
-- Manual IPTV Series episode-browser QA remains open on `192.168.0.21:5555` because ADB connect timed out on 2026-05-23.
+- Manual IPTV Series episode-browser content QA remains open; automated install/launch smoke passed on `192.168.0.21:5555`.
 
 Proof:
 - `:app:compileDebugKotlin` passed after the track-dialog lifecycle fix.
 - 2026-05-23: `:app:compileDebugKotlin` passed after the IPTV episode-id guard.
 - 2026-05-23: `:app:assembleDebug` passed.
 - 2026-05-23: install, launch, PID check, and crash scan passed on `192.168.0.84:5555`.
+- 2026-05-23: install, launch, PID check, PlayerActivity display, and crash scan passed on `192.168.0.21:5555`.
 
 Next:
 - Use this file as the compact canonical summary only.

@@ -13,7 +13,7 @@ Open:
 
 Proof:
 - Build and device smoke are already captured in the linked reports.
-- 2026-05-23: `compileDebugKotlin`, `assembleDebug`, and `192.168.0.84:5555` launch/crash scan passed for the episode-id guard.
+- 2026-05-23: `compileDebugKotlin`, `assembleDebug`, and launch/crash scans passed on `192.168.0.84:5555` and `192.168.0.21:5555` for the episode-id guard.
 
 Next:
 - Keep this file short and state-based.
