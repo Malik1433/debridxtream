@@ -472,8 +472,10 @@ class PlayerActivity : AppCompatActivity() {
         if (seriesId != null && seasonNum != -1) {
             if (isDebrid) {
                 viewModel.loadDebridSeriesPlaylist(seriesId, seasonNum, episodeNumberExtra ?: 1)
-            } else if (!isDebrid && contentId != null) {
-                viewModel.loadSeriesPlaylist(seriesId, seasonNum, contentId!!, seriesTitleExtra)
+            } else {
+                currentIptvEpisodeIdForPlaylist()?.let { episodeId ->
+                    viewModel.loadSeriesPlaylist(seriesId, seasonNum, episodeId, seriesTitleExtra)
+                }
             }
         }
 
@@ -1144,8 +1146,13 @@ class PlayerActivity : AppCompatActivity() {
             if (seriesId != null && seasonNum != -1) {
                  if (playbackSource == PlaybackSource.DEBRID) {
                      viewModel.loadDebridSeriesPlaylist(seriesId, seasonNum, episodeNumberExtra ?: 1)
-                 } else if (playbackSource != PlaybackSource.DEBRID && contentId != null) {
-                     viewModel.loadSeriesPlaylist(seriesId, seasonNum, contentId!!, seriesTitleExtra)
+                 } else if (playbackSource != PlaybackSource.DEBRID) {
+                     val episodeId = currentIptvEpisodeIdForPlaylist()
+                     if (episodeId != null) {
+                         viewModel.loadSeriesPlaylist(seriesId, seasonNum, episodeId, seriesTitleExtra)
+                     } else {
+                         episodeBrowserController.showMessage("Episodes unavailable", seasonTitle)
+                     }
                  } else {
                      episodeBrowserController.showMessage("Episodes unavailable", seasonTitle)
                  }
@@ -1169,6 +1176,12 @@ class PlayerActivity : AppCompatActivity() {
                 fallbackImageUrl = getEpisodeBrowserFallbackImageUrl()
             )
         }
+    }
+
+    private fun currentIptvEpisodeIdForPlaylist(): String? {
+        val id = contentId?.takeIf { it.isNotBlank() } ?: return null
+        val currentStreamUrl = currentUrl?.takeIf { it.isNotBlank() }
+        return id.takeUnless { it == currentStreamUrl }
     }
 
     private fun getEpisodeBrowserFallbackImageUrl(): String? {

@@ -87,6 +87,11 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Episode browser selection, Next, auto-next, and Continue Watching can prefer the same provider/source family and same language, reducing unstable jumps to unrelated English-only or lower-quality sources.
 - **Implementation:** Persist provider, source type/name, languages, quality, stream id, Stremio binge group, file index, and direct-play flag through source conversion, player intents, and Continue Watching. On next/resume, re-fetch sources and rank matching profile/language before cache/quality/seeders fallback.
 
+## 16A. IPTV Episode Identity Guard
+- **Definition:** Treat IPTV episode ids and stream URLs as different identities.
+- **Benefits:** Prevents the player episode browser and playlist loader from asking repository APIs for a stream URL as if it were an episode id.
+- **Implementation:** Before loading IPTV Series playlist state, accept `contentId` only when it is non-blank and not equal to the current playback URL.
+
 ## 17. Backward-Compatible Companion Schemas
 - **Definition:** Companion config ingestion must accept new fields without breaking old companion payloads.
 - **Benefits:** Phone/web companion can be updated incrementally while older versions keep working.

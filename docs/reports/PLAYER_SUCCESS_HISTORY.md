@@ -6,12 +6,14 @@ Done:
 - Shared player routing and series episode overlay work are verified.
 - Track control logic was consolidated into `PlayerActivity` and verified by build.
 - Track dialogs are dismissed on player teardown to avoid leaked windows.
+- IPTV Series playlist/browser loading now uses a real episode id only, not a stream URL fallback.
 
 Open:
 - Append only new confirmed wins.
 
 Proof:
 - Build and device smoke are already captured in the linked reports.
+- 2026-05-23: `compileDebugKotlin`, `assembleDebug`, and `192.168.0.84:5555` launch/crash scan passed for the episode-id guard.
 
 Next:
 - Keep this file short and state-based.

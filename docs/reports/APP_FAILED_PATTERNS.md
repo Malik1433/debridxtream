@@ -80,6 +80,11 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Reason:** Direct/proxied addon URLs can expire or be revoked, causing resume failures even though the same title still works after a fresh addon lookup.
 - **Fix:** Store stable content ids and selected source profile metadata, then re-fetch sources and choose the closest matching provider/language/source before playback.
 
+## 16A. Using Playback URLs As Episode IDs
+- **Avoid:** Falling back from missing IPTV Series episode id to `EXTRA_STREAM_URL` or `currentUrl` when loading playlist/browser state.
+- **Reason:** Stream URLs are transport endpoints, not stable episode identities; using them in repository playlist calls can return empty/error states or unstable episode matching.
+- **Fix:** Require a real episode/content id for IPTV Series playlist loading and show an unavailable state when that identity is absent.
+
 ## 17. Breaking Companion Payloads With Schema Changes
 - **Avoid:** Replacing companion config keys/shape without backward compatibility.
 - **Reason:** Users get stuck with “companion config purani” where the web sends old keys and the TV expects new ones (or vice versa).
