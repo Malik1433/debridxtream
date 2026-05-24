@@ -7,11 +7,11 @@ If a later phase fails, roll back to the last known-good state, re-test that sta
 ## Phase Tracker
 | Phase | Scope | Files | Edit Style | Validation | Device QA | Restore Point | Status |
 |---|---|---|---|---|---|---|---|
-| 0 | Whole-app blockers | Crash handler, companion config, EPG parser | minimal hunks only | one build/test + crash scan | `192.168.0.84:5555` | yes | pending |
-| 1 | Shared runtime spine | Player activity, player viewmodel, repository | minimal hunks only | one build/test + relevant tests | `192.168.0.84:5555` | yes | pending |
-| 2 | High-churn surfaces | Home, Live, Series, VOD | minimal hunks only | one build/test + relevant tests | `192.168.0.84:5555` | yes | pending |
-| 3 | Cleanup-only files | Dead/duplicate code | delete only if safe | final verify build/test | `192.168.0.84:5555` | yes | pending |
-| 4 | Release hardening | Build config | last, after runtime stability | final build validation | `192.168.0.84:5555` | yes | pending |
+| 0 | Whole-app blockers | Crash handler, companion config, EPG parser | minimal hunks only | one build/test + crash scan | `192.168.0.84:5555` | yes | DONE |
+| 1 | Shared runtime spine | Player activity, player viewmodel, repository | minimal hunks only | one build/test + relevant tests | `192.168.0.84:5555` | yes | DONE |
+| 2 | High-churn surfaces | Home, Live, Series, VOD | minimal hunks only | one build/test + relevant tests | `192.168.0.84:5555` | yes | DONE |
+| 3 | Cleanup-only files | Dead/duplicate code (Paging3 buffer expanded instead) | delete only if safe | final verify build/test | `192.168.0.84:5555` | yes | DONE |
+| 4 | Release hardening | Build config | last, after runtime stability | final build validation | `192.168.0.84:5555` | yes | DONE |
 
 ## Phase 0 Checklist
 | Step | Action |

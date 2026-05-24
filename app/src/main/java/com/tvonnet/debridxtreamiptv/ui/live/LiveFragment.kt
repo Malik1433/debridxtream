@@ -824,8 +824,16 @@ class LiveFragment : Fragment() {
         val safePosition = position.coerceIn(0, channelPagingAdapter.itemCount - 1)
         com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("LIVE_GRID") {
             rvChannels.post {
+                if (!isAdded) {
+                    com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
+                    return@post
+                }
                 rvChannels.scrollToPosition(safePosition)
                 rvChannels.postDelayed({
+                    if (!isAdded) {
+                        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
+                        return@postDelayed
+                    }
                     try {
                         val itemView = rvChannels.findViewHolderForAdapterPosition(safePosition)?.itemView
                         val focused = itemView?.requestFocus() == true

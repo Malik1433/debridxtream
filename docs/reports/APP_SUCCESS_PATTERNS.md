@@ -264,3 +264,9 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Definition**: Check `isFinishing || isDestroyed` before initializing or replacing video players inside delayed callbacks or retry handlers.
 - **Benefits**: Prevents orphaned playback instances from running in the background (phantom audio) if the user exits the Activity while an asynchronous network retry is pending.
 - **Implementation**: In methods like `initializePlayer`, `playUrl`, or `performSeamlessSwitch`, exit immediately if `isFinishing` or `isDestroyed` is true.
+
+## 49. Fragment View/Lifecycle Async Guards
+- **Definition**: Guard async layout callbacks (post, postDelayed) with isAdded in Fragments to prevent lifecycle crashes. Null out RecyclerView adapters strictly inside onDestroyView().
+- **Benefits**: Prevents memory leaks caused by PagingData bindings outliving the fragment's UI lifecycle. Eliminates phantom focus or crashing when returning to tabs that have been popped or destroyed.
+- **Implementation**: Inside View.post {} or Handler.postDelayed {} running within a Fragment context, always verify if (!isAdded) return@post before interacting with the UI.
+

@@ -79,3 +79,14 @@ Issue fixed: Home focus/sidebar/teardown stability consolidated into manager-bas
 Files changed: `HomeFragment.kt`, `HomeFocusManager.kt`, `HomeKeyRoutingManager.kt`, `HomeNavigationRouter.kt`, `HomeSidebarManager.kt`
 Regression risk: Home row focus, sidebar return, Continue Watching actions.
 QA result: build and real-device Home verification completed in Home reports.
+
+### Phase 2: Memory & Lifecycle Cleanup
+- **SeriesFragment.kt**: Nullified RecyclerView adapters in onDestroyView() to fix massive memory leaks resulting from retained PagingData and ViewHolders.
+- **LiveFragment.kt**, **VodFragment.kt**, **SeriesFragment.kt**: Added if (!isAdded) return@post guards inside async focus restorations (post and postDelayed) to fix crash patterns and phantom focus states when rapidly switching tabs during UI delays.
+- **Verification**: Conducted adb monkey stress test (--pct-syskeys 0 -v 500) with zero memory or lifecycle crashes observed.
+
+
+### Phase 3: Paging3 Buffer Expansion
+- **LiveViewModel.kt**, **SeriesViewModel.kt**, **VodViewModel.kt**: Increased Paging3 pageSize from 20 to 60, and prefetchDistance from 5 to 20. This prevents loading jitter and stuttering when rapidly scrolling through long lists via D-pad, ensuring a seamless user experience.
+- **Verification**: Built ssembleDebug successfully. Ran ADB monkey test (--pct-syskeys 0 -v 500) on device 192.168.0.84:5555 with 0 crashes.
+

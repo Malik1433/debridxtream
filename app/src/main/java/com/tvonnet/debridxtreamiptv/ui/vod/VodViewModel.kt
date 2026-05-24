@@ -78,9 +78,9 @@ class VodViewModel @Inject constructor(
         } else {
             Pager(
                 config = PagingConfig(
-                    pageSize = 20,
+                    pageSize = 60,
                     enablePlaceholders = true, // Placeholders work well with Room
-                    prefetchDistance = 5
+                    prefetchDistance = 20
                 ),
                 pagingSourceFactory = { vodDao.getMoviesByCategory(categoryId, searchQuery) }
             ).flow

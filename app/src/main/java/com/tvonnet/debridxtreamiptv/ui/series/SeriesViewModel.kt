@@ -97,9 +97,9 @@ class SeriesViewModel @Inject constructor(
         } else {
             val pagerFlow: Flow<PagingData<SeriesEntity>> = Pager(
                 config = PagingConfig(
-                    pageSize = 20,
+                    pageSize = 60,
                     enablePlaceholders = false,
-                    prefetchDistance = 5
+                    prefetchDistance = 20
                 ),
                 pagingSourceFactory = { seriesDao.getSeriesByCategory(categoryId, searchQuery) }
             ).flow

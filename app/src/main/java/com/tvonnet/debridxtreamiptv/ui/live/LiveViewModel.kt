@@ -140,9 +140,9 @@ class LiveViewModel @Inject constructor(
                     ?.takeIf { searchQuery.isBlank() && uiState.value.lastFocusedChannelCategoryId == categoryId }
                 Pager(
                     config = PagingConfig(
-                        pageSize = 20,
+                        pageSize = 60,
                         enablePlaceholders = false,
-                        prefetchDistance = 5
+                        prefetchDistance = 20
                     ),
                     initialKey = restoreOffset,
                     pagingSourceFactory = {

@@ -336,6 +336,12 @@ class SeriesFragment : Fragment() {
             rvCategoriesSidebar.viewTreeObserver.removeOnGlobalFocusChangeListener(it)
         }
         globalFocusChangeListener = null
+        if (::rvSeriesGrid.isInitialized) {
+            rvSeriesGrid.adapter = null
+        }
+        if (::rvCategoriesSidebar.isInitialized) {
+            rvCategoriesSidebar.adapter = null
+        }
     }
 
     private fun setupObservers() {
@@ -472,9 +478,11 @@ class SeriesFragment : Fragment() {
                     val position = resolvedPosition.coerceIn(0, count - 1)
 
                     rvCategoriesSidebar.post {
+                        if (!isAdded) return@post
                         rvCategoriesSidebar.scrollToPosition(position)
                         (rvCategoriesSidebar.adapter as? CategorySidebarAdapter)?.setSelected(position)
                         rvCategoriesSidebar.post {
+                            if (!isAdded) return@post
                             try {
                                 val focused =
                                     rvCategoriesSidebar.findViewHolderForAdapterPosition(position)
@@ -499,8 +507,10 @@ class SeriesFragment : Fragment() {
                         ?: return@requestFocus
 
                     rvSeriesGrid.post {
+                        if (!isAdded) return@post
                         rvSeriesGrid.scrollToPosition(position)
                         rvSeriesGrid.post {
+                            if (!isAdded) return@post
                             try {
                                 val focused =
                                     rvSeriesGrid.findViewHolderForAdapterPosition(position)

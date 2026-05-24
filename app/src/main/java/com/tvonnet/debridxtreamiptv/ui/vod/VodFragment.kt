@@ -570,9 +570,11 @@ class VodFragment : Fragment() {
                     val position = resolveCategoryPosition(adapterCount = count) ?: return@requestFocus
 
                     rvCategoriesSidebar.post {
+                        if (!isAdded) return@post
                         rvCategoriesSidebar.scrollToPosition(position)
                         adapter?.setSelected(position)
                         rvCategoriesSidebar.post {
+                            if (!isAdded) return@post
                             try {
                                 val focused =
                                     rvCategoriesSidebar.findViewHolderForAdapterPosition(position)
@@ -593,8 +595,10 @@ class VodFragment : Fragment() {
                     val position = resolveMovieAdapterPosition()?.coerceIn(0, count - 1) ?: return@requestFocus
 
                     rvMoviesGrid.post {
+                        if (!isAdded) return@post
                         rvMoviesGrid.scrollToPosition(position)
                         rvMoviesGrid.post {
+                            if (!isAdded) return@post
                             try {
                                 val focused =
                                     rvMoviesGrid.findViewHolderForAdapterPosition(position)
