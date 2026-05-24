@@ -31,6 +31,7 @@ Scope: Debrid source selection, resolution, playback, and provider setup.
 - Direct addon and direct Debrid edge cases stay in task-specific docs.
 
 ## Recent Fixes
+- Debrid Continue Watching resume now blocks stale/null-expiry saved direct URLs from being treated as safe playback and refreshes from durable hash/magnet or source-profile metadata instead.
 - Resolved Debrid playback "Real Debrid config missing" regression caused by Player/Episode Browser changes.
 - Companion security hardening for LAN access, PIN validation, and safer URL handling.
 - Debrid source profile metadata is preserved into Player intents and Continue Watching where supported.
@@ -49,5 +50,7 @@ Scope: Debrid source selection, resolution, playback, and provider setup.
 - Manual QA: Debrid movie source picker, Debrid series source picker, direct addon URL, resolver-backed magnet/infoHash, resume, failure handling.
 
 ## Last Verified State
+- 2026-05-24: `:app:compileDebugKotlin` and `:app:assembleDebug` passed after the Continue Watching resume branch fix. Debug APK installed and `MainActivity` launched on `192.168.0.21:5555` and `192.168.0.84:5555`; app PIDs confirmed. Manual Debrid movie/series resume, expired/null `expiresAt`, direct addon, resolver-backed hash/magnet, and source picker regression QA still required.
+- 2026-05-24 follow-up: expired/null `expiresAt` Debrid movie Continue Watching resume passed on `192.168.0.21:5555`. Existing null-expiry Debrid history item fresh-resolved through `PlaybackResolver` and started playback without stale URL replay or false Real-Debrid config missing.
 - Recent build and device verification passed for the companion/security hardening pass.
 - Module remains partial because full Stremio/provider parity and some cache verification need manual QA.

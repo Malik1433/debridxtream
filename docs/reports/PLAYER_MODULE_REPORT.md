@@ -29,6 +29,7 @@ Scope: shared `PlayerActivity` / `PlayerViewModel` playback path.
 - Broad Player regressions still need real functional QA when shared behavior changes.
 
 ## Recent Fixes
+- Blocked stale Debrid Continue Watching history URL replay in `PlayerActivity`: Debrid resume entries with null/expired `expiresAt` now refresh through hash/magnet or source-profile metadata, while freshly fetched direct addon URLs remain allowed to play directly.
 - Added `isFinishing || isDestroyed` checks to player initialization and URL switching to prevent orphaned ExoPlayer instances (phantom audio) after delayed retries when the Activity has already exited.
 - Implemented latest-zap-wins logic using `zapRequestId` and `streamId` tokens to fix the Live TV fast-zapping race condition.
 - Reverted unintended `PlayerViewModel` changes to restore direct Debrid/addon HTTP stream passthrough and resolve the "Real Debrid config missing" regression.
@@ -54,5 +55,7 @@ Scope: shared `PlayerActivity` / `PlayerViewModel` playback path.
 - Manual regression: Live TV zapping, IPTV VOD, IPTV Series, Debrid movie, Debrid series, Episode Browser, D-pad/back.
 
 ## Last Verified State
+- 2026-05-24: `:app:compileDebugKotlin` and `:app:assembleDebug` passed. Debug APK installed and `MainActivity` launched on `192.168.0.21:5555` and `192.168.0.84:5555`; app PIDs confirmed. Manual shared Player regression remains required for Debrid Continue Watching movie/series resume, direct addon resume, resolver-backed resume, normal Debrid source picker playback, IPTV Continue Watching, and Live TV zapping.
+- 2026-05-24 follow-up: expired/null `expiresAt` Debrid movie Continue Watching resume passed on `192.168.0.21:5555`. PlayerActivity logged the Debrid resume refresh branch, `PlaybackResolver` reported success, and playback opened in `player_view` with no stuck resolving state observed.
 - 2026-05-23: compile, assemble, install/launch/PID/crash scan passed on `192.168.0.21:5555` and `192.168.0.84:5555` after playlist fallback guard.
 - 2026-05-23: manual QA passed for IPTV Series and Debrid Series episode browser plus Next Episode behavior.

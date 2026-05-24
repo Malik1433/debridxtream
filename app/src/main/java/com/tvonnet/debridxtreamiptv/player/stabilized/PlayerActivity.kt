@@ -428,6 +428,7 @@ class PlayerActivity : AppCompatActivity() {
 
         val streamUrl = intent.getStringExtra(EXTRA_STREAM_URL)
         val streamTitle = intent.getStringExtra(EXTRA_STREAM_TITLE)
+        startPositionMs = intent.getLongExtra(EXTRA_START_POSITION, 0L)
         originalTitle = streamTitle
         streamHeaders = readStreamHeaders(intent)
         subtitleEntries = intent.getStringArrayListExtra(EXTRA_SUBTITLE_ENTRIES) ?: emptyList()
@@ -435,15 +436,18 @@ class PlayerActivity : AppCompatActivity() {
         val isDebrid = playbackSource == PlaybackSource.DEBRID
         val canResolveDebrid = canUseDebridResolver()
         val hasResInfo = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
+        val isDebridHistoryResume = isDebrid && startPositionMs > 0L
+        val isDebridUrlMissing = streamUrl.isNullOrBlank()
         val canFreshResolveDirectDebrid = isDebrid && directDebridPlayback && (
             tmdbIdExtra?.isNotBlank() == true ||
                 imdbIdExtra?.isNotBlank() == true ||
                 contentId?.isNotBlank() == true ||
                 originalTitle?.isNotBlank() == true
             )
-        val isExpired = expiresAtExtra?.let { System.currentTimeMillis() > it } ?: (isDebrid && streamUrl.isNullOrBlank())
+        val isExpired = expiresAtExtra?.let { System.currentTimeMillis() > it }
+            ?: (isDebrid && (isDebridUrlMissing || isDebridHistoryResume))
 
-        if (streamUrl.isNullOrBlank() && !(canResolveDebrid && hasResInfo) && !canFreshResolveDirectDebrid) {
+        if (isDebridUrlMissing && !(canResolveDebrid && hasResInfo) && !canFreshResolveDirectDebrid) {
             showError("Invalid stream URL")
             finish()
             return
@@ -452,7 +456,6 @@ class PlayerActivity : AppCompatActivity() {
         timeoutMs = resolveTimeoutMs(streamUrl ?: "")
         currentUrl = streamUrl
         channelLogoUrl = intent.getStringExtra(EXTRA_CHANNEL_LOGO)
-        startPositionMs = intent.getLongExtra(EXTRA_START_POSITION, 0L)
         val channelName = intent.getStringExtra(EXTRA_CHANNEL_NAME) ?: streamTitle
         pendingChannelName = channelName
 
@@ -565,11 +568,7 @@ class PlayerActivity : AppCompatActivity() {
             setupEpisodeBrowser()
         }
 
-        if (canResolveDebrid && hasResInfo && (streamUrl.isNullOrBlank() || isExpired)) {
-            Log.i("PlayerActivity", "Debrid resume detected: URL is ${if (streamUrl.isNullOrBlank()) "missing" else "expired"}. Triggering resolution.")
-            isResolvingDebrid = true
-            viewModel.reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
-        } else if (canFreshResolveDirectDebrid && isExpired) {
+        if (canFreshResolveDirectDebrid && isExpired) {
             Log.i("PlayerActivity", "Direct Debrid resume detected: refreshing source from metadata before playback.")
             isResolvingDebrid = true
             if (contentType == ContentType.EPISODE && seasonNumberExtra != null && episodeNumberExtra != null) {
@@ -580,7 +579,7 @@ class PlayerActivity : AppCompatActivity() {
                     seriesTitle = seriesTitleExtra ?: originalTitle,
                     infoHash = debridInfoHashExtra ?: debridStreamIdExtra,
                     sourceProfile = currentDebridSourceProfile(),
-                    allowDirectHttpPassthrough = false
+                    allowDirectHttpPassthrough = true
                 )
             } else {
                 viewModel.refreshDebridMovieSource(
@@ -588,9 +587,13 @@ class PlayerActivity : AppCompatActivity() {
                     title = originalTitle,
                     imdbId = imdbIdExtra,
                     sourceProfile = currentDebridSourceProfile(),
-                    allowDirectHttpPassthrough = false
+                    allowDirectHttpPassthrough = true
                 )
             }
+        } else if (canResolveDebrid && hasResInfo && (isDebridUrlMissing || isExpired)) {
+            Log.i("PlayerActivity", "Debrid resume detected: URL is ${if (isDebridUrlMissing) "missing" else "expired"}. Triggering resolution.")
+            isResolvingDebrid = true
+            viewModel.reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
         } else if (isDebrid && directDebridPlayback && isExpired) {
             Log.w("PlayerActivity", "Direct Debrid resume is expired and cannot be refreshed; blocking stale passthrough playback.")
             handleTerminalPlaybackFailure("Expired direct source could not be refreshed")

@@ -2,6 +2,14 @@
 
 Track only the last 10 important changes. Newest first. Keep this file compact for regression debugging.
 
+Date: 2026-05-24
+Module: Debrid / Player / Continue Watching
+Issue fixed: Debrid Continue Watching resume no longer replays saved null-expiry history URLs as safe direct playback. Player resume now treats Debrid history with missing `expiresAt` as refresh-required, fresh-resolves hash/magnet entries, and allows freshly fetched direct addon results to pass through.
+Files changed: `PlayerActivity.kt`
+Regression risk: Debrid Continue Watching movie/series resume, direct addon resume, resolver-backed hash/magnet resume, normal Debrid source picker playback.
+QA result: `:app:compileDebugKotlin` and `:app:assembleDebug` passed. Debug APK installed and `MainActivity` launched on `192.168.0.21:5555` and `192.168.0.84:5555`; app PIDs confirmed. Content-specific manual Debrid/Continue Watching regression remains required.
+Follow-up QA: 2026-05-24 expired/null `expiresAt` Debrid movie Continue Watching resume passed on `192.168.0.21:5555`. Home routed the expired item to Player, PlayerActivity triggered Debrid refresh instead of direct stale URL initialization, `PlaybackResolver` reported success, and playback started without a false Real-Debrid config error.
+
 Date: 2026-05-23
 Module: Player
 Issue fixed: Phantom audio playing in the background after returning from the player due to `Handler` postDelayed recreating `ExoPlayer` instances after the activity finished.
@@ -71,10 +79,3 @@ Issue fixed: Home focus/sidebar/teardown stability consolidated into manager-bas
 Files changed: `HomeFragment.kt`, `HomeFocusManager.kt`, `HomeKeyRoutingManager.kt`, `HomeNavigationRouter.kt`, `HomeSidebarManager.kt`
 Regression risk: Home row focus, sidebar return, Continue Watching actions.
 QA result: build and real-device Home verification completed in Home reports.
-
-Date: 2026-05-21
-Module: Continue Watching / Player return
-Issue fixed: Terminal playback failure redirects separated from transient Debrid source retry path.
-Files changed: Player failure/result contract, Movie/Series detail return handling.
-Regression risk: Debrid failure loops, source picker auto-next, detail browse mode.
-QA result: documented in app patterns; rerun Debrid failure regression when touched.
