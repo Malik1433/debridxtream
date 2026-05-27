@@ -1,14 +1,21 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
+import android.content.Context
 import android.util.Log
+import com.tvonnet.debridxtreamiptv.data.cache.CacheManager
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.PlaybackResolver
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider
+import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
 import com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo
+import com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridPlaybackRepository
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
+import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
+import com.tvonnet.debridxtreamiptv.features.seriesv2.data.repository.XtreamSeriesRepositoryV2
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -23,11 +30,11 @@ import kotlin.reflect.full.declaredFunctions
 import kotlin.reflect.full.callSuspend
 import kotlin.reflect.jvm.isAccessible
 
-class PlayerViewModelDebridDirectPassthroughTest {
+open class PlayerViewModelDebridDirectPassthroughTest {
 
     private lateinit var unifiedSourceProvider: UnifiedSourceProvider
     private lateinit var playbackResolver: PlaybackResolver
-    private lateinit var debridResolutionManager: DebridResolutionManager
+    private lateinit var viewModel: PlayerViewModel
 
     @Before
     fun setup() {
@@ -41,9 +48,15 @@ class PlayerViewModelDebridDirectPassthroughTest {
         unifiedSourceProvider = mockk(relaxed = true)
         playbackResolver = mockk(relaxed = true)
 
-        debridResolutionManager = DebridResolutionManager(
+        viewModel = PlayerViewModel(
+            repository = mockk<XtreamRepository>(relaxed = true),
+            seriesRepository = mockk<XtreamSeriesRepositoryV2>(relaxed = true),
+            cacheManager = mockk<CacheManager>(relaxed = true),
+            debridPlaybackRepository = mockk<DebridPlaybackRepository>(relaxed = true),
             unifiedSourceProvider = unifiedSourceProvider,
-            playbackResolver = playbackResolver
+            playbackResolver = playbackResolver,
+            tmdbRemote = mockk<TmdbRemoteDataSource>(relaxed = true),
+            context = mockk<Context>(relaxed = true)
         )
     }
 
@@ -85,7 +98,7 @@ class PlayerViewModelDebridDirectPassthroughTest {
             allowDirectHttpPassthrough = false
         )
 
-        val state = debridResolutionManager.debridResolutionState.value
+        val state = viewModel.debridResolutionState.value
         assertTrue(state is DebridResolutionState.Success)
         assertEquals(freshUrl, (state as DebridResolutionState.Success).url)
     }
@@ -122,7 +135,54 @@ class PlayerViewModelDebridDirectPassthroughTest {
             allowDirectHttpPassthrough = false
         )
 
-        val state = debridResolutionManager.debridResolutionState.value
+        val state = viewModel.debridResolutionState.value
+        assertTrue(state is DebridResolutionState.Success)
+        assertEquals(freshUrl, (state as DebridResolutionState.Success).url)
+    }
+
+    @Test
+    fun `old aiostreams direct playback URL is not passed through when passthrough is disabled`() = runTest {
+        val oldDirectUrl = "https://aiostreams.elfhosted.com/playback/old/stale-token.mkv"
+        val freshUrl = "https://fresh.example/resolved.mkv"
+        val source = movieSource(oldDirectUrl, "stale-direct-hash")
+
+        coEvery {
+            playbackResolver.resolve(
+                source = "debrid",
+                streamUrl = null,
+                isExpired = true,
+                infoHash = "stale-direct-hash",
+                magnet = oldDirectUrl,
+                seasonNumber = null,
+                episodeNumber = null,
+                episodeTitle = "Old History Movie",
+                allowDirectHttpPassthrough = false
+            )
+        } returns ResolutionResult.Success(freshUrl)
+
+        invokeResolveDebridMovieSource(
+            targetSource = source,
+            season = null,
+            episode = null,
+            title = "Old History Movie",
+            directPreferred = true,
+            allowDirectHttpPassthrough = false
+        )
+
+        coVerify(exactly = 1) {
+            playbackResolver.resolve(
+                source = "debrid",
+                streamUrl = null,
+                isExpired = true,
+                infoHash = "stale-direct-hash",
+                magnet = oldDirectUrl,
+                seasonNumber = null,
+                episodeNumber = null,
+                episodeTitle = "Old History Movie",
+                allowDirectHttpPassthrough = false
+            )
+        }
+        val state = viewModel.debridResolutionState.value
         assertTrue(state is DebridResolutionState.Success)
         assertEquals(freshUrl, (state as DebridResolutionState.Success).url)
     }
@@ -171,10 +231,10 @@ class PlayerViewModelDebridDirectPassthroughTest {
         directPreferred: Boolean,
         allowDirectHttpPassthrough: Boolean
     ) {
-        val method = DebridResolutionManager::class.declaredFunctions.first { it.name == "resolveDebridMovieSource" }
+        val method = PlayerViewModel::class.declaredFunctions.first { it.name == "resolveDebridMovieSource" }
         method.isAccessible = true
         method.callSuspend(
-            debridResolutionManager,
+            viewModel,
             targetSource,
             season,
             episode,
@@ -184,3 +244,5 @@ class PlayerViewModelDebridDirectPassthroughTest {
         )
     }
 }
+
+class DebridResolutionManagerDirectPassthroughTest : PlayerViewModelDebridDirectPassthroughTest()

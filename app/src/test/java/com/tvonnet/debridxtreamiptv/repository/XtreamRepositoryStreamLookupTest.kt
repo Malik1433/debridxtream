@@ -16,6 +16,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
 import io.mockk.*
+import java.io.File
 
 /**
  * Unit Tests for XtreamRepository Stream Lookup Methods
@@ -393,6 +394,27 @@ class XtreamRepositoryStreamLookupTest {
         // Then: Extension is preserved
         assertEquals("http://example.com:8080/live/username/password/12345.m3u8", result)
     }
+
+    @Test
+    fun `buildLiveStreamUrl uses initialized credentials and preserves trailing slash behavior`() {
+        repository.initialize("http://provider.test:8080", "freezeUser", "freezePass")
+        val stream = createLiveStream(streamId = "live123", containerExtension = "m3u8")
+
+        val result = repository.buildLiveStreamUrl(stream, "http://provider.test:8080/")
+
+        assertEquals("http://provider.test:8080/live/freezeUser/freezePass/live123.m3u8", result)
+    }
+
+    @Test
+    fun `ensureInitialized currently keeps first initialized provider when service already exists`() {
+        repository.initialize("http://provider-a.test:8080", "firstUser", "firstPass")
+
+        repository.ensureInitialized("http://provider-b.test:8080", "secondUser", "secondPass")
+
+        assertEquals("http://provider-a.test:8080/", repository.getServerUrl())
+        assertEquals("firstUser", repository.getUsername())
+        assertEquals("firstPass", repository.getPassword())
+    }
     
     // ========== buildVodStreamUrl() Tests ==========
     
@@ -420,6 +442,28 @@ class XtreamRepositoryStreamLookupTest {
         
         // Then: Default .mp4 extension used
         assert(result.endsWith(".mp4"))
+    }
+
+    @Test
+    fun `buildSeriesEpisodeStreamUrl formats URL and trims trailing slash`() {
+        val result = repository.buildSeriesEpisodeStreamUrl(
+            episodeId = "episode123",
+            containerExtension = "mkv",
+            baseServerUrl = "http://example.com:8080/"
+        )
+
+        assertEquals("http://example.com:8080/series/username/password/episode123.mkv", result)
+    }
+
+    @Test
+    fun `buildSeriesEpisodeStreamUrl uses default mp4 extension when blank`() {
+        val result = repository.buildSeriesEpisodeStreamUrl(
+            episodeId = "episode123",
+            containerExtension = "",
+            baseServerUrl = "http://example.com:8080"
+        )
+
+        assertEquals("http://example.com:8080/series/username/password/episode123.mp4", result)
     }
     
     // ========== Integration Tests ==========
@@ -481,6 +525,27 @@ class XtreamRepositoryStreamLookupTest {
         assertNotNull(result)
         assertEquals("Channel 500", result?.name)
         assert((endTime - startTime) < 100) { "Lookup took ${endTime - startTime}ms" }
+    }
+
+    @Test
+    fun `readCache currently clears corrupt cache file and returns null`() {
+        val validCache = IptvCache(
+            timestamp = System.currentTimeMillis(),
+            live = LiveCacheData(emptyList(), listOf(createLiveStream(streamId = "live1"))),
+            vod = null,
+            series = null,
+            epg = null
+        )
+        cacheHelper.writeCache(validCache)
+        cacheHelper.clearMemorySnapshot()
+
+        val cacheFile = File(context.filesDir, "iptv_cache.json")
+        cacheFile.writeText("{\"timestamp\":")
+
+        val result = cacheHelper.readCache()
+
+        assertNull(result)
+        assert(!cacheFile.exists())
     }
 
     private fun createLiveStream(

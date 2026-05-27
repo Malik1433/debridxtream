@@ -1,4 +1,17 @@
 # Player Success History
+
+This document tracks all successful changes and structural improvements applied to the Player module.
+
+## Successful Pattern — Prime-Style VOD Controller Redesign
+- **Achievement**: Re-engineered the VOD Player Controller to match the Amazon Prime Video layout and aesthetics.
+- **Key Implementation**:
+    - **Linear Gradients UI**: Replaced capsule design with full-bleed top and bottom dark gradient overlays.
+    - **Teal Focus Progress**: Configured progress time bar to paint itself in vivid cyan/teal `#31E6FF` during active focus/remote D-pad scrubbing.
+    - **Glass Toggle Layout**: Implemented parent focusable LinearLayout containing a label and SwitchCompat, securing easy TV remote interaction.
+    - **Slider System Volume Sync**: Wired up in-app SeekBar directly to Android's native `AudioManager` (`STREAM_MUSIC`), allowing real-time remote LEFT/RIGHT adjustments.
+    - **Slide-in X-Ray Panel**: Added left-aligned 380dp dark translucent details card including scrollable synopsis and Glide horizontal circular cast lists.
+    - **Grid focus loop & browser sync**: Mapped seekbar `nextFocusUp` and top actions `nextFocusDown` to prevent remote control trapping, and wired bottom DPAD DOWN to trigger horizontal Episode browser.
+
 Status: compacted
 Scope: confirmed player wins.
 
@@ -31,3 +44,12 @@ Next:
 ### Episode Browser State Integrity
 - **Date**: 2026-05-23
 - **Change**: Added seriesId, seasonNum, and sourceType into SeriesPlaylistState in PlayerViewModel.kt to verify episode browser identity. PlayerBrowserManager now compares the loaded list identity with the intent's identity, clearing the Singleton playlist state when navigating between different series to avoid displaying stale episodes.
+
+### Clean Build & Memory Refresh Deployment
+- **Date**: 2026-05-27
+- **Change**: Successfully resolved visual caching on the TV by running a completely clean, cacheless build (`.\gradlew.bat clean :app:assembleDebug --no-daemon`) and applying a force-kill policy (`adb shell am force-stop com.debridxtream.tv`) to clear memory-cached resource layouts before deploying and relaunching. The fully redesigned premium Prime-style controls are now 100% active on the target device.
+
+### Bottom-Only 7-Capsule-Button Controller Layout
+- **Date**: 2026-05-27
+- **Change**: Redesigned VOD Player Controller layout to match the exact blueprint and reference image. Removed visible volume controls, X-Ray switches, and titles, leaving a clean transparent top portion. Added a bottom overlay containing the Progress Row (exo_position, WavySeekBar, exo_duration) on top and exactly 7 capsule buttons (Rewind 10s, Play/Pause, Forward 10s, Next Episode, Subtitles/CC, Language, Fullscreen) in a single horizontal row. Handled dynamic visibility for Next Episode and kept all unused bound controls hidden (`android:visibility="gone"`) to maintain Kotlin Activity compatibility. Created `ic_player_language.xml` globe vector icon.
+

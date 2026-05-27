@@ -8,282 +8,274 @@
     android:clipChildren="false"
     android:clipToPadding="false">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/layout_top_bar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/bg_player_top_gradient"
-        android:paddingStart="56dp"
-        android:paddingTop="32dp"
-        android:paddingEnd="56dp"
-        android:paddingBottom="24dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <TextView
-            android:id="@+id/tv_player_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-medium"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:textColor="#FFFFFF"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/layout_top_actions"
-            android:layout_marginEnd="24dp"
-            tools:text="Interstellar" />
-
-        <TextView
-            android:id="@+id/tv_player_subtitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="#D4AF37"
-            android:textSize="13sp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_player_title"
-            tools:text="Movie • Debrid" />
-
-        <LinearLayout
-            android:id="@+id/layout_top_actions"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent">
-
-            <ImageButton
-                android:id="@+id/btn_aspect_ratio"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginStart="10dp"
-                android:background="@drawable/cin_player_btn_glass_circle"
-                android:padding="8dp"
-                android:scaleType="fitCenter"
-                android:src="@drawable/ic_aspect_ratio"
-                android:focusable="true"
-                android:alpha="0.92"
-                android:nextFocusRight="@id/btn_player_audio"
-                app:tint="@color/white" />
-
-            <ImageButton
-                android:id="@+id/btn_player_audio"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginStart="10dp"
-                android:background="@drawable/cin_player_btn_glass_circle"
-                android:padding="8dp"
-                android:scaleType="fitCenter"
-                android:src="@drawable/ic_player_quality"
-                android:focusable="true"
-                android:alpha="0.92"
-                android:nextFocusLeft="@id/btn_aspect_ratio"
-                android:contentDescription="@string/player_settings_audio"
-                app:tint="@color/white" />
-
-            <Button
-                android:id="@+id/btn_player_language"
-                android:layout_width="wrap_content"
-                android:layout_height="34dp"
-                android:layout_marginStart="10dp"
-                android:background="@drawable/cin_player_btn_glass_circle"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
-                android:fontFamily="sans-serif-medium"
-                android:includeFontPadding="false"
-                android:minWidth="0dp"
-                android:text="@string/player_settings_language"
-                android:textAllCaps="false"
-                android:textColor="@color/white"
-                android:textSize="11sp"
-                android:focusable="true"
-                android:alpha="0.92"
-                android:nextFocusLeft="@id/btn_player_audio"
-                android:nextFocusRight="@id/btn_player_subtitles" />
-
-            <ImageButton
-                android:id="@+id/btn_player_subtitles"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginStart="10dp"
-                android:background="@drawable/cin_player_btn_glass_circle"
-                android:padding="8dp"
-                android:scaleType="fitCenter"
-                android:src="@drawable/ic_player_subtitles"
-                android:focusable="true"
-                android:alpha="0.92"
-                android:nextFocusLeft="@id/btn_player_language"
-                android:contentDescription="@string/player_settings_subtitles"
-                app:tint="@color/white" />
-        </LinearLayout>
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
+    <!-- Unified Premium Bottom-Only VOD Control Bar -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_bottom_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_player_bottom_gradient"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:paddingStart="56dp"
-        android:paddingTop="22dp"
+        android:paddingTop="36dp"
         android:paddingEnd="56dp"
-        android:paddingBottom="34dp"
+        android:paddingBottom="48dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+        <!-- ================================================================= -->
+        <!-- Progress Row (SeekBar & Timestamps)                               -->
+        <!-- ================================================================= -->
+
+        <!-- Elapsed play position -->
         <TextView
             android:id="@+id/exo_position"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#D7D7D7"
-            android:textSize="12sp"
+            android:textSize="13sp"
+            android:fontFamily="sans-serif-medium"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintBottom_toBottomOf="@id/exo_progress"
             app:layout_constraintTop_toTopOf="@id/exo_progress"
-            tools:text="01:24:30" />
+            tools:text="24:17" />
 
+        <!-- Media3 WavySeekBar Progress Bar -->
         <com.tvonnet.debridxtreamiptv.ui.custom.WavySeekBar
             android:id="@+id/exo_progress"
             android:layout_width="0dp"
-            android:layout_height="18dp"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="12dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
             android:focusable="true"
+            android:nextFocusUp="@id/exo_progress"
             android:nextFocusDown="@id/exo_play"
             app:layout_constraintStart_toEndOf="@id/exo_position"
             app:layout_constraintEnd_toStartOf="@id/exo_duration"
             app:layout_constraintTop_toTopOf="parent" />
 
-            <TextView
+        <!-- Total video duration -->
+        <TextView
             android:id="@+id/exo_duration"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#D7D7D7"
-            android:textSize="12sp"
+            android:textSize="13sp"
+            android:fontFamily="sans-serif-medium"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintBottom_toBottomOf="@id/exo_progress"
             app:layout_constraintTop_toTopOf="@id/exo_progress"
-            tools:text="02:49:00" />
+            tools:text="1:32:08" />
 
+        <!-- ================================================================= -->
+        <!-- Control Row (Centred Row of Capsule Buttons)                      -->
+        <!-- ================================================================= -->
         <LinearLayout
-            android:id="@+id/layout_center_controls"
+            android:id="@+id/layout_control_row"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:gravity="center_vertical"
+            android:layout_marginTop="24dp"
             android:orientation="horizontal"
+            android:gravity="center"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            app:layout_constraintTop_toBottomOf="@id/exo_progress"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/exo_progress">
+            app:layout_constraintEnd_toEndOf="parent">
 
+            <!-- Button 1: Rewind 10s -->
             <ImageButton
                 android:id="@+id/exo_rew"
-                android:layout_width="34dp"
-                android:layout_height="34dp"
-                android:background="@drawable/cin_player_btn_glass_circle"
-                android:padding="7dp"
+                android:layout_width="80dp"
+                android:layout_height="56dp"
+                android:background="@drawable/bg_player_ref_button"
+                android:padding="16dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_rewind"
                 android:focusable="true"
-                android:alpha="0.92"
-                android:nextFocusLeft="@id/exo_rew"
-                android:nextFocusRight="@id/exo_play"
                 android:nextFocusUp="@id/exo_progress"
-                app:tint="@color/white" />
+                android:nextFocusDown="@id/layout_control_row"
+                app:tint="@color/white"
+                tools:ignore="ContentDescription" />
 
+            <!-- Button 2: Play/Pause Container -->
             <FrameLayout
                 android:id="@+id/layout_play_pause"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:layout_width="80dp"
+                android:layout_height="56dp"
                 android:layout_marginStart="16dp"
-                android:layout_marginEnd="16dp"
-                android:background="@drawable/bg_player_button_neomorphic"
-                android:foreground="?selectableItemBackgroundBorderless">
+                android:focusable="false">
 
                 <ImageButton
                     android:id="@+id/exo_play"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:background="@android:color/transparent"
-                    android:padding="10dp"
+                    android:background="@drawable/bg_player_ref_button"
+                    android:padding="16dp"
                     android:scaleType="fitCenter"
                     android:src="@drawable/ic_play_arrow_24"
                     android:focusable="true"
-                    android:alpha="0.92"
-                    android:nextFocusLeft="@id/exo_rew"
-                    android:nextFocusRight="@id/exo_ffwd"
                     android:nextFocusUp="@id/exo_progress"
-                    app:tint="@color/white" />
+                    android:nextFocusDown="@id/layout_control_row"
+                    app:tint="@color/white"
+                    tools:ignore="ContentDescription" />
 
                 <ImageButton
                     android:id="@+id/exo_pause"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:background="@android:color/transparent"
-                    android:padding="10dp"
+                    android:background="@drawable/bg_player_ref_button"
+                    android:padding="16dp"
                     android:scaleType="fitCenter"
                     android:src="@drawable/ic_pause"
                     android:focusable="true"
                     android:visibility="gone"
-                    android:alpha="0.92"
-                    android:nextFocusLeft="@id/exo_rew"
-                    android:nextFocusRight="@id/exo_ffwd"
                     android:nextFocusUp="@id/exo_progress"
-                    app:tint="@color/white" />
+                    android:nextFocusDown="@id/layout_control_row"
+                    app:tint="@color/white"
+                    tools:ignore="ContentDescription" />
             </FrameLayout>
 
+            <!-- Button 3: Forward 10s -->
             <ImageButton
                 android:id="@+id/exo_ffwd"
-                android:layout_width="34dp"
-                android:layout_height="34dp"
-                android:background="@drawable/cin_player_btn_glass_circle"
-                android:padding="7dp"
+                android:layout_width="80dp"
+                android:layout_height="56dp"
+                android:layout_marginStart="16dp"
+                android:background="@drawable/bg_player_ref_button"
+                android:padding="16dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_forward"
                 android:focusable="true"
-                android:alpha="0.92"
-                android:nextFocusLeft="@id/exo_play"
-                android:nextFocusRight="@id/btn_next_episode"
                 android:nextFocusUp="@id/exo_progress"
-                app:tint="@color/white" />
+                android:nextFocusDown="@id/layout_control_row"
+                app:tint="@color/white"
+                tools:ignore="ContentDescription" />
+
+            <!-- Button 4: Next Episode -->
+            <ImageButton
+                android:id="@+id/btn_next_episode"
+                android:layout_width="80dp"
+                android:layout_height="56dp"
+                android:layout_marginStart="16dp"
+                android:background="@drawable/bg_player_ref_button"
+                android:padding="16dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_skip_next"
+                android:focusable="true"
+                android:nextFocusUp="@id/exo_progress"
+                android:nextFocusDown="@id/layout_control_row"
+                android:visibility="gone"
+                app:tint="@color/white"
+                tools:ignore="ContentDescription" />
+
+            <!-- Button 5: Subtitles / CC -->
+            <ImageButton
+                android:id="@+id/btn_player_subtitles"
+                android:layout_width="80dp"
+                android:layout_height="56dp"
+                android:layout_marginStart="16dp"
+                android:background="@drawable/bg_player_ref_button"
+                android:padding="16dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_player_subtitles"
+                android:focusable="true"
+                android:nextFocusUp="@id/exo_progress"
+                android:nextFocusDown="@id/layout_control_row"
+                app:tint="@color/white"
+                tools:ignore="ContentDescription" />
+
+            <!-- Button 6: Language -->
+            <ImageButton
+                android:id="@+id/btn_player_language"
+                android:layout_width="80dp"
+                android:layout_height="56dp"
+                android:layout_marginStart="16dp"
+                android:background="@drawable/bg_player_ref_button"
+                android:padding="16dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_player_language"
+                android:focusable="true"
+                android:nextFocusUp="@id/exo_progress"
+                android:nextFocusDown="@id/layout_control_row"
+                app:tint="@color/white"
+                tools:ignore="ContentDescription" />
+
+            <!-- Button 7: Fullscreen -->
+            <ImageButton
+                android:id="@+id/btn_aspect_ratio"
+                android:layout_width="80dp"
+                android:layout_height="56dp"
+                android:layout_marginStart="16dp"
+                android:background="@drawable/bg_player_ref_button"
+                android:padding="16dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_aspect_ratio"
+                android:focusable="true"
+                android:nextFocusUp="@id/exo_progress"
+                android:nextFocusDown="@id/layout_control_row"
+                app:tint="@color/white"
+                tools:ignore="ContentDescription" />
+
         </LinearLayout>
 
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Hidden container to keep views bound by Kotlin code but not present in reference design -->
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Title of VOD content -->
+        <TextView
+            android:id="@+id/tv_player_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <!-- Subtitle & VOD Info -->
+        <TextView
+            android:id="@+id/tv_player_subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <!-- X-Ray Panel Toggle Switch -->
         <LinearLayout
-            android:id="@+id/layout_right_controls"
+            android:id="@+id/layout_xray_toggle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/exo_progress">
-
-            <Button
-                android:id="@+id/btn_next_episode"
+            android:orientation="horizontal">
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/switch_xray"
                 android:layout_width="wrap_content"
-                android:layout_height="34dp"
-                android:background="@drawable/cin_player_glass_panel"
-                android:contentDescription="@string/player_control_next_episode"
-                android:focusable="true"
-                android:fontFamily="sans-serif-medium"
-                android:includeFontPadding="false"
-                android:minWidth="96dp"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:text="Next Episode"
-                android:textAllCaps="false"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp"
-                android:visibility="gone"
-                android:nextFocusLeft="@id/exo_ffwd"
-                android:nextFocusUp="@id/exo_progress" />
+                android:layout_height="wrap_content" />
         </LinearLayout>
-    </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- Audio Selection Button -->
+        <ImageButton
+            android:id="@+id/btn_player_audio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <!-- Volume controls -->
+        <LinearLayout
+            android:id="@+id/layout_volume_control"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <ImageButton
+                android:id="@+id/btn_player_volume"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+            <SeekBar
+                android:id="@+id/volume_progress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+    </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

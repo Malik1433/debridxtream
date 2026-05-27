@@ -677,6 +677,21 @@ class UnifiedSourceProvider @Inject constructor(
         Log.d(TAG, "🔄 Converting ${addonStreams.size} enhanced addon streams to MovieSource objects")
 
         return addonStreams.mapIndexedNotNull { index, addonStream ->
+            // Filter out Addon error streams (e.g. MediaFusion/Torrentio API limits)
+            val streamTitleLower = (addonStream.title ?: "").lowercase()
+            val streamNameLower = (addonStream.extras["sourceName"] as? String ?: "").lowercase()
+            val streamDescLower = (addonStream.extras["description"] as? String ?: "").lowercase()
+            val combinedText = "$streamTitleLower $streamNameLower $streamDescLower"
+            
+            if (combinedText.contains("api exception") || 
+                combinedText.contains("rate limit") || 
+                combinedText.contains("invalid token") || 
+                combinedText.contains("error occurred") ||
+                combinedText.contains("debrid error")) {
+                Log.w(TAG, "⚠️ [SKIP] Filtering out Addon error stream: ${addonStream.title}")
+                return@mapIndexedNotNull null
+            }
+
             // Validate that we have a valid source (either url, infoHash or magnet)
             val validInfoHash = normalizeInfoHash(addonStream.infoHash)
             val validMagnet = addonStream.magnet?.takeIf { isValidMagnet(it) }

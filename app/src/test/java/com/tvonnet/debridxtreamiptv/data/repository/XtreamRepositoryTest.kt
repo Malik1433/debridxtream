@@ -31,6 +31,9 @@ class XtreamRepositoryTest {
     private lateinit var context: Context
     private lateinit var cacheHelper: CacheHelper
     private lateinit var repository: XtreamRepository
+    private lateinit var cacheManager: com.tvonnet.debridxtreamiptv.data.cache.CacheManager
+    private lateinit var epgDao: com.tvonnet.debridxtreamiptv.data.local.dao.EpgDao
+    private lateinit var memoryManager: MemoryManager
     
     // Test data
     private val testUsername = "testuser"
@@ -63,8 +66,9 @@ class XtreamRepositoryTest {
         every { anyConstructed<CacheHelper>().readCache() } returns null
         every { anyConstructed<CacheHelper>().writeCache(any()) } just Runs
         
-        val memoryManager = mockk<com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager>(relaxed = true)
-        val cacheManager = mockk<com.tvonnet.debridxtreamiptv.data.cache.CacheManager>(relaxed = true)
+        memoryManager = mockk(relaxed = true)
+        cacheManager = mockk(relaxed = true)
+        epgDao = mockk(relaxed = true)
         coEvery { cacheManager.getChannels(any(), any()) } returns null
         coEvery { cacheManager.getCategories(any()) } returns null
         
@@ -73,11 +77,11 @@ class XtreamRepositoryTest {
             cacheManager = cacheManager,
             favoriteDao = mockk(relaxed = true),
             searchHistoryDao = mockk(relaxed = true),
-            epgDao = mockk(relaxed = true),
+            epgDao = epgDao,
             vodDao = mockk(relaxed = true),
             seriesDao = mockk(relaxed = true),
             favoritesCache = mockk(relaxed = true),
-            memoryManager = mockk(relaxed = true)
+            memoryManager = memoryManager
         )
     }
     
@@ -206,6 +210,36 @@ class XtreamRepositoryTest {
             result.exceptionOrNull()?.message?.contains("API service not initialized and no cache available") == true
         )
     }
+
+    @Test
+    fun `fetchAllAndCache currently writes empty success cache when domain fetches fail`() = runTest {
+        val writtenCache = slot<IptvCache>()
+        every { anyConstructed<CacheHelper>().writeCache(capture(writtenCache)) } just Runs
+        every { anyConstructed<CacheHelper>().readCache() } returns createMockCache()
+
+        val apiService = mockk<XtreamApiService>()
+        coEvery { apiService.getLiveCategories(any(), any()) } returns Response.error(
+            500,
+            "live failure".toResponseBody()
+        )
+        coEvery { apiService.getVodCategories(any(), any()) } returns Response.error(
+            500,
+            "vod failure".toResponseBody()
+        )
+        coEvery { apiService.getSeriesCategories(any(), any()) } returns Response.error(
+            500,
+            "series failure".toResponseBody()
+        )
+        setApiService(apiService)
+
+        val result = repository.fetchAllAndCache()
+
+        assertTrue(result.isSuccess)
+        assertTrue(writtenCache.isCaptured)
+        assertEquals(0, writtenCache.captured.live?.streams?.size)
+        assertEquals(0, writtenCache.captured.vod?.streams?.size)
+        assertEquals(0, writtenCache.captured.series?.streams?.size)
+    }
     
     // Note: These tests require proper DI refactoring of XtreamRepository to work correctly
     // The repository creates its own apiService internally, making it difficult to mock
@@ -319,6 +353,12 @@ class XtreamRepositoryTest {
         // Then
         assertTrue(result.isSuccess)
         assertNotNull(result.getOrNull())
+    }
+
+    private fun setApiService(apiService: XtreamApiService) {
+        val apiServiceField = repository.javaClass.getDeclaredField("apiService")
+        apiServiceField.isAccessible = true
+        apiServiceField.set(repository, apiService)
     }
     
     // Helper function to create mock cache data

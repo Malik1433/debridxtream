@@ -22,8 +22,8 @@ class DebridPlaybackRepository @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val realDebridRateLimiter: RealDebridRateLimiter
 ) {
-    suspend fun isMediaFusionPlaybackReady(url: String): Result<Boolean> {
-        if (!isMediaFusionPlaybackUrl(url)) {
+    suspend fun isAddonProxyPlaybackReady(url: String): Result<Boolean> {
+        if (!isAddonProxyPlaybackUrl(url)) {
             return Success(true)
         }
 
@@ -39,14 +39,20 @@ class DebridPlaybackRepository @Inject constructor(
             client.newCall(request).execute().use { response ->
                 if (response.isRedirect) {
                     val location = response.header("Location")?.lowercase()
-                    if (location?.contains("torrent_not_downloaded.mp4") == true) {
+                    // Detect if the addon is redirecting to a known error video instead of the actual stream
+                    val isErrorVideo = location?.contains("torrent_not_downloaded.mp4") == true ||
+                                       location?.contains("api_exception") == true ||
+                                       location?.contains("rate_limit") == true ||
+                                       location?.contains("invalid_token") == true ||
+                                       location?.contains("error.mp4") == true
+                    if (isErrorVideo) {
                         return Success(false)
                     }
                 }
                 Success(true)
             }
         } catch (e: Exception) {
-            Error(Exception("MediaFusion playback check failed: ${e.message}", e))
+            Error(Exception("Addon proxy playback check failed: ${e.message}", e))
         }
     }
 
@@ -477,8 +483,9 @@ class DebridPlaybackRepository @Inject constructor(
             clean.endsWith(".m2ts")
     }
 
-    private fun isMediaFusionPlaybackUrl(url: String): Boolean {
+    private fun isAddonProxyPlaybackUrl(url: String): Boolean {
         val lowered = url.lowercase()
-        return lowered.contains("mediafusion.elfhosted.com/playback")
+        return lowered.contains("mediafusion.elfhosted.com/playback") ||
+               lowered.contains("aiostreams.elfhosted.com")
     }
 }

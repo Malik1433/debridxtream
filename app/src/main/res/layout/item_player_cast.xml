@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="72dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="14dp"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:focusable="true"
+    android:clickable="true">
+
+    <FrameLayout
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="@drawable/cin_cast_circle_bg"
+        android:padding="2dp">
+
+        <ImageView
+            android:id="@+id/iv_cast_avatar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            tools:src="@drawable/tv_card_placeholder" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/tv_cast_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:textColor="#FFFFFF"
+        android:textSize="10sp"
+        android:fontFamily="sans-serif-medium"
+        tools:text="Actor Name" />
+
+    <TextView
+        android:id="@+id/tv_cast_character"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:textColor="#80FFFFFF"
+        android:textSize="9sp"
+        android:fontFamily="sans-serif"
+        tools:text="Character" />
+</LinearLayout>

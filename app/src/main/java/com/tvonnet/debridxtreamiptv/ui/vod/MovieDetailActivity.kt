@@ -851,10 +851,10 @@ class MovieDetailActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        if (isMediaFusionPlaybackUrl(streamUrl)) {
+        if (isAddonProxyPlaybackUrl(streamUrl)) {
             lifecycleScope.launch {
                 val readyResult = withContext(Dispatchers.IO) {
-                    debridPlaybackRepository.isMediaFusionPlaybackReady(streamUrl)
+                    debridPlaybackRepository.isAddonProxyPlaybackReady(streamUrl)
                 }
                 val isReady = readyResult is com.tvonnet.debridxtreamiptv.data.Result.Success && readyResult.data
                 if (!isReady) {
@@ -945,7 +945,7 @@ class MovieDetailActivity : AppCompatActivity() {
     ) {
         val mediaFusionSources = sources.filter { source ->
             val url = source.stream.direct_source
-            !url.isNullOrBlank() && isMediaFusionPlaybackUrl(url)
+            !url.isNullOrBlank() && isAddonProxyPlaybackUrl(url)
         }
         if (mediaFusionSources.isEmpty()) return
 
@@ -957,7 +957,7 @@ class MovieDetailActivity : AppCompatActivity() {
                         async {
                             semaphore.withPermit {
                                 val url = source.stream.direct_source ?: return@withPermit null
-                                val result = debridPlaybackRepository.isMediaFusionPlaybackReady(url)
+                                val result = debridPlaybackRepository.isAddonProxyPlaybackReady(url)
                                 val isReady =
                                     result is com.tvonnet.debridxtreamiptv.data.Result.Success && result.data
                                 source.stream.stream_id to isReady
@@ -1007,8 +1007,9 @@ class MovieDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun isMediaFusionPlaybackUrl(url: String): Boolean {
-        return url.contains("mediafusion.elfhosted.com/playback", ignoreCase = true)
+    private fun isAddonProxyPlaybackUrl(url: String): Boolean {
+        return url.contains("mediafusion.elfhosted.com/playback", ignoreCase = true) ||
+               url.contains("aiostreams.elfhosted.com", ignoreCase = true)
     }
 
     private fun playDebridMovie(

@@ -26,6 +26,7 @@ Main map for report/history/context files. Use this to choose the smallest usefu
 | `docs/reports/COMPANION_SECURITY_MANUAL_QA.md` | Companion | Companion sync/payload QA status. | Companion or Firestore/device-code payload work. |
 | `docs/reports/GLOBAL_BUILD_REPORT.md` | Build/QA | Build verification status. | Build/install/verification issues. |
 | `docs/reports/DEEP_SWARM_STABILITY_AUDIT_PLAN.md` | Stability | Shared-spine stability phase plan. | Broad stability or "god mode files" requests. |
+| `docs/reports/XTREAM_REPOSITORY_DEEP_AUDIT_REPORT.md` | Data/Repository | Deep audit of XtreamRepository god-class risks, gaps, and IPTV architecture comparison. | XtreamRepository, cache, sync, provider session, EPG, or IPTV data-spine refactor work. |
 
 ## Histories / Secondary Reports
 

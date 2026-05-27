@@ -114,6 +114,20 @@ data class SeriesPlaylistState(
     val error: String? = null
 )
 
+data class XRayMetadataUiState(
+    val title: String,
+    val overview: String?,
+    val meta: String?,
+    val director: String?,
+    val cast: List<XRayCastMember>
+)
+
+data class XRayCastMember(
+    val name: String,
+    val character: String?,
+    val avatarUrl: String?
+)
+
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     private val repository: XtreamRepository,
@@ -141,6 +155,9 @@ class PlayerViewModel @Inject constructor(
 
     private val _debridResolutionState = MutableStateFlow<DebridResolutionState>(DebridResolutionState.Idle)
     val debridResolutionState: StateFlow<DebridResolutionState> = _debridResolutionState.asStateFlow()
+
+    private val _xrayMetadata = MutableStateFlow<XRayMetadataUiState?>(null)
+    val xrayMetadata: StateFlow<XRayMetadataUiState?> = _xrayMetadata.asStateFlow()
 
     fun loadSeriesPlaylist(
         seriesId: String,
@@ -763,6 +780,74 @@ class PlayerViewModel @Inject constructor(
 
     fun clearSeriesPlaylist() {
         _seriesPlaylistState.value = null
+    }
+
+    fun loadXRayMetadata(contentId: String?, tmdbId: String?, isMovie: Boolean, title: String?) {
+        val lookupId = tmdbId?.replace("tmdb:", "")?.replace("imdb:", "")
+            ?: contentId?.replace("tmdb:", "")?.replace("imdb:", "")
+            ?: return
+
+        viewModelScope.launch {
+            try {
+                if (isMovie) {
+                    val movieIdInt = lookupId.toIntOrNull()
+                    if (movieIdInt != null) {
+                        val result = tmdbRemote.getMovieDetails(movieIdInt)
+                        if (result is Result.Success) {
+                            val details = result.data
+                            val castList = details.credits?.cast?.take(8)?.map { cast ->
+                                XRayCastMember(
+                                    name = cast.name ?: "Unknown",
+                                    character = cast.character,
+                                    avatarUrl = com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbImageUrl.getProfileUrl(cast.profilePath)
+                                )
+                            } ?: emptyList()
+
+                            val directorName = details.credits?.cast?.firstOrNull { 
+                                it.character?.contains("director", ignoreCase = true) == true 
+                            }?.name
+
+                            val durationText = details.runtime?.let {
+                                val h = it / 60
+                                val m = it % 60
+                                if (h > 0) "${h}h ${m}m" else "${m}m"
+                            }
+                            val releaseYear = details.releaseDate?.take(4)
+                            val metaText = listOfNotNull(releaseYear, durationText).joinToString(" • ")
+
+                            _xrayMetadata.value = XRayMetadataUiState(
+                                title = details.title ?: title ?: "Movie Details",
+                                overview = details.overview,
+                                meta = metaText,
+                                director = directorName,
+                                cast = castList
+                            )
+                        }
+                    }
+                } else {
+                    val tvIdInt = lookupId.toIntOrNull()
+                    if (tvIdInt != null) {
+                        val result = tmdbRemote.getSeriesDetails(tvIdInt)
+                        if (result is Result.Success) {
+                            val details = result.data
+                            _xrayMetadata.value = XRayMetadataUiState(
+                                title = details.name ?: title ?: "Series Details",
+                                overview = details.overview,
+                                meta = details.firstAirDate?.take(4),
+                                director = null,
+                                cast = emptyList()
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun clearXRayMetadata() {
+        _xrayMetadata.value = null
     }
 
     fun observeEpg(epgChannelId: String?, streamId: String? = null) {

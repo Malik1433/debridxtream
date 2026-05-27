@@ -99,18 +99,17 @@ class PlayerActivity : AppCompatActivity() {
     private var isInPictureInPictureMode = false
     private var wasPlayingBeforePiP = true
 
-    private var player: ExoPlayer? = null
+    internal var player: ExoPlayer? = null
     private lateinit var playerView: PlayerView
     private lateinit var watchHistoryPrefs: WatchHistoryPreferences
+    internal lateinit var historyManager: PlayerHistoryManager
 
     private var retryCount = 0
     private val maxRetries = 5 
-    private var currentUrl: String? = null
+    internal var currentUrl: String? = null
     private var streamHeaders: Map<String, String>? = null
     private var subtitleEntries: List<String> = emptyList()
     private var activeTrackDialog: Dialog? = null
-    private val subtitleUrlRegex = Regex("https?://\\S+", RegexOption.IGNORE_CASE)
-    private val languageCodeRegex = Regex("^[a-z]{2,3}(-[a-z0-9]{2,8})?$", RegexOption.IGNORE_CASE)
     private var timeoutMs: Long = TIMEOUT_MS
     private val timeoutHandler = Handler(Looper.getMainLooper())
     private val timeoutRunnable = Runnable { handleTimeout() }
@@ -148,7 +147,7 @@ class PlayerActivity : AppCompatActivity() {
     private var epgOverlay: View? = null
     private var imgChannelLogo: ImageView? = null
     private var tvChannelNumber: TextView? = null
-    private var tvChannelName: TextView? = null
+    internal var tvChannelName: TextView? = null
     private var tvNowTitle: TextView? = null
     private var tvNowTime: TextView? = null
     private var progressNow: ProgressBar? = null
@@ -186,53 +185,52 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private var channelLogoUrl: String? = null
-    private var contentType: ContentType? = null
-    private var playbackSource: PlaybackSource = PlaybackSource.IPTV
-    private var directDebridPlayback: Boolean = false
-    private var contentId: String? = null
+    internal var channelLogoUrl: String? = null
+    internal var contentType: ContentType? = null
+    internal var playbackSource: PlaybackSource = PlaybackSource.IPTV
+    internal var directDebridPlayback: Boolean = false
+    internal var contentId: String? = null
     private var returnToSourcesOnExit: Boolean = false
     private var didPlaybackComplete: Boolean = false
     private var manualExit: Boolean = false
     private var exitResultHandled: Boolean = false
     private var lastPlaybackPositionMs: Long = 0L
-    private var posterUrlExtra: String? = null
-    private var backdropUrlExtra: String? = null
-    private var tmdbIdExtra: String? = null
-    private var imdbIdExtra: String? = null
-    private var seriesTitleExtra: String? = null
-    private var episodeTitleExtra: String? = null
-    private var seasonNumberExtra: Int? = null
-    private var episodeNumberExtra: Int? = null
-    private var debridInfoHashExtra: String? = null
-    private var debridMagnetExtra: String? = null
-    private var debridProviderExtra: String? = null
-    private var debridSourceTypeExtra: String? = null
-    private var debridSourceNameExtra: String? = null
-    private var debridLanguagesExtra: List<String>? = null
-    private var debridQualityExtra: String? = null
-    private var debridStreamIdExtra: String? = null
-    private var debridBingeGroupExtra: String? = null
-    private var debridFileIdxExtra: Int? = null
-    private var expiresAtExtra: Long? = null
-    private var originalTitle: String? = null
-    private var hasRecordedHistory = false
+    internal var posterUrlExtra: String? = null
+    internal var backdropUrlExtra: String? = null
+    internal var tmdbIdExtra: String? = null
+    internal var imdbIdExtra: String? = null
+    internal var seriesTitleExtra: String? = null
+    internal var episodeTitleExtra: String? = null
+    internal var seasonNumberExtra: Int? = null
+    internal var episodeNumberExtra: Int? = null
+    internal var debridInfoHashExtra: String? = null
+    internal var debridMagnetExtra: String? = null
+    internal var debridProviderExtra: String? = null
+    internal var debridSourceTypeExtra: String? = null
+    internal var debridSourceNameExtra: String? = null
+    internal var debridLanguagesExtra: List<String>? = null
+    internal var debridQualityExtra: String? = null
+    internal var debridStreamIdExtra: String? = null
+    internal var debridBingeGroupExtra: String? = null
+    internal var debridFileIdxExtra: Int? = null
+    internal var expiresAtExtra: Long? = null
+    internal var originalTitle: String? = null
+    internal var hasRecordedHistory = false
     private val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
     private var startPositionMs: Long = 0L
     private var hasShownOverlayOnce = false
     private var lastOverlayState: PlayerOverlayUiState? = null
-    private var pendingChannelName: String? = null
-    private var currentEpgChannelId: String? = null
-    private var liveCategoryId: String? = null
-    private var baseServerUrl: String? = null
+    internal var pendingChannelName: String? = null
+    internal var currentEpgChannelId: String? = null
+    internal var liveCategoryId: String? = null
+    internal var baseServerUrl: String? = null
     private var liveChannelIds: ArrayList<String>? = null
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var networkAvailable = true
     private var isResolvingDebrid = false
     private var hasAppliedIndexOverride = false
-    private var preferredAudioLanguage: String? = null
-    private var preferredSubtitleLanguage: String? = null
+    private lateinit var trackManager: PlayerTrackManager
     private lateinit var episodeBrowserController: EpisodeBrowserController
     private var currentZapRequestId = 0L
 
@@ -383,9 +381,10 @@ class PlayerActivity : AppCompatActivity() {
             Log.d("PlayerActivity", "onCreate package=$packageName taskId=$taskId component=${intent.component}")
         }
 
-        preferredAudioLanguage = settingsPreferences.getPreferredAudioLanguage()
-        preferredSubtitleLanguage = settingsPreferences.getPreferredSubtitleLanguage()
+        trackManager = PlayerTrackManager(this, settingsPreferences)
         watchHistoryPrefs = WatchHistoryPreferences(this)
+        historyManager = PlayerHistoryManager(this, watchHistoryPrefs, viewModel)
+        lifecycle.addObserver(historyManager)
 
         playerView = findViewById(R.id.player_view)
         layoutDebridResolving = findViewById(R.id.layout_debrid_resolving)
@@ -522,7 +521,7 @@ class PlayerActivity : AppCompatActivity() {
             }
 
             playerView.findViewById<View>(R.id.btn_player_language)?.setOnClickListener {
-                showLanguageSelection()
+                showAudioSelection()
             }
 
             playerView.findViewById<View>(R.id.btn_player_subtitles)?.setOnClickListener {
@@ -562,10 +561,82 @@ class PlayerActivity : AppCompatActivity() {
                 cycleResizeMode()
             }
 
-            setupNextEpisodeViews()
+            nextEpisodeManager = PlayerNextEpisodeManager(this, playerView, object : PlayerNextEpisodeManager.Delegate {
+                override fun isPlaybackEligibleForPrompt(): Boolean {
+                    return contentType == ContentType.SERIES || contentType == ContentType.EPISODE
+                }
+                override fun getPlayerDuration(): Long = player?.duration ?: 0L
+                override fun getPlayerCurrentPosition(): Long = player?.currentPosition ?: 0L
+                override fun isPlayerPlaying(): Boolean = player?.isPlaying ?: false
+                override fun getNextEpisode(): com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2? {
+                    val state = viewModel.seriesPlaylistState.value
+                    return if (state?.hasNext == true) {
+                        state.originalList.getOrNull(state.currentIndex + 1)
+                    } else null
+                }
+                override fun onPlayNextEpisodeRequested() {
+                    playNextEpisode()
+                }
+            })
+            nextEpisodeManager.setupViews()
             observeSeriesPlaylistState()
             observeDebridResolutionState()
             setupEpisodeBrowser()
+
+            val volumeProgress = playerView.findViewById<android.widget.SeekBar>(R.id.volume_progress)
+            val btnVolume = playerView.findViewById<android.widget.ImageButton>(R.id.btn_player_volume)
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+
+            if (audioManager != null && volumeProgress != null) {
+                val maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+                val currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+                volumeProgress.max = maxVolume
+                volumeProgress.progress = currentVolume
+
+                volumeProgress.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                        if (fromUser) {
+                            audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, progress, android.media.AudioManager.FLAG_SHOW_UI)
+                            updateVolumeIcon(progress, maxVolume, btnVolume)
+                        }
+                    }
+                    override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
+                    override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {}
+                })
+
+                btnVolume?.setOnClickListener {
+                    val isMuted = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) == 0
+                    if (isMuted) {
+                        val prev = 7.coerceAtMost(maxVolume)
+                        audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, prev, android.media.AudioManager.FLAG_SHOW_UI)
+                        volumeProgress.progress = prev
+                        updateVolumeIcon(prev, maxVolume, btnVolume)
+                    } else {
+                        audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, 0, android.media.AudioManager.FLAG_SHOW_UI)
+                        volumeProgress.progress = 0
+                        updateVolumeIcon(0, maxVolume, btnVolume)
+                    }
+                }
+            }
+
+            val xrayToggle = playerView.findViewById<View>(R.id.layout_xray_toggle)
+            val xraySwitch = playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)
+            xrayToggle?.setOnClickListener {
+                val isChecked = !(xraySwitch?.isChecked ?: false)
+                xraySwitch?.isChecked = isChecked
+                toggleXRayPanel(isChecked)
+            }
+
+            if (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE || contentType == ContentType.SERIES) {
+                viewModel.loadXRayMetadata(
+                    contentId = contentId,
+                    tmdbId = tmdbIdExtra ?: imdbIdExtra,
+                    isMovie = contentType == ContentType.MOVIE,
+                    title = originalTitle
+                )
+            }
+
+            observeXRayMetadata()
         }
 
         if (canFreshResolveDirectDebrid && isExpired) {
@@ -639,7 +710,7 @@ class PlayerActivity : AppCompatActivity() {
                 }
                 manualExit = true
                 updateLastPlaybackPosition()
-                recordPlaybackHistoryIfNeeded()
+                historyManager.recordPlaybackHistoryIfNeeded()
                 releasePlayer()
                 finish()
             }
@@ -753,7 +824,6 @@ class PlayerActivity : AppCompatActivity() {
         timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
         
         startStallMonitor()
-        retryCount = 0
         
         // GOLD STANDARD SWITCH BLOCK (Atomic Reset)
         // 1. Stop current playback pipeline
@@ -786,7 +856,7 @@ class PlayerActivity : AppCompatActivity() {
     private data class ParsedSubtitle(val url: String, val language: String?)
 
     private fun buildMediaItem(url: String): MediaItem {
-        val subtitleConfigs = buildSubtitleConfigurations(subtitleEntries)
+        val subtitleConfigs = trackManager.buildSubtitleConfigurations(subtitleEntries)
         return if (subtitleConfigs.isEmpty()) {
             MediaItem.fromUri(url)
         } else {
@@ -797,108 +867,20 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun buildSubtitleConfigurations(entries: List<String>): List<MediaItem.SubtitleConfiguration> {
-        if (entries.isEmpty()) return emptyList()
-        val configs = mutableListOf<MediaItem.SubtitleConfiguration>()
-        for (entry in entries) {
-            val parsed = parseSubtitleEntry(entry) ?: continue
-            val config = MediaItem.SubtitleConfiguration.Builder(Uri.parse(parsed.url))
-                .setMimeType(guessSubtitleMimeType(parsed.url))
-                .setLanguage(parsed.language)
-                .build()
-            configs.add(config)
-        }
-        return configs.distinctBy { it.uri }
-    }
-
-    private fun parseSubtitleEntry(entry: String): ParsedSubtitle? {
-        val trimmed = entry.trim()
-        if (trimmed.isBlank()) return null
-        val urlMatch = subtitleUrlRegex.find(trimmed) ?: return null
-        val url = urlMatch.value
-        val language = extractSubtitleLanguage(trimmed, url)
-        return ParsedSubtitle(url, language)
-    }
-
-    private fun extractSubtitleLanguage(raw: String, url: String): String? {
-        val stripped = raw.replace(url, " ")
-            .replace('|', ' ')
-            .replace(':', ' ')
-            .replace(',', ' ')
-        val token = stripped.trim().split(Regex("\\s+")).firstOrNull()
-        val fromToken = normalizeLanguageCode(token)
-        if (fromToken != null) return fromToken
-        val uri = Uri.parse(url)
-        val fromQuery = normalizeLanguageCode(uri.getQueryParameter("lang"))
-            ?: normalizeLanguageCode(uri.getQueryParameter("language"))
-        return fromQuery
-    }
-
-    private fun normalizeLanguageCode(value: String?): String? {
-        val cleaned = value
-            ?.trim()
-            ?.lowercase(Locale.US)
-            ?.replace('_', '-') ?: return null
-        if (cleaned.isBlank() || !languageCodeRegex.matches(cleaned)) return null
-        return cleaned
-    }
-
-    private fun guessSubtitleMimeType(url: String): String {
-        val normalized = url.substringBefore('?').substringBefore('#').lowercase(Locale.US)
-        return when {
-            normalized.endsWith(".vtt") -> MimeTypes.TEXT_VTT
-            normalized.endsWith(".srt") -> MimeTypes.APPLICATION_SUBRIP
-            normalized.endsWith(".ass") || normalized.endsWith(".ssa") -> MimeTypes.TEXT_SSA
-            normalized.endsWith(".ttml") || normalized.endsWith(".dfxp") -> MimeTypes.APPLICATION_TTML
-            else -> MimeTypes.APPLICATION_SUBRIP
-        }
-    }
-
     private fun showAudioSelection() {
         if (isInPictureInPictureMode) return
         val playerSnapshot = player ?: return
-        
-        val dialog = TrackSelectionDialogBuilder(
-            this,
-            getString(R.string.player_audio_title),
-            playerSnapshot,
-            C.TRACK_TYPE_AUDIO
-        )
-            .setAllowAdaptiveSelections(false)
-            .setAllowMultipleOverrides(false)
-            .setTrackNameProvider(DefaultTrackNameProvider(resources))
-            .build()
-        showManagedTrackDialog(dialog)
+        trackManager.showAudioSelection(playerSnapshot) { dialog ->
+            showManagedTrackDialog(dialog)
+        }
     }
 
     private fun showSubtitleSelection() {
         if (isInPictureInPictureMode) return
         val playerSnapshot = player ?: return
-        val hasTextTracks = playerSnapshot.currentTracks.groups.any { group ->
-            group.type == C.TRACK_TYPE_TEXT && group.isSupported
+        trackManager.showSubtitleSelection(playerSnapshot, subtitleEntries) { dialog ->
+            showManagedTrackDialog(dialog)
         }
-        if (!hasTextTracks) {
-            val message = if (subtitleEntries.isNotEmpty()) {
-                getString(R.string.player_subtitles_loading)
-            } else {
-                getString(R.string.player_subtitles_none)
-            }
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val dialog = TrackSelectionDialogBuilder(
-            this,
-            getString(R.string.player_settings_subtitles),
-            playerSnapshot,
-            C.TRACK_TYPE_TEXT
-        )
-            .setShowDisableOption(true)
-            .setAllowAdaptiveSelections(false)
-            .setAllowMultipleOverrides(false)
-            .setTrackNameProvider(DefaultTrackNameProvider(resources))
-            .build()
-        showManagedTrackDialog(dialog)
     }
 
     private fun showLanguageSelection() {
@@ -940,10 +922,7 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun applyDebridLanguagePreference(language: String) {
-        preferredAudioLanguage = language
-        preferredSubtitleLanguage = language
-        settingsPreferences.savePreferredAudioLanguage(language)
-        settingsPreferences.savePreferredSubtitleLanguage(language)
+        trackManager.applyDebridLanguagePreference(language)
 
         if (playbackSource == PlaybackSource.DEBRID && contentType == ContentType.MOVIE) {
             isResolvingDebrid = true
@@ -1053,38 +1032,9 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private var nextEpisodeOverlay: View? = null
-    private var tvNextEpTitle: TextView? = null
-    private var tvCountdownSeconds: TextView? = null
-    private var btnPlayNext: View? = null
-    private var btnCancelNext: View? = null
-    private var nextEpisodeTimer: CountDownTimer? = null
-    private var isNextPromptVisible = false
-    private var nextPromptShownForThisEpisode = false
-    private val nextCheckHandler = Handler(Looper.getMainLooper())
-    private val nextCheckRunnable = object : Runnable {
-        override fun run() {
-            checkNextEpisodePrompt()
-            nextCheckHandler.postDelayed(this, 1000)
-        }
-    }
+    private lateinit var nextEpisodeManager: PlayerNextEpisodeManager
 
-    private fun setupNextEpisodeViews() {
-        if (nextEpisodeOverlay != null) return
-        val overlay = findViewById<View>(R.id.view_next_episode_prompt) ?: return
-        nextEpisodeOverlay = overlay
-        tvNextEpTitle = overlay.findViewById(R.id.tv_next_episode_title)
-        tvCountdownSeconds = overlay.findViewById(R.id.tv_countdown_seconds)
-        btnPlayNext = overlay.findViewById(R.id.btn_play_now)
-        btnCancelNext = overlay.findViewById(R.id.btn_cancel)
 
-        btnPlayNext?.setOnClickListener {
-            playNextEpisode()
-        }
-        btnCancelNext?.setOnClickListener {
-            hideNextEpisodePrompt(cancelled = true)
-        }
-    }
 
     private fun observeSeriesPlaylistState() {
         lifecycleScope.launch {
@@ -1283,8 +1233,8 @@ class PlayerActivity : AppCompatActivity() {
         bindModernMetadata(title)
         supportActionBar?.title = title
         
-        hideNextEpisodePrompt(cancelled = false)
-        nextPromptShownForThisEpisode = false
+        if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.hidePrompt() }
+        if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.resetState() }
         
         performSeamlessSwitch(url)
     }
@@ -1355,7 +1305,7 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun playNextEpisode() {
-        nextEpisodeTimer?.cancel()
+        if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.hidePrompt() }
 
         if (playbackSource == PlaybackSource.DEBRID && contentType == ContentType.EPISODE) {
              val currentSeason = seasonNumberExtra ?: -1
@@ -1390,78 +1340,7 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkNextEpisodePrompt() {
-        if (contentType != ContentType.SERIES && contentType != ContentType.EPISODE) return
-        val player = player ?: return
-        if (!player.isPlaying) return
-        
-        val duration = player.duration
-        val position = player.currentPosition
-        if (duration <= 0) return
 
-        val remaining = duration - position
-        val percentThresholdMs = (duration * 0.97).toLong() 
-        val timeThresholdMs = 45000L 
-        
-        val showPrompt = position >= percentThresholdMs || remaining < timeThresholdMs
-        
-        if (showPrompt && !nextPromptShownForThisEpisode && !isNextPromptVisible) {
-             val state = viewModel.seriesPlaylistState.value
-             if (state?.hasNext == true) {
-                 showNextEpisodePrompt(state.originalList[state.currentIndex + 1])
-             }
-        }
-    }
-
-    private fun showNextEpisodePrompt(nextEp: EpisodeEntityV2) {
-        if (isNextPromptVisible) return
-        isNextPromptVisible = true
-        nextPromptShownForThisEpisode = true 
-        
-        nextEpisodeOverlay?.isVisible = true
-        tvNextEpTitle?.text = nextEp.title ?: "Episode ${nextEp.episodeNumber}"
-        
-        nextEpisodeTimer?.cancel()
-        nextEpisodeTimer = object : CountDownTimer(15000, 1000) {
-            override fun onTick(millisUntilFinished: Long) {
-                val sec = (millisUntilFinished / 1000).toInt()
-                tvCountdownSeconds?.text = sec.toString()
-                val progress = ((15000 - millisUntilFinished) / 150.0).toInt()
-                nextEpisodeOverlay?.findViewById<ProgressBar>(R.id.progress_countdown)?.progress = progress
-            }
-            override fun onFinish() {
-                playNextEpisode()
-            }
-        }.start()
-        
-        playerView.hideController()
-        playerView.isFocusable = false
-        
-        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("PLAYER_NEXT_EP") {
-            btnPlayNext?.post { 
-                btnPlayNext?.post {
-                    try {
-                        btnPlayNext?.requestFocus()
-                    } finally {
-                    }
-                }
-            }
-        }
-    }
-
-    private fun hideNextEpisodePrompt(cancelled: Boolean) {
-        isNextPromptVisible = false
-        nextEpisodeOverlay?.isVisible = false
-        nextEpisodeTimer?.cancel()
-        
-        playerView.isFocusable = true
-        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("PLAYER_NEXT_EP")
-        
-        if (cancelled) {
-            playerView.showController()
-            playerView.requestFocus()
-        }
-    }
 
     private fun renderOverlay(state: PlayerOverlayUiState) {
         lastOverlayState = state
@@ -1526,50 +1405,7 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun calculateSmartBuffer(): Int {
-        val snapshot = DeviceProfile.get(this)
-        val totalRamGb = snapshot.totalRamGb
-        return if (!snapshot.isLowRamDevice) 60000 else 25000 
-    }
 
-    private fun getSavedNetworkQuality(): NetworkQuality {
-        val rawQuality = settingsPreferences.getNetworkQuality()
-        return runCatching { NetworkQuality.valueOf(rawQuality) }.getOrDefault(NetworkQuality.MODERATE)
-    }
-
-    private fun buildLiveBufferConfig(isHls: Boolean, isDebrid: Boolean = false): BufferConfig {
-        val baseMaxBuffer = calculateSmartBuffer()
-        val quality = getSavedNetworkQuality()
-        val config = when (quality) {
-            NetworkQuality.FAST -> BufferConfig(15000, baseMaxBuffer, 1000, 2000)
-            NetworkQuality.MODERATE -> BufferConfig(15000, baseMaxBuffer, 2000, 3000)
-            NetworkQuality.SLOW -> BufferConfig(20000, (baseMaxBuffer + 10000).coerceAtMost(60000), 3000, 5000)
-            NetworkQuality.UNKNOWN -> BufferConfig(15000, baseMaxBuffer, 2000, 3000)
-        }
-        val debridAdjusted = if (isDebrid) config.copy(startPlaybackMs = (config.startPlaybackMs + 1000).coerceAtLeast(3000), rebufferPlaybackMs = (config.rebufferPlaybackMs + 1000).coerceAtLeast(4000)) else config
-        val cappedForDevice = debridAdjusted.copy(maxBufferMs = capMaxBufferForDevice(debridAdjusted.maxBufferMs))
-        return if (isHls) cappedForDevice.copy(maxBufferMs = cappedForDevice.maxBufferMs.coerceAtMost(if (DeviceProfile.isLowRamDevice(this)) 25000 else 30000)) else cappedForDevice
-    }
-
-    private fun buildVodBufferConfig(isHls: Boolean, isDebrid: Boolean = false): BufferConfig {
-        val baseMaxBuffer = calculateSmartBuffer()
-        val quality = getSavedNetworkQuality()
-        val config = when (quality) {
-            NetworkQuality.FAST -> BufferConfig(12000, baseMaxBuffer, 1500, 3000)
-            NetworkQuality.MODERATE -> BufferConfig(15000, baseMaxBuffer, 2000, 3500)
-            NetworkQuality.SLOW -> BufferConfig(18000, (baseMaxBuffer + 15000).coerceAtMost(90000), 3000, 5000)
-            NetworkQuality.UNKNOWN -> BufferConfig(15000, baseMaxBuffer, 2000, 3500)
-        }
-        val debridAdjusted = if (isDebrid) config.copy(startPlaybackMs = (config.startPlaybackMs + 2000).coerceAtLeast(5000), rebufferPlaybackMs = (config.rebufferPlaybackMs + 2000).coerceAtLeast(6000)) else config
-        val cappedForDevice = debridAdjusted.copy(maxBufferMs = capMaxBufferForDevice(debridAdjusted.maxBufferMs))
-        return if (isHls) cappedForDevice.copy(maxBufferMs = cappedForDevice.maxBufferMs.coerceAtMost(if (DeviceProfile.isLowRamDevice(this)) 25000 else 45000)) else cappedForDevice
-    }
-
-    private fun isHlsUrl(url: String): Boolean = url.contains(".m3u8", ignoreCase = true)
-
-    private fun capMaxBufferForDevice(maxBufferMs: Int): Int = if (DeviceProfile.isLowRamDevice(this)) maxBufferMs.coerceAtMost(LOW_RAM_MAX_BUFFER_MS) else maxBufferMs
-
-    private fun resolveTargetBufferBytes(): Int = if (DeviceProfile.isLowRamDevice(this)) LOW_RAM_TARGET_BUFFER_BYTES else DefaultLoadControl.DEFAULT_TARGET_BUFFER_BYTES
 
     private fun readStreamHeaders(intent: Intent): Map<String, String>? {
         @Suppress("UNCHECKED_CAST")
@@ -1613,18 +1449,17 @@ class PlayerActivity : AppCompatActivity() {
             val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
             
             val isDebrid = playbackSource == PlaybackSource.DEBRID
-            val loadControl = if (contentType == ContentType.LIVE_TV) {
-                val bufferConfig = buildLiveBufferConfig(isHlsUrl(streamUrl), isDebrid)
-                DefaultLoadControl.Builder().setBufferDurationsMs(bufferConfig.minBufferMs, bufferConfig.maxBufferMs, bufferConfig.startPlaybackMs, bufferConfig.rebufferPlaybackMs).setTargetBufferBytes(resolveTargetBufferBytes()).setPrioritizeTimeOverSizeThresholds(true).build()
-            } else {
-                val bufferConfig = buildVodBufferConfig(isHlsUrl(streamUrl), isDebrid)
-                DefaultLoadControl.Builder().setBufferDurationsMs(bufferConfig.minBufferMs, bufferConfig.maxBufferMs, bufferConfig.startPlaybackMs, bufferConfig.rebufferPlaybackMs).setTargetBufferBytes(resolveTargetBufferBytes()).setPrioritizeTimeOverSizeThresholds(true).build()
-            }
+            val bufferConfig = PlayerBufferConfigFactory.buildConfig(this, settingsPreferences, contentType, streamUrl, isDebrid)
+            val loadControl = DefaultLoadControl.Builder()
+                .setBufferDurationsMs(bufferConfig.minBufferMs, bufferConfig.maxBufferMs, bufferConfig.startPlaybackMs, bufferConfig.rebufferPlaybackMs)
+                .setTargetBufferBytes(PlayerBufferConfigFactory.resolveTargetBufferBytes(this))
+                .setPrioritizeTimeOverSizeThresholds(true)
+                .build()
             
             val trackSelector = DefaultTrackSelector(this)
             var parametersBuilder = trackSelector.buildUponParameters().setTunnelingEnabled(false)
-            preferredAudioLanguage?.let { parametersBuilder = parametersBuilder.setPreferredAudioLanguage(it) }
-            preferredSubtitleLanguage?.let { parametersBuilder = parametersBuilder.setPreferredTextLanguage(it) }
+            trackManager.preferredAudioLanguage?.let { parametersBuilder = parametersBuilder.setPreferredAudioLanguage(it) }
+            trackManager.preferredSubtitleLanguage?.let { parametersBuilder = parametersBuilder.setPreferredTextLanguage(it) }
             trackSelector.parameters = parametersBuilder.build()
 
             val isSoftwareAudioEnabled = com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(this).isSoftwareAudioEnabled()
@@ -1675,7 +1510,7 @@ class PlayerActivity : AppCompatActivity() {
                                   }
                              }
                              didPlaybackComplete = true
-                             if (!isNextPromptVisible) finish()
+                             if (!(::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible)) finish()
                         }
                     }
                 }
@@ -1767,16 +1602,18 @@ class PlayerActivity : AppCompatActivity() {
         }
         if (retryCount < maxRetries) {
             retryCount++
-            if (canUseDebridResolver() && !isResolvingDebrid && (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())) {
+            val hasDurableDebridIdentity = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
+            if (canUseDebridResolver() && !isResolvingDebrid && hasDurableDebridIdentity) {
                   isResolvingDebrid = true
                   if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
+                  val allowDirectHttpPassthroughForRetry = !hasDurableDebridIdentity && directDebridPlayback
                   viewModel.reResolveDebridUrl(
                       debridInfoHashExtra,
                       debridMagnetExtra,
                       seasonNumberExtra,
                       episodeNumberExtra,
                       episodeTitleExtra,
-                      allowDirectHttpPassthrough = !directDebridPlayback
+                      allowDirectHttpPassthrough = allowDirectHttpPassthroughForRetry
                   )
                   return
             }
@@ -1806,8 +1643,7 @@ class PlayerActivity : AppCompatActivity() {
         } else { lastBoundPosition = p.currentPosition; lastProgressCheckMs = now; stallStrikeCount = 0 }
     }
 
-    private enum class NetworkQuality { FAST, MODERATE, SLOW, UNKNOWN }
-    private data class BufferConfig(val minBufferMs: Int, val maxBufferMs: Int, val startPlaybackMs: Int, val rebufferPlaybackMs: Int)
+
 
     private fun showSupportQr() {
         releasePlayer(); layoutSupportQr?.isVisible = true
@@ -1867,12 +1703,12 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     override fun onResume() { super.onResume(); startDebugOverlay(); if (player == null) currentUrl?.let { initializePlayer(it) } else startStallMonitor() }
-    override fun onStart() { super.onStart(); registerNetworkCallback(); nextCheckHandler.post(nextCheckRunnable) }
+    override fun onStart() { super.onStart(); registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() } }
     override fun onPause() { super.onPause(); player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
-    override fun onStop() { super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); unregisterNetworkCallback(); recordPlaybackHistoryIfNeeded(); releasePlayer() }
+    override fun onStop() { super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer() }
 
     private fun releasePlayer() {
-        updateLastPlaybackPosition(); timeoutHandler.removeCallbacks(timeoutRunnable); overlayHandler.removeCallbacks(overlayHideRunnable); nextCheckHandler.removeCallbacks(nextCheckRunnable); nextEpisodeTimer?.cancel(); stopStallMonitor()
+        updateLastPlaybackPosition(); timeoutHandler.removeCallbacks(timeoutRunnable); overlayHandler.removeCallbacks(overlayHideRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; stopStallMonitor()
         player?.stop(); player?.release(); player = null; playerView.player = null
     }
 
@@ -1884,7 +1720,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun stopStallMonitor() = stallHandler.removeCallbacks(stallRunnable)
 
-    override fun onDestroy() { super.onDestroy(); dismissActiveTrackDialog(); recordPlaybackHistoryIfNeeded(); releasePlayer() }
+    override fun onDestroy() { super.onDestroy(); dismissActiveTrackDialog(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer() }
 
     private fun resolveTimeoutMs(url: String): Long = if (url.lowercase().contains("mediafusion.elfhosted.com")) MEDIAFUSION_TIMEOUT_MS else TIMEOUT_MS
 
@@ -1979,6 +1815,15 @@ class PlayerActivity : AppCompatActivity() {
         Log.d("PlayerActivity", "dispatchKeyEvent: code=${event.keyCode}, action=${event.action}")
         
         if (event.action == KeyEvent.ACTION_DOWN) {
+            val xrayPanel = findViewById<View>(R.id.view_xray_panel)
+            if (xrayPanel != null && xrayPanel.visibility == View.VISIBLE) {
+                if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+                    playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false
+                    toggleXRayPanel(false)
+                    return true
+                }
+            }
+
             if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
                 if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                     episodeBrowserController.hide()
@@ -1994,8 +1839,15 @@ class PlayerActivity : AppCompatActivity() {
             // Priority 1: Handle DPAD_DOWN for Episode Browser
             if (event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 val isSeries = isSeriesEpisodePlayback()
+                val isFocusOnBottomControls = currentFocus?.let { focus ->
+                    val id = focus.id
+                    id == R.id.exo_play || id == R.id.exo_rew || id == R.id.exo_ffwd || 
+                    id == R.id.btn_player_volume || id == R.id.volume_progress || id == R.id.btn_next_episode
+                } ?: false
+
                 Log.d("PlayerActivity", "DPAD_DOWN detected: isSeries=$isSeries, browserVisible=${viewModel.browserState.value.isVisible}")
-                if (isSeries && !viewModel.browserState.value.isVisible && !playerView.isControllerFullyVisible) {
+                if (isSeries && !viewModel.browserState.value.isVisible && (!playerView.isControllerFullyVisible || isFocusOnBottomControls)) {
+                    playerView.hideController()
                     if (!episodeBrowserController.isVisible()) {
                         showEpisodeBrowser()
                     } else {
@@ -2006,7 +1858,7 @@ class PlayerActivity : AppCompatActivity() {
             }
 
             // Priority 2: Standard Controller triggers
-            if (contentType != ContentType.LIVE_TV && playerView.useController && !isNextPromptVisible && !playerView.isControllerFullyVisible) {
+            if (contentType != ContentType.LIVE_TV && playerView.useController && !(::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible) && !playerView.isControllerFullyVisible) {
                 // EXCLUDE DPAD_DOWN from showing the standard controller if it's a series (we want episode browser handled above)
                 val isSeriesDown = event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && isSeriesEpisodePlayback()
                 if (!isSeriesDown) {
@@ -2048,6 +1900,14 @@ class PlayerActivity : AppCompatActivity() {
                 KeyEvent.KEYCODE_BACK -> {
                     if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
                         episodeBrowserController.hide()
+                        playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false
+                        toggleXRayPanel(false)
+                        return true
+                    }
+                    val xray = findViewById<View>(R.id.view_xray_panel)
+                    if (xray != null && xray.visibility == View.VISIBLE) {
+                        playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false
+                        toggleXRayPanel(false)
                         return true
                     }
                     if (viewModel.browserState.value.isVisible) { viewModel.toggleBrowser(false); return true }
@@ -2066,7 +1926,7 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onUserInteraction() { 
         super.onUserInteraction()
-        if (contentType == ContentType.LIVE_TV || isInPictureInPictureMode || !playerView.useController || isNextPromptVisible) return
+        if (contentType == ContentType.LIVE_TV || isInPictureInPictureMode || !playerView.useController || (::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible)) return
         
         // Fix: Don't show controller if browser is open
         if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
@@ -2127,7 +1987,7 @@ class PlayerActivity : AppCompatActivity() {
         } catch (e: Exception) { showToast("PiP failed") }
     }
 
-    private fun hideUiForPiP() { playerView.hideController(); epgOverlay?.isVisible = false; vodInfoOverlay?.isVisible = false; supportActionBar?.hide(); recordPlaybackHistoryIfNeeded() }
+    private fun hideUiForPiP() { playerView.hideController(); epgOverlay?.isVisible = false; vodInfoOverlay?.isVisible = false; supportActionBar?.hide(); historyManager.recordPlaybackHistoryIfNeeded() }
     private fun showUiForNormalMode() { if (!isInPictureInPictureMode) { supportActionBar?.show(); if (contentType == ContentType.LIVE_TV) updateOverlayVisibility() else updateVodOverlayVisibility() } }
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) { super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig); this.isInPictureInPictureMode = isInPictureInPictureMode; if (isInPictureInPictureMode) hideUiForPiP() else showUiForNormalMode() }
@@ -2146,91 +2006,11 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun formatTimeRangeCompact(program: com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity): String = "${timeFormatter.format(Date(program.start))}-${timeFormatter.format(Date(program.stop))}"
 
-    private fun recordPlaybackHistoryIfNeeded() { 
-        val type = contentType ?: return; 
-        val id = contentId ?: currentUrl ?: return; 
-        when (type) { 
-            ContentType.LIVE_TV -> recordLiveHistory(id); 
-            ContentType.MOVIE, ContentType.SERIES, ContentType.EPISODE -> {
-                if (hasRecordedHistory) return
-                recordContinueWatchingHistory(id, type)
-            }
-        }; 
-        if (type != ContentType.LIVE_TV) {
-            hasRecordedHistory = true
-        }
-    }
-    private fun recordLiveHistory(channelId: String) { 
-        val logoToSave = channelLogoUrl ?: posterUrlExtra
-        val absoluteLogo = logoToSave.toAbsoluteUrl(ContentType.LIVE_TV, baseServerUrl)
-        
-        val item = RecentLiveChannelItem(
-            channelId = channelId,
-            channelName = tvChannelName?.text?.toString() ?: pendingChannelName ?: originalTitle ?: getString(R.string.player_epg_channel_unknown),
-            channelLogo = absoluteLogo,
-            lastWatchedTimestamp = System.currentTimeMillis(),
-            streamUrl = currentUrl ?: "",
-            epgChannelId = currentEpgChannelId,
-            categoryId = liveCategoryId
-        )
-        android.util.Log.d(
-            "HISTORY_DEBUG",
-            "Saving Recent Live: channelId=${item.channelId}, name=${item.channelName}, stream=${SensitiveLogRedactor.describeUrl(item.streamUrl)}"
-        )
-        watchHistoryPrefs.addRecentLiveChannel(item) 
-    }
-    private fun recordContinueWatchingHistory(contentId: String, type: ContentType) { 
-        val p = player ?: return; 
-        val dur = p.duration; 
-        if (dur <= 0 || dur == C.TIME_UNSET || dur < MIN_DURATION_TO_TRACK_MS) return; 
-        val pos = p.currentPosition; 
-        if (pos < MIN_PROGRESS_TO_TRACK_MS) return; 
-        val isWatched = (pos / dur.toFloat()) >= COMPLETION_THRESHOLD_RATIO; 
-        if (type == ContentType.EPISODE) viewModel.updatePlaybackStatus(contentId, isWatched, if (isWatched) 0 else pos, dur); 
-        if (isWatched) { 
-            watchHistoryPrefs.removeContinueWatchingItem(resolveContinueWatchingId(type, contentId)); 
-            return 
-        }; 
-        val item = ContinueWatchingItem(
-            contentId = resolveContinueWatchingId(type, contentId), 
-            contentType = type, 
-            title = if (type == ContentType.EPISODE) seriesTitleExtra ?: originalTitle ?: pendingChannelName ?: getString(R.string.player_epg_channel_unknown) else originalTitle ?: pendingChannelName ?: getString(R.string.player_epg_channel_unknown), 
-            posterUrl = (posterUrlExtra ?: channelLogoUrl).toAbsoluteUrl(type, baseServerUrl), 
-            backdropUrl = backdropUrlExtra.toAbsoluteUrl(type, baseServerUrl), 
-            currentPosition = pos, 
-            totalDuration = dur, 
-            lastWatchedTimestamp = System.currentTimeMillis(), 
-            streamUrl = currentUrl, 
-            tmdbId = tmdbIdExtra, 
-            imdbId = imdbIdExtra, 
-            seriesId = intent.getStringExtra(EXTRA_SERIES_ID),
-            seriesTitle = seriesTitleExtra, 
-            episodeTitle = episodeTitleExtra, 
-            seasonNumber = seasonNumberExtra, 
-            episodeNumber = episodeNumberExtra, 
-            debridInfoHash = debridInfoHashExtra, 
-            debridMagnet = debridMagnetExtra, 
-            directDebridPlayback = directDebridPlayback,
-            debridProvider = debridProviderExtra,
-            debridSourceType = debridSourceTypeExtra,
-            debridSourceName = debridSourceNameExtra,
-            debridLanguages = debridLanguagesExtra,
-            debridQuality = debridQualityExtra,
-            debridStreamId = debridStreamIdExtra ?: debridInfoHashExtra,
-            debridBingeGroup = debridBingeGroupExtra,
-            debridFileIdx = debridFileIdxExtra,
-            source = if (playbackSource == PlaybackSource.DEBRID) "debrid" else "xtream", 
-            expiresAt = expiresAtExtra
-        )
-        android.util.Log.d(
-            "HISTORY_DEBUG",
-            "Saving Continue Watching [${item.source}]: ${item.title} | type=${item.contentType} | contentId=${SensitiveLogRedactor.describeHash(item.contentId)} | seriesId=${SensitiveLogRedactor.describeHash(item.seriesId)} | season=${item.seasonNumber} | episode=${item.episodeNumber} | pos=$pos dur=$dur | stream=${if (item.streamUrl.isNullOrBlank()) "missing" else "present"} | poster=${if (item.posterUrl.isNullOrBlank()) "missing" else "present"} | expires=${item.expiresAt}"
-        )
-        watchHistoryPrefs.saveContinueWatchingItem(item) 
-    }
 
 
-    private fun resolveContinueWatchingId(type: ContentType, fallbackId: String): String = if (playbackSource != PlaybackSource.DEBRID) fallbackId else tmdbIdExtra?.let { if (type == ContentType.EPISODE && seasonNumberExtra != null && episodeNumberExtra != null) "$it:S${seasonNumberExtra}E${episodeNumberExtra}" else it } ?: debridInfoHashExtra ?: fallbackId
+
+
+
     private fun updateLastPlaybackPosition() { lastPlaybackPositionMs = player?.currentPosition ?: lastPlaybackPositionMs }
     private fun setLiveExitResultIfNeeded() {
         if (contentType != ContentType.LIVE_TV || exitResultHandled) return
@@ -2311,7 +2091,7 @@ class PlayerActivity : AppCompatActivity() {
                             bindModernMetadata("${seriesTitleExtra ?: ""} - S${state.season}:E${state.episode}")
                             if (state.infoHash != null) debridInfoHashExtra = state.infoHash
                             if (state.sourceProfile?.streamId != null) debridStreamIdExtra = state.sourceProfile.streamId
-                            hasRecordedHistory = false; hideNextEpisodePrompt(false); nextPromptShownForThisEpisode = false
+                            hasRecordedHistory = false; if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.resetState() }
                         }
                         currentUrl = state.url
                         if (player == null) {
@@ -2332,25 +2112,15 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun captureManualTrackSelection() {
-        val p = player ?: return; val groups = p.currentTracks.groups; var sAIdx = -1; var sALang: String? = null; var sTIdx = -1; var sTLang: String? = null
-        var aC = 0; for (g in groups) { if (g.type == C.TRACK_TYPE_AUDIO) { for (j in 0 until g.length) { if (g.isTrackSelected(j)) { sAIdx = aC; sALang = g.getTrackFormat(j).language; break }; aC++ } }; if (sAIdx != -1) break }
-        var tC = 0; for (g in groups) { if (g.type == C.TRACK_TYPE_TEXT) { for (j in 0 until g.length) { if (g.isTrackSelected(j)) { sTIdx = tC; sTLang = g.getTrackFormat(j).language; break }; tC++ } }; if (sTIdx != -1) break }
-        if (sALang != null) { preferredAudioLanguage = sALang; settingsPreferences.savePreferredAudioLanguage(sALang) }
-        if (sTLang != null) { preferredSubtitleLanguage = sTLang; settingsPreferences.savePreferredSubtitleLanguage(sTLang) }
-        settingsPreferences.saveLastTrackSelection(debridInfoHashExtra, sAIdx, sTIdx)
-        (intent.getStringExtra(EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra)?.let { settingsPreferences.saveSeriesTrackPreference(it, sAIdx, sTIdx) }
+        val p = player ?: return
+        val seriesId = intent.getStringExtra(EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
+        trackManager.captureManualTrackSelection(p, debridInfoHashExtra, seriesId)
     }
 
     private fun applyTrackIndexOverrides() {
-        val p = player ?: return; val lastHash = settingsPreferences.getLastSelectionHash(); val currentHash = debridInfoHashExtra; val seriesId = intent.getStringExtra(EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
-        var tAIdx = -1; var tTIdx = -1
-        if (lastHash != null && currentHash != null && lastHash.equals(currentHash, ignoreCase = true)) { tAIdx = settingsPreferences.getLastAudioIndex(); tTIdx = settingsPreferences.getLastTextIndex() }
-        else if (seriesId != null) { tAIdx = settingsPreferences.getSeriesAudioIndex(seriesId); tTIdx = settingsPreferences.getSeriesTextIndex(seriesId) }
-        if (tAIdx == -1 && tTIdx == -1) return
-        val groups = p.currentTracks.groups; var params = p.trackSelectionParameters.buildUpon(); var mod = false
-        if (tAIdx != -1) { var aC = 0; for (g in groups) { if (g.type == C.TRACK_TYPE_AUDIO) { for (j in 0 until g.length) { if (aC == tAIdx) { params.addOverride(TrackSelectionOverride(g.mediaTrackGroup, j)); mod = true; break }; aC++ } }; if (mod) break } }
-        if (tTIdx != -1) { var tC = 0; var tMod = false; for (g in groups) { if (g.type == C.TRACK_TYPE_TEXT) { for (j in 0 until g.length) { if (tC == tTIdx) { params.addOverride(TrackSelectionOverride(g.mediaTrackGroup, j)); mod = true; tMod = true; break }; tC++ } }; if (tMod) break } }
-        if (mod) p.trackSelectionParameters = params.build()
+        val p = player ?: return
+        val seriesId = intent.getStringExtra(EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
+        trackManager.applyTrackIndexOverrides(p, debridInfoHashExtra, seriesId)
     }
 
     private fun setupInteractiveAnimations() {
@@ -2363,13 +2133,132 @@ class PlayerActivity : AppCompatActivity() {
             R.id.btn_next_episode,
             R.id.btn_player_audio,
             R.id.btn_player_language,
-            R.id.btn_player_subtitles
+            R.id.btn_player_subtitles,
+            R.id.layout_xray_toggle,
+            R.id.btn_player_volume,
+            R.id.volume_progress
         ).forEach { id ->
             playerView.findViewById<View>(id)?.let { v ->
                 v.alpha = 0.7f; v.scaleX = 1f; v.scaleY = 1f
                 v.setOnFocusChangeListener { view, f -> if (f) { view.animate().scaleX(1.15f).scaleY(1.15f).alpha(1f).setDuration(200).start() } else view.animate().scaleX(1f).scaleY(1f).alpha(0.7f).setDuration(200).start() }
                 v.setOnTouchListener { view, e -> when (e.action) { android.view.MotionEvent.ACTION_DOWN -> view.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).start(); android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> view.animate().scaleX(if (view.hasFocus()) 1.15f else 1f).scaleY(if (view.hasFocus()) 1.15f else 1f).setDuration(100).start() }; false }
             }
+        }
+    }
+
+    private fun updateVolumeIcon(progress: Int, maxVolume: Int, btnVolume: android.widget.ImageButton?) {
+        if (btnVolume == null) return
+        if (progress == 0) {
+            btnVolume.setImageResource(R.drawable.ic_player_volume_off)
+        } else {
+            btnVolume.setImageResource(R.drawable.ic_player_volume)
+        }
+    }
+
+    private fun toggleXRayPanel(show: Boolean) {
+        val xrayPanel = findViewById<View>(R.id.view_xray_panel) ?: return
+        val isSeries = isSeriesEpisodePlayback()
+
+        if (show) {
+            xrayPanel.bringToFront()
+            xrayPanel.visibility = View.VISIBLE
+            xrayPanel.translationX = -xrayPanel.width.toFloat()
+            xrayPanel.animate()
+                .translationX(0f)
+                .setDuration(300)
+                .start()
+
+            if (isSeries) {
+                if (::episodeBrowserController.isInitialized && !episodeBrowserController.isVisible()) {
+                    showEpisodeBrowser()
+                }
+            } else {
+                val rvCast = xrayPanel.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_xray_cast)
+                rvCast?.post { rvCast.requestFocus() }
+            }
+        } else {
+            xrayPanel.animate()
+                .translationX(-xrayPanel.width.toFloat())
+                .setDuration(300)
+                .withEndAction { xrayPanel.visibility = View.GONE }
+                .start()
+
+            if (isSeries) {
+                if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
+                    episodeBrowserController.hide()
+                }
+            }
+        }
+    }
+
+    private fun observeXRayMetadata() {
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                viewModel.xrayMetadata.collect { state ->
+                    val xrayPanel = findViewById<View>(R.id.view_xray_panel) ?: return@collect
+                    if (state == null) {
+                        xrayPanel.findViewById<TextView>(R.id.tv_xray_title)?.text = originalTitle
+                        xrayPanel.findViewById<TextView>(R.id.tv_xray_plot)?.text = ""
+                        xrayPanel.findViewById<TextView>(R.id.tv_xray_meta)?.text = ""
+                        xrayPanel.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_xray_cast)?.adapter = null
+                        return@collect
+                    }
+
+                    xrayPanel.findViewById<TextView>(R.id.tv_xray_title)?.text = state.title
+                    xrayPanel.findViewById<TextView>(R.id.tv_xray_plot)?.text = state.overview ?: "No description available."
+                    xrayPanel.findViewById<TextView>(R.id.tv_xray_meta)?.text = state.meta ?: ""
+                    
+                    val castTitle = xrayPanel.findViewById<TextView>(R.id.tv_xray_cast_title)
+                    val rvCast = xrayPanel.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_xray_cast)
+                    
+                    if (state.cast.isEmpty()) {
+                        castTitle?.visibility = View.GONE
+                        rvCast?.visibility = View.GONE
+                    } else {
+                        castTitle?.visibility = View.VISIBLE
+                        rvCast?.visibility = View.VISIBLE
+                        rvCast?.adapter = CastAdapter(state.cast)
+                    }
+                }
+            }
+        }
+    }
+
+    private class CastAdapter(
+        private val items: List<com.tvonnet.debridxtreamiptv.player.stabilized.XRayCastMember>
+    ) : androidx.recyclerview.widget.RecyclerView.Adapter<CastViewHolder>() {
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): CastViewHolder {
+            val view = android.view.LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_player_cast, parent, false)
+            return CastViewHolder(view)
+        }
+        override fun onBindViewHolder(holder: CastViewHolder, position: Int) {
+            holder.bind(items[position])
+        }
+        override fun getItemCount(): Int = items.size
+    }
+
+    private class CastViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
+        private val ivAvatar: android.widget.ImageView = view.findViewById(R.id.iv_cast_avatar)
+        private val tvName: TextView = view.findViewById(R.id.tv_cast_name)
+        private val tvCharacter: TextView = view.findViewById(R.id.tv_cast_character)
+        
+        init {
+            itemView.setOnFocusChangeListener { v, hasFocus ->
+                v.scaleX = if (hasFocus) 1.1f else 1.0f
+                v.scaleY = if (hasFocus) 1.1f else 1.0f
+            }
+        }
+
+        fun bind(item: com.tvonnet.debridxtreamiptv.player.stabilized.XRayCastMember) {
+            tvName.text = item.name
+            tvCharacter.text = item.character
+            Glide.with(ivAvatar)
+                .load(item.avatarUrl)
+                .placeholder(R.drawable.ic_person_placeholder)
+                .error(R.drawable.ic_person_placeholder)
+                .circleCrop()
+                .into(ivAvatar)
         }
     }
 }

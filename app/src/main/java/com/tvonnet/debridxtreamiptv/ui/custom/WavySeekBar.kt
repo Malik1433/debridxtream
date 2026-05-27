@@ -104,11 +104,11 @@ class WavySeekBar @JvmOverloads constructor(
         val padding = 20f
         val focused = isFocused || isScrubbing
 
-        playedPaint.color = if (focused) Color.parseColor("#31E6FF") else Color.WHITE
+        playedPaint.color = if (focused) Color.parseColor("#FF3B30") else Color.parseColor("#E6FF3B30")
         playedPaint.strokeWidth = (if (focused) 6f else 4f) * resources.displayMetrics.density
-        bufferedPaint.color = if (focused) Color.parseColor("#804ADFFF") else Color.parseColor("#80FFFFFF")
-        unplayedPaint.color = if (focused) Color.parseColor("#334ADFFF") else Color.parseColor("#26FFFFFF")
-        scrubberPaint.color = if (focused) Color.parseColor("#31E6FF") else Color.WHITE
+        bufferedPaint.color = if (focused) Color.parseColor("#80FFFFFF") else Color.parseColor("#4DFFFFFF")
+        unplayedPaint.color = if (focused) Color.parseColor("#33FFFFFF") else Color.parseColor("#26FFFFFF")
+        scrubberPaint.color = Color.parseColor("#FF3B30")
 
         if (duration <= 0) {
             canvas.drawLine(padding, centerY, w - padding, centerY, unplayedPaint)
@@ -132,14 +132,14 @@ class WavySeekBar @JvmOverloads constructor(
         canvas.drawLine(padding, centerY, playedWidth, centerY, playedPaint)
 
         // 4. Draw Scrubber
-        val scrubberScale = if (focused) 1.7f else 1.0f
-        val scrubberRadius = 8f * resources.displayMetrics.density * scrubberScale
+        val scrubberScale = if (focused) 1.6f else 1.0f
+        val scrubberRadius = 7f * resources.displayMetrics.density * scrubberScale
         if (focused) {
             val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.FILL
-                color = Color.parseColor("#6631E6FF")
+                color = Color.parseColor("#4DFF3B30")
             }
-            canvas.drawCircle(playedWidth, centerY, scrubberRadius * 1.9f, glowPaint)
+            canvas.drawCircle(playedWidth, centerY, scrubberRadius * 1.8f, glowPaint)
         }
         canvas.drawCircle(playedWidth, centerY, scrubberRadius, scrubberPaint)
     }

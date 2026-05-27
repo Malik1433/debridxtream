@@ -29,8 +29,13 @@ Scope: Debrid source selection, resolution, playback, and provider setup.
 - Full Stremio parity is not implemented.
 - Provider-cache verification still needs manual QA where relevant.
 - Direct addon and direct Debrid edge cases stay in task-specific docs.
+- **Open Issue A (2026-05-25):** MediaFusion and AIO addon sources intermittently throw API exceptions during Debrid source resolution. StremThru sources work reliably. Not caused by PlayerActivity refactoring.
+- **Open Issue B (2026-05-25):** Debrid Continue Watching resume intermittently fails (sometimes works, sometimes does not). Root cause not yet diagnosed.
+- **Open Issue C (2026-05-25):** Debrid expired/null `expiresAt` Continue Watching resume starts playback but then stalls on reloading after seconds/minutes. Likely in network/stall recovery path (Phase 2 area, untouched). Next recommended task: Diagnose Only (no fix without approval).
 
 ## Recent Fixes
+- Added workaround/fallback for old Debrid Continue Watching item resume fails. Old items with valid hash/magnet but expired proxy URL now skip the direct addon passthrough to force a fresh resolve through Real-Debrid on retry.
+- Added API exception text filter and proxy URL validation check for AIOStreams addon sources to prevent playing 5-second API exception error videos.
 - Debrid Continue Watching resume now blocks stale/null-expiry saved direct URLs from being treated as safe playback and refreshes from durable hash/magnet or source-profile metadata instead.
 - Resolved Debrid playback "Real Debrid config missing" regression caused by Player/Episode Browser changes.
 - Companion security hardening for LAN access, PIN validation, and safer URL handling.
@@ -50,7 +55,8 @@ Scope: Debrid source selection, resolution, playback, and provider setup.
 - Manual QA: Debrid movie source picker, Debrid series source picker, direct addon URL, resolver-backed magnet/infoHash, resume, failure handling.
 
 ## Last Verified State
-- 2026-05-24: `:app:compileDebugKotlin` and `:app:assembleDebug` passed after the Continue Watching resume branch fix. Debug APK installed and `MainActivity` launched on `192.168.0.21:5555` and `192.168.0.84:5555`; app PIDs confirmed. Manual Debrid movie/series resume, expired/null `expiresAt`, direct addon, resolver-backed hash/magnet, and source picker regression QA still required.
+- 2026-05-27: Old Debrid Continue Watching proxy/direct URL retry fix has been applied. Build and install completed. Fix is PENDING next-day QA to confirm no stuck loading and proper fresh resolving.
+- 2026-05-25: Post-refactor full app smoke test on 192.168.0.84. Debrid source picker PARTIAL (MediaFusion/AIO intermittent API exceptions, StremThru PASS). Debrid CW resume INTERMITTENT. Debrid CW expired resume FAIL (starts then stalls on reloading). These are pre-existing issues, not caused by PlayerActivity refactoring. Open Issues A/B/C recorded above. No fixes applied.
+- 2026-05-24: `:app:compileDebugKotlin` and `:app:assembleDebug` passed after the Continue Watching resume branch fix. Debug APK installed and `MainActivity` launched on `192.168.0.21:5555` and `192.168.0.84:5555`; app PIDs confirmed.
 - 2026-05-24 follow-up: expired/null `expiresAt` Debrid movie Continue Watching resume passed on `192.168.0.21:5555`. Existing null-expiry Debrid history item fresh-resolved through `PlaybackResolver` and started playback without stale URL replay or false Real-Debrid config missing.
-- Recent build and device verification passed for the companion/security hardening pass.
 - Module remains partial because full Stremio/provider parity and some cache verification need manual QA.

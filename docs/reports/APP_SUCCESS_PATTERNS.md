@@ -270,3 +270,9 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits**: Prevents memory leaks caused by PagingData bindings outliving the fragment's UI lifecycle. Eliminates phantom focus or crashing when returning to tabs that have been popped or destroyed.
 - **Implementation**: Inside View.post {} or Handler.postDelayed {} running within a Fragment context, always verify if (!isAdded) return@post before interacting with the UI.
 
+## 50. Bottom-Only TV Player Controller Layout
+- **Definition:** Redesigning TV/Fire TV player controllers into a bottom-only layout with exactly the 7 essential capsule buttons in a single horizontal row.
+- **Benefits:** Matches the precise reference image and blueprint layouts without cluttering the screen. Keeps the top portion transparent, hides all non-essential and unused elements (like volume and X-Ray controls) via `visibility="gone"` while retaining them in the layout to ensure `findViewById` backward compatibility in Activity code.
+- **Implementation:** Group Rewind 10s, Play/Pause frame, Forward 10s, Next Episode, Subtitles/CC, Language, and Fullscreen in a centered horizontal LinearLayout. Style each as an `80dp` x `56dp` capsule using a custom selector (`bg_player_ref_button`). Use `nextFocusUp` on all buttons pointing to `exo_progress`, and `nextFocusDown` on `exo_progress` pointing to `exo_play` to create a trapped navigation loop.
+
+
