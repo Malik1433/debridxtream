@@ -17,6 +17,17 @@ object AddonCatalogServiceFactory {
         val clientBuilder = OkHttpClient.Builder()
             .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                val original = chain.request()
+                val requestBuilder = original.newBuilder()
+                if (original.header("User-Agent") == null) {
+                    requestBuilder.header("User-Agent", "Stremio/1.0")
+                }
+                if (original.header("Accept") == null) {
+                    requestBuilder.header("Accept", "application/json")
+                }
+                chain.proceed(requestBuilder.build())
+            }
 
         val retrofit = Retrofit.Builder()
             .baseUrl(PLACEHOLDER_BASE_URL)

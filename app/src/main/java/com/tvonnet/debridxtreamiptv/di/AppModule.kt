@@ -15,6 +15,7 @@ import com.tvonnet.debridxtreamiptv.data.local.dao.FavoriteDao
 import com.tvonnet.debridxtreamiptv.data.local.dao.SearchHistoryDao
 import com.tvonnet.debridxtreamiptv.data.local.dao.SeriesDao
 import com.tvonnet.debridxtreamiptv.data.local.dao.VodDao
+import com.tvonnet.debridxtreamiptv.data.local.dao.WatchedStateDao
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
@@ -278,6 +279,12 @@ object AppModule {
     @Singleton
     fun provideEpisodeDaoV2(database: AppDatabase): com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.EpisodeDaoV2 {
         return database.episodeDaoV2()
+    }
+
+    @Provides
+    @Singleton
+    fun provideWatchedStateDao(database: AppDatabase): WatchedStateDao {
+        return database.watchedStateDao()
     }
 }
 

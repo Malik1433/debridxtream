@@ -1,166 +1,149 @@
 #!/bin/bash
 # V3 Progress Update Script
-# Usage: ./update-v3-progress.sh [domain|agent|security|performance] [value]
 
 set -e
 
 METRICS_DIR=".claude-flow/metrics"
 SECURITY_DIR=".claude-flow/security"
+NODE_BIN="$(command -v node.exe 2>/dev/null || command -v node 2>/dev/null || true)"
 
-# Ensure directories exist
+if [ -z "$NODE_BIN" ]; then
+  echo "Error: Node.js is required for V3 helpers but was not found"
+  exit 1
+fi
+
 mkdir -p "$METRICS_DIR" "$SECURITY_DIR"
 
+update_json_field() {
+  local file="$1"
+  local path_expr="$2"
+  local raw_value="$3"
+
+  "$NODE_BIN" - "$file" "$path_expr" "$raw_value" <<'NODE'
+const fs = require('fs');
+const file = process.argv[2];
+const pathExpr = process.argv[3];
+const rawValue = process.argv[4];
+const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+const value = /^-?\d+(?:\.\d+)?$/.test(rawValue) ? Number(rawValue) : rawValue;
+
+const parts = pathExpr.split('.');
+let cursor = data;
+for (let i = 0; i < parts.length - 1; i++) {
+  const key = parts[i];
+  if (!cursor[key] || typeof cursor[key] !== 'object') cursor[key] = {};
+  cursor = cursor[key];
+}
+cursor[parts[parts.length - 1]] = value;
+fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
+NODE
+}
+
+read_json_field() {
+  local file="$1"
+  local path_expr="$2"
+  local fallback="$3"
+
+  if [ ! -f "$file" ]; then
+    echo "$fallback"
+    return
+  fi
+
+  "$NODE_BIN" - "$file" "$path_expr" "$fallback" <<'NODE'
+const fs = require('fs');
+const file = process.argv[2];
+const pathExpr = process.argv[3];
+const fallback = process.argv[4];
+try {
+  const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const value = pathExpr.split('.').reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), data);
+  process.stdout.write(String(value ?? fallback));
+} catch {
+  process.stdout.write(String(fallback));
+}
+NODE
+}
+
+print_statusline() {
+  if [ -x ".claude/statusline.sh" ]; then
+    bash .claude/statusline.sh
+  fi
+}
+
 case "$1" in
-  "domain")
-    if [ -z "$2" ]; then
+  domain)
+    if [ -z "${2:-}" ]; then
       echo "Usage: $0 domain <count>"
-      echo "Example: $0 domain 3"
       exit 1
     fi
-
-    # Update domain completion count
-    jq --argjson count "$2" '.domains.completed = $count' \
-      "$METRICS_DIR/v3-progress.json" > tmp.json && \
-      mv tmp.json "$METRICS_DIR/v3-progress.json"
-
-    echo "✅ Updated domain count to $2/5"
+    update_json_field "$METRICS_DIR/v3-progress.json" "domains.completed" "$2"
+    echo "Updated domain count to $2/5"
     ;;
-
-  "agent")
-    if [ -z "$2" ]; then
+  agent)
+    if [ -z "${2:-}" ]; then
       echo "Usage: $0 agent <count>"
-      echo "Example: $0 agent 8"
       exit 1
     fi
-
-    # Update active agent count
-    jq --argjson count "$2" '.swarm.activeAgents = $count' \
-      "$METRICS_DIR/v3-progress.json" > tmp.json && \
-      mv tmp.json "$METRICS_DIR/v3-progress.json"
-
-    echo "✅ Updated active agents to $2/15"
+    update_json_field "$METRICS_DIR/v3-progress.json" "swarm.activeAgents" "$2"
+    echo "Updated active agents to $2/15"
     ;;
-
-  "security")
-    if [ -z "$2" ]; then
+  security)
+    if [ -z "${2:-}" ]; then
       echo "Usage: $0 security <fixed_count>"
-      echo "Example: $0 security 2"
       exit 1
     fi
-
-    # Update CVE fixes
-    jq --argjson count "$2" '.cvesFixed = $count' \
-      "$SECURITY_DIR/audit-status.json" > tmp.json && \
-      mv tmp.json "$SECURITY_DIR/audit-status.json"
-
+    update_json_field "$SECURITY_DIR/audit-status.json" "cvesFixed" "$2"
     if [ "$2" -eq 3 ]; then
-      jq '.status = "CLEAN"' \
-        "$SECURITY_DIR/audit-status.json" > tmp.json && \
-        mv tmp.json "$SECURITY_DIR/audit-status.json"
+      update_json_field "$SECURITY_DIR/audit-status.json" "status" "CLEAN"
     fi
-
-    echo "✅ Updated security: $2/3 CVEs fixed"
+    echo "Updated security: $2/3 CVEs fixed"
     ;;
-
-  "performance")
-    if [ -z "$2" ]; then
+  performance)
+    if [ -z "${2:-}" ]; then
       echo "Usage: $0 performance <speedup>"
-      echo "Example: $0 performance 2.1x"
       exit 1
     fi
-
-    # Update performance metrics
-    jq --arg speedup "$2" '.flashAttention.speedup = $speedup' \
-      "$METRICS_DIR/performance.json" > tmp.json && \
-      mv tmp.json "$METRICS_DIR/performance.json"
-
-    echo "✅ Updated Flash Attention speedup to $2"
+    update_json_field "$METRICS_DIR/performance.json" "flashAttention.speedup" "$2"
+    echo "Updated Flash Attention speedup to $2"
     ;;
-
-  "memory")
-    if [ -z "$2" ]; then
+  memory)
+    if [ -z "${2:-}" ]; then
       echo "Usage: $0 memory <percentage>"
-      echo "Example: $0 memory 45%"
       exit 1
     fi
-
-    # Update memory reduction
-    jq --arg reduction "$2" '.memory.reduction = $reduction' \
-      "$METRICS_DIR/performance.json" > tmp.json && \
-      mv tmp.json "$METRICS_DIR/performance.json"
-
-    echo "✅ Updated memory reduction to $2"
+    update_json_field "$METRICS_DIR/performance.json" "memory.reduction" "$2"
+    echo "Updated memory reduction to $2"
     ;;
-
-  "ddd")
-    if [ -z "$2" ]; then
+  ddd)
+    if [ -z "${2:-}" ]; then
       echo "Usage: $0 ddd <percentage>"
-      echo "Example: $0 ddd 65"
       exit 1
     fi
-
-    # Update DDD progress percentage
-    jq --argjson progress "$2" '.ddd.progress = $progress' \
-      "$METRICS_DIR/v3-progress.json" > tmp.json && \
-      mv tmp.json "$METRICS_DIR/v3-progress.json"
-
-    echo "✅ Updated DDD progress to $2%"
+    update_json_field "$METRICS_DIR/v3-progress.json" "ddd.progress" "$2"
+    echo "Updated DDD progress to $2%"
     ;;
-
-  "status")
-    # Show current status
-    echo "📊 V3 Development Status:"
-    echo "========================"
-
-    if [ -f "$METRICS_DIR/v3-progress.json" ]; then
-      domains=$(jq -r '.domains.completed // 0' "$METRICS_DIR/v3-progress.json")
-      agents=$(jq -r '.swarm.activeAgents // 0' "$METRICS_DIR/v3-progress.json")
-      ddd=$(jq -r '.ddd.progress // 0' "$METRICS_DIR/v3-progress.json")
-      echo "🏗️  Domains: $domains/5"
-      echo "🤖 Agents: $agents/15"
-      echo "📐 DDD: $ddd%"
-    fi
-
-    if [ -f "$SECURITY_DIR/audit-status.json" ]; then
-      cves=$(jq -r '.cvesFixed // 0' "$SECURITY_DIR/audit-status.json")
-      echo "🛡️  Security: $cves/3 CVEs fixed"
-    fi
-
-    if [ -f "$METRICS_DIR/performance.json" ]; then
-      speedup=$(jq -r '.flashAttention.speedup // "1.0x"' "$METRICS_DIR/performance.json")
-      memory=$(jq -r '.memory.reduction // "0%"' "$METRICS_DIR/performance.json")
-      echo "⚡ Performance: $speedup speedup, $memory memory saved"
-    fi
-    ;;
-
-  *)
-    echo "V3 Progress Update Tool"
+  status)
+    echo "V3 Development Status:"
     echo "======================"
-    echo ""
-    echo "Usage: $0 <command> [value]"
-    echo ""
-    echo "Commands:"
-    echo "  domain <0-5>       Update completed domain count"
-    echo "  agent <0-15>       Update active agent count"
-    echo "  security <0-3>     Update fixed CVE count"
-    echo "  performance <x.x>  Update Flash Attention speedup"
-    echo "  memory <xx%>       Update memory reduction percentage"
-    echo "  ddd <0-100>        Update DDD progress percentage"
-    echo "  status             Show current status"
-    echo ""
-    echo "Examples:"
-    echo "  $0 domain 3        # Mark 3 domains as complete"
-    echo "  $0 agent 8         # Set 8 agents as active"
-    echo "  $0 security 2      # Mark 2 CVEs as fixed"
-    echo "  $0 performance 2.5x # Set speedup to 2.5x"
-    echo "  $0 memory 35%      # Set memory reduction to 35%"
-    echo "  $0 ddd 75          # Set DDD progress to 75%"
+    domains=$(read_json_field "$METRICS_DIR/v3-progress.json" "domains.completed" 0)
+    agents=$(read_json_field "$METRICS_DIR/v3-progress.json" "swarm.activeAgents" 0)
+    ddd=$(read_json_field "$METRICS_DIR/v3-progress.json" "ddd.progress" 0)
+    cves=$(read_json_field "$SECURITY_DIR/audit-status.json" "cvesFixed" 0)
+    speedup=$(read_json_field "$METRICS_DIR/performance.json" "flashAttention.speedup" "1.0x")
+    memory=$(read_json_field "$METRICS_DIR/performance.json" "memory.reduction" "0%")
+    echo "Domains: $domains/5"
+    echo "Agents: $agents/15"
+    echo "DDD: $ddd%"
+    echo "Security: $cves/3 CVEs fixed"
+    echo "Performance: $speedup speedup, $memory memory saved"
+    ;;
+  *)
+    echo "Usage: $0 <domain|agent|security|performance|memory|ddd|status> [value]"
+    exit 1
     ;;
 esac
 
-# Show updated statusline if not just showing help
-if [ "$1" != "" ] && [ "$1" != "status" ]; then
-  echo ""
-  echo "📺 Updated Statusline:"
-  bash .claude/statusline.sh
+if [ "$1" != "status" ] && [ -n "${1:-}" ]; then
+  echo
+  print_statusline
 fi

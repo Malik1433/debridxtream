@@ -1130,7 +1130,7 @@ class LiveFragment : Fragment() {
         rvCategories.isFocusableInTouchMode = false
     }
 
-    private fun focusSelectedCategoryItem(): Boolean {
+    private fun focusSelectedCategoryItem(attempt: Int = 0): Boolean {
         if (!isAdded || displayCategories.isEmpty()) return false
         val state = viewModel.uiState.value
         val targetId = state.selectedCategoryId ?: state.lastFocusedCategoryId
@@ -1142,9 +1142,18 @@ class LiveFragment : Fragment() {
             ?: 0
 
         rvCategories.scrollToPosition(targetPosition)
-        rvCategories.post {
-            rvCategories.findViewHolderForAdapterPosition(targetPosition)?.itemView?.requestFocus()
-        }
+        rvCategories.postDelayed({
+            if (!isAdded) return@postDelayed
+            try {
+                val itemView = rvCategories.findViewHolderForAdapterPosition(targetPosition)?.itemView
+                val focused = itemView?.requestFocus() == true
+                if (!focused && attempt < CHANNEL_FOCUS_RETRY_COUNT) {
+                    focusSelectedCategoryItem(attempt + 1)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("LiveFragment", "Error requesting category focus", e)
+            }
+        }, CHANNEL_FOCUS_RETRY_DELAY_MS)
         return true
     }
     

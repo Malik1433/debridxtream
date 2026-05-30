@@ -45,7 +45,7 @@ class SidebarFocusController(
                 ?.setDuration(160)
                 ?.setInterpolator(overshootInterpolator)
                 ?.start()
-            icon?.imageTintList = android.content.res.ColorStateList.valueOf(colorSelected)
+            icon?.setColorFilter(colorSelected, android.graphics.PorterDuff.Mode.SRC_IN)
             icon?.alpha = 1f
 
             // 3. Text Micro-Animation: Color + Alpha
@@ -63,7 +63,7 @@ class SidebarFocusController(
                 ?.setDuration(160)
                 ?.setInterpolator(fastInterpolator)
                 ?.start()
-            icon?.imageTintList = android.content.res.ColorStateList.valueOf(colorMuted)
+            icon?.setColorFilter(colorMuted, android.graphics.PorterDuff.Mode.SRC_IN)
             icon?.alpha = if (target == lastActiveTarget) 1f else 0.6f
 
             text?.setTextColor(colorMuted)

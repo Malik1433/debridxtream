@@ -82,6 +82,25 @@
             android:background="@drawable/bg_circle_dark_translucent"
             android:visibility="gone" />
 
+        <!-- Top Right Watched Checkmark (or beside quality badge) -->
+        <!-- But layout is a CardView containing a FrameLayout-like behavior.
+             Let's put the watched indicator at the bottom-right of the poster, just above the glass footer.
+             Wait, a CardView stacks children. Layout gravity can be used.
+             Let's put it at center-end or top-start below favorite?
+             Top-Left below favorite: -->
+        <ImageView
+            android:id="@+id/iv_watched_indicator"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="top|start"
+            android:layout_marginStart="4dp"
+            android:layout_marginTop="32dp"
+            android:padding="4dp"
+            android:src="@drawable/ic_check_circle"
+            app:tint="@android:color/white"
+            android:background="@drawable/bg_circle_dark_translucent"
+            android:visibility="gone" />
+
         <!-- Glass Metadata Layer -->
         <LinearLayout
             android:layout_width="match_parent"

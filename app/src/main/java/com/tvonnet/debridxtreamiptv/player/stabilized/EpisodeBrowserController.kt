@@ -1,11 +1,14 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
+import android.app.AlertDialog
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import android.util.Log
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
@@ -15,7 +18,26 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder
+import com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity
+import com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface EpisodeBrowserEntryPoint {
+    fun watchedStateRepository(): WatchedStateRepository
+}
 
 /**
  * Controller for the shared Series Episode Browser overlay in PlayerActivity.
@@ -52,6 +74,7 @@ class EpisodeBrowserController(
         seasonTitle?.let { tvTitle.text = it }
         this.fallbackImageUrl = fallbackImageUrl
         adapter.setFallbackImageUrl(fallbackImageUrl)
+        adapter.setSeriesTitle(seasonTitle)
         adapter.setCurrentEpisodeId(currentEpisodeId)
         Log.e("IPTV_EP_LOAD_FIX", "CONTROLLER submit count=${episodes.size}")
         adapter.submitList(episodes) {
@@ -98,7 +121,11 @@ class EpisodeBrowserController(
             KeyEvent.KEYCODE_NUMPAD_ENTER -> {
                 val position = focusedPosition.takeIf { it != RecyclerView.NO_POSITION }
                     ?: rvEpisodes.getChildAdapterPosition(rvEpisodes.focusedChild ?: rvEpisodes)
-                adapter.currentList.getOrNull(position)?.let(onEpisodeSelected)
+                if (event.isLongPress) {
+                    adapter.toggleWatchedAt(position, rvEpisodes.context)
+                } else {
+                    adapter.currentList.getOrNull(position)?.let(onEpisodeSelected)
+                }
                 true
             }
             KeyEvent.KEYCODE_BACK -> {
@@ -176,6 +203,10 @@ class EpisodeBrowserController(
 
         private var currentEpisodeId: String? = null
         private var fallbackImageUrl: String? = null
+        private var seriesTitle: String? = null
+        private var appContext: Context? = null
+        private val adapterScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        private val watchedKeys = mutableSetOf<String>()
 
         fun setCurrentEpisodeId(id: String?) {
             currentEpisodeId = id
@@ -187,21 +218,142 @@ class EpisodeBrowserController(
             notifyDataSetChanged()
         }
 
+        fun setSeriesTitle(title: String?) {
+            seriesTitle = title
+        }
+
+        fun toggleWatchedAt(position: Int, context: Context): Boolean {
+            val episode = currentList.getOrNull(position) ?: return false
+            val identityKey = watchedIdentityKey(episode) ?: return false
+            val isWatched = watchedKeys.contains(identityKey)
+            val actionTitle = if (isWatched) "Mark as Unwatched" else "Mark as Watched"
+            AlertDialog.Builder(context)
+                .setTitle(episode.title ?: "Episode ${episode.episodeNumber}")
+                .setItems(arrayOf(actionTitle)) { _, _ ->
+                    toggleWatched(context, episode, identityKey, !isWatched)
+                }
+                .show()
+            return true
+        }
+
+        override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+            super.onDetachedFromRecyclerView(recyclerView)
+            adapterScope.cancel()
+        }
+
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EpisodeViewHolder {
+            appContext = parent.context.applicationContext
             val view = LayoutInflater.from(parent.context)
                 .inflate(R.layout.item_player_episode_browser, parent, false)
-            return EpisodeViewHolder(view, onEpisodeSelected)
+            return EpisodeViewHolder(view, onEpisodeSelected) { episode, context ->
+                toggleWatchedAt(currentList.indexOf(episode), context)
+            }
         }
 
         override fun onBindViewHolder(holder: EpisodeViewHolder, position: Int) {
             val episode = getItem(position)
-            holder.bind(episode, episode.episodeId == currentEpisodeId, fallbackImageUrl)
+            val identityKey = watchedIdentityKey(episode)
+            holder.bind(
+                episode = episode,
+                isActive = episode.episodeId == currentEpisodeId,
+                fallbackImageUrl = fallbackImageUrl,
+                isWatched = identityKey != null && watchedKeys.contains(identityKey)
+            )
+            if (identityKey != null && !watchedKeys.contains(identityKey)) {
+                loadWatchedState(identityKey)
+            }
+        }
+
+        private fun loadWatchedState(identityKey: String) {
+            adapterScope.launch {
+                val isWatched = withContext(Dispatchers.IO) {
+                    watchedRepository()?.getState(identityKey)?.isWatched == true
+                }
+                if (isWatched && watchedKeys.add(identityKey)) {
+                    notifyItemChangedByIdentity(identityKey)
+                }
+            }
+        }
+
+        private fun toggleWatched(
+            context: Context,
+            episode: EpisodeEntityV2,
+            identityKey: String,
+            watched: Boolean
+        ) {
+            adapterScope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val timestamp = System.currentTimeMillis()
+                        val repo = watchedRepository(context) ?: error("Watched repository unavailable")
+                        val state = repo.getState(identityKey) ?: WatchedStateEntity(
+                            identityKey = identityKey,
+                            contentType = WatchedStateEntity.CONTENT_TYPE_EPISODE,
+                            source = WatchedStateEntity.SOURCE_DEBRID,
+                            title = episode.title,
+                            year = episode.releaseDate?.take(4),
+                            seriesId = episode.seriesId,
+                            seasonNumber = episode.seasonNumber,
+                            episodeNumber = episode.episodeNumber,
+                            durationMs = episode.duration.takeIf { it > 0L } ?: episode.durationSecs?.toLongOrNull()?.times(1000L) ?: 0L,
+                            updatedAt = timestamp
+                        )
+                        repo.setManualWatched(state, watched, timestamp)
+                    }
+                }
+                result.onSuccess {
+                    if (watched) {
+                        watchedKeys.add(identityKey)
+                    } else {
+                        watchedKeys.remove(identityKey)
+                    }
+                    notifyItemChangedByIdentity(identityKey)
+                    Toast.makeText(
+                        context,
+                        if (watched) "Marked watched" else "Marked unwatched",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }.onFailure {
+                    Toast.makeText(context, "Unable to update watched state", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        private fun watchedIdentityKey(episode: EpisodeEntityV2): String? {
+            if (!isDebridEpisode(episode)) return null
+            return WatchedIdentityBuilder.debridEpisode(
+                seriesIdentity = episode.seriesId,
+                seasonNumber = episode.seasonNumber,
+                episodeNumber = episode.episodeNumber,
+                seriesTitle = seriesTitle,
+                seriesYear = episode.releaseDate?.take(4),
+                fallbackDiscriminator = episode.episodeId.ifBlank { episode.title }
+            )
+        }
+
+        private fun isDebridEpisode(episode: EpisodeEntityV2): Boolean {
+            val expectedPrefix = "${episode.seriesId}:${episode.seasonNumber}:${episode.episodeNumber}"
+            return episode.episodeId == expectedPrefix
+        }
+
+        private fun watchedRepository(context: Context? = null): WatchedStateRepository? {
+            val appContext = context?.applicationContext ?: appContext ?: return null
+            return EntryPointAccessors.fromApplication(
+                appContext,
+                EpisodeBrowserEntryPoint::class.java
+            ).watchedStateRepository()
+        }
+
+        private fun notifyItemChangedByIdentity(identityKey: String) {
+            val index = currentList.indexOfFirst { watchedIdentityKey(it) == identityKey }
+            if (index != -1) notifyItemChanged(index)
         }
     }
 
     private class EpisodeViewHolder(
         view: View,
-        private val onEpisodeSelected: (EpisodeEntityV2) -> Unit
+        private val onEpisodeSelected: (EpisodeEntityV2) -> Unit,
+        private val onEpisodeLongPressed: (EpisodeEntityV2, Context) -> Boolean
     ) : RecyclerView.ViewHolder(view) {
         private val ivThumb: ImageView = view.findViewById(R.id.iv_episode_thumb)
         private val placeholder: View = view.findViewById(R.id.layout_episode_placeholder)
@@ -227,14 +379,20 @@ class EpisodeBrowserController(
             }
         }
 
-        fun bind(episode: EpisodeEntityV2, isActive: Boolean, fallbackImageUrl: String?) {
+        fun bind(
+            episode: EpisodeEntityV2,
+            isActive: Boolean,
+            fallbackImageUrl: String?,
+            isWatched: Boolean
+        ) {
             tvNumber.text = "E${episode.episodeNumber}"
             tvPlaceholderNumber.text = "E${episode.episodeNumber}"
             tvTitle.text = episode.title ?: "Episode ${episode.episodeNumber}"
             tvMeta.text = "Season ${episode.seasonNumber}"
             tvDuration.text = formatEpisodeDuration(episode.durationSecs, episode.duration)
             tvDuration.isVisible = tvDuration.text.isNotBlank()
-            tvPlayingBadge.isVisible = isActive
+            tvPlayingBadge.text = if (isActive) "Playing" else "Watched"
+            tvPlayingBadge.isVisible = isActive || isWatched
             itemView.isSelected = isActive
             itemView.scaleX = if (itemView.hasFocus()) 1.06f else 1.0f
             itemView.scaleY = if (itemView.hasFocus()) 1.06f else 1.0f
@@ -260,6 +418,9 @@ class EpisodeBrowserController(
 
             itemView.setOnClickListener {
                 onEpisodeSelected(episode)
+            }
+            itemView.setOnLongClickListener {
+                onEpisodeLongPressed(episode, itemView.context)
             }
         }
 

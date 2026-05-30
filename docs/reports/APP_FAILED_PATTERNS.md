@@ -40,6 +40,11 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Reason:** Provider labels are hints, not proof. Treating them as authoritative breaks cached-only filters and creates false Real-Debrid readiness claims.
 - **Fix:** Use provider API availability checks or actual playback readiness, and expose unknown cache state separately.
 
+## 8A. Direct Readiness As RD Cache
+- **Avoid:** Promoting direct HTTP/addon playback readiness to `VERIFIED_CACHED`.
+- **Reason:** Direct readiness is not durable Real-Debrid cache proof. Direct/proxy URLs can expire, fail later, or depend on provider-side readiness, then incorrectly appear under RD cached/playable filters.
+- **Fix:** Store ready direct HTTP/addon sources as `DIRECT_STREAM`, reserve `VERIFIED_CACHED` for RD availability proof, and show cached filters only when verified cached sources exist.
+
 ## 9. Retrying Provider-Blocked Debrid Failures
 - **Avoid:** Retrying or auto-nexting aggressively after Real-Debrid legal/copyright blocks or HTTP `429` rate limits.
 - **Reason:** Legal/copyright failures are terminal for that source, and rate limits can worsen when repeated add-magnet/unrestrict calls continue immediately.

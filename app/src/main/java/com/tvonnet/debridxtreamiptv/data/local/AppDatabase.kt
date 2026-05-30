@@ -12,6 +12,7 @@ import com.tvonnet.debridxtreamiptv.data.local.dao.FavoriteDao
 import com.tvonnet.debridxtreamiptv.data.local.dao.SearchHistoryDao
 import com.tvonnet.debridxtreamiptv.data.local.dao.SeriesDao
 import com.tvonnet.debridxtreamiptv.data.local.dao.VodDao
+import com.tvonnet.debridxtreamiptv.data.local.dao.WatchedStateDao
 import com.tvonnet.debridxtreamiptv.data.local.entity.CategoryEntity
 import com.tvonnet.debridxtreamiptv.data.local.entity.ChannelEntity
 import com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity
@@ -21,6 +22,7 @@ import com.tvonnet.debridxtreamiptv.data.local.entity.SeriesEntity
 import com.tvonnet.debridxtreamiptv.data.local.entity.VodEntity
 import com.tvonnet.debridxtreamiptv.data.local.entity.SeasonEntity
 import com.tvonnet.debridxtreamiptv.data.local.entity.EpisodeEntity
+import com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.SeriesEntityV2
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.SeriesDaoV2
 
@@ -55,9 +57,10 @@ import com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.SeriesDaoV2
         SeasonEntity::class,
         EpisodeEntity::class,
         SeriesEntityV2::class,
-        com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2::class
+        com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2::class,
+        WatchedStateEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -108,6 +111,7 @@ abstract class AppDatabase : RoomDatabase() {
      */
     abstract fun seriesDaoV2(): SeriesDaoV2
     abstract fun episodeDaoV2(): com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.EpisodeDaoV2
+    abstract fun watchedStateDao(): WatchedStateDao
     
     companion object {
         const val DATABASE_NAME = "debrid_xtream_db"

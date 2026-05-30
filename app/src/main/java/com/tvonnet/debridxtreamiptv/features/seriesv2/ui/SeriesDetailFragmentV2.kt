@@ -34,6 +34,9 @@ class SeriesDetailFragmentV2 : Fragment() {
     private var _binding: FragmentSeriesDetailV2Binding? = null
     private val binding get() = _binding!!
 
+    @javax.inject.Inject
+    lateinit var watchedStateRepository: com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
+
     private val viewModel: SeriesDetailViewModelV2 by viewModels()
     private var adapter: EpisodesAdapterV2? = null
     private var seasonsAdapter: SeasonsAdapterV2? = null
@@ -43,6 +46,10 @@ class SeriesDetailFragmentV2 : Fragment() {
     private var lastFocusedSeasonNum: Int? = null
     private var isRestoringFocus = false
     private var seriesPlot: String? = null
+    
+    // Top Badge State
+    private var currentRating: String = ""
+    private var currentWatchedState: SeriesWatchedState = SeriesWatchedState.UNWATCHED
 
     companion object {
         const val ARG_SERIES_ID = "series_id"
@@ -117,6 +124,7 @@ class SeriesDetailFragmentV2 : Fragment() {
                 lastFocusedEpisodeId = episode.episodeId
             }
         )
+        adapter?.seriesId = arguments?.getString(ARG_SERIES_ID)
         binding.rvEpisodes.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
         binding.rvEpisodes.adapter = adapter
 
@@ -163,6 +171,30 @@ class SeriesDetailFragmentV2 : Fragment() {
     }
 
     private fun setupObservers() {
+        // Watched State Stream
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                watchedStateRepository.observeAllWatchedEpisodeKeys().collectLatest { keys ->
+                    val watchedSet = keys.toSet()
+                    if (adapter?.watchedKeys != watchedSet) {
+                        adapter?.watchedKeys = watchedSet
+                        // Force rebind of visible items to update checkmarks
+                        adapter?.notifyItemRangeChanged(0, adapter?.itemCount ?: 0, Any())
+                    }
+                }
+            }
+        }
+
+        // Series Watched State Stream
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.seriesWatchedState.collect { state ->
+                    currentWatchedState = state
+                    updateTopBadge()
+                }
+            }
+        }
+
         // UI State (Metadata)
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -229,8 +261,8 @@ class SeriesDetailFragmentV2 : Fragment() {
                             seasonsAdapter?.selectedSeason = selected
                             
                             // Surgical Update: Only update the affected items
-                            val oldPos = seasonsAdapter?.currentList?.indexOf(oldSeason) ?: -1
-                            val newPos = seasonsAdapter?.currentList?.indexOf(selected) ?: -1
+                            val oldPos = seasonsAdapter?.currentList?.indexOfFirst { it.seasonNum == oldSeason } ?: -1
+                            val newPos = seasonsAdapter?.currentList?.indexOfFirst { it.seasonNum == selected } ?: -1
                             
                             if (oldPos != -1) seasonsAdapter?.notifyItemChanged(oldPos)
                             if (newPos != -1) seasonsAdapter?.notifyItemChanged(newPos)
@@ -279,6 +311,24 @@ class SeriesDetailFragmentV2 : Fragment() {
         }
     }
     
+    private fun updateTopBadge() {
+        val parts = mutableListOf<String>()
+        if (currentRating.isNotEmpty()) parts.add(currentRating)
+        
+        when (currentWatchedState) {
+            SeriesWatchedState.WATCHED -> parts.add("WATCHED")
+            SeriesWatchedState.IN_PROGRESS -> parts.add("IN-PROGRESS")
+            SeriesWatchedState.UNWATCHED -> {}
+        }
+        
+        if (parts.isNotEmpty()) {
+            binding.tvRatingBadge.text = parts.joinToString(" • ")
+            binding.tvRatingBadge.visibility = View.VISIBLE
+        } else {
+            binding.tvRatingBadge.visibility = View.GONE
+        }
+    }
+
     private fun bindMetadata(state: SeriesDetailUiState.Success) {
         val s = state.series
         seriesPlot = s.plot
@@ -292,9 +342,8 @@ class SeriesDetailFragmentV2 : Fragment() {
         binding.tvGenreYear.text = metaRowText
         
         // Rating Badge
-        val ratingText = s.rating ?: ""
-        binding.tvRatingBadge.text = ratingText
-        binding.tvRatingBadge.visibility = if (ratingText.isNotEmpty()) View.VISIBLE else View.GONE
+        currentRating = s.rating ?: ""
+        updateTopBadge()
         
         // Fix 3: Pass cover to adapter for fallback
         if (!s.cover.isNullOrEmpty() && adapter?.seriesCoverUrl != s.cover) {

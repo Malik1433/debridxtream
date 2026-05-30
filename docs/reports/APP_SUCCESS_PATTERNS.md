@@ -275,4 +275,28 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Matches the precise reference image and blueprint layouts without cluttering the screen. Keeps the top portion transparent, hides all non-essential and unused elements (like volume and X-Ray controls) via `visibility="gone"` while retaining them in the layout to ensure `findViewById` backward compatibility in Activity code.
 - **Implementation:** Group Rewind 10s, Play/Pause frame, Forward 10s, Next Episode, Subtitles/CC, Language, and Fullscreen in a centered horizontal LinearLayout. Style each as an `80dp` x `56dp` capsule using a custom selector (`bg_player_ref_button`). Use `nextFocusUp` on all buttons pointing to `exo_progress`, and `nextFocusDown` on `exo_progress` pointing to `exo_play` to create a trapped navigation loop.
 
+## 51. Stremio Addon Header Masking
+- **Definition:** Addon manifest/catalog/stream API requests to third-party scrapers (like MediaFusion and AIOStreams) must spoof a Stremio `User-Agent` and include standard `Accept` headers.
+- **Benefits:** Prevents addon servers from rejecting the app's requests with "API Exception" or "Rate Limited" pseudo-streams due to strict Stremio-client validation.
+- **Implementation:** Inject `User-Agent: Stremio/1.0` and `Accept: application/json` via OkHttp interceptors (`AddonCatalogServiceFactory`) and manual `Request.Builder` calls (`StremioAddonFetcher`). Also, configure slightly longer read/connect timeouts (20s) for slow scraper aggregators.
 
+## 52. Central Direct Proxy Readiness Policy
+- **Definition:** Classify MediaFusion/AIO direct proxy playback through one shared repository policy that can use URL host plus existing provider/source metadata, and run the preflight with the same playback headers before launching Player.
+- **Benefits:** Prevents movie and series paths from drifting, catches labelled direct/proxy sources whose final URL host no longer contains the addon name, and blocks not-ready provider pseudo-streams before they become instant Player failures.
+- **Implementation:** Keep `DebridPlaybackRepository.requiresDirectProxyReadinessCheck(...)` as the single gate; pass source headers/provider/source fields from movie and series detail call sites; treat non-ready/error HEAD responses as unsafe; leave non-classified direct sources and resolver-backed hash/magnet playback unchanged. Device QA on `192.168.0.84:5555` covered movie AIOStreams ready launch, series AIOStreams not-ready block/recovery, and non-AIO control launch.
+## 53. Cinematic Bottom Half-Sheet Dialog
+- **Definition:** For source/link selection dialogues on Android TV, use a bottom-sheet style design that occupies exactly the lower 55% of the screen instead of a floating center popup.
+- **Benefits:** Maximizes horizontal space for long source links, provides a modern "cinematic" overlay without obscuring the background entirely, and allows horizontal inline filters to sit cleanly at the top of the sheet.
+- **Implementation:** Use a `ConstraintLayout` with a horizontal `Guideline` at `0.45` (45%). Constrain the dialog background (`cin_card_sources_glass`) and all contents below this guideline. Use inline horizontal items (`LinearLayout` with `orientation="horizontal"`) for list elements to avoid truncation.
+
+## 54. Placeholder-Only Sensitive Log Redaction
+- **Definition:** Redacted logs for URLs, magnets, hashes, credentials, and tokens must use placeholder-only strings that do not retain raw protocol prefixes, key names, partial hashes, or throwable messages.
+- **Benefits:** Keeps useful aggregate diagnostics while allowing app-process log scans to catch real leaks without false positives from "redacted" URL-like output.
+- **Implementation:** Use `SensitiveLogRedactor.describeUrl`, `describeHash`, `describeSecret`, and `describeException` for source/provider/image logs. Avoid logging raw throwable objects when network/source failures can include URLs or tokens. Prefer source counts, provider counts, cache status counts, and readiness booleans over source lists or release-title samples. Device QA on `192.168.0.84:5555` confirmed zero matches for raw URL, magnet, token-param, username/password, and long-hash patterns after Debrid movie source picker/direct playback.
+
+
+# #   A n d r o i d   T V   N a v i g a t i o n   P a t t e r n s 
+ -   * * P a t t e r n * * :   o n B a c k P r e s s e d   w i t h   A n d r o i d   T V   N a v i g a t i o n 
+ -   * * C o n t e x t * * :   W h e n   u s i n g    n d r o i d : p a r e n t A c t i v i t y N a m e   o n   A n d r o i d   T V ,   d e f a u l t   s u p e r . o n B a c k P r e s s e d ( )   m a y   t r i g g e r   U p - n a v i g a t i o n   w h i c h   r e c r e a t e s   t h e   p a r e n t   a c t i v i t y   ( c a u s i n g   t a b   r e s e t s ) . 
+ -   * * S u c c e s s * * :   O v e r r i d e   o n B a c k P r e s s e d ( )   a n d   u s e    i n i s h ( )   d i r e c t l y   f o r   c h i l d   a c t i v i t i e s   t h a t   s h o u l d   s t r i c t l y   r e t u r n   t o   t h e   s p e c i f i c   f r a g m e n t   s t a t e   o f   t h e   p a r e n t   w i t h o u t   r e s e t t i n g   i t .  
+ 

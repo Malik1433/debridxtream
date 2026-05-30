@@ -28,7 +28,7 @@ fun ImageView.loadPosterOrPlaceholder(
     cornerRadiusDp: Int = 12,
     isBackdrop: Boolean = false
 ) {
-    android.util.Log.e("GLIDE_DEBUG", "loadPosterOrPlaceholder entry: imageUrl=$imageUrl")
+    android.util.Log.d("GLIDE_DEBUG", "loadPosterOrPlaceholder entry: imageUrl=${SensitiveLogRedactor.describeUrl(imageUrl)}")
     
     // Step 1: Centralized resolution via GlobalConfig
     val safeResolved = GlobalConfig.resolveIconUrl(imageUrl) ?: ""
@@ -52,7 +52,10 @@ fun ImageView.loadPosterOrPlaceholder(
         }
     }
 
-    android.util.Log.d("GlideDiagnostics", "Loading: '$imageUrl' -> resolved: '$safeResolved' -> final: '$finalUrl' | BaseUrl: '${GlobalConfig.baseUrl}'")
+    android.util.Log.d(
+        "GlideDiagnostics",
+        "Loading image: input=${SensitiveLogRedactor.describeUrl(imageUrl)}, resolved=${SensitiveLogRedactor.describeUrl(safeResolved)}, final=${SensitiveLogRedactor.describeUrl(finalUrl)}, base=${SensitiveLogRedactor.describeUrl(GlobalConfig.baseUrl)}"
+    )
 
     if (finalUrl.isNullOrEmpty()) {
         setImageResource(placeholder)
@@ -76,7 +79,7 @@ fun ImageView.loadPosterOrPlaceholder(
                 target: Target<Drawable>,
                 isFirstResource: Boolean
             ): Boolean {
-                android.util.Log.e("GLIDE_DEBUG", "FAILED loading image: $finalUrl | Error: ${e?.message}")
+                android.util.Log.e("GLIDE_DEBUG", "FAILED loading image: final=${SensitiveLogRedactor.describeUrl(finalUrl)}, error=${SensitiveLogRedactor.describeException(e)}")
                 return false
             }
 
@@ -87,7 +90,7 @@ fun ImageView.loadPosterOrPlaceholder(
                 dataSource: DataSource,
                 isFirstResource: Boolean
             ): Boolean {
-                android.util.Log.e("GLIDE_DEBUG", "SUCCESS loading image: $finalUrl from $dataSource")
+                android.util.Log.d("GLIDE_DEBUG", "SUCCESS loading image: final=${SensitiveLogRedactor.describeUrl(finalUrl)}, source=$dataSource")
                 return false
             }
         })

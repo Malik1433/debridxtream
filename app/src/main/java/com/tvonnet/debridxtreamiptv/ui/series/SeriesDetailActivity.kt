@@ -785,10 +785,10 @@ class SeriesDetailActivity : AppCompatActivity() {
         val isDirectHttp = magnet?.startsWith("http", ignoreCase = true) == true &&
             magnet.endsWith(".torrent", ignoreCase = true).not()
 
-        if (isDirectHttp && !magnet.isNullOrBlank()) {
+        val launchDirectEpisode = { directUrl: String ->
             val intent = PlayerActivity.createIntent(
                 context = this@SeriesDetailActivity,
-                streamUrl = magnet,
+                streamUrl = directUrl,
                 title = "${seriesName} - S${selectedSeasonKey}E${episode.episodeNumber}",
                 contentId = "$seriesId:$seasonNumber:$episodeNumber",
                 contentType = ContentType.EPISODE,
@@ -813,6 +813,49 @@ class SeriesDetailActivity : AppCompatActivity() {
             )
             intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
             playerLauncher.launch(intent)
+        }
+
+        if (isDirectHttp && !magnet.isNullOrBlank()) {
+            if (debridPlaybackRepository.requiresDirectProxyReadinessCheck(
+                    magnet,
+                    source.provider,
+                    source.sourceName,
+                    source.sourceType
+                )
+            ) {
+                lifecycleScope.launch {
+                    showLoading(true)
+                    val readyResult = withContext(Dispatchers.IO) {
+                        debridPlaybackRepository.isAddonProxyPlaybackReady(
+                            magnet,
+                            source.headers,
+                            source.provider,
+                            source.sourceName,
+                            source.sourceType
+                        )
+                    }
+                    showLoading(false)
+
+                    val isReady = readyResult is Result.Success && readyResult.data
+                    if (!isReady) {
+                        markDebridEpisodeSourceCached(episode.id, source.stream.stream_id, false)
+                        val message = if (readyResult is Result.Error) {
+                            "Source check failed. Choose another source."
+                        } else {
+                            "Source is not ready yet. Choose another source."
+                        }
+                        Toast.makeText(this@SeriesDetailActivity, message, Toast.LENGTH_LONG).show()
+                        fetchAndShowDebridSources(episode)
+                        return@launch
+                    }
+
+                    markDebridEpisodeSourceCached(episode.id, source.stream.stream_id, true)
+                    launchDirectEpisode(magnet)
+                }
+                return
+            }
+
+            launchDirectEpisode(magnet)
             return
         }
 
@@ -966,10 +1009,12 @@ class SeriesDetailActivity : AppCompatActivity() {
         val current = cachedDebridSourcesByEpisode[episodeId] ?: return
         cachedDebridSourcesByEpisode[episodeId] = current.map { source ->
             if (source.stream.stream_id == streamId) {
+                val isDirectHttp = source.stream.direct_source?.startsWith("http", ignoreCase = true) == true &&
+                    source.stream.direct_source.endsWith(".torrent", ignoreCase = true).not()
                 source.copy(
                     isCached = isCached,
                     cacheStatus = if (isCached) {
-                        DebridCacheStatus.VERIFIED_CACHED
+                        if (isDirectHttp) DebridCacheStatus.DIRECT_STREAM else DebridCacheStatus.VERIFIED_CACHED
                     } else {
                         DebridCacheStatus.NOT_CACHED
                     }
@@ -987,7 +1032,12 @@ class SeriesDetailActivity : AppCompatActivity() {
     ) {
         val mediaFusionSources = sources.filter { source ->
             val url = source.stream.direct_source
-            !url.isNullOrBlank() && isAddonProxyPlaybackUrl(url)
+            debridPlaybackRepository.requiresDirectProxyReadinessCheck(
+                url,
+                source.provider,
+                source.sourceName,
+                source.sourceType
+            )
         }
         if (mediaFusionSources.isEmpty()) return
 
@@ -999,7 +1049,13 @@ class SeriesDetailActivity : AppCompatActivity() {
                         async {
                             semaphore.withPermit {
                                 val url = source.stream.direct_source ?: return@withPermit null
-                                val result = debridPlaybackRepository.isAddonProxyPlaybackReady(url)
+                                val result = debridPlaybackRepository.isAddonProxyPlaybackReady(
+                                    url,
+                                    source.headers,
+                                    source.provider,
+                                    source.sourceName,
+                                    source.sourceType
+                                )
                                 val isReady =
                                     result is com.tvonnet.debridxtreamiptv.data.Result.Success && result.data
                                 source.stream.stream_id to isReady
@@ -1032,11 +1088,6 @@ class SeriesDetailActivity : AppCompatActivity() {
                 }
             }
         }
-    }
-
-    private fun isAddonProxyPlaybackUrl(url: String): Boolean {
-        return url.contains("mediafusion.elfhosted.com/playback", ignoreCase = true) ||
-               url.contains("aiostreams.elfhosted.com", ignoreCase = true)
     }
 
     private fun toggleFavorite() {
@@ -1148,6 +1199,13 @@ class SeriesDetailActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+    override fun onBackPressed() {
+        if (isDebridContent) {
+            finish()
+        } else {
+            super.onBackPressed()
+        }
+    }
 }
 
 data class EpisodeUiModel(

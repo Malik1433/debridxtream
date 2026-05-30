@@ -1,53 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/sidebar_container"
-    android:layout_width="@dimen/sidebar_width_collapsed"
-    android:layout_height="match_parent"
-    android:background="@drawable/sidebar_alive_bg"
-    android:elevation="8dp"
+    android:layout_width="84dp"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_debrid_source_item"
+    android:elevation="14dp"
     android:clipChildren="false"
     android:clipToPadding="false"
     android:focusable="false">
 
-    <!-- Floating Focus Pill (Moves using translationY) -->
-    <View
-        android:id="@+id/sidebar_focus_pill"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:background="@drawable/sidebar_focus_pill"
-        android:visibility="invisible"
-        android:alpha="0" />
-
     <!-- Navigation Items Container -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:gravity="top|center_horizontal"
+        android:gravity="center_horizontal"
         android:clipChildren="false"
-        android:clipToPadding="false">
+        android:clipToPadding="false"
+        android:paddingStart="10dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="12dp">
 
-        <!-- Top Buffer for focus pill alignment -->
-        <Space
-            android:layout_width="match_parent"
-            android:layout_height="48dp" />
-
-        <!-- Sidebar Branding Logo -->
+        <!-- Legacy brand retained hidden so existing bindings stay safe. -->
         <TextView
             android:id="@+id/sidebar_brand_logo"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="STREAM\nFLIX"
             android:textColor="@android:color/white"
             android:textSize="18sp"
             android:textStyle="bold"
             android:fontFamily="@font/plus_jakarta_sans"
-            android:gravity="start"
-            android:layout_gravity="start"
-            android:paddingStart="24dp"
-            android:layout_marginBottom="48dp"
+            android:gravity="center"
+            android:layout_marginBottom="32dp"
             android:visibility="gone"
-            android:alpha="0"
             android:letterSpacing="0.05" />
 
         <!-- Primary Navigation Items -->
@@ -56,27 +43,7 @@
             layout="@layout/item_debrid_sidebar" />
 
         <include
-            android:id="@+id/nav_item_home"
-            layout="@layout/item_debrid_sidebar"
-            android:layout_marginTop="8dp" />
-
-        <include
             android:id="@+id/nav_item_discover"
-            layout="@layout/item_debrid_sidebar"
-            android:layout_marginTop="8dp" />
-
-        <include
-            android:id="@+id/nav_item_library"
-            layout="@layout/item_debrid_sidebar"
-            android:layout_marginTop="8dp" />
-
-        <include
-            android:id="@+id/nav_item_movies"
-            layout="@layout/item_debrid_sidebar"
-            android:layout_marginTop="8dp" />
-
-        <include
-            android:id="@+id/nav_item_series"
             layout="@layout/item_debrid_sidebar"
             android:layout_marginTop="8dp" />
 

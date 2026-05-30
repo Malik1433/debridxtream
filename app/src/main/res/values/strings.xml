@@ -41,7 +41,7 @@
     <string name="movie_detail_sources_loading">Loading sources…</string>
     <string name="movie_detail_sources_empty">No additional sources available.</string>
     <string name="movie_detail_select_source">Select Source</string>
-    <string name="source_filter_cached_only">Cached only</string>
+    <string name="source_filter_cached_only">RD Cached only</string>
     <string name="source_filters_empty">No sources match current filters.</string>
 
     <!-- Series Detail -->

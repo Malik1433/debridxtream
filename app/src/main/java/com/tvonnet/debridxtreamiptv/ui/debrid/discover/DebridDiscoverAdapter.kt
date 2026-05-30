@@ -120,6 +120,13 @@ class DebridDiscoverAdapter(
         }
     }
 
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        if (holder is ContentViewHolder) {
+            holder.clearAnimations()
+        }
+    }
+
     // ── ViewHolders ──────────────────────────────────────────────────────────────
 
     inner class ContentViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -202,6 +209,19 @@ class DebridDiscoverAdapter(
         private fun stopPulsingGlow() {
             pulseAnimator?.cancel()
             glowView.alpha = 0f
+        }
+
+        fun clearAnimations() {
+            pulseAnimator?.cancel()
+            pulseAnimator = null
+            itemView.animate().cancel()
+            glowView.animate().cancel()
+            
+            itemView.scaleX = 1.0f
+            itemView.scaleY = 1.0f
+            itemView.z = 0f
+            glowView.alpha = 0f
+            tvTitle.isSelected = false
         }
     }
 

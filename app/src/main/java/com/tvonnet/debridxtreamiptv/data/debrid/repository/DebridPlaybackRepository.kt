@@ -9,6 +9,7 @@ import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,8 +23,28 @@ class DebridPlaybackRepository @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val realDebridRateLimiter: RealDebridRateLimiter
 ) {
-    suspend fun isAddonProxyPlaybackReady(url: String): Result<Boolean> {
-        if (!isAddonProxyPlaybackUrl(url)) {
+    fun requiresDirectProxyReadinessCheck(
+        url: String?,
+        provider: String? = null,
+        sourceName: String? = null,
+        sourceType: String? = null
+    ): Boolean {
+        return !url.isNullOrBlank() && (
+            isAddonProxyPlaybackUrl(url) ||
+                isAddonProxySource(provider) ||
+                isAddonProxySource(sourceName) ||
+                isAddonProxySource(sourceType)
+            )
+    }
+
+    suspend fun isAddonProxyPlaybackReady(
+        url: String,
+        headers: Map<String, String>? = null,
+        provider: String? = null,
+        sourceName: String? = null,
+        sourceType: String? = null
+    ): Result<Boolean> {
+        if (!requiresDirectProxyReadinessCheck(url, provider, sourceName, sourceType)) {
             return Success(true)
         }
 
@@ -35,25 +56,79 @@ class DebridPlaybackRepository @Inject constructor(
             val request = Request.Builder()
                 .url(url)
                 .head()
+                .applyPlaybackHeaders(headers)
                 .build()
             client.newCall(request).execute().use { response ->
-                if (response.isRedirect) {
-                    val location = response.header("Location")?.lowercase()
-                    // Detect if the addon is redirecting to a known error video instead of the actual stream
-                    val isErrorVideo = location?.contains("torrent_not_downloaded.mp4") == true ||
-                                       location?.contains("api_exception") == true ||
-                                       location?.contains("rate_limit") == true ||
-                                       location?.contains("invalid_token") == true ||
-                                       location?.contains("error.mp4") == true
-                    if (isErrorVideo) {
-                        return Success(false)
-                    }
-                }
-                Success(true)
+                Success(isReadyAddonProxyResponse(response))
             }
         } catch (e: Exception) {
             Error(Exception("Addon proxy playback check failed: ${e.message}", e))
         }
+    }
+
+    private fun Request.Builder.applyPlaybackHeaders(headers: Map<String, String>?): Request.Builder {
+        var hasUserAgent = false
+        var hasAccept = false
+        headers.orEmpty().forEach { (name, value) ->
+            if (name.isBlank() || value.isBlank()) return@forEach
+            if (name.equals("User-Agent", ignoreCase = true)) hasUserAgent = true
+            if (name.equals("Accept", ignoreCase = true)) hasAccept = true
+            header(name, value)
+        }
+        if (!hasUserAgent) header("User-Agent", "Stremio/1.0")
+        if (!hasAccept) header("Accept", "*/*")
+        return this
+    }
+
+    private fun isReadyAddonProxyResponse(response: Response): Boolean {
+        if (response.isRedirect) {
+            return !isAddonProxyErrorTarget(response.header("Location"))
+        }
+        if (response.code == 204 || response.code in 400..599 || !response.isSuccessful) {
+            return false
+        }
+
+        val contentType = response.header("Content-Type")?.lowercase()
+        if (contentType != null && isAddonProxyErrorContentType(contentType)) {
+            return false
+        }
+
+        val contentLength = response.header("Content-Length")?.toLongOrNull()
+        if (contentLength != null && contentLength in 1..4096 && contentType?.contains("video") != true) {
+            return false
+        }
+
+        return true
+    }
+
+    private fun isAddonProxyErrorTarget(location: String?): Boolean {
+        val value = location?.lowercase() ?: return false
+        return value.contains("torrent_not_downloaded") ||
+            value.contains("not_downloaded") ||
+            value.contains("not-ready") ||
+            value.contains("not_ready") ||
+            value.contains("notcached") ||
+            value.contains("not_cached") ||
+            value.contains("api_exception") ||
+            value.contains("exception") ||
+            value.contains("rate_limit") ||
+            value.contains("invalid_token") ||
+            value.contains("error.mp4") ||
+            value.contains("/error")
+    }
+
+    private fun isAddonProxyErrorContentType(contentType: String): Boolean {
+        return contentType.contains("application/json") ||
+            contentType.contains("text/html") ||
+            contentType.contains("text/plain")
+    }
+
+    private fun isAddonProxySource(value: String?): Boolean {
+        if (value.isNullOrBlank()) return false
+        return value.contains("mediafusion", ignoreCase = true) ||
+            value.contains("aio streams", ignoreCase = true) ||
+            value.contains("aiostreams", ignoreCase = true) ||
+            value.equals("aio", ignoreCase = true)
     }
 
     /**

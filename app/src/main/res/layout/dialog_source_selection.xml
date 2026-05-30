@@ -3,65 +3,51 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#0B0D10">
+    android:layout_height="match_parent">
 
-    <!-- Cinematic Backdrop -->
-    <ImageView
-        android:id="@+id/iv_backdrop"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:alpha="0.4"
-        tools:src="@tools:sample/backgrounds/scenic" />
-
-    <!-- Dark Overlay for Focus -->
+    <!-- Dimming overlay covering the entire screen cleanly -->
     <View
         android:id="@+id/v_backdrop_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#99000000" />
 
-    <!-- Content Title (Top Centered) -->
-    <TextView
-        android:id="@+id/tv_content_title"
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_half"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="48dp"
-        android:fontFamily="@font/inter_extrabold"
-        android:textColor="@color/white"
-        android:textSize="32sp"
-        android:letterSpacing="-0.01"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:text="The Boys" />
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.40" />
 
-    <!-- Main Sources Panel (Centered Glassmorphism) -->
+    <!-- Main Sources Panel (Bottom Half-Sheet Glassmorphism) -->
+    <!-- Now spans match_parent so it isn't squished -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/panel_sources"
-        android:layout_width="720dp"
+        android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="24dp"
-        android:layout_marginBottom="64dp"
-        android:background="@drawable/cin_card_sources_glass"
-        android:padding="24dp"
-        app:layout_constraintBottom_toTopOf="@+id/layout_footer_hints"
+        android:background="@drawable/cin_card_sources_bottom_sheet"
+        android:paddingTop="24dp"
+        android:paddingStart="56dp"
+        android:paddingEnd="56dp"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_content_title">
+        app:layout_constraintTop_toTopOf="@id/guideline_half">
 
+        <!-- Title -->
         <TextView
             android:id="@+id/tv_dialog_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/movie_detail_sources_header"
             android:textColor="@color/white"
-            android:textSize="20sp"
+            android:textSize="22sp"
             android:fontFamily="@font/inter_extrabold"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="@+id/layout_source_filters"
+            app:layout_constraintBottom_toBottomOf="@+id/layout_source_filters" />
 
+        <!-- Count -->
         <TextView
             android:id="@+id/tv_source_count"
             android:layout_width="wrap_content"
@@ -72,113 +58,148 @@
             app:layout_constraintBottom_toBottomOf="@id/tv_dialog_title"
             app:layout_constraintStart_toEndOf="@id/tv_dialog_title"
             app:layout_constraintTop_toTopOf="@id/tv_dialog_title"
-            tools:text="• 15 sources found" />
+            tools:text="• 225 sources found" />
 
         <!-- Filter Section -->
         <LinearLayout
             android:id="@+id/layout_source_filters"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="vertical"
+            android:layout_marginStart="16dp"
+            android:orientation="horizontal"
+            android:gravity="end|center_vertical"
             android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/tv_dialog_title"
+            app:layout_constraintStart_toEndOf="@id/tv_source_count"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             tools:visibility="visible">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/chip_quality"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_tab_button_selector"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:paddingStart="16dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="6dp"
+                android:text="Quality: All"
+                android:textAllCaps="false"
+                android:textColor="@color/tab_button_text_selector"
+                android:textSize="13sp" />
 
-                <TextView
-                    android:id="@+id/btn_cached_only"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/bg_tab_button_selector"
-                    android:focusable="true"
-                    android:focusableInTouchMode="true"
-                    android:nextFocusDown="@id/rv_language_filters"
-                    android:paddingStart="16dp"
-                    android:paddingTop="8dp"
-                    android:paddingEnd="16dp"
-                    android:paddingBottom="8dp"
-                    android:text="@string/source_filter_cached_only"
-                    android:textAllCaps="false"
-                    android:textColor="@color/tab_button_text_selector"
-                    android:textSize="13sp" />
+            <TextView
+                android:id="@+id/chip_language"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_tab_button_selector"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:paddingStart="16dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="6dp"
+                android:text="Language: All"
+                android:textAllCaps="false"
+                android:textColor="@color/tab_button_text_selector"
+                android:textSize="13sp" />
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_language_filters"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:orientation="horizontal"
-                    android:clipToPadding="false"
-                    tools:listitem="@layout/item_language_chip"
-                    tools:itemCount="3" />
-            </LinearLayout>
-
+            <TextView
+                android:id="@+id/chip_type"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_tab_button_selector"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:paddingStart="16dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="6dp"
+                android:text="Type: All"
+                android:textAllCaps="false"
+                android:textColor="@color/tab_button_text_selector"
+                android:textSize="13sp" />
         </LinearLayout>
 
+        <!-- Sources List -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_sources"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            app:layout_constraintBottom_toTopOf="@+id/v_footer_separator"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/layout_source_filters"
+            tools:listitem="@layout/item_movie_source"
+            tools:visibility="gone" />
+
+        <!-- Progress and Status -->
         <ProgressBar
             android:id="@+id/progress_bar"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:indeterminateTint="#3B82F6"
+            android:indeterminateTint="@color/white"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/layout_source_filters" />
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             android:id="@+id/tv_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="16dp"
             android:textColor="@color/text_secondary"
-            android:textSize="16sp"
+            android:textSize="14sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/progress_bar"
             tools:text="Searching for sources..." />
 
-        <!-- Sources List -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_sources"
+        <!-- Footer Separator -->
+        <View
+            android:id="@+id/v_footer_separator"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_marginTop="16dp"
-            android:clipToPadding="false"
-            android:paddingBottom="16dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/layout_source_filters"
-            tools:listitem="@layout/item_movie_source"
-            tools:visibility="gone" />
+            android:layout_height="1dp"
+            android:background="#1AFFFFFF"
+            app:layout_constraintBottom_toTopOf="@+id/layout_footer_hints"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!-- Footer Hints -->
-    <LinearLayout
-        android:id="@+id/layout_footer_hints"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        android:gravity="center"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <TextView
-            android:layout_width="wrap_content"
+        <!-- Footer hints -->
+        <LinearLayout
+            android:id="@+id/layout_footer_hints"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_circle_dark_translucent"
-            android:padding="4dp"
-            android:text="OK"
-            android:textColor="@color/white"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            android:layout_marginBottom="0dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="24dp"
+            android:background="#FF09090C"
+            android:gravity="center"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <!-- OK Hint -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_circle_dark_translucent"
+                android:paddingStart="8dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="4dp"
+                android:text="OK"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -186,18 +207,22 @@
                 android:layout_marginStart="8dp"
                 android:text="Select to Play"
                 android:textColor="@color/text_secondary"
-                android:textSize="14sp" />
+                android:textSize="13sp" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="24dp"
-            android:background="@drawable/bg_circle_dark_translucent"
-            android:padding="4dp"
-            android:text="BACK"
-            android:textColor="@color/white"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            <!-- BACK Hint -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:background="@drawable/bg_circle_dark_translucent"
+                android:paddingStart="8dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="4dp"
+                android:text="BACK"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -205,7 +230,8 @@
                 android:layout_marginStart="8dp"
                 android:text="Return to Details"
                 android:textColor="@color/text_secondary"
-                android:textSize="14sp" />
-    </LinearLayout>
+                android:textSize="13sp" />
 
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

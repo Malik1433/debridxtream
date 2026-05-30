@@ -15,9 +15,12 @@ Main map for report/history/context files. Use this to choose the smallest usefu
 | `docs/reports/DO_NOT_REPEAT.md` | App-wide | Hard guardrails. | Before app/runtime changes. |
 | `docs/reports/PLAYER_MODULE_REPORT.md` | Player | Canonical shared Player flow and guardrails. | Player, playback, controller, zapping, Episode Browser bugs. |
 | `docs/reports/DEBRID_MODULE_REPORT.md` | Debrid | Canonical Debrid/source/resolver summary. | Debrid source picker, resolver, addon, resume bugs. |
+| `docs/reports/DEBRID_SOURCE_PICKER_AUDIT.md` | Debrid/source picker | Current source picker entry-point, source type, reliability gap, and safe fix order audit. | Before changing Debrid source picker reliability, source identity, cache/direct labels, or movie/series source launch behavior. |
 | `docs/reports/SERIES_MODULE_REPORT.md` | Series | Canonical Series/detail/episode identity summary. | IPTV/Debrid Series and Episode Browser bugs. |
 | `docs/reports/LIVE_MODULE_REPORT.md` | Live TV | Canonical Live list/preview/fullscreen/zapping summary. | Live loading, focus, preview, zapping, fullscreen return bugs. |
 | `docs/reports/VOD_MODULE_REPORT.md` | VOD/Movies | Canonical IPTV movie/VOD summary. | VOD list/detail/playback bugs. |
+| `docs/reports/DEBRID_UI_UX_AUDIT.md` | Debrid UI/UX | Comprehensive Debrid section UI/UX audit report. | Before redesigning or styling Debrid UI elements. |
+| `docs/reports/DEBRID_SIDEBAR_AUDIT.md` | Debrid UI/UX | Audit of Debrid sidebar focus and routing. | Before fixing Debrid sidebar routing/visuals. |
 | `docs/reports/HOME_MODULE_REPORT.md` | Home | Canonical Home focus/sidebar/rows summary. | Home focus, sidebar, rows, Continue Watching bugs. |
 | `docs/reports/LOGIN_MODULE_REPORT.md` | Login | Canonical placeholder for login/session. | Login, session, InitialSync, companion login entry bugs. |
 | `docs/reports/SEARCH_MODULE_REPORT.md` | Search | Canonical placeholder for search/voice. | Search or voice-search bugs. |

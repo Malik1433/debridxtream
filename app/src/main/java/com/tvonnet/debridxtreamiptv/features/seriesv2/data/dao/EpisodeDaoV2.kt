@@ -8,6 +8,8 @@ import androidx.room.Query
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2
 import kotlinx.coroutines.flow.Flow
 
+data class SeasonEpisodeCount(val season_number: Int, val totalEpisodes: Int)
+
 /**
  * DAO for Series V2 Episodes.
  */
@@ -31,6 +33,9 @@ interface EpisodeDaoV2 {
 
     @Query("SELECT DISTINCT season_number FROM episodes_v2_core WHERE series_id = :seriesId ORDER BY season_number ASC")
     fun getSeasonsForSeries(seriesId: String): Flow<List<Int>>
+
+    @Query("SELECT season_number, COUNT(episode_id) as totalEpisodes FROM episodes_v2_core WHERE series_id = :seriesId GROUP BY season_number")
+    fun observeSeasonEpisodeCounts(seriesId: String): Flow<List<SeasonEpisodeCount>>
 
     // Added for Playlist Logic (Plan C: Dynamic Queue)
     @Query("SELECT * FROM episodes_v2_core WHERE series_id = :seriesId AND season_number = :seasonNum ORDER BY episode_number ASC")

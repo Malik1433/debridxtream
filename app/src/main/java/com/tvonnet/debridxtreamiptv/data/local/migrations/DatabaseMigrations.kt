@@ -173,7 +173,8 @@ object DatabaseMigrations {
             MIGRATION_6_7,
             MIGRATION_7_8,
             MIGRATION_8_9,
-            MIGRATION_9_10
+            MIGRATION_9_10,
+            MIGRATION_10_11
         )
     }
 
@@ -265,6 +266,38 @@ object DatabaseMigrations {
             """)
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_episodes_v2_core_series_id` ON `episodes_v2_core` (`series_id`)")
             android.util.Log.d("DatabaseMigration", "Successfully migrated database from version 9 to 10")
+        }
+    }
+
+    val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `watched_state` (
+                    `identity_key` TEXT NOT NULL,
+                    `content_type` TEXT NOT NULL,
+                    `source` TEXT NOT NULL,
+                    `is_watched` INTEGER NOT NULL,
+                    `progress_ms` INTEGER NOT NULL DEFAULT 0,
+                    `duration_ms` INTEGER NOT NULL DEFAULT 0,
+                    `watched_at` INTEGER,
+                    `updated_at` INTEGER NOT NULL,
+                    `manual_state` TEXT,
+                    `manual_updated_at` INTEGER,
+                    `title` TEXT,
+                    `year` TEXT,
+                    `tmdb_id` TEXT,
+                    `imdb_id` TEXT,
+                    `iptv_stream_id` TEXT,
+                    `series_id` TEXT,
+                    `season_number` INTEGER,
+                    `episode_number` INTEGER,
+                    `episode_id` TEXT,
+                    PRIMARY KEY(`identity_key`)
+                )
+            """)
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_watched_state_content_type_source` ON `watched_state` (`content_type`, `source`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_watched_state_series_id_source_season_number` ON `watched_state` (`series_id`, `source`, `season_number`)")
+            android.util.Log.d("DatabaseMigration", "Successfully migrated database from version 10 to 11")
         }
     }
 }

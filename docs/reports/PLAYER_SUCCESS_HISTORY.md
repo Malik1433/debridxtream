@@ -1,5 +1,11 @@
 # Player Success History
 
+### Phase 2 QA: Automatic Watched Detection Verification
+- **Date**: 2026-05-30
+- **Achievement**: Fully verified Phase 2 automatic watched threshold logic without relying on flaky ADB UI automation.
+- **Key Implementation**:
+    - **JVM Unit Test Coverage**: Added `PlayerHistoryManagerTest` to deterministically verify that all boundary conditions (<5% ignore, 5%-89% normal, ≥90% complete, and runtime remaining calculations for movies/episodes) are correct. Test passed perfectly.
+    - **Regression Checks**: Verified playback, source picker, Back navigation, and log leakage (clean: no magnet, token, or password leaks).
 This document tracks all successful changes and structural improvements applied to the Player module.
 
 ## Successful Pattern — Prime-Style VOD Controller Redesign

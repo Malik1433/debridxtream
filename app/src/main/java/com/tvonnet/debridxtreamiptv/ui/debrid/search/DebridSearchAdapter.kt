@@ -42,6 +42,11 @@ class DebridSearchAdapter(
     override fun onBindViewHolder(holder: DebridSearchViewHolder, position: Int) {
         holder.bind(getItem(position), onItemClick)
     }
+
+    override fun onViewRecycled(holder: DebridSearchViewHolder) {
+        super.onViewRecycled(holder)
+        holder.clearAnimations()
+    }
 }
 
 class DebridSearchDiffCallback : DiffUtil.ItemCallback<DebridContentItem>() {
@@ -130,5 +135,18 @@ class DebridSearchViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView)
     private fun stopPulsingGlow() {
         pulseAnimator?.cancel()
         glowView.alpha = 0f
+    }
+
+    fun clearAnimations() {
+        pulseAnimator?.cancel()
+        pulseAnimator = null
+        itemView.animate().cancel()
+        glowView.animate().cancel()
+        
+        itemView.scaleX = 1.0f
+        itemView.scaleY = 1.0f
+        itemView.z = 0f
+        glowView.alpha = 0f
+        tvTitle.isSelected = false
     }
 }

@@ -16,15 +16,21 @@ import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.databinding.FragmentMovieDetailV2Binding
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
+import com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder
+import com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
 import com.tvonnet.debridxtreamiptv.ui.trailer.TrailerActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MovieDetailFragmentV2 : Fragment() {
 
     private var _binding: FragmentMovieDetailV2Binding? = null
     private val binding get() = _binding!!
+
+    @Inject
+    lateinit var watchedStateRepository: WatchedStateRepository
 
     private val viewModel: MovieDetailViewModelV2 by viewModels()
 
@@ -52,6 +58,10 @@ class MovieDetailFragmentV2 : Fragment() {
         val containerExt = args.getString(ARG_CONTAINER_EXT) ?: "mp4"
         val directSource = args.getString(ARG_DIRECT_SOURCE)
         val trailer = args.getString(ARG_TRAILER)
+        val isDebridMovie = args.getBoolean(ARG_IS_DEBRID, false) ||
+            args.getString(ARG_SOURCE).equals("debrid", ignoreCase = true)
+        val tmdbId = firstNonBlank(args, ARG_TMDB_ID, "tmdbId")
+        val imdbId = firstNonBlank(args, ARG_IMDB_ID, "imdbId")
 
         binding.tvTitle.text = title ?: "Loading..."
         binding.tvPlot.text = plot?.takeIf { it.isNotBlank() } ?: "No plot available."
@@ -60,6 +70,77 @@ class MovieDetailFragmentV2 : Fragment() {
 
         val ratingText = rating?.takeIf { it.isNotBlank() } ?: ""
         binding.tvRating.text = if (ratingText.isNotEmpty()) "★ $ratingText" else "★"
+        
+        // Check Watched State and add dynamic button
+        binding.tvWatchedBadge.visibility = View.GONE
+        var currentWatchedState = false
+        val btnMarkWatched = com.google.android.material.button.MaterialButton(requireContext()).apply {
+            text = "Mark Watched"
+            isFocusable = true
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                (56 * resources.displayMetrics.density).toInt()
+            ).apply {
+                marginStart = (16 * resources.displayMetrics.density).toInt()
+            }
+            cornerRadius = (12 * resources.displayMetrics.density).toInt()
+        }
+        (binding.btnFavorite.parent as android.view.ViewGroup).addView(btnMarkWatched)
+        
+        btnMarkWatched.alpha = 0.8f
+        btnMarkWatched.setOnFocusChangeListener { v, hasFocus ->
+            if (hasFocus) {
+                v.animate().scaleX(1.1f).scaleY(1.1f).alpha(1.0f).setDuration(200)
+                    .setInterpolator(android.view.animation.OvershootInterpolator()).start()
+            } else {
+                v.animate().scaleX(1.0f).scaleY(1.0f).alpha(0.8f).setDuration(200).start()
+            }
+        }
+
+        if (!streamId.isNullOrBlank()) {
+            val identity = if (isDebridMovie) {
+                WatchedIdentityBuilder.debridMovie(tmdbId = tmdbId, imdbId = imdbId, title = title, year = year)
+            } else {
+                WatchedIdentityBuilder.iptvMovie(streamId, title, year)
+            }
+            val watchedSource = if (isDebridMovie) {
+                com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.SOURCE_DEBRID
+            } else {
+                com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.SOURCE_XTREAM
+            }
+            
+            btnMarkWatched.setOnClickListener {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val repo = watchedStateRepository
+                    val historyPrefs = com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences(requireContext())
+                    val newState = !currentWatchedState
+                    val stateEntity = repo.getState(identity) ?: com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity(
+                        identityKey = identity,
+                        contentType = com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.CONTENT_TYPE_MOVIE,
+                        source = watchedSource,
+                        iptvStreamId = if (isDebridMovie) null else streamId,
+                        title = title,
+                        year = year,
+                        tmdbId = if (isDebridMovie) tmdbId else null,
+                        imdbId = if (isDebridMovie) imdbId else null,
+                        durationMs = 0L, // Cannot know exact duration without playback
+                        updatedAt = System.currentTimeMillis()
+                    )
+                    repo.setManualWatched(stateEntity, newState, System.currentTimeMillis())
+                    historyPrefs.removeContinueWatchingItem(streamId)
+                }
+            }
+
+            viewLifecycleOwner.lifecycleScope.launch {
+                viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    watchedStateRepository.observeState(identity).collect { state ->
+                        currentWatchedState = state?.isWatched == true
+                        binding.tvWatchedBadge.visibility = if (currentWatchedState) View.VISIBLE else View.GONE
+                        btnMarkWatched.text = if (currentWatchedState) "Mark Unwatched" else "Mark Watched"
+                    }
+                }
+            }
+        }
 
         if (!backdropUrl.isNullOrBlank()) {
             Glide.with(this)
@@ -223,6 +304,12 @@ class MovieDetailFragmentV2 : Fragment() {
         binding.pbLoadingCentral.visibility = if (isLoading && !hasTrailer) View.VISIBLE else View.GONE
     }
 
+    private fun firstNonBlank(args: Bundle, vararg keys: String): String? {
+        return keys.firstNotNullOfOrNull { key ->
+            args.getString(key)?.trim()?.takeIf { it.isNotBlank() }
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
@@ -240,6 +327,10 @@ class MovieDetailFragmentV2 : Fragment() {
         private const val ARG_CONTAINER_EXT = "container_ext"
         private const val ARG_DIRECT_SOURCE = "direct_source"
         private const val ARG_TRAILER = "trailer"
+        private const val ARG_SOURCE = "source"
+        private const val ARG_IS_DEBRID = "is_debrid"
+        private const val ARG_TMDB_ID = "tmdb_id"
+        private const val ARG_IMDB_ID = "imdb_id"
 
         fun newInstance(args: Bundle): MovieDetailFragmentV2 {
             return MovieDetailFragmentV2().apply { arguments = args }
@@ -256,7 +347,11 @@ class MovieDetailFragmentV2 : Fragment() {
             rating: String? = null,
             containerExt: String? = null,
             directSource: String? = null,
-            trailer: String? = null
+            trailer: String? = null,
+            source: String? = null,
+            isDebrid: Boolean = false,
+            tmdbId: String? = null,
+            imdbId: String? = null
         ): MovieDetailFragmentV2 {
             return MovieDetailFragmentV2().apply {
                 arguments = Bundle().apply {
@@ -271,6 +366,10 @@ class MovieDetailFragmentV2 : Fragment() {
                     putString(ARG_CONTAINER_EXT, containerExt)
                     putString(ARG_DIRECT_SOURCE, directSource)
                     putString(ARG_TRAILER, trailer)
+                    putString(ARG_SOURCE, source)
+                    putBoolean(ARG_IS_DEBRID, isDebrid)
+                    putString(ARG_TMDB_ID, tmdbId)
+                    putString(ARG_IMDB_ID, imdbId)
                 }
             }
         }

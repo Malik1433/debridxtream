@@ -4,11 +4,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="6dp"
     android:background="@drawable/cin_source_row_bg"
     android:focusable="true"
-    android:focusableInTouchMode="true"
-    android:padding="12dp">
+    android:padding="10dp">
 
     <!-- Provider Badge -->
     <TextView
@@ -26,6 +25,19 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <!-- Language Flag -->
+    <TextView
+        android:id="@+id/tv_language_flag"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/tv_provider_badge"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="🇺🇸 EN" />
+
     <!-- Source Title -->
     <TextView
         android:id="@+id/tv_source_label"
@@ -38,34 +50,23 @@
         android:textColor="@color/white"
         android:fontFamily="@font/inter"
         android:textSize="15sp"
-        app:layout_constraintBottom_toTopOf="@+id/layout_badges"
-        app:layout_constraintEnd_toStartOf="@+id/tv_badge_size"
-        app:layout_constraintStart_toEndOf="@+id/tv_provider_badge"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/layout_badges"
+        app:layout_constraintStart_toEndOf="@+id/tv_language_flag"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_chainStyle="packed"
         tools:text="The.Boys.S03E01.2160p.WEB-DL.DDP5.1.H.265-CasStudio" />
 
-    <!-- Badges Row -->
+    <!-- Right Side Badges Row -->
     <LinearLayout
         android:id="@+id/layout_badges"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginEnd="12dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="@+id/tv_source_label"
-        app:layout_constraintStart_toStartOf="@+id/tv_source_label"
-        app:layout_constraintTop_toBottomOf="@+id/tv_source_label">
-
-        <TextView
-            android:id="@+id/tv_language_flag"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp"
-            tools:text="EN" />
+        app:layout_constraintEnd_toStartOf="@+id/tv_badge_size"
+        app:layout_constraintTop_toTopOf="parent">
 
         <TextView
             android:id="@+id/tv_badge_quality"
@@ -80,7 +81,7 @@
             android:text="4K"
             android:textColor="@color/black"
             android:fontFamily="@font/inter"
-        android:textStyle="bold"
+            android:textStyle="bold"
             android:textSize="10sp" />
 
         <TextView
@@ -106,7 +107,7 @@
             android:textColor="@color/white"
             android:textSize="9sp"
             android:fontFamily="@font/inter"
-        android:textStyle="bold" />
+            android:textStyle="bold" />
 
     </LinearLayout>
 

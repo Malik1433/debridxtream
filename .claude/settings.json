@@ -165,8 +165,12 @@
     "allow": [
       "Bash(npx @claude-flow*)",
       "Bash(npx claude-flow*)",
+      "Bash(npx ruflo*)",
+      "Bash(npx -y ruflo@latest*)",
       "Bash(node .claude/*)",
-      "mcp__claude-flow__:*"
+      "mcp__claude-flow__:*",
+      "mcp__claude_flow__:*",
+      "mcp__ruflo__:*"
     ],
     "deny": [
       "Read(./.env)",

@@ -11,7 +11,7 @@ import com.tvonnet.debridxtreamiptv.R
 
 class SeasonsAdapterV2(
     private val onSeasonClick: (Int) -> Unit
-) : ListAdapter<Int, SeasonsAdapterV2.SeasonViewHolder>(SeasonDiffCallback()) {
+) : ListAdapter<SeasonUiModel, SeasonsAdapterV2.SeasonViewHolder>(SeasonDiffCallback()) {
 
     var selectedSeason: Int? = null
 
@@ -22,16 +22,25 @@ class SeasonsAdapterV2(
     }
 
     override fun onBindViewHolder(holder: SeasonViewHolder, position: Int) {
-        val seasonNum = getItem(position)
-        holder.bind(seasonNum, seasonNum == selectedSeason)
+        val model = getItem(position)
+        holder.bind(model, model.seasonNum == selectedSeason)
     }
 
     inner class SeasonViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tvName: TextView = itemView.findViewById(R.id.tv_season_name)
 
-        fun bind(seasonNum: Int, isSelected: Boolean) {
+        fun bind(model: SeasonUiModel, isSelected: Boolean) {
+            val seasonNum = model.seasonNum
             tvName.text = if (seasonNum == 0) "Specials" else "Season $seasonNum"
             tvName.isSelected = isSelected
+
+            val drawableEnd = when (model.state) {
+                SeasonWatchedState.WATCHED -> R.drawable.ic_check_circle
+                SeasonWatchedState.IN_PROGRESS -> R.drawable.ic_play_circle_outline
+                SeasonWatchedState.UNWATCHED -> 0
+            }
+            tvName.setCompoundDrawablesWithIntrinsicBounds(0, 0, drawableEnd, 0)
+            tvName.compoundDrawablePadding = if (drawableEnd != 0) 12 else 0
             
             // TV Focus Visuals
             // TV Focus Visuals - Scaling and Z-layering
@@ -50,17 +59,15 @@ class SeasonsAdapterV2(
                     onSeasonClick(seasonNum)
                     
                     // Notify changes to refresh UI selection state
-                    // Ideally we use notifyItemChanged, but finding index is tricky with just Int list?
-                    // ListAdapter has access to current list.
-                    currentList.indexOf(oldSelected).takeIf { it != -1 }?.let { notifyItemChanged(it) }
-                    currentList.indexOf(seasonNum).takeIf { it != -1 }?.let { notifyItemChanged(it) }
+                    currentList.indexOfFirst { it.seasonNum == oldSelected }.takeIf { it != -1 }?.let { notifyItemChanged(it) }
+                    currentList.indexOfFirst { it.seasonNum == seasonNum }.takeIf { it != -1 }?.let { notifyItemChanged(it) }
                 }
             }
         }
     }
 
-    class SeasonDiffCallback : DiffUtil.ItemCallback<Int>() {
-        override fun areItemsTheSame(oldItem: Int, newItem: Int): Boolean = oldItem == newItem
-        override fun areContentsTheSame(oldItem: Int, newItem: Int): Boolean = oldItem == newItem
+    class SeasonDiffCallback : DiffUtil.ItemCallback<SeasonUiModel>() {
+        override fun areItemsTheSame(oldItem: SeasonUiModel, newItem: SeasonUiModel): Boolean = oldItem.seasonNum == newItem.seasonNum
+        override fun areContentsTheSame(oldItem: SeasonUiModel, newItem: SeasonUiModel): Boolean = oldItem == newItem
     }
 }

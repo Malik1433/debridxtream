@@ -31,7 +31,7 @@ import androidx.core.content.res.ResourcesCompat
 
 /**
  * Debrid section fragment - main hub for Real-Debrid content browsing
- * 
+ *
  * Features:
  * - Device-code authentication flow
  * - Trending Movies/Series rows
@@ -41,12 +41,12 @@ import androidx.core.content.res.ResourcesCompat
  */
 @AndroidEntryPoint
 class DebridFragment : Fragment() {
-    
+
     private val viewModel: DebridViewModel by viewModels()
 
     @Inject
     lateinit var playbackResolver: com.tvonnet.debridxtreamiptv.data.debrid.repository.PlaybackResolver
-    
+
     // UI components
     private lateinit var progressBar: ProgressBar
     private lateinit var errorContainer: View
@@ -56,29 +56,23 @@ class DebridFragment : Fragment() {
     private lateinit var rvDebridRows: RecyclerView
     private lateinit var ivBackgroundBackdrop: ImageView
     private lateinit var layoutResolutionOverlay: View
-    
+
     // Sidebar components
     private var sidebarContainer: View? = null
     private var navItemSearch: View? = null
-    private var navItemHome: View? = null
     private var navItemDiscover: View? = null
-    private var navItemLibrary: View? = null
-    private var navItemMovies: View? = null
-    private var navItemSeries: View? = null
     private var sidebarBrandLogo: View? = null
-    
-    private var isSidebarExpanded = false
-    private var sidebarFocusController: SidebarFocusController? = null
-    
+
     // Focus Persistence State
     private var lastFocusedRowIndex = 0
     private var lastFocusedItemIndex = 0
     private var lastFocusedItemId: String? = null
-    private var activeNavItemId: Int = R.id.nav_item_home
-    
+    private var activeNavItemId: Int = R.id.nav_item_discover
+    private var pendingRestoreFocus = false
+
     // Adapter
     private lateinit var debridRowsAdapter: DebridRowsAdapter
-    
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -86,39 +80,49 @@ class DebridFragment : Fragment() {
     ): View {
         return inflater.inflate(R.layout.fragment_debrid, container, false)
     }
-    
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
+        savedInstanceState?.let {
+            lastFocusedRowIndex = it.getInt("state_last_row_pos", 0)
+            lastFocusedItemIndex = it.getInt("state_last_item_pos", 0)
+            lastFocusedItemId = it.getString("state_last_item_id")
+        }
+
         initializeViews(view)
         setupRecyclerView()
         observeViewModel()
-        
+
         // Check auth status and load content or show login
         viewModel.checkAuthStatus()
-        
-        // Phase 3: Initial Sidebar Focus
-        navItemHome?.post {
-            navItemHome?.requestFocus()
+
+        // Initial Sidebar Focus
+        navItemDiscover?.post {
+            navItemDiscover?.requestFocus()
         }
     }
-    
+
     override fun onResume() {
         super.onResume()
-        // Phase 3: Restore focus on resume
-        FocusMemoryManager.restoreFocus(rvDebridRows)
-        // Tier 2: Atomic Continue Watching sync — refresh the CW row instantly on return
-        // from PlayerActivity so progress/position updates are visible immediately.
+        restoreFocusIfPossible()
         viewModel.refreshContinueWatching()
     }
 
     override fun onPause() {
         super.onPause()
-        // Phase 3: Save focus on pause
-        FocusMemoryManager.saveFocus(rvDebridRows)
-        FocusCoordinator.release("DEBRID_HOME")
+        FocusMemoryManager.saveFocus(requireView())
+        FocusCoordinator.release("DEBRID_RESTORE")
+        pendingRestoreFocus = true
     }
-    
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt("state_last_row_pos", lastFocusedRowIndex)
+        outState.putInt("state_last_item_pos", lastFocusedItemIndex)
+        outState.putString("state_last_item_id", lastFocusedItemId)
+    }
+
     private fun initializeViews(view: View) {
         val tag = "DebridFragment"
         try {
@@ -130,30 +134,15 @@ class DebridFragment : Fragment() {
             rvDebridRows = view.findViewById(R.id.rv_debrid_rows)
             ivBackgroundBackdrop = view.findViewById(R.id.iv_background_backdrop)
             layoutResolutionOverlay = view.findViewById(R.id.layout_resolution_overlay)
-            
+
             // Sidebar Initialization
-            sidebarContainer = view.findViewById(R.id.debrid_sidebar)
+            sidebarContainer = view.findViewById(R.id.sidebar_container)
             navItemSearch = view.findViewById(R.id.nav_item_search)
-            navItemHome = view.findViewById(R.id.nav_item_home)
             navItemDiscover = view.findViewById(R.id.nav_item_discover)
-            navItemLibrary = view.findViewById(R.id.nav_item_library)
-            navItemMovies = view.findViewById(R.id.nav_item_movies)
-            navItemSeries = view.findViewById(R.id.nav_item_series)
             sidebarBrandLogo = view.findViewById(R.id.sidebar_brand_logo)
-            
-            // Initialize Sidebar Focus Controller
-            val focusPill = view.findViewById<View>(R.id.sidebar_focus_pill)
-            if (sidebarContainer != null && focusPill != null) {
-                sidebarFocusController = SidebarFocusController(
-                    sidebarContainer!!,
-                    focusPill,
-                    ContextCompat.getColor(requireContext(), R.color.white),
-                    ContextCompat.getColor(requireContext(), R.color.sidebar_text_muted)
-                )
-            }
-            
+
             setupSidebar()
-            
+
             // Setup login button
             view.findViewById<View>(R.id.btn_login_debrid)?.setOnClickListener {
                 navigateToLogin()
@@ -165,21 +154,22 @@ class DebridFragment : Fragment() {
             android.util.Log.e(tag, "Error in initializeViews: ${e.message}", e)
         }
     }
-    
+
     private fun setupRecyclerView() {
         debridRowsAdapter = DebridRowsAdapter(
-            onItemClick = { item -> 
+            onItemClick = { item ->
                 saveFocusState(item) // Track state before navigation
-                onContentItemClick(item) 
+                onContentItemClick(item)
             },
-            onItemFocused = { item -> 
+            onItemFocused = { item ->
                 updateFocusMemory(item)
-                updateBackdrop(item) 
+                updateBackdrop(item)
+                updateHero(item)
             },
             onRowLoadMore = { rowId -> viewModel.loadNextPage(rowId) },
             onLeftBoundary = { returnToSidebar() }
         )
-        
+
         rvDebridRows.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = debridRowsAdapter
@@ -190,78 +180,29 @@ class DebridFragment : Fragment() {
 
     private fun setupSidebar() {
         val context = context ?: return
-        
+
         // 1. Configure Item Visuals (Icon + Label)
         configureSidebarItem(navItemSearch, R.drawable.ic_search, "Search")
-        configureSidebarItem(navItemHome, R.drawable.ic_home, "Home")
-        configureSidebarItem(navItemDiscover, R.drawable.ic_movie_filter_white_24dp, "Discover")
-        configureSidebarItem(navItemLibrary, R.drawable.ic_dns, "Library")
-        configureSidebarItem(navItemMovies, R.drawable.ic_movie, "Movies")
-        configureSidebarItem(navItemSeries, R.drawable.ic_series, "Series")
-        
+        configureSidebarItem(navItemDiscover, R.drawable.ic_home, "Discover")
+
         // 2. Click Listeners
         navItemSearch?.setOnClickListener {
             val intent = android.content.Intent(requireContext(), com.tvonnet.debridxtreamiptv.ui.debrid.search.DebridSearchActivity::class.java)
             startActivity(intent)
         }
-        
-        navItemHome?.setOnClickListener {
-            // Already here, maybe scroll to top
-            rvDebridRows.smoothScrollToPosition(0)
-        }
-        
+
         navItemDiscover?.setOnClickListener {
-            val intent = com.tvonnet.debridxtreamiptv.ui.debrid.discover.DebridDiscoverActivity.createIntent(requireContext())
-            startActivity(intent)
+            rvDebridRows.smoothScrollToPosition(0)
+            rvDebridRows.postDelayed({
+                if (!isAdded) return@postDelayed
+                val firstRow = rvDebridRows.findViewHolderForAdapterPosition(0) as? DebridRowViewHolder
+                val firstContentRv = firstRow?.itemView?.findViewById<RecyclerView>(R.id.rv_row_items)
+                firstContentRv?.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+            }, 150)
         }
-        
-        val comingSoonToast = {
-            android.widget.Toast.makeText(requireContext(), "Coming Soon", android.widget.Toast.LENGTH_SHORT).show()
-        }
-        navItemLibrary?.setOnClickListener { comingSoonToast() }
-        navItemMovies?.setOnClickListener { comingSoonToast() }
-        navItemSeries?.setOnClickListener { comingSoonToast() }
-        
+
         // 3. Focus Routing (D-Pad Logic)
         setupSidebarFocusRouting()
-        
-        // 4. Initial Selection (Dimmed highlight)
-        view?.findViewById<View>(activeNavItemId)?.let {
-            sidebarFocusController?.setSelected(it)
-        }
-    }
-
-    private fun setupSidebarExpansionLogic() {
-        // Redundant as configureSidebarItem now handles unique focus per-item
-    }
-
-    private fun animateSidebar(expand: Boolean) {
-        if (isSidebarExpanded == expand) return
-        isSidebarExpanded = expand
-        
-        // 80ms Delay logic for expansion to prevent flicker (as requested)
-        val delay = if (expand) 80L else 0L
-        
-        sidebarContainer?.postDelayed({
-            // Re-verify state after delay
-            if (isSidebarExpanded != expand) return@postDelayed
-            
-            // Use Controller to toggle labels cleanly (alpha only, no layout change)
-            val navItems = listOf(navItemSearch, navItemHome, navItemDiscover, navItemLibrary, navItemMovies, navItemSeries)
-            sidebarFocusController?.updateLabelState(expand, navItems)
-            
-            // Toggle Branding Logo
-            sidebarBrandLogo?.let { logo ->
-                if (expand) {
-                    logo.visibility = View.VISIBLE
-                    logo.animate().alpha(1f).setDuration(200).start()
-                } else {
-                    logo.animate().alpha(0f).setDuration(150).withEndAction {
-                        logo.visibility = View.GONE
-                    }.start()
-                }
-            }
-        }, delay)
     }
 
     private fun configureSidebarItem(itemView: View?, iconRes: Int, label: String) {
@@ -270,54 +211,54 @@ class DebridFragment : Fragment() {
             val text = view.findViewById<TextView>(R.id.tv_label)
             icon?.setImageResource(iconRes)
             text?.text = label
-            
-            // "Alive" Focus Interaction handled by SidebarFocusController
+
             view.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
-                // Check if we are moving WITHIN the sidebar or leaving it
-                val currentFocus = view.rootView?.findFocus()
-                val navItems = listOf(navItemSearch, navItemHome, navItemDiscover, navItemLibrary, navItemMovies, navItemSeries)
-                val isEnteringSidebar = navItems.any { it == currentFocus }
-                
-                sidebarFocusController?.onFocusChanged(v, hasFocus, isEnteringSidebar)
-                
                 if (hasFocus) {
                     activeNavItemId = v.id // Update active destination
-                    animateSidebar(true)
+                    v.animate().scaleX(1.05f).scaleY(1.05f).setDuration(150).start()
                 } else {
-                    // Optimized collapse check
-                    if (!isEnteringSidebar) {
-                        animateSidebar(false)
-                    }
+                    v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(150).start()
                 }
             }
         }
     }
 
     private fun setupSidebarFocusRouting() {
-        // Lateral Navigation: Sidebar -> Content Viewport (Unified deterministic memory)
+        // Lateral Navigation: Sidebar -> Content Viewport
         val lateralListener = View.OnKeyListener { v, keyCode, event ->
             if (event.action == android.view.KeyEvent.ACTION_DOWN && keyCode == android.view.KeyEvent.KEYCODE_DPAD_RIGHT) {
-                restoreContentFocus()
+                restoreFocusIfPossible()
                 return@OnKeyListener true
             }
             false
         }
-        
+
         navItemSearch?.setOnKeyListener(lateralListener)
-        navItemHome?.setOnKeyListener(lateralListener)
         navItemDiscover?.setOnKeyListener(lateralListener)
-        navItemLibrary?.setOnKeyListener(lateralListener)
-        navItemMovies?.setOnKeyListener(lateralListener)
-        navItemSeries?.setOnKeyListener(lateralListener)
-        
+
         // Vertical Navigation: Sidebar boundary
         navItemSearch?.nextFocusUpId = navItemSearch?.id ?: View.NO_ID
-        navItemSeries?.nextFocusDownId = navItemSeries?.id ?: View.NO_ID
-        
-        // Content -> Sidebar Routing
-        // This is handled by spatial navigation mostly, but we can harden it if needed.
+        navItemDiscover?.nextFocusDownId = navItemDiscover?.id ?: View.NO_ID
     }
-    
+
+    private fun scrollToDebridRow(possibleKeywords: List<String>, fallbackMessage: String) {
+        val currentRows = debridRowsAdapter.currentList
+        for (i in currentRows.indices) {
+            val title = currentRows[i].title?.lowercase() ?: ""
+            if (possibleKeywords.any { title.contains(it) }) {
+                rvDebridRows.smoothScrollToPosition(i)
+                rvDebridRows.postDelayed({
+                    if (!isAdded) return@postDelayed
+                    val rowHolder = rvDebridRows.findViewHolderForAdapterPosition(i) as? DebridRowViewHolder
+                    val horizontalRv = rowHolder?.itemView?.findViewById<RecyclerView>(R.id.rv_row_items)
+                    horizontalRv?.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+                }, 150)
+                return
+            }
+        }
+        Toast.makeText(requireContext(), fallbackMessage, Toast.LENGTH_SHORT).show()
+    }
+
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.uiState.collect { state ->
@@ -325,10 +266,10 @@ class DebridFragment : Fragment() {
             }
         }
     }
-    
+
     private fun updateUI(state: DebridUiState) {
         if (!isAdded || view == null) return
-        
+
         try {
             when (state) {
                 is DebridUiState.Loading -> {
@@ -354,12 +295,12 @@ class DebridFragment : Fragment() {
                     errorContainer.visibility = View.GONE
                     loginPrompt.visibility = View.GONE
                     contentArea.visibility = View.VISIBLE
-                    
+
                     debridRowsAdapter.updateRows(state.rows)
-                    
+
                     // Unified Restoration: Only hijack if sidebar doesn't have focus
                     if (sidebarContainer?.hasFocus() != true) {
-                        restoreContentFocus()
+                        restoreFocusIfPossible()
                     }
                 }
                 is DebridUiState.Error -> {
@@ -374,7 +315,7 @@ class DebridFragment : Fragment() {
             android.util.Log.e("DebridFragment", "Error updating UI: ${e.message}", e)
         }
     }
-    
+
     private fun navigateToLogin() {
         // Navigate to DebridAuthFragment
         val authFragment = DebridAuthFragment()
@@ -383,7 +324,7 @@ class DebridFragment : Fragment() {
             .addToBackStack(null)
             .commit()
     }
-    
+
     private fun onContentItemClick(item: DebridContentItem) {
         val context = requireContext()
         if (item.isContinueWatching && tryResumeDebrid(item)) {
@@ -442,7 +383,7 @@ class DebridFragment : Fragment() {
             )
 
             layoutResolutionOverlay.visibility = View.GONE
-            
+
             when (result) {
                 is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Success -> {
                     if (!isAdded) return@launch
@@ -474,7 +415,7 @@ class DebridFragment : Fragment() {
             startPositionMs = resumePosition,
             contentId = item.tmdbId ?: item.id,
             contentType = contentType,
-            playbackSource = if (item.source == "debrid") com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID 
+            playbackSource = if (item.source == "debrid") com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID
                             else com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.IPTV,
             posterUrl = item.posterUrl,
             backdropUrl = item.backdropUrl,
@@ -528,34 +469,135 @@ class DebridFragment : Fragment() {
         }
     }
 
+    private fun updateHero(item: DebridContentItem) {
+        val heroView = view?.findViewById<View>(R.id.debrid_hero) ?: return
+
+        // Ensure hero is visible but completely passive (cannot steal focus)
+        if (heroView.visibility != View.VISIBLE) {
+            heroView.visibility = View.VISIBLE
+        }
+        heroView.isFocusable = false
+        heroView.isFocusableInTouchMode = false
+        heroView.isClickable = false
+
+        val btnPrimary = heroView.findViewById<View>(R.id.btn_hero_primary)
+        if (btnPrimary != null) {
+            btnPrimary.visibility = View.GONE
+            btnPrimary.isFocusable = false
+            btnPrimary.isFocusableInTouchMode = false
+            btnPrimary.isClickable = false
+        }
+
+        val tvTitle = heroView.findViewById<TextView>(R.id.tv_hero_title)
+        val metadataRow = heroView.findViewById<View>(R.id.ll_hero_metadata)
+        val tvRating = heroView.findViewById<TextView>(R.id.tv_hero_rating)
+        val tvYear = heroView.findViewById<TextView>(R.id.tv_hero_year)
+        val tvType = heroView.findViewById<TextView>(R.id.tv_hero_type)
+        val tvQuality = heroView.findViewById<TextView>(R.id.tv_hero_quality)
+        val tvSynopsis = heroView.findViewById<TextView>(R.id.tv_hero_synopsis)
+
+        tvTitle?.text = item.title.trim().ifBlank { "Untitled" }
+
+        val rating = item.rating?.trim().orEmpty()
+        val hasRating = rating.isNotEmpty() && rating != "0" && rating != "0.0"
+        tvRating?.visibility = if (hasRating) View.VISIBLE else View.GONE
+        if (hasRating) {
+            tvRating?.text = rating
+        }
+
+        val year = item.year?.trim().orEmpty()
+        val hasYear = year.isNotEmpty()
+        tvYear?.visibility = if (hasYear) View.VISIBLE else View.GONE
+        if (hasYear) {
+            tvYear?.text = year
+        }
+
+        val typeLabel = when (item.type?.trim()?.lowercase()) {
+            "movie" -> "MOVIE"
+            "series", "show" -> "SERIES"
+            else -> null
+        }
+        val hasType = typeLabel != null
+        tvType?.visibility = if (hasType) View.VISIBLE else View.GONE
+        if (typeLabel != null) {
+            tvType?.text = typeLabel
+        }
+        tvQuality?.visibility = View.GONE
+        metadataRow?.visibility = if (hasRating || hasYear || hasType) View.VISIBLE else View.GONE
+
+        val overview = item.overview?.trim().orEmpty()
+        tvSynopsis?.visibility = if (overview.isNotEmpty()) View.VISIBLE else View.GONE
+        if (overview.isNotEmpty()) {
+            tvSynopsis?.text = overview
+        }
+    }
+
     /**
      * Component 3: Consolidated Restoration and Boundary Handling
      */
-    private fun restoreContentFocus() {
+    private fun restoreFocusIfPossible() {
         if (!isAdded || view == null) return
 
-        rvDebridRows.post {
-            // Step 1: Attempt to find the saved Row
-            val rowHolder = rvDebridRows.findViewHolderForAdapterPosition(lastFocusedRowIndex) as? DebridRowViewHolder
-            if (rowHolder != null) {
-                val horizontalRv = rowHolder.itemView.findViewById<RecyclerView>(R.id.rv_row_items)
-                horizontalRv?.post {
-                    // Step 2: Attempt to find the exact Item in that row
-                    val itemHolder = horizontalRv.findViewHolderForAdapterPosition(lastFocusedItemIndex)
-                    if (itemHolder != null && itemHolder.itemView.isFocusable) {
-                        itemHolder.itemView.requestFocus()
-                        return@post
+        FocusCoordinator.requestFocus("DEBRID_RESTORE") {
+            rvDebridRows.post {
+                if (!isAdded) return@post
+
+                // Step 1: Attempt to find the saved Row
+                val safeRowIndex = if (lastFocusedRowIndex != RecyclerView.NO_POSITION) lastFocusedRowIndex else 0
+                val rowHolder = rvDebridRows.findViewHolderForAdapterPosition(safeRowIndex) as? DebridRowViewHolder
+
+                if (rowHolder != null) {
+                    val horizontalRv = rowHolder.itemView.findViewById<RecyclerView>(R.id.rv_row_items)
+                    horizontalRv?.post {
+                        if (!isAdded) return@post
+
+                        var restored = false
+                        // Try by ID first
+                        if (lastFocusedItemId != null) {
+                            val rowData = debridRowsAdapter.currentList.getOrNull(safeRowIndex)
+                            if (rowData != null) {
+                                val indexById = rowData.items.indexOfFirst { it.id == lastFocusedItemId }
+                                if (indexById != -1) {
+                                    val itemHolder = horizontalRv.findViewHolderForAdapterPosition(indexById)
+                                    if (itemHolder != null && itemHolder.itemView.isFocusable) {
+                                        itemHolder.itemView.requestFocus()
+                                        restored = true
+                                    }
+                                }
+                            }
+                        }
+
+                        // Fallback to Index
+                        if (!restored) {
+                            val safeItemIndex = if (lastFocusedItemIndex != RecyclerView.NO_POSITION) lastFocusedItemIndex else 0
+                            val itemHolder = horizontalRv.findViewHolderForAdapterPosition(safeItemIndex)
+                            if (itemHolder != null && itemHolder.itemView.isFocusable) {
+                                itemHolder.itemView.requestFocus()
+                                restored = true
+                            }
+                        }
+
+                        // Fallback to first item in row
+                        if (!restored) {
+                            horizontalRv.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+                        }
+                        pendingRestoreFocus = false
                     }
-                    
-                    // Fallback to first item in row
-                    horizontalRv.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
-                }
-            } else {
-                // Fallback to very first card if no memory valid
-                val firstVisibleRow = rvDebridRows.findViewHolderForAdapterPosition(0) as? DebridRowViewHolder
-                val firstContentRv = firstVisibleRow?.itemView?.findViewById<RecyclerView>(R.id.rv_row_items)
-                firstContentRv?.post {
-                    firstContentRv.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+                } else {
+                    // Fallback to very first card if no memory valid
+                    val firstVisibleRow = rvDebridRows.findViewHolderForAdapterPosition(0) as? DebridRowViewHolder
+                    val firstContentRv = firstVisibleRow?.itemView?.findViewById<RecyclerView>(R.id.rv_row_items)
+                    if (firstContentRv != null) {
+                        firstContentRv.post {
+                            if (!isAdded) return@post
+                            firstContentRv.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+                            pendingRestoreFocus = false
+                        }
+                    } else {
+                        // Fallback to sidebar
+                        returnToSidebar()
+                        pendingRestoreFocus = false
+                    }
                 }
             }
         }

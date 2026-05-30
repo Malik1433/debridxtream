@@ -56,6 +56,7 @@ import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 import com.tvonnet.debridxtreamiptv.data.model.toAbsoluteUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
+import com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
 import kotlinx.coroutines.launch
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -93,6 +94,9 @@ class PlayerActivity : AppCompatActivity() {
 
     @Inject
     lateinit var settingsPreferences: SettingsPreferences
+
+    @Inject
+    lateinit var watchedStateRepository: WatchedStateRepository
 
     private val prefs by lazy { CredentialsPreferences(this) }
 
@@ -383,7 +387,7 @@ class PlayerActivity : AppCompatActivity() {
 
         trackManager = PlayerTrackManager(this, settingsPreferences)
         watchHistoryPrefs = WatchHistoryPreferences(this)
-        historyManager = PlayerHistoryManager(this, watchHistoryPrefs, viewModel)
+        historyManager = PlayerHistoryManager(this, watchHistoryPrefs, viewModel, watchedStateRepository)
         lifecycle.addObserver(historyManager)
 
         playerView = findViewById(R.id.player_view)
@@ -1159,6 +1163,10 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun onEpisodeSelected(episode: EpisodeEntityV2) {
         episodeBrowserController.hide()
+        
+        // Finalize watched state for CURRENT episode before switching identities
+        historyManager.recordPlaybackHistoryIfNeeded()
+        
         if (playbackSource == PlaybackSource.DEBRID) {
             // For Debrid, we need to resolve the new episode's link
             contentId = episode.episodeId
@@ -1233,6 +1241,7 @@ class PlayerActivity : AppCompatActivity() {
         bindModernMetadata(title)
         supportActionBar?.title = title
         
+        hasRecordedHistory = false
         if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.hidePrompt() }
         if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.resetState() }
         
@@ -1306,6 +1315,9 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun playNextEpisode() {
         if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.hidePrompt() }
+
+        // Finalize watched state for CURRENT episode before switching identities
+        historyManager.recordPlaybackHistoryIfNeeded()
 
         if (playbackSource == PlaybackSource.DEBRID && contentType == ContentType.EPISODE) {
              val currentSeason = seasonNumberExtra ?: -1

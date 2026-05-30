@@ -26,6 +26,13 @@ Scope: Live TV list, preview, focus, fullscreen return, and zapping.
 - Future focus/loading regressions should be kept in Live history files.
 
 ## Recent Fixes
+- Live TV category focus escape fix completed:
+  - `LiveFragment.kt` updated: `focusSelectedCategoryItem` now uses a safe delayed retry pattern.
+  - `fragment_live_3column.xml` updated: removed category RecyclerView container focus target and native nextFocusLeft route.
+  - `DPAD_LEFT` now routes to the selected category child item, not the RecyclerView container.
+  - Live playback and fast zapping preserved.
+  - Manual QA passed on 192.168.0.21.
+  - No changes made to PlayerActivity, EPG, Debrid, VOD, Series, Continue Watching, or Episode Browser.
 - Load-state source of truth documented.
 - Live URL helper and return contract preserved.
 - Player-side Live TV EPG zapping initialization re-enabled.

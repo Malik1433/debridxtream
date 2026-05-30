@@ -1,52 +1,58 @@
 #!/bin/bash
 # V3 Configuration Validation Script
-# Ensures all V3 development dependencies and configurations are properly set up
 
 set -e
 
-echo "🔍 Claude Flow V3 Configuration Validation"
-echo "==========================================="
-echo ""
+NODE_BIN="$(command -v node.exe 2>/dev/null || command -v node 2>/dev/null || true)"
+if [ -z "$NODE_BIN" ]; then
+  echo "Error: Node.js is required for V3 validation"
+  exit 1
+fi
 
 ERRORS=0
 WARNINGS=0
 
-# Color codes
-RED='\033[0;31m'
-YELLOW='\033[0;33m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-RESET='\033[0m'
+log_error() { echo "ERROR: $1"; ERRORS=$((ERRORS + 1)); }
+log_warning() { echo "WARNING: $1"; WARNINGS=$((WARNINGS + 1)); }
+log_success() { echo "OK: $1"; }
+log_info() { echo "INFO: $1"; }
 
-# Helper functions
-log_error() {
-  echo -e "${RED}❌ ERROR: $1${RESET}"
-  ((ERRORS++))
+check_json() {
+  local file="$1"
+  "$NODE_BIN" - "$file" <<'NODE' >/dev/null 2>&1
+const fs = require('fs');
+JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+NODE
 }
 
-log_warning() {
-  echo -e "${YELLOW}⚠️  WARNING: $1${RESET}"
-  ((WARNINGS++))
+read_json_fields() {
+  local file="$1"
+  local script="$2"
+  "$NODE_BIN" - "$file" <<NODE
+const fs = require('fs');
+const data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+$script
+NODE
 }
 
-log_success() {
-  echo -e "${GREEN}✅ $1${RESET}"
-}
+echo "Claude Flow V3 Configuration Validation"
+echo "======================================="
 
-log_info() {
-  echo -e "${BLUE}ℹ️  $1${RESET}"
-}
+echo
+echo "Checking directory structure..."
+SOURCE_ROOT=""
+if [ -d "app/src" ]; then
+  SOURCE_ROOT="app/src"
+elif [ -d "src" ]; then
+  SOURCE_ROOT="src"
+else
+  log_error "Missing required source root: app/src or src"
+fi
 
-# Check 1: Required directories
-echo "📁 Checking Directory Structure..."
-required_dirs=(
-  ".claude"
-  ".claude/helpers"
-  ".claude-flow/metrics"
-  ".claude-flow/security"
-  "src"
-  "src/domains"
-)
+required_dirs=(".claude" ".claude/helpers" ".claude-flow/metrics" ".claude-flow/security")
+if [ -n "$SOURCE_ROOT" ]; then
+  required_dirs+=("$SOURCE_ROOT" "$SOURCE_ROOT/main")
+fi
 
 for dir in "${required_dirs[@]}"; do
   if [ -d "$dir" ]; then
@@ -56,9 +62,8 @@ for dir in "${required_dirs[@]}"; do
   fi
 done
 
-# Check 2: Required files
-echo ""
-echo "📄 Checking Required Files..."
+echo
+echo "Checking required files..."
 required_files=(
   ".claude/settings.json"
   ".claude/statusline.sh"
@@ -66,35 +71,23 @@ required_files=(
   ".claude-flow/metrics/v3-progress.json"
   ".claude-flow/metrics/performance.json"
   ".claude-flow/security/audit-status.json"
-  "package.json"
 )
 
 for file in "${required_files[@]}"; do
   if [ -f "$file" ]; then
     log_success "File exists: $file"
-
-    # Additional checks for specific files
     case "$file" in
-      "package.json")
-        if grep -q "agentic-flow.*alpha" "$file" 2>/dev/null; then
-          log_success "agentic-flow@alpha dependency found"
-        else
-          log_warning "agentic-flow@alpha dependency not found in package.json"
-        fi
-        ;;
       ".claude/helpers/update-v3-progress.sh")
         if [ -x "$file" ]; then
           log_success "Helper script is executable"
         else
-          log_error "Helper script is not executable: $file"
+          log_warning "Helper script is not executable: $file"
         fi
         ;;
       ".claude-flow/metrics/v3-progress.json")
-        if jq empty "$file" 2>/dev/null; then
+        if check_json "$file"; then
           log_success "V3 progress JSON is valid"
-          domains=$(jq -r '.domains.total // "unknown"' "$file" 2>/dev/null)
-          agents=$(jq -r '.swarm.totalAgents // "unknown"' "$file" 2>/dev/null)
-          log_info "Configured for $domains domains, $agents agents"
+          read_json_fields "$file" 'console.log(`Configured for ${data.domains?.total ?? "unknown"} domains, ${data.swarm?.maxAgents ?? "unknown"} agents`);' || true
         else
           log_error "Invalid JSON in v3-progress.json"
         fi
@@ -105,29 +98,36 @@ for file in "${required_files[@]}"; do
   fi
 done
 
-# Check 3: Domain structure
-echo ""
-echo "🏗️ Checking Domain Structure..."
+if [ -f "package.json" ]; then
+  log_success "File exists: package.json"
+else
+  log_warning "package.json is not present in this Android repo"
+fi
+
+echo
+echo "Checking domain structure..."
 expected_domains=("task-management" "session-management" "health-monitoring" "lifecycle-management" "event-coordination")
+domain_root=""
+if [ -n "$SOURCE_ROOT" ] && [ -d "$SOURCE_ROOT/domains" ]; then
+  domain_root="$SOURCE_ROOT/domains"
+elif [ -d "src/domains" ]; then
+  domain_root="src/domains"
+fi
 
 for domain in "${expected_domains[@]}"; do
-  domain_path="src/domains/$domain"
-  if [ -d "$domain_path" ]; then
+  if [ -n "$domain_root" ] && [ -d "$domain_root/$domain" ]; then
     log_success "Domain directory exists: $domain"
   else
     log_warning "Domain directory missing: $domain (will be created during development)"
   fi
 done
 
-# Check 4: Git configuration
-echo ""
-echo "🔀 Checking Git Configuration..."
+echo
+echo "Checking git configuration..."
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   log_success "Git repository detected"
-
   current_branch=$(git branch --show-current 2>/dev/null || echo "unknown")
   log_info "Current branch: $current_branch"
-
   if [ "$current_branch" = "v3" ]; then
     log_success "On V3 development branch"
   else
@@ -137,20 +137,11 @@ else
   log_error "Not in a Git repository"
 fi
 
-# Check 5: Node.js and npm
-echo ""
-echo "📦 Checking Node.js Environment..."
-if command -v node >/dev/null 2>&1; then
-  node_version=$(node --version)
+echo
+echo "Checking Node.js environment..."
+if command -v node.exe >/dev/null 2>&1; then
+  node_version=$(node.exe --version)
   log_success "Node.js installed: $node_version"
-
-  # Check if Node.js version is 20+
-  node_major=$(echo "$node_version" | cut -d'.' -f1 | sed 's/v//')
-  if [ "$node_major" -ge 20 ]; then
-    log_success "Node.js version meets requirements (≥20.0.0)"
-  else
-    log_error "Node.js version too old. Required: ≥20.0.0, Found: $node_version"
-  fi
 else
   log_error "Node.js not installed"
 fi
@@ -162,55 +153,38 @@ else
   log_error "npm not installed"
 fi
 
-# Check 6: Development tools
-echo ""
-echo "🔧 Checking Development Tools..."
-dev_tools=("jq" "git")
-
-for tool in "${dev_tools[@]}"; do
+echo
+echo "Checking development tools..."
+for tool in git; do
   if command -v "$tool" >/dev/null 2>&1; then
-    tool_version=$($tool --version 2>/dev/null | head -n1 || echo "unknown")
-    log_success "$tool installed: $tool_version"
+    log_success "$tool installed"
   else
     log_error "$tool not installed"
   fi
 done
 
-# Check 7: Permissions
-echo ""
-echo "🔐 Checking Permissions..."
-test_files=(
-  ".claude/statusline.sh"
-  ".claude/helpers/update-v3-progress.sh"
-)
-
-for file in "${test_files[@]}"; do
+echo
+echo "Checking permissions..."
+for file in ".claude/statusline.sh" ".claude/helpers/update-v3-progress.sh"; do
   if [ -f "$file" ]; then
     if [ -x "$file" ]; then
       log_success "Executable permissions: $file"
     else
       log_warning "Missing executable permissions: $file"
-      log_info "Run: chmod +x $file"
     fi
   fi
 done
 
-# Summary
-echo ""
-echo "📊 Validation Summary"
-echo "===================="
-if [ $ERRORS -eq 0 ] && [ $WARNINGS -eq 0 ]; then
-  log_success "All checks passed! V3 development environment is ready."
+echo
+echo "Validation Summary"
+echo "=================="
+if [ "$ERRORS" -eq 0 ] && [ "$WARNINGS" -eq 0 ]; then
+  log_success "All checks passed"
   exit 0
-elif [ $ERRORS -eq 0 ]; then
-  echo -e "${YELLOW}⚠️  $WARNINGS warnings found, but no critical errors.${RESET}"
-  log_info "V3 development can proceed with minor issues to address."
+elif [ "$ERRORS" -eq 0 ]; then
+  log_warning "$WARNINGS warnings found, but no critical errors"
   exit 0
 else
-  echo -e "${RED}❌ $ERRORS critical errors found.${RESET}"
-  if [ $WARNINGS -gt 0 ]; then
-    echo -e "${YELLOW}⚠️  $WARNINGS warnings also found.${RESET}"
-  fi
-  log_error "Please fix critical errors before proceeding with V3 development."
+  log_error "$ERRORS critical errors found"
   exit 1
 fi

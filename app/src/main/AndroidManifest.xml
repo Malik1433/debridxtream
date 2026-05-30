@@ -84,14 +84,12 @@
             android:name=".ui.vod.MovieDetailActivity"
             android:label="Movie Details"
             android:theme="@style/AppTheme"
-            android:parentActivityName=".ui.MainActivity"
             android:exported="false" />
         
         <activity
             android:name=".ui.series.SeriesDetailActivity"
             android:label="Series Details"
             android:theme="@style/AppTheme"
-            android:parentActivityName=".ui.MainActivity"
             android:exported="false" />
 
 

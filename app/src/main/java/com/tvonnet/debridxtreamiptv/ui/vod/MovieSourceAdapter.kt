@@ -168,6 +168,46 @@ class MovieSourceAdapter(
             binding.root.setOnClickListener {
                 onSourceClicked(source)
             }
+            
+            binding.root.setOnKeyListener { v, keyCode, event ->
+                if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+                    val position = bindingAdapterPosition
+                    if (position == RecyclerView.NO_POSITION) return@setOnKeyListener false
+                    
+                    val rv = v.parent as? RecyclerView ?: return@setOnKeyListener false
+                    val adapter = rv.adapter ?: return@setOnKeyListener false
+                    
+                    when (keyCode) {
+                        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
+                            if (position < adapter.itemCount - 1) {
+                                val nextPosition = position + 1
+                                rv.scrollToPosition(nextPosition)
+                                rv.post {
+                                    val nextHolder = rv.findViewHolderForAdapterPosition(nextPosition)
+                                    nextHolder?.itemView?.requestFocus()
+                                }
+                                return@setOnKeyListener true
+                            } else {
+                                // At final item, consume event to prevent wrapping to top
+                                return@setOnKeyListener true
+                            }
+                        }
+                        android.view.KeyEvent.KEYCODE_DPAD_UP -> {
+                            if (position > 0) {
+                                val prevPosition = position - 1
+                                rv.scrollToPosition(prevPosition)
+                                rv.post {
+                                    val prevHolder = rv.findViewHolderForAdapterPosition(prevPosition)
+                                    prevHolder?.itemView?.requestFocus()
+                                }
+                                return@setOnKeyListener true
+                            }
+                            // If position == 0, allow default behavior (e.g. return to chips)
+                        }
+                    }
+                }
+                false
+            }
         }
 
         private fun bindProviderBadge(source: MovieSource) {
@@ -190,23 +230,23 @@ class MovieSourceAdapter(
 
         private fun getFlagEmoji(languageCode: String): String {
             return when (languageCode.lowercase()) {
-                "en", "eng", "english" -> "EN"
-                "fr", "fre", "french" -> "FR"
-                "de", "ger", "german" -> "DE"
-                "es", "spa", "spanish" -> "ES"
-                "it", "ita", "italian" -> "IT"
-                "pt", "por", "portuguese" -> "PT"
-                "ru", "rus", "russian" -> "RU"
-                "hi", "hin", "hindi" -> "HI"
-                "ja", "jpn", "japanese" -> "JA"
-                "ko", "kor", "korean" -> "KO"
-                "zh", "chi", "chinese" -> "ZH"
-                "ar", "ara", "arabic" -> "AR"
-                "tr", "tur", "turkish" -> "TR"
-                "pl", "pol", "polish" -> "PL"
-                "nl", "dut", "dutch" -> "NL"
-                "multi" -> "MULTI"
-                else -> "UNK"
+                "en", "eng", "english" -> "🇺🇸 EN"
+                "fr", "fre", "french" -> "🇫🇷 FR"
+                "de", "ger", "german" -> "🇩🇪 DE"
+                "es", "spa", "spanish" -> "🇪🇸 ES"
+                "it", "ita", "italian" -> "🇮🇹 IT"
+                "pt", "por", "portuguese" -> "🇵🇹 PT"
+                "ru", "rus", "russian" -> "🇷🇺 RU"
+                "hi", "hin", "hindi" -> "🇮🇳 HI"
+                "ja", "jpn", "japanese" -> "🇯🇵 JA"
+                "ko", "kor", "korean" -> "🇰🇷 KO"
+                "zh", "chi", "chinese" -> "🇨🇳 ZH"
+                "ar", "ara", "arabic" -> "🇸🇦 AR"
+                "tr", "tur", "turkish" -> "🇹🇷 TR"
+                "pl", "pol", "polish" -> "🇵🇱 PL"
+                "nl", "dut", "dutch" -> "🇳🇱 NL"
+                "multi" -> "🌎 MULTI"
+                else -> "🌐 UNK"
             }
         }
 

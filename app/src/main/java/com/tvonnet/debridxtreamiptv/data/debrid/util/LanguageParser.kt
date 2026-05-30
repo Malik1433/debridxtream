@@ -3,7 +3,22 @@ package com.tvonnet.debridxtreamiptv.data.debrid.util
 object LanguageParser {
     
     private val LANGUAGE_MAP = mapOf(
-        "hi" to listOf("hin", "hindi", "hindi dubbed", "hindi audio", "bollywood"),
+        "hi" to listOf(
+            "hi",
+            "hin",
+            "hindi",
+            "hindi english",
+            "hindi dubbed",
+            "hindi audio",
+            "dubbed hindi",
+            "dual hindi",
+            "dual audio hindi",
+            "hindi dual audio",
+            "multi hindi",
+            "multi audio hindi",
+            "\u0939\u093f\u0928\u094d\u0926\u0940",
+            "bollywood"
+        ),
         "ta" to listOf("tam", "tamil"),
         "te" to listOf("tel", "telugu"),
         "ml" to listOf("mal", "malayalam"),
@@ -39,6 +54,10 @@ object LanguageParser {
             languages.add("multi")
         }
 
+        if (hasHindiAudioHint(lowerTitle)) {
+            languages.add("hi")
+        }
+
         // Check for specific languages
         LANGUAGE_MAP.forEach { (code, keywords) ->
             // Regex to match whole words or words separated by dots/hyphens/plus/brackets
@@ -64,6 +83,20 @@ object LanguageParser {
 
         return languages.toList()
     }
+
+    private fun hasHindiAudioHint(text: String): Boolean {
+        val patterns = listOf(
+            Regex("(?i)(^|[\\s._\\-+\\[\\]()])hi(?=$|[\\s._\\-+\\[\\]()])"),
+            Regex("(?i)(^|[\\s._\\-+\\[\\]()])hin(?=$|[\\s._\\-+\\[\\]()])"),
+            Regex("(?i)hindi[\\s._\\-+]*(english|audio|dubbed|dual)"),
+            Regex("(?i)(english|dual|multi)[\\s._\\-+]*hindi"),
+            Regex("(?i)(dual|multi)[\\s._\\-+]*audio[\\s._\\-+]*hindi"),
+            Regex("(?i)hindi[\\s._\\-+]*(dual|multi)[\\s._\\-+]*audio"),
+            Regex("\u0939\u093f\u0928\u094d\u0926\u0940")
+        )
+        return patterns.any { it.containsMatchIn(text) }
+    }
+
     fun getLanguageFlag(languages: List<String>): String {
         if (languages.isEmpty()) return ""
 

@@ -25,7 +25,7 @@ class StremioAddonFetcher @Inject constructor(
 
     companion object {
         private const val TAG = "StremioAddonFetcher"
-        private const val TIMEOUT_SECONDS = 10L
+        private const val TIMEOUT_SECONDS = 20L
 
         fun normalizeManifestUrl(url: String): String {
             return url.trim()
@@ -83,7 +83,8 @@ class StremioAddonFetcher @Inject constructor(
             val streamUrl = buildStreamUrl(normalizedManifestUrl, type, streamId)
             val request = Request.Builder()
                 .url(streamUrl)
-                .header("User-Agent", "DebridXtream/1.0")
+                .header("User-Agent", "Stremio/1.0")
+                .header("Accept", "application/json")
                 .build()
 
             httpClient.newCall(request).execute().use { response ->
@@ -109,7 +110,8 @@ class StremioAddonFetcher @Inject constructor(
     private fun fetchManifest(manifestUrl: String): StremioManifest? {
         val request = Request.Builder()
             .url(manifestUrl)
-            .header("User-Agent", "DebridXtream/1.0")
+            .header("User-Agent", "Stremio/1.0")
+            .header("Accept", "application/json")
             .build()
 
         httpClient.newCall(request).execute().use { response ->

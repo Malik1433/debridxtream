@@ -530,7 +530,12 @@ private fun ContinueWatchingItem.toDebridContentItem(): DebridContentItem {
     val isEpisode = contentType == ContentType.EPISODE
     val isSeries = contentType == ContentType.SERIES || isEpisode
     val detailId = tmdbId ?: contentId
-    val displayTitle = seriesTitle?.takeIf { it.isNotBlank() } ?: title
+    var displayTitle = seriesTitle?.takeIf { it.isNotBlank() } ?: title
+    
+    if (!isSeries) {
+        displayTitle = cleanDebridTitle(displayTitle)
+    }
+    
     return DebridContentItem(
         id = detailId,
         title = displayTitle,
@@ -555,4 +560,32 @@ private fun ContinueWatchingItem.toDebridContentItem(): DebridContentItem {
         source = source,
         expiresAt = expiresAt
     )
+}
+
+private fun cleanDebridTitle(raw: String): String {
+    var clean = raw.replace(".", " ").replace("_", " ")
+    val patterns = listOf(
+        "\\d{3,4}p", "2160p", "1080p", "720p", "480p",
+        "WEB-DL", "WEBRip", "BluRay", "HDRip", "DV", "HDR", "HDTS", "TS", "CAM",
+        "H264", "H265", "x264", "x265", "HEVC",
+        "DDP5\\.1", "DTS", "AAC", "AC3",
+        "Hybrid", "MULTI", "BTM", "PROPER", "REPACK", "YTS", "YIFY", "RARBG"
+    )
+    patterns.forEach { pattern ->
+        val regex = Regex("(?i)\\b$pattern\\b")
+        val match = regex.find(clean)
+        if (match != null) {
+            clean = clean.substring(0, match.range.first).trim()
+        }
+    }
+    
+    val yearRegex = Regex("\\b((19|20)\\d{2})\\b")
+    val yearMatch = yearRegex.find(clean)
+    if (yearMatch != null) {
+        clean = clean.substring(0, yearMatch.range.first).trim()
+    }
+    
+    clean = clean.replace(Regex("[-(\\[\\])]+$"), "").trim()
+    
+    return if (clean.isBlank()) raw else clean
 }

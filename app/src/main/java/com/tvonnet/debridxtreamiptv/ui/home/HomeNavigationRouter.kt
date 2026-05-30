@@ -22,6 +22,7 @@ import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
 import com.tvonnet.debridxtreamiptv.features.vodv2.ui.MovieDetailFragmentV2
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.SeriesDetailFragmentV2
+import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -185,7 +186,7 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
             !((item.seriesTitle ?: item.title).isNullOrBlank())
         val expired = item.isExpired()
 
-        Log.e("HISTORY_DEBUG", "Click: ${item.title} | source=${item.source} | stream=$streamUrl | expired=$expired | hasResInfo=$hasResolutionInfo")
+        Log.e("HISTORY_DEBUG", "Click: ${item.title} | source=${item.source} | stream=${SensitiveLogRedactor.describeUrl(streamUrl)} | expired=$expired | hasResInfo=$hasResolutionInfo")
 
         frag.viewLifecycleOwner.lifecycleScope.launch {
             when (item.contentType) {
@@ -195,7 +196,7 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
                         (isDebrid && hasResolutionInfo) ||
                         canFreshResolveDirectDebrid
                     
-                    Log.e("HISTORY_DEBUG", "RESUME_DECISION: canResumeDirectly=$canResumeDirectly | isDebrid=$isDebrid | hasResInfo=$hasResolutionInfo | streamUrl=$streamUrl")
+                    Log.e("HISTORY_DEBUG", "RESUME_DECISION: canResumeDirectly=$canResumeDirectly | isDebrid=$isDebrid | hasResInfo=$hasResolutionInfo | streamUrl=${SensitiveLogRedactor.describeUrl(streamUrl)}")
 
                     if (!canResumeDirectly) {
                         Log.e("HISTORY_DEBUG", "RESUME_PATH: FALLBACK to Detail (canResumeDirectly=false)")

@@ -10,8 +10,13 @@ import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import androidx.fragment.app.DialogFragment
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.view.Gravity
+import android.view.WindowManager
 import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.ui.sources.SizeFilterAdapter
 import com.tvonnet.debridxtreamiptv.ui.sources.SizeFilterOption
@@ -26,34 +31,33 @@ class SourceSelectionBottomSheet(
     initialSelectedStreamId: String? = null,
     private val contentTitle: String? = null,
     private val backdropUrl: String? = null
-) : BottomSheetDialogFragment() {
+) : DialogFragment() {
 
     private lateinit var tvTitle: TextView
-    private lateinit var tvContentTitle: TextView
-    private lateinit var ivBackdrop: ImageView
     private lateinit var tvSourceCount: TextView
     private lateinit var progressBar: ProgressBar
     private lateinit var tvStatus: TextView
     private lateinit var rvSources: RecyclerView
     private lateinit var sourcesAdapter: MovieSourceAdapter
     private lateinit var layoutSourceFilters: View
-    private lateinit var btnCachedOnly: TextView
-
-    private lateinit var rvLanguageFilters: RecyclerView
-    private lateinit var languageAdapter: LanguageFilterAdapter
-    private lateinit var sizeFilterAdapter: SizeFilterAdapter
+    private lateinit var chipQuality: TextView
+    private lateinit var chipLanguage: TextView
+    private lateinit var chipType: TextView
 
     private var allSources: List<MovieSource> = emptyList()
     private var displayedSources: List<MovieSource> = emptyList()
-    private var preferredLanguage: String? = initialState.preferredLanguage
-    private var selectedSizeOption: SizeFilterOption =
-        SourceFilterUtils.SIZE_OPTIONS.firstOrNull { it.maxSizeBytes == initialState.maxSizeBytes }
-            ?: SourceFilterUtils.SIZE_OPTIONS.first()
     private var filterState: SourceFilterState = initialState
+    private var dynamicLanguageOptions: Array<String> = arrayOf("All")
+    private var dynamicTypeOptions: Array<String> = arrayOf("All")
     private var isLoading: Boolean = true
     private var statusMessage: String? = null
     private var pendingSources: List<MovieSource>? = null
     private var selectedStreamId: String? = initialSelectedStreamId
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setStyle(STYLE_NORMAL, android.R.style.Theme_Translucent_NoTitleBar)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -65,15 +69,12 @@ class SourceSelectionBottomSheet(
 
     override fun onStart() {
         super.onStart()
-        val dialog = dialog as? com.google.android.material.bottomsheet.BottomSheetDialog
-        dialog?.findViewById<android.widget.FrameLayout>(com.google.android.material.R.id.design_bottom_sheet)?.let { bottomSheet ->
-            val behavior = com.google.android.material.bottomsheet.BottomSheetBehavior.from(bottomSheet)
-            behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
-            behavior.skipCollapsed = true
-            
-            val layoutParams = bottomSheet.layoutParams
-            layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
-            bottomSheet.layoutParams = layoutParams
+        dialog?.window?.apply {
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            setGravity(Gravity.BOTTOM)
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            decorView.setPadding(0, 0, 0, 0)
+            addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
         }
     }
 
@@ -81,16 +82,14 @@ class SourceSelectionBottomSheet(
         super.onViewCreated(view, savedInstanceState)
 
         tvTitle = view.findViewById(R.id.tv_dialog_title)
-        tvContentTitle = view.findViewById(R.id.tv_content_title)
-        ivBackdrop = view.findViewById(R.id.iv_backdrop)
         tvSourceCount = view.findViewById(R.id.tv_source_count)
         progressBar = view.findViewById(R.id.progress_bar)
         tvStatus = view.findViewById(R.id.tv_status)
         rvSources = view.findViewById(R.id.rv_sources)
         layoutSourceFilters = view.findViewById(R.id.layout_source_filters)
-        btnCachedOnly = view.findViewById(R.id.btn_cached_only)
-
-        rvLanguageFilters = view.findViewById(R.id.rv_language_filters)
+        chipQuality = view.findViewById(R.id.chip_quality)
+        chipLanguage = view.findViewById(R.id.chip_language)
+        chipType = view.findViewById(R.id.chip_type)
 
         setupAdapters()
         setupContentInfo()
@@ -102,13 +101,7 @@ class SourceSelectionBottomSheet(
     }
 
     private fun setupContentInfo() {
-        tvContentTitle.text = contentTitle ?: ""
-        if (!backdropUrl.isNullOrBlank()) {
-            Glide.with(this)
-                .load(backdropUrl)
-                .centerCrop()
-                .into(ivBackdrop)
-        }
+        // Removed tvContentTitle usage
     }
 
     private fun setupAdapters() {
@@ -126,40 +119,57 @@ class SourceSelectionBottomSheet(
         rvSources.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
         rvSources.adapter = sourcesAdapter
 
-        sizeFilterAdapter = SizeFilterAdapter { option ->
-            selectedSizeOption = option
-            sizeFilterAdapter.updateSelection(option)
-            filterState = filterState.copy(maxSizeBytes = option.maxSizeBytes)
-            onStateChanged?.invoke(filterState)
-            applyFilters()
-        }
+        setupChips()
+    }
 
-
-        btnCachedOnly.setOnClickListener {
-            filterState = filterState.copy(cachedOnly = !filterState.cachedOnly)
-            btnCachedOnly.isSelected = filterState.cachedOnly
-            onStateChanged?.invoke(filterState)
-            applyFilters()
-        }
-        btnCachedOnly.setOnFocusChangeListener { _, hasFocus ->
-            btnCachedOnly.isSelected = hasFocus || filterState.cachedOnly
-        }
-
-        // Language Filter Adapter
-        languageAdapter = LanguageFilterAdapter { language ->
-            if (preferredLanguage == language) {
-                preferredLanguage = null // Deselect
-            } else {
-                preferredLanguage = language
+    private fun setupChips() {
+        chipQuality.setOnClickListener {
+            showFilterDropdown(chipQuality, SourceFilterUtils.QUALITY_OPTIONS, filterState.preferredQuality ?: "All") { selected ->
+                setFilterStateAndApply(filterState.copy(preferredQuality = selected.takeIf { it != "All" }))
             }
-            filterState = filterState.copy(preferredLanguage = preferredLanguage)
-            onStateChanged?.invoke(filterState)
-            languageAdapter.updateSelection(preferredLanguage)
-            applyFilters()
         }
-        rvLanguageFilters.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-        rvLanguageFilters.setHasFixedSize(true)
-        rvLanguageFilters.adapter = languageAdapter
+
+        chipLanguage.setOnClickListener {
+            showFilterDropdown(chipLanguage, dynamicLanguageOptions, filterState.preferredLanguage ?: "All") { selected ->
+                setFilterStateAndApply(filterState.copy(preferredLanguage = selected.takeIf { it != "All" }))
+            }
+        }
+
+        chipType.setOnClickListener {
+            refreshDynamicTypeOptions()
+            showFilterDropdown(chipType, dynamicTypeOptions, filterState.preferredType ?: "All") { selected ->
+                setFilterStateAndApply(filterState.copy(preferredType = selected.takeIf { it != "All" }))
+            }
+        }
+    }
+
+    private fun showFilterDropdown(anchor: View, options: Array<String>, currentSelection: String, onSelected: (String) -> Unit) {
+        val context = context ?: return
+        val listPopupWindow = android.widget.ListPopupWindow(context)
+        listPopupWindow.anchorView = anchor
+        listPopupWindow.width = (260 * resources.displayMetrics.density).toInt()
+        listPopupWindow.isModal = true
+
+        val adapter = object : android.widget.ArrayAdapter<String>(context, android.R.layout.simple_list_item_1, options) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent) as TextView
+                val item = getItem(position)
+                if (item == currentSelection) {
+                    view.text = "$item ✓"
+                } else {
+                    view.text = item
+                }
+                return view
+            }
+        }
+
+        listPopupWindow.setAdapter(adapter)
+        listPopupWindow.setOnItemClickListener { _, _, position, _ ->
+            onSelected(options[position])
+            listPopupWindow.dismiss()
+        }
+        
+        listPopupWindow.show()
     }
 
     fun showLoading(message: String = "Loading sources...") {
@@ -171,81 +181,117 @@ class SourceSelectionBottomSheet(
     }
 
     fun showSources(newSources: List<MovieSource>) {
-        isLoading = false
-        allSources = newSources
-        if (!this::languageAdapter.isInitialized || !this::sizeFilterAdapter.isInitialized) {
+        if (view == null) {
             pendingSources = newSources
             return
         }
 
+        isLoading = false
+        allSources = newSources
+
         if (allSources.isEmpty()) {
             displayedSources = emptyList()
             statusMessage = getString(R.string.movie_detail_sources_empty)
+            dynamicTypeOptions = arrayOf("All")
             layoutSourceFilters.visibility = View.GONE
             updateUi()
             return
         }
 
+        val previousState = filterState
+        dynamicLanguageOptions = extractDynamicLanguageOptions(allSources)
+        
+        val currentLang = filterState.preferredLanguage
+        if (currentLang != null && currentLang != "All" && !dynamicLanguageOptions.contains(currentLang)) {
+            filterState = filterState.copy(preferredLanguage = null)
+        }
+
+        refreshDynamicTypeOptions()
+        if (filterState != previousState) {
+            onStateChanged?.invoke(filterState)
+        }
         updateFilterOptions()
         applyFilters()
     }
 
+    private fun extractDynamicLanguageOptions(sources: List<MovieSource>): Array<String> {
+        val languages = mutableSetOf<String>()
+        var hasUnknown = false
+        sources.forEach { source ->
+            val langs = source.languages ?: emptyList()
+            if (langs.isEmpty()) {
+                hasUnknown = true
+            } else {
+                langs.forEach { lang ->
+                    languages.add(lang.lowercase().trim())
+                }
+            }
+        }
+
+        val mappedLangs = languages.map { SourceFilterUtils.mapLanguageCodeToName(it) }.toMutableSet()
+
+        val finalOptions = mutableListOf("All")
+        if (mappedLangs.contains("Multi")) {
+            finalOptions.add("Multi")
+            mappedLangs.remove("Multi")
+        }
+
+        val sortedLangs = mappedLangs.sorted().toMutableList()
+        finalOptions.addAll(sortedLangs)
+
+        if (hasUnknown) {
+            finalOptions.add("Unknown")
+        }
+        return finalOptions.toTypedArray()
+    }
+
+    // Removed mapLanguageCodeToName, now using SourceFilterUtils.mapLanguageCodeToName
+
+    private fun setFilterStateAndApply(newState: SourceFilterState) {
+        val languageChanged = filterState.preferredLanguage != newState.preferredLanguage
+        filterState = newState
+        if (languageChanged) {
+            selectedStreamId = null
+        }
+        refreshDynamicTypeOptions()
+        onStateChanged?.invoke(filterState)
+        updateFilterOptions()
+        applyFilters()
+    }
+
+    private fun refreshDynamicTypeOptions() {
+        val preTypeSources = SourceFilterUtils.apply(allSources, filterState.copy(preferredType = null))
+        dynamicTypeOptions = buildDynamicTypeOptions(preTypeSources)
+
+        val selectedType = filterState.preferredType
+        if (selectedType != null && !dynamicTypeOptions.contains(selectedType)) {
+            filterState = filterState.copy(preferredType = null)
+        }
+    }
+
+    private fun buildDynamicTypeOptions(sources: List<MovieSource>): Array<String> {
+        val options = mutableListOf("All")
+        if (sources.any { it.cacheStatus == DebridCacheStatus.VERIFIED_CACHED }) {
+            options.add("RD Cached")
+        }
+        if (sources.any { it.cacheStatus == DebridCacheStatus.DIRECT_STREAM }) {
+            options.add("Direct")
+        }
+        if (sources.any { it.cacheStatus == DebridCacheStatus.NOT_CACHED }) {
+            options.add("Torrent/Add-on")
+        }
+        if (sources.any { it.cacheStatus == DebridCacheStatus.UNKNOWN }) {
+            options.add("Unknown")
+        }
+        return options.toTypedArray()
+    }
+
     private fun updateFilterOptions() {
-        val languages = allSources.flatMap { it.languages ?: listOf("multi") }
-            .distinct()
-            .sorted()
-
-        val showLanguages = languages.size > 1
-        rvLanguageFilters.visibility = if (showLanguages) View.VISIBLE else View.GONE
-        if (showLanguages) {
-            languageAdapter.submitList(languages)
-            if (preferredLanguage != null && languages.none { it.equals(preferredLanguage, ignoreCase = true) }) {
-                preferredLanguage = null
-                filterState = filterState.copy(preferredLanguage = null)
-                onStateChanged?.invoke(filterState)
-            }
-            languageAdapter.updateSelection(preferredLanguage)
-        } else {
-            if (preferredLanguage != null) {
-                preferredLanguage = null
-                filterState = filterState.copy(preferredLanguage = null)
-                onStateChanged?.invoke(filterState)
-            }
-            languageAdapter.updateSelection(null)
-            languageAdapter.submitList(emptyList())
-        }
-
-        val showSizes = allSources.any { it.sizeBytes != null }
-
-        if (showSizes) {
-            selectedSizeOption =
-                SourceFilterUtils.SIZE_OPTIONS.firstOrNull { it.maxSizeBytes == filterState.maxSizeBytes }
-                    ?: SourceFilterUtils.SIZE_OPTIONS.first()
-            sizeFilterAdapter.submitList(SourceFilterUtils.SIZE_OPTIONS)
-            sizeFilterAdapter.updateSelection(selectedSizeOption)
-        } else {
-            if (filterState.maxSizeBytes != null) {
-                filterState = filterState.copy(maxSizeBytes = null)
-                onStateChanged?.invoke(filterState)
-            }
-            selectedSizeOption = SourceFilterUtils.SIZE_OPTIONS.first()
-            sizeFilterAdapter.updateSelection(null)
-            sizeFilterAdapter.submitList(emptyList())
-        }
-
-        val showCached = allSources.any { SourceFilterUtils.hasCacheConfidence(it) }
-        btnCachedOnly.visibility = if (showCached) View.VISIBLE else View.GONE
-        if (!showCached) {
-            if (filterState.cachedOnly) {
-                filterState = filterState.copy(cachedOnly = false)
-                onStateChanged?.invoke(filterState)
-            }
-            btnCachedOnly.isSelected = false
-        } else {
-            btnCachedOnly.isSelected = filterState.cachedOnly
-        }
-
-        layoutSourceFilters.visibility = if (showCached || showSizes || showLanguages) View.VISIBLE else View.GONE
+        chipQuality.text = "Quality: ${filterState.preferredQuality ?: "All"} ▼"
+        chipLanguage.text = "Language: ${filterState.preferredLanguage ?: "All"} ▼"
+        chipType.text = "Type: ${filterState.preferredType ?: "All"} ▼"
+        
+        layoutSourceFilters.visibility = View.VISIBLE
     }
 
     private fun applyFilters() {
@@ -261,6 +307,7 @@ class SourceSelectionBottomSheet(
         isLoading = false
         allSources = emptyList()
         displayedSources = emptyList()
+        dynamicTypeOptions = arrayOf("All")
         statusMessage = message
         if (isAdded) {
             updateUi()

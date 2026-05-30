@@ -23,8 +23,8 @@ object FocusGlintHelper {
 
     // Ultra-smooth friction curve: Fast out, incredibly slow and fluid in
     private val premiumInterpolator = PathInterpolatorCompat.create(0.2f, 1.0f, 0.2f, 1.0f)
-    private const val PREMIUM_SCALE = 1.08f
-    private const val ANIMATION_DURATION = 350L // Slower duration, but fast-out interpolator makes it snappy
+    private const val PREMIUM_SCALE = 1.0f
+    private const val ANIMATION_DURATION = 250L
     private val TAG_GLINT_RUNNABLE = com.tvonnet.debridxtreamiptv.R.id.tag_focus_glint_runnable
 
 
@@ -116,7 +116,7 @@ object FocusGlintHelper {
         v.animate()
             .scaleX(PREMIUM_SCALE)
             .scaleY(PREMIUM_SCALE)
-            .translationZ(16f) // Lift it heavily on the Z-axis
+            .translationZ(4f) // Slight lift, no heavy shadow
             .setDuration(ANIMATION_DURATION)
             .setInterpolator(premiumInterpolator)
             .start()
@@ -128,18 +128,12 @@ object FocusGlintHelper {
                 val sibling = immediateParent.getChildAt(i)
                 if (sibling != v) {
                     sibling.animate()
-                        .alpha(0.4f) // Dim siblings to 40%
+                        .alpha(1.0f) // Do not dim siblings, keep fully readable
                         .setDuration(ANIMATION_DURATION)
                         .setInterpolator(premiumInterpolator)
                         .start()
                 }
             }
-        }
-
-        // Soft Cyan Glow
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-            v.outlineAmbientShadowColor = Color.parseColor("#4D00E5FF") // 30% Cyan
-            v.outlineSpotShadowColor = Color.parseColor("#9900E5FF")    // 60% Cyan
         }
 
         // 2. The Sweeping Glint (Shine)

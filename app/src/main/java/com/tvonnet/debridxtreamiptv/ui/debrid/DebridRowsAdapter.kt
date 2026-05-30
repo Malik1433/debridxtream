@@ -11,6 +11,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.tvonnet.debridxtreamiptv.R
+import android.animation.ValueAnimator
+import android.view.animation.LinearInterpolator
+import android.view.animation.OvershootInterpolator
+import android.view.animation.DecelerateInterpolator
 
 /**
  * Adapter for vertical list of horizontal content rows
@@ -172,6 +176,13 @@ class DebridItemsAdapter(
             onPrefetch()
         }
     }
+
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        if (holder is DebridItemViewHolder) {
+            holder.clearAnimations()
+        }
+    }
 }
 
 
@@ -189,9 +200,6 @@ class DebridItemDiffCallback : DiffUtil.ItemCallback<DebridContentItem>() {
     }
 }
 
-/**
- * ViewHolder for individual content item (poster card)
- */
 class DebridItemViewHolder(
     itemView: View,
     private val onLeftBoundary: () -> Unit
@@ -203,6 +211,9 @@ class DebridItemViewHolder(
     private val progressWatch: android.widget.ProgressBar =
         itemView.findViewById(R.id.progress_watch)
     private val glowFocus: View? = itemView.findViewById(R.id.glow_focus)
+    private val tvRatingBadge: TextView? = itemView.findViewById(R.id.tv_rating_badge)
+    
+    private var pulseAnimator: ValueAnimator? = null
     
     fun bind(
         item: DebridContentItem,
@@ -225,11 +236,47 @@ class DebridItemViewHolder(
         tvYear.visibility = if (subtitle.isNullOrBlank()) View.GONE else View.VISIBLE
         bindProgress(item)
         
+        // Rating Badge
+        if (!item.rating.isNullOrBlank() && item.rating != "0.0" && item.rating != "0") {
+            tvRatingBadge?.text = "⭐ ${item.rating}"
+            tvRatingBadge?.visibility = View.VISIBLE
+        } else {
+            tvRatingBadge?.visibility = View.GONE
+        }
+
+        // Aspect ratio and image URL for Continue Watching
+        val cardPoster: View? = itemView.findViewById(R.id.card_poster)
+        var overrideWidth = 320
+        var overrideHeight = 480
+        val imageUrl = if (item.isContinueWatching) {
+            item.backdropUrl ?: item.posterUrl
+        } else {
+            item.posterUrl
+        }
+
+        if (cardPoster != null) {
+            val params = cardPoster.layoutParams
+            if (item.isContinueWatching) {
+                // 16:9 Aspect Ratio (280dp x 158dp)
+                params.width = (280 * itemView.context.resources.displayMetrics.density).toInt()
+                params.height = (158 * itemView.context.resources.displayMetrics.density).toInt()
+                overrideWidth = 560
+                overrideHeight = 315
+            } else {
+                // Standard 2:3 Aspect Ratio (140dp x 210dp)
+                params.width = (140 * itemView.context.resources.displayMetrics.density).toInt()
+                params.height = (210 * itemView.context.resources.displayMetrics.density).toInt()
+                overrideWidth = 320
+                overrideHeight = 480
+            }
+            cardPoster.layoutParams = params
+        }
+        
         // Load poster with Glide
         Glide.with(itemView.context)
-            .load(item.posterUrl)
+            .load(imageUrl)
             .diskCacheStrategy(DiskCacheStrategy.ALL)
-            .override(320, 480)
+            .override(overrideWidth, overrideHeight)
             .thumbnail(0.1f)
             .dontAnimate()
             .placeholder(R.drawable.placeholder_poster)
@@ -245,26 +292,32 @@ class DebridItemViewHolder(
         itemView.isFocusableInTouchMode = true
         
         // Cinematic Focus Animation (Sync with Movies/Series)
+        itemView.alpha = 0.8f
+        
         itemView.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
             if (hasFocus) {
                 v.animate()
-                    .scaleX(1.1f)
-                    .scaleY(1.1f)
-                    .setDuration(150)
-                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .scaleX(1.15f)
+                    .scaleY(1.15f)
+                    .alpha(1f)
+                    .setDuration(250)
+                    .setInterpolator(OvershootInterpolator(1.2f))
                     .start()
-                v.z = 15f // Lift up for glow visibility
-                glowFocus?.animate()?.alpha(1f)?.setDuration(150)?.start()
+                v.z = 20f // Lift up for glow visibility
+                startPulsingGlow()
+                tvTitle.isSelected = true
                 onItemFocused(item)
             } else {
                 v.animate()
                     .scaleX(1f)
                     .scaleY(1f)
-                    .setDuration(150)
-                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .alpha(0.8f)
+                    .setDuration(200)
+                    .setInterpolator(DecelerateInterpolator())
                     .start()
                 v.z = 0f
-                glowFocus?.animate()?.alpha(0f)?.setDuration(150)?.start()
+                stopPulsingGlow()
+                tvTitle.isSelected = false
             }
         }
 
@@ -278,6 +331,40 @@ class DebridItemViewHolder(
             }
             false
         }
+    }
+
+    private fun startPulsingGlow() {
+        pulseAnimator?.cancel()
+        pulseAnimator = ValueAnimator.ofFloat(0.5f, 1.0f).apply {
+            duration = 1000L
+            repeatMode = ValueAnimator.REVERSE
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = LinearInterpolator()
+            addUpdateListener { animator ->
+                glowFocus?.alpha = animator.animatedValue as Float
+            }
+            start()
+        }
+    }
+
+    private fun stopPulsingGlow() {
+        pulseAnimator?.cancel()
+        glowFocus?.alpha = 0f
+    }
+
+    fun clearAnimations() {
+        pulseAnimator?.cancel()
+        pulseAnimator = null
+        itemView.animate().cancel()
+        glowFocus?.animate()?.cancel()
+        
+        // Reset to default unfocused state
+        itemView.scaleX = 1.0f
+        itemView.scaleY = 1.0f
+        itemView.alpha = 0.8f
+        itemView.z = 0f
+        glowFocus?.alpha = 0f
+        tvTitle.isSelected = false
     }
 
     private fun bindProgress(item: DebridContentItem) {

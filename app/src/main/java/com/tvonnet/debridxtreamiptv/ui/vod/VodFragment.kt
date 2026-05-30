@@ -49,6 +49,10 @@ import com.tvonnet.debridxtreamiptv.features.vodv2.ui.MovieDetailFragmentV2
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 
+import com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
+import kotlinx.coroutines.launch
+import com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder
+
 @AndroidEntryPoint
 class VodFragment : Fragment() {
 
@@ -72,6 +76,9 @@ class VodFragment : Fragment() {
 
     @Inject
     lateinit var credentialsPrefs: CredentialsPreferences
+
+    @Inject
+    lateinit var watchedStateRepository: WatchedStateRepository
     
     private lateinit var llSidebarContainer: View
     private lateinit var rvCategoriesSidebar: RecyclerView
@@ -110,6 +117,8 @@ class VodFragment : Fragment() {
         com.tvonnet.debridxtreamiptv.data.cache.FavoritesCache()
     }
     
+    private var watchedMovieKeysCache: Set<String> = emptySet()
+    
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -122,6 +131,10 @@ class VodFragment : Fragment() {
         VodAdapter(
             onMovieClick = { movie -> onMovieClick(movie) },
             favoriteChecker = { streamId -> favoritesCache.isFavorite(streamId) },
+            watchedChecker = { streamId -> 
+                val identity = WatchedIdentityBuilder.iptvMovie(streamId)
+                watchedMovieKeysCache.contains(identity)
+            },
             onMovieLongClick = { movie -> handleFavoriteLongPress(movie) }
         ).apply {
             onItemFocused = { position ->
@@ -303,6 +316,9 @@ class VodFragment : Fragment() {
         
         // Week 13: Load favorites into cache
         loadFavoritesCache()
+        
+        // Load watched state keys cache
+        loadWatchedMovieKeysCache()
         
         // Global Focus Engine for Sidebar Expansion (Lumina Style Overlay)
         view.viewTreeObserver.addOnGlobalFocusChangeListener { oldFocus, newFocus ->
@@ -678,39 +694,86 @@ class VodFragment : Fragment() {
     }
     
     /**
-     * Week 13: Handle long press to add/remove favorites
+     * Load watched movie keys cache
      */
-    private fun handleFavoriteLongPress(movie: XtreamVodInfo) {
-        val streamId = movie.stream_id ?: return
-        
+    private fun loadWatchedMovieKeysCache() {
         lifecycleScope.launch {
             try {
-                val isFavorite = favoritesCache.isFavorite(streamId)
-                
-                if (isFavorite) {
-                    // Remove from favorites
-                    repository.removeFavorite(streamId)
-                    Toast.makeText(requireContext(), "Removed from favorites", Toast.LENGTH_SHORT).show()
-                    android.util.Log.d("VodFragment", "Removed from favorites: ${movie.name}")
-                } else {
-                    // Add to favorites
-                    repository.addFavorite(
-                        streamId = streamId,
-                        type = "vod",
-                        name = movie.name ?: "Unknown Movie",
-                        iconUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.stream_icon)
-                    )
-                    Toast.makeText(requireContext(), "Added to favorites", Toast.LENGTH_SHORT).show()
-                    android.util.Log.d("VodFragment", "Added to favorites: ${movie.name}")
+                watchedStateRepository.observeAllWatchedMovieKeys().collect { keys ->
+                    watchedMovieKeysCache = keys.toSet()
+                    // Force refresh adapter if there are items so checkmarks update
+                    val snapshot = vodAdapter.snapshot()
+                    if (snapshot.items.isNotEmpty()) {
+                        vodAdapter.notifyDataSetChanged() // Heavy but safe for full grid updates
+                    }
                 }
-                
-                // Reload current category to refresh heart icons
-                loadMoviesForCategory(selectedCategoryId)
             } catch (e: Exception) {
-                android.util.Log.e("VodFragment", "Error toggling favorite", e)
-                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                android.util.Log.e("VodFragment", "Failed to load watched keys", e)
             }
         }
+    }
+
+    /**
+     * Week 13: Handle long press to add/remove favorites and toggle watched state
+     */
+    private fun handleFavoriteLongPress(movie: XtreamVodInfo) {
+        val streamId = movie.stream_id?.toString() ?: return
+        val identityKey = WatchedIdentityBuilder.iptvMovie(streamId)
+        val isFavorite = favoritesCache.isFavorite(streamId)
+        val isWatched = watchedMovieKeysCache.contains(identityKey)
+        
+        val favoriteText = if (isFavorite) "Remove from Favorites" else "Add to Favorites"
+        val watchedText = if (isWatched) "Mark as Unwatched" else "Mark as Watched"
+        
+        android.app.AlertDialog.Builder(requireContext())
+            .setTitle(movie.name)
+            .setItems(arrayOf(favoriteText, watchedText)) { _, which ->
+                if (which == 0) {
+                    // Toggle Favorite
+                    lifecycleScope.launch {
+                        try {
+                            if (isFavorite) {
+                                repository.removeFavorite(streamId)
+                                Toast.makeText(requireContext(), "Removed from favorites", Toast.LENGTH_SHORT).show()
+                            } else {
+                                repository.addFavorite(
+                                    streamId = streamId,
+                                    type = "vod",
+                                    name = movie.name ?: "Unknown Movie",
+                                    iconUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.stream_icon)
+                                )
+                                Toast.makeText(requireContext(), "Added to favorites", Toast.LENGTH_SHORT).show()
+                            }
+                            loadMoviesForCategory(selectedCategoryId)
+                        } catch (e: Exception) {
+                            Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else if (which == 1) {
+                    // Toggle Watched
+                    lifecycleScope.launch {
+                        try {
+                            val repo = watchedStateRepository
+                            val historyPrefs = com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences(requireContext())
+                            val newState = !isWatched
+                            val stateEntity = repo.getState(identityKey) ?: com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity(
+                                identityKey = identityKey,
+                                contentType = com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.CONTENT_TYPE_MOVIE,
+                                source = com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.SOURCE_XTREAM,
+                                iptvStreamId = streamId,
+                                title = movie.name,
+                                durationMs = 0L, // Cannot know exact duration without playback
+                                updatedAt = System.currentTimeMillis()
+                            )
+                            repo.setManualWatched(stateEntity, newState, System.currentTimeMillis())
+                            historyPrefs.removeContinueWatchingItem(streamId)
+                        } catch (e: Exception) {
+                            Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+            .show()
     }
 
     private fun updateBackdrop(movie: XtreamVodInfo) {
@@ -740,6 +803,36 @@ class VodFragment : Fragment() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        restoreFocusIfPossible()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.saveFocus(requireView())
+        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("VOD_RESTORE")
+
+        restoreCategoryPosition = lastFocusedCategoryPosition
+        restoreMoviePosition = lastFocusedMoviePosition
+        restoreCategoryId = lastFocusedCategoryId
+        restoreMovieId = lastFocusedMovieId
+        restoreFocusTarget = lastFocusTarget
+
+        pendingRestoreFocus =
+            restoreCategoryPosition != RecyclerView.NO_POSITION ||
+                restoreMoviePosition != RecyclerView.NO_POSITION
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(STATE_LAST_CATEGORY_POS, lastFocusedCategoryPosition)
+        outState.putInt(STATE_LAST_MOVIE_POS, lastFocusedMoviePosition)
+        outState.putString(STATE_LAST_CATEGORY_ID, lastFocusedCategoryId)
+        outState.putString(STATE_LAST_MOVIE_ID, lastFocusedMovieId)
+        outState.putString(STATE_LAST_FOCUS_TARGET, lastFocusTarget.name)
+    }
+
     override fun onDestroyView() {
         // Remove listeners/observers to prevent crashes and leaks
         adapterDataObserver?.let {
@@ -766,6 +859,7 @@ class VodFragment : Fragment() {
 class VodAdapter(
     private val onMovieClick: (XtreamVodInfo) -> Unit,
     private val favoriteChecker: ((String) -> Boolean)? = null,
+    private val watchedChecker: ((String) -> Boolean)? = null,
     private val onMovieLongClick: ((XtreamVodInfo) -> Unit)? = null
 ) : androidx.paging.PagingDataAdapter<XtreamVodInfo, VodViewHolder>(VodDiffCallback()) {
 
@@ -784,8 +878,9 @@ class VodAdapter(
     override fun onBindViewHolder(holder: VodViewHolder, position: Int) {
         val movie = getItem(position)
         if (movie != null) {
-            val isFavorite = movie.stream_id?.let { favoriteChecker?.invoke(it) } ?: false
-            holder.bind(movie, isFavorite, onItemFocused, onMovieClick, onMovieLongClick)
+            val isFavorite = movie.stream_id?.let { favoriteChecker?.invoke(it.toString()) } ?: false
+            val isWatched = movie.stream_id?.let { watchedChecker?.invoke(it.toString()) } ?: false
+            holder.bind(movie, isFavorite, isWatched, onItemFocused, onMovieClick, onMovieLongClick)
         }
     }
 }
@@ -808,6 +903,7 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private val tvLangBadge = itemView.findViewById<TextView>(R.id.tv_lang_badge)
     private val ivMoviePoster = itemView.findViewById<ImageView>(R.id.iv_movie_poster)
     private val ivFavoriteIndicator = itemView.findViewById<ImageView>(R.id.iv_favorite_indicator)
+    private val ivWatchedIndicator = itemView.findViewById<ImageView>(R.id.iv_watched_indicator)
     private val glowFocus = itemView.findViewById<View>(R.id.glow_focus)
 
     private var pulseAnimator: ValueAnimator? = null
@@ -816,6 +912,7 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     fun bind(
         movie: XtreamVodInfo,
         isFavorite: Boolean,
+        isWatched: Boolean,
         onItemFocused: ((Int) -> Unit)?,
         onClick: (XtreamVodInfo) -> Unit,
         onLongClick: ((XtreamVodInfo) -> Unit)? = null
@@ -880,6 +977,9 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         
         // Show/hide favorite heart icon
         ivFavoriteIndicator?.visibility = if (isFavorite) View.VISIBLE else View.GONE
+        
+        // Show/hide watched indicator
+        ivWatchedIndicator?.visibility = if (isWatched) View.VISIBLE else View.GONE
         
         // Load poster
         val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.stream_icon)

@@ -131,7 +131,7 @@ class UnifiedSourceProvider @Inject constructor(
                         Log.d(TAG, "🔍 [FILTER] Applying SourceFilterUtils logic...")
                         val preferredLang = settingsPrefs.getPreferredAudioLanguage()
                         val filterState = com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterState(
-                            preferredLanguage = preferredLang
+                            sortLanguage = preferredLang
                         )
                         com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils.apply(sources, filterState)
                     } else {
@@ -274,7 +274,7 @@ class UnifiedSourceProvider @Inject constructor(
 
             if (addonStreams.isNotEmpty()) {
                 // Enhanced logging with provider breakdown
-                Log.d(TAG, "✅ PureFire API returned ${addonStreams.size} sources for '$title' ${if (!imdbId.isNullOrBlank()) "(IMDB: $imdbId)" else ""}")
+                Log.d(TAG, "PureFire movie sources returned: count=${addonStreams.size}, titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}")
 
                 // Group sources by provider for detailed logging
                 val sourcesByProvider = addonStreams.groupBy { it.source }
@@ -333,10 +333,10 @@ class UnifiedSourceProvider @Inject constructor(
 
                 return@coroutineScope movieSources
             } else {
-                Log.i(TAG, "🎬 PureFire movie sources received: count=0 for '$title' (imdbId=${imdbId ?: "none"})")
-                Log.w(TAG, "📭 [NO-SOURCES] PureFire API returned no sources for '$title'")
+                Log.i(TAG, "PureFire movie sources received: count=0, titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}")
+                Log.w(TAG, "[NO-SOURCES] PureFire API returned no sources")
                 if (!imdbId.isNullOrBlank()) {
-                    Log.d(TAG, "   IMDB ID: $imdbId (movie identified but no torrents available)")
+                    Log.d(TAG, "   Movie identified but no torrents available")
                 } else {
                     Log.d(TAG, "   Movie identification failed - title-based search unsuccessful")
                 }
@@ -350,8 +350,7 @@ class UnifiedSourceProvider @Inject constructor(
 
         } catch (e: Exception) {
             coroutineContext.ensureActive()
-            Log.w(TAG, "⚠️ [GRACEFUL] PureFire source fetch interrupted for '$title'")
-            Log.d(TAG, "   Issue: ${e.javaClass.simpleName}")
+            Log.w(TAG, "[GRACEFUL] PureFire source fetch interrupted: titlePresent=${!title.isNullOrBlank()}, error=${SensitiveLogRedactor.describeException(e)}")
             Log.d(TAG, "💡 Torrent providers will be retried on next request")
             return@coroutineScope emptyList()
         }
@@ -367,7 +366,7 @@ class UnifiedSourceProvider @Inject constructor(
         title: String?,
         yearHint: String?
     ): List<MovieSource> = coroutineScope {
-        Log.e(TAG, "🔥 [DEBUG] getSeriesEpisodeSources called for: '$title' S${seasonNumber}:E${episodeNumber} (Series ID: $seriesId)")
+        Log.d(TAG, "getSeriesEpisodeSources called: titlePresent=${!title.isNullOrBlank()}, season=$seasonNumber, episode=$episodeNumber, seriesId=${SensitiveLogRedactor.describeHash(seriesId)}")
 
         try {
             if (seriesId.isNullOrBlank()) {
@@ -381,24 +380,24 @@ class UnifiedSourceProvider @Inject constructor(
             // Let's try to fetch external IDs for the series first using TmdbRemoteDataSource if we only have TMDB ID.
             
             val imdbId = if (seriesId.all { it.isDigit() }) {
-                Log.e(TAG, "ℹ️ Series ID $seriesId looks like TMDB ID. Fetching external IDs...")
+                Log.d(TAG, "Series ID looks like TMDB ID. Fetching external IDs.")
                 // It's likely a TMDB ID, fetch external IDs
                 val detailsResult = tmdbRemote.getSeriesDetails(seriesId.toInt())
                 if (detailsResult.isSuccess) {
                     val resolvedId = detailsResult.getOrNull()?.externalIds?.imdbId
-                    Log.e(TAG, "✅ Resolved IMDb ID: $resolvedId from TMDB ID: $seriesId")
+                    Log.d(TAG, "Resolved IMDb ID from TMDB ID: imdbId=${SensitiveLogRedactor.describeHash(resolvedId)}, seriesId=${SensitiveLogRedactor.describeHash(seriesId)}")
                     resolvedId
                 } else {
-                    Log.e(TAG, "❌ Failed to fetch series details from TMDB for ID: $seriesId. Error: ${detailsResult.exceptionOrNull()?.message}")
+                    Log.w(TAG, "Failed to fetch series details from TMDB: seriesId=${SensitiveLogRedactor.describeHash(seriesId)}, error=${SensitiveLogRedactor.describeException(detailsResult.exceptionOrNull())}")
                     null
                 }
             } else {
-                Log.e(TAG, "ℹ️ Series ID $seriesId looks like IMDb ID (or non-numeric). Using as is.")
+                Log.d(TAG, "Series ID appears to be IMDb/non-numeric. Using provided id=${SensitiveLogRedactor.describeHash(seriesId)}")
                 seriesId // Assume it's already IMDb ID if not all digits (e.g. tt123456)
             }
 
             if (imdbId.isNullOrBlank()) {
-                 Log.e(TAG, "⚠️ Could not resolve IMDb ID for series $seriesId. Aborting source fetch.")
+                 Log.w(TAG, "Could not resolve IMDb ID for series=${SensitiveLogRedactor.describeHash(seriesId)}. Aborting source fetch.")
                  return@coroutineScope emptyList()
             }
 
@@ -688,7 +687,7 @@ class UnifiedSourceProvider @Inject constructor(
                 combinedText.contains("invalid token") || 
                 combinedText.contains("error occurred") ||
                 combinedText.contains("debrid error")) {
-                Log.w(TAG, "⚠️ [SKIP] Filtering out Addon error stream: ${addonStream.title}")
+                Log.w(TAG, "[SKIP] Filtering out Addon error stream: provider=${addonStream.source}, hasTitle=${!addonStream.title.isNullOrBlank()}")
                 return@mapIndexedNotNull null
             }
 
@@ -717,9 +716,9 @@ class UnifiedSourceProvider @Inject constructor(
             }
 
             val streamId = if (mediaFusionUrl != null) {
-                mediaFusionUrl.hashCode().toString()
+                mediaFusionUrl.hashCode().toString() + "_$index"
             } else {
-                validInfoHash ?: addonStream.title.hashCode().toString()
+                (validInfoHash ?: addonStream.title.hashCode().toString()) + "_$index"
             }
             val providerLabel = (addonStream.extras["providerName"] as? String) ?: getSourceLabel(addonStream.source)
             val sourceName = addonStream.extras["sourceName"] as? String
@@ -780,18 +779,6 @@ class UnifiedSourceProvider @Inject constructor(
                         append(" [File: $fileIdx]")
                     }
                 }
-
-            // Enhanced conversion logging
-            Log.d(TAG, "✅ [CONVERT] Converted source: provider=${addonStream.source}, quality=${addonStream.quality ?: "Unknown"}")
-            Log.d(TAG, "   📋 Source details:")
-            Log.d(TAG, "      - Provider: ${addonStream.source}")
-            Log.d(TAG, "      - Quality: ${addonStream.quality ?: "Unknown"}")
-            Log.d(TAG, "      - Languages: ${addonStream.languages?.joinToString(", ") ?: "en"}")
-            Log.d(TAG, "      - Size: ${addonStream.sizeBytes?.let { formatFileSize(it) } ?: "Unknown"}")
-            Log.d(TAG, "      - Seeders: ${addonStream.seeders ?: "N/A"}")
-            Log.d(TAG, "      - Has URL: ${!addonStream.url.isNullOrBlank()}")
-            Log.d(TAG, "      - Has magnet: ${validMagnet != null}")
-            Log.d(TAG, "      - Has infoHash: ${validInfoHash != null}")
 
             // Enhanced XtreamVodInfo with metadata
             MovieSource(
@@ -896,7 +883,7 @@ class UnifiedSourceProvider @Inject constructor(
             return@coroutineScope emptyList()
         }
 
-        Log.d(TAG, "🔥 Launching ${definitions.size} dynamic scrapers for movie $imdbId")
+        Log.d(TAG, "Launching ${definitions.size} dynamic scrapers for movie id=${SensitiveLogRedactor.describeHash(imdbId)}")
 
         val results = definitions.map { def ->
             async {
@@ -904,7 +891,7 @@ class UnifiedSourceProvider @Inject constructor(
                     try {
                         dynamicAddonFetcher.fetchMovieSources(def, imdbId)
                     } catch (e: Exception) {
-                        Log.w(TAG, "⚠️ Dynamic [${def.name}] movie failed: ${e.message}")
+                        Log.w(TAG, "Dynamic [${def.name}] movie failed: error=${SensitiveLogRedactor.describeException(e)}")
                         emptyList()
                     }
                 }
@@ -934,7 +921,7 @@ class UnifiedSourceProvider @Inject constructor(
         val definitions = loadAllDynamicDefinitions()
         if (definitions.isEmpty()) return@coroutineScope emptyList()
 
-        Log.d(TAG, "🔥 Launching ${definitions.size} dynamic scrapers for episode $imdbId S${season}E${episode}")
+        Log.d(TAG, "Launching ${definitions.size} dynamic scrapers for episode id=${SensitiveLogRedactor.describeHash(imdbId)} S${season}E${episode}")
 
         val results = definitions.map { def ->
             async {
@@ -942,7 +929,7 @@ class UnifiedSourceProvider @Inject constructor(
                     try {
                         dynamicAddonFetcher.fetchEpisodeSources(def, imdbId, season, episode)
                     } catch (e: Exception) {
-                        Log.w(TAG, "⚠️ Dynamic [${def.name}] episode failed: ${e.message}")
+                        Log.w(TAG, "Dynamic [${def.name}] episode failed: error=${SensitiveLogRedactor.describeException(e)}")
                         emptyList()
                     }
                 }
@@ -971,7 +958,7 @@ class UnifiedSourceProvider @Inject constructor(
                     try {
                         stremioAddonFetcher.fetchMovieSources(manifestUrl, imdbId)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Stremio movie addon failed: ${SensitiveLogRedactor.describeUrl(manifestUrl)} ${e.message}")
+                        Log.w(TAG, "Stremio movie addon failed: url=${SensitiveLogRedactor.describeUrl(manifestUrl)}, error=${SensitiveLogRedactor.describeException(e)}")
                         emptyList()
                     }
                 }
@@ -994,7 +981,7 @@ class UnifiedSourceProvider @Inject constructor(
                     try {
                         stremioAddonFetcher.fetchEpisodeSources(manifestUrl, imdbId, season, episode)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Stremio episode addon failed: ${SensitiveLogRedactor.describeUrl(manifestUrl)} ${e.message}")
+                        Log.w(TAG, "Stremio episode addon failed: url=${SensitiveLogRedactor.describeUrl(manifestUrl)}, error=${SensitiveLogRedactor.describeException(e)}")
                         emptyList()
                     }
                 }
@@ -1020,7 +1007,7 @@ class UnifiedSourceProvider @Inject constructor(
                     Log.w(TAG, "Registry fetch failed for: ${SensitiveLogRedactor.describeUrl(url)}")
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Registry error for ${SensitiveLogRedactor.describeUrl(url)}: ${e.message}")
+                Log.w(TAG, "Registry error: url=${SensitiveLogRedactor.describeUrl(url)}, error=${SensitiveLogRedactor.describeException(e)}")
             }
         }
 

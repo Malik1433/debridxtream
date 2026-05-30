@@ -72,6 +72,25 @@
                 tools:text="8.9" />
 
             <TextView
+                android:id="@+id/tv_watched_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:background="@drawable/bg_episode_badge"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:text="WATCHED"
+                android:visibility="gone"
+                tools:visibility="visible"
+                app:drawableStartCompat="@drawable/ic_check_circle"
+                android:drawablePadding="4dp" />
+
+            <TextView
                 android:id="@+id/tv_year"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

@@ -26,6 +26,8 @@ Scope: Home fragment, focus routing, sidebar behavior, rows, and teardown safety
 - Future row/focus changes should be kept in Home history files.
 
 ## Recent Fixes
+- Manual Mark Watched/Unwatched completed and QA passed. Verified that exact removal of Continue Watching entries works correctly when an item is manually marked unwatched, without accidentally removing other episodes from the same series.
+- Phase 2 Automatic Watched Detection threshold logic (wired through `PlayerHistoryManager`) strictly verified the exact removal behavior for the Continue Watching row. The JVM unit test (`PlayerHistoryManagerTest`) covered both <5% ignore threshold removals and >=90% completion removals.
 - Home fragment split into smaller managers.
 - Focus restoration, sidebar return, and teardown cleanup guarded.
 - Compact Continue Watching action menu behavior documented in app patterns.
@@ -43,4 +45,5 @@ Scope: Home fragment, focus routing, sidebar behavior, rows, and teardown safety
 - Manual QA: cold Home focus, sidebar expand/collapse, row up/down/left/right, Continue Watching clear/open detail, return from detail/player.
 
 ## Last Verified State
+- 2026-05-30: Manual Mark Watched/Unwatched QA passed. Continue Watching exact removal verified. Other episodes from same series are not removed accidentally.
 - Build and real-device verification already completed on the current Home flow.

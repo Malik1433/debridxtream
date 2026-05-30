@@ -10,6 +10,16 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.tvonnet.debridxtreamiptv.databinding.ItemEpisodeV2Binding
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.launch
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface EpisodesAdapterEntryPoint {
+    fun watchedStateRepository(): com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
+}
 
 class EpisodesAdapterV2(
     private val onEpisodeClick: (EpisodeEntityV2) -> Unit,
@@ -33,6 +43,14 @@ class EpisodesAdapterV2(
     }
 
     var seriesCoverUrl: String? = null
+    var seriesId: String? = null
+    var seriesTitle: String? = null
+    var seriesYear: String? = null
+    var source: String? = null
+    var isDebridSeries: Boolean = false
+    var tmdbId: String? = null
+    var imdbId: String? = null
+    var watchedKeys: Set<String> = emptySet()
 
     inner class EpisodeViewHolder(private val binding: ItemEpisodeV2Binding) : RecyclerView.ViewHolder(binding.root) {
         
@@ -54,6 +72,50 @@ class EpisodesAdapterV2(
                     val item = getItem(bindingAdapterPosition)
                     if (item != null) onEpisodeFocused(item)
                 }
+            }
+            
+            binding.root.setOnLongClickListener {
+                val item = getItem(bindingAdapterPosition)
+                if (item != null) {
+                    val context = binding.root.context
+                    val currentSeriesId = seriesId
+                    val identityKey = watchedIdentityKey(item)
+                    if (identityKey != null) {
+                        val isWatched = watchedKeys.contains(identityKey)
+                        val title = if (isWatched) "Mark as Unwatched" else "Mark as Watched"
+                        android.app.AlertDialog.Builder(context)
+                            .setTitle(item.title)
+                            .setItems(arrayOf(title)) { _, _ ->
+                                val entryPoint = dagger.hilt.android.EntryPointAccessors.fromApplication(
+                                    context.applicationContext,
+                                    EpisodesAdapterEntryPoint::class.java
+                                )
+                                val repo = entryPoint.watchedStateRepository()
+                                val historyPrefs = com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences(context)
+                                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                    val currentState = repo.getState(identityKey) ?: com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity(
+                                        identityKey = identityKey,
+                                        contentType = com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.CONTENT_TYPE_EPISODE,
+                                        source = watchedSource(),
+                                        episodeId = if (usesDebridIdentity()) null else item.episodeId,
+                                        seriesId = if (usesDebridIdentity()) debridSeriesIdentity() ?: currentSeriesId else currentSeriesId,
+                                        seasonNumber = item.seasonNumber,
+                                        episodeNumber = item.episodeNumber,
+                                        title = item.title,
+                                        year = if (usesDebridIdentity()) seriesYear else null,
+                                        tmdbId = if (usesDebridIdentity()) tmdbId else null,
+                                        imdbId = if (usesDebridIdentity()) imdbId else null,
+                                        durationMs = item.duration * 1000L,
+                                        updatedAt = System.currentTimeMillis()
+                                    )
+                                    repo.setManualWatched(currentState, !isWatched, System.currentTimeMillis())
+                                    historyPrefs.removeContinueWatchingItem(item.episodeId)
+                                }
+                            }
+                            .show()
+                    }
+                    true
+                } else false
             }
         }
 
@@ -86,12 +148,58 @@ class EpisodesAdapterV2(
                 .placeholder(com.tvonnet.debridxtreamiptv.R.drawable.placeholder_poster)
                 .error(com.tvonnet.debridxtreamiptv.R.drawable.placeholder_poster)
                 .into(binding.ivEpisodeThumb)
+
+            val identityKey = watchedIdentityKey(episode)
+            if (identityKey != null) {
+                binding.ivWatchedIndicator.visibility = if (watchedKeys.contains(identityKey)) android.view.View.VISIBLE else android.view.View.GONE
+            } else {
+                binding.ivWatchedIndicator.visibility = android.view.View.GONE
+            }
         }
         
         private fun formatDuration(seconds: Long): String {
             if (seconds <= 0) return ""
             val m = seconds / 60
             return "${m} min"
+        }
+
+        private fun watchedIdentityKey(episode: EpisodeEntityV2): String? {
+            return if (usesDebridIdentity()) {
+                com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder.debridEpisode(
+                    seriesIdentity = debridSeriesIdentity(),
+                    seasonNumber = episode.seasonNumber,
+                    episodeNumber = episode.episodeNumber,
+                    seriesTitle = seriesTitle ?: seriesId,
+                    seriesYear = seriesYear,
+                    fallbackDiscriminator = episode.episodeId ?: episode.title
+                )
+            } else {
+                val currentSeriesId = seriesId ?: return null
+                com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder.iptvEpisode(
+                    episodeId = episode.episodeId,
+                    seriesId = currentSeriesId,
+                    seasonNumber = episode.seasonNumber,
+                    episodeNumber = episode.episodeNumber
+                )
+            }
+        }
+
+        private fun usesDebridIdentity(): Boolean {
+            return isDebridSeries || source.equals("debrid", ignoreCase = true)
+        }
+
+        private fun watchedSource(): String {
+            return if (usesDebridIdentity()) {
+                com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.SOURCE_DEBRID
+            } else {
+                com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.SOURCE_XTREAM
+            }
+        }
+
+        private fun debridSeriesIdentity(): String? {
+            return tmdbId?.trim()?.takeIf { it.isNotBlank() }
+                ?: imdbId?.trim()?.takeIf { it.isNotBlank() }
+                ?: seriesId?.trim()?.takeIf { it.isNotBlank() }
         }
 
     }
