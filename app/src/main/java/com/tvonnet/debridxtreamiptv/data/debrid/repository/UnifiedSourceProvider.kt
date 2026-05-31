@@ -1036,15 +1036,16 @@ class UnifiedSourceProvider @Inject constructor(
                 noHashStreams.add(stream)
                 continue
             }
-            val existing = seen[hash]
+            val dedupKey = buildStreamVariantKey(hash, stream)
+            val existing = seen[dedupKey]
             if (existing == null) {
-                seen[hash] = stream
+                seen[dedupKey] = stream
             } else {
                 // Keep the one with more useful metadata; cache is verified later.
                 val existingScore = metadataScore(existing)
                 val newScore = metadataScore(stream)
                 if (newScore > existingScore) {
-                    seen[hash] = stream
+                    seen[dedupKey] = stream
                 }
             }
         }
@@ -1055,6 +1056,40 @@ class UnifiedSourceProvider @Inject constructor(
             Log.d(TAG, "🔄 Dedup removed $removed duplicate streams (${streams.size} → ${result.size})")
         }
         return result
+    }
+
+    private fun buildStreamVariantKey(hash: String, stream: AddonStream): String {
+        val languageKey = normalizeVariantPart(
+            stream.languages?.joinToString(",")?.lowercase()
+        )
+        val providerKey = normalizeVariantPart(
+            stream.extras["providerName"] as? String ?: stream.extras["sourceName"] as? String
+        )
+        val sourceTypeKey = normalizeVariantPart(stream.source.name)
+        val sourceNameKey = normalizeVariantPart(stream.extras["sourceName"] as? String)
+        val fileIdxKey = (stream.extras["fileIdx"] as? Number)?.toString()
+            ?: (stream.extras["fileIdx"] as? String)?.trim()?.takeIf { it.isNotBlank() }
+        val bingeGroupKey = normalizeVariantPart(stream.extras["bingeGroup"] as? String)
+
+        return buildString {
+            append(hash)
+            append('|')
+            append(languageKey)
+            append('|')
+            append(providerKey)
+            append('|')
+            append(sourceTypeKey)
+            append('|')
+            append(sourceNameKey)
+            append('|')
+            append(fileIdxKey.orEmpty())
+            append('|')
+            append(bingeGroupKey)
+        }
+    }
+
+    private fun normalizeVariantPart(value: String?): String {
+        return value?.trim()?.lowercase()?.takeIf { it.isNotBlank() } ?: ""
     }
 
     /**

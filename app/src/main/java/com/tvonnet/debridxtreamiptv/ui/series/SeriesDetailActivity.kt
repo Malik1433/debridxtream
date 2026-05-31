@@ -20,6 +20,7 @@ import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.Result
+import com.tvonnet.debridxtreamiptv.data.debrid.repository.AddonProxyReadiness
 import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureType
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.model.XtreamEpisodeInfo
@@ -32,6 +33,7 @@ import com.tvonnet.debridxtreamiptv.data.onSuccess
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
+import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
 import com.tvonnet.debridxtreamiptv.data.local.entity.toXtreamSeasonInfo
@@ -726,6 +728,16 @@ class SeriesDetailActivity : AppCompatActivity() {
         val bottomSheet = SourceSelectionBottomSheet(
             onSourceSelected = { source ->
                 selectedDebridStreamIdByEpisode[episode.id] = source.stream.stream_id
+                PlaybackDiagnosticsRecorder.record(
+                    this,
+                    "source_selected",
+                    PlaybackDiagnosticsRecorder.contentFields(
+                        kind = "series_episode",
+                        tmdbId = seriesId,
+                        season = selectedSeasonKey?.toIntOrNull(),
+                        episode = episode.episodeNumber
+                    ) + PlaybackDiagnosticsRecorder.sourceFields(this, source)
+                )
                 playDebridEpisode(source, episode)
             },
             onStateChanged = { state ->
@@ -740,8 +752,27 @@ class SeriesDetailActivity : AppCompatActivity() {
         bottomSheet.show(supportFragmentManager, SourceSelectionBottomSheet.TAG)
         val cachedSources = cachedDebridSourcesByEpisode[episode.id]
         if (cachedSources != null) {
+            PlaybackDiagnosticsRecorder.record(
+                this,
+                "source_list_loaded",
+                PlaybackDiagnosticsRecorder.contentFields(
+                    kind = "series_episode",
+                    tmdbId = seriesId,
+                    season = selectedSeasonKey?.toIntOrNull(),
+                    episode = episode.episodeNumber
+                ) + PlaybackDiagnosticsRecorder.sourceListFields(this, cachedSources) +
+                    mapOf("sourceListCacheHit" to true)
+            )
             bottomSheet.showSources(cachedSources)
             refreshMediaFusionCacheStatus(episode.id, cachedSources, bottomSheet)
+            return
+        }
+
+        val episodeFetchContext = resolveDebridEpisodeFetchContext(episode)
+        if (episodeFetchContext == null) {
+            val message = "Episode metadata missing for source fetch"
+            bottomSheet.showError(message)
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
             return
         }
 
@@ -749,8 +780,7 @@ class SeriesDetailActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val seasonNumber = selectedSeasonKey?.toIntOrNull() ?: 1
-                val episodeNumber = episode.episodeNumber ?: 1
+                val (seasonNumber, episodeNumber) = episodeFetchContext
                 
                 val sources = withContext(Dispatchers.IO) {
                     unifiedSourceProvider.getSeriesEpisodeSources(
@@ -763,6 +793,17 @@ class SeriesDetailActivity : AppCompatActivity() {
                 }
                 android.util.Log.e("SeriesDetailActivity", "Received ${sources.size} sources from provider. Updating bottom sheet.")
                 cachedDebridSourcesByEpisode[episode.id] = sources
+                PlaybackDiagnosticsRecorder.record(
+                    this@SeriesDetailActivity,
+                    "source_list_loaded",
+                    PlaybackDiagnosticsRecorder.contentFields(
+                        kind = "series_episode",
+                        tmdbId = seriesId,
+                        season = seasonNumber,
+                        episode = episodeNumber
+                    ) + PlaybackDiagnosticsRecorder.sourceListFields(this@SeriesDetailActivity, sources) +
+                        mapOf("sourceListCacheHit" to false)
+                )
                 bottomSheet.showSources(sources)
                 refreshMediaFusionCacheStatus(episode.id, sources, bottomSheet)
             } catch (e: Exception) {
@@ -786,6 +827,23 @@ class SeriesDetailActivity : AppCompatActivity() {
             magnet.endsWith(".torrent", ignoreCase = true).not()
 
         val launchDirectEpisode = { directUrl: String ->
+            PlaybackDiagnosticsRecorder.record(
+                this@SeriesDetailActivity,
+                "playback_launch",
+                PlaybackDiagnosticsRecorder.contentFields(
+                    kind = "series_episode",
+                    tmdbId = tmdbId,
+                    season = seasonNumber,
+                    episode = episodeNumber
+                ) + PlaybackDiagnosticsRecorder.sourceFields(this@SeriesDetailActivity, source) +
+                    PlaybackDiagnosticsRecorder.playbackFields(
+                        context = this@SeriesDetailActivity,
+                        url = directUrl,
+                        headers = source.headers,
+                        playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID.name,
+                        directDebridPlayback = true
+                    ) + mapOf("launchPath" to "direct")
+            )
             val intent = PlayerActivity.createIntent(
                 context = this@SeriesDetailActivity,
                 streamUrl = directUrl,
@@ -826,30 +884,30 @@ class SeriesDetailActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     showLoading(true)
                     val readyResult = withContext(Dispatchers.IO) {
-                        debridPlaybackRepository.isAddonProxyPlaybackReady(
+                        debridPlaybackRepository.getAddonProxyPlaybackReadiness(
                             magnet,
                             source.headers,
                             source.provider,
                             source.sourceName,
-                            source.sourceType
+                            source.sourceType,
+                            diagnosticsContext = this@SeriesDetailActivity
                         )
                     }
                     showLoading(false)
 
-                    val isReady = readyResult is Result.Success && readyResult.data
-                    if (!isReady) {
+                    val readiness = (readyResult as? Result.Success)?.data
+                        ?: AddonProxyReadiness.UNCERTAIN
+                    if (readiness == AddonProxyReadiness.TERMINAL) {
                         markDebridEpisodeSourceCached(episode.id, source.stream.stream_id, false)
-                        val message = if (readyResult is Result.Error) {
-                            "Source check failed. Choose another source."
-                        } else {
-                            "Source is not ready yet. Choose another source."
-                        }
+                        val message = "Source is unavailable. Choose another source."
                         Toast.makeText(this@SeriesDetailActivity, message, Toast.LENGTH_LONG).show()
                         fetchAndShowDebridSources(episode)
                         return@launch
                     }
 
-                    markDebridEpisodeSourceCached(episode.id, source.stream.stream_id, true)
+                    if (readiness == AddonProxyReadiness.READY) {
+                        markDebridEpisodeSourceCached(episode.id, source.stream.stream_id, true)
+                    }
                     launchDirectEpisode(magnet)
                 }
                 return
@@ -879,6 +937,23 @@ class SeriesDetailActivity : AppCompatActivity() {
             
             when (result) {
                 is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Success -> {
+                    PlaybackDiagnosticsRecorder.record(
+                        this@SeriesDetailActivity,
+                        "playback_launch",
+                        PlaybackDiagnosticsRecorder.contentFields(
+                            kind = "series_episode",
+                            tmdbId = tmdbId,
+                            season = seasonNumber,
+                            episode = episodeNumber
+                        ) + PlaybackDiagnosticsRecorder.sourceFields(this@SeriesDetailActivity, source) +
+                            PlaybackDiagnosticsRecorder.playbackFields(
+                                context = this@SeriesDetailActivity,
+                                url = result.url,
+                                headers = source.headers,
+                                playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID.name,
+                                directDebridPlayback = false
+                            ) + mapOf("launchPath" to "resolver_backed")
+                    )
                     val intent = PlayerActivity.createIntent(
                         context = this@SeriesDetailActivity,
                         streamUrl = result.url,
@@ -951,9 +1026,16 @@ class SeriesDetailActivity : AppCompatActivity() {
             return
         }
 
+        val episodeFetchContext = resolveDebridEpisodeFetchContext(episode)
+        if (episodeFetchContext == null) {
+            val message = "Episode metadata missing for source fetch"
+            Toast.makeText(this@SeriesDetailActivity, message, Toast.LENGTH_LONG).show()
+            fetchAndShowDebridSources(episode)
+            return
+        }
+
         lifecycleScope.launch {
-            val seasonNumber = selectedSeasonKey?.toIntOrNull() ?: 1
-            val episodeNumber = episode.episodeNumber ?: 1
+            val (seasonNumber, episodeNumber) = episodeFetchContext
             val sources = withContext(Dispatchers.IO) {
                 unifiedSourceProvider.getSeriesEpisodeSources(
                     seriesId = seriesId,
@@ -973,6 +1055,13 @@ class SeriesDetailActivity : AppCompatActivity() {
                 fetchAndShowDebridSources(episode)
             }
         }
+    }
+
+    private fun resolveDebridEpisodeFetchContext(episode: EpisodeUiModel): Pair<Int, Int>? {
+        val seasonNumber = selectedSeasonKey?.toIntOrNull()
+        val episodeNumber = episode.episodeNumber
+        if (seasonNumber == null || episodeNumber == null) return null
+        return seasonNumber to episodeNumber
     }
 
     private fun pickNextDebridEpisodeSource(
@@ -1049,16 +1138,18 @@ class SeriesDetailActivity : AppCompatActivity() {
                         async {
                             semaphore.withPermit {
                                 val url = source.stream.direct_source ?: return@withPermit null
-                                val result = debridPlaybackRepository.isAddonProxyPlaybackReady(
+                                val result = debridPlaybackRepository.getAddonProxyPlaybackReadiness(
                                     url,
                                     source.headers,
                                     source.provider,
                                     source.sourceName,
-                                    source.sourceType
+                                    source.sourceType,
+                                    diagnosticsContext = this@SeriesDetailActivity
                                 )
-                                val isReady =
-                                    result is com.tvonnet.debridxtreamiptv.data.Result.Success && result.data
-                                source.stream.stream_id to isReady
+                                val readiness =
+                                    (result as? com.tvonnet.debridxtreamiptv.data.Result.Success)?.data
+                                        ?: AddonProxyReadiness.UNCERTAIN
+                                source.stream.stream_id to readiness
                             }
                         }
                     }.awaitAll().filterNotNull().toMap()
@@ -1067,19 +1158,26 @@ class SeriesDetailActivity : AppCompatActivity() {
             if (updates.isEmpty()) return@launch
 
             val updatedSources = sources.map { source ->
-                val cached = updates[source.stream.stream_id]
-        if (cached != null && source.isCached != cached) {
-            source.copy(
-                isCached = cached,
-                cacheStatus = if (cached) {
-                    DebridCacheStatus.DIRECT_STREAM
-                } else {
-                    DebridCacheStatus.NOT_CACHED
+                when (updates[source.stream.stream_id]) {
+                    AddonProxyReadiness.READY -> if (source.isCached != true) {
+                        source.copy(
+                            isCached = true,
+                            cacheStatus = DebridCacheStatus.DIRECT_STREAM
+                        )
+                    } else {
+                        source
+                    }
+                    AddonProxyReadiness.TERMINAL -> if (source.isCached != false) {
+                        source.copy(
+                            isCached = false,
+                            cacheStatus = DebridCacheStatus.NOT_CACHED
+                        )
+                    } else {
+                        source
+                    }
+                    AddonProxyReadiness.UNCERTAIN,
+                    null -> source
                 }
-            )
-        } else {
-            source
-        }
             }
             if (updatedSources != sources) {
                 cachedDebridSourcesByEpisode[episodeId] = updatedSources

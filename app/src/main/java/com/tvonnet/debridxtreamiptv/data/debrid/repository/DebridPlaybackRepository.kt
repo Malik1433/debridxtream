@@ -1,17 +1,26 @@
 package com.tvonnet.debridxtreamiptv.data.debrid.repository
 
+import android.content.Context
 import com.tvonnet.debridxtreamiptv.data.Result
 import com.tvonnet.debridxtreamiptv.data.Result.Error
 import com.tvonnet.debridxtreamiptv.data.Result.Success
 import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureClassifier
 import com.tvonnet.debridxtreamiptv.data.debrid.source.RealDebridRemoteDataSource
+import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+
+enum class AddonProxyReadiness {
+    READY,
+    UNCERTAIN,
+    TERMINAL
+}
 
 /**
  * Repository handling torrent→Real-Debrid→stream resolution
@@ -42,10 +51,67 @@ class DebridPlaybackRepository @Inject constructor(
         headers: Map<String, String>? = null,
         provider: String? = null,
         sourceName: String? = null,
-        sourceType: String? = null
+        sourceType: String? = null,
+        diagnosticsContext: Context? = null
     ): Result<Boolean> {
+        return when (
+            val readiness = getAddonProxyPlaybackReadiness(
+                url,
+                headers,
+                provider,
+                sourceName,
+                sourceType,
+                diagnosticsContext
+            )
+        ) {
+            is Success -> Success(readiness.data == AddonProxyReadiness.READY)
+            is Error -> readiness
+            is Result.Loading -> readiness
+        }
+    }
+
+    suspend fun getAddonProxyPlaybackReadiness(
+        url: String,
+        headers: Map<String, String>? = null,
+        provider: String? = null,
+        sourceName: String? = null,
+        sourceType: String? = null,
+        diagnosticsContext: Context? = null
+    ): Result<AddonProxyReadiness> {
         if (!requiresDirectProxyReadinessCheck(url, provider, sourceName, sourceType)) {
-            return Success(true)
+            diagnosticsContext?.let { context ->
+                PlaybackDiagnosticsRecorder.record(
+                    context,
+                    "readiness_check_finished",
+                    PlaybackDiagnosticsRecorder.urlFields(context, url) +
+                        PlaybackDiagnosticsRecorder.headerFields(headers) +
+                        mapOf(
+                            "provider" to provider,
+                            "sourceName" to sourceName,
+                            "sourceType" to sourceType,
+                            "required" to false,
+                            "ready" to true,
+                            "readinessOutcome" to AddonProxyReadiness.READY.name,
+                            "reasonCode" to "NOT_REQUIRED"
+                        )
+                )
+            }
+            return Success(AddonProxyReadiness.READY)
+        }
+
+        diagnosticsContext?.let { context ->
+            PlaybackDiagnosticsRecorder.record(
+                context,
+                "readiness_check_started",
+                PlaybackDiagnosticsRecorder.urlFields(context, url) +
+                    PlaybackDiagnosticsRecorder.headerFields(effectiveAddonProxyPlaybackHeaders(headers)) +
+                    mapOf(
+                        "provider" to provider,
+                        "sourceName" to sourceName,
+                        "sourceType" to sourceType,
+                        "required" to true
+                    )
+            )
         }
 
         return try {
@@ -59,46 +125,137 @@ class DebridPlaybackRepository @Inject constructor(
                 .applyPlaybackHeaders(headers)
                 .build()
             client.newCall(request).execute().use { response ->
-                Success(isReadyAddonProxyResponse(response))
+                val readiness = if (response.isRedirect) {
+                    isReadyAddonProxyRedirect(client, response, headers)
+                } else {
+                    classifyAddonProxyResponse(response)
+                }
+                diagnosticsContext?.let { context ->
+                    PlaybackDiagnosticsRecorder.record(
+                        context,
+                        "readiness_check_finished",
+                        PlaybackDiagnosticsRecorder.urlFields(context, url) +
+                            PlaybackDiagnosticsRecorder.headerFields(effectiveAddonProxyPlaybackHeaders(headers)) +
+                            mapOf(
+                                "provider" to provider,
+                                "sourceName" to sourceName,
+                                "sourceType" to sourceType,
+                                "required" to true,
+                                "ready" to (readiness == AddonProxyReadiness.READY),
+                                "readinessOutcome" to readiness.name,
+                                "httpStatusCode" to response.code,
+                                "isRedirect" to response.isRedirect,
+                                "reasonCode" to readiness.name
+                            )
+                    )
+                }
+                Success(readiness)
             }
         } catch (e: Exception) {
-            Error(Exception("Addon proxy playback check failed: ${e.message}", e))
+            diagnosticsContext?.let { context ->
+                PlaybackDiagnosticsRecorder.record(
+                    context,
+                    "readiness_check_finished",
+                    PlaybackDiagnosticsRecorder.urlFields(context, url) +
+                        PlaybackDiagnosticsRecorder.headerFields(effectiveAddonProxyPlaybackHeaders(headers)) +
+                        mapOf(
+                            "provider" to provider,
+                            "sourceName" to sourceName,
+                            "sourceType" to sourceType,
+                            "required" to true,
+                            "ready" to false,
+                            "readinessOutcome" to AddonProxyReadiness.UNCERTAIN.name,
+                            "reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(e::class.java.simpleName)
+                        )
+                )
+            }
+            Success(AddonProxyReadiness.UNCERTAIN)
         }
     }
 
-    private fun Request.Builder.applyPlaybackHeaders(headers: Map<String, String>?): Request.Builder {
+    fun effectiveAddonProxyPlaybackHeaders(headers: Map<String, String>?): Map<String, String> {
+        val normalized = LinkedHashMap<String, String>()
         var hasUserAgent = false
         var hasAccept = false
         headers.orEmpty().forEach { (name, value) ->
             if (name.isBlank() || value.isBlank()) return@forEach
             if (name.equals("User-Agent", ignoreCase = true)) hasUserAgent = true
             if (name.equals("Accept", ignoreCase = true)) hasAccept = true
+            normalized[name] = value
+        }
+        if (!hasUserAgent) normalized["User-Agent"] = "Stremio/1.0"
+        if (!hasAccept) normalized["Accept"] = "*/*"
+        return normalized
+    }
+
+    private fun Request.Builder.applyPlaybackHeaders(headers: Map<String, String>?): Request.Builder {
+        effectiveAddonProxyPlaybackHeaders(headers).forEach { (name, value) ->
             header(name, value)
         }
-        if (!hasUserAgent) header("User-Agent", "Stremio/1.0")
-        if (!hasAccept) header("Accept", "*/*")
         return this
     }
 
-    private fun isReadyAddonProxyResponse(response: Response): Boolean {
+    private fun classifyAddonProxyResponse(response: Response): AddonProxyReadiness {
         if (response.isRedirect) {
-            return !isAddonProxyErrorTarget(response.header("Location"))
+            return AddonProxyReadiness.UNCERTAIN
         }
-        if (response.code == 204 || response.code in 400..599 || !response.isSuccessful) {
-            return false
+        if (isTerminalAddonProxyStatus(response.code)) {
+            return AddonProxyReadiness.TERMINAL
+        }
+        if (response.code == 204) {
+            return AddonProxyReadiness.UNCERTAIN
+        }
+        if (!response.isSuccessful) {
+            return AddonProxyReadiness.UNCERTAIN
         }
 
         val contentType = response.header("Content-Type")?.lowercase()
         if (contentType != null && isAddonProxyErrorContentType(contentType)) {
-            return false
+            return AddonProxyReadiness.TERMINAL
         }
 
         val contentLength = response.header("Content-Length")?.toLongOrNull()
         if (contentLength != null && contentLength in 1..4096 && contentType?.contains("video") != true) {
-            return false
+            return AddonProxyReadiness.UNCERTAIN
         }
 
-        return true
+        return AddonProxyReadiness.READY
+    }
+
+    private fun isReadyAddonProxyRedirect(
+        client: OkHttpClient,
+        response: Response,
+        headers: Map<String, String>?
+    ): AddonProxyReadiness {
+        val location = response.header("Location") ?: return AddonProxyReadiness.UNCERTAIN
+        if (isAddonProxyErrorTarget(location)) return AddonProxyReadiness.TERMINAL
+        val redirectUrl = response.request.url.resolve(location) ?: return AddonProxyReadiness.UNCERTAIN
+        val probeClient = client.newBuilder()
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .callTimeout(5, TimeUnit.SECONDS)
+            .build()
+        val request = Request.Builder()
+            .url(redirectUrl)
+            .get()
+            .header("Range", "bytes=0-0")
+            .applyPlaybackHeaders(headers)
+            .build()
+        return try {
+            probeClient.newCall(request).execute().use { probeResponse ->
+                classifyAddonProxyResponse(probeResponse)
+            }
+        } catch (_: Exception) {
+            AddonProxyReadiness.UNCERTAIN
+        }
+    }
+
+    private fun isTerminalAddonProxyStatus(code: Int): Boolean {
+        return code == 401 ||
+            code == 403 ||
+            code == 404 ||
+            code == 410 ||
+            code == 451
     }
 
     private fun isAddonProxyErrorTarget(location: String?): Boolean {

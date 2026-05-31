@@ -3,6 +3,20 @@
 Track only the last 10 important changes. Newest first. Keep this file compact for regression debugging.
 
 Date: 2026-05-31
+Module: Player / Debrid Session Ranking
+Issue fixed: Tightened the direct addon/proxy session-ranking success signal so first frame alone no longer boosts a row. Movie playback now requires first frame plus at least 30 minutes duration; episode/series playback requires first frame plus at least 5 minutes duration. Failure demotions and playback behavior remain unchanged.
+Files changed: `PlayerActivity.kt`
+Regression risk: Session-only ordering for direct addon/proxy rows. Playback startup, retry policy, source visibility, and cached/direct semantics were not changed.
+QA result: `:app:compileDebugKotlin` and `:app:assembleDebug` passed. Refreshed APK installed on `192.168.0.84:5555` (`versionName=2.0.7`, `versionCode=28`, `lastUpdateTime=2026-05-31 23:13:37`). Device QA on `From` S4E1 confirmed valid AIO playback reached READY at `3239952ms` and moved the Hindi/English row from second to first, while a StreamThru `30000ms` short payload did not satisfy the success threshold. Movie direct QA reached READY at `6329376ms` and promoted the selected movie row. Source counts stayed unchanged.
+
+Date: 2026-05-31
+Module: Debrid / Series Source Reliability
+Issue fixed: Tightened the Debrid series/AIO episode path so same-infoHash variants are no longer collapsed when language, provider/source name, source type, file index, or binge group differ, and Debrid series source loading now requires the selected episode's real season/episode metadata instead of silently falling back to episode 1.
+Files changed: `UnifiedSourceProvider.kt`, `SeriesDetailActivity.kt`
+Regression risk: Debrid series source row counts, duplicate suppression, episode-specific source lists, and source-picker recovery when episode metadata is incomplete.
+QA result: `:app:compileDebugKotlin` and `:app:assembleDebug` passed. APK installed on `192.168.0.21:5555`. Manual QA on `Spider-Noir` confirmed episode 1 and episode 3 resolve to different episode-specific source lists (`S01E01` vs `S01E03`), source counts differ (`314` vs `293`), `DIRECT` labeling remained intact, and AIOStreams plus StreamThru rows stayed visible.
+
+Date: 2026-05-31
 Module: Player / TV Track Dialogs
 Issue fixed: Replaced Media3 stock two-step audio/subtitle confirmation dialogs with explicit one-press TV row selection. D-pad focus alone does not switch tracks; center OK applies the existing Media3 track override and closes the dialog; Back dismisses without changing the selection.
 Files changed: `PlayerTrackManager.kt`
@@ -258,6 +272,8 @@ Module: Player / Subtitle / Audio
 Issue fixed: Phase 3A Subtitle/Audio extraction completed. Extracted subtitle and audio logic from PlayerActivity into PlayerTrackManager.
 Files changed: `PlayerActivity.kt`, `PlayerTrackManager.kt`
 Regression risk: IPTV playback, Debrid playback, Subtitle/audio behavior, Live TV zapping.
+- 2026-05-31: Implemented debug-only local Playback Diagnostics Recorder for manual Debrid playback testing. Added `PlaybackDiagnosticsRecorder.kt` and marker-gated hooks in `MovieDetailActivity`, `SeriesDetailActivity`, `DebridPlaybackRepository`, and `PlayerActivity`. Build passed (`:app:compileDebugKotlin`, `:app:assembleDebug`), APK installed on `192.168.0.21:5555`, inactive-without-marker and active-with-marker behavior verified, real Debrid movie source-picker playback produced JSONL source/player/track/first-frame/READY events, `adb pull` export worked, and redaction scan found no raw URLs, magnets, long hashes, token params, Real-Debrid URLs, or secret header values. Dedicated direct-readiness/dead-link and series-source manual diagnostics remain follow-up QA cases.
+
 QA result: Build/install completed. Manual QA passed on 192.168.0.21. No behavior regression found. Phase 2 Network/Stall remains BLOCKED / NOT APPROVED. Next extraction phase is NOT approved yet.
 
 Date: 2026-05-25
@@ -336,3 +352,4 @@ P o l i s h e d   D e b r i d   s i d e b a r :   a d j u s t e d   w i d t h   
 - 2026-05-29: Fixed source picker scrolling bug where the list would jump back to the top when navigating past the first few visible rows. The bug was caused by duplicate streamIds breaking RecyclerView focus with hasStableIds(true). Appended index to streamIds in UnifiedSourceProvider.kt to ensure uniqueness.
 - 2026-05-29: Fixed source picker RD Cached Type option UX. `SourceSelectionBottomSheet.kt` now builds Type dropdown options from the current pre-type filtered list, so direct-only lists no longer offer RD Cached and stale unavailable Type selections reset to All. Build passed (`clean :app:compileDebugKotlin`, `:app:assembleDebug`), APK installed on 192.168.0.84 and 192.168.0.21, and `.84` QA confirmed direct-only Type options omit RD Cached, direct rows remain visible under All/Direct, English filter stays stable, direct playback launches, and Back returns to Debrid. Mixed verified-cached positive QA remains pending; redacted log scan still shows pre-existing URL/token/hash-like log patterns.
 - 2026-05-29: Cleaned Debrid/source log hygiene. `SensitiveLogRedactor` now emits placeholder tokens instead of URL-like redacted strings, Real-Debrid remote logs redact credentials/hashes and avoid raw throwable output, source aggregation logs no longer print source titles/IDs or per-source detail dumps, and image loading logs redact poster/backdrop URLs. Build passed (`clean :app:compileDebugKotlin`, `:app:assembleDebug`), APK installed on `192.168.0.84:5555`, and app-process log scan after Debrid movie source picker/direct playback returned zero matches for raw URLs, magnets, token params, username/password words, or long hash-like strings.
+- 2026-05-31: Verified and closed Phase 1 debrid-agnostic direct addon/proxy HTTP `500-599` containment. On `.21`, the same URL fingerprint plus `stremio` headers produced one retry only, then `terminal_failure` and `return_to_sources(autoNext=false)`; HTTP `404` remained zero-retry fast-fail. On `.84`, AIO series direct, post-READY AIO relaunch, StreamThru series direct, and StreamThru movie direct all reached first frame and `STATE_READY`.

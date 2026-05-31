@@ -1,0 +1,27 @@
+05-31 12:47:45.200 I/MediaCodecLogger(30450): updatePTSTime Possible seek found! last pts:255959036127 cur pts:255982691667
+05-31 12:48:16.233 W/studio.screen.sharing(30450): Display 0: AMediaCodec_dequeueOutputBuffer(..., 30000000) returned -1
+05-31 12:48:16.239 I/MediaCodecLogger(30450): MC Stop Time(start: 256013745, stop:256013751 :6 <profileMCStopEnd 1437>
+05-31 12:48:16.253 I/MediaCodecLogger(30450): [ASAP] SW.video.vp8 P2 + 256013764
+05-31 12:48:16.263 I/MediaCodecLogger(30450): [ASAP] SW.video.vp8 P2 - 256013775
+05-31 12:48:16.260 W/HwBinder:3205_1( 3205): type=1400 audit(0.0:46499): avc: denied { read } for name="u:object_r:default_prop:s0" dev="tmpfs" ino=2182 scontext=u:r:mediacodec:s0 tcontext=u:object_r:default_prop:s0 tclass=file permissive=0
+05-31 12:48:16.264 I/chatty  ( 3205): uid=1046(mediacodec) omx@1.0-service identical 6 lines
+05-31 12:48:16.264 W/HwBinder:3205_1( 3205): type=1400 audit(0.0:46506): avc: denied { read } for name="u:object_r:default_prop:s0" dev="tmpfs" ino=2182 scontext=u:r:mediacodec:s0 tcontext=u:object_r:default_prop:s0 tclass=file permissive=0
+05-31 12:48:16.273 I/MediaCodecLogger(30450): [ASAP] SW.video.vp8 P3 + 256013785
+05-31 12:48:16.284 I/MediaCodecLogger(30450): [ASAP] SW.video.vp8 P3 - 256013795
+05-31 12:48:16.380 I/MediaCodecLogger(30450): updateFormatChanged width = 896 height = 504
+05-31 12:48:16.380 I/MediaCodecLogger(30450): updatePTSTime [SW.video.vp8] First PTS after Flush or reset = 256013791583
+05-31 12:48:16.380 W/studio.screen.sharing(30450): Display 0: AMediaCodec_dequeueOutputBuffer(..., 200000) returned -2
+05-31 12:48:47.319 W/studio.screen.sharing(30450): Display 0: AMediaCodec_dequeueOutputBuffer(..., 30000000) returned -1
+05-31 12:48:47.329 I/MediaCodecLogger(30450): MC Stop Time(start: 256044831, stop:256044840 :9 <profileMCStopEnd 1437>
+05-31 12:48:47.342 I/MediaCodecLogger(30450): [ASAP] SW.video.vp8 P2 + 256044853
+05-31 12:48:47.345 I/MediaCodecLogger(30450): [ASAP] SW.video.vp8 P2 - 256044857
+05-31 12:48:47.344 W/HwBinder:3205_3( 3205): type=1400 audit(0.0:46509): avc: denied { read } for name="u:object_r:default_prop:s0" dev="tmpfs" ino=2182 scontext=u:r:mediacodec:s0 tcontext=u:object_r:default_prop:s0 tclass=file permissive=0
+05-31 12:48:47.344 W/HwBinder:3205_3( 3205): type=1400 audit(0.0:46510): avc: denied { read } for name="u:object_r:default_prop:s0" dev="tmpfs" ino=2182 scontext=u:r:mediacodec:s0 tcontext=u:object_r:default_prop:s0 tclass=file permissive=0
+05-31 12:48:47.344 W/HwBinder:3205_3( 3205): type=1400 audit(0.0:46511): avc: denied { read } for name="u:object_r:default_prop:s0" dev="tmpfs" ino=2182 scontext=u:r:mediacodec:s0 tcontext=u:object_r:default_prop:s0 tclass=file permissive=0
+05-31 12:48:47.344 W/HwBinder:3205_3( 3205): type=1400 audit(0.0:46512): avc: denied { read } for name="u:object_r:default_prop:s0" dev="tmpfs" ino=2182 scontext=u:r:mediacodec:s0 tcontext=u:object_r:default_prop:s0 tclass=file permissive=0
+05-31 12:48:47.366 I/MediaCodecLogger(30450): [ASAP] SW.video.vp8 P3 + 256044877
+05-31 12:48:47.375 I/MediaCodecLogger(30450): [ASAP] SW.video.vp8 P3 - 256044886
+05-31 12:48:47.501 I/MediaCodecLogger(30450): updateFormatChanged width = 896 height = 504
+05-31 12:48:47.501 I/MediaCodecLogger(30450): updatePTSTime [SW.video.vp8] First PTS after Flush or reset = 256044885031
+05-31 12:48:47.501 W/studio.screen.sharing(30450): Display 0: AMediaCodec_dequeueOutputBuffer(..., 200000) returned -2
+05-31 12:49:00.700 I/MediaCodecLogger(30450): updatePTSTime Possible seek found! last pts:256045885031 cur pts:256058167189

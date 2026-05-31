@@ -54,6 +54,9 @@ import com.tvonnet.debridxtreamiptv.data.model.RecentLiveChannelItem
 import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 
 import com.tvonnet.debridxtreamiptv.data.model.toAbsoluteUrl
+import com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridPlaybackRepository
+import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
+import com.tvonnet.debridxtreamiptv.ui.sources.SessionSourcePreference
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
@@ -98,6 +101,9 @@ class PlayerActivity : AppCompatActivity() {
     @Inject
     lateinit var watchedStateRepository: WatchedStateRepository
 
+    @Inject
+    lateinit var debridPlaybackRepository: DebridPlaybackRepository
+
     private val prefs by lazy { CredentialsPreferences(this) }
 
     private var isInPictureInPictureMode = false
@@ -117,6 +123,10 @@ class PlayerActivity : AppCompatActivity() {
     private var timeoutMs: Long = TIMEOUT_MS
     private val timeoutHandler = Handler(Looper.getMainLooper())
     private val timeoutRunnable = Runnable { handleTimeout() }
+    private var lastDirectAddonProxyTimeoutContext: String? = null
+    private var lastDirectAddonProxyServerErrorContext: String? = null
+    private var hasRenderedFirstFrameForCurrentSource = false
+    private var lastSuccessfulDirectAddonProxyPreferenceContext: String? = null
     private var isControllerVisible = false
 
     private enum class EpgOverlayMode { HIDDEN, COMPACT, EXPANDED }
@@ -265,6 +275,8 @@ class PlayerActivity : AppCompatActivity() {
         private const val OVERLAY_TIMEOUT = 6000L
         private const val MIN_PROGRESS_TO_TRACK_MS = 15_000L
         private const val MIN_DURATION_TO_TRACK_MS = 60_000L
+        private const val MIN_CREDIBLE_MOVIE_DURATION_MS = 30 * 60_000L
+        private const val MIN_CREDIBLE_EPISODE_DURATION_MS = 5 * 60_000L
         private const val RETURN_TO_SOURCES_THRESHOLD_MS = 60_000L
         private const val COMPLETION_THRESHOLD_RATIO = 0.95f
         private const val STALL_THRESHOLD_MS = 12000L
@@ -861,13 +873,68 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun buildMediaItem(url: String): MediaItem {
         val subtitleConfigs = trackManager.buildSubtitleConfigurations(subtitleEntries)
-        return if (subtitleConfigs.isEmpty()) {
-            MediaItem.fromUri(url)
-        } else {
-            MediaItem.Builder()
-                .setUri(url)
-                .setSubtitleConfigurations(subtitleConfigs)
-                .build()
+        val builder = MediaItem.Builder().setUri(url)
+        val mimeHint = resolveMediaMimeType(url)
+        mimeHint?.let { builder.setMimeType(it) }
+        if (subtitleConfigs.isNotEmpty()) {
+            builder.setSubtitleConfigurations(subtitleConfigs)
+        }
+        PlaybackDiagnosticsRecorder.record(
+            this,
+            "media_item_built",
+            diagnosticsPlaybackFields(url, mimeHint = mimeHint) + mapOf(
+                "subtitleConfigCount" to subtitleConfigs.size
+            )
+        )
+        return builder.build()
+    }
+
+    private fun resolveMediaMimeType(url: String): String? {
+        val cleanUrl = url.substringBefore('?').substringBefore('#').lowercase(Locale.US)
+        val sourceText = listOfNotNull(
+            url,
+            debridProviderExtra,
+            debridSourceTypeExtra,
+            debridSourceNameExtra,
+            debridQualityExtra,
+            originalTitle
+        ).joinToString(" ").lowercase(Locale.US)
+        val headerText = streamHeaders.orEmpty()
+            .filterKeys { key ->
+                key.equals("Accept", ignoreCase = true) ||
+                    key.equals("Content-Type", ignoreCase = true)
+            }
+            .values
+            .joinToString(" ")
+            .lowercase(Locale.US)
+
+        return when {
+            cleanUrl.endsWith(".m3u8") ||
+                sourceText.contains(".m3u8") ||
+                sourceText.contains(" hls") ||
+                headerText.contains("mpegurl") ||
+                headerText.contains("application/vnd.apple.mpegurl") -> MimeTypes.APPLICATION_M3U8
+            cleanUrl.endsWith(".mpd") ||
+                sourceText.contains(".mpd") ||
+                sourceText.contains(" dash") ||
+                headerText.contains("application/dash+xml") -> MimeTypes.APPLICATION_MPD
+            cleanUrl.endsWith(".mp4") ||
+                cleanUrl.endsWith(".m4v") ||
+                sourceText.contains(".mp4") ||
+                sourceText.contains(".m4v") ||
+                headerText.contains("video/mp4") -> MimeTypes.VIDEO_MP4
+            cleanUrl.endsWith(".mkv") ||
+                sourceText.contains(".mkv") ||
+                headerText.contains("matroska") -> "video/x-matroska"
+            cleanUrl.endsWith(".webm") ||
+                sourceText.contains(".webm") ||
+                headerText.contains("video/webm") -> MimeTypes.VIDEO_WEBM
+            cleanUrl.endsWith(".ts") ||
+                cleanUrl.endsWith(".m2ts") ||
+                sourceText.contains(".m2ts") ||
+                sourceText.contains(".ts ") ||
+                headerText.contains("video/mp2t") -> MimeTypes.VIDEO_MP2T
+            else -> null
         }
     }
 
@@ -1433,6 +1500,128 @@ class PlayerActivity : AppCompatActivity() {
         return raw?.takeIf { it.isNotEmpty() }
     }
 
+    private fun requiresAddonProxyPlaybackContext(url: String?): Boolean {
+        return directDebridPlayback && debridPlaybackRepository.requiresDirectProxyReadinessCheck(
+            url = url,
+            provider = debridProviderExtra,
+            sourceName = debridSourceNameExtra,
+            sourceType = debridSourceTypeExtra
+        )
+    }
+
+    private fun effectivePlaybackHeadersFor(url: String?): Map<String, String>? {
+        return if (requiresAddonProxyPlaybackContext(url)) {
+            debridPlaybackRepository.effectiveAddonProxyPlaybackHeaders(streamHeaders)
+        } else {
+            streamHeaders
+        }
+    }
+
+    private fun diagnosticsContentFields(): Map<String, Any?> {
+        return PlaybackDiagnosticsRecorder.contentFields(
+            kind = contentType?.name?.lowercase(Locale.US) ?: "unknown",
+            tmdbId = tmdbIdExtra,
+            imdbId = imdbIdExtra,
+            season = seasonNumberExtra,
+            episode = episodeNumberExtra
+        )
+    }
+
+    private fun diagnosticsSourceFields(): Map<String, Any?> {
+        return mapOf(
+            "provider" to debridProviderExtra,
+            "sourceType" to debridSourceTypeExtra,
+            "sourceName" to debridSourceNameExtra,
+            "languages" to debridLanguagesExtra,
+            "quality" to debridQualityExtra,
+            "hasBingeGroup" to !debridBingeGroupExtra.isNullOrBlank(),
+            "bingeGroupFingerprint" to PlaybackDiagnosticsRecorder.identityFingerprint(debridBingeGroupExtra),
+            "fileIdx" to debridFileIdxExtra,
+            "streamIdFingerprint" to PlaybackDiagnosticsRecorder.identityFingerprint(debridStreamIdExtra ?: debridInfoHashExtra)
+        )
+    }
+
+    private fun diagnosticsPlaybackFields(
+        url: String? = currentUrl,
+        headers: Map<String, String>? = effectivePlaybackHeadersFor(url),
+        retry: Int? = retryCount,
+        mimeHint: String? = null
+    ): Map<String, Any?> {
+        return diagnosticsContentFields() +
+            diagnosticsSourceFields() +
+            PlaybackDiagnosticsRecorder.playbackFields(
+                context = this,
+                url = url,
+                headers = headers,
+                playbackSource = playbackSource?.name,
+                directDebridPlayback = directDebridPlayback,
+                retryCount = retry,
+                timeoutMs = timeoutMs,
+                mimeHint = mimeHint
+            )
+    }
+
+    private fun directAddonProxyTimeoutContext(url: String): String? {
+        if (!requiresAddonProxyPlaybackContext(url)) return null
+        val headersKey = effectivePlaybackHeadersFor(url).orEmpty()
+            .toSortedMap(String.CASE_INSENSITIVE_ORDER)
+            .entries
+            .joinToString("|") { "${it.key.lowercase(Locale.US)}=${it.value}" }
+        return "${url.hashCode()}:${headersKey.hashCode()}"
+    }
+
+    private fun hasRepeatedDirectAddonProxyTimeout(url: String): Boolean {
+        val context = directAddonProxyTimeoutContext(url) ?: return false
+        val repeated = lastDirectAddonProxyTimeoutContext == context
+        lastDirectAddonProxyTimeoutContext = context
+        return repeated
+    }
+
+    private fun hasRepeatedDirectAddonProxyServerError(error: PlaybackException): Boolean {
+        val responseCode = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
+            ?: return false
+        if (responseCode !in 500..599) return false
+        val url = currentUrl ?: return false
+        val context = directAddonProxyTimeoutContext(url) ?: return false
+        val repeated = lastDirectAddonProxyServerErrorContext == context
+        lastDirectAddonProxyServerErrorContext = context
+        return repeated
+    }
+
+    private fun maybeRecordDirectAddonProxySuccess() {
+        val url = currentUrl ?: return
+        if (!requiresAddonProxyPlaybackContext(url)) return
+        if (!hasRenderedFirstFrameForCurrentSource) return
+        val minimumDurationMs = when (contentType) {
+            ContentType.MOVIE -> MIN_CREDIBLE_MOVIE_DURATION_MS
+            ContentType.EPISODE, ContentType.SERIES -> MIN_CREDIBLE_EPISODE_DURATION_MS
+            else -> return
+        }
+        if ((player?.duration ?: 0L) < minimumDurationMs) return
+        val context = directAddonProxyTimeoutContext(url) ?: return
+        if (lastSuccessfulDirectAddonProxyPreferenceContext == context) return
+        lastSuccessfulDirectAddonProxyPreferenceContext = context
+        SessionSourcePreference.recordFirstFrame(
+            provider = debridProviderExtra ?: debridSourceNameExtra,
+            sourceType = debridSourceTypeExtra,
+            languages = debridLanguagesExtra,
+            quality = debridQualityExtra,
+            url = url
+        )
+    }
+
+    private fun recordDirectAddonProxyFailure() {
+        val url = currentUrl ?: return
+        if (!requiresAddonProxyPlaybackContext(url)) return
+        SessionSourcePreference.recordFailure(
+            provider = debridProviderExtra ?: debridSourceNameExtra,
+            sourceType = debridSourceTypeExtra,
+            languages = debridLanguagesExtra,
+            quality = debridQualityExtra,
+            url = url
+        )
+    }
+
     private fun initializePlayer(streamUrl: String) {
         if (isFinishing || isDestroyed) {
             Log.w("PlayerActivity", "initializePlayer aborted: Activity is finishing or destroyed")
@@ -1442,7 +1631,7 @@ class PlayerActivity : AppCompatActivity() {
             // RULE: Prevent Memory Leaks. ALWAYS release existing player before creating new one.
             if (player != null) {
                 Log.i("PlayerActivity", "Releasing existing player before re-initialization")
-                releasePlayer()
+                releasePlayer("reinitialize")
             }
 
             didPlaybackComplete = false
@@ -1450,9 +1639,15 @@ class PlayerActivity : AppCompatActivity() {
             timeoutHandler.removeCallbacks(timeoutRunnable)
             timeoutMs = resolveTimeoutMs(streamUrl)
             timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
+            hasRenderedFirstFrameForCurrentSource = false
 
             val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
-            val requestHeaders = streamHeaders
+            val requestHeaders = effectivePlaybackHeadersFor(streamUrl)
+            PlaybackDiagnosticsRecorder.record(
+                this,
+                "player_initialize_started",
+                diagnosticsPlaybackFields(streamUrl, requestHeaders)
+            )
             if (!requestHeaders.isNullOrEmpty()) {
                 httpDataSourceFactory.setDefaultRequestProperties(requestHeaders)
             }
@@ -1498,6 +1693,11 @@ class PlayerActivity : AppCompatActivity() {
 
             val mediaItem = buildMediaItem(streamUrl)
             player?.setMediaItem(mediaItem, /* resetPosition = */ true)
+            PlaybackDiagnosticsRecorder.record(
+                this,
+                "player_prepare_called",
+                diagnosticsPlaybackFields(streamUrl, requestHeaders)
+            )
             player?.prepare()
             if (startPositionMs > 0L) {
                 player?.seekTo(startPositionMs)
@@ -1508,12 +1708,24 @@ class PlayerActivity : AppCompatActivity() {
 
             player?.addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
+                    PlaybackDiagnosticsRecorder.record(
+                        this@PlayerActivity,
+                        "player_state_changed",
+                        diagnosticsPlaybackFields() + mapOf(
+                            "playerState" to PlaybackDiagnosticsRecorder.playerStateName(playbackState),
+                            "positionMs" to (player?.currentPosition ?: 0L),
+                            "durationMs" to (player?.duration ?: 0L)
+                        )
+                    )
                     if (playbackState == Player.STATE_READY) {
                          isSwitching = false
                          if (player?.currentPosition ?: 0L > 1000) startPositionMs = 0L 
                         timeoutHandler.removeCallbacks(timeoutRunnable)
                         retryCount = 0
                         lastBufferingStartMs = 0L
+                        lastDirectAddonProxyTimeoutContext = null
+                        lastDirectAddonProxyServerErrorContext = null
+                        maybeRecordDirectAddonProxySuccess()
                         if (contentType != ContentType.LIVE_TV) {
                             updatePlayPauseVisibility(player?.playWhenReady == true)
                             playerView.showController()
@@ -1543,8 +1755,22 @@ class PlayerActivity : AppCompatActivity() {
                         updatePlayPauseVisibility(playWhenReady)
                     }
                 }
+                override fun onRenderedFirstFrame() {
+                    hasRenderedFirstFrameForCurrentSource = true
+                    maybeRecordDirectAddonProxySuccess()
+                    PlaybackDiagnosticsRecorder.record(
+                        this@PlayerActivity,
+                        "first_frame_rendered",
+                        diagnosticsPlaybackFields() + mapOf("positionMs" to (player?.currentPosition ?: 0L))
+                    )
+                }
                 override fun onTrackSelectionParametersChanged(parameters: androidx.media3.common.TrackSelectionParameters) = captureManualTrackSelection()
                 override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                    PlaybackDiagnosticsRecorder.record(
+                        this@PlayerActivity,
+                        "track_discovery",
+                        diagnosticsPlaybackFields() + trackDiagnosticsFields(tracks)
+                    )
                     if (!hasAppliedIndexOverride) {
                         applyTrackIndexOverrides()
                         hasAppliedIndexOverride = true
@@ -1629,8 +1855,37 @@ class PlayerActivity : AppCompatActivity() {
             is HttpDataSource.InvalidResponseCodeException -> "HTTP ${cause.responseCode}"
             else -> error.message ?: "Playback error"
         }
+        PlaybackDiagnosticsRecorder.record(
+            this,
+            "player_error",
+            diagnosticsPlaybackFields() + mapOf(
+                "reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(errorMessage),
+                "httpStatusCode" to PlaybackDiagnosticsRecorder.httpStatusCode(errorMessage),
+                "errorCode" to error.errorCode
+            )
+        )
+        if (isTerminalDirectHttpPlaybackError(error)) {
+            if ((error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode == 404) {
+                recordDirectAddonProxyFailure()
+            }
+            handleTerminalPlaybackFailure(errorMessage)
+            return
+        }
+        if (hasRepeatedDirectAddonProxyServerError(error)) {
+            recordDirectAddonProxyFailure()
+            handleTerminalPlaybackFailure(errorMessage, preferReturnToSources = true)
+            return
+        }
         if (retryCount < maxRetries) {
             retryCount++
+            PlaybackDiagnosticsRecorder.record(
+                this,
+                "retry_triggered",
+                diagnosticsPlaybackFields(retry = retryCount) + mapOf(
+                    "reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(errorMessage),
+                    "retrySource" to "player_error"
+                )
+            )
             val hasDurableDebridIdentity = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
             if (canUseDebridResolver() && !isResolvingDebrid && hasDurableDebridIdentity) {
                   isResolvingDebrid = true
@@ -1648,11 +1903,28 @@ class PlayerActivity : AppCompatActivity() {
             }
             showToast("Retrying... ($retryCount/$maxRetries)")
             if (contentType != ContentType.LIVE_TV && player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
+            PlaybackDiagnosticsRecorder.record(
+                this,
+                "release_player",
+                diagnosticsPlaybackFields() + mapOf("releaseReason" to "player_error_retry")
+            )
             player?.release(); player = null
             Handler(Looper.getMainLooper()).postDelayed({ currentUrl?.let { initializePlayer(it) } }, retryCount * 1000L)
         } else {
             handleTerminalPlaybackFailure(errorMessage)
         }
+    }
+
+    private fun isTerminalDirectHttpPlaybackError(error: PlaybackException): Boolean {
+        if (!directDebridPlayback) return false
+        val responseCode = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
+            ?: return false
+        return responseCode == 401 ||
+            responseCode == 403 ||
+            responseCode == 404 ||
+            responseCode == 410 ||
+            responseCode == 429 ||
+            responseCode == 451
     }
     
     private fun checkForStall() {
@@ -1666,7 +1938,18 @@ class PlayerActivity : AppCompatActivity() {
             if (currentPos > lastBoundPosition) { lastBoundPosition = currentPos; lastProgressCheckMs = now; stallStrikeCount = 0; return }
             if (currentPos > 0 && now - lastProgressCheckMs >= stallThresholdMs) {
                 stallStrikeCount++
-                if (stallStrikeCount >= requiredStrikes) { stallStrikeCount = 0; handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)) }
+                if (stallStrikeCount >= requiredStrikes) {
+                    PlaybackDiagnosticsRecorder.record(
+                        this,
+                        "stall_triggered",
+                        diagnosticsPlaybackFields() + mapOf(
+                            "positionMs" to currentPos,
+                            "stallThresholdMs" to stallThresholdMs
+                        )
+                    )
+                    stallStrikeCount = 0
+                    handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
+                }
                 lastProgressCheckMs = now
             }
         } else { lastBoundPosition = p.currentPosition; lastProgressCheckMs = now; stallStrikeCount = 0 }
@@ -1675,7 +1958,7 @@ class PlayerActivity : AppCompatActivity() {
 
 
     private fun showSupportQr() {
-        releasePlayer(); layoutSupportQr?.isVisible = true
+        releasePlayer("support_qr"); layoutSupportQr?.isVisible = true
         val supportUrl = settingsPreferences.getSupportUrl()
         try {
             val barcodeEncoder = com.journeyapps.barcodescanner.BarcodeEncoder()
@@ -1691,8 +1974,27 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun handleTimeout() {
         if (player?.playbackState == Player.STATE_BUFFERING) {
+            val timedOutUrl = currentUrl
+            PlaybackDiagnosticsRecorder.record(
+                this,
+                "buffer_timeout",
+                diagnosticsPlaybackFields(timedOutUrl) + mapOf("reasonCode" to "TIMEOUT")
+            )
+            if (!timedOutUrl.isNullOrBlank() && hasRepeatedDirectAddonProxyTimeout(timedOutUrl)) {
+                recordDirectAddonProxyFailure()
+                handleTerminalPlaybackFailure("Connection timeout")
+                return
+            }
             if (retryCount < maxRetries) {
                 retryCount++
+                PlaybackDiagnosticsRecorder.record(
+                    this,
+                    "retry_triggered",
+                    diagnosticsPlaybackFields(timedOutUrl, retry = retryCount) + mapOf(
+                        "reasonCode" to "TIMEOUT",
+                        "retrySource" to "buffer_timeout"
+                    )
+                )
                 if (canUseDebridResolver() && !isResolvingDebrid && retryCount > 1 && (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())) {
                       isResolvingDebrid = true
                       if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
@@ -1701,6 +2003,11 @@ class PlayerActivity : AppCompatActivity() {
                 }
                 showToast("Connection timeout, retrying...")
                 if (contentType != ContentType.LIVE_TV && player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
+                PlaybackDiagnosticsRecorder.record(
+                    this,
+                    "release_player",
+                    diagnosticsPlaybackFields(timedOutUrl) + mapOf("releaseReason" to "buffer_timeout_retry")
+                )
                 player?.release(); player = null
                 Handler(Looper.getMainLooper()).postDelayed({ currentUrl?.let { initializePlayer(it) } }, 2000)
             } else {
@@ -1734,9 +2041,14 @@ class PlayerActivity : AppCompatActivity() {
     override fun onResume() { super.onResume(); startDebugOverlay(); if (player == null) currentUrl?.let { initializePlayer(it) } else startStallMonitor() }
     override fun onStart() { super.onStart(); registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() } }
     override fun onPause() { super.onPause(); player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
-    override fun onStop() { super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer() }
+    override fun onStop() { super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_stop") }
 
-    private fun releasePlayer() {
+    private fun releasePlayer(reason: String = "unspecified") {
+        PlaybackDiagnosticsRecorder.record(
+            this,
+            "release_player",
+            diagnosticsPlaybackFields() + mapOf("releaseReason" to reason)
+        )
         updateLastPlaybackPosition(); timeoutHandler.removeCallbacks(timeoutRunnable); overlayHandler.removeCallbacks(overlayHideRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; stopStallMonitor()
         player?.stop(); player?.release(); player = null; playerView.player = null
     }
@@ -1749,7 +2061,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun stopStallMonitor() = stallHandler.removeCallbacks(stallRunnable)
 
-    override fun onDestroy() { super.onDestroy(); dismissActiveTrackDialog(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer() }
+    override fun onDestroy() { super.onDestroy(); dismissActiveTrackDialog(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_destroy"); PlaybackDiagnosticsRecorder.finishSession(this, "activity_destroyed") }
 
     private fun resolveTimeoutMs(url: String): Long = if (url.lowercase().contains("mediafusion.elfhosted.com")) MEDIAFUSION_TIMEOUT_MS else TIMEOUT_MS
 
@@ -2057,8 +2369,19 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun setExitResultIfNeeded() { if (exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete) return; val pos = player?.currentPosition ?: lastPlaybackPositionMs; if (manualExit || pos < RETURN_TO_SOURCES_THRESHOLD_MS) { exitResultHandled = true; setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RETURN_TO_SOURCES, true)) } }
-    private fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean { if (!returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || exitResultHandled) return false; exitResultHandled = true; setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RETURN_TO_SOURCES, true).putExtra(EXTRA_FAILED_STREAM_ID, contentId ?: debridInfoHashExtra ?: currentUrl).putExtra(EXTRA_FAIL_REASON, reason).putExtra(EXTRA_AUTO_PLAY_NEXT, autoPlayNext)); releasePlayer(); finish(); return true }
-    private fun handleTerminalPlaybackFailure(reason: String) {
+    private fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean { if (!returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || exitResultHandled) return false; exitResultHandled = true; PlaybackDiagnosticsRecorder.record(this, "return_to_sources", diagnosticsPlaybackFields() + mapOf("reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(reason), "autoPlayNext" to autoPlayNext)); setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RETURN_TO_SOURCES, true).putExtra(EXTRA_FAILED_STREAM_ID, contentId ?: debridInfoHashExtra ?: currentUrl).putExtra(EXTRA_FAIL_REASON, reason).putExtra(EXTRA_AUTO_PLAY_NEXT, autoPlayNext)); releasePlayer("return_to_sources"); PlaybackDiagnosticsRecorder.finishSession(this, "return_to_sources"); finish(); return true }
+    private fun handleTerminalPlaybackFailure(reason: String, preferReturnToSources: Boolean = false) {
+        PlaybackDiagnosticsRecorder.record(
+            this,
+            "terminal_failure",
+            diagnosticsPlaybackFields() + mapOf(
+                "reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(reason),
+                "httpStatusCode" to PlaybackDiagnosticsRecorder.httpStatusCode(reason)
+            )
+        )
+        if (preferReturnToSources && finishWithReturnToSources(autoPlayNext = false, reason = reason)) {
+            return
+        }
         val redirected = redirectToFailureDetail(reason)
         if (redirected) {
             return
@@ -2095,7 +2418,8 @@ class PlayerActivity : AppCompatActivity() {
 
         detailIntent.putExtra(EXTRA_OPENED_FROM_PLAYBACK_FAILURE, true)
         detailIntent.putExtra(EXTRA_FAIL_REASON, reason)
-        releasePlayer()
+        releasePlayer("failure_detail_redirect")
+        PlaybackDiagnosticsRecorder.finishSession(this, "failure_detail_redirect")
         startActivity(detailIntent)
         finish()
         return true
@@ -2144,6 +2468,46 @@ class PlayerActivity : AppCompatActivity() {
         val p = player ?: return
         val seriesId = intent.getStringExtra(EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
         trackManager.captureManualTrackSelection(p, debridInfoHashExtra, seriesId)
+        PlaybackDiagnosticsRecorder.record(
+            this,
+            "track_selected",
+            diagnosticsPlaybackFields() + trackDiagnosticsFields(p.currentTracks)
+        )
+    }
+
+    private fun trackDiagnosticsFields(tracks: androidx.media3.common.Tracks): Map<String, Any?> {
+        var supportedAudioTrackCount = 0
+        var supportedTextTrackCount = 0
+        val selectedAudioLanguages = mutableListOf<String>()
+        val selectedTextLanguages = mutableListOf<String>()
+
+        tracks.groups.forEach { group ->
+            for (index in 0 until group.length) {
+                if (!group.isTrackSupported(index)) continue
+                val format = group.getTrackFormat(index)
+                when (group.type) {
+                    C.TRACK_TYPE_AUDIO -> {
+                        supportedAudioTrackCount++
+                        if (group.isTrackSelected(index)) {
+                            selectedAudioLanguages += format.language ?: "unknown"
+                        }
+                    }
+                    C.TRACK_TYPE_TEXT -> {
+                        supportedTextTrackCount++
+                        if (group.isTrackSelected(index)) {
+                            selectedTextLanguages += format.language ?: "unknown"
+                        }
+                    }
+                }
+            }
+        }
+
+        return mapOf(
+            "supportedAudioTrackCount" to supportedAudioTrackCount,
+            "supportedTextTrackCount" to supportedTextTrackCount,
+            "selectedAudioLanguages" to selectedAudioLanguages.distinct(),
+            "selectedTextLanguages" to selectedTextLanguages.distinct()
+        )
     }
 
     private fun applyTrackIndexOverrides() {

@@ -138,6 +138,25 @@
       "createdAt": "2026-05-23T23:02:32.215Z",
       "updatedAt": "2026-05-23T23:02:32.215Z",
       "pid": 11536
+    },
+    "swarm-1780193726397-ly3i4l": {
+      "swarmId": "swarm-1780193726397-ly3i4l",
+      "topology": "hierarchical",
+      "maxAgents": 1,
+      "status": "running",
+      "agents": [],
+      "tasks": [],
+      "config": {
+        "topology": "hierarchical",
+        "maxAgents": 1,
+        "strategy": "specialized",
+        "communicationProtocol": "message-bus",
+        "autoScaling": true,
+        "consensusMechanism": "majority"
+      },
+      "createdAt": "2026-05-31T02:15:26.397Z",
+      "updatedAt": "2026-05-31T02:15:26.397Z",
+      "pid": 12412
     }
   },
   "version": "3.0.0"

@@ -94,6 +94,7 @@ object SourceFilterUtils {
             filtered.sortedWith(
                 compareByDescending<MovieSource> { getLanguageMatchScore(it, selectedSortLang) }
                     .thenByDescending { getCachePriority(it) }
+                    .thenByDescending { SessionSourcePreference.score(it) }
                     .thenByDescending { getRecoveryLanguageScore(it) }
                     .thenByDescending { it.seeders ?: -1 }
             )
@@ -101,6 +102,7 @@ object SourceFilterUtils {
             filtered.sortedWith(
                 compareByDescending<MovieSource> { getCachePriority(it) }
                     .thenByDescending { if (sortLang != null) getLanguageMatchScore(it, sortLang) else 0 }
+                    .thenByDescending { SessionSourcePreference.score(it) }
                     .thenByDescending { getRecoveryLanguageScore(it) }
                     .thenByDescending { it.seeders ?: -1 }
             )

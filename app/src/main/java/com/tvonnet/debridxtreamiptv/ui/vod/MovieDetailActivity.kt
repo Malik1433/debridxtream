@@ -29,6 +29,7 @@ import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureType
 import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
+import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.vod.MovieSourceAdapter
@@ -565,6 +566,15 @@ class MovieDetailActivity : AppCompatActivity() {
         val bottomSheet = com.tvonnet.debridxtreamiptv.ui.series.SourceSelectionBottomSheet(
             onSourceSelected = { source ->
                 selectedDebridStreamId = source.stream.stream_id
+                PlaybackDiagnosticsRecorder.record(
+                    this,
+                    "source_selected",
+                    PlaybackDiagnosticsRecorder.contentFields(
+                        kind = "movie",
+                        tmdbId = movieId?.takeIf { it.toIntOrNull() != null },
+                        imdbId = currentImdbId
+                    ) + PlaybackDiagnosticsRecorder.sourceFields(this, source)
+                )
                 playDebridMovie(source.stream, source, returnToSources = true)
             },
             onStateChanged = { state ->
@@ -579,6 +589,15 @@ class MovieDetailActivity : AppCompatActivity() {
         bottomSheet.show(supportFragmentManager, com.tvonnet.debridxtreamiptv.ui.series.SourceSelectionBottomSheet.TAG)
 
         if (debridSources.isNotEmpty()) {
+            PlaybackDiagnosticsRecorder.record(
+                this,
+                "source_list_loaded",
+                PlaybackDiagnosticsRecorder.contentFields(
+                    kind = "movie",
+                    tmdbId = movieId?.takeIf { it.toIntOrNull() != null },
+                    imdbId = currentImdbId
+                ) + PlaybackDiagnosticsRecorder.sourceListFields(this, debridSources)
+            )
             bottomSheet.showSources(debridSources)
             refreshMediaFusionCacheStatus(debridSources) { updated ->
                 debridSources = updated
@@ -602,6 +621,15 @@ class MovieDetailActivity : AppCompatActivity() {
                     )
                 }
                 debridSources = sources
+                PlaybackDiagnosticsRecorder.record(
+                    this@MovieDetailActivity,
+                    "source_list_loaded",
+                    PlaybackDiagnosticsRecorder.contentFields(
+                        kind = "movie",
+                        tmdbId = movieId?.takeIf { it.toIntOrNull() != null },
+                        imdbId = currentImdbId
+                    ) + PlaybackDiagnosticsRecorder.sourceListFields(this@MovieDetailActivity, sources)
+                )
                 if (sources.isEmpty()) {
                     bottomSheet.showError(getString(R.string.movie_detail_sources_empty))
                 } else {
@@ -824,6 +852,22 @@ class MovieDetailActivity : AppCompatActivity() {
         val resolverBackedDebridPlayback = playbackSource != null && !directDebridPlayback
 
         val launchPlayer = {
+            PlaybackDiagnosticsRecorder.record(
+                this,
+                "playback_launch",
+                PlaybackDiagnosticsRecorder.contentFields(
+                    kind = "movie",
+                    tmdbId = tmdbId,
+                    imdbId = currentImdbId
+                ) + PlaybackDiagnosticsRecorder.sourceFields(this, sourceOverride) +
+                    PlaybackDiagnosticsRecorder.playbackFields(
+                        context = this,
+                        url = streamUrl,
+                        headers = sourceOverride?.headers,
+                        playbackSource = playbackSource?.name,
+                        directDebridPlayback = directDebridPlayback
+                    ) + mapOf("launchPath" to "direct_or_iptv")
+            )
             val intent = PlayerActivity.createIntent(
                 context = this,
                 streamUrl = streamUrl,
@@ -854,7 +898,10 @@ class MovieDetailActivity : AppCompatActivity() {
         if (isAddonProxyPlaybackUrl(streamUrl)) {
             lifecycleScope.launch {
                 val readyResult = withContext(Dispatchers.IO) {
-                    debridPlaybackRepository.isAddonProxyPlaybackReady(streamUrl)
+                    debridPlaybackRepository.isAddonProxyPlaybackReady(
+                        streamUrl,
+                        diagnosticsContext = this@MovieDetailActivity
+                    )
                 }
                 val isReady = readyResult is com.tvonnet.debridxtreamiptv.data.Result.Success && readyResult.data
                 if (!isReady) {
@@ -957,7 +1004,10 @@ class MovieDetailActivity : AppCompatActivity() {
                         async {
                             semaphore.withPermit {
                                 val url = source.stream.direct_source ?: return@withPermit null
-                                val result = debridPlaybackRepository.isAddonProxyPlaybackReady(url)
+                                val result = debridPlaybackRepository.isAddonProxyPlaybackReady(
+                                    url,
+                                    diagnosticsContext = this@MovieDetailActivity
+                                )
                                 val isReady =
                                     result is com.tvonnet.debridxtreamiptv.data.Result.Success && result.data
                                 source.stream.stream_id to isReady
@@ -1049,6 +1099,22 @@ class MovieDetailActivity : AppCompatActivity() {
             
             when (result) {
                 is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Success -> {
+                    PlaybackDiagnosticsRecorder.record(
+                        this@MovieDetailActivity,
+                        "playback_launch",
+                        PlaybackDiagnosticsRecorder.contentFields(
+                            kind = "movie",
+                            tmdbId = tmdbId,
+                            imdbId = currentImdbId
+                        ) + PlaybackDiagnosticsRecorder.sourceFields(this@MovieDetailActivity, source) +
+                            PlaybackDiagnosticsRecorder.playbackFields(
+                                context = this@MovieDetailActivity,
+                                url = result.url,
+                                headers = source?.headers,
+                                playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID.name,
+                                directDebridPlayback = false
+                            ) + mapOf("launchPath" to "resolver_backed")
+                    )
                     val intent = PlayerActivity.createIntent(
                         context = this@MovieDetailActivity,
                         streamUrl = result.url,

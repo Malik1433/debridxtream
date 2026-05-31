@@ -1,0 +1,8 @@
+05-31 13:14:09.172 I/ActivityManager(  623): START u0 {cmp=com.debridxtream.tv/com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity (has extras)} from uid 10196 on display 0
+05-31 13:14:09.621 I/ExoPlayerImpl( 9917): Init 43f2fda [AndroidXMedia3/1.5.0] [mantis, AFTMM, Amazon, 25]
+05-31 13:14:09.970 I/ActivityManager(  623): Displayed com.debridxtream.tv/com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity: +775ms
+05-31 13:14:10.017 I/LaunchTimeProcessor(  623): warm_app_cool_transition_launch_time of com.debridxtream.tv is 769ms with activity = com.debridxtream.tv/com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity, ram = 1_5GB, app_version = 28, prev_activity = com.debridxtream.tv/com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity, context = S1T0A1D0I0L1E0M900R0
+05-31 13:14:10.019 I/LaunchTimeProcessor(  623): cool_activity_launch_time of com.debridxtream.tv is 769ms with activity = com.debridxtream.tv/com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity, ram = 1_5GB, app_version = 28, prev_activity = com.debridxtream.tv/com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity, context = S1T0A1D0I0L1E0M900R0
+05-31 13:14:12.778 I/ACodec  ( 9917): [OMX.MTK.VIDEO.DECODER.AVC] prepareForAdaptivePlayback failed w/ err -1010
+05-31 13:14:13.286 I/MediaCodecLogger( 9917): [ASAP] HW.video.avc Got First Frame Ready 2080190
+05-31 13:14:13.287 I/MediaCodecLogger( 9917): [ASAP] HW.video.avc Got First Frame Render 2080191
