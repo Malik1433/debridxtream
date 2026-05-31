@@ -9,7 +9,6 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.ui.DefaultTrackNameProvider
-import androidx.media3.ui.TrackSelectionDialogBuilder
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import java.util.Locale
@@ -32,6 +31,11 @@ class PlayerTrackManager(
     }
 
     private data class ParsedSubtitle(val url: String, val language: String?)
+    private data class TrackDialogOption(
+        val label: String,
+        val disabled: Boolean = false,
+        val override: TrackSelectionOverride? = null
+    )
 
     fun buildSubtitleConfigurations(entries: List<String>): List<MediaItem.SubtitleConfiguration> {
         if (entries.isEmpty()) return emptyList()
@@ -91,17 +95,13 @@ class PlayerTrackManager(
     }
 
     fun showAudioSelection(player: Player, onDialogReady: (android.app.Dialog) -> Unit) {
-        val dialog = TrackSelectionDialogBuilder(
-            context,
-            context.getString(R.string.player_audio_title),
-            player,
-            C.TRACK_TYPE_AUDIO
+        showSinglePressTrackSelection(
+            player = player,
+            title = context.getString(R.string.player_audio_title),
+            trackType = C.TRACK_TYPE_AUDIO,
+            showDisableOption = false,
+            onDialogReady = onDialogReady
         )
-            .setAllowAdaptiveSelections(false)
-            .setAllowMultipleOverrides(false)
-            .setTrackNameProvider(DefaultTrackNameProvider(context.resources))
-            .build()
-        onDialogReady(dialog)
     }
 
     fun showSubtitleSelection(
@@ -122,17 +122,66 @@ class PlayerTrackManager(
             return
         }
 
-        val dialog = TrackSelectionDialogBuilder(
-            context,
-            context.getString(R.string.player_settings_subtitles),
-            player,
-            C.TRACK_TYPE_TEXT
+        showSinglePressTrackSelection(
+            player = player,
+            title = context.getString(R.string.player_settings_subtitles),
+            trackType = C.TRACK_TYPE_TEXT,
+            showDisableOption = true,
+            onDialogReady = onDialogReady
         )
-            .setShowDisableOption(true)
-            .setAllowAdaptiveSelections(false)
-            .setAllowMultipleOverrides(false)
-            .setTrackNameProvider(DefaultTrackNameProvider(context.resources))
-            .build()
+    }
+
+    private fun showSinglePressTrackSelection(
+        player: Player,
+        title: String,
+        trackType: Int,
+        showDisableOption: Boolean,
+        onDialogReady: (android.app.Dialog) -> Unit
+    ) {
+        val nameProvider = DefaultTrackNameProvider(context.resources)
+        val options = mutableListOf<TrackDialogOption>()
+        if (showDisableOption) {
+            options += TrackDialogOption(context.getString(androidx.media3.ui.R.string.exo_track_selection_none), disabled = true)
+        }
+        options += TrackDialogOption(context.getString(androidx.media3.ui.R.string.exo_track_selection_auto))
+
+        player.currentTracks.groups
+            .filter { it.type == trackType }
+            .forEach { group ->
+                for (trackIndex in 0 until group.length) {
+                    if (!group.isTrackSupported(trackIndex)) continue
+                    options += TrackDialogOption(
+                        label = nameProvider.getTrackName(group.getTrackFormat(trackIndex)),
+                        override = TrackSelectionOverride(group.mediaTrackGroup, trackIndex)
+                    )
+                }
+            }
+
+        val parameters = player.trackSelectionParameters
+        val selectedIndex = when {
+            showDisableOption && parameters.disabledTrackTypes.contains(trackType) -> 0
+            else -> options.indexOfFirst { option ->
+                val override = option.override ?: return@indexOfFirst false
+                parameters.overrides[override.mediaTrackGroup]?.trackIndices == override.trackIndices
+            }.takeIf { it >= 0 } ?: if (showDisableOption) 1 else 0
+        }
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(context)
+            .setTitle(title)
+            .setSingleChoiceItems(options.map { it.label }.toTypedArray(), selectedIndex) { dialog, which ->
+                if (!player.isCommandAvailable(Player.COMMAND_SET_TRACK_SELECTION_PARAMETERS)) {
+                    dialog.dismiss()
+                    return@setSingleChoiceItems
+                }
+                val option = options[which]
+                val updatedParameters = player.trackSelectionParameters.buildUpon()
+                    .setTrackTypeDisabled(trackType, option.disabled)
+                    .clearOverridesOfType(trackType)
+                option.override?.let(updatedParameters::addOverride)
+                player.trackSelectionParameters = updatedParameters.build()
+                dialog.dismiss()
+            }
+            .create()
         onDialogReady(dialog)
     }
 

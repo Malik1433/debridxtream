@@ -126,6 +126,7 @@ Do not pick the next Debrid episode by quality alone. Episode browser selection,
 - **DO NOT** mix V1 and V2 database models without manual schema sync policies. Updating V1 categories or favorites will not automatically sync to V2 details tables unless handled explicitly.
 - **DO NOT** assume a player UI restyle needs a duplicate source-set controller file. If the runtime path is `activity_player.xml` -> `custom_player_control_view.xml`, update that single file and verify the install on device.
 - **DO NOT** collapse direct audio/subtitle track actions into one combined chooser when the player already exposes track-specific selection dialogs.
+- **DO NOT** switch audio or subtitle tracks merely because a TV row received focus. Apply track overrides only after an explicit center-button row click, close immediately after selection, and preserve Back as cancel.
 - **DO NOT** use current audio/text tracks as a substitute for Debrid source-language metadata when you need to re-pick a different source.
 - **DO NOT** leave the player progress bar in a decorative wave style if the controller design is meant to be flat and compact.
 - **DO NOT** rely on touch-only long-press handling for Home cards that must work on TV remotes. Handle D-pad repeat-press detection and suppress the follow-up click so action menus do not double-fire.

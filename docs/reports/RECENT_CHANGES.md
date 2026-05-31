@@ -3,6 +3,13 @@
 Track only the last 10 important changes. Newest first. Keep this file compact for regression debugging.
 
 Date: 2026-05-31
+Module: Player / TV Track Dialogs
+Issue fixed: Replaced Media3 stock two-step audio/subtitle confirmation dialogs with explicit one-press TV row selection. D-pad focus alone does not switch tracks; center OK applies the existing Media3 track override and closes the dialog; Back dismisses without changing the selection.
+Files changed: `PlayerTrackManager.kt`
+Regression risk: Audio/subtitle track chooser UX only. Playback URLs, resolver, controller XML, source picker, Continue Watching, Episode Browser, and Live TV routing were not changed.
+QA result: `:app:compileDebugKotlin` and `:app:assembleDebug` passed after stopping a stuck Gradle daemon and rerunning. Refreshed APK installed on `192.168.0.84:5555` and `192.168.0.21:5555`. Manual IPTV/Debrid audio, subtitle, Off, Auto, and Back-cancel QA remains pending.
+
+Date: 2026-05-31
 Module: Series / Player Poster Handoff
 Issue fixed: Series player controller poster handoff now prefers the portrait series cover over episode thumbnails. IPTV V2 previously sent nullable `episode.thumbnail`, causing blank controller posters; legacy/Debrid series sent landscape episode stills, causing oversized crops in the portrait player slot.
 Files changed: `SeriesDetailFragmentV2.kt`, `SeriesDetailActivity.kt`
