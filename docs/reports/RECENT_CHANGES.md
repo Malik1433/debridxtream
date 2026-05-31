@@ -2,6 +2,20 @@
 
 Track only the last 10 important changes. Newest first. Keep this file compact for regression debugging.
 
+Date: 2026-05-31
+Module: Series / Player Poster Handoff
+Issue fixed: Series player controller poster handoff now prefers the portrait series cover over episode thumbnails. IPTV V2 previously sent nullable `episode.thumbnail`, causing blank controller posters; legacy/Debrid series sent landscape episode stills, causing oversized crops in the portrait player slot.
+Files changed: `SeriesDetailFragmentV2.kt`, `SeriesDetailActivity.kt`
+Regression risk: Series player poster display only. Episode identity, stream URL, series ID, playback, source picker, Episode Browser, and Next Episode logic were not changed.
+QA result: `:app:compileDebugKotlin` and `:app:assembleDebug` passed. APK installed on `192.168.0.84:5555` and `192.168.0.21:5555`. Manual IPTV series and Debrid series poster confirmation remains pending.
+
+Date: 2026-05-31
+Module: Player / Controller UI
+Issue fixed: Matched the active PlayerActivity controller more closely to the cinematic reference: top-right clock pill, lower-left poster/title metadata, compact working utility icons, thin standard Media3 timeline with red progress, centered transport controls, 46dp white circular play/pause button, and truthful source-quality pill. Removed the duplicate visible globe language alias because it opened the same audio chooser as the waveform action; retained its bound ID hidden for Activity compatibility. Fixed seekbar `DPAD_UP` to enter the visible waveform audio action instead of looping focus back to the seekbar. Custom play/pause visibility now follows Media3 `playWhenReady`, and READY VOD playback re-arms normal controller auto-hide.
+Files changed: `PlayerActivity.kt`, `custom_player_control_view.xml`, `bg_player_ref_button.xml`, `bg_player_bottom_gradient.xml`, `bg_player_play_circle.xml`, `bg_player_status_pill.xml`, `ic_player_audio_waveform.xml`
+Regression risk: Controller presentation and D-pad focus traversal. Poster and quality binding reuse existing Player intent metadata. Playback, resume, Continue Watching, source picker, Episode Browser, and Live TV logic were not changed.
+QA result: `:app:compileDebugKotlin` and `:app:assembleDebug` passed. Refreshed APK installed on `192.168.0.84:5555` and `192.168.0.21:5555`. User manual QA confirmed the cinematic layout, initial Pause icon while playback is active, single-press pause, startup controller auto-hide, and direct seekbar-to-audio/subtitle D-pad navigation. Controller issue closed.
+
 Date: 2026-05-30
 Module: Player / Debrid Continue Watching
 Issue fixed: Aligned Debrid Continue Watching IDs with canonical watched-state keys. `PlayerHistoryManager` now resolves Debrid CW content IDs through the same hardened identity path used by `watched_state`, removing raw info-hash fallback leakage while preserving stable TMDB/IMDb IDs and using title/year plus collision-resistant episode fallback keys when metadata is incomplete.

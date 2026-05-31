@@ -289,7 +289,7 @@ class SeriesDetailFragmentV2 : Fragment() {
                                 channelName = "Series ID: ${event.seriesId}", // Optional context
                                 contentId = event.episodeId,
                                 contentType = com.tvonnet.debridxtreamiptv.data.model.ContentType.EPISODE,
-                                posterUrl = event.posterUrl,
+                                posterUrl = arguments?.getString(ARG_POSTER_URL) ?: event.posterUrl,
                                 backdropUrl = null,
                                 seriesTitle = seriesTitle,
                                 episodeTitle = event.title,

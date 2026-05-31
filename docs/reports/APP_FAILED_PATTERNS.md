@@ -1,5 +1,10 @@
 # App Failed Patterns
 
+## Series Player Poster Uses Episode Still
+- **Avoid:** Sending nullable or landscape episode thumbnails into the portrait player-controller poster slot.
+- **Reason:** IPTV series can render a blank poster when the thumbnail is missing, while Debrid series can crop a landscape episode still too aggressively.
+- **Fix:** Prefer the portrait series cover and use the episode thumbnail only as a fallback.
+
 Patterns that have caused bugs, crashes, or poor UX in this project.
 
 ## 1. Hardcoded UI Offsets

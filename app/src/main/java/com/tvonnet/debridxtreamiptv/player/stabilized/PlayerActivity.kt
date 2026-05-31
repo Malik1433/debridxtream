@@ -1249,8 +1249,12 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun bindModernMetadata(title: String?) {
+        val posterView = playerView.findViewById<ImageView>(R.id.iv_player_poster)
         val titleView = playerView.findViewById<TextView>(R.id.tv_player_title)
         val subtitleView = playerView.findViewById<TextView>(R.id.tv_player_subtitle)
+        val qualityView = playerView.findViewById<TextView>(R.id.tv_player_quality)
+
+        posterView?.let { GlideUtils.loadMoviePoster(it, posterUrlExtra) }
         
         val displayTitle = if (playbackSource == PlaybackSource.DEBRID) {
             cleanTitle(title ?: getString(R.string.app_name))
@@ -1284,6 +1288,10 @@ class PlayerActivity : AppCompatActivity() {
         }
         
         subtitleView?.text = subtitle
+        qualityView?.apply {
+            text = debridQualityExtra
+            isVisible = !debridQualityExtra.isNullOrBlank()
+        }
     }
 
     private fun cleanTitle(raw: String): String {
@@ -1506,6 +1514,10 @@ class PlayerActivity : AppCompatActivity() {
                         timeoutHandler.removeCallbacks(timeoutRunnable)
                         retryCount = 0
                         lastBufferingStartMs = 0L
+                        if (contentType != ContentType.LIVE_TV) {
+                            updatePlayPauseVisibility(player?.playWhenReady == true)
+                            playerView.showController()
+                        }
                     } else if (playbackState == Player.STATE_BUFFERING) {
                         timeoutHandler.removeCallbacks(timeoutRunnable)
                         timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
@@ -1524,6 +1536,11 @@ class PlayerActivity : AppCompatActivity() {
                              didPlaybackComplete = true
                              if (!(::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible)) finish()
                         }
+                    }
+                }
+                override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                    if (contentType != ContentType.LIVE_TV) {
+                        updatePlayPauseVisibility(playWhenReady)
                     }
                 }
                 override fun onTrackSelectionParametersChanged(parameters: androidx.media3.common.TrackSelectionParameters) = captureManualTrackSelection()

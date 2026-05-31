@@ -1,5 +1,11 @@
 # Player Success History
 
+## Successful Pattern - Truthful Cinematic Controller Match
+- **Date**: 2026-05-31
+- **Achievement**: Matched the reference controller composition while preserving existing player action IDs and the single active runtime path.
+- **Key Implementation**: Restored poster/title metadata from existing intent extras, added a clock, thin red Media3 timeline, compact utility row, 46dp circular play/pause button, and truthful quality chip. The duplicate visible globe language alias was removed because it routed to the same audio chooser as the waveform action; the bound legacy ID remains hidden for compatibility. Seekbar `DPAD_UP` enters waveform audio while `DPAD_DOWN` enters visible play/pause. Custom play/pause visibility follows Media3 `playWhenReady`, and READY VOD playback re-arms normal controller auto-hide. Unsupported fake telemetry and decorative dead controls were omitted.
+- **Proof**: `:app:compileDebugKotlin` and `:app:assembleDebug` passed; refreshed APK installed on `192.168.0.84:5555` and `192.168.0.21:5555`; user manual QA confirmed the initial Pause icon, single-press pause, startup auto-hide, and direct utility-row D-pad navigation.
+
 ### Phase 2 QA: Automatic Watched Detection Verification
 - **Date**: 2026-05-30
 - **Achievement**: Fully verified Phase 2 automatic watched threshold logic without relying on flaky ADB UI automation.

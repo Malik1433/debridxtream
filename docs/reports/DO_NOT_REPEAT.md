@@ -43,6 +43,10 @@ Do not show blank or broken IPTV episode thumbnails. Use episode thumbnail, then
 - **DO NOT** show the control for non-series playback.
 - **DO NOT** let the button point at a dead action when `SeriesPlaylistState.hasNext` is false.
 
+## Series Controller Poster Rule
+- **DO NOT** prefer nullable or landscape episode thumbnails for the portrait poster slot in the player controller.
+- Prefer the portrait series cover first, with the episode thumbnail only as a fallback.
+
 ## Continue Watching Series Metadata Rule
 Do not launch IPTV Series episodes from Continue Watching without `seriesId`, season number, episode number, and episode id. Player episode browser and next episode logic require the same metadata as the Series detail path.
 
@@ -115,6 +119,9 @@ Do not pick the next Debrid episode by quality alone. Episode browser selection,
 - **DO NOT** allow two EPG sync jobs to run concurrently against the same parser/database state without a mutex or single-flight guard.
 
 ## Layout & Cache Sync Rules
+
+- **DO NOT** expose both `btn_player_audio` and `btn_player_language` as visible controller actions when both route to the same audio chooser. Keep one visible audio action and retain a hidden alias only when Activity binding compatibility requires it.
+- **DO NOT** leave custom player transport icons initialized only from controller inflation. Synchronize custom Play/Pause visibility from Media3 `playWhenReady`, and re-arm controller auto-hide when VOD playback reaches READY.
 - **DO NOT** bind click listeners to action buttons on detail screens without verifying that the layout XML actually renders and exposes those buttons.
 - **DO NOT** mix V1 and V2 database models without manual schema sync policies. Updating V1 categories or favorites will not automatically sync to V2 details tables unless handled explicitly.
 - **DO NOT** assume a player UI restyle needs a duplicate source-set controller file. If the runtime path is `activity_player.xml` -> `custom_player_control_view.xml`, update that single file and verify the install on device.

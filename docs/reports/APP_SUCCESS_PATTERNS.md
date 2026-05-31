@@ -2,6 +2,11 @@
 
 Established engineering and UI patterns that have proven stable and performant in the DebridXtream codebase.
 
+## 0. Truthful Reference-Match Controller UI
+- **Definition:** Match a reference player composition using existing actions and real metadata while omitting fake telemetry or dead decorative controls.
+- **Benefits:** Preserves TV remote stability and keeps the controller visually faithful without presenting unsupported behavior.
+- **Implementation:** Reuse existing Player intent metadata for poster/title/quality, retain action IDs, and constrain changes to the active controller path plus presentation-only bindings. For custom transport views, synchronize Play/Pause visibility from Media3 `playWhenReady` and re-arm auto-hide when VOD playback reaches READY.
+
 ## 1. Persistent Grid Pattern
 - **Definition:** Keep the current RecyclerView content visible (dimmed) while a background sync or category refresh is happening.
 - **Benefits:** Prevents "empty screen flicker" and maintains focus context for the user.

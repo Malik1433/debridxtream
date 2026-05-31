@@ -1,30 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Focused state: Rounded card with white outline/glow -->
     <item android:state_focused="true">
         <shape android:shape="rectangle">
-            <!-- 80% Opacity Dark Card Surface -->
-            <solid android:color="#CC1A1A1A" />
-            <!-- Pill/Capsule Corner Radius -->
+            <solid android:color="#D9262626" />
             <corners android:radius="28dp" />
-            <!-- Solid White Outline -->
             <stroke
-                android:width="2.5dp"
-                android:color="#FFFFFF" />
+                android:width="1dp"
+                android:color="#80FFFFFF" />
+            <padding
+                android:left="1dp"
+                android:top="1dp"
+                android:right="1dp"
+                android:bottom="1dp" />
         </shape>
     </item>
 
-    <!-- Default state: Subtle glass card -->
     <item>
         <shape android:shape="rectangle">
-            <!-- 80% Opacity Dark Card Surface -->
-            <solid android:color="#CC1A1A1A" />
-            <!-- Pill/Capsule Corner Radius -->
+            <solid android:color="#00000000" />
             <corners android:radius="28dp" />
-            <!-- Very Subtle Outline -->
-            <stroke
-                android:width="1dp"
-                android:color="#1AFFFFFF" />
         </shape>
     </item>
 </selector>

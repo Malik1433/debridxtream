@@ -25,6 +25,7 @@ Scope: IPTV Series list/detail, episode identity, player handoff, and episode br
 - Future playback/focus regressions should be tracked in Series history files.
 
 ## Recent Fixes
+- Series player poster handoff now prefers the portrait series cover over episode thumbnails. IPTV V2 no longer launches the player with a blank poster when `episode.thumbnail` is missing, and legacy/Debrid series no longer prefer landscape episode stills that crop poorly in the controller poster slot.
 - Implemented Series-Level Derived Watched State. Utilizes background Flow aggregation combining total episodes and watched counts in `SeriesDetailViewModelV2` and dynamically updates the series header banner in `SeriesDetailFragmentV2`. Handles Watched/In-Progress/Unwatched states with verified zero UI stutter.
 - Implemented Season Derived Watched State. Utilizes background SQLite GROUP BY Flow aggregation, combined in SeriesDetailViewModelV2, and efficiently applied via SeasonsAdapterV2 with DiffUtil. Handles Watched/In-Progress/Unwatched states with verified smooth D-pad performance.
 - Implemented Manual Mark Watched/Unwatched actions for Series episodes. IPTV/V2 Series episode long-press supports manual toggle. `manual_state` WATCHED/UNWATCHED is respected. Continue Watching exact removal was verified to safely remove only the targeted episode. Auto watched detection and read-only badges remain working. Series-level derived watched UI/actions remain pending. Debrid manual watched support remains pending.
@@ -55,6 +56,7 @@ Scope: IPTV Series list/detail, episode identity, player handoff, and episode br
 - Manual QA: IPTV Series detail to Player, Episode Browser, Next Episode, Back/D-pad behavior, Debrid Series regression if touched.
 
 ## Last Verified State
+- 2026-05-31: Series controller poster handoff fix built and deployed. `SeriesDetailFragmentV2.kt` now prefers the fragment series poster argument over nullable episode thumbnails; `SeriesDetailActivity.kt` now prefers `seriesCover` over landscape episode stills for IPTV legacy and Debrid series launches. `:app:compileDebugKotlin` and `:app:assembleDebug` passed; APK installed on `192.168.0.84:5555` and `192.168.0.21:5555`. Manual IPTV series and Debrid series poster confirmation remains pending.
 - 2026-05-30: Series-Level Derived Watched State feature QA passed. The main series banner instantly reactively updates to "Watched" or "In-Progress" when episodes are watched or toggled. Smooth D-pad scrolling and zero UI stutter confirmed.
 - 2026-05-30: Season Derived Watched State feature QA passed. Season pills correctly display "Watched" badge for completely watched seasons and "In-Progress" badge for partially watched seasons. Smooth D-pad scrolling confirmed with no main-thread blocks. Debrid manual watched support remains pending.
 - 2026-05-30: Manual Mark Watched/Unwatched feature QA passed. IPTV/V2 Series episode long-press successfully toggles state. Badges update correctly. Continue Watching exact removal verified. Auto watched detection, Episode Browser manual switch watched save, and Auto Next Episode watched save still work.
