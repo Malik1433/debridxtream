@@ -90,15 +90,18 @@
              Top-Left below favorite: -->
         <ImageView
             android:id="@+id/iv_watched_indicator"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:layout_gravity="top|start"
-            android:layout_marginStart="4dp"
-            android:layout_marginTop="32dp"
-            android:padding="4dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="36dp"
+            android:padding="6dp"
             android:src="@drawable/ic_check_circle"
             app:tint="@android:color/white"
-            android:background="@drawable/bg_circle_dark_translucent"
+            android:background="@drawable/bg_watched_badge"
+            android:clickable="false"
+            android:focusable="false"
+            android:elevation="6dp"
             android:visibility="gone" />
 
         <!-- Glass Metadata Layer -->

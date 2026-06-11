@@ -69,6 +69,11 @@ enum class DebridCacheStatus {
     DIRECT_STREAM
 }
 
+data class AddableTorrentIdentity(
+    val infoHash: String,
+    val magnet: String? = null
+)
+
 data class MovieSource(
     val stream: XtreamVodInfo,
     val category: XtreamCategory?,
@@ -85,7 +90,8 @@ data class MovieSource(
     val sourceName: String? = null,
     val bingeGroup: String? = null,
     val fileIdx: Int? = null,
-    val headers: Map<String, String>? = null
+    val headers: Map<String, String>? = null,
+    val addableTorrentIdentity: AddableTorrentIdentity? = null
 )
 
 /**

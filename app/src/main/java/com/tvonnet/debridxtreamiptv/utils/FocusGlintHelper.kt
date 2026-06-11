@@ -125,7 +125,7 @@ object FocusGlintHelper {
         val immediateParent = v.parent as? android.view.ViewGroup
         if (immediateParent != null) {
             for (i in 0 until immediateParent.childCount) {
-                val sibling = immediateParent.getChildAt(i)
+                val sibling = immediateParent.getChildAt(i) ?: continue
                 if (sibling != v) {
                     sibling.animate()
                         .alpha(1.0f) // Do not dim siblings, keep fully readable
@@ -202,7 +202,7 @@ object FocusGlintHelper {
         val immediateParent = v.parent as? android.view.ViewGroup
         if (immediateParent != null) {
             for (i in 0 until immediateParent.childCount) {
-                val sibling = immediateParent.getChildAt(i)
+                val sibling = immediateParent.getChildAt(i) ?: continue
                 if (sibling != v) {
                     sibling.animate()
                         .alpha(1.0f)

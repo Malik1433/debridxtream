@@ -40,12 +40,26 @@
         <!-- Primary Navigation Items -->
         <include
             android:id="@+id/nav_item_search"
-            layout="@layout/item_debrid_sidebar" />
+            layout="@layout/item_debrid_sidebar"
+            android:contentDescription="Search"
+            android:nextFocusUp="@id/nav_item_search"
+            android:nextFocusDown="@id/nav_item_home" />
+
+        <include
+            android:id="@+id/nav_item_home"
+            layout="@layout/item_debrid_sidebar"
+            android:layout_marginTop="8dp"
+            android:contentDescription="Home"
+            android:nextFocusUp="@id/nav_item_search"
+            android:nextFocusDown="@id/nav_item_discover" />
 
         <include
             android:id="@+id/nav_item_discover"
             layout="@layout/item_debrid_sidebar"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="8dp"
+            android:contentDescription="Discover"
+            android:nextFocusUp="@id/nav_item_home"
+            android:nextFocusDown="@id/nav_item_discover" />
 
     </LinearLayout>
 </FrameLayout>

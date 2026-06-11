@@ -2,220 +2,245 @@ package com.tvonnet.debridxtreamiptv.ui.debrid.discover
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.StateListDrawable
 import android.os.Bundle
+import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
-import android.widget.LinearLayout
+import android.view.ViewGroup
+import android.view.ViewTreeObserver
+import android.widget.AbsListView
+import android.widget.BaseAdapter
+import android.widget.ListView
+import android.widget.PopupWindow
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.view.ViewGroup
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.tvonnet.debridxtreamiptv.R
-import com.tvonnet.debridxtreamiptv.utils.FocusCoordinator
-import android.view.ViewTreeObserver
 import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbGenre
+import com.tvonnet.debridxtreamiptv.data.debrid.repository.AddonCatalogRepository
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.CatalogItem
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
 import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
+import com.tvonnet.debridxtreamiptv.utils.FocusCoordinator
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
 /**
- * Full-screen discovery activity for Debrid content.
- *
- * Provides a Stremio-like browsing experience with 4 filter rows:
- * 1. Type    (Movies / Series)
- * 2. Genres  (Dynamically loaded from TMDB)
- * 3. Region  (Hollywood, Bollywood, Punjabi, Tamil, etc.)
- * 4. Sort    (Popular, Newest, Top Rated)
+ * Full-screen Debrid discovery with four backend-backed selectors and the existing poster grid.
  */
 @AndroidEntryPoint
 class DebridDiscoverActivity : AppCompatActivity() {
 
     private val viewModel: DebridDiscoverViewModel by viewModels()
 
-    // ── Views ────────────────────────────────────────────────────────────────────
     private lateinit var progressBar: ProgressBar
     private lateinit var tvError: TextView
     private lateinit var rvGrid: RecyclerView
-    private lateinit var llTypeSelector: LinearLayout
-    private lateinit var llGenreSelector: LinearLayout
-    private lateinit var llRegionSelector: LinearLayout
-    private lateinit var llSortSelector: LinearLayout
-
-    // ── Adapter ──────────────────────────────────────────────────────────────────
+    private lateinit var btnType: TextView
+    private lateinit var btnCatalogue: TextView
+    private lateinit var btnGenre: TextView
+    private lateinit var btnYear: TextView
     private lateinit var gridAdapter: DebridDiscoverAdapter
 
-    // ── Selected filter tracking ─────────────────────────────────────────────────
-    private var selectedType = "movie"
+    private var selectedType = TYPE_MOVIE
+    private var selectedCatalogue = AddonCatalogRepository.CATALOGUE_POPULAR
     private var selectedGenreId: Int? = null
-    private var selectedRegionCode: String? = null
-    private var selectedSort = "popularity.desc"
-    
-    // ── Focus Tracking (Premium Feature) ──────────────────────────────────────────
+    private var selectedGenreLabel = GENRE_ALL
+    private var selectedYear: Int? = null
+    private var currentGenres: List<TmdbGenre> = emptyList()
     private var lastFocusedPosition = RecyclerView.NO_POSITION
+    private var lastFocusedSelector: TextView? = null
+    private var pendingSelectorFocus: TextView? = null
+    private var activePopup: PopupWindow? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_debrid_discover)
 
         if (savedInstanceState != null) {
-            lastFocusedPosition = savedInstanceState.getInt("last_focus_pos", RecyclerView.NO_POSITION)
+            lastFocusedPosition = savedInstanceState.getInt(KEY_LAST_FOCUS_POS, RecyclerView.NO_POSITION)
         }
+
+        intent.getStringExtra(EXTRA_TYPE)?.let { selectedType = it }
+        selectedGenreId = intent.getIntExtra(EXTRA_GENRE_ID, -1).takeIf { it != -1 }
 
         initViews()
         setupGrid()
-        
-        // Handle incoming filters from Intent before setting up selectors
-        intent.getStringExtra(EXTRA_TYPE)?.let { selectedType = it }
-        selectedGenreId = intent.getIntExtra(EXTRA_GENRE_ID, -1).takeIf { it != -1 }
-        
-        setupTypeSelector()
-        setupRegionSelector()
-        setupSortSelector()
-        
-        // Push initial state to ViewModel if filtered
+        setupSelectors()
+
         if (intent.hasExtra(EXTRA_TYPE) || intent.hasExtra(EXTRA_GENRE_ID)) {
             viewModel.setType(selectedType)
             viewModel.setGenre(selectedGenreId)
         }
-        
+
         observeViewModel()
-        
         setupInitialFocus()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putInt("last_focus_pos", lastFocusedPosition)
+        outState.putInt(KEY_LAST_FOCUS_POS, lastFocusedPosition)
     }
 
-    private fun setupInitialFocus() {
-        // Automatically focus the first chip in the type selector on first launch
-        llTypeSelector.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
-            override fun onGlobalLayout() {
-                if (lastFocusedPosition == RecyclerView.NO_POSITION) {
-                    if (llTypeSelector.childCount > 0) {
-                        llTypeSelector.getChildAt(0).requestFocus()
-                    }
-                }
-                llTypeSelector.viewTreeObserver.removeOnGlobalLayoutListener(this)
-            }
-        })
+    override fun onBackPressed() {
+        if (activePopup?.isShowing == true) {
+            activePopup?.dismiss()
+            return
+        }
+        super.onBackPressed()
     }
 
     private fun initViews() {
         progressBar = findViewById(R.id.progress_bar)
         tvError = findViewById(R.id.tv_error)
         rvGrid = findViewById(R.id.rv_discover_grid)
-        llTypeSelector = findViewById(R.id.ll_type_selector)
-        llGenreSelector = findViewById(R.id.ll_genre_selector)
-        llRegionSelector = findViewById(R.id.ll_region_selector)
-        llSortSelector = findViewById(R.id.ll_sort_selector)
+        btnType = findViewById(R.id.btn_type_selector)
+        btnCatalogue = findViewById(R.id.btn_catalogue_selector)
+        btnGenre = findViewById(R.id.btn_genre_selector)
+        btnYear = findViewById(R.id.btn_year_selector)
     }
 
     private fun setupGrid() {
         gridAdapter = DebridDiscoverAdapter(
             onItemClick = { item -> onItemClick(item) },
-            onItemFocused = { item -> 
+            onItemFocused = { item ->
                 updateBackdrop(item)
-                // Save focus position for restoration
                 val focusedView = rvGrid.focusedChild ?: return@DebridDiscoverAdapter
-                val viewHolder = rvGrid.findContainingViewHolder(focusedView)
-                if (viewHolder != null) {
-                    lastFocusedPosition = viewHolder.bindingAdapterPosition
-                }
+                val viewHolder = rvGrid.findContainingViewHolder(focusedView) ?: return@DebridDiscoverAdapter
+                lastFocusedPosition = viewHolder.bindingAdapterPosition
             },
             onLoadMore = { viewModel.loadNextPage() }
         )
         rvGrid.apply {
             layoutManager = GridLayoutManager(this@DebridDiscoverActivity, 6)
             adapter = gridAdapter
-            itemAnimator = null // Phase 4: Disable animations for focus stability
+            itemAnimator = null
             setHasFixedSize(true)
-            // Important for TV: prevent focus from jumping to RecyclerView before items are ready
             descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
-        }
-    }
-
-    // ── Filter setups ─────────────────────────────────────────────────────────────
-
-    private fun setupTypeSelector() {
-        val types = listOf("Movies" to "movie", "Series" to "series")
-        types.forEach { (label, value) ->
-            val chip = createChip(label, isSelected = value == selectedType)
-            chip.setOnClickListener {
-                if (selectedType == value) return@setOnClickListener
-                selectedType = value
-                selectedGenreId = null
-                viewModel.setType(value)
-                refreshChipSelection(llTypeSelector, chip)
-                // genre chips will be rebuilt by the observer
+            setOnKeyListener { _, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    val firstVisible = (layoutManager as GridLayoutManager).findFirstVisibleItemPosition()
+                    if (firstVisible in 0..5) {
+                        (lastFocusedSelector ?: btnType).requestFocus()
+                        return@setOnKeyListener true
+                    }
+                }
+                false
             }
-            llTypeSelector.addView(chip)
         }
     }
 
-    private fun populateGenreChips(genres: List<TmdbGenre>) {
-        llGenreSelector.removeAllViews()
-        val allChip = createChip("All", isSelected = selectedGenreId == null)
-        allChip.setOnClickListener {
-            selectedGenreId = null
-            viewModel.setGenre(null)
-            refreshChipSelection(llGenreSelector, allChip)
-        }
-        llGenreSelector.addView(allChip)
-
-        genres.forEach { genre ->
-            val isSelected = genre.id == selectedGenreId
-            val chip = createChip(genre.name ?: "", isSelected = isSelected)
-            chip.setOnClickListener {
-                selectedGenreId = genre.id
-                viewModel.setGenre(genre.id)
-                refreshChipSelection(llGenreSelector, chip)
+    private fun setupSelectors() {
+        listOf(btnType, btnCatalogue, btnGenre, btnYear).forEach { selector ->
+            applySelectorFocusStyle(selector, false)
+            selector.setOnFocusChangeListener { view, hasFocus ->
+                val textView = view as TextView
+                applySelectorFocusStyle(textView, hasFocus)
+                if (hasFocus) lastFocusedSelector = textView
             }
-            llGenreSelector.addView(chip)
-        }
-    }
-
-    private fun setupRegionSelector() {
-        viewModel.regions.forEach { region ->
-            val isSelected = region.code == selectedRegionCode
-            val chip = createChip(region.label, isSelected = isSelected)
-            chip.setOnClickListener {
-                selectedRegionCode = region.code
-                viewModel.setRegion(region.code)
-                refreshChipSelection(llRegionSelector, chip)
+            selector.setOnKeyListener { view, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    focusFirstPosterOrGrid()
+                    return@setOnKeyListener true
+                }
+                false
             }
-            llRegionSelector.addView(chip)
         }
-    }
 
-    private fun setupSortSelector() {
-        viewModel.sortOptions.forEach { sort ->
-            val isSelected = sort.value == selectedSort
-            val chip = createChip(sort.label, isSelected = isSelected)
-            chip.setOnClickListener {
-                selectedSort = sort.value
-                viewModel.setSort(sort.value)
-                refreshChipSelection(llSortSelector, chip)
+        btnType.setOnClickListener {
+            showDropdown(
+                anchor = btnType,
+                options = listOf(FilterOption("Movies", TYPE_MOVIE), FilterOption("Series", TYPE_SERIES)),
+                selectedValue = selectedType
+            ) { option ->
+                if (selectedType != option.value) {
+                    val type = option.value as String
+                    selectedType = type
+                    selectedGenreId = null
+                    selectedGenreLabel = GENRE_ALL
+                    queueSelectorFocus(btnType)
+                    viewModel.setType(type)
+                }
+                updateSelectorText()
             }
-            llSortSelector.addView(chip)
         }
-    }
 
-    // ── Observers ─────────────────────────────────────────────────────────────────
+        btnCatalogue.setOnClickListener {
+            showDropdown(
+                anchor = btnCatalogue,
+                options = viewModel.catalogueOptions.map { FilterOption(it.label, it.value) },
+                selectedValue = selectedCatalogue
+            ) { option ->
+                if (selectedCatalogue != option.value) {
+                    val catalogue = option.value as String
+                    selectedCatalogue = catalogue
+                    queueSelectorFocus(btnCatalogue)
+                    viewModel.setCatalogue(catalogue)
+                }
+                updateSelectorText()
+            }
+        }
+
+        btnGenre.setOnClickListener {
+            val options = buildList {
+                add(FilterOption(GENRE_ALL, null))
+                currentGenres.forEach { genre ->
+                    val id = genre.id ?: return@forEach
+                    add(FilterOption(genre.name ?: id.toString(), id))
+                }
+            }
+            showDropdown(anchor = btnGenre, options = options, selectedValue = selectedGenreId) { option ->
+                if (selectedGenreId != option.value) {
+                    selectedGenreId = option.value as Int?
+                    selectedGenreLabel = option.label
+                    queueSelectorFocus(btnGenre)
+                    viewModel.setGenre(selectedGenreId)
+                }
+                updateSelectorText()
+            }
+        }
+
+        btnYear.setOnClickListener {
+            val options = viewModel.yearOptions.map { year ->
+                FilterOption(year?.toString() ?: YEAR_ALL, year)
+            }
+            showDropdown(anchor = btnYear, options = options, selectedValue = selectedYear) { option ->
+                if (selectedYear != option.value) {
+                    selectedYear = option.value as Int?
+                    queueSelectorFocus(btnYear)
+                    viewModel.setYear(selectedYear)
+                }
+                updateSelectorText()
+            }
+        }
+
+        updateSelectorText()
+    }
 
     private fun observeViewModel() {
         lifecycleScope.launch {
             viewModel.genres.collect { genres ->
-                populateGenreChips(genres)
+                currentGenres = genres
+                val selectedGenre = genres.firstOrNull { it.id == selectedGenreId }
+                if (selectedGenreId != null && selectedGenre == null) {
+                    selectedGenreId = null
+                    selectedGenreLabel = GENRE_ALL
+                } else if (selectedGenre != null) {
+                    selectedGenreLabel = selectedGenre.name ?: GENRE_ALL
+                }
+                updateSelectorText()
             }
         }
         lifecycleScope.launch {
@@ -231,20 +256,7 @@ class DebridDiscoverActivity : AppCompatActivity() {
                         tvError.visibility = View.GONE
                         rvGrid.visibility = View.VISIBLE
                         gridAdapter.submitItems(state.items, state.canLoadMore)
-                        
-                        // Phase 4: Premium Focus Restoration (Double-Post)
-                        if (lastFocusedPosition != RecyclerView.NO_POSITION) {
-                            FocusCoordinator.requestFocus("DEBRID_DISCOVER") {
-                                rvGrid.post {
-                                    rvGrid.scrollToPosition(lastFocusedPosition)
-                                    rvGrid.post {
-                                        val targetView = (rvGrid.layoutManager as? GridLayoutManager)?.findViewByPosition(lastFocusedPosition)
-                                        targetView?.requestFocus()
-                                        FocusCoordinator.release("DEBRID_DISCOVER")
-                                    }
-                                }
-                            }
-                        }
+                        restoreFocusAfterContent()
                     }
                     is DiscoverUiState.Error -> {
                         progressBar.visibility = View.GONE
@@ -257,10 +269,151 @@ class DebridDiscoverActivity : AppCompatActivity() {
         }
     }
 
-    // ── Navigation ─────────────────────────────────────────────────────────────────
+    private fun restoreFocusAfterContent() {
+        pendingSelectorFocus?.let { selector ->
+            selector.post { selector.requestFocus() }
+            pendingSelectorFocus = null
+            return
+        }
+
+        if (lastFocusedPosition != RecyclerView.NO_POSITION && rvGrid.hasFocus()) {
+            FocusCoordinator.requestFocus("DEBRID_DISCOVER") {
+                rvGrid.post {
+                    rvGrid.scrollToPosition(lastFocusedPosition)
+                    rvGrid.post {
+                        val targetView = (rvGrid.layoutManager as? GridLayoutManager)
+                            ?.findViewByPosition(lastFocusedPosition)
+                        targetView?.requestFocus()
+                        FocusCoordinator.release("DEBRID_DISCOVER")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun setupInitialFocus() {
+        btnType.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                if (lastFocusedPosition == RecyclerView.NO_POSITION) {
+                    btnType.requestFocus()
+                }
+                btnType.viewTreeObserver.removeOnGlobalLayoutListener(this)
+            }
+        })
+    }
+
+    private fun updateSelectorText() {
+        btnType.text = "Type: ${if (selectedType == TYPE_MOVIE) "Movies" else "Series"}"
+        btnCatalogue.text = "Catalogue: ${catalogueLabel(selectedCatalogue)}"
+        btnGenre.text = "Genre: $selectedGenreLabel"
+        btnYear.text = "Year: ${selectedYear?.toString() ?: YEAR_ALL}"
+    }
+
+    private fun catalogueLabel(value: String): String {
+        return viewModel.catalogueOptions.firstOrNull { it.value == value }?.label ?: "Popular"
+    }
+
+    private fun queueSelectorFocus(selector: TextView) {
+        pendingSelectorFocus = selector
+        lastFocusedSelector = selector
+    }
+
+    private fun focusFirstPosterOrGrid() {
+        val firstChild = rvGrid.getChildAt(0)
+        if (firstChild != null) {
+            firstChild.requestFocus()
+        } else {
+            rvGrid.requestFocus()
+        }
+    }
+
+    private fun showDropdown(
+        anchor: TextView,
+        options: List<FilterOption>,
+        selectedValue: Any?,
+        onSelected: (FilterOption) -> Unit
+    ) {
+        activePopup?.dismiss()
+
+        val listView = ListView(this).apply {
+            divider = null
+            isFocusable = true
+            isFocusableInTouchMode = true
+            choiceMode = ListView.CHOICE_MODE_SINGLE
+            selector = dropdownRowFocusSelector()
+            setDrawSelectorOnTop(false)
+            adapter = DropdownAdapter(options, selectedValue) { position ->
+                activePopup?.dismiss()
+                anchor.post { anchor.requestFocus() }
+                val option = options[position]
+                val sanitizedLabel = option.label.replace("\u2713 ", "")
+                onSelected(option.copy(label = sanitizedLabel))
+            }
+            // Keep as fallback just in case
+            setOnItemClickListener { _, _, position, _ ->
+                activePopup?.dismiss()
+                anchor.post { anchor.requestFocus() }
+                val option = options[position]
+                val sanitizedLabel = option.label.replace("\u2713 ", "")
+                onSelected(option.copy(label = sanitizedLabel))
+            }
+            setOnKeyListener { _, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN) {
+                    when (keyCode) {
+                        KeyEvent.KEYCODE_BACK -> {
+                            activePopup?.dismiss()
+                            return@setOnKeyListener true
+                        }
+                        KeyEvent.KEYCODE_DPAD_LEFT,
+                        KeyEvent.KEYCODE_DPAD_RIGHT -> return@setOnKeyListener true
+                        KeyEvent.KEYCODE_DPAD_CENTER,
+                        KeyEvent.KEYCODE_ENTER,
+                        KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                            val position = selectedItemPosition
+                            if (position in options.indices) {
+                                activePopup?.dismiss()
+                                anchor.post { anchor.requestFocus() }
+                                val option = options[position]
+                                val sanitizedLabel = option.label.replace("\u2713 ", "")
+                                onSelected(option.copy(label = sanitizedLabel))
+                                return@setOnKeyListener true
+                            }
+                        }
+                    }
+                }
+                false
+            }
+        }
+
+        val initialPosition = options.indexOfFirst { it.value == selectedValue }.coerceAtLeast(0)
+        listView.setItemChecked(initialPosition, true)
+        listView.setSelection(initialPosition)
+
+        val popupWidth = maxOf(anchor.width, dp(220))
+        val popupHeight = minOf(dp(360), options.size * dp(DROPDOWN_ROW_HEIGHT_DP))
+        activePopup = PopupWindow(listView, popupWidth, popupHeight, true).apply {
+            isFocusable = true
+            setBackgroundDrawable(ContextCompat.getDrawable(this@DebridDiscoverActivity, R.drawable.bg_dropdown_smooth))
+            animationStyle = R.style.DropdownAnimationStyle
+            isOutsideTouchable = false
+            setOnDismissListener {
+                activePopup = null
+                anchor.post { anchor.requestFocus() }
+            }
+            showAsDropDown(anchor, 0, dp(6), Gravity.NO_GRAVITY)
+        }
+        listView.post {
+            listView.setItemChecked(initialPosition, true)
+            listView.setSelection(initialPosition)
+            listView.requestFocus()
+            listView.post {
+                listView.setSelection(initialPosition)
+            }
+        }
+    }
 
     private fun onItemClick(item: CatalogItem) {
-        if (item.type == "movie") {
+        if (item.type == TYPE_MOVIE) {
             val intent = Intent(this, MovieDetailActivity::class.java).apply {
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.id)
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
@@ -291,47 +444,110 @@ class DebridDiscoverActivity : AppCompatActivity() {
             .into(ivBackdrop)
     }
 
-    // ── Chip helper ─────────────────────────────────────────────────────────────────
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
-    /**
-     * Creates a styled filter chip (reusing item_filter_chip.xml layout).
-     *
-     * @param label  Display text for the chip.
-     * @param isSelected  Whether to show the chip as selected.
-     * @return The inflated and configured TextView chip.
-     */
-    private fun createChip(label: String, isSelected: Boolean): TextView {
-        val chip = layoutInflater.inflate(R.layout.item_filter_chip, null, false) as TextView
-        chip.text = label
-        chip.isSelected = isSelected
-        return chip
-    }
+    private inner class DropdownAdapter(
+        private val options: List<FilterOption>,
+        private val selectedValue: Any?,
+        private val onItemClicked: (Int) -> Unit
+    ) : BaseAdapter() {
+        override fun getCount(): Int = options.size
+        override fun getItem(position: Int): FilterOption = options[position]
+        override fun getItemId(position: Int): Long = position.toLong()
 
-    /**
-     * Updates the selected state of all chips in a LinearLayout so only [selectedChip] is selected.
-     *
-     * @param container  The parent LinearLayout containing all chips.
-     * @param selectedChip  The chip that should be selected.
-     */
-    private fun refreshChipSelection(container: LinearLayout, selectedChip: TextView) {
-        for (i in 0 until container.childCount) {
-            val child = container.getChildAt(i) as? TextView ?: continue
-            child.isSelected = child === selectedChip
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
+            val context = parent?.context ?: this@DebridDiscoverActivity
+            val textView = (convertView as? TextView) ?: TextView(context).apply {
+                layoutParams = AbsListView.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(DROPDOWN_ROW_HEIGHT_DP)
+                )
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(16), 0, dp(16), 0)
+                textSize = 16f
+                isFocusable = true
+                isFocusableInTouchMode = false
+                background = ColorDrawable(Color.TRANSPARENT)
+                
+                val textStates = arrayOf(
+                    intArrayOf(android.R.attr.state_pressed),
+                    intArrayOf(android.R.attr.state_focused),
+                    intArrayOf(android.R.attr.state_selected),
+                    intArrayOf(android.R.attr.state_activated),
+                    intArrayOf()
+                )
+                val textColors = intArrayOf(
+                    Color.parseColor("#FFFFFF"),
+                    Color.parseColor("#FFFFFF"),
+                    Color.parseColor("#FFFFFF"),
+                    Color.parseColor("#FFFFFF"),
+                    Color.parseColor("#B3FFFFFF")
+                )
+                setTextColor(ColorStateList(textStates, textColors))
+            }
+
+            val option = options[position]
+            val selected = option.value == selectedValue
+            textView.text = if (selected) "\u2713 ${option.label}" else option.label
+            textView.typeface = btnType.typeface // Reusing safe Jakarta typeface from audit pass
+
+            textView.setOnClickListener {
+                onItemClicked(position)
+            }
+
+            return textView
         }
     }
+
+
+
+    private fun dropdownRowFocusSelector(): StateListDrawable {
+        val focused = GradientDrawable().apply {
+            setColor(ContextCompat.getColor(this@DebridDiscoverActivity, R.color.white_opacity_50))
+            setStroke(dp(2), ContextCompat.getColor(this@DebridDiscoverActivity, R.color.accent_blue))
+            cornerRadius = dp(8).toFloat()
+        }
+        val transparent = ColorDrawable(Color.TRANSPARENT)
+        return StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_pressed), focused)
+            addState(intArrayOf(android.R.attr.state_focused), focused)
+            addState(intArrayOf(android.R.attr.state_selected), focused)
+            addState(intArrayOf(android.R.attr.state_activated), focused)
+            addState(intArrayOf(), transparent)
+        }
+    }
+
+    private fun applySelectorFocusStyle(selector: TextView, focused: Boolean) {
+        selector.background = GradientDrawable().apply {
+            setColor(
+                ContextCompat.getColor(
+                    this@DebridDiscoverActivity,
+                    if (focused) R.color.white_opacity_50 else R.color.white_opacity_10
+                )
+            )
+            setStroke(
+                dp(if (focused) 2 else 1),
+                ContextCompat.getColor(
+                    this@DebridDiscoverActivity,
+                    if (focused) R.color.accent_blue else R.color.white_opacity_30
+                )
+            )
+            cornerRadius = dp(16).toFloat()
+        }
+    }
+
+    data class FilterOption(val label: String, val value: Any?)
 
     companion object {
         const val EXTRA_TYPE = "extra_type"
         const val EXTRA_GENRE_ID = "extra_genre_id"
+        private const val TYPE_MOVIE = "movie"
+        private const val TYPE_SERIES = "series"
+        private const val GENRE_ALL = "All Genres"
+        private const val YEAR_ALL = "All Years"
+        private const val KEY_LAST_FOCUS_POS = "last_focus_pos"
+        private const val DROPDOWN_ROW_HEIGHT_DP = 52
 
-        /**
-         * Creates an Intent to launch DebridDiscoverActivity.
-         *
-         * @param context The calling context.
-         * @param type Optional initial filter type (movie/series).
-         * @param genreId Optional initial filter genre ID.
-         * @return A ready-to-use Intent.
-         */
         fun createIntent(context: Context, type: String? = null, genreId: Int? = null): Intent =
             Intent(context, DebridDiscoverActivity::class.java).apply {
                 type?.let { putExtra(EXTRA_TYPE, it) }

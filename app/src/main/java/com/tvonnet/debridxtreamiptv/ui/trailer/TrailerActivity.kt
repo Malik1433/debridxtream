@@ -37,6 +37,11 @@ class TrailerActivity : AppCompatActivity() {
     private var candidateIndex: Int = -1
     private var isIframeMode: Boolean = false
     private var pendingAutoPlay: Boolean = false
+    private var playbackStarted: Boolean = false
+    private var loadToken: Int = 0
+    private var playbackWatchdog: Runnable? = null
+    private var isDestroyedActivity: Boolean = false
+    private var externalFallbackAttempted: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,13 +71,6 @@ class TrailerActivity : AppCompatActivity() {
             }
         )
 
-        val trailerValue = intent.getStringExtra(EXTRA_TRAILER_VALUE).orEmpty()
-        val parsedUrl = parseTrailerValue(trailerValue)
-        if (parsedUrl == null && youtubeId == null) {
-            finish()
-            return
-        }
-
         configureWebView(webView)
         webView.post {
             webView.post {
@@ -82,18 +80,19 @@ class TrailerActivity : AppCompatActivity() {
 
         overlayMessage.visibility = View.GONE
 
-        if (youtubeId != null) {
-            candidateUrls = buildYoutubeCandidates(youtubeId!!)
-            candidateIndex = -1
-            pendingAutoPlay = true
-            loadYoutubeIframe(youtubeId!!)
-        } else {
-            val url = parsedUrl ?: run {
-                finish()
-                return
-            }
-            webView.loadUrl(url)
+        val parsedTrailer = TrailerValueParser.parse(intent.getStringExtra(EXTRA_TRAILER_VALUE))
+        if (parsedTrailer == null) {
+            loading.visibility = View.GONE
+            showOverlay("Trailer unavailable on this device.")
+            webView.postDelayed({ finish() }, INVALID_TRAILER_DISMISS_DELAY_MS)
+            return
         }
+
+        youtubeId = parsedTrailer.youtubeId
+        candidateUrls = buildYoutubeCandidates(parsedTrailer.youtubeId)
+        candidateIndex = -1
+        pendingAutoPlay = true
+        loadYoutubeIframe(parsedTrailer.youtubeId)
     }
 
     @Suppress("SetJavaScriptEnabled")
@@ -107,8 +106,8 @@ class TrailerActivity : AppCompatActivity() {
             mediaPlaybackRequiresUserGesture = false
             cacheMode = WebSettings.LOAD_DEFAULT
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-            // Some YouTube videos block WebView playback ("Error 153/150").
-            // We use TV/mobile watch pages + a Silk-like UA for Fire TV compatibility.
+            // Some YouTube embeds require app identity via Referer/origin.
+            // Keep a stable TV UA, but do not rely on YouTube watch-page redirects.
             userAgentString =
                 "Mozilla/5.0 (Linux; Android 9; AFTKM) AppleWebKit/537.36 (KHTML, like Gecko) " +
                     "Silk/122.0 like Chrome/122.0.0.0 Safari/537.36 DebridXtreamIPTV/Trailer"
@@ -182,8 +181,7 @@ class TrailerActivity : AppCompatActivity() {
                 if (scheme.equals("vnd.youtube", true)) {
                     val id = uri.schemeSpecificPart
                     if (!id.isNullOrBlank()) {
-                        val url = "https://m.youtube.com/watch?v=$id&autoplay=1&playsinline=1"
-                        webView.post { webView.loadUrl(url) }
+                        webView.post { openExternalYoutube(id) }
                         return true
                     }
                 }
@@ -203,7 +201,7 @@ class TrailerActivity : AppCompatActivity() {
 
             override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
                 super.onReceivedError(view, request, error)
-                // Keep UI responsive; YouTube sometimes returns an error page in WebView.
+                if (request?.isForMainFrame != true) return
                 loading.visibility = View.GONE
                 maybeTryNextCandidate()
             }
@@ -268,22 +266,14 @@ class TrailerActivity : AppCompatActivity() {
         }
     }
 
-    private fun parseTrailerValue(value: String): String? {
-        val trimmed = value.trim()
-        if (trimmed.isBlank()) return null
-
-        youtubeId = extractYouTubeId(trimmed)
-        if (youtubeId != null) return null
-
-        val withScheme =
-            if (trimmed.startsWith("http://", true) || trimmed.startsWith("https://", true)) trimmed else "https://$trimmed"
-        return runCatching { Uri.parse(withScheme) }.getOrNull()?.toString()
-    }
-
     private fun loadYoutubeIframe(id: String) {
+        cancelPlaybackWatchdog()
+        loadToken++
+        playbackStarted = false
         isIframeMode = true
         overlayMessage.visibility = View.GONE
         val safeId = id.trim().replace("'", "")
+        val origin = APP_WEB_ORIGIN
         val html =
             """
             <!doctype html>
@@ -291,6 +281,7 @@ class TrailerActivity : AppCompatActivity() {
               <head>
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+                <meta name="referrer" content="strict-origin-when-cross-origin" />
                 <style>
                   html, body { margin:0; padding:0; width:100%; height:100%; background:#000; overflow:hidden; }
                   #player { position:absolute; inset:0; width:100%; height:100%; }
@@ -307,12 +298,15 @@ class TrailerActivity : AppCompatActivity() {
                         width: '100%',
                         videoId: '$safeId',
                         playerVars: {
-                          autoplay: 0,
+                          autoplay: 1,
                           controls: 1,
+                          enablejsapi: 1,
                           fs: 1,
                           rel: 0,
                           playsinline: 1,
-                          modestbranding: 1
+                          modestbranding: 1,
+                          origin: '$origin',
+                          widget_referrer: '$origin'
                         },
                         events: {
                           'onReady': function(e) {
@@ -353,21 +347,16 @@ class TrailerActivity : AppCompatActivity() {
             """.trimIndent()
 
         loading.visibility = View.VISIBLE
-        webView.loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "utf-8", null)
+        webView.loadDataWithBaseURL(APP_WEB_ORIGIN, html, "text/html", "utf-8", null)
+        schedulePlaybackWatchdog(loadToken)
     }
 
     private fun buildYoutubeCandidates(id: String): List<String> {
         val safeId = id.trim()
+        val encodedOrigin = Uri.encode(APP_WEB_ORIGIN)
         return listOf(
-            // Mobile watch page
-            "https://m.youtube.com/watch?v=$safeId&autoplay=1&playsinline=1",
-            // Desktop watch page
-            "https://www.youtube.com/watch?v=$safeId&autoplay=1&playsinline=1",
-            // YouTube TV web UI (sometimes works better on TV browsers)
-            "https://www.youtube.com/tv#/watch?v=$safeId",
-            // Embed variants (last resort)
-            "https://www.youtube.com/embed/$safeId?autoplay=1&playsinline=1&rel=0",
-            "https://www.youtube-nocookie.com/embed/$safeId?autoplay=1&playsinline=1&rel=0"
+            "https://www.youtube.com/embed/$safeId?autoplay=1&playsinline=1&rel=0&enablejsapi=1&origin=$encodedOrigin&widget_referrer=$encodedOrigin",
+            "https://www.youtube-nocookie.com/embed/$safeId?autoplay=1&playsinline=1&rel=0&enablejsapi=1&origin=$encodedOrigin&widget_referrer=$encodedOrigin"
         )
     }
 
@@ -388,6 +377,7 @@ class TrailerActivity : AppCompatActivity() {
     private fun attemptPlay() {
         val id = youtubeId
         if (id == null) return
+        if (isDestroyedActivity) return
 
         if (isIframeMode) {
             webView.evaluateJavascript(
@@ -401,6 +391,8 @@ class TrailerActivity : AppCompatActivity() {
                         "try{ if (typeof isPlaying==='function') { isPlaying(); } else { false; } }catch(e){false;}"
                     ) { playing ->
                         if (playing?.contains("true") == true) {
+                            playbackStarted = true
+                            cancelPlaybackWatchdog()
                             hideOverlay()
                         } else {
                             showOverlay("Press OK to play trailer")
@@ -434,7 +426,11 @@ class TrailerActivity : AppCompatActivity() {
                 webView.evaluateJavascript(
                     "(function(){try{var v=document.querySelector('video');return (!!v && v.paused===false);}catch(e){return false;}})();"
                 ) { playing ->
-                    if (playing?.contains("true") == true) hideOverlay()
+                    if (playing?.contains("true") == true) {
+                        playbackStarted = true
+                        cancelPlaybackWatchdog()
+                        hideOverlay()
+                    }
                 }
             },
             800
@@ -442,9 +438,12 @@ class TrailerActivity : AppCompatActivity() {
     }
 
     private fun maybeTryNextCandidate() {
+        if (isDestroyedActivity || playbackStarted) return
+        cancelPlaybackWatchdog()
         if (youtubeId == null || candidateUrls.isEmpty()) return
         if (candidateIndex + 1 >= candidateUrls.size) {
-            // Exhausted all candidates; keep user inside app but stop spinner.
+            // Exhausted WebView embeds. Do not keep the YouTube error page onscreen.
+            if (openExternalYoutube(youtubeId)) return
             loading.visibility = View.GONE
             showOverlay("Trailer unavailable on this device.")
             return
@@ -455,25 +454,45 @@ class TrailerActivity : AppCompatActivity() {
         webView.post {
             loading.visibility = View.VISIBLE
             overlayMessage.visibility = View.GONE
-            webView.loadUrl(next)
+            loadToken++
+            playbackStarted = false
+            webView.loadUrl(next, mapOf("Referer" to APP_WEB_ORIGIN))
+            schedulePlaybackWatchdog(loadToken)
         }
     }
 
-    private fun extractYouTubeId(value: String): String? {
-        val idCandidate = value.takeIf { it.length in 8..24 && it.all { ch -> ch.isLetterOrDigit() || ch == '_' || ch == '-' } }
-        if (idCandidate != null) return idCandidate
-
+    private fun openExternalYoutube(id: String?): Boolean {
+        val safeId = id?.trim().orEmpty()
+        if (safeId.isBlank() || externalFallbackAttempted || isDestroyedActivity) return false
+        externalFallbackAttempted = true
+        loading.visibility = View.GONE
+        showOverlay("Opening trailer in YouTube...")
         return try {
-            val normalized = if (value.startsWith("http://", true) || value.startsWith("https://", true)) value else "https://$value"
-            val uri = Uri.parse(normalized)
-            when {
-                uri.host?.contains("youtu.be", true) == true -> uri.pathSegments.firstOrNull()
-                uri.host?.contains("youtube.com", true) == true -> uri.getQueryParameter("v")
-                else -> null
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=$safeId")).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-        } catch (_: Exception) {
-            null
+            startActivity(intent)
+            finish()
+            true
+        } catch (e: Exception) {
+            android.util.Log.w("TrailerActivity", "External YouTube fallback unavailable", e)
+            false
         }
+    }
+
+    private fun schedulePlaybackWatchdog(token: Int) {
+        cancelPlaybackWatchdog()
+        playbackWatchdog = Runnable {
+            if (!isDestroyedActivity && token == loadToken && !playbackStarted) {
+                maybeTryNextCandidate()
+            }
+        }
+        webView.postDelayed(playbackWatchdog, PLAYBACK_WATCHDOG_DELAY_MS)
+    }
+
+    private fun cancelPlaybackWatchdog() {
+        playbackWatchdog?.let { webView.removeCallbacks(it) }
+        playbackWatchdog = null
     }
 
     override fun onPause() {
@@ -487,6 +506,8 @@ class TrailerActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        isDestroyedActivity = true
+        cancelPlaybackWatchdog()
         super.onDestroy()
         runCatching {
             fullscreenView?.let { fullscreenContainer.removeView(it) }
@@ -517,6 +538,8 @@ class TrailerActivity : AppCompatActivity() {
             runOnUiThread {
                 when (state) {
                     1 -> {
+                        playbackStarted = true
+                        cancelPlaybackWatchdog()
                         loading.visibility = View.GONE
                         hideOverlay()
                     }
@@ -554,6 +577,9 @@ class TrailerActivity : AppCompatActivity() {
 
     companion object {
         private const val EXTRA_TRAILER_VALUE = "extra_trailer_value"
+        private const val APP_WEB_ORIGIN = "https://debridxtream.local"
+        private const val PLAYBACK_WATCHDOG_DELAY_MS = 10000L
+        private const val INVALID_TRAILER_DISMISS_DELAY_MS = 1500L
 
         fun createIntent(context: Context, trailerValue: String): Intent {
             return Intent(context, TrailerActivity::class.java).apply {

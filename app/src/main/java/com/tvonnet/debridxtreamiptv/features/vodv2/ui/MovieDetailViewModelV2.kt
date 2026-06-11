@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
+import com.tvonnet.debridxtreamiptv.ui.trailer.TrailerValueParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,7 +49,7 @@ class MovieDetailViewModelV2 @Inject constructor(
         if (started) return
         started = true
 
-        if (!existingTrailer.isNullOrBlank()) {
+        if (TrailerValueParser.parse(existingTrailer) != null) {
             _uiState.value = MovieDetailV2UiState(trailerValue = existingTrailer)
             return
         }

@@ -36,6 +36,7 @@ import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
+import com.tvonnet.debridxtreamiptv.ui.trailer.TrailerValueParser
 import com.tvonnet.debridxtreamiptv.data.local.entity.toXtreamSeasonInfo
 import com.tvonnet.debridxtreamiptv.data.local.entity.toXtreamEpisodeInfo
 import dagger.hilt.android.AndroidEntryPoint
@@ -64,6 +65,7 @@ class SeriesDetailActivity : AppCompatActivity() {
         const val EXTRA_SERIES_GENRE = "SERIES_GENRE"
         const val EXTRA_SERIES_RELEASE_DATE = "SERIES_RELEASE_DATE"
         const val EXTRA_SERIES_RATING = "SERIES_RATING"
+        const val EXTRA_SERIES_TRAILER = "SERIES_TRAILER"
         const val EXTRA_IS_DEBRID = "IS_DEBRID"
     }
 
@@ -121,6 +123,8 @@ class SeriesDetailActivity : AppCompatActivity() {
     private var seriesGenre: String? = null
     private var seriesReleaseDate: String? = null
     private var seriesRating: String? = null
+    private var seriesTrailerUrl: String? = null
+    private var isTrailerLookupInProgress: Boolean = false
 
     private var currentDetail: XtreamSeriesDetailResponse? = null
     private var selectedSeasonKey: String? = null
@@ -129,6 +133,9 @@ class SeriesDetailActivity : AppCompatActivity() {
     private val cachedDebridSourcesByEpisode = mutableMapOf<String, List<com.tvonnet.debridxtreamiptv.data.repository.MovieSource>>()
     private val debridFilterStateByEpisode = mutableMapOf<String, com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterState>()
     private val selectedDebridStreamIdByEpisode = mutableMapOf<String, String?>()
+    private val pendingDebridReturnFocusStreamIdsByEpisode = mutableMapOf<String, List<String>>()
+    private val failedDebridStreamIdsByEpisode = mutableMapOf<String, MutableSet<String>>()
+    private var activeDebridSourceRequestEpisodeId: String? = null
     private var openedFromPlaybackFailure: Boolean = false
 
     private val playerLauncher = registerForActivityResult(
@@ -143,13 +150,19 @@ class SeriesDetailActivity : AppCompatActivity() {
                 data?.getBooleanExtra(PlayerActivity.EXTRA_AUTO_PLAY_NEXT, false) == true
             val failedStreamId = data?.getStringExtra(PlayerActivity.EXTRA_FAILED_STREAM_ID)
             val failReason = data?.getStringExtra(PlayerActivity.EXTRA_FAIL_REASON)
+            val episode = lastDebridEpisode
+            if (!failedStreamId.isNullOrBlank() && episode != null) {
+                failedDebridStreamIdsByEpisode.getOrPut(episode.id) { linkedSetOf() }.add(failedStreamId)
+                markDebridEpisodeSourceCached(episode.id, failedStreamId, false)
+            }
             val allowAutoPlayNext = autoPlayNext && !openedFromPlaybackFailure
             notifyDebridFailure(failReason, allowAutoPlayNext)
-            val episode = lastDebridEpisode
             if (allowAutoPlayNext && !failedStreamId.isNullOrBlank() && episode != null) {
                 autoPlayNextDebridEpisodeSource(episode, failedStreamId)
             } else {
-                lastDebridEpisode?.let { fetchAndShowDebridSources(it) }
+                lastDebridEpisode?.let {
+                    fetchAndShowDebridSources(it, consumeDebridReturnFocusStreamIds(it.id))
+                }
             }
         }
     }
@@ -166,6 +179,7 @@ class SeriesDetailActivity : AppCompatActivity() {
         setupAdapters()
         getSeriesDataFromIntent()
         openedFromPlaybackFailure = intent.getBooleanExtra(PlayerActivity.EXTRA_OPENED_FROM_PLAYBACK_FAILURE, false)
+        updateTrailerButtonState()
         
         displaySeriesInfo()
         updateFavoriteState()
@@ -248,6 +262,7 @@ class SeriesDetailActivity : AppCompatActivity() {
             seriesReleaseDate = data.getStringExtra(EXTRA_SERIES_RELEASE_DATE)
             seriesReleaseDate = data.getStringExtra(EXTRA_SERIES_RELEASE_DATE)
             seriesRating = data.getStringExtra(EXTRA_SERIES_RATING)
+            seriesTrailerUrl = data.getStringExtra(EXTRA_SERIES_TRAILER)
             isDebridContent = data.getBooleanExtra(EXTRA_IS_DEBRID, false)
         }
 
@@ -480,10 +495,12 @@ class SeriesDetailActivity : AppCompatActivity() {
         seriesGenre = info.genre ?: seriesGenre
         seriesReleaseDate = info.releaseDate ?: seriesReleaseDate
         seriesRating = info.rating ?: seriesRating
+        seriesTrailerUrl = info.youtube_trailer ?: seriesTrailerUrl
         seriesCover = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(info.cover) ?: seriesCover
         seriesBackdrop = info.backdropPathString ?: seriesBackdrop
 
         displaySeriesInfo()
+        updateTrailerButtonState()
     }
     private fun buildSeasonList(detail: XtreamSeriesDetailResponse) {
         val seasonItems = when {
@@ -720,14 +737,20 @@ class SeriesDetailActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-    private fun fetchAndShowDebridSources(episode: EpisodeUiModel) {
+    private fun fetchAndShowDebridSources(
+        episode: EpisodeUiModel,
+        returnFocusStreamIds: List<String> = emptyList()
+    ) {
+        val requestEpisodeId = episode.id
+        activeDebridSourceRequestEpisodeId = requestEpisodeId
         lastDebridEpisode = episode
         val initialState = debridFilterStateByEpisode[episode.id]
             ?: com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterState()
         val initialSelectedStreamId = selectedDebridStreamIdByEpisode[episode.id]
         val bottomSheet = SourceSelectionBottomSheet(
-            onSourceSelected = { source ->
+            onSourceSelected = { source, adjacentStreamIds ->
                 selectedDebridStreamIdByEpisode[episode.id] = source.stream.stream_id
+                pendingDebridReturnFocusStreamIdsByEpisode[episode.id] = adjacentStreamIds
                 PlaybackDiagnosticsRecorder.record(
                     this,
                     "source_selected",
@@ -745,6 +768,7 @@ class SeriesDetailActivity : AppCompatActivity() {
             },
             initialState = initialState,
             initialSelectedStreamId = initialSelectedStreamId,
+            initialReturnFocusStreamIds = returnFocusStreamIds,
             contentTitle = seriesName,
             backdropUrl = seriesBackdrop
         )
@@ -793,6 +817,10 @@ class SeriesDetailActivity : AppCompatActivity() {
                 }
                 android.util.Log.e("SeriesDetailActivity", "Received ${sources.size} sources from provider. Updating bottom sheet.")
                 cachedDebridSourcesByEpisode[episode.id] = sources
+                if (activeDebridSourceRequestEpisodeId != requestEpisodeId || selectedEpisode?.id != requestEpisodeId) {
+                    android.util.Log.d("SeriesDetailActivity", "Ignoring stale Debrid sources for episode=$requestEpisodeId")
+                    return@launch
+                }
                 PlaybackDiagnosticsRecorder.record(
                     this@SeriesDetailActivity,
                     "source_list_loaded",
@@ -808,9 +836,17 @@ class SeriesDetailActivity : AppCompatActivity() {
                 refreshMediaFusionCacheStatus(episode.id, sources, bottomSheet)
             } catch (e: Exception) {
                 android.util.Log.e("SeriesDetailActivity", "Error fetching sources: ${e.message}", e)
+                if (activeDebridSourceRequestEpisodeId != requestEpisodeId || selectedEpisode?.id != requestEpisodeId) {
+                    android.util.Log.d("SeriesDetailActivity", "Ignoring stale Debrid source error for episode=$requestEpisodeId")
+                    return@launch
+                }
                 bottomSheet.showError(e.message ?: "Failed to load sources")
             }
         }
+    }
+
+    private fun consumeDebridReturnFocusStreamIds(episodeId: String): List<String> {
+        return pendingDebridReturnFocusStreamIdsByEpisode.remove(episodeId).orEmpty()
     }
 
     private fun playDebridEpisode(source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource, episode: EpisodeUiModel) {
@@ -898,10 +934,13 @@ class SeriesDetailActivity : AppCompatActivity() {
                     val readiness = (readyResult as? Result.Success)?.data
                         ?: AddonProxyReadiness.UNCERTAIN
                     if (readiness == AddonProxyReadiness.TERMINAL) {
+                        source.stream.stream_id?.let { streamId ->
+                            failedDebridStreamIdsByEpisode.getOrPut(episode.id) { linkedSetOf() }.add(streamId)
+                        }
                         markDebridEpisodeSourceCached(episode.id, source.stream.stream_id, false)
                         val message = "Source is unavailable. Choose another source."
                         Toast.makeText(this@SeriesDetailActivity, message, Toast.LENGTH_LONG).show()
-                        fetchAndShowDebridSources(episode)
+                        fetchAndShowDebridSources(episode, consumeDebridReturnFocusStreamIds(episode.id))
                         return@launch
                     }
 
@@ -1071,7 +1110,9 @@ class SeriesDetailActivity : AppCompatActivity() {
     ): com.tvonnet.debridxtreamiptv.data.repository.MovieSource? {
         val filterState = debridFilterStateByEpisode[episodeId]
             ?: com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterState()
+        val failedIds = failedDebridStreamIdsByEpisode[episodeId].orEmpty()
         val filteredSources = SourceFilterUtils.apply(sources, filterState)
+            .filterNot { source -> source.stream.stream_id?.let { it in failedIds } == true }
         if (filteredSources.isEmpty()) return null
 
         val failedIndex = filteredSources.indexOfFirst { it.stream.stream_id == failedStreamId }
@@ -1167,13 +1208,18 @@ class SeriesDetailActivity : AppCompatActivity() {
                     } else {
                         source
                     }
-                    AddonProxyReadiness.TERMINAL -> if (source.isCached != false) {
-                        source.copy(
-                            isCached = false,
-                            cacheStatus = DebridCacheStatus.NOT_CACHED
-                        )
-                    } else {
-                        source
+                    AddonProxyReadiness.TERMINAL -> {
+                        source.stream.stream_id?.let { streamId ->
+                            failedDebridStreamIdsByEpisode.getOrPut(episodeId) { linkedSetOf() }.add(streamId)
+                        }
+                        if (source.isCached != false) {
+                            source.copy(
+                                isCached = false,
+                                cacheStatus = DebridCacheStatus.NOT_CACHED
+                            )
+                        } else {
+                            source
+                        }
                     }
                     AddonProxyReadiness.UNCERTAIN,
                     null -> source
@@ -1239,12 +1285,25 @@ class SeriesDetailActivity : AppCompatActivity() {
     }
 
     private fun launchTrailer() {
-        val seriesIdStr = seriesId ?: return
-        
-        // Phase 2: Check for TMDB trailer (Since Xtream rarely provides series trailers)
+        val trailerUrl = seriesTrailerUrl
+        if (!trailerUrl.isNullOrBlank() && TrailerValueParser.parse(trailerUrl) != null) {
+            startActivity(com.tvonnet.debridxtreamiptv.ui.trailer.TrailerActivity.createIntent(this, trailerUrl))
+            return
+        }
+
+        if (isTrailerLookupInProgress) return
+
+        val tmdbId = seriesId?.toIntOrNull()
+        if (tmdbId == null) {
+            Toast.makeText(this, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
+            updateTrailerButtonState()
+            return
+        }
+
         lifecycleScope.launch {
+            isTrailerLookupInProgress = true
+            btnWatchTrailer.isEnabled = false
             try {
-                val tmdbId = seriesIdStr.toIntOrNull() ?: return@launch
                 val result = withContext(Dispatchers.IO) {
                     tmdbRemoteDataSource.getSeriesDetails(tmdbId)
                 }
@@ -1257,6 +1316,7 @@ class SeriesDetailActivity : AppCompatActivity() {
                     }
                     
                     if (trailer?.key != null) {
+                        seriesTrailerUrl = trailer.key
                         startActivity(com.tvonnet.debridxtreamiptv.ui.trailer.TrailerActivity.createIntent(this@SeriesDetailActivity, trailer.key))
                     } else {
                         Toast.makeText(this@SeriesDetailActivity, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
@@ -1266,8 +1326,18 @@ class SeriesDetailActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 Toast.makeText(this@SeriesDetailActivity, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
+            } finally {
+                isTrailerLookupInProgress = false
+                updateTrailerButtonState()
             }
         }
+    }
+
+    private fun updateTrailerButtonState() {
+        if (!::btnWatchTrailer.isInitialized) return
+        val canResolveTrailer = TrailerValueParser.parse(seriesTrailerUrl) != null || seriesId?.toIntOrNull() != null
+        btnWatchTrailer.isEnabled = canResolveTrailer && !isTrailerLookupInProgress
+        btnWatchTrailer.alpha = if (canResolveTrailer) 1.0f else 0.45f
     }
 
     private fun showLoading(show: Boolean) {

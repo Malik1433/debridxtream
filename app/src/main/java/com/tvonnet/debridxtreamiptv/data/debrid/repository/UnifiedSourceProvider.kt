@@ -12,6 +12,7 @@ import com.tvonnet.debridxtreamiptv.data.debrid.source.SimplifiedPureFireFetcher
 import com.tvonnet.debridxtreamiptv.data.debrid.source.StremioAddonFetcher
 import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
+import com.tvonnet.debridxtreamiptv.data.repository.AddableTorrentIdentity
 import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
@@ -21,6 +22,7 @@ import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import com.tvonnet.debridxtreamiptv.data.Result as AppResult
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -70,6 +72,58 @@ class UnifiedSourceProvider @Inject constructor(
         private const val CACHED_STATUS_TTL_MS = 15L * 60L * 1000L
         private const val NOT_CACHED_STATUS_TTL_MS = 3L * 60L * 1000L
         private const val UNKNOWN_STATUS_TTL_MS = 60L * 1000L
+        private val ADDABLE_INFO_HASH = Regex("^(?:[a-fA-F0-9]{40}|[a-zA-Z2-7]{32})$")
+        private val MOVIE_YEAR_REGEX = Regex("\\b(?:19|20)\\d{2}\\b")
+
+        internal fun filterMismatchedAddonMovieStreams(
+            streams: List<AddonStream>,
+            requestedTitle: String?,
+            requestedYear: String?
+        ): List<AddonStream> {
+            val targetTitle = normalizeMovieTitle(requestedTitle)
+            val targetYear = extractMovieYear(requestedYear)
+            if (targetTitle.isNullOrBlank() && targetYear == null) return streams
+
+            return streams.filterNot { stream ->
+                val candidateTitle = stream.title?.trim().orEmpty()
+                val candidateYearMatch = MOVIE_YEAR_REGEX.find(candidateTitle)
+                val candidateYear = candidateYearMatch?.value?.toIntOrNull()
+                val candidateTitleBeforeYear = candidateYearMatch
+                    ?.range
+                    ?.first
+                    ?.let { candidateTitle.substring(0, it) }
+                val candidateTitleKey = normalizeMovieTitle(candidateTitleBeforeYear)
+
+                val hasWrongYear = targetYear != null &&
+                    candidateYear != null &&
+                    targetYear != candidateYear
+                val hasClearlyWrongTitle = !targetTitle.isNullOrBlank() &&
+                    candidateYear != null &&
+                    !candidateTitleKey.isNullOrBlank() &&
+                    !candidateTitleKey.contains(targetTitle) &&
+                    !targetTitle.contains(candidateTitleKey)
+
+                hasWrongYear || hasClearlyWrongTitle
+            }
+        }
+
+        private fun normalizeMovieTitle(value: String?): String? {
+            if (value.isNullOrBlank()) return null
+            val withoutYear = MOVIE_YEAR_REGEX.find(value)
+                ?.range
+                ?.first
+                ?.let { value.substring(0, it) }
+                ?: value
+            return withoutYear
+                .lowercase()
+                .replace(Regex("[^a-z0-9]+"), "")
+                .takeIf { it.isNotBlank() }
+        }
+
+        private fun extractMovieYear(value: String?): Int? {
+            if (value.isNullOrBlank()) return null
+            return MOVIE_YEAR_REGEX.find(value)?.value?.toIntOrNull()
+        }
     }
 
     /**
@@ -167,6 +221,8 @@ class UnifiedSourceProvider @Inject constructor(
 
                     finalSources
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 coroutineContext.ensureActive()
 
@@ -221,16 +277,29 @@ class UnifiedSourceProvider @Inject constructor(
                 Log.w(TAG, "⚠️ No IMDB ID provided for '$title', will proceed with title-based search")
             }
 
+            val configuredAddonStreams = mutableListOf<AddonStream>()
             val stremioUrls = debridPrefs.getStremioAddonUrls()
             if (stremioUrls.isNotEmpty()) {
-                Log.d(TAG, "Using ${stremioUrls.size} configured Stremio addon(s) as clean source path")
-                val addonStreams = prioritizeAddonStreams(
-                    deduplicateStreams(fetchStremioMovieSources(imdbId))
-                )
-                if (addonStreams.isEmpty()) return@coroutineScope emptyList()
-
-                val cacheStatusByHash = verifyRealDebridCacheStatuses(addonStreams)
-                return@coroutineScope convertAddonStreamsToMovieSources(addonStreams, title, cacheStatusByHash)
+                try {
+                    Log.d(TAG, "Using ${stremioUrls.size} configured Stremio addon(s) before fallback movie providers")
+                    val fetchedStreams = fetchStremioMovieSources(imdbId)
+                    val titleMatchedStreams = filterMismatchedAddonMovieStreams(fetchedStreams, title, yearHint)
+                    val filteredCount = fetchedStreams.size - titleMatchedStreams.size
+                    if (filteredCount > 0) {
+                        Log.w(TAG, "Filtered $filteredCount mismatched configured Stremio movie stream(s) before fallback providers")
+                    }
+                    val addonStreams = deduplicateStreams(titleMatchedStreams)
+                    if (addonStreams.isEmpty()) {
+                        Log.w(TAG, "Configured Stremio movie provider returned no usable streams; continuing fallback providers: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}")
+                    } else {
+                        configuredAddonStreams.addAll(addonStreams)
+                        Log.d(TAG, "Configured Stremio movie provider returned ${addonStreams.size} usable streams; continuing fallback providers")
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Configured Stremio movie provider failed: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
+                }
             }
 
             // Step 2: Fetch real sources from Enhanced Simplified PureFire (REAL TORRENTIO API) AND MediaFusion
@@ -242,7 +311,10 @@ class UnifiedSourceProvider @Inject constructor(
             val torrentioDeferred = async {
                 try {
                     simplifiedPureFireFetcher.fetchMovieSources(imdbId, title, releaseYear, contentType)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
+                    Log.e(TAG, "Torrentio movie provider failed: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
                     Log.e(TAG, "❌ Torrentio fetch failed", e)
                     emptyList()
                 }
@@ -251,7 +323,10 @@ class UnifiedSourceProvider @Inject constructor(
             val mediaFusionDeferred = async {
                 try {
                     mediaFusionFetcher.fetchMovieSources(imdbId)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
+                    Log.e(TAG, "MediaFusion movie provider failed: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
                     Log.e(TAG, "❌ MediaFusion fetch failed (Safe Catch)", e)
                     emptyList()
                 }
@@ -259,7 +334,14 @@ class UnifiedSourceProvider @Inject constructor(
 
             // DYNAMIC ADDONS: Fetch from all user-configured registries in parallel
             val dynamicDeferred = async {
-                fetchDynamicMovieSources(imdbId)
+                try {
+                    fetchDynamicMovieSources(imdbId)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Dynamic addon movie providers failed: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
+                    emptyList()
+                }
             }
 
             // Wait for all to finish
@@ -268,8 +350,14 @@ class UnifiedSourceProvider @Inject constructor(
             val dynamicStreams = dynamicDeferred.await()
 
             // Merge results
+            val fetchedStreams = configuredAddonStreams + torrentioStreams + mediaFusionStreams + dynamicStreams
+            val titleMatchedStreams = filterMismatchedAddonMovieStreams(fetchedStreams, title, yearHint)
+            val filteredCount = fetchedStreams.size - titleMatchedStreams.size
+            if (filteredCount > 0) {
+                Log.w(TAG, "Filtered $filteredCount mismatched addon movie stream(s) before picker conversion")
+            }
             val addonStreams = prioritizeAddonStreams(
-                deduplicateStreams(torrentioStreams + mediaFusionStreams + dynamicStreams)
+                deduplicateStreams(titleMatchedStreams)
             )
 
             if (addonStreams.isNotEmpty()) {
@@ -348,6 +436,8 @@ class UnifiedSourceProvider @Inject constructor(
                 return@coroutineScope emptyList()
             }
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             coroutineContext.ensureActive()
             Log.w(TAG, "[GRACEFUL] PureFire source fetch interrupted: titlePresent=${!title.isNullOrBlank()}, error=${SensitiveLogRedactor.describeException(e)}")
@@ -401,16 +491,23 @@ class UnifiedSourceProvider @Inject constructor(
                  return@coroutineScope emptyList()
             }
 
+            val configuredAddonStreams = mutableListOf<AddonStream>()
             val stremioUrls = debridPrefs.getStremioAddonUrls()
             if (stremioUrls.isNotEmpty()) {
-                Log.e(TAG, "Using ${stremioUrls.size} configured Stremio addon(s) as clean episode source path")
-                val addonStreams = prioritizeAddonStreams(
-                    deduplicateStreams(fetchStremioEpisodeSources(imdbId, seasonNumber, episodeNumber))
-                )
-                if (addonStreams.isEmpty()) return@coroutineScope emptyList()
-
-                val cacheStatusByHash = verifyRealDebridCacheStatuses(addonStreams)
-                return@coroutineScope convertAddonStreamsToMovieSources(addonStreams, title, cacheStatusByHash)
+                try {
+                    Log.e(TAG, "Using ${stremioUrls.size} configured Stremio addon(s) before fallback episode providers")
+                    val addonStreams = deduplicateStreams(fetchStremioEpisodeSources(imdbId, seasonNumber, episodeNumber))
+                    if (addonStreams.isEmpty()) {
+                        Log.w(TAG, "Configured Stremio episode provider returned no usable streams; continuing fallback providers: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}")
+                    } else {
+                        configuredAddonStreams.addAll(addonStreams)
+                        Log.d(TAG, "Configured Stremio episode provider returned ${addonStreams.size} usable streams; continuing fallback providers")
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Configured Stremio episode provider failed: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
+                }
             }
 
             // Fetch real sources from Enhanced Simplified PureFire AND MediaFusion
@@ -420,7 +517,10 @@ class UnifiedSourceProvider @Inject constructor(
             val torrentioDeferred = async {
                 try {
                     simplifiedPureFireFetcher.fetchEpisodeSources(imdbId, seasonNumber, episodeNumber, title)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
+                    Log.e(TAG, "Torrentio episode provider failed: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
                     Log.e(TAG, "❌ Torrentio episode fetch failed", e)
                     emptyList()
                 }
@@ -429,7 +529,10 @@ class UnifiedSourceProvider @Inject constructor(
             val mediaFusionDeferred = async {
                 try {
                     mediaFusionFetcher.fetchEpisodeSources(imdbId, seasonNumber, episodeNumber)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
+                    Log.e(TAG, "MediaFusion episode provider failed: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
                     Log.e(TAG, "❌ MediaFusion episode fetch failed (Safe Catch)", e)
                     emptyList()
                 }
@@ -437,7 +540,14 @@ class UnifiedSourceProvider @Inject constructor(
 
             // DYNAMIC ADDONS: Fetch from all user-configured registries
             val dynamicDeferred = async {
-                fetchDynamicEpisodeSources(imdbId, seasonNumber, episodeNumber)
+                try {
+                    fetchDynamicEpisodeSources(imdbId, seasonNumber, episodeNumber)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Dynamic addon episode providers failed: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
+                    emptyList()
+                }
             }
 
             val torrentioStreams = torrentioDeferred.await()
@@ -445,7 +555,7 @@ class UnifiedSourceProvider @Inject constructor(
             val dynamicStreams = dynamicDeferred.await()
 
             val addonStreams = prioritizeAddonStreams(
-                deduplicateStreams(torrentioStreams + mediaFusionStreams + dynamicStreams)
+                deduplicateStreams(configuredAddonStreams + torrentioStreams + mediaFusionStreams + dynamicStreams)
             )
 
             if (addonStreams.isNotEmpty()) {
@@ -470,6 +580,8 @@ class UnifiedSourceProvider @Inject constructor(
                 return@coroutineScope emptyList()
             }
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             coroutineContext.ensureActive()
             Log.e(TAG, "⚠️ [GRACEFUL] PureFire source fetch interrupted for Episode", e)
@@ -682,11 +794,36 @@ class UnifiedSourceProvider @Inject constructor(
             val streamDescLower = (addonStream.extras["description"] as? String ?: "").lowercase()
             val combinedText = "$streamTitleLower $streamNameLower $streamDescLower"
             
-            if (combinedText.contains("api exception") || 
-                combinedText.contains("rate limit") || 
-                combinedText.contains("invalid token") || 
-                combinedText.contains("error occurred") ||
-                combinedText.contains("debrid error")) {
+            val errorMarkers = listOf(
+                "api exception",
+                "api_exception",
+                "api-exception",
+                "rate limit",
+                "rate_limit",
+                "rate-limit",
+                "limit reached",
+                "limit_reached",
+                "limit-reached",
+                "quota exceeded",
+                "quota_exceeded",
+                "provider error",
+                "provider_error",
+                "invalid token",
+                "invalid_token",
+                "error occurred",
+                "debrid error",
+                "torrent not downloaded",
+                "torrent_not_downloaded",
+                "not cached",
+                "not_cached",
+                "not-cached",
+                "not ready",
+                "not_ready",
+                "not-ready",
+                "timeout",
+                "timed out"
+            )
+            if (errorMarkers.any { combinedText.contains(it) }) {
                 Log.w(TAG, "[SKIP] Filtering out Addon error stream: provider=${addonStream.source}, hasTitle=${!addonStream.title.isNullOrBlank()}")
                 return@mapIndexedNotNull null
             }
@@ -695,6 +832,12 @@ class UnifiedSourceProvider @Inject constructor(
             val validInfoHash = normalizeInfoHash(addonStream.infoHash)
             val validMagnet = addonStream.magnet?.takeIf { isValidMagnet(it) }
             val magnetInfoHash = extractInfoHashFromMagnet(validMagnet)
+            val addableInfoHash = normalizeAddableInfoHash(addonStream.infoHash)
+            val addableMagnet = addonStream.magnet?.takeIf { isAddableMagnet(it) }
+            val addableMagnetInfoHash = extractAddableInfoHashFromMagnet(addableMagnet)
+            val addableTorrentIdentity = (addableInfoHash ?: addableMagnetInfoHash)?.let { infoHash ->
+                AddableTorrentIdentity(infoHash = infoHash, magnet = addableMagnet)
+            }
             val hasValidSource = !addonStream.url.isNullOrBlank() || validInfoHash != null || validMagnet != null
 
             if (!hasValidSource) {
@@ -826,7 +969,8 @@ class UnifiedSourceProvider @Inject constructor(
                 sourceName = sourceName,
                 bingeGroup = bingeGroup,
                 fileIdx = fileIdx,
-                headers = addonStream.headers
+                headers = addonStream.headers,
+                addableTorrentIdentity = addableTorrentIdentity
             )
         }.also { filteredSources ->
             Log.e(TAG, "🎯 Final conversion: ${filteredSources.size} valid MovieSource objects")
@@ -1310,6 +1454,24 @@ class UnifiedSourceProvider @Inject constructor(
         val btihIndex = magnet.indexOf("btih:", ignoreCase = true)
         if (btihIndex == -1) return null
         return normalizeInfoHash(magnet.substring(btihIndex + 5).substringBefore('&').substringBefore('#'))
+    }
+
+    private fun normalizeAddableInfoHash(infoHash: String?): String? {
+        val trimmed = infoHash?.trim() ?: return null
+        return trimmed.takeIf { ADDABLE_INFO_HASH.matches(it) }?.lowercase()
+    }
+
+    private fun isAddableMagnet(magnet: String?): Boolean {
+        return extractAddableInfoHashFromMagnet(magnet) != null
+    }
+
+    private fun extractAddableInfoHashFromMagnet(magnet: String?): String? {
+        if (magnet.isNullOrBlank()) return null
+        val trimmed = magnet.trim()
+        if (!trimmed.startsWith("magnet:", ignoreCase = true)) return null
+        val btihIndex = trimmed.indexOf("btih:", ignoreCase = true)
+        if (btihIndex == -1) return null
+        return normalizeAddableInfoHash(trimmed.substring(btihIndex + 5).substringBefore('&').substringBefore('#'))
     }
 
     private fun DebridCacheStatus.toLegacyCachedFlag(): Boolean? {

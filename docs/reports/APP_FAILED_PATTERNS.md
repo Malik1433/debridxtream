@@ -1,5 +1,15 @@
 # App Failed Patterns
 
+## Debrid Single-Strike Stall Termination
+- **Avoid:** Treating one `READY`-state Debrid position freeze as a terminal player error or retrying the same direct URL without first using saved source-profile metadata.
+- **Reason:** Direct addon/provider streams can pause at segment boundaries, CDN edges, or temporary provider stalls; immediate terminal escalation makes healthy streams look like they stopped after a few minutes.
+- **Fix:** Use multi-strike Debrid stall warnings, refresh direct Debrid from metadata on recoverable errors/timeouts, and keep terminal HTTP/provider failures terminal.
+
+## Direct-Proxy Boolean Readiness
+- **Avoid:** Reducing addon direct-proxy readiness to true/false before launch.
+- **Reason:** `UNCERTAIN` preflight can still be user-playable, while `TERMINAL` redirect/error targets should never open Player. Boolean handling either blocks playable links or launches API-error links.
+- **Fix:** Preserve `READY`, `UNCERTAIN`, and `TERMINAL`; block terminal only, keep uncertain explicit-click only, and skip terminal/session-failed rows during auto-next.
+
 ## Series Player Poster Uses Episode Still
 - **Avoid:** Sending nullable or landscape episode thumbnails into the portrait player-controller poster slot.
 - **Reason:** IPTV series can render a blank poster when the thumbnail is missing, while Debrid series can crop a landscape episode still too aggressively.
@@ -347,3 +357,8 @@ Patterns that have caused bugs, crashes, or poor UX in this project.
 - **Avoid:** Routing direct Debrid/addon HTTP streams through Real-Debrid config validation, or losing `PlaybackSource.DEBRID` and source profile metadata during PlayerActivity edits.
 - **Reason:** Affects the Debrid/direct playback path, causing "Real Debrid config missing" errors for perfectly valid direct addon URLs.
 - **Fix:** Preserve `PlaybackSource.DEBRID` and do not change `PlayerActivity` Debrid passthrough/resolver behavior while fixing unrelated systems like the Episode Browser.
+
+## 43. YouTube Watch-Page WebView Trailer Fallbacks
+- **Avoid:** Cycling blocked trailers through `m.youtube.com/watch`, desktop watch pages, or YouTube TV hash URLs inside the app WebView.
+- **Reason:** Fire TV WebView can treat those redirects as invalid embedded-player contexts and show YouTube `Error 153` / "Video player configuration error" after playback begins.
+- **Fix:** Keep trailer fallback candidates as embed URLs with stable app `origin`/`Referer`, then launch an external YouTube intent only after embedded playback is exhausted.

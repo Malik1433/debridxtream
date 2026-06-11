@@ -2,6 +2,48 @@
 
 Track only the last 10 important changes. Newest first. Keep this file compact for regression debugging.
 
+Date: 2026-06-08
+Module: Debrid / Discover Dropdowns
+Issue fixed: Fixed the on-device crash when opening Debrid Discover dropdowns. Root cause was dropdown row creation calling `ResourcesCompat.getFont(... R.font.plus_jakarta_sans)` at runtime, which failed on the target Fire TV with `Resources$NotFoundException`; the adapter now reuses the already-resolved Type selector typeface instead of loading the font resource for each row.
+Files changed: `DebridDiscoverActivity.kt`, `DEBRID_MODULE_REPORT.md`, `RECENT_CHANGES.md`
+Regression risk: Debrid Discover dropdown row typography only. Type/Catalogue/Genre/Year filtering, TMDB backend parameters, poster grid, sidebar, playback, source picker, watched state, and Continue Watching were intentionally unchanged.
+QA result: `:app:compileDebugKotlin --no-daemon --console plain` passed after rerun with longer timeout. `:app:assembleDebug --no-daemon --console plain` passed. APK installed on `192.168.178.35:5555` (`versionName=2.0.7`, `versionCode=28`, `lastUpdateTime=2026-06-08 06:46:21`). Device QA opened Type/Genre/Catalogue/Year dropdowns, confirmed selected checkmark/BACK close behavior, confirmed BACK from Discover returns to Debrid, and logcat fatal scan showed no `Resources$NotFoundException` or `DropdownAdapter` crash. Controlled pagination/detail QA was not expanded beyond this minimal crash fix.
+
+Date: 2026-06-08
+Module: Debrid / Sidebar Rail
+Issue fixed: Restored the compact Debrid floating rail to exactly three icon-only actions: Search, Home, and Discover. Search behavior stayed unchanged, Home keeps the existing top-of-Debrid behavior, and the separate Discover action now opens the existing `DebridDiscoverActivity` using a new local `ic_discover` vector. Rail focus routes now move Search -> Home -> Discover without reusing one button for two destinations.
+Files changed: `view_debrid_sidebar.xml`, `DebridFragment.kt`, `ic_discover.xml`, `DEBRID_MODULE_REPORT.md`, `RECENT_CHANGES.md`
+Regression risk: Debrid rail UI/focus and Discover entry only. Hero, rows, source picker, playback, resolver, Continue Watching, and watched badges were intentionally unchanged.
+QA result: `:app:compileDebugKotlin --no-daemon --console plain` passed. `:app:assembleDebug --no-daemon --console plain` passed. APK installed on `192.168.178.35:5555` (`versionName=2.0.7`, `versionCode=28`, `lastUpdateTime=2026-06-08 04:46:21`). User confirmed the restored Search/Home/Discover rail is working.
+
+Date: 2026-06-08
+Module: VOD / Series Watched Badges
+Issue fixed: Improved watched checkmark badge contrast for movie cards and series episode cards. Both surfaces now use one shared high-contrast `bg_watched_badge` drawable with dark overlay, white check icon, cyan accent outline, fixed 32dp sizing, and passive non-focusable/non-clickable behavior.
+Files changed: `bg_watched_badge.xml`, `item_movie_card.xml`, `item_episode_v2.xml`, `VOD_MODULE_REPORT.md`, `SERIES_MODULE_REPORT.md`, `RECENT_CHANGES.md`
+Regression risk: Visual badge readability only. Watched-state logic, identity, manual toggles, playback, Continue Watching, focus routing, source picker, and Live TV were intentionally unchanged.
+QA result: `:app:assembleDebug --no-daemon --console plain` passed after stopping an unresponsive Gradle daemon and rerunning. APK installed on `192.168.178.35:5555`; user confirmed the watched badge polish is correct on the test device.
+
+Date: 2026-06-07
+Module: Debrid / Series Source Picker
+Issue fixed: Added a caller-side stale-result guard to `SeriesDetailActivity.fetchAndShowDebridSources()`. Each Debrid source request now records the active `episode.id`; late async success or error callbacks are ignored before they can call `showSources()` or `showError()` for an episode that is no longer selected. Per-episode cache writes remain keyed to the original episode id.
+Files changed: `SeriesDetailActivity.kt`
+Regression risk: Series Debrid source picker update timing only. Source fetching, provider ordering, bottom sheet API, player launch, adapters, and repository behavior were intentionally unchanged.
+QA result: `:app:compileDebugKotlin` passed. Manual rapid episode-switch QA remains pending.
+
+Date: 2026-06-01
+Module: Debrid / TorBox Runtime Integration
+Issue fixed: Added the isolated TorBox runtime path required for a later service-neutral `+ TorBox` picker action. `TorBoxPreferences` stores the TorBox token in separate encrypted preferences, `TorBoxApiService` implements the confirmed magnet enqueue and torrent status endpoints, `TorBoxSourceActionRepository` builds a canonical magnet from validated identity when needed, and TorBox status mapping treats only the confirmed cached contract as `READY`. `completed` is not treated as ready. Existing RD repositories, playback logic, and picker UI remain unchanged.
+Files changed: `TorBoxPreferences.kt`, `TorBoxApiService.kt`, `TorBoxSourceActionRepository.kt`, `DebridModule.kt`
+Regression risk: New inactive TorBox runtime path and DI wiring only. No existing source picker or playback caller uses the repository yet.
+QA result: `:app:compileDebugKotlin` and `:app:assembleDebug` passed. Compile required waiting for slow KAPT/Kotlin completion after the Gradle command wrapper timed out. Live repository invocation and existing-playback device regression QA remain pending for the later token/UI wiring pass.
+
+Date: 2026-06-01
+Module: Debrid / TorBox Identity Plumbing
+Issue fixed: Added nullable typed `AddableTorrentIdentity(infoHash, magnet?)` metadata to `MovieSource`. `UnifiedSourceProvider` now populates it from explicit normalized addon infoHash first or a hash extracted from a validated magnet second. Existing playback fields, direct HTTP handling, cache semantics, and source-picker behavior remain unchanged; direct addon/proxy HTTP URLs are not treated as addable torrent identity.
+Files changed: `XtreamRepository.kt`, `UnifiedSourceProvider.kt`
+Regression risk: Debrid addon source conversion only. Playback URL selection and existing picker behavior were intentionally preserved.
+QA result: `:app:compileDebugKotlin` and `:app:assembleDebug` passed after stopping a stalled Gradle daemon and rerunning with `--no-daemon --console plain`. Manual source-picker/playback regression QA remains pending.
+
 Date: 2026-05-31
 Module: Player / Debrid Session Ranking
 Issue fixed: Tightened the direct addon/proxy session-ranking success signal so first frame alone no longer boosts a row. Movie playback now requires first frame plus at least 30 minutes duration; episode/series playback requires first frame plus at least 5 minutes duration. Failure demotions and playback behavior remain unchanged.

@@ -5,7 +5,9 @@ import com.tvonnet.debridxtreamiptv.data.debrid.api.AddonCatalogServiceFactory
 import com.tvonnet.debridxtreamiptv.data.debrid.api.RealDebridApiService
 import com.tvonnet.debridxtreamiptv.data.debrid.api.RealDebridServiceFactory
 import com.tvonnet.debridxtreamiptv.data.debrid.api.TmdbApiService
+import com.tvonnet.debridxtreamiptv.data.debrid.api.TorBoxApiService
 import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
+import com.tvonnet.debridxtreamiptv.data.prefs.TorBoxPreferences
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -45,6 +47,34 @@ object DebridModule {
     @Singleton
     fun provideAddonCatalogService(): AddonCatalogService {
         return AddonCatalogServiceFactory.create()
+    }
+
+    @Provides
+    @Singleton
+    fun provideTorBoxApiService(preferences: TorBoxPreferences): TorBoxApiService {
+        val client = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                val token = preferences.getToken()
+                val request = if (token == null) {
+                    chain.request()
+                } else {
+                    chain.request()
+                        .newBuilder()
+                        .header("Authorization", "Bearer $token")
+                        .build()
+                }
+                chain.proceed(request)
+            }
+            .build()
+
+        return Retrofit.Builder()
+            .baseUrl("https://api.torbox.app/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(TorBoxApiService::class.java)
     }
 
     @Provides

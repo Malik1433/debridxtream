@@ -99,7 +99,8 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
                         backdropUrl = item.backdropUrl,
                         posterUrl = item.posterUrl,
                         plot = item.description,
-                        directSource = item.streamUrl
+                        directSource = item.streamUrl,
+                        trailer = item.trailerValue
                     )
                     navigateToFragment(detailFragment)
                 }
@@ -108,7 +109,8 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
                         seriesId = item.contentId,
                         title = item.title,
                         backdropUrl = item.backdropUrl,
-                        posterUrl = item.posterUrl
+                        posterUrl = item.posterUrl,
+                        trailer = item.trailerValue
                     )
                     navigateToFragment(detailFragment)
                 }
@@ -156,7 +158,8 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
                         backdropUrl = item.backdropUrl,
                         posterUrl = item.posterUrl,
                         plot = item.description,
-                        directSource = item.streamUrl
+                        directSource = item.streamUrl,
+                        trailer = item.trailerValue
                     )
                     navigateToFragment(detailFragment)
                 }
@@ -165,7 +168,8 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
                         seriesId = item.contentId,
                         title = item.title,
                         backdropUrl = item.backdropUrl,
-                        posterUrl = item.posterUrl
+                        posterUrl = item.posterUrl,
+                        trailer = item.trailerValue
                     )
                     navigateToFragment(detailFragment)
                 }
@@ -205,8 +209,9 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
                     }
 
                     Log.e("HISTORY_DEBUG", "RESUME_PATH: DIRECT to PlayerActivity")
-                    val resumeSeriesId = if (!isDebrid && item.contentType == ContentType.EPISODE) {
-                        resolveIptvSeriesIdForContinueWatching(item)
+                    val resumeSeriesId = if (item.contentType == ContentType.EPISODE) {
+                        item.seriesId?.takeIf { it.isNotBlank() }
+                            ?: if (!isDebrid) resolveIptvSeriesIdForContinueWatching(item) else null
                     } else {
                         null
                     }
@@ -322,7 +327,9 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
                     }
                 } else {
                     val seriesId = if (isDebrid) {
-                        item.tmdbId?.takeIf { it.isNotBlank() } ?: item.contentId
+                        item.seriesId?.takeIf { it.isNotBlank() }
+                            ?: item.tmdbId?.takeIf { it.isNotBlank() }
+                            ?: item.contentId
                     } else {
                         resolveIptvSeriesIdForContinueWatching(item) ?: item.contentId
                     }
@@ -352,7 +359,9 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
             }
             ContentType.SERIES -> {
                 val seriesId = if (isDebrid) {
-                    item.tmdbId?.takeIf { it.isNotBlank() } ?: item.contentId
+                    item.seriesId?.takeIf { it.isNotBlank() }
+                        ?: item.tmdbId?.takeIf { it.isNotBlank() }
+                        ?: item.contentId
                 } else {
                     resolveIptvSeriesIdForContinueWatching(item) ?: item.contentId
                 }

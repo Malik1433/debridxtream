@@ -1,5 +1,17 @@
 # Player Success History
 
+## Successful Pattern - Direct Debrid Timeout Source Return
+- **Date**: 2026-06-03
+- **Achievement**: Avoided direct-proxy no-first-frame timeout loops by returning failed Debrid sources to the picker instead of retrying the same URL/extraction path first.
+- **Key Implementation**: `PlayerActivity` detects direct addon/proxy buffering timeout before first frame, records the source as failed, and uses `EXTRA_RETURN_TO_SOURCES` with `EXTRA_FAILED_STREAM_ID` prioritized to the Debrid stream id.
+- **Proof**: Implementation is in place; full Gradle/device closure is pending because compile is currently timing out in Kotlin full rebuild.
+
+## Successful Pattern - Debrid Multi-Strike Stall Recovery
+- **Date**: 2026-06-03
+- **Achievement**: Hardened Debrid playback recovery so temporary `READY`-state stalls no longer immediately become terminal playback failures.
+- **Key Implementation**: Kept IPTV watchdog behavior unchanged, required multiple Debrid stall windows before synthetic error escalation, added `stall_warning` diagnostics, and routed recoverable direct Debrid player errors/timeouts through source-profile refresh before same-URL retry.
+- **Proof**: `:app:compileDebugKotlin` passed. Focused tests passed: `PlayerViewModelDebridDirectPassthroughTest` and `DebridPlaybackRepositoryTest`. Device long-run QA remains pending.
+
 ## Successful Pattern - Truthful Cinematic Controller Match
 - **Date**: 2026-05-31
 - **Achievement**: Matched the reference controller composition while preserving existing player action IDs and the single active runtime path.

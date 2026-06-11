@@ -12,12 +12,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import javax.inject.Inject
 
 /**
  * ViewModel for the Debrid Discover screen.
  *
- * Manages 4-way filter state (Type, Genre, Region, Sort) and exposes
+ * Manages 4-way filter state (Type, Catalogue, Genre, Year) and exposes
  * a unified UI state for consumption by [DebridDiscoverActivity].
  */
 @HiltViewModel
@@ -37,8 +38,8 @@ class DebridDiscoverViewModel @Inject constructor(
 
     private var currentType = "movie"
     private var currentGenreId: String? = null
-    private var currentLanguage: String? = null
-    private var currentSortBy = "popularity.desc"
+    private var currentCatalogue = AddonCatalogRepository.CATALOGUE_POPULAR
+    private var currentYear: Int? = null
     private var currentPage = 1
     private var items = mutableListOf<CatalogItem>()
     private var canLoadMore = true
@@ -64,11 +65,19 @@ class DebridDiscoverViewModel @Inject constructor(
 
     // ── Sort options ────────────────────────────────────────────────────────────
 
-    val sortOptions = listOf(
-        DiscoverSort("Popular", "popularity.desc"),
-        DiscoverSort("Newest", "primary_release_date.desc"),
-        DiscoverSort("Top Rated", "vote_average.desc")
+    val catalogueOptions = listOf(
+        DiscoverCatalogue("Popular", AddonCatalogRepository.CATALOGUE_POPULAR),
+        DiscoverCatalogue("Top Rated", AddonCatalogRepository.CATALOGUE_TOP_RATED),
+        DiscoverCatalogue("Newest", AddonCatalogRepository.CATALOGUE_NEWEST)
     )
+
+    val yearOptions: List<Int?> = buildList {
+        add(null)
+        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+        repeat(YEAR_RANGE_COUNT) { offset ->
+            add(currentYear - offset)
+        }
+    }
 
     init {
         loadGenres("movie")
@@ -103,25 +112,15 @@ class DebridDiscoverViewModel @Inject constructor(
         loadContent(reset = true)
     }
 
-    /**
-     * Called when the user selects a region (language) chip.
-     *
-     * @param languageCode ISO 639-1 language code, e.g. "hi" for Hindi, or null for "All".
-     */
-    fun setRegion(languageCode: String?) {
-        if (currentLanguage == languageCode) return
-        currentLanguage = languageCode
+    fun setCatalogue(catalogue: String) {
+        if (currentCatalogue == catalogue) return
+        currentCatalogue = catalogue
         loadContent(reset = true)
     }
 
-    /**
-     * Called when the user selects a sort option.
-     *
-     * @param sortBy TMDB sort_by param string.
-     */
-    fun setSort(sortBy: String) {
-        if (currentSortBy == sortBy) return
-        currentSortBy = sortBy
+    fun setYear(year: Int?) {
+        if (currentYear == year) return
+        currentYear = year
         loadContent(reset = true)
     }
 
@@ -156,8 +155,8 @@ class DebridDiscoverViewModel @Inject constructor(
                 val result = catalogRepo.getDiscoveryContent(
                     type = currentType,
                     page = currentPage,
-                    sortBy = currentSortBy,
-                    originalLanguage = currentLanguage,
+                    catalogue = currentCatalogue,
+                    year = currentYear,
                     withGenres = currentGenreId
                 )
                 result.onSuccess { newItems ->
@@ -195,4 +194,6 @@ sealed class DiscoverUiState {
 }
 
 data class DiscoverRegion(val label: String, val code: String?)
-data class DiscoverSort(val label: String, val value: String)
+data class DiscoverCatalogue(val label: String, val value: String)
+
+private const val YEAR_RANGE_COUNT = 40

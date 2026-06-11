@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "error": null,
+  "detail": "Found Cached Torrent. Using Cached Torrent.",
+  "data": {
+    "hash": "<redacted>",
+    "torrent_id": "<resource-id>",
+    "auth_id": "<redacted-account-id>"
+  }
+}

@@ -282,6 +282,9 @@ class PlayerActivity : AppCompatActivity() {
         private const val STALL_THRESHOLD_MS = 12000L
         private const val LOW_RAM_STALL_THRESHOLD_MS = 15000L
         private const val LOW_RAM_STALL_STRIKES = 2
+        private const val DEBRID_READY_STALL_STRIKES = 3
+        private const val DIRECT_DEBRID_READY_STALL_STRIKES = 4
+        private const val DIRECT_DEBRID_LOW_RAM_STALL_STRIKES = 3
         private const val NETWORK_RECOVERY_BUFFER_MS = 5000L
         private const val LOW_RAM_MAX_BUFFER_MS = 30000
         private const val LOW_RAM_TARGET_BUFFER_BYTES = 12 * 1024 * 1024
@@ -453,12 +456,7 @@ class PlayerActivity : AppCompatActivity() {
         val hasResInfo = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
         val isDebridHistoryResume = isDebrid && startPositionMs > 0L
         val isDebridUrlMissing = streamUrl.isNullOrBlank()
-        val canFreshResolveDirectDebrid = isDebrid && directDebridPlayback && (
-            tmdbIdExtra?.isNotBlank() == true ||
-                imdbIdExtra?.isNotBlank() == true ||
-                contentId?.isNotBlank() == true ||
-                originalTitle?.isNotBlank() == true
-            )
+        val canFreshResolveDirectDebrid = canFreshResolveDirectDebrid()
         val isExpired = expiresAtExtra?.let { System.currentTimeMillis() > it }
             ?: (isDebrid && (isDebridUrlMissing || isDebridHistoryResume))
 
@@ -656,27 +654,7 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         if (canFreshResolveDirectDebrid && isExpired) {
-            Log.i("PlayerActivity", "Direct Debrid resume detected: refreshing source from metadata before playback.")
-            isResolvingDebrid = true
-            if (contentType == ContentType.EPISODE && seasonNumberExtra != null && episodeNumberExtra != null) {
-                viewModel.loadNextDebridEpisode(
-                    seriesId = debridSeriesLookupId(),
-                    targetSeason = seasonNumberExtra ?: 1,
-                    targetEpisode = episodeNumberExtra ?: 1,
-                    seriesTitle = seriesTitleExtra ?: originalTitle,
-                    infoHash = debridInfoHashExtra ?: debridStreamIdExtra,
-                    sourceProfile = currentDebridSourceProfile(),
-                    allowDirectHttpPassthrough = true
-                )
-            } else {
-                viewModel.refreshDebridMovieSource(
-                    streamId = tmdbIdExtra ?: contentId,
-                    title = originalTitle,
-                    imdbId = imdbIdExtra,
-                    sourceProfile = currentDebridSourceProfile(),
-                    allowDirectHttpPassthrough = true
-                )
-            }
+            refreshDirectDebridSourceFromMetadata("expired_direct_resume")
         } else if (canResolveDebrid && hasResInfo && (isDebridUrlMissing || isExpired)) {
             Log.i("PlayerActivity", "Debrid resume detected: URL is ${if (isDebridUrlMissing) "missing" else "expired"}. Triggering resolution.")
             isResolvingDebrid = true
@@ -1255,6 +1233,54 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun canUseDebridResolver(): Boolean {
         return playbackSource == PlaybackSource.DEBRID && !directDebridPlayback
+    }
+
+    private fun canFreshResolveDirectDebrid(): Boolean {
+        return playbackSource == PlaybackSource.DEBRID &&
+            directDebridPlayback &&
+            (
+                tmdbIdExtra?.isNotBlank() == true ||
+                    imdbIdExtra?.isNotBlank() == true ||
+                    contentId?.isNotBlank() == true ||
+                    originalTitle?.isNotBlank() == true
+                )
+    }
+
+    private fun refreshDirectDebridSourceFromMetadata(reason: String): Boolean {
+        if (!canFreshResolveDirectDebrid() || isResolvingDebrid) return false
+        PlaybackDiagnosticsRecorder.record(
+            this,
+            "direct_debrid_refresh_started",
+            diagnosticsPlaybackFields() + mapOf(
+                "reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(reason),
+                "positionMs" to (player?.currentPosition ?: startPositionMs)
+            )
+        )
+        Log.i("PlayerActivity", "Direct Debrid refresh requested: $reason")
+        isResolvingDebrid = true
+        if (contentType != ContentType.LIVE_TV && (player?.currentPosition ?: 0L) > 1000L) {
+            startPositionMs = player?.currentPosition ?: startPositionMs
+        }
+        if (contentType == ContentType.EPISODE && seasonNumberExtra != null && episodeNumberExtra != null) {
+            viewModel.loadNextDebridEpisode(
+                seriesId = debridSeriesLookupId(),
+                targetSeason = seasonNumberExtra ?: 1,
+                targetEpisode = episodeNumberExtra ?: 1,
+                seriesTitle = seriesTitleExtra ?: originalTitle,
+                infoHash = debridInfoHashExtra ?: debridStreamIdExtra,
+                sourceProfile = currentDebridSourceProfile(),
+                allowDirectHttpPassthrough = true
+            )
+        } else {
+            viewModel.refreshDebridMovieSource(
+                streamId = tmdbIdExtra ?: contentId,
+                title = originalTitle,
+                imdbId = imdbIdExtra,
+                sourceProfile = currentDebridSourceProfile(),
+                allowDirectHttpPassthrough = true
+            )
+        }
+        return true
     }
 
     private fun currentDebridSourceProfile(): DebridSourceProfile? {
@@ -1887,17 +1913,19 @@ class PlayerActivity : AppCompatActivity() {
                 )
             )
             val hasDurableDebridIdentity = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
+            if (directDebridPlayback && refreshDirectDebridSourceFromMetadata("player_error_direct_refresh")) {
+                return
+            }
             if (canUseDebridResolver() && !isResolvingDebrid && hasDurableDebridIdentity) {
                   isResolvingDebrid = true
                   if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
-                  val allowDirectHttpPassthroughForRetry = !hasDurableDebridIdentity && directDebridPlayback
                   viewModel.reResolveDebridUrl(
                       debridInfoHashExtra,
                       debridMagnetExtra,
                       seasonNumberExtra,
                       episodeNumberExtra,
                       episodeTitleExtra,
-                      allowDirectHttpPassthrough = allowDirectHttpPassthroughForRetry
+                      allowDirectHttpPassthrough = false
                   )
                   return
             }
@@ -1933,7 +1961,7 @@ class PlayerActivity : AppCompatActivity() {
         if (p.playWhenReady && p.playbackState == Player.STATE_READY) {
             val isLowRamDevice = DeviceProfile.isLowRamDevice(this)
             val stallThresholdMs = if (isLowRamDevice) LOW_RAM_STALL_THRESHOLD_MS else STALL_THRESHOLD_MS
-            val requiredStrikes = if (isLowRamDevice) LOW_RAM_STALL_STRIKES else 1
+            val requiredStrikes = readyStallRequiredStrikes(isLowRamDevice)
             val currentPos = p.currentPosition
             if (currentPos > lastBoundPosition) { lastBoundPosition = currentPos; lastProgressCheckMs = now; stallStrikeCount = 0; return }
             if (currentPos > 0 && now - lastProgressCheckMs >= stallThresholdMs) {
@@ -1949,10 +1977,31 @@ class PlayerActivity : AppCompatActivity() {
                     )
                     stallStrikeCount = 0
                     handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
+                } else {
+                    PlaybackDiagnosticsRecorder.record(
+                        this,
+                        "stall_warning",
+                        diagnosticsPlaybackFields() + mapOf(
+                            "positionMs" to currentPos,
+                            "stallThresholdMs" to stallThresholdMs,
+                            "stallStrikeCount" to stallStrikeCount,
+                            "requiredStrikes" to requiredStrikes
+                        )
+                    )
                 }
                 lastProgressCheckMs = now
             }
         } else { lastBoundPosition = p.currentPosition; lastProgressCheckMs = now; stallStrikeCount = 0 }
+    }
+
+    private fun readyStallRequiredStrikes(isLowRamDevice: Boolean): Int {
+        if (playbackSource != PlaybackSource.DEBRID) {
+            return if (isLowRamDevice) LOW_RAM_STALL_STRIKES else 1
+        }
+        if (directDebridPlayback) {
+            return if (isLowRamDevice) DIRECT_DEBRID_LOW_RAM_STALL_STRIKES else DIRECT_DEBRID_READY_STALL_STRIKES
+        }
+        return DEBRID_READY_STALL_STRIKES
     }
 
 
@@ -1980,6 +2029,14 @@ class PlayerActivity : AppCompatActivity() {
                 "buffer_timeout",
                 diagnosticsPlaybackFields(timedOutUrl) + mapOf("reasonCode" to "TIMEOUT")
             )
+            if (!timedOutUrl.isNullOrBlank() &&
+                requiresAddonProxyPlaybackContext(timedOutUrl) &&
+                !hasRenderedFirstFrameForCurrentSource
+            ) {
+                recordDirectAddonProxyFailure()
+                finishWithReturnToSources(autoPlayNext = true, reason = "Connection timeout")
+                return
+            }
             if (!timedOutUrl.isNullOrBlank() && hasRepeatedDirectAddonProxyTimeout(timedOutUrl)) {
                 recordDirectAddonProxyFailure()
                 handleTerminalPlaybackFailure("Connection timeout")
@@ -1995,6 +2052,9 @@ class PlayerActivity : AppCompatActivity() {
                         "retrySource" to "buffer_timeout"
                     )
                 )
+                if (directDebridPlayback && refreshDirectDebridSourceFromMetadata("buffer_timeout_direct_refresh")) {
+                    return
+                }
                 if (canUseDebridResolver() && !isResolvingDebrid && retryCount > 1 && (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())) {
                       isResolvingDebrid = true
                       if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
@@ -2369,7 +2429,7 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun setExitResultIfNeeded() { if (exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete) return; val pos = player?.currentPosition ?: lastPlaybackPositionMs; if (manualExit || pos < RETURN_TO_SOURCES_THRESHOLD_MS) { exitResultHandled = true; setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RETURN_TO_SOURCES, true)) } }
-    private fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean { if (!returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || exitResultHandled) return false; exitResultHandled = true; PlaybackDiagnosticsRecorder.record(this, "return_to_sources", diagnosticsPlaybackFields() + mapOf("reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(reason), "autoPlayNext" to autoPlayNext)); setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RETURN_TO_SOURCES, true).putExtra(EXTRA_FAILED_STREAM_ID, contentId ?: debridInfoHashExtra ?: currentUrl).putExtra(EXTRA_FAIL_REASON, reason).putExtra(EXTRA_AUTO_PLAY_NEXT, autoPlayNext)); releasePlayer("return_to_sources"); PlaybackDiagnosticsRecorder.finishSession(this, "return_to_sources"); finish(); return true }
+    private fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean { if (!returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || exitResultHandled) return false; exitResultHandled = true; PlaybackDiagnosticsRecorder.record(this, "return_to_sources", diagnosticsPlaybackFields() + mapOf("reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(reason), "autoPlayNext" to autoPlayNext)); setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RETURN_TO_SOURCES, true).putExtra(EXTRA_FAILED_STREAM_ID, debridStreamIdExtra ?: debridInfoHashExtra ?: contentId ?: currentUrl).putExtra(EXTRA_FAIL_REASON, reason).putExtra(EXTRA_AUTO_PLAY_NEXT, autoPlayNext)); releasePlayer("return_to_sources"); PlaybackDiagnosticsRecorder.finishSession(this, "return_to_sources"); finish(); return true }
     private fun handleTerminalPlaybackFailure(reason: String, preferReturnToSources: Boolean = false) {
         PlaybackDiagnosticsRecorder.record(
             this,

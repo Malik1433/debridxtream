@@ -262,14 +262,31 @@ class DebridPlaybackRepository @Inject constructor(
         val value = location?.lowercase() ?: return false
         return value.contains("torrent_not_downloaded") ||
             value.contains("not_downloaded") ||
+            value.contains("not-downloaded") ||
             value.contains("not-ready") ||
             value.contains("not_ready") ||
+            value.contains("notready") ||
             value.contains("notcached") ||
             value.contains("not_cached") ||
+            value.contains("not-cached") ||
             value.contains("api_exception") ||
+            value.contains("api-exception") ||
+            value.contains("api exception") ||
             value.contains("exception") ||
             value.contains("rate_limit") ||
+            value.contains("rate-limit") ||
+            value.contains("rate limit") ||
+            value.contains("limit_reached") ||
+            value.contains("limit-reached") ||
+            value.contains("limit reached") ||
+            value.contains("quota") ||
+            value.contains("provider_error") ||
+            value.contains("provider-error") ||
+            value.contains("provider error") ||
             value.contains("invalid_token") ||
+            value.contains("invalid-token") ||
+            value.contains("invalid token") ||
+            value.contains("error=") ||
             value.contains("error.mp4") ||
             value.contains("/error")
     }

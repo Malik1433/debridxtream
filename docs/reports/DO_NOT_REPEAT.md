@@ -29,6 +29,10 @@ Critical warnings for future development in the IPTV Series and VOD modules.
 9. **DO NOT** use `EXTRA_STREAM_URL` or `currentUrl` as an IPTV Series episode id. Playlist and episode-browser loading must use the real episode/content id only.
 10. **DO NOT** fall back to episode 0 when playlist state cannot find the requested current episode. Keep the list visible but leave current/next state unselected until the user chooses an episode.
 
+## Trailer Rules
+- **DO NOT** route blocked YouTube trailers through mobile/desktop/TV watch pages inside WebView. Use app-origin embed URLs with `origin`/`Referer` identity first, and only then fall back to an external YouTube intent.
+- **DO NOT** claim trailer playback PASS from build/install alone. Confirm device rendering because Fire TV WebView can show YouTube `Error 153` only after the trailer starts.
+
 ## IPTV Episode Browser Rule
 Do not block UI state emission on a long-running provider collect. For player overlays, emit loading/empty/error states quickly, use bounded fetches, and never allow infinite spinner.
 
@@ -85,6 +89,12 @@ Do not block direct Debrid fresh-resolve just because older history entries are 
 
 ## Debrid Direct Freshness Split Rule
 Do not use one no-passthrough branch for both stale direct history replay and fresh provider-fetched direct URLs. Block the history URL, but let fresh direct metadata refresh results pass through and play.
+
+## Debrid Playback Stall Rule
+Do not terminate Debrid VOD from a single `READY`-state position freeze. Emit diagnostics first, require multiple Debrid stall windows, and refresh direct Debrid from saved source-profile metadata before falling back to same-URL retry. Keep terminal provider/HTTP failures terminal.
+
+## Debrid Direct Proxy Readiness Rule
+Do not collapse direct addon/proxy readiness to Boolean. `TERMINAL` redirects/errors must be blocked before Player, `UNCERTAIN` can be an explicit one-shot user attempt, and failed direct-proxy stream ids must be skipped by auto-next/retry for the current picker session.
 
 ## Debrid Episode Continuity Rule
 Do not pick the next Debrid episode by quality alone. Episode browser selection, Next, and auto-next must prefer the same provider/source family and language as the current source when a matching candidate exists, then fall back to playback readiness, quality, and seeders.

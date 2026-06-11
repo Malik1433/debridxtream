@@ -10,7 +10,11 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import kotlinx.coroutines.test.runTest
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -83,5 +87,73 @@ class DebridPlaybackRepositoryTest {
         )
 
         assertTrue(result is Result.Error)
+    }
+
+    @Test
+    fun `addon proxy error redirect is terminal`() = runTest {
+        val testRepository = repositoryWithClient { chain ->
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(302)
+                .message("Found")
+                .header("Location", "/error?reason=api_exception")
+                .body(ByteArray(0).toResponseBody(null))
+                .build()
+        }
+
+        val result = testRepository.getAddonProxyPlaybackReadiness(
+            url = "https://mediafusion.elfhosted.com/playback/abc/video.mkv"
+        )
+
+        assertTrue(result is Result.Success)
+        assertEquals(AddonProxyReadiness.TERMINAL, (result as Result.Success).data)
+    }
+
+    @Test
+    fun `addon proxy video response is ready`() = runTest {
+        val testRepository = repositoryWithClient { chain ->
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .header("Content-Type", "video/mp4")
+                .header("Content-Length", "1000000")
+                .body(ByteArray(0).toResponseBody(null))
+                .build()
+        }
+
+        val result = testRepository.getAddonProxyPlaybackReadiness(
+            url = "https://aiostreams.elfhosted.com/playback/abc/video.mkv"
+        )
+
+        assertTrue(result is Result.Success)
+        assertEquals(AddonProxyReadiness.READY, (result as Result.Success).data)
+    }
+
+    @Test
+    fun `addon proxy network failure is uncertain not terminal`() = runTest {
+        val testRepository = repositoryWithClient {
+            throw java.net.SocketTimeoutException("timeout")
+        }
+
+        val result = testRepository.getAddonProxyPlaybackReadiness(
+            url = "https://aiostreams.elfhosted.com/playback/abc/video.mkv"
+        )
+
+        assertTrue(result is Result.Success)
+        assertEquals(AddonProxyReadiness.UNCERTAIN, (result as Result.Success).data)
+    }
+
+    private fun repositoryWithClient(block: (Interceptor.Chain) -> Response): DebridPlaybackRepository {
+        return DebridPlaybackRepository(
+            realDebridRemote = remote,
+            debridAccountRepository = accountRepository,
+            okHttpClient = OkHttpClient.Builder()
+                .addInterceptor { chain -> block(chain) }
+                .build(),
+            realDebridRateLimiter = rateLimiter
+        )
     }
 }

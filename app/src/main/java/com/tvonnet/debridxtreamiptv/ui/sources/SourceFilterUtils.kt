@@ -2,6 +2,7 @@ package com.tvonnet.debridxtreamiptv.ui.sources
 
 import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
+import java.util.IdentityHashMap
 
 data class SourceFilterState(
     val cachedOnly: Boolean = false,
@@ -32,7 +33,7 @@ object SourceFilterUtils {
     val LANGUAGE_OPTIONS = arrayOf("All", "Multi", "English", "Hindi", "Punjabi", "German", "French", "Urdu", "Unknown")
     val TYPE_OPTIONS = arrayOf("All", "RD Cached", "Direct", "Torrent/Add-on", "Unknown")
 
-    fun apply(sources: List<MovieSource>, state: SourceFilterState): List<MovieSource> {
+    fun filter(sources: List<MovieSource>, state: SourceFilterState): List<MovieSource> {
         var filtered = sources
 
         if (state.cachedOnly) {
@@ -84,17 +85,26 @@ object SourceFilterUtils {
             }
         }
 
+        return filtered
+    }
+
+    fun apply(sources: List<MovieSource>, state: SourceFilterState): List<MovieSource> {
+        val filtered = filter(sources, state)
         val selectedSortLang = state.preferredLanguage
             ?.takeIf { it != "All" }
             ?.lowercase()
         val globalSortLang = state.sortLanguage?.lowercase()
         val sortLang = selectedSortLang ?: globalSortLang
+        val sessionScores = IdentityHashMap<MovieSource, Int>(filtered.size)
+        filtered.forEach { source ->
+            sessionScores[source] = SessionSourcePreference.score(source)
+        }
 
-        filtered = if (selectedSortLang != null) {
+        return if (selectedSortLang != null) {
             filtered.sortedWith(
                 compareByDescending<MovieSource> { getLanguageMatchScore(it, selectedSortLang) }
                     .thenByDescending { getCachePriority(it) }
-                    .thenByDescending { SessionSourcePreference.score(it) }
+                    .thenByDescending { sessionScores[it] ?: 0 }
                     .thenByDescending { getRecoveryLanguageScore(it) }
                     .thenByDescending { it.seeders ?: -1 }
             )
@@ -102,13 +112,11 @@ object SourceFilterUtils {
             filtered.sortedWith(
                 compareByDescending<MovieSource> { getCachePriority(it) }
                     .thenByDescending { if (sortLang != null) getLanguageMatchScore(it, sortLang) else 0 }
-                    .thenByDescending { SessionSourcePreference.score(it) }
+                    .thenByDescending { sessionScores[it] ?: 0 }
                     .thenByDescending { getRecoveryLanguageScore(it) }
                     .thenByDescending { it.seeders ?: -1 }
             )
         }
-
-        return filtered
     }
 
     fun hasCacheConfidence(source: MovieSource): Boolean {

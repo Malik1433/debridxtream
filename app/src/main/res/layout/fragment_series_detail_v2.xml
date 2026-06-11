@@ -104,6 +104,20 @@
             android:visibility="gone"
             tools:text="S03E06 • Twice in a Lifetime" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_trailer"
+            style="@style/Cin.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="56dp"
+            android:layout_marginTop="20dp"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:text="TRAILER"
+            android:textSize="16sp"
+            android:nextFocusUp="@id/btn_back"
+            android:nextFocusDown="@id/rv_seasons"
+            app:cornerRadius="12dp" />
+
     </LinearLayout>
 
 

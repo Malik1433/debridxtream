@@ -19,6 +19,7 @@ import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder
 import com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
 import com.tvonnet.debridxtreamiptv.ui.trailer.TrailerActivity
+import com.tvonnet.debridxtreamiptv.ui.trailer.TrailerValueParser
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -197,7 +198,7 @@ class MovieDetailFragmentV2 : Fragment() {
 
         binding.btnTrailer.setOnClickListener {
             val currentTrailer = resolvedTrailer
-            if (currentTrailer.isNullOrBlank()) {
+            if (currentTrailer.isNullOrBlank() || TrailerValueParser.parse(currentTrailer) == null) {
                 Toast.makeText(context, "No trailer available", Toast.LENGTH_SHORT).show()
             } else {
                 startActivity(TrailerActivity.createIntent(requireContext(), currentTrailer))
@@ -296,7 +297,7 @@ class MovieDetailFragmentV2 : Fragment() {
     }
 
     private fun updateTrailerButtonState(trailerValue: String?, isLoading: Boolean) {
-        val hasTrailer = !trailerValue.isNullOrBlank()
+        val hasTrailer = TrailerValueParser.parse(trailerValue) != null
         // TMDB enrichment can be loading while we already have a provider trailer.
         // Keep trailer playable whenever a trailer value exists.
         binding.btnTrailer.isEnabled = hasTrailer

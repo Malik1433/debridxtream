@@ -18,6 +18,8 @@ import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.tvonnet.debridxtreamiptv.databinding.FragmentSeriesDetailV2Binding
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.SeriesDetailUiState
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.SeriesNavigationEvent
+import com.tvonnet.debridxtreamiptv.ui.trailer.TrailerActivity
+import com.tvonnet.debridxtreamiptv.ui.trailer.TrailerValueParser
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -46,6 +48,7 @@ class SeriesDetailFragmentV2 : Fragment() {
     private var lastFocusedSeasonNum: Int? = null
     private var isRestoringFocus = false
     private var seriesPlot: String? = null
+    private var resolvedTrailer: String? = null
     
     // Top Badge State
     private var currentRating: String = ""
@@ -56,14 +59,22 @@ class SeriesDetailFragmentV2 : Fragment() {
         const val ARG_TITLE = "title"
         const val ARG_BACKDROP_URL = "backdrop_url"
         const val ARG_POSTER_URL = "poster_url"
+        const val ARG_TRAILER = "trailer"
 
-        fun newInstance(seriesId: String, title: String?, backdropUrl: String?, posterUrl: String?): SeriesDetailFragmentV2 {
+        fun newInstance(
+            seriesId: String,
+            title: String?,
+            backdropUrl: String?,
+            posterUrl: String?,
+            trailer: String? = null
+        ): SeriesDetailFragmentV2 {
             return SeriesDetailFragmentV2().apply {
                 arguments = Bundle().apply {
                     putString(ARG_SERIES_ID, seriesId)
                     putString(ARG_TITLE, title)
                     putString(ARG_BACKDROP_URL, backdropUrl)
                     putString(ARG_POSTER_URL, posterUrl)
+                    putString(ARG_TRAILER, trailer)
                 }
             }
         }
@@ -95,6 +106,7 @@ class SeriesDetailFragmentV2 : Fragment() {
             val title = args.getString(ARG_TITLE)
             val backdropUrl = args.getString(ARG_BACKDROP_URL)
             val posterUrl = args.getString(ARG_POSTER_URL)
+            resolvedTrailer = args.getString(ARG_TRAILER)
 
             binding.tvTitle.text = title ?: "Loading..."
             
@@ -107,6 +119,7 @@ class SeriesDetailFragmentV2 : Fragment() {
             
             // Poster logic removed for Cinematic Layout
         }
+        updateTrailerButtonState()
     }
 
     private fun setupRecyclerView() {
@@ -332,6 +345,9 @@ class SeriesDetailFragmentV2 : Fragment() {
     private fun bindMetadata(state: SeriesDetailUiState.Success) {
         val s = state.series
         seriesPlot = s.plot
+        if (!s.youtubeTrailer.isNullOrBlank()) {
+            resolvedTrailer = s.youtubeTrailer
+        }
         binding.tvTitle.text = s.title ?: s.name
         binding.tvPlot.text = s.plot ?: "No plot available."
         
@@ -351,6 +367,7 @@ class SeriesDetailFragmentV2 : Fragment() {
             // Force re-bind of visible items to update thumbnails if they were placeholders
             adapter?.notifyItemRangeChanged(0, adapter?.itemCount ?: 0, Any()) 
         }
+        updateTrailerButtonState()
     }
 
 
@@ -371,6 +388,22 @@ class SeriesDetailFragmentV2 : Fragment() {
         binding.btnFavorite?.setOnClickListener {
             Toast.makeText(context, "Added to favorites", Toast.LENGTH_SHORT).show()
         }
+
+        binding.btnTrailer.setOnClickListener {
+            val trailerValue = resolvedTrailer
+            if (TrailerValueParser.parse(trailerValue) == null || trailerValue.isNullOrBlank()) {
+                Toast.makeText(context, "No trailer available", Toast.LENGTH_SHORT).show()
+            } else {
+                startActivity(TrailerActivity.createIntent(requireContext(), trailerValue))
+            }
+        }
+    }
+
+    private fun updateTrailerButtonState() {
+        if (_binding == null) return
+        val hasTrailer = TrailerValueParser.parse(resolvedTrailer) != null
+        binding.btnTrailer.isEnabled = hasTrailer
+        binding.btnTrailer.alpha = if (hasTrailer) 1.0f else 0.45f
     }
 
     private fun restoreFocusDetails() {

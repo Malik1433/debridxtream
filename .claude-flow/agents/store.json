@@ -402,6 +402,90 @@
       "domain": "debxtrem-docs-and-build",
       "model": "sonnet",
       "modelRoutedBy": "explicit"
+    },
+    "arch-trace": {
+      "agentId": "arch-trace",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-06-07T01:24:11.331Z",
+      "domain": "debxtrem",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "data-id": {
+      "agentId": "data-id",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-06-07T01:24:11.867Z",
+      "domain": "debxtrem",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "fetch-resolve": {
+      "agentId": "fetch-resolve",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-06-07T01:24:12.081Z",
+      "domain": "debxtrem",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "ui-focus": {
+      "agentId": "ui-focus",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-06-07T01:24:12.323Z",
+      "domain": "debxtrem",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "state-life": {
+      "agentId": "state-life",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-06-07T01:24:12.540Z",
+      "domain": "debxtrem",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "player-handoff": {
+      "agentId": "player-handoff",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "sonnet"
+      },
+      "createdAt": "2026-06-07T01:24:12.781Z",
+      "domain": "debxtrem",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
     }
   },
   "version": "3.0.0"

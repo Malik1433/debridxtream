@@ -133,7 +133,8 @@ data class FeaturedItem(
     val description: String?,
     val rating: String? = null,
     val streamUrl: String?,
-    val sourceType: SourceType = SourceType.IPTV
+    val sourceType: SourceType = SourceType.IPTV,
+    val trailerValue: String? = null
 )
 
 /**
@@ -214,7 +215,8 @@ fun XtreamVodInfo.toFeaturedItem(serverUrl: String, username: String, password: 
         backdropUrl = absoluteCover ?: absoluteIcon,
         posterUrl = absoluteIcon ?: absoluteCover,
         description = plot,
-        streamUrl = streamUrl
+        streamUrl = streamUrl,
+        trailerValue = youtube_trailer
     )
 }
 
@@ -227,7 +229,8 @@ fun XtreamSeriesInfo.toFeaturedItem(serverUrl: String): FeaturedItem {
         backdropUrl = absoluteCover,
         posterUrl = absoluteCover,
         description = plot,
-        streamUrl = null // Series need episode selection
+        streamUrl = null, // Series need episode selection
+        trailerValue = youtube_trailer
     )
 }
 

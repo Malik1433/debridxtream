@@ -41,5 +41,9 @@
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">50%</item>
     </style>
+    <style name="DropdownAnimationStyle">
+        <item name="android:windowEnterAnimation">@anim/dropdown_slide_in</item>
+        <item name="android:windowExitAnimation">@anim/dropdown_slide_out</item>
+    </style>
     
 </resources>

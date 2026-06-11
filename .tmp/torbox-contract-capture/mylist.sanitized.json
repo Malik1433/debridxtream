@@ -1,0 +1,63 @@
+{
+  "success": true,
+  "error": null,
+  "detail": "Torrent list retrieved successfully.",
+  "data": {
+    "id": "<resource-id>",
+    "auth_id": "<redacted-account-id>",
+    "server": 0,
+    "hash": "<redacted>",
+    "name": "ubuntu-24.04.3-desktop-amd64.iso",
+    "magnet": "<redacted>",
+    "size": 6345887744,
+    "active": false,
+    "created_at": "2026-05-31T23:22:18Z",
+    "updated_at": "2026-05-31T23:22:18Z",
+    "download_state": "cached",
+    "seeds": 0,
+    "peers": 0,
+    "ratio": 0,
+    "progress": 1,
+    "download_speed": 0,
+    "upload_speed": 0,
+    "eta": 0,
+    "torrent_file": false,
+    "expires_at": null,
+    "download_present": true,
+    "files": [
+      {
+        "id": "<resource-id>",
+        "md5": null,
+        "hash": "<redacted>",
+        "name": "ubuntu-24.04.3-desktop-amd64/ubuntu-24.04.3-desktop-amd64.iso",
+        "size": 6345887744,
+        "zipped": false,
+        "s3_path": "<redacted-url>",
+        "infected": false,
+        "mimetype": "application/x-iso9660-image",
+        "short_name": "ubuntu-24.04.3-desktop-amd64.iso",
+        "absolute_path": "<redacted-url>",
+        "opensubtitles_hash": "<redacted>"
+      }
+    ],
+    "download_path": "<redacted-url>",
+    "availability": 0,
+    "download_finished": true,
+    "tracker": null,
+    "total_uploaded": 0,
+    "total_downloaded": 0,
+    "cached": true,
+    "owner": "<redacted-account-id>",
+    "seed_torrent": false,
+    "allow_zipped": true,
+    "long_term_seeding": false,
+    "tracker_message": null,
+    "cached_at": "2026-03-30T22:24:27Z",
+    "private": false,
+    "alternative_hashes": [
+      "<redacted>",
+      "<redacted>"
+    ],
+    "tags": []
+  }
+}

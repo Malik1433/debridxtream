@@ -2,6 +2,16 @@
 
 Established engineering and UI patterns that have proven stable and performant in the DebridXtream codebase.
 
+## 0A. Debrid Multi-Strike Stall Recovery
+- **Definition:** Treat Debrid VOD `READY`-state position freezes as warning windows before escalating to playback error, and refresh direct Debrid sources from metadata before replaying the same direct URL.
+- **Benefits:** Reduces false stop-after-some-time failures from temporary provider/CDN stalls while preserving terminal handling for truly dead, blocked, or expired sources.
+- **Implementation:** Keep IPTV watchdog behavior unchanged; for Debrid, emit `stall_warning`, require multiple stall strikes, route direct Debrid recoverable errors/timeouts through source-profile refresh, and keep resolver-backed Debrid retry on no-passthrough hash/magnet re-resolution.
+
+## 0B. Typed Direct-Proxy Readiness
+- **Definition:** Preserve addon direct-proxy readiness as `READY`, `UNCERTAIN`, or `TERMINAL` until the Movie/Series launch decision.
+- **Benefits:** Blocks known dead/API-error/not-cached links before Player while still allowing explicit user attempts for links that cannot prove readiness through preflight.
+- **Implementation:** Use typed `AddonProxyReadiness`, mark terminal rows failed for the current picker session, keep ready direct links as `DIRECT_STREAM`, and return no-first-frame direct-proxy timeouts to the picker with the failed stream id.
+
 ## 0. Truthful Reference-Match Controller UI
 - **Definition:** Match a reference player composition using existing actions and real metadata while omitting fake telemetry or dead decorative controls.
 - **Benefits:** Preserves TV remote stability and keeps the controller visually faithful without presenting unsupported behavior.
@@ -299,9 +309,20 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Benefits:** Keeps useful aggregate diagnostics while allowing app-process log scans to catch real leaks without false positives from "redacted" URL-like output.
 - **Implementation:** Use `SensitiveLogRedactor.describeUrl`, `describeHash`, `describeSecret`, and `describeException` for source/provider/image logs. Avoid logging raw throwable objects when network/source failures can include URLs or tokens. Prefer source counts, provider counts, cache status counts, and readiness booleans over source lists or release-title samples. Device QA on `192.168.0.84:5555` confirmed zero matches for raw URL, magnet, token-param, username/password, and long-hash patterns after Debrid movie source picker/direct playback.
 
+## 55. YouTube Trailer Embed Identity
+- **Definition:** Load YouTube trailer embeds from a stable app-owned HTTPS base origin and pass matching `origin`, `widget_referrer`, and `Referer` values.
+- **Benefits:** Prevents Fire TV WebView from redirecting embedded trailers to YouTube `Error 153` / "Video player configuration error" pages.
+- **Implementation:** Keep trailer playback inside `TrailerActivity` via IFrame API first, use app-origin embed candidates only, and fall back to an external YouTube intent only after WebView embeds are exhausted. Device QA on `192.168.0.21:5555` showed trailer video rendering in `TrailerActivity` with no `Error 153`, `AndroidRuntime`, or `FATAL EXCEPTION` entries.
+
 
 # #   A n d r o i d   T V   N a v i g a t i o n   P a t t e r n s 
  -   * * P a t t e r n * * :   o n B a c k P r e s s e d   w i t h   A n d r o i d   T V   N a v i g a t i o n 
  -   * * C o n t e x t * * :   W h e n   u s i n g    n d r o i d : p a r e n t A c t i v i t y N a m e   o n   A n d r o i d   T V ,   d e f a u l t   s u p e r . o n B a c k P r e s s e d ( )   m a y   t r i g g e r   U p - n a v i g a t i o n   w h i c h   r e c r e a t e s   t h e   p a r e n t   a c t i v i t y   ( c a u s i n g   t a b   r e s e t s ) . 
  -   * * S u c c e s s * * :   O v e r r i d e   o n B a c k P r e s s e d ( )   a n d   u s e    i n i s h ( )   d i r e c t l y   f o r   c h i l d   a c t i v i t i e s   t h a t   s h o u l d   s t r i c t l y   r e t u r n   t o   t h e   s p e c i f i c   f r a g m e n t   s t a t e   o f   t h e   p a r e n t   w i t h o u t   r e s e t t i n g   i t .  
  
+
+## 56. Android TV ListView Dropdown Click Traps
+- **Definition:** Custom views inside a `ListView` (like dropdowns in a PopupWindow) that are marked as `isFocusable = true` will swallow D-pad interactions and prevent the ListView's `onItemClickListener` from firing on Android TV.
+- **Benefits:** Ensures dropdown menus and filters correctly register D-pad clicks without forcing the user to use an air mouse.
+- **Implementation:** Explicitly attach `setOnClickListener` to the root view of the list item inside the Adapter's `getView()`, and add an explicit `setOnKeyListener` on the `ListView` to catch `KEYCODE_DPAD_CENTER` and `KEYCODE_ENTER` and fire the callback using the ListView's `selectedItemPosition`. Call `anchor.post { anchor.requestFocus() }` on dismiss to return focus to the parent layout safely.
+

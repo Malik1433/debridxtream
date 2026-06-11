@@ -25,10 +25,11 @@ import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
 import com.tvonnet.debridxtreamiptv.ui.vod.MovieSourceAdapter
 
 class SourceSelectionBottomSheet(
-    private val onSourceSelected: (MovieSource) -> Unit,
+    private val onSourceSelected: (MovieSource, List<String>) -> Unit,
     private val onStateChanged: ((SourceFilterState) -> Unit)? = null,
     initialState: SourceFilterState = SourceFilterState(),
     initialSelectedStreamId: String? = null,
+    initialReturnFocusStreamIds: List<String> = emptyList(),
     private val contentTitle: String? = null,
     private val backdropUrl: String? = null
 ) : DialogFragment() {
@@ -53,6 +54,9 @@ class SourceSelectionBottomSheet(
     private var statusMessage: String? = null
     private var pendingSources: List<MovieSource>? = null
     private var selectedStreamId: String? = initialSelectedStreamId
+    private var focusedStreamId: String? = initialSelectedStreamId
+    private var pendingReturnFocusStreamIds: List<String> = initialReturnFocusStreamIds
+    private var needsFocusRestore: Boolean = true
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -107,12 +111,22 @@ class SourceSelectionBottomSheet(
     private fun setupAdapters() {
         // Sources Adapter
         sourcesAdapter = MovieSourceAdapter(
-            onSourceFocused = { /* Optional: handle focus changes if needed */ },
+            onSourceFocused = { source ->
+                focusedStreamId = source.stream.stream_id
+            },
             onSourceClicked = { source ->
-                selectedStreamId = source.stream.stream_id
-                onSourceSelected(source)
+                val selectedId = source.stream.stream_id
+                selectedStreamId = selectedId
+                val adjacentStreamIds = selectedId?.let { streamId ->
+                    buildAdjacentReturnFocusStreamIds(
+                        displayedSources.mapNotNull { it.stream.stream_id },
+                        streamId
+                    )
+                }.orEmpty()
+                onSourceSelected(source, adjacentStreamIds)
                 dismiss()
-            }
+            },
+            onNavigateUpFromFirstRow = { focusTopControl() }
         )
         rvSources.layoutManager = LinearLayoutManager(context)
         rvSources.setHasFixedSize(true)
@@ -191,6 +205,7 @@ class SourceSelectionBottomSheet(
 
         if (allSources.isEmpty()) {
             displayedSources = emptyList()
+            focusedStreamId = null
             statusMessage = getString(R.string.movie_detail_sources_empty)
             dynamicTypeOptions = arrayOf("All")
             layoutSourceFilters.visibility = View.GONE
@@ -253,6 +268,7 @@ class SourceSelectionBottomSheet(
         if (languageChanged) {
             selectedStreamId = null
         }
+        needsFocusRestore = true
         refreshDynamicTypeOptions()
         onStateChanged?.invoke(filterState)
         updateFilterOptions()
@@ -260,7 +276,7 @@ class SourceSelectionBottomSheet(
     }
 
     private fun refreshDynamicTypeOptions() {
-        val preTypeSources = SourceFilterUtils.apply(allSources, filterState.copy(preferredType = null))
+        val preTypeSources = SourceFilterUtils.filter(allSources, filterState.copy(preferredType = null))
         dynamicTypeOptions = buildDynamicTypeOptions(preTypeSources)
 
         val selectedType = filterState.preferredType
@@ -308,6 +324,7 @@ class SourceSelectionBottomSheet(
         allSources = emptyList()
         displayedSources = emptyList()
         dynamicTypeOptions = arrayOf("All")
+        focusedStreamId = null
         statusMessage = message
         if (isAdded) {
             updateUi()
@@ -332,18 +349,34 @@ class SourceSelectionBottomSheet(
                 sourcesAdapter.updateSelection(selectedStreamId, notify = false)
                 sourcesAdapter.submitList(displayedSources) {
                     sourcesAdapter.updateSelection(selectedStreamId)
-                    if (displayedSources.isNotEmpty()) {
-                        val targetIndex = selectedStreamId
-                            ?.let { id -> displayedSources.indexOfFirst { it.stream.stream_id == id } }
+                    val visibleStreamIds = displayedSources.mapNotNull { it.stream.stream_id }
+                    val shouldRestoreFocus = needsFocusRestore || (
+                        rvSources.hasFocus() &&
+                            focusedStreamId != null &&
+                            !visibleStreamIds.contains(focusedStreamId)
+                        )
+                    if (displayedSources.isNotEmpty() && shouldRestoreFocus) {
+                        val targetStreamId = resolveRestoreFocusStreamId(
+                            visibleStreamIds = visibleStreamIds,
+                            focusedStreamId = focusedStreamId,
+                            returnFocusStreamIds = pendingReturnFocusStreamIds,
+                            selectedStreamId = selectedStreamId
+                        )
+                        val targetIndex = targetStreamId
+                            ?.let { streamId ->
+                                displayedSources.indexOfFirst { it.stream.stream_id == streamId }
+                            }
                             ?.takeIf { it >= 0 }
                             ?: 0
+                        pendingReturnFocusStreamIds = emptyList()
+                        needsFocusRestore = false
                         rvSources.scrollToPosition(targetIndex)
                         rvSources.post {
                             val holder = rvSources.findViewHolderForAdapterPosition(targetIndex)
                             if (holder != null) {
                                 holder.itemView.requestFocus()
                             } else {
-                                rvSources.requestFocus()
+                                focusTopControl()
                             }
                         }
                     }
@@ -353,11 +386,67 @@ class SourceSelectionBottomSheet(
                 tvStatus.text = statusMessage ?: getString(R.string.source_filters_empty)
                 rvSources.visibility = View.GONE
                 tvSourceCount.visibility = View.GONE
+                needsFocusRestore = false
+                rvSources.post {
+                    focusEmptyState()
+                }
             }
+        }
+    }
+
+    private fun focusTopControl(): Boolean {
+        val topControl = sequenceOf(chipQuality, chipLanguage, chipType)
+            .firstOrNull { it.visibility == View.VISIBLE && it.isFocusable && it.isEnabled }
+            ?: tvStatus.takeIf { it.visibility == View.VISIBLE && it.isFocusable && it.isEnabled }
+        return topControl?.requestFocus() == true
+    }
+
+    private fun focusEmptyState() {
+        if (layoutSourceFilters.visibility == View.VISIBLE && focusTopControl()) {
+            return
+        }
+        if (tvStatus.visibility == View.VISIBLE) {
+            tvStatus.requestFocus()
         }
     }
 
     companion object {
         const val TAG = "SourceSelectionBottomSheet"
+
+        internal fun buildAdjacentReturnFocusStreamIds(
+            visibleStreamIds: List<String>,
+            selectedStreamId: String
+        ): List<String> {
+            val selectedIndex = visibleStreamIds.indexOf(selectedStreamId)
+            if (selectedIndex < 0) return emptyList()
+            return listOfNotNull(
+                visibleStreamIds.getOrNull(selectedIndex + 1),
+                visibleStreamIds.getOrNull(selectedIndex - 1)
+            ).distinct()
+        }
+
+        internal fun resolveReturnFocusStreamId(
+            visibleStreamIds: List<String>,
+            returnFocusStreamIds: List<String>,
+            selectedStreamId: String?
+        ): String? {
+            return returnFocusStreamIds.firstOrNull { visibleStreamIds.contains(it) }
+                ?: selectedStreamId?.takeIf { visibleStreamIds.contains(it) }
+                ?: visibleStreamIds.firstOrNull()
+        }
+
+        internal fun resolveRestoreFocusStreamId(
+            visibleStreamIds: List<String>,
+            focusedStreamId: String?,
+            returnFocusStreamIds: List<String>,
+            selectedStreamId: String?
+        ): String? {
+            return focusedStreamId?.takeIf { visibleStreamIds.contains(it) }
+                ?: resolveReturnFocusStreamId(
+                    visibleStreamIds = visibleStreamIds,
+                    returnFocusStreamIds = returnFocusStreamIds,
+                    selectedStreamId = selectedStreamId
+                )
+        }
     }
 }

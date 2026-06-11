@@ -586,6 +586,7 @@ class SeriesFragment : Fragment() {
                 putString("title", series.name)
                 putString("backdrop_url", series.cover)
                 putString("poster_url", series.cover)
+                putString("trailer", series.youtube_trailer)
             }
         }
         parentFragmentManager.beginTransaction()

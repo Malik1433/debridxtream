@@ -30,10 +30,10 @@
         android:id="@+id/group_details"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="80dp"
-        android:layout_marginTop="40dp"
-        android:layout_marginEnd="80dp"
-        android:paddingBottom="40dp"
+        android:layout_marginStart="64dp"
+        android:layout_marginTop="28dp"
+        android:layout_marginEnd="64dp"
+        android:paddingBottom="28dp"
         android:orientation="vertical"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -41,19 +41,23 @@
 
         <TextView
             android:id="@+id/tv_title"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="@font/inter_extrabold"
             android:textColor="#FFFFFF"
-            android:textSize="52sp"
+            android:textSize="42sp"
             android:letterSpacing="-0.02"
             android:lineSpacingMultiplier="0.9"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
             tools:text="Dune: Part Two" />
 
         <com.google.android.flexbox.FlexboxLayout
+            android:id="@+id/layout_metadata_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
             app:flexWrap="wrap"
             app:alignItems="center">
 
@@ -62,12 +66,12 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_episode_badge"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
+                android:paddingStart="7dp"
+                android:paddingEnd="7dp"
                 android:paddingTop="2dp"
                 android:paddingBottom="2dp"
                 android:textColor="#FFFFFF"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:textStyle="bold"
                 tools:text="8.9" />
 
@@ -77,7 +81,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:textColor="#B8C0CC"
-                android:textSize="18sp"
+                android:textSize="15sp"
                 tools:text="Sci-Fi, Action • 2024" />
 
             <TextView
@@ -86,7 +90,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:textColor="#B8C0CC"
-                android:textSize="18sp"
+                android:textSize="15sp"
                 tools:text="2h 46m" />
                 
             <!-- Legacy support IDs -->
@@ -98,7 +102,7 @@
             android:id="@+id/layout_rd_summary"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="12dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:background="@drawable/cin_card_glass_subtle"
@@ -131,12 +135,13 @@
             android:id="@+id/tv_description"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="12dp"
             android:textColor="#E2E8F0"
-            android:textSize="20sp"
-            android:lineSpacingMultiplier="1.4"
-            android:maxLines="5"
+            android:textSize="17sp"
+            android:lineSpacingMultiplier="1.35"
+            android:maxLines="3"
             android:ellipsize="end"
+            android:includeFontPadding="false"
             tools:text="Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family." />
 
         <!-- Action Buttons -->
@@ -144,7 +149,7 @@
             android:id="@+id/container_actions"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="18dp"
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
@@ -201,7 +206,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="18dp"
             android:orientation="horizontal">
 
             <LinearLayout
@@ -230,7 +235,7 @@
                 android:id="@+id/layout_cast"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="48dp"
+                android:layout_marginStart="36dp"
                 android:orientation="vertical">
                 <TextView
                     android:id="@+id/tv_cast_title"
@@ -244,8 +249,8 @@
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rv_cast"
                     android:layout_width="wrap_content"
-                    android:layout_height="170dp"
-                    android:layout_marginTop="4dp"
+                    android:layout_height="150dp"
+                    android:layout_marginTop="2dp"
                     android:orientation="horizontal"
                     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                     tools:listitem="@layout/item_cast_member"

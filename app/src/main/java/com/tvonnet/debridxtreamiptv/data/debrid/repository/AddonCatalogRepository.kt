@@ -182,24 +182,31 @@ class AddonCatalogRepository @Inject constructor(
     suspend fun getDiscoveryContent(
         type: String, // "movie" or "series"
         page: Int = 1,
-        sortBy: String = "popularity.desc",
+        sortBy: String? = null,
+        catalogue: String = CATALOGUE_POPULAR,
         originalLanguage: String? = null,
         watchProviders: String? = null,
         watchRegion: String? = "US",
         releaseDateGte: String? = null,
+        year: Int? = null,
         withGenres: String? = null
     ): Result<List<CatalogItem>> {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        val effectiveSortBy = sortBy ?: resolveDiscoverSort(type = type, catalogue = catalogue)
+        val voteCountGte = if (catalogue == CATALOGUE_TOP_RATED) TOP_RATED_MIN_VOTE_COUNT else null
+        val yearDateGte = year?.let { "%04d-01-01".format(Locale.US, it) } ?: releaseDateGte
+        val yearDateLte = year?.let { "%04d-12-31".format(Locale.US, it) }
 
         return if (type == "movie") {
             when (val result = tmdbRemote.discoverMovies(
-                sortBy = sortBy,
+                sortBy = effectiveSortBy,
                 page = page,
                 withOriginalLanguage = originalLanguage,
                 withWatchProviders = watchProviders,
                 watchRegion = watchRegion,
-                releaseDateLte = today,
-                releaseDateGte = releaseDateGte,
+                releaseDateLte = yearDateLte ?: today,
+                releaseDateGte = yearDateGte,
+                voteCountGte = voteCountGte,
                 withGenres = withGenres
             )) {
                 is Success -> {
@@ -225,13 +232,14 @@ class AddonCatalogRepository @Inject constructor(
             }
         } else {
              when (val result = tmdbRemote.discoverTvShows(
-                sortBy = sortBy,
+                sortBy = effectiveSortBy,
                 page = page,
                 withOriginalLanguage = originalLanguage,
                 withWatchProviders = watchProviders,
                 watchRegion = watchRegion,
-                firstAirDateLte = today,
-                firstAirDateGte = releaseDateGte,
+                firstAirDateLte = yearDateLte ?: today,
+                firstAirDateGte = yearDateGte,
+                voteCountGte = voteCountGte,
                 withGenres = withGenres
             )) {
                 is Success -> {
@@ -255,6 +263,14 @@ class AddonCatalogRepository @Inject constructor(
                 is Error -> result
                 else -> Error(Exception("Unknown error"))
             }
+        }
+    }
+
+    private fun resolveDiscoverSort(type: String, catalogue: String): String {
+        return when (catalogue) {
+            CATALOGUE_TOP_RATED -> "vote_average.desc"
+            CATALOGUE_NEWEST -> if (type == "series") "first_air_date.desc" else "primary_release_date.desc"
+            else -> "popularity.desc"
         }
     }
 
@@ -318,6 +334,10 @@ class AddonCatalogRepository @Inject constructor(
     companion object {
         const val DEFAULT_ADDON_REGISTRY_URL =
             "https://raw.githubusercontent.com/codebutter-bit/scraper/refs/heads/main/addons-en.json"
+        const val CATALOGUE_POPULAR = "popular"
+        const val CATALOGUE_TOP_RATED = "top_rated"
+        const val CATALOGUE_NEWEST = "newest"
+        private const val TOP_RATED_MIN_VOTE_COUNT = 200
     }
 }
 

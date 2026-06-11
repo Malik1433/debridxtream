@@ -15,7 +15,8 @@ import java.util.Locale
 
 class MovieSourceAdapter(
     private val onSourceFocused: (MovieSource) -> Unit,
-    private val onSourceClicked: (MovieSource) -> Unit
+    private val onSourceClicked: (MovieSource) -> Unit,
+    private val onNavigateUpFromFirstRow: () -> Boolean = { false }
 ) : ListAdapter<MovieSource, MovieSourceAdapter.SourceViewHolder>(DiffCallback) {
 
     private var selectedStreamId: String? = null
@@ -202,7 +203,8 @@ class MovieSourceAdapter(
                                 }
                                 return@setOnKeyListener true
                             }
-                            // If position == 0, allow default behavior (e.g. return to chips)
+                            onNavigateUpFromFirstRow()
+                            return@setOnKeyListener true
                         }
                     }
                 }

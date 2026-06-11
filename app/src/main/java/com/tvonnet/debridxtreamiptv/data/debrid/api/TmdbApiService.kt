@@ -89,6 +89,7 @@ interface TmdbApiService {
         @Query("watch_region") watchRegion: String? = "US",
         @Query("primary_release_date.lte") primaryReleaseDateLte: String? = null,
         @Query("primary_release_date.gte") primaryReleaseDateGte: String? = null,
+        @Query("vote_count.gte") voteCountGte: Int? = null,
         @Query("with_genres") withGenres: String? = null
     ): TmdbMovieResponse
 
@@ -102,6 +103,7 @@ interface TmdbApiService {
         @Query("watch_region") watchRegion: String? = "US",
         @Query("first_air_date.lte") firstAirDateLte: String? = null,
         @Query("first_air_date.gte") firstAirDateGte: String? = null,
+        @Query("vote_count.gte") voteCountGte: Int? = null,
         @Query("with_genres") withGenres: String? = null
     ): TmdbTvShowResponse
 

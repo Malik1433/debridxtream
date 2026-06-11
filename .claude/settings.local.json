@@ -14,9 +14,18 @@
       "Bash(\"C:\\Users\\Malik\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe\":*)",
       "Bash(\"C:\\Users\\Malik\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe\" -s 192.168.0.54:5555 shell am start -n com.tvonnet.debridxtreamiptv/com.tvonnet.debridxtreamiptv.ui.MainActivity)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(claude mcp *)",
+      "Bash(where npx *)",
+      "Bash(npm --version)",
+      "Bash(npm i *)",
+      "Bash(npm ls *)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "claude-flow",
+    "ruflo"
+  ]
 }

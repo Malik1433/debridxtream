@@ -19,6 +19,7 @@ A Claude Flow powered project
 - For Home work, read `docs/reports/HOME_MODULE_REPORT.md`, `docs/reports/HOME_SUCCESS_HISTORY.md`, and `docs/reports/HOME_FAILED_ATTEMPTS.md`.
 
 ### Change Discipline
+- **CRITICAL**: MUST ALWAYS use Swarm Orchestration (parallel subagents) for all task implementations. Do not execute coding tasks sequentially yourself.
 - Do not create duplicate files, components, layouts, routes, adapters, or controllers.
 - Prefer modifying the existing active implementation over adding parallel implementations.
 - Preserve working behavior unless the task explicitly asks to change it.
@@ -218,26 +219,22 @@ Use `$skill-name` syntax to invoke:
 | `tester` | Test creation | Quality assurance |
 | `reviewer` | Code review | Security and quality |
 
-### Agent Model Routing
+### Antigravity Subagent Strategy
 
-Use explicit model routing by agent role instead of relying on one global default for all work.
+Use explicit Subagent Tool mapping by role instead of generic models.
 
-| Agent type | Preferred model |
-|------------|-----------------|
-| `researcher` | `gpt-5.4-mini` |
-| `explorer` | `gpt-5.4-mini` |
-| `coder` | `gpt-5.3-codex` |
-| `worker` | `gpt-5.3-codex` |
-| `tester` | `gpt-5.4` |
-| `reviewer` | `gpt-5.5` |
-| `architect` | `gpt-5.5` |
-| `planner` | `gpt-5.5` |
+| Agent type | Tools / Capabilities | Use Case |
+|------------|----------------------|----------|
+| `architect` | `write: false`, `subagents: true`, `mcp: true` | System design, task breakdown, swarm management |
+| `coder` | `write: true`, `subagents: false`, `mcp: false` | Implementation, fixing bugs, precise code changes |
+| `tester` | `write: true` (Terminal only), `subagents: false` | Build compilation, ADB deployment, log analysis |
+| `reviewer` | `write: false`, `subagents: false`, `mcp: false` | Code review, UI/UX constraint auditing, security |
+| `researcher` | `write: false`, `subagents: false`, `mcp: false` | Codebase exploration, history mapping, search |
 
 Routing rules:
-- Always assign an explicit model when spawning an agent.
-- Escalate one step for cross-module, security-sensitive, ambiguous, or high-risk work.
-- Use `gpt-5.3-codex` as the fallback default when no role mapping applies.
-- Keep the chosen model explainable in task notes and reports.
+- Always define explicit constraints via `define_subagent` when spawning an agent.
+- Inject clear rules and context into the `system_prompt` tailored to the specific role.
+- Rely on Antigravity's natural task assignment rather than hardcoded LLM model strings.
 
 ## Code Standards
 

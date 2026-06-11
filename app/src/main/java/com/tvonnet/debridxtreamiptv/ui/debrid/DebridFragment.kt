@@ -60,6 +60,7 @@ class DebridFragment : Fragment() {
     // Sidebar components
     private var sidebarContainer: View? = null
     private var navItemSearch: View? = null
+    private var navItemHome: View? = null
     private var navItemDiscover: View? = null
     private var sidebarBrandLogo: View? = null
 
@@ -138,6 +139,7 @@ class DebridFragment : Fragment() {
             // Sidebar Initialization
             sidebarContainer = view.findViewById(R.id.sidebar_container)
             navItemSearch = view.findViewById(R.id.nav_item_search)
+            navItemHome = view.findViewById(R.id.nav_item_home)
             navItemDiscover = view.findViewById(R.id.nav_item_discover)
             sidebarBrandLogo = view.findViewById(R.id.sidebar_brand_logo)
 
@@ -183,7 +185,8 @@ class DebridFragment : Fragment() {
 
         // 1. Configure Item Visuals (Icon + Label)
         configureSidebarItem(navItemSearch, R.drawable.ic_search, "Search")
-        configureSidebarItem(navItemDiscover, R.drawable.ic_home, "Discover")
+        configureSidebarItem(navItemHome, R.drawable.ic_home, "Home")
+        configureSidebarItem(navItemDiscover, R.drawable.ic_discover, "Discover")
 
         // 2. Click Listeners
         navItemSearch?.setOnClickListener {
@@ -191,7 +194,7 @@ class DebridFragment : Fragment() {
             startActivity(intent)
         }
 
-        navItemDiscover?.setOnClickListener {
+        navItemHome?.setOnClickListener {
             rvDebridRows.smoothScrollToPosition(0)
             rvDebridRows.postDelayed({
                 if (!isAdded) return@postDelayed
@@ -199,6 +202,12 @@ class DebridFragment : Fragment() {
                 val firstContentRv = firstRow?.itemView?.findViewById<RecyclerView>(R.id.rv_row_items)
                 firstContentRv?.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
             }, 150)
+        }
+
+        navItemDiscover?.setOnClickListener {
+            val intent = com.tvonnet.debridxtreamiptv.ui.debrid.discover.DebridDiscoverActivity
+                .createIntent(requireContext())
+            startActivity(intent)
         }
 
         // 3. Focus Routing (D-Pad Logic)
@@ -211,6 +220,7 @@ class DebridFragment : Fragment() {
             val text = view.findViewById<TextView>(R.id.tv_label)
             icon?.setImageResource(iconRes)
             text?.text = label
+            view.contentDescription = label
 
             view.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
                 if (hasFocus) {
@@ -234,10 +244,15 @@ class DebridFragment : Fragment() {
         }
 
         navItemSearch?.setOnKeyListener(lateralListener)
+        navItemHome?.setOnKeyListener(lateralListener)
         navItemDiscover?.setOnKeyListener(lateralListener)
 
         // Vertical Navigation: Sidebar boundary
         navItemSearch?.nextFocusUpId = navItemSearch?.id ?: View.NO_ID
+        navItemSearch?.nextFocusDownId = navItemHome?.id ?: View.NO_ID
+        navItemHome?.nextFocusUpId = navItemSearch?.id ?: View.NO_ID
+        navItemHome?.nextFocusDownId = navItemDiscover?.id ?: View.NO_ID
+        navItemDiscover?.nextFocusUpId = navItemHome?.id ?: View.NO_ID
         navItemDiscover?.nextFocusDownId = navItemDiscover?.id ?: View.NO_ID
     }
 

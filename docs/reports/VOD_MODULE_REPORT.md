@@ -23,6 +23,8 @@ Scope: IPTV VOD/movie browsing, detail, playback, and focus behavior.
 - Future VOD regressions should be kept in VOD history or task docs.
 
 ## Recent Fixes
+- Polished watched badge contrast for VOD movie cards. Movie watched indicators now use the shared high-contrast `bg_watched_badge` style with a dark overlay, white check icon, cyan accent outline, fixed 32dp sizing, and passive non-focusable/non-clickable behavior. Watched visibility logic, manual toggle behavior, playback, identity, and Continue Watching were unchanged.
+- Fixed trailer playback on Fire TV WebView after YouTube `Error 153` / "Video player configuration error". `TrailerActivity` now uses a stable app-owned HTTPS origin for IFrame API playback, passes matching `origin`/`widget_referrer`/`Referer`, avoids mobile/desktop/TV watch-page WebView redirects, and falls back to an external YouTube intent only after embed candidates are exhausted.
 - Added debug-only diagnostics hooks to the Debrid/TMDB movie source and playback handoff path. `MovieDetailActivity` records safe source-list, source-selection, readiness, direct/resolver launch, provider identity, and redacted playback fields only when the local marker is enabled.
 - Implemented Manual Mark Watched/Unwatched actions for Movies. Movie detail screen and VOD grid long-press now support manual toggle. `manual_state` WATCHED/UNWATCHED is respected. Continue Watching exact removal when marked unwatched was verified. Auto watched detection and read-only badges remain working. Season/series bulk watched actions remain pending. Debrid manual watched support remains pending.
 - Implemented Phase 3 read-only watched badges for Movies. Added an `ic_check_circle` watched indicator to IPTV/VOD movie cards (`VodAdapter`) and the Movie Detail V2 screen. The badge correctly observes `watched_state` from `WatchedStateRepository`. Manual "Mark Watched" actions are intentionally excluded. Series UI is untouched.
@@ -32,6 +34,7 @@ Scope: IPTV VOD/movie browsing, detail, playback, and focus behavior.
 - VOD stability and navigation are tracked through canonical module reports.
 
 ## Failed Approaches / Avoid
+- Do not send YouTube trailer fallback through `m.youtube.com/watch`, desktop watch pages, or YouTube TV web routes inside WebView; on Fire TV this can trigger YouTube `Error 153`.
 - Do not bind detail buttons without verifying runtime XML visibility.
 - Do not treat Debrid direct HTTP streams as normal IPTV unless source identity requires it.
 - Do not edit non-runtime detail/layout copies.
@@ -43,6 +46,8 @@ Scope: IPTV VOD/movie browsing, detail, playback, and focus behavior.
 - Manual QA: IPTV VOD list, detail, play, trailer if touched, Back/D-pad focus, Debrid movie regression if shared file touched.
 
 ## Last Verified State
+- 2026-06-08: Watched badge contrast polish verified on test device `192.168.178.35:5555` after successful install. VOD movie watched indicators use the same high-contrast dark/cyan/white badge style as episode cards, remain passive and fixed-size, and no watched-state logic, focus routing, PlayerActivity behavior, or Continue Watching behavior was changed. `:app:assembleDebug --no-daemon --console plain` passed after stopping an unresponsive Gradle daemon and rerunning.
+- 2026-06-03: Trailer Error 153 fix verified on `192.168.0.21:5555`. Build `:app:compileDebugKotlin` and `:app:assembleDebug` passed, APK installed successfully, trailer launched from `MovieDetailActivity`, screenshot confirmed video rendering in `TrailerActivity`, and logcat showed no `Error 153`, `AndroidRuntime`, or `FATAL EXCEPTION` during the focused test window.
 - 2026-05-31: Debrid movie diagnostics path verified on `192.168.0.21:5555`. A real movie detail source picker for `Backrooms` wrote marker-enabled JSONL events for `source_list_loaded`, `source_selected`, resolver-backed `playback_launch`, player prepare, track discovery, first frame, and READY. Export via `adb pull` succeeded and the exported JSONL did not contain raw URLs, magnets, long hashes, token params, Real-Debrid URLs, or secret header values.
 - 2026-05-30: Manual Mark Watched/Unwatched feature QA passed. Movie detail and VOD grid long-press successfully toggle state. Badges update correctly. Continue Watching exact removal verified. Auto watched detection and playback remain working. No season/series derived watched UI was added yet. Debrid manual watched support remains pending.
 - 2026-05-30: Phase 3 read-only Watched Badges for Movies implemented. Badges added to IPTV/VOD movie cards and MovieDetailV2. Code compiles successfully. Phase 3 Movies read-only watched badge verified on device. Watched movie cards show checkmark. VOD movie detail watched indicator verified on device. Series/Episode watched UI remains pending. Manual watched/unwatched actions remain pending. Debrid movie badge verification remains pending unless explicitly tested.
