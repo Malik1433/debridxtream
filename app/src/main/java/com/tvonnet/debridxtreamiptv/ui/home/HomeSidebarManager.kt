@@ -85,6 +85,19 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
                     frag.focusManager.lastFocusedSidebarItemId = HomeFragment.SETTINGS_NAV_ITEM_ID
                 }
                 val density = settingsItemView.context.resources.displayMetrics.density
+                val decelEase = android.view.animation.DecelerateInterpolator()
+
+                val targetColor = if (hasFocus) 0xFFFFFFFF.toInt() else 0x88FFFFFF.toInt()
+                val startColor = if (hasFocus) 0x88FFFFFF.toInt() else 0xFFFFFFFF.toInt()
+                
+                android.animation.ValueAnimator.ofArgb(startColor, targetColor).apply {
+                    duration = if (hasFocus) 220L else 180L
+                    interpolator = decelEase
+                    addUpdateListener { animator ->
+                        ivIcon.setColorFilter(animator.animatedValue as Int)
+                    }
+                    start()
+                }
 
                 settingsItemView.alpha = if (hasFocus) 1f else 0.6f
                 settingsItemView.setBackgroundResource(
@@ -95,6 +108,7 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
                     .scaleY(if (hasFocus) 1.05f else 1.0f)
                     .translationZ(if (hasFocus) 4f * density else 0f)
                     .setDuration(if (hasFocus) 220 else 180)
+                    .setInterpolator(decelEase)
                     .start()
             }
 
@@ -125,22 +139,41 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
                         val logo = f.view?.findViewById<ImageView>(R.id.iv_sidebar_logo)
                         val appName = f.view?.findViewById<TextView>(R.id.tv_sidebar_app_name)
 
+                        // Dim Overlay Background
+                        val dimOverlay = f.view?.findViewById<View>(R.id.view_sidebar_dim_overlay)
+                        val decelEase = android.view.animation.DecelerateInterpolator()
+
                         if (expanded) {
                             header?.gravity = Gravity.CENTER_VERTICAL
                             (logo?.layoutParams as? LinearLayout.LayoutParams)?.let { lp ->
                                 lp.marginStart = 0
                                 logo.layoutParams = lp
                             }
-                            appName?.visibility = View.VISIBLE
+                            appName?.apply {
+                                alpha = 0f
+                                visibility = View.VISIBLE
+                                animate().alpha(1f).setDuration(220).setInterpolator(decelEase).start()
+                            }
 
                             settingsItemView?.findViewById<TextView>(R.id.tv_title)?.apply {
-                                alpha = 1f
+                                alpha = 0f
                                 visibility = View.VISIBLE
                                 translationX = -20f
                                 animate()
+                                    .alpha(1f)
                                     .translationX(0f)
-                                    .setDuration(150)
-                                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                                    .setDuration(220)
+                                    .setInterpolator(decelEase)
+                                    .start()
+                            }
+                            
+                            dimOverlay?.apply {
+                                alpha = 0f
+                                visibility = View.VISIBLE
+                                animate()
+                                    .alpha(0.5f)
+                                    .setDuration(250)
+                                    .setInterpolator(decelEase)
                                     .start()
                             }
                         } else {
@@ -149,11 +182,27 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
                                 lp.marginStart = 0
                                 logo.layoutParams = lp
                             }
-                            appName?.visibility = View.GONE
+                            appName?.apply {
+                                animate().alpha(0f).setDuration(180).setInterpolator(decelEase)
+                                    .withEndAction { visibility = View.GONE }.start()
+                            }
 
                             settingsItemView?.findViewById<TextView>(R.id.tv_title)?.apply {
-                                alpha = 0f
-                                visibility = View.GONE
+                                animate()
+                                    .alpha(0f)
+                                    .setDuration(180)
+                                    .setInterpolator(decelEase)
+                                    .withEndAction { visibility = View.GONE }
+                                    .start()
+                            }
+                            
+                            dimOverlay?.apply {
+                                animate()
+                                    .alpha(0f)
+                                    .setDuration(200)
+                                    .setInterpolator(decelEase)
+                                    .withEndAction { visibility = View.GONE }
+                                    .start()
                             }
                         }
 
@@ -162,6 +211,7 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
                             f.ivHeroBackground.animate()
                                 .alpha(if (expanded) 0.3f else 0.8f)
                                 .setDuration(250)
+                                .setInterpolator(decelEase)
                                 .start()
                         }
                     }

@@ -251,4 +251,12 @@
         <item name="android:gravity">center</item>
     </style>
 
+    <!-- ========== CINEMATIC DIALOG ========== -->
+    <style name="Theme.DebridXtream.CinematicDialog" parent="Theme.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/bg_dialog_cinematic</item>
+        <item name="android:windowMinWidthMajor">60%</item>
+        <item name="android:windowMinWidthMinor">80%</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
 </resources>

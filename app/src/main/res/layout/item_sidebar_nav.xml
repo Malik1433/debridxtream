@@ -53,6 +53,7 @@
         android:textSize="15sp"
         android:textStyle="bold"
         android:maxLines="1"
+        android:singleLine="true"
         android:ellipsize="end"
         android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="parent"

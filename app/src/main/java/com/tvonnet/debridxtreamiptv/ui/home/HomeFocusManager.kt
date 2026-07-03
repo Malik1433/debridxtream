@@ -169,15 +169,32 @@ internal class HomeFocusManager(private var fragment: HomeFragment?) {
         targetRv.scrollToPosition(safeIndex)
         isContentFocusRequestPending = true
         val requestSerial = ++contentFocusRequestSerial
-        targetRv.post {
-            val f = fragment ?: return@post
-            if (requestSerial != contentFocusRequestSerial) return@post
-            isContentFocusRequestPending = false
-            val target = targetRv.findViewHolderForAdapterPosition(safeIndex)?.itemView
-            if (!requestFocusSafely(target)) {
-                requestFocusSafely(targetRv.getChildAt(0)) || returnToSidebar()
+        
+        targetRv.post(object : Runnable {
+            var attempts = 0
+            override fun run() {
+                val f = fragment ?: return
+                if (requestSerial != contentFocusRequestSerial) return
+                
+                val target = targetRv.findViewHolderForAdapterPosition(safeIndex)?.itemView
+                if (target != null && target.isShown && target.isFocusable) {
+                    isContentFocusRequestPending = false
+                    if (!requestFocusSafely(target)) {
+                        requestFocusSafely(targetRv.getChildAt(0)) || returnToSidebar()
+                    }
+                } else if (attempts < 5) {
+                    attempts++
+                    targetRv.post(this)
+                } else {
+                    isContentFocusRequestPending = false
+                    val lmTarget = targetRv.layoutManager?.findViewByPosition(safeIndex)
+                    if (lmTarget != null && requestFocusSafely(lmTarget)) {
+                        return
+                    }
+                    requestFocusSafely(targetRv.getChildAt(0)) || returnToSidebar()
+                }
             }
-        }
+        })
         return true
     }
 

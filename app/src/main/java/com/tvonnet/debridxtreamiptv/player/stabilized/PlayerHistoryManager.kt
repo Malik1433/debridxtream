@@ -30,6 +30,7 @@ class PlayerHistoryManager(
     companion object {
         private const val MIN_DURATION_TO_TRACK_MS = 60_000L
         private const val MIN_PROGRESS_RATIO = 0.05f
+        private const val MIN_PROGRESS_ABSOLUTE_MS = 90_000L
         private const val COMPLETION_THRESHOLD_RATIO = 0.90f
         private const val MOVIE_REMAINING_COMPLETION_MS = 5 * 60 * 1000L
         private const val EPISODE_REMAINING_COMPLETION_MS = 3 * 60 * 1000L
@@ -48,11 +49,15 @@ class PlayerHistoryManager(
             ContentType.LIVE_TV -> recordLiveHistory(id)
             ContentType.MOVIE, ContentType.SERIES, ContentType.EPISODE -> {
                 if (activity.hasRecordedHistory) return
-                recordContinueWatchingHistory(id, type)
+                // Only latch the flag when a real save/remove decision ran with a
+                // valid duration. A call that lands while the player is still
+                // resolving or erroring must stay retryable, otherwise the final
+                // onStop/onDestroy save is silently skipped and the item never
+                // reaches Continue Watching.
+                if (recordContinueWatchingHistory(id, type)) {
+                    activity.hasRecordedHistory = true
+                }
             }
-        }
-        if (type != ContentType.LIVE_TV) {
-            activity.hasRecordedHistory = true
         }
     }
 
@@ -76,10 +81,10 @@ class PlayerHistoryManager(
         watchHistoryPrefs.addRecentLiveChannel(item)
     }
 
-    private fun recordContinueWatchingHistory(contentId: String, type: ContentType) {
-        val p = activity.player ?: return
+    private fun recordContinueWatchingHistory(contentId: String, type: ContentType): Boolean {
+        val p = activity.player ?: return false
         val dur = p.duration
-        if (dur <= 0 || dur == C.TIME_UNSET || dur < MIN_DURATION_TO_TRACK_MS) return
+        if (dur <= 0 || dur == C.TIME_UNSET || dur < MIN_DURATION_TO_TRACK_MS) return false
         val pos = p.currentPosition
         val now = System.currentTimeMillis()
         val item = buildContinueWatchingItem(contentId, type, pos, dur, now)
@@ -97,14 +102,15 @@ class PlayerHistoryManager(
         if (type == ContentType.EPISODE) viewModel.updatePlaybackStatus(contentId, isWatched, if (isWatched) 0 else pos, dur)
         if (isTinyProgress) {
             removeExactContinueWatching(type, item)
-            return
+            return true
         }
         if (isWatched) {
             removeExactContinueWatching(type, item)
-            return
+            return true
         }
 
         saveContinueWatchingIfAllowed(item, pos, dur, type)
+        return true
     }
 
     private fun buildContinueWatchingItem(
@@ -322,6 +328,9 @@ class PlayerHistoryManager(
     private fun remainingMs(pos: Long, dur: Long): Long = (dur - pos).coerceAtLeast(0L)
 
     private fun shouldIgnoreTinyProgress(pos: Long, dur: Long): Boolean {
+        // 5% of a long movie is several minutes — too strict on its own. Treat
+        // 90s of absolute watch time as enough to remember the item.
+        if (pos >= MIN_PROGRESS_ABSOLUTE_MS) return false
         return progressRatio(pos, dur) < MIN_PROGRESS_RATIO
     }
 

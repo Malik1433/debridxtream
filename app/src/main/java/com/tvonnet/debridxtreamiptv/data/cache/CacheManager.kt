@@ -33,6 +33,7 @@ class CacheManager @Inject constructor(
 ) {
     companion object {
         private const val TAG = "CacheManager"
+        const val SEARCH_INDEX_CATEGORY_ID = "search_index"
         private const val MEMORY_CACHE_SIZE = 10 * 1024 * 1024 // 10MB
         
         // Cache keys
@@ -385,6 +386,33 @@ class CacheManager @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to search channels", e)
             emptyList()
+        }
+    }
+
+    /**
+     * Search-index support: add channels the table doesn't know yet so global
+     * search covers never-opened categories. Rows are inserted under a
+     * synthetic category id that no browse query uses, and EXISTING rows are
+     * never touched — so per-category lists, counts, TTLs, and favorites from
+     * the lazy browse path stay exactly as they were. When the user later
+     * opens a channel's real category, putChannels() REPLACEs the indexed row
+     * with the properly categorized one (same primary key).
+     */
+    suspend fun indexChannelsForSearch(channels: List<XtreamStream>, streamType: String = "live") {
+        try {
+            val existingIds = channelDao.getAllChannelIds().toHashSet()
+            val newEntities = channels
+                .map { it.toChannelEntity(SEARCH_INDEX_CATEGORY_ID, streamType) }
+                .filter { it.streamId.isNotBlank() && it.streamId !in existingIds }
+            if (newEntities.isNotEmpty()) {
+                newEntities.chunked(2000).forEach { chunk ->
+                    channelDao.insertChannels(chunk)
+                }
+            }
+            // Log.i so it is visible on devices that suppress Log.d
+            Log.i(TAG, "Search index: added ${newEntities.size} channels (of ${channels.size} fetched)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to index channels for search", e)
         }
     }
 }

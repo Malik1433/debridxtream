@@ -297,12 +297,16 @@ class DebridViewModel @Inject constructor(
                         rowParams[id] = params
                         rowPages[id] = 1
                     }
+                    val debridItems = items.map { it.toDebridContentItem() }.toMutableList()
+                    debridItems.add(DebridContentItem("SEE_ALL_$id", "See All", null, null, "see_all", null, null))
+                    
                     rows.add(
                         DebridRow(
                             id = id,
                             title = title,
-                            items = items.map { it.toDebridContentItem() },
-                            canLoadMore = params != null // Only rows with params can load more
+                            items = debridItems,
+                            canLoadMore = false, // Disabled horizontal pagination, use See All
+                            hasSeeAll = true 
                         )
                     )
                 }
@@ -459,7 +463,8 @@ data class DebridRow(
     val id: String,
     val title: String,
     val items: List<DebridContentItem>,
-    val canLoadMore: Boolean = false
+    val canLoadMore: Boolean = false,
+    val hasSeeAll: Boolean = false
 )
 
 /**

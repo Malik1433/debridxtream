@@ -115,6 +115,10 @@ class TmdbRemoteDataSource @Inject constructor(
         )
     }
 
+    suspend fun getMovieRecommendations(movieId: Int, page: Int = 1): Result<TmdbMovieResponse> = resultOf {
+        tmdbService.getMovieRecommendations(movieId.toString(), requireApiKey(), page)
+    }
+
     suspend fun getMovieGenres(): Result<TmdbGenreResponse> = resultOf {
         tmdbService.getMovieGenres(requireApiKey())
     }

@@ -17,7 +17,7 @@ data class BufferConfig(
 
 object PlayerBufferConfigFactory {
     private const val LOW_RAM_MAX_BUFFER_MS = 30000
-    private const val LOW_RAM_TARGET_BUFFER_BYTES = 12 * 1024 * 1024
+    private const val LOW_RAM_TARGET_BUFFER_BYTES = 32 * 1024 * 1024
 
     fun buildConfig(
         context: Context,
@@ -34,7 +34,10 @@ object PlayerBufferConfigFactory {
         }
     }
 
-    fun resolveTargetBufferBytes(context: Context): Int {
+    fun resolveTargetBufferBytes(context: Context, isDebrid: Boolean): Int {
+        // High-bitrate 4K Debrid streams need large buffers; 32MB is too restrictive.
+        if (isDebrid) return 128 * 1024 * 1024 // 128MB memory buffer
+
         return if (DeviceProfile.isLowRamDevice(context)) {
             LOW_RAM_TARGET_BUFFER_BYTES
         } else {
@@ -104,6 +107,16 @@ object PlayerBufferConfigFactory {
         isHls: Boolean,
         isDebrid: Boolean
     ): BufferConfig {
+        if (isDebrid) {
+            // Apply approved high-bitrate Debrid parameters
+            return BufferConfig(
+                minBufferMs = 30000,
+                maxBufferMs = 60000,
+                startPlaybackMs = 2500,
+                rebufferPlaybackMs = 5000
+            )
+        }
+
         val baseMaxBuffer = calculateSmartBuffer(context)
         val quality = getSavedNetworkQuality(settingsPreferences)
         val config = when (quality) {
@@ -112,16 +125,8 @@ object PlayerBufferConfigFactory {
             NetworkQuality.SLOW -> BufferConfig(18000, (baseMaxBuffer + 15000).coerceAtMost(90000), 3000, 5000)
             NetworkQuality.UNKNOWN -> BufferConfig(15000, baseMaxBuffer, 2000, 3500)
         }
-        val debridAdjusted = if (isDebrid) {
-            config.copy(
-                startPlaybackMs = (config.startPlaybackMs + 2000).coerceAtLeast(5000),
-                rebufferPlaybackMs = (config.rebufferPlaybackMs + 2000).coerceAtLeast(6000)
-            )
-        } else {
-            config
-        }
-        val cappedForDevice = debridAdjusted.copy(
-            maxBufferMs = capMaxBufferForDevice(context, debridAdjusted.maxBufferMs)
+        val cappedForDevice = config.copy(
+            maxBufferMs = capMaxBufferForDevice(context, config.maxBufferMs)
         )
         return if (isHls) {
             cappedForDevice.copy(

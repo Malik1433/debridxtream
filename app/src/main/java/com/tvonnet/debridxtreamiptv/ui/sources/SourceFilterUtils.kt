@@ -18,6 +18,79 @@ data class SizeFilterOption(
     val maxSizeBytes: Long?
 )
 
+/**
+ * Strongly-typed enumeration for Video Qualities to prevent brittle raw-string logic.
+ */
+enum class VideoQuality(val label: String) {
+    Q_4K("4K"),
+    Q_1080P("1080p"),
+    Q_720P("720p"),
+    SD("SD"),
+    ALL("All"),
+    UNKNOWN("Unknown");
+
+    companion object {
+        fun parse(raw: String?): VideoQuality {
+            if (raw == null) return UNKNOWN
+            val q = raw.uppercase()
+            if (q.contains("4K") || q.contains("2160")) return Q_4K
+            if (q.contains("1080")) return Q_1080P
+            if (q.contains("720")) return Q_720P
+            if (q.contains("480") || q.contains("360") || q.contains("SD")) return SD
+            if (q.equals("ALL", ignoreCase = true)) return ALL
+            return UNKNOWN
+        }
+    }
+}
+
+/**
+ * Strongly-typed enumeration for Stream Languages.
+ * Replaces continuous raw string lookups inside the O(N) scoring loop.
+ */
+enum class StreamLanguage(val label: String) {
+    MULTI("Multi"),
+    ENGLISH("English"),
+    HINDI("Hindi"),
+    PUNJABI("Punjabi"),
+    GERMAN("German"),
+    FRENCH("French"),
+    URDU("Urdu"),
+    TAMIL("Tamil"),
+    TELUGU("Telugu"),
+    MALAYALAM("Malayalam"),
+    KANNADA("Kannada"),
+    ITALIAN("Italian"),
+    RUSSIAN("Russian"),
+    SPANISH("Spanish"),
+    ALL("All"),
+    UNKNOWN("Unknown");
+
+    companion object {
+        fun parse(code: String?): StreamLanguage {
+            if (code == null) return UNKNOWN
+            return when (code.lowercase().trim()) {
+                "hi", "hin", "hindi" -> HINDI
+                "en", "eng", "english" -> ENGLISH
+                "pa", "pun", "punjabi" -> PUNJABI
+                "de", "ger", "german" -> GERMAN
+                "fr", "fre", "french" -> FRENCH
+                "ur", "urdu" -> URDU
+                "ta", "tamil" -> TAMIL
+                "te", "telugu" -> TELUGU
+                "ml", "malayalam" -> MALAYALAM
+                "kn", "kannada" -> KANNADA
+                "it", "ita", "italian" -> ITALIAN
+                "ru", "rus", "russian" -> RUSSIAN
+                "es", "spa", "spanish" -> SPANISH
+                "multi", "multilanguage", "multi audio", "multi-audio", "dual audio", "dual-audio", "dualaudio" -> MULTI
+                "all" -> ALL
+                "unknown", "" -> UNKNOWN
+                else -> UNKNOWN
+            }
+        }
+    }
+}
+
 object SourceFilterUtils {
     private const val GB_BYTES = 1024L * 1024L * 1024L
 
@@ -50,25 +123,23 @@ object SourceFilterUtils {
 
         val qual = state.preferredQuality
         if (qual != null && qual != "All") {
+            val qualEnum = VideoQuality.parse(qual)
             filtered = filtered.filter { source ->
-                val q = source.quality?.uppercase() ?: "UNKNOWN"
-                when (qual) {
-                    "4K" -> q.contains("4K") || q.contains("2160")
-                    "1080p" -> q.contains("1080")
-                    "720p" -> q.contains("720")
-                    "SD" -> q.contains("480") || q.contains("360") || q.contains("SD")
-                    else -> true
-                }
+                // Type-safe matching based on strictly parsed Enum
+                VideoQuality.parse(source.quality) == qualEnum
             }
         }
 
         val lang = state.preferredLanguage
         if (lang != null && lang != "All") {
-            val languageMatches = filtered.filter { source ->
-                hasExactLanguageMatch(source, lang)
-            }
-            if (languageMatches.isNotEmpty()) {
-                filtered = languageMatches
+            val langEnum = StreamLanguage.parse(lang)
+            filtered = filtered.filter { source ->
+                val sourceLangs = source.languages?.map { StreamLanguage.parse(it) } ?: emptyList()
+                when (langEnum) {
+                    StreamLanguage.MULTI -> sourceLangs.contains(StreamLanguage.MULTI)
+                    StreamLanguage.UNKNOWN -> sourceLangs.isEmpty() || sourceLangs.all { it == StreamLanguage.UNKNOWN }
+                    else -> sourceLangs.contains(langEnum)
+                }
             }
         }
 
@@ -92,28 +163,41 @@ object SourceFilterUtils {
         val filtered = filter(sources, state)
         val selectedSortLang = state.preferredLanguage
             ?.takeIf { it != "All" }
-            ?.lowercase()
-        val globalSortLang = state.sortLanguage?.lowercase()
-        val sortLang = selectedSortLang ?: globalSortLang
+            ?.let { StreamLanguage.parse(it) }
+        val globalSortLang = state.sortLanguage?.let { StreamLanguage.parse(it) }
+        val sortLangEnum = selectedSortLang ?: globalSortLang
+
+        // PRE-COMPUTE SCORES (O(N)): Calculate all heavy object mapping operations upfront.
+        // By mapping strings to Enums once here, we guarantee O(1) lookups during the O(N log N) sorting phase.
+        val cacheScores = IdentityHashMap<MovieSource, Int>(filtered.size)
+        val langScores = IdentityHashMap<MovieSource, Int>(filtered.size)
         val sessionScores = IdentityHashMap<MovieSource, Int>(filtered.size)
+        val recoveryScores = IdentityHashMap<MovieSource, Int>(filtered.size)
+
         filtered.forEach { source ->
+            // Parse to strictly-typed languages array once per source
+            val parsedLanguages = source.languages?.map { StreamLanguage.parse(it) } ?: emptyList()
+
+            cacheScores[source] = getCachePriority(source)
+            langScores[source] = if (sortLangEnum != null) getLanguageMatchScore(parsedLanguages, sortLangEnum) else 0
             sessionScores[source] = SessionSourcePreference.score(source)
+            recoveryScores[source] = getRecoveryLanguageScore(parsedLanguages)
         }
 
         return if (selectedSortLang != null) {
             filtered.sortedWith(
-                compareByDescending<MovieSource> { getLanguageMatchScore(it, selectedSortLang) }
-                    .thenByDescending { getCachePriority(it) }
+                compareByDescending<MovieSource> { langScores[it] ?: 0 }
+                    .thenByDescending { cacheScores[it] ?: 0 }
                     .thenByDescending { sessionScores[it] ?: 0 }
-                    .thenByDescending { getRecoveryLanguageScore(it) }
+                    .thenByDescending { recoveryScores[it] ?: 0 }
                     .thenByDescending { it.seeders ?: -1 }
             )
         } else {
             filtered.sortedWith(
-                compareByDescending<MovieSource> { getCachePriority(it) }
-                    .thenByDescending { if (sortLang != null) getLanguageMatchScore(it, sortLang) else 0 }
+                compareByDescending<MovieSource> { cacheScores[it] ?: 0 }
+                    .thenByDescending { langScores[it] ?: 0 }
                     .thenByDescending { sessionScores[it] ?: 0 }
-                    .thenByDescending { getRecoveryLanguageScore(it) }
+                    .thenByDescending { recoveryScores[it] ?: 0 }
                     .thenByDescending { it.seeders ?: -1 }
             )
         }
@@ -136,57 +220,33 @@ object SourceFilterUtils {
         }
     }
 
-    private fun getLanguageMatchScore(source: MovieSource, preferred: String): Int {
-        val mappedPreferred = mapLanguageCodeToName(preferred.lowercase())
-        val languages = source.languages?.map { it.lowercase() } ?: return 0
+    private fun getLanguageMatchScore(languages: List<StreamLanguage>, preferred: StreamLanguage): Int {
+        if (languages.isEmpty()) return 0
         return when {
-            languages.any { mapLanguageCodeToName(it) == mappedPreferred } -> 3
-            languages.contains("multi") -> 1
+            // Type-safe O(1) enum identity check replaces slow string manipulation
+            languages.contains(preferred) -> 3
+            languages.contains(StreamLanguage.MULTI) -> 1
             else -> 0
         }
     }
 
-    private fun hasExactLanguageMatch(source: MovieSource, preferred: String): Boolean {
-        val languages = source.languages?.map { it.lowercase().trim() } ?: emptyList()
-        return when (preferred) {
-            "Multi" -> languages.any { mapLanguageCodeToName(it) == "Multi" }
-            "Unknown" -> languages.isEmpty()
-            else -> languages.any { mapLanguageCodeToName(it) == preferred }
-        }
-    }
-
-    private fun getRecoveryLanguageScore(source: MovieSource): Int {
-        val languages = source.languages?.map { it.lowercase() } ?: return 0
+    private fun getRecoveryLanguageScore(languages: List<StreamLanguage>): Int {
+        if (languages.isEmpty()) return 0
         return when {
-            languages.contains("hi") || languages.contains("de") -> 2
-            languages.contains("multi") -> 1
+            languages.contains(StreamLanguage.HINDI) || languages.contains(StreamLanguage.GERMAN) -> 2
+            languages.contains(StreamLanguage.MULTI) -> 1
             else -> 0
         }
     }
 
     fun mapLanguageCodeToName(code: String): String {
-        return when (code) {
-            "hi", "hin", "hindi" -> "Hindi"
-            "en", "eng", "english" -> "English"
-            "pa", "pun", "punjabi" -> "Punjabi"
-            "de", "ger", "german" -> "German"
-            "fr", "fre", "french" -> "French"
-            "ur", "urdu" -> "Urdu"
-            "ta", "tamil" -> "Tamil"
-            "te", "telugu" -> "Telugu"
-            "ml", "malayalam" -> "Malayalam"
-            "kn", "kannada" -> "Kannada"
-            "it", "ita", "italian" -> "Italian"
-            "ru", "rus", "russian" -> "Russian"
-            "es", "spa", "spanish" -> "Spanish"
-            "multi", "multilanguage", "multi audio", "multi-audio", "dual audio", "dual-audio", "dualaudio" -> "Multi"
-            else -> {
-                if (code.isNotEmpty()) {
-                    code.replaceFirstChar { it.uppercase() }
-                } else {
-                    code
-                }
-            }
+        val parsed = StreamLanguage.parse(code)
+        if (parsed != StreamLanguage.UNKNOWN) return parsed.label
+        
+        return if (code.isNotEmpty()) {
+            code.replaceFirstChar { it.uppercase() }
+        } else {
+            code
         }
     }
 }

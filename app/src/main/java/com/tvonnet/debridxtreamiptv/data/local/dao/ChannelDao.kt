@@ -65,9 +65,12 @@ interface ChannelDao {
      * Search channels globally
      */
     @Query("""
-        SELECT * FROM channels 
+        SELECT * FROM channels
         WHERE name LIKE '%' || :query || '%'
         LIMIT 50
     """)
     suspend fun searchChannels(query: String): List<ChannelEntity>
+
+    @Query("SELECT streamId FROM channels")
+    suspend fun getAllChannelIds(): List<String>
 }

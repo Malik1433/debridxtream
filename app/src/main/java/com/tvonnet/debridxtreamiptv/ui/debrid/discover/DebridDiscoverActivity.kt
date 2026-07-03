@@ -13,15 +13,15 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
-import android.widget.AbsListView
-import android.widget.BaseAdapter
-import android.widget.ListView
+import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -54,11 +54,6 @@ class DebridDiscoverActivity : AppCompatActivity() {
     private lateinit var btnYear: TextView
     private lateinit var gridAdapter: DebridDiscoverAdapter
 
-    private var selectedType = TYPE_MOVIE
-    private var selectedCatalogue = AddonCatalogRepository.CATALOGUE_POPULAR
-    private var selectedGenreId: Int? = null
-    private var selectedGenreLabel = GENRE_ALL
-    private var selectedYear: Int? = null
     private var currentGenres: List<TmdbGenre> = emptyList()
     private var lastFocusedPosition = RecyclerView.NO_POSITION
     private var lastFocusedSelector: TextView? = null
@@ -73,16 +68,20 @@ class DebridDiscoverActivity : AppCompatActivity() {
             lastFocusedPosition = savedInstanceState.getInt(KEY_LAST_FOCUS_POS, RecyclerView.NO_POSITION)
         }
 
-        intent.getStringExtra(EXTRA_TYPE)?.let { selectedType = it }
-        selectedGenreId = intent.getIntExtra(EXTRA_GENRE_ID, -1).takeIf { it != -1 }
+        val initType = intent.getStringExtra(EXTRA_TYPE)
+        val initGenreId = intent.getIntExtra(EXTRA_GENRE_ID, -1).takeIf { it != -1 }
+        val initCatalogue = intent.getStringExtra(EXTRA_CATALOGUE)
 
-        initViews()
-        setupGrid()
-        setupSelectors()
-
-        if (intent.hasExtra(EXTRA_TYPE) || intent.hasExtra(EXTRA_GENRE_ID)) {
-            viewModel.setType(selectedType)
-            viewModel.setGenre(selectedGenreId)
+        initType?.let { viewModel.setType(it) }
+        initCatalogue?.let { viewModel.setCatalogue(it) }
+        initGenreId?.let { viewModel.setGenre(it) }
+        
+        // Pass custom row filters if they exist
+        val lang = intent.getStringExtra(EXTRA_LANGUAGE)
+        val region = intent.getStringExtra(EXTRA_REGION)
+        val releaseDateGte = intent.getStringExtra(EXTRA_RELEASE_DATE_GTE)
+        if (lang != null || region != null || releaseDateGte != null) {
+            viewModel.setCustomFilters(lang, region, releaseDateGte)
         }
 
         observeViewModel()
@@ -123,6 +122,11 @@ class DebridDiscoverActivity : AppCompatActivity() {
             },
             onLoadMore = { viewModel.loadNextPage() }
         )
+        // Initialize views and grid before setting up the data
+        initViews()
+        setupGrid()
+        setupSelectors()
+        
         rvGrid.apply {
             layoutManager = GridLayoutManager(this@DebridDiscoverActivity, 6)
             adapter = gridAdapter
@@ -148,52 +152,61 @@ class DebridDiscoverActivity : AppCompatActivity() {
             selector.setOnFocusChangeListener { view, hasFocus ->
                 val textView = view as TextView
                 applySelectorFocusStyle(textView, hasFocus)
+                // SECURE FOCUS: Track the exact selector currently focused so we can reliably return to it 
+                // from the grid without relying on Android's unpredictable global focus-search
                 if (hasFocus) lastFocusedSelector = textView
             }
             selector.setOnKeyListener { view, keyCode, event ->
-                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                    focusFirstPosterOrGrid()
-                    return@setOnKeyListener true
+                if (event.action == KeyEvent.ACTION_DOWN) {
+                    when (keyCode) {
+                        KeyEvent.KEYCODE_DPAD_DOWN -> {
+                            // SECURE FOCUS: Safely transition focus downwards into the grid area
+                            focusFirstPosterOrGrid()
+                            return@setOnKeyListener true
+                        }
+                        KeyEvent.KEYCODE_DPAD_UP -> {
+                            // SECURE FOCUS: Block UP from escaping the layout entirely, preventing 
+                            // focus from jumping to unseen System UI elements
+                            return@setOnKeyListener true
+                        }
+                    }
                 }
                 false
             }
         }
 
         btnType.setOnClickListener {
+            val currentState = viewModel.filterState.value
             showDropdown(
                 anchor = btnType,
                 options = listOf(FilterOption("Movies", TYPE_MOVIE), FilterOption("Series", TYPE_SERIES)),
-                selectedValue = selectedType
+                selectedValue = currentState.type
             ) { option ->
-                if (selectedType != option.value) {
-                    val type = option.value as String
-                    selectedType = type
-                    selectedGenreId = null
-                    selectedGenreLabel = GENRE_ALL
+                val type = option.value as String
+                if (currentState.type != type) {
                     queueSelectorFocus(btnType)
                     viewModel.setType(type)
                 }
-                updateSelectorText()
             }
         }
 
         btnCatalogue.setOnClickListener {
+            val currentState = viewModel.filterState.value
             showDropdown(
                 anchor = btnCatalogue,
                 options = viewModel.catalogueOptions.map { FilterOption(it.label, it.value) },
-                selectedValue = selectedCatalogue
+                selectedValue = currentState.catalogue
             ) { option ->
-                if (selectedCatalogue != option.value) {
-                    val catalogue = option.value as String
-                    selectedCatalogue = catalogue
+                val catalogue = option.value as String
+                if (currentState.catalogue != catalogue) {
                     queueSelectorFocus(btnCatalogue)
                     viewModel.setCatalogue(catalogue)
                 }
-                updateSelectorText()
             }
         }
 
         btnGenre.setOnClickListener {
+            val currentState = viewModel.filterState.value
             val options = buildList {
                 add(FilterOption(GENRE_ALL, null))
                 currentGenres.forEach { genre ->
@@ -201,46 +214,42 @@ class DebridDiscoverActivity : AppCompatActivity() {
                     add(FilterOption(genre.name ?: id.toString(), id))
                 }
             }
-            showDropdown(anchor = btnGenre, options = options, selectedValue = selectedGenreId) { option ->
-                if (selectedGenreId != option.value) {
-                    selectedGenreId = option.value as Int?
-                    selectedGenreLabel = option.label
+            showDropdown(anchor = btnGenre, options = options, selectedValue = currentState.genreId) { option ->
+                val genreId = option.value as Int?
+                if (currentState.genreId != genreId) {
                     queueSelectorFocus(btnGenre)
-                    viewModel.setGenre(selectedGenreId)
+                    viewModel.setGenre(genreId)
                 }
-                updateSelectorText()
             }
         }
 
         btnYear.setOnClickListener {
+            val currentState = viewModel.filterState.value
             val options = viewModel.yearOptions.map { year ->
                 FilterOption(year?.toString() ?: YEAR_ALL, year)
             }
-            showDropdown(anchor = btnYear, options = options, selectedValue = selectedYear) { option ->
-                if (selectedYear != option.value) {
-                    selectedYear = option.value as Int?
+            showDropdown(anchor = btnYear, options = options, selectedValue = currentState.year) { option ->
+                val year = option.value as Int?
+                if (currentState.year != year) {
                     queueSelectorFocus(btnYear)
-                    viewModel.setYear(selectedYear)
+                    viewModel.setYear(year)
                 }
-                updateSelectorText()
             }
         }
-
-        updateSelectorText()
     }
 
     private fun observeViewModel() {
         lifecycleScope.launch {
             viewModel.genres.collect { genres ->
                 currentGenres = genres
-                val selectedGenre = genres.firstOrNull { it.id == selectedGenreId }
-                if (selectedGenreId != null && selectedGenre == null) {
-                    selectedGenreId = null
-                    selectedGenreLabel = GENRE_ALL
-                } else if (selectedGenre != null) {
-                    selectedGenreLabel = selectedGenre.name ?: GENRE_ALL
-                }
-                updateSelectorText()
+                // Triggers an update to the selector text since genre data is needed to display label
+                updateSelectorText(viewModel.filterState.value)
+            }
+        }
+        lifecycleScope.launch {
+            viewModel.filterState.collect { state ->
+                // Ensure UI is reactively bound to ViewModel state emissions
+                updateSelectorText(state)
             }
         }
         lifecycleScope.launch {
@@ -302,11 +311,14 @@ class DebridDiscoverActivity : AppCompatActivity() {
         })
     }
 
-    private fun updateSelectorText() {
-        btnType.text = "Type: ${if (selectedType == TYPE_MOVIE) "Movies" else "Series"}"
-        btnCatalogue.text = "Catalogue: ${catalogueLabel(selectedCatalogue)}"
-        btnGenre.text = "Genre: $selectedGenreLabel"
-        btnYear.text = "Year: ${selectedYear?.toString() ?: YEAR_ALL}"
+    private fun updateSelectorText(state: DiscoverFilterState) {
+        btnType.text = "Type: ${if (state.type == TYPE_MOVIE) "Movies" else "Series"}"
+        btnCatalogue.text = "Catalogue: ${catalogueLabel(state.catalogue)}"
+        
+        val genreLabel = if (state.genreId == null) GENRE_ALL else currentGenres.firstOrNull { it.id == state.genreId }?.name ?: GENRE_ALL
+        btnGenre.text = "Genre: $genreLabel"
+        
+        btnYear.text = "Year: ${state.year?.toString() ?: YEAR_ALL}"
     }
 
     private fun catalogueLabel(value: String): String {
@@ -333,82 +345,118 @@ class DebridDiscoverActivity : AppCompatActivity() {
         selectedValue: Any?,
         onSelected: (FilterOption) -> Unit
     ) {
+        // SECURE FOCUS: Dismiss any existing popup immediately to prevent overlapping focus states
         activePopup?.dismiss()
 
-        val listView = ListView(this).apply {
-            divider = null
-            isFocusable = true
-            isFocusableInTouchMode = true
-            choiceMode = ListView.CHOICE_MODE_SINGLE
-            selector = dropdownRowFocusSelector()
-            setDrawSelectorOnTop(false)
-            adapter = DropdownAdapter(options, selectedValue) { position ->
-                activePopup?.dismiss()
-                anchor.post { anchor.requestFocus() }
-                val option = options[position]
-                val sanitizedLabel = option.label.replace("\u2713 ", "")
-                onSelected(option.copy(label = sanitizedLabel))
-            }
-            // Keep as fallback just in case
-            setOnItemClickListener { _, _, position, _ ->
-                activePopup?.dismiss()
-                anchor.post { anchor.requestFocus() }
-                val option = options[position]
-                val sanitizedLabel = option.label.replace("\u2713 ", "")
-                onSelected(option.copy(label = sanitizedLabel))
-            }
-            setOnKeyListener { _, keyCode, event ->
-                if (event.action == KeyEvent.ACTION_DOWN) {
-                    when (keyCode) {
-                        KeyEvent.KEYCODE_BACK -> {
-                            activePopup?.dismiss()
-                            return@setOnKeyListener true
-                        }
-                        KeyEvent.KEYCODE_DPAD_LEFT,
-                        KeyEvent.KEYCODE_DPAD_RIGHT -> return@setOnKeyListener true
-                        KeyEvent.KEYCODE_DPAD_CENTER,
-                        KeyEvent.KEYCODE_ENTER,
-                        KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                            val position = selectedItemPosition
-                            if (position in options.indices) {
-                                activePopup?.dismiss()
-                                anchor.post { anchor.requestFocus() }
-                                val option = options[position]
-                                val sanitizedLabel = option.label.replace("\u2713 ", "")
-                                onSelected(option.copy(label = sanitizedLabel))
+        val linearLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(8), 0, dp(8))
+            clipChildren = false
+            clipToPadding = false
+        }
+
+        val scrollView = ScrollView(this).apply {
+            isScrollbarFadingEnabled = false
+            clipChildren = false
+            clipToPadding = false
+            addView(linearLayout)
+        }
+
+        val initialPosition = options.indexOfFirst { it.value == selectedValue }.coerceAtLeast(0)
+        var initialViewToFocus: View? = null
+
+        options.forEachIndexed { index, option ->
+            val selected = option.value == selectedValue
+            val textView = TextView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(DROPDOWN_ROW_HEIGHT_DP)).apply {
+                    setMargins(dp(8), dp(2), dp(8), dp(2)) // Add some margin so scaling doesn't overlap
+                }
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(16), 0, dp(16), 0)
+                textSize = 16f
+                isFocusable = true
+                isFocusableInTouchMode = true
+                text = if (selected) "\u2713 ${option.label}" else option.label
+                typeface = anchor.typeface // standard btnType fallback
+                background = ColorDrawable(Color.TRANSPARENT)
+                setTextColor(Color.parseColor("#B3FFFFFF"))
+                
+                setOnClickListener {
+                    // SECURE FOCUS: Safely dismiss popup and synchronously return focus to the anchor button
+                    activePopup?.dismiss()
+                    anchor.requestFocus()
+                    val sanitizedLabel = option.label.replace("\u2713 ", "")
+                    onSelected(option.copy(label = sanitizedLabel))
+                }
+                
+                setOnKeyListener { _, keyCode, event ->
+                    if (event.action == KeyEvent.ACTION_DOWN) {
+                        when (keyCode) {
+                            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                                callOnClick()
+                                return@setOnKeyListener true
+                            }
+                            KeyEvent.KEYCODE_DPAD_UP -> {
+                                // SECURE FOCUS: If at the top of the list, pressing UP dismisses the menu and safely returns to anchor
+                                if (index == 0) {
+                                    activePopup?.dismiss()
+                                    anchor.requestFocus()
+                                    return@setOnKeyListener true
+                                }
+                            }
+                            KeyEvent.KEYCODE_DPAD_DOWN -> {
+                                // SECURE FOCUS: If at the bottom, intercept DOWN to prevent focus from falling into the black hole of the underlying layout
+                                if (index == options.size - 1) {
+                                    return@setOnKeyListener true
+                                }
+                            }
+                            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                                // SECURE FOCUS: Block horizontal navigation completely so focus doesn't mysteriously jump to background elements
                                 return@setOnKeyListener true
                             }
                         }
                     }
+                    false
                 }
-                false
+                
+                setOnFocusChangeListener { view, hasFocus ->
+                    if (hasFocus) {
+                        view.background = dropdownRowFocusSelector()
+                        setTextColor(Color.parseColor("#000000"))
+                        setTypeface(typeface, android.graphics.Typeface.BOLD)
+                        view.animate().scaleX(1.05f).scaleY(1.05f).translationZ(10f).setDuration(150).start()
+                    } else {
+                        view.background = ColorDrawable(Color.TRANSPARENT)
+                        setTextColor(Color.parseColor("#B3FFFFFF"))
+                        setTypeface(typeface, android.graphics.Typeface.NORMAL)
+                        view.animate().scaleX(1.0f).scaleY(1.0f).translationZ(0f).setDuration(150).start()
+                    }
+                }
             }
+            linearLayout.addView(textView)
+            if (index == initialPosition) initialViewToFocus = textView
         }
-
-        val initialPosition = options.indexOfFirst { it.value == selectedValue }.coerceAtLeast(0)
-        listView.setItemChecked(initialPosition, true)
-        listView.setSelection(initialPosition)
 
         val popupWidth = maxOf(anchor.width, dp(220))
         val popupHeight = minOf(dp(360), options.size * dp(DROPDOWN_ROW_HEIGHT_DP))
-        activePopup = PopupWindow(listView, popupWidth, popupHeight, true).apply {
+        activePopup = PopupWindow(scrollView, popupWidth, popupHeight, true).apply {
             isFocusable = true
             setBackgroundDrawable(ContextCompat.getDrawable(this@DebridDiscoverActivity, R.drawable.bg_dropdown_smooth))
             animationStyle = R.style.DropdownAnimationStyle
             isOutsideTouchable = false
             setOnDismissListener {
+                // SECURE FOCUS: Guarantee that no matter how the popup closes (Back button, loss of focus), 
+                // the focus shifts back to the specific selector button that spawned it.
                 activePopup = null
-                anchor.post { anchor.requestFocus() }
+                anchor.requestFocus()
             }
             showAsDropDown(anchor, 0, dp(6), Gravity.NO_GRAVITY)
         }
-        listView.post {
-            listView.setItemChecked(initialPosition, true)
-            listView.setSelection(initialPosition)
-            listView.requestFocus()
-            listView.post {
-                listView.setSelection(initialPosition)
-            }
+        
+        // SECURE FOCUS: Post the initial focus request to the layout queue so it triggers *after* the popup window is fully attached to the screen.
+        // This eliminates the race condition where focus drops back to the underlying activity while the popup is still rendering.
+        scrollView.post {
+            initialViewToFocus?.requestFocus()
         }
     }
 
@@ -446,66 +494,12 @@ class DebridDiscoverActivity : AppCompatActivity() {
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
-    private inner class DropdownAdapter(
-        private val options: List<FilterOption>,
-        private val selectedValue: Any?,
-        private val onItemClicked: (Int) -> Unit
-    ) : BaseAdapter() {
-        override fun getCount(): Int = options.size
-        override fun getItem(position: Int): FilterOption = options[position]
-        override fun getItemId(position: Int): Long = position.toLong()
-
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-            val context = parent?.context ?: this@DebridDiscoverActivity
-            val textView = (convertView as? TextView) ?: TextView(context).apply {
-                layoutParams = AbsListView.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    dp(DROPDOWN_ROW_HEIGHT_DP)
-                )
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(16), 0, dp(16), 0)
-                textSize = 16f
-                isFocusable = true
-                isFocusableInTouchMode = false
-                background = ColorDrawable(Color.TRANSPARENT)
-                
-                val textStates = arrayOf(
-                    intArrayOf(android.R.attr.state_pressed),
-                    intArrayOf(android.R.attr.state_focused),
-                    intArrayOf(android.R.attr.state_selected),
-                    intArrayOf(android.R.attr.state_activated),
-                    intArrayOf()
-                )
-                val textColors = intArrayOf(
-                    Color.parseColor("#FFFFFF"),
-                    Color.parseColor("#FFFFFF"),
-                    Color.parseColor("#FFFFFF"),
-                    Color.parseColor("#FFFFFF"),
-                    Color.parseColor("#B3FFFFFF")
-                )
-                setTextColor(ColorStateList(textStates, textColors))
-            }
-
-            val option = options[position]
-            val selected = option.value == selectedValue
-            textView.text = if (selected) "\u2713 ${option.label}" else option.label
-            textView.typeface = btnType.typeface // Reusing safe Jakarta typeface from audit pass
-
-            textView.setOnClickListener {
-                onItemClicked(position)
-            }
-
-            return textView
-        }
-    }
-
 
 
     private fun dropdownRowFocusSelector(): StateListDrawable {
         val focused = GradientDrawable().apply {
-            setColor(ContextCompat.getColor(this@DebridDiscoverActivity, R.color.white_opacity_50))
-            setStroke(dp(2), ContextCompat.getColor(this@DebridDiscoverActivity, R.color.accent_blue))
-            cornerRadius = dp(8).toFloat()
+            setColor(Color.parseColor("#00E5FF"))
+            cornerRadius = dp(34).toFloat()
         }
         val transparent = ColorDrawable(Color.TRANSPARENT)
         return StateListDrawable().apply {
@@ -541,6 +535,10 @@ class DebridDiscoverActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_TYPE = "extra_type"
         const val EXTRA_GENRE_ID = "extra_genre_id"
+        const val EXTRA_CATALOGUE = "extra_catalogue"
+        const val EXTRA_LANGUAGE = "extra_language"
+        const val EXTRA_REGION = "extra_region"
+        const val EXTRA_RELEASE_DATE_GTE = "extra_release_date_gte"
         private const val TYPE_MOVIE = "movie"
         private const val TYPE_SERIES = "series"
         private const val GENRE_ALL = "All Genres"
@@ -548,10 +546,11 @@ class DebridDiscoverActivity : AppCompatActivity() {
         private const val KEY_LAST_FOCUS_POS = "last_focus_pos"
         private const val DROPDOWN_ROW_HEIGHT_DP = 52
 
-        fun createIntent(context: Context, type: String? = null, genreId: Int? = null): Intent =
+        fun createIntent(context: Context, type: String? = null, genreId: Int? = null, catalogue: String? = null): Intent =
             Intent(context, DebridDiscoverActivity::class.java).apply {
                 type?.let { putExtra(EXTRA_TYPE, it) }
                 genreId?.let { putExtra(EXTRA_GENRE_ID, it) }
+                catalogue?.let { putExtra(EXTRA_CATALOGUE, it) }
             }
     }
 }

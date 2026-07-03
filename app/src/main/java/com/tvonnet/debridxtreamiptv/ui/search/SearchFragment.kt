@@ -155,7 +155,7 @@ class SearchFragment : Fragment() {
         val username = credentialsPrefs.getUsername()
         val password = credentialsPrefs.getPassword()
         
-        android.util.Log.d(TAG, "Initializing repository: serverUrl=$serverUrl, username=$username")
+        android.util.Log.d(TAG, "Initializing repository: serverUrlPresent=${serverUrl != null}, usernamePresent=${username != null}")
         
         if (serverUrl != null && username != null && password != null) {
             // Repository initialization is handled by Hilt, but we need to ensure it's initialized

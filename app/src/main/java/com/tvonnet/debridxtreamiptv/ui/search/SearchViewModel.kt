@@ -177,7 +177,7 @@ class SearchViewModel @Inject constructor(
                 updateState {
                     copy(
                         isSearching = false,
-                        error = "Search failed: ${e.message}"
+                        error = "Search failed. Please try again."
                     )
                 }
             }
@@ -196,14 +196,19 @@ class SearchViewModel @Inject constructor(
     }
     
     private fun addToRecentSearches(query: String) {
-        if (query.isBlank()) return
-        
+        val normalized = query.trim()
+        if (normalized.isBlank()) return
+
         viewModelScope.launch {
             try {
-                // Week 10: Persist to Room database
-                val searchHistory = SearchHistoryEntity(query = query)
+                // The history table has no unique constraint on query (PK is an
+                // auto-generated id), so a repeated search would insert a
+                // duplicate row. Delete the older entry first so the query
+                // moves to the top instead of appearing twice.
+                searchHistoryDao.deleteSearchByQuery(normalized)
+                val searchHistory = SearchHistoryEntity(query = normalized)
                 searchHistoryDao.insertSearch(searchHistory)
-                
+
                 // Clean old searches (keep only last 50)
                 searchHistoryDao.cleanOldSearches()
             } catch (e: Exception) {

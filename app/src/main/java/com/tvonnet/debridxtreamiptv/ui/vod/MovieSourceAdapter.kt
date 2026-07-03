@@ -2,6 +2,7 @@ package com.tvonnet.debridxtreamiptv.ui.vod
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -35,7 +36,6 @@ class MovieSourceAdapter(
         
         selectedStreamId = streamId
         if (notify) {
-            // Find positions and update selectively
             for (i in 0 until itemCount) {
                 val item = getItem(i)
                 if (item.stream.stream_id == oldId || item.stream.stream_id == streamId) {
@@ -63,81 +63,58 @@ class MovieSourceAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(source: MovieSource) {
-            binding.tvSourceLabel.text = source.label
-            
-            // Provider Badge
+            // Col 1: Provider Badge
             bindProviderBadge(source)
 
-            // Set language flags
-            val languages = source.languages ?: listOf("multi")
-            val flags = languages.map { getFlagEmoji(it) }.distinct().joinToString(" ")
-            binding.tvLanguageFlag.text = flags
+            // Col 2: Language Flags
+            bindLanguages(source)
 
-            // Quality Badge
+            // Col 3: Source Title / Release Name
+            binding.tvReleaseName.text = source.label
+
+            // Col 4: Quality Badge
             val qualityLabel = source.quality
                 ?.trim()
                 ?.takeIf { it.isNotBlank() && it.lowercase(Locale.US) != "unknown" }
                 ?.uppercase(Locale.US)
-            binding.tvBadgeQuality.isVisible = !qualityLabel.isNullOrBlank()
+            binding.tvQuality.isVisible = !qualityLabel.isNullOrBlank()
             if (!qualityLabel.isNullOrBlank()) {
-                binding.tvBadgeQuality.text = qualityLabel
-                // Apply color logic based on quality
+                binding.tvQuality.text = qualityLabel
                 when {
                     qualityLabel.contains("4K") || qualityLabel.contains("2160") -> {
-                        binding.tvBadgeQuality.setBackgroundResource(R.drawable.cin_pill_4k_gold)
-                        binding.tvBadgeQuality.setTextColor(binding.root.context.getColor(R.color.black))
+                        binding.tvQuality.setBackgroundResource(R.drawable.cin_pill_4k_gold)
+                        binding.tvQuality.setTextColor(binding.root.context.getColor(R.color.black))
                     }
                     qualityLabel.contains("1080") -> {
-                        binding.tvBadgeQuality.setBackgroundResource(R.drawable.cin_pill_1080p_blue)
-                        binding.tvBadgeQuality.setTextColor(binding.root.context.getColor(R.color.white))
+                        binding.tvQuality.setBackgroundResource(R.drawable.cin_pill_1080p_blue)
+                        binding.tvQuality.setTextColor(binding.root.context.getColor(R.color.white))
                     }
                     else -> {
-                        binding.tvBadgeQuality.setBackgroundResource(R.drawable.cin_pill_generic)
-                        binding.tvBadgeQuality.setTextColor(binding.root.context.getColor(R.color.white))
+                        binding.tvQuality.setBackgroundResource(R.drawable.cin_pill_generic)
+                        binding.tvQuality.setTextColor(binding.root.context.getColor(R.color.white))
                     }
                 }
             }
 
-            // Size Badge
+            // Col 5: Type Badge
+            val typeLabel = if (source.cacheStatus == DebridCacheStatus.NOT_CACHED) "TORRENT" else "DIRECT"
+            binding.tvType.text = typeLabel
+            if (typeLabel == "DIRECT") {
+                binding.tvType.setBackgroundResource(R.drawable.cin_pill_cached)
+                binding.tvType.setTextColor(binding.root.context.getColor(R.color.white))
+            } else {
+                binding.tvType.setBackgroundResource(R.drawable.cin_pill_uncached)
+                binding.tvType.setTextColor(binding.root.context.getColor(R.color.white))
+            }
+
+            // Col 6: Size
             val sizeLabel = source.sizeBytes
                 ?.takeIf { it > 0 }
                 ?.let { formatSizeLabel(it) }
-            binding.tvBadgeSize.isVisible = !sizeLabel.isNullOrBlank()
+            binding.tvFilesize.isVisible = !sizeLabel.isNullOrBlank()
             if (!sizeLabel.isNullOrBlank()) {
-                binding.tvBadgeSize.text = sizeLabel
+                binding.tvFilesize.text = sizeLabel
             }
-
-            // Seeders Badge
-            val seedersLabel = source.seeders
-                ?.takeIf { it > 0 }
-                ?.let { buildSeedersLabel(it) }
-            binding.tvBadgeSeeders.isVisible = !seedersLabel.isNullOrBlank()
-            if (!seedersLabel.isNullOrBlank()) {
-                binding.tvBadgeSeeders.text = seedersLabel
-            }
-
-            // Cache confidence badge
-            binding.tvBadgeCached.isVisible = true
-            when (source.cacheStatus) {
-                DebridCacheStatus.VERIFIED_CACHED -> {
-                    binding.tvBadgeCached.text = "VERIFIED"
-                    binding.tvBadgeCached.setBackgroundResource(R.drawable.cin_pill_cached)
-                }
-                DebridCacheStatus.DIRECT_STREAM -> {
-                    binding.tvBadgeCached.text = "DIRECT"
-                    binding.tvBadgeCached.setBackgroundResource(R.drawable.cin_pill_cached)
-                }
-                DebridCacheStatus.NOT_CACHED -> {
-                    binding.tvBadgeCached.text = "UNCACHED"
-                    binding.tvBadgeCached.setBackgroundResource(R.drawable.cin_pill_uncached)
-                }
-                DebridCacheStatus.UNKNOWN -> {
-                    binding.tvBadgeCached.text = "UNKNOWN"
-                    binding.tvBadgeCached.setBackgroundResource(R.drawable.cin_pill_generic)
-                }
-            }
-
-            binding.layoutBadges.isVisible = true
 
             val isSelectedItem = source.stream.stream_id == selectedStreamId
             binding.root.isSelected = isSelectedItem
@@ -147,9 +124,8 @@ class MovieSourceAdapter(
                 val stillSelected = source.stream.stream_id == selectedStreamId
                 binding.root.isSelected = stillSelected
                 
-                // Show play icon only on focus for a cleaner look
-                binding.ivPlayIcon.isVisible = hasFocus
-                binding.ivPlayIcon.alpha = if (hasFocus) 1.0f else 0.0f
+                binding.ivPlay.isVisible = hasFocus
+                binding.ivPlay.alpha = if (hasFocus) 1.0f else 0.0f
                 
                 if (hasFocus) {
                     onSourceFocused(source)
@@ -160,10 +136,10 @@ class MovieSourceAdapter(
             
             if (binding.root.isFocused) {
                 FocusGlintHelper.attach(binding.root)
-                binding.ivPlayIcon.isVisible = true
-                binding.ivPlayIcon.alpha = 1.0f
+                binding.ivPlay.isVisible = true
+                binding.ivPlay.alpha = 1.0f
             } else {
-                binding.ivPlayIcon.isVisible = false
+                binding.ivPlay.isVisible = false
             }
 
             binding.root.setOnClickListener {
@@ -179,6 +155,11 @@ class MovieSourceAdapter(
                     val adapter = rv.adapter ?: return@setOnKeyListener false
                     
                     when (keyCode) {
+                        android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+                        android.view.KeyEvent.KEYCODE_ENTER -> {
+                            onSourceClicked(source)
+                            return@setOnKeyListener true
+                        }
                         android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
                             if (position < adapter.itemCount - 1) {
                                 val nextPosition = position + 1
@@ -189,7 +170,6 @@ class MovieSourceAdapter(
                                 }
                                 return@setOnKeyListener true
                             } else {
-                                // At final item, consume event to prevent wrapping to top
                                 return@setOnKeyListener true
                             }
                         }
@@ -213,21 +193,50 @@ class MovieSourceAdapter(
         }
 
         private fun bindProviderBadge(source: MovieSource) {
-            val label = source.label?.uppercase(Locale.US) ?: ""
+            val label = source.label.uppercase(Locale.US)
             val provider = source.provider?.uppercase(Locale.US) ?: ""
-            
-            val (badgeText, badgeBg) = when {
-                label.contains("RD") || label.contains("REAL-DEBRID") || provider.contains("REALDEBRID") -> 
-                    "RD" to R.drawable.cin_src_badge_real
-                label.contains("AD") || label.contains("ALLDEBRID") || provider.contains("ALLDEBRID") -> 
-                    "AD" to R.drawable.cin_src_badge_all
-                label.contains("PM") || label.contains("PREMIUMIZE") || provider.contains("PREMIUMIZE") -> 
-                    "PM" to R.drawable.cin_src_badge_prem
-                else -> "SRC" to R.drawable.cin_src_badge_generic
+            val sourceName = source.sourceName?.uppercase(Locale.US) ?: ""
+
+            // Design palette: RD cyan, AIO amber, STRM green, generic glass
+            val darkText = 0xFF0E0D15.toInt()
+            val (badgeText, badgeBg, textColor) = when {
+                sourceName.contains("AIO") || label.contains("AIOSTREAMS") ->
+                    Triple("AIO", R.drawable.cin_src_badge_aio_amber, darkText)
+                sourceName.contains("STREMTHRU") || sourceName.contains("STRM") || label.contains("STREMTHRU") ->
+                    Triple("STRM", R.drawable.cin_src_badge_strm_green, darkText)
+                label.contains("RD") || label.contains("REAL-DEBRID") || provider.contains("REALDEBRID") ->
+                    Triple("RD", R.drawable.cin_src_badge_rd_cyan, darkText)
+                label.contains("AD") || label.contains("ALLDEBRID") || provider.contains("ALLDEBRID") ->
+                    Triple("AD", R.drawable.cin_src_badge_aio_amber, darkText)
+                label.contains("PM") || label.contains("PREMIUMIZE") || provider.contains("PREMIUMIZE") ->
+                    Triple("PM", R.drawable.cin_src_badge_prem, 0xFFF1F5F9.toInt())
+                else -> Triple("SRC", R.drawable.cin_src_badge_generic, 0xFFF1F5F9.toInt())
             }
+
+            binding.tvProvider.text = badgeText
+            binding.tvProvider.setBackgroundResource(badgeBg)
+            binding.tvProvider.setTextColor(textColor)
+        }
+
+        private fun bindLanguages(source: MovieSource) {
+            binding.llLanguages.removeAllViews()
+            val languages = source.languages ?: listOf("multi")
             
-            binding.tvProviderBadge.text = badgeText
-            binding.tvProviderBadge.setBackgroundResource(badgeBg)
+            languages.distinct().forEach { langCode ->
+                val chip = LayoutInflater.from(binding.root.context).inflate(
+                    R.layout.item_lang_chip, binding.llLanguages, false
+                )
+                val tvFlag = chip.findViewById<TextView>(R.id.tv_flag)
+                val tvCode = chip.findViewById<TextView>(R.id.tv_code)
+                
+                val flagParts = getFlagEmoji(langCode).split(" ")
+                val emoji = flagParts.firstOrNull() ?: "🌐"
+                val code = if (flagParts.size > 1) flagParts[1] else "UNK"
+                
+                tvFlag.text = emoji
+                tvCode.text = code
+                binding.llLanguages.addView(chip)
+            }
         }
 
         private fun getFlagEmoji(languageCode: String): String {
@@ -260,11 +269,6 @@ class MovieSourceAdapter(
             } else {
                 String.format(Locale.US, "%.0f MB", sizeBytes / mb)
             }
-        }
-
-        private fun buildSeedersLabel(seeders: Int): String {
-            val label = if (seeders == 1) "SEED" else "SEEDS"
-            return "$seeders $label"
         }
     }
 

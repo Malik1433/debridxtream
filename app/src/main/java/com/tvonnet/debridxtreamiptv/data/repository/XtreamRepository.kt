@@ -28,8 +28,12 @@ import com.tvonnet.debridxtreamiptv.data.remote.XtreamRetrofitClient
 import com.tvonnet.debridxtreamiptv.utils.PerformanceMonitor
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -171,6 +175,12 @@ class XtreamRepository @Inject constructor(
 
             // Initialize EpgParser with MemoryManager
             EpgParser.initialize(context)
+
+            // App start with existing credentials: make sure the search index
+            // (full VOD/series/live catalog in Room) exists and is fresh —
+            // initial/background content syncs do not run on a normal relaunch,
+            // so this is the trigger that covers everyday app opens.
+            scheduleSearchIndexSyncIfStale()
 
             // Start memory monitoring
             memoryManager.startMonitoring()
@@ -376,6 +386,10 @@ class XtreamRepository @Inject constructor(
 
                     PerformanceMonitor.trackMemory("afterFetchAllAndCache")
                     saveSyncMetadata(syncType)
+                    // Fill the search index (full catalog → Room) in the
+                    // background so Search covers categories the user never
+                    // opened. Fire-and-forget; idempotent via REPLACE upserts.
+                    scheduleSearchIndexSyncIfStale()
                     updateSyncProgress(
                         type = syncType,
                         state = SyncState.SUCCESS,
@@ -2257,6 +2271,12 @@ class XtreamRepository @Inject constructor(
         private const val KEY_LAST_SYNC_TIME = "last_sync_time"
         private const val KEY_LAST_SYNC_TYPE = "last_sync_type"
         private const val BACKGROUND_SYNC_SKIP_AFTER_INITIAL_MS = 2 * 60 * 1000L
+        private const val SEARCH_INDEX_CHUNK = 2000
+        private const val KEY_SEARCH_INDEX_VOD_TIME = "search_index_vod_time"
+        private const val KEY_SEARCH_INDEX_SERIES_TIME = "search_index_series_time"
+        private const val KEY_SEARCH_INDEX_LIVE_TIME = "search_index_live_time"
+        private const val SEARCH_INDEX_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000L
+        private const val SEARCH_INDEX_CATEGORY_FETCH_DELAY_MS = 150L
     }
     // --- Search Functionality ---
 
@@ -2274,6 +2294,244 @@ class XtreamRepository @Inject constructor(
 
     suspend fun searchEpg(query: String): List<com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity> {
         return epgDao?.searchPrograms(query, System.currentTimeMillis()) ?: emptyList()
+    }
+
+    /**
+     * Search-index sync: fills Room with the FULL VOD/series catalog so search
+     * covers categories the user never opened (those tables are otherwise only
+     * populated lazily per browsed category). Runs in the background after a
+     * successful content sync; REPLACE upserts on stable stream/series ids keep
+     * it idempotent and never delete the lazily-synced per-category rows.
+     */
+    private val searchIndexScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val searchIndexMutex = Mutex()
+
+    fun scheduleSearchIndexSyncIfStale() {
+        val anyStale = isIndexStageStale(KEY_SEARCH_INDEX_VOD_TIME) ||
+            isIndexStageStale(KEY_SEARCH_INDEX_SERIES_TIME) ||
+            isIndexStageStale(KEY_SEARCH_INDEX_LIVE_TIME)
+        if (anyStale) {
+            scheduleSearchIndexSync()
+        }
+    }
+
+    fun scheduleSearchIndexSync() {
+        searchIndexScope.launch {
+            try {
+                syncSearchIndex()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Search index sync failed: ${e.javaClass.simpleName}")
+            }
+        }
+    }
+
+    private fun isIndexStageStale(stageKey: String): Boolean {
+        return System.currentTimeMillis() - syncPrefs.getLong(stageKey, 0L) >= SEARCH_INDEX_REFRESH_INTERVAL_MS
+    }
+
+    private fun markIndexStageFresh(stageKey: String) {
+        syncPrefs.edit().putLong(stageKey, System.currentTimeMillis()).apply()
+    }
+
+    private suspend fun syncSearchIndex() {
+        val service = apiService ?: return
+        if (!searchIndexMutex.tryLock()) return
+        try {
+            // Log.i so it is visible on devices that suppress Log.d. Each stage
+            // is gated separately: a stage whose fetch failed (or returned
+            // empty on a panel that rejects uncategorized calls) retries on the
+            // next app open without re-running the stages that succeeded.
+            Log.i(TAG, "Search index sync started")
+            if (isIndexStageStale(KEY_SEARCH_INDEX_VOD_TIME) && indexVodCatalog(service)) {
+                markIndexStageFresh(KEY_SEARCH_INDEX_VOD_TIME)
+            }
+            if (isIndexStageStale(KEY_SEARCH_INDEX_SERIES_TIME) && indexSeriesCatalog(service)) {
+                markIndexStageFresh(KEY_SEARCH_INDEX_SERIES_TIME)
+            }
+            if (isIndexStageStale(KEY_SEARCH_INDEX_LIVE_TIME) && indexLiveCatalog(service)) {
+                markIndexStageFresh(KEY_SEARCH_INDEX_LIVE_TIME)
+            }
+            Log.i(TAG, "Search index sync finished")
+        } finally {
+            searchIndexMutex.unlock()
+        }
+    }
+
+    private suspend fun indexVodCatalog(service: com.tvonnet.debridxtreamiptv.data.remote.XtreamApiService): Boolean {
+        val dao = vodDao ?: return false
+        suspend fun insertAll(streams: List<XtreamVodInfo>, categoryIdOf: (XtreamVodInfo) -> String) {
+            streams.chunked(SEARCH_INDEX_CHUNK).forEach { chunk ->
+                dao.insertMovies(chunk.map { it.toVodEntity(categoryIdOf(it)) })
+            }
+        }
+        return try {
+            val full = try {
+                service.getVodStreams(username, password, categoryId = null)
+                    .takeIf { it.isSuccessful }?.body().orEmpty()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                emptyList()
+            }
+            if (full.isNotEmpty()) {
+                insertAll(full) { it.category_id ?: "" }
+                Log.i(TAG, "Search index: vod full-catalog upserted ${full.size} movies")
+                return true
+            }
+            // Some panels reject the uncategorized call — iterate categories.
+            Log.i(TAG, "Search index: vod full fetch empty — per-category fallback")
+            val categories = try {
+                service.getVodCategories(username, password).takeIf { it.isSuccessful }?.body().orEmpty()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                emptyList()
+            }
+            if (categories.isEmpty()) return false
+            var indexedAny = false
+            var failures = 0
+            for (category in categories) {
+                val catId = category.category_id ?: continue
+                val streams = try {
+                    service.getVodStreams(username, password, categoryId = catId)
+                        .takeIf { it.isSuccessful }?.body().orEmpty()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    failures++
+                    emptyList()
+                }
+                if (streams.isNotEmpty()) {
+                    insertAll(streams) { catId }
+                    indexedAny = true
+                }
+                delay(SEARCH_INDEX_CATEGORY_FETCH_DELAY_MS)
+            }
+            Log.i(TAG, "Search index: vod per-category done (categories=${categories.size}, failures=$failures)")
+            indexedAny && failures < categories.size / 2
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Search index: vod stage error: ${e.javaClass.simpleName}")
+            false
+        }
+    }
+
+    private suspend fun indexSeriesCatalog(service: com.tvonnet.debridxtreamiptv.data.remote.XtreamApiService): Boolean {
+        val dao = seriesDao ?: return false
+        suspend fun insertAll(streams: List<XtreamSeriesInfo>, categoryIdOf: (XtreamSeriesInfo) -> String) {
+            streams.chunked(SEARCH_INDEX_CHUNK).forEach { chunk ->
+                dao.insertSeries(chunk.map { it.toSeriesEntity(categoryIdOf(it)) })
+            }
+        }
+        return try {
+            val full = try {
+                service.getSeries(username, password, categoryId = null)
+                    .takeIf { it.isSuccessful }?.body().orEmpty()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                emptyList()
+            }
+            if (full.isNotEmpty()) {
+                insertAll(full) { it.category_id ?: "" }
+                Log.i(TAG, "Search index: series full-catalog upserted ${full.size} series")
+                return true
+            }
+            Log.i(TAG, "Search index: series full fetch empty — per-category fallback")
+            val categories = try {
+                service.getSeriesCategories(username, password).takeIf { it.isSuccessful }?.body().orEmpty()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                emptyList()
+            }
+            if (categories.isEmpty()) return false
+            var indexedAny = false
+            var failures = 0
+            for (category in categories) {
+                val catId = category.category_id ?: continue
+                val streams = try {
+                    service.getSeries(username, password, categoryId = catId)
+                        .takeIf { it.isSuccessful }?.body().orEmpty()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    failures++
+                    emptyList()
+                }
+                if (streams.isNotEmpty()) {
+                    insertAll(streams) { catId }
+                    indexedAny = true
+                }
+                delay(SEARCH_INDEX_CATEGORY_FETCH_DELAY_MS)
+            }
+            Log.i(TAG, "Search index: series per-category done (categories=${categories.size}, failures=$failures)")
+            indexedAny && failures < categories.size / 2
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Search index: series stage error: ${e.javaClass.simpleName}")
+            false
+        }
+    }
+
+    private suspend fun indexLiveCatalog(service: com.tvonnet.debridxtreamiptv.data.remote.XtreamApiService): Boolean {
+        val cm = cacheManager ?: return false
+        return try {
+            val full = try {
+                service.getLiveStreams(username, password, categoryId = null)
+                    .takeIf { it.isSuccessful }?.body().orEmpty()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                emptyList()
+            }
+            if (full.isNotEmpty()) {
+                // Insert-only-new under a synthetic category id — never touches
+                // the lazy per-category rows (see CacheManager).
+                cm.indexChannelsForSearch(full, "live")
+                Log.i(TAG, "Search index: live full-catalog ${full.size} channels")
+                return true
+            }
+            Log.i(TAG, "Search index: live full fetch empty — per-category fallback")
+            val categories = try {
+                service.getLiveCategories(username, password).takeIf { it.isSuccessful }?.body().orEmpty()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                emptyList()
+            }
+            if (categories.isEmpty()) return false
+            var indexedAny = false
+            var failures = 0
+            for (category in categories) {
+                val catId = category.category_id ?: continue
+                val streams = try {
+                    service.getLiveStreams(username, password, categoryId = catId)
+                        .takeIf { it.isSuccessful }?.body().orEmpty()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    failures++
+                    emptyList()
+                }
+                if (streams.isNotEmpty()) {
+                    cm.indexChannelsForSearch(streams, "live")
+                    indexedAny = true
+                }
+                delay(SEARCH_INDEX_CATEGORY_FETCH_DELAY_MS)
+            }
+            Log.i(TAG, "Search index: live per-category done (categories=${categories.size}, failures=$failures)")
+            indexedAny && failures < categories.size / 2
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Search index: live stage error: ${e.javaClass.simpleName}")
+            false
+        }
     }
 
     // --- End Search Functionality ---

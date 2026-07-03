@@ -2,6 +2,24 @@
 Status: compacted
 Scope: confirmed Debrid wins.
 
+## Strongly-Typed Enum Optimization for Core Domain Lookups
+- **Date**: 2026-06-27
+- **Achievement**: Converted slow, brittle raw-string manipulation loops into fast $O(1)$ memory references for the Source Picker and Filter engines.
+- **Key Implementation**: Implemented `VideoQuality` and `StreamLanguage` Enums in `SourceFilterUtils.kt` with a centralized case-insensitive parsing layer. Shifted the parsing phase to the front of the precomputation loop so the high-frequency $O(N \log N)$ sorting algorithm relies strictly on Enum identity matching rather than executing string manipulation constraints.
+- **Proof**: Code implemented and user verified fix; no UI stuttering during high-volume array interactions.
+
+## Source Picker IdentityHashMap Performance Optimization
+- **Date**: 2026-06-26
+- **Achievement**: Eliminated UI threading lag when opening the Source Picker for Debrid streams returning 500+ sources.
+- **Key Implementation**: Upgraded `SourceFilterUtils.kt` to precompute static O(N) score caching using `IdentityHashMap` rather than executing expensive O(N log N) recursive heuristic checks on every `MovieSource` swap/sort.
+- **Proof**: Code implemented and user verified fix.
+
+## Discover State Reactivity & Focus Robustness
+- **Date**: 2026-06-26
+- **Achievement**: Hardened Discover filters and resolved focus black holes resulting from detached UI shadow variables.
+- **Key Implementation**: Replaced fragmented UI filter state (`selectedType`, `selectedGenre`, etc.) with a unified `DiscoverFilterState` `StateFlow` inside `DebridDiscoverViewModel.kt`. The UI purely observes this state. Re-bound the `queueSelectorFocus` mechanism to reliably snap focus after list updates.
+- **Proof**: Code implemented and user verified fix.
+
 ## Debrid Direct Proxy Readiness Guard
 - **Date**: 2026-06-03
 - **Achievement**: Prevented terminal direct-proxy addon links from opening Player and reduced no-link/API-extraction loops after provider timeouts.

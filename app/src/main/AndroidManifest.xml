@@ -108,6 +108,13 @@
             android:exported="false"
             android:screenOrientation="landscape" />
 
+        <activity
+            android:name=".ui.debrid.seeall.DebridSeeAllActivity"
+            android:label="See All"
+            android:theme="@style/AppTheme"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
 
 
         <activity

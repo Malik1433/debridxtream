@@ -1,18 +1,29 @@
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/tv_filter_label"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:paddingStart="18dp"
-    android:paddingTop="9dp"
-    android:paddingEnd="18dp"
-    android:paddingBottom="9dp"
-    android:textSize="13sp"
-    android:fontFamily="@font/plus_jakarta_sans"
-    android:textColor="@color/text_primary"
-    android:background="@drawable/bg_tab_button_selector"
-    android:focusable="true"
-    android:focusableInTouchMode="true"
-    android:layout_marginEnd="8dp"
-    android:gravity="center"
-    android:letterSpacing="0.01"
-    android:textStyle="bold" />
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data>
+        <!-- Variables go here if needed -->
+    </data>
+
+    <TextView
+        android:id="@+id/tv_filter_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingStart="18dp"
+        android:paddingTop="9dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="9dp"
+        android:textSize="13sp"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:textColor="@color/text_primary"
+        android:background="@drawable/bg_tab_button_selector"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:layout_marginEnd="8dp"
+        android:gravity="center"
+        android:letterSpacing="0.01"
+        android:textStyle="bold" />
+    
+</layout>

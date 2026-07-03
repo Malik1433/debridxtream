@@ -166,21 +166,67 @@ class PlayerTrackManager(
             }.takeIf { it >= 0 } ?: if (showDisableOption) 1 else 0
         }
 
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(context)
-            .setTitle(title)
-            .setSingleChoiceItems(options.map { it.label }.toTypedArray(), selectedIndex) { dialog, which ->
-                if (!player.isCommandAvailable(Player.COMMAND_SET_TRACK_SELECTION_PARAMETERS)) {
-                    dialog.dismiss()
-                    return@setSingleChoiceItems
-                }
-                val option = options[which]
-                val updatedParameters = player.trackSelectionParameters.buildUpon()
-                    .setTrackTypeDisabled(trackType, option.disabled)
-                    .clearOverridesOfType(trackType)
-                option.override?.let(updatedParameters::addOverride)
-                player.trackSelectionParameters = updatedParameters.build()
+        lateinit var dialog: androidx.appcompat.app.AlertDialog
+        val adapter = TrackSelectionAdapter(options.map { it.label }, selectedIndex) { which ->
+            if (!player.isCommandAvailable(Player.COMMAND_SET_TRACK_SELECTION_PARAMETERS)) {
                 dialog.dismiss()
+                return@TrackSelectionAdapter
             }
+            val option = options[which]
+            val builder = player.trackSelectionParameters.buildUpon()
+            
+            // 1. Set explicit disable state map
+            builder.setTrackTypeDisabled(trackType, option.disabled)
+            
+            // 2. Clear old state to wipe engine cache
+            builder.clearOverridesOfType(trackType)
+            
+            if (option.override != null) {
+                // 3. Inject explicit track override
+                builder.addOverride(option.override)
+                
+                // 4. Force inject matching high-level language preferences to bypass selector ignore traps
+                val trackFormat = option.override.mediaTrackGroup.getFormat(0)
+                val trackLanguage = trackFormat.language
+                
+                if (!trackLanguage.isNullOrEmpty()) {
+                    if (trackType == androidx.media3.common.C.TRACK_TYPE_AUDIO) {
+                        builder.setPreferredAudioLanguage(trackLanguage)
+                    } else if (trackType == androidx.media3.common.C.TRACK_TYPE_TEXT) {
+                        builder.setPreferredTextLanguage(trackLanguage)
+                    }
+                }
+            } else {
+                // Clean language fallbacks if AUTO mode is toggled
+                if (trackType == androidx.media3.common.C.TRACK_TYPE_AUDIO) {
+                    builder.setPreferredAudioLanguage(null)
+                } else if (trackType == androidx.media3.common.C.TRACK_TYPE_TEXT) {
+                    builder.setPreferredTextLanguage(null)
+                }
+            }
+            
+            // 5. Atomic re-assignment to Media3 pipeline
+            player.trackSelectionParameters = builder.build()
+            android.util.Log.d("MEDIA3_BUG", "Post-assign overrides: " + player.trackSelectionParameters.overrides.size)
+
+            // 6. Force hardware decoder flush to break Android TV audio sink lock
+            if (player.isCurrentMediaItemDynamic) {
+                // Live streams: quick play/pause toggle to force renderer re-evaluation
+                player.playWhenReady = false
+                player.playWhenReady = true
+                android.util.Log.d("MEDIA3_BUG", "Live stream: play/pause toggle flush applied")
+            } else {
+                // VOD: seek-to-current to force decoder re-init without visible disruption
+                val currentPos = player.currentPosition
+                player.seekTo(currentPos)
+                android.util.Log.d("MEDIA3_BUG", "VOD: seekTo($currentPos) flush applied")
+            }
+
+            dialog.dismiss()
+        }
+        dialog = androidx.appcompat.app.AlertDialog.Builder(context, R.style.Theme_DebridXtream_CinematicDialog)
+            .setTitle(title)
+            .setAdapter(adapter, adapter.asDialogClickListener())
             .create()
         onDialogReady(dialog)
     }

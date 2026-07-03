@@ -289,5 +289,21 @@
     <color name="sidebar_icon_default">#94A3B8</color>
     <color name="sidebar_icon_active">#FFFFFF</color>
     <color name="sidebar_edge_shadow">#660F172A</color>
+    <!-- Source Picker Redesign -->
+    <color name="bg_main_source">#06090E</color>
+    <color name="bg_dialog">#0E0D15</color>
+    <color name="bg_left_panel">#0A0E19</color>
+    <color name="bg_row">#0B101A</color>
+    <color name="bg_row_focused">#0E1422</color>
+    <color name="neon_cyan">#00F0FF</color>
+    <color name="neon_green">#00FF88</color>
+    <color name="neon_amber">#FFAA00</color>
+    <color name="neon_gold">#D4AF37</color>
+    <color name="neon_red">#FF3366</color>
+    <color name="source_text_primary">#F1F5F9</color>
+    <color name="source_text_secondary">#94A3B8</color>
+    <color name="text_muted">#64748B</color>
+    <color name="focus_ring">#D4AF37</color>
+    <color name="focus_ring_cyan">#00F0FF</color>
 </resources>
 

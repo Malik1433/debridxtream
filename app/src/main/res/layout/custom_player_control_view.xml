@@ -103,7 +103,7 @@
                 android:background="@drawable/bg_player_ref_button"
                 android:focusable="true"
                 android:nextFocusDown="@id/exo_progress"
-                android:nextFocusLeft="@id/exo_ffwd"
+                android:nextFocusLeft="@id/exo_progress"
                 android:nextFocusRight="@id/btn_player_subtitles"
                 android:padding="12dp"
                 android:scaleType="fitCenter"
@@ -135,6 +135,7 @@
                 android:focusable="true"
                 android:nextFocusDown="@id/exo_progress"
                 android:nextFocusLeft="@id/btn_player_subtitles"
+                android:nextFocusRight="@id/btn_aspect_ratio"
                 android:padding="12dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_aspect_ratio"
@@ -239,6 +240,7 @@
                 android:focusable="true"
                 android:nextFocusUp="@id/exo_progress"
                 android:nextFocusDown="@id/layout_control_row"
+                android:nextFocusLeft="@id/exo_rew"
                 android:nextFocusRight="@id/exo_play"
                 app:tint="@color/white"
                 tools:ignore="ContentDescription" />
@@ -299,7 +301,7 @@
                 android:nextFocusUp="@id/exo_progress"
                 android:nextFocusDown="@id/layout_control_row"
                 android:nextFocusLeft="@id/exo_play"
-                android:nextFocusRight="@id/btn_next_episode"
+                android:nextFocusRight="@id/exo_ffwd"
                 app:tint="@color/white"
                 tools:ignore="ContentDescription" />
 
@@ -317,7 +319,7 @@
                 android:nextFocusUp="@id/exo_progress"
                 android:nextFocusDown="@id/layout_control_row"
                 android:nextFocusLeft="@id/exo_ffwd"
-                android:nextFocusRight="@id/btn_player_subtitles"
+                android:nextFocusRight="@id/btn_next_episode"
                 android:visibility="gone"
                 app:tint="@color/white"
                 tools:ignore="ContentDescription" />

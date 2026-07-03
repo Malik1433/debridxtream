@@ -447,18 +447,24 @@ class PlayerViewModel @Inject constructor(
         seriesTitle: String?,
         infoHash: String?,
         sourceProfile: DebridSourceProfile? = null,
-        allowDirectHttpPassthrough: Boolean = true
+        allowDirectHttpPassthrough: Boolean = true,
+        excludeSourceIds: Set<String> = emptySet()
     ) {
         viewModelScope.launch {
             _debridResolutionState.value = DebridResolutionState.Loading
             try {
+                // On failover the saved source is dead — verify the candidate
+                // pool instead of fast-pathing verification to the dead hash.
+                val savedId = sourceProfile?.streamId ?: infoHash
                 val sources = withContext(Dispatchers.IO) {
                     unifiedSourceProvider.getSeriesEpisodeSources(
                         seriesId = seriesId,
                         seasonNumber = targetSeason,
                         episodeNumber = targetEpisode,
                         title = seriesTitle ?: "",
-                        yearHint = null
+                        yearHint = null,
+                        priorityInfoHash = savedId.takeUnless { it in excludeSourceIds },
+                        preferredSourceType = sourceProfile?.sourceType
                     )
                 }
 
@@ -467,7 +473,7 @@ class PlayerViewModel @Inject constructor(
                     return@launch
                 }
 
-                val targetSource = pickDebridSourceForContinuity(sources, infoHash, sourceProfile)
+                val targetSource = pickDebridSourceForContinuity(sources, infoHash, sourceProfile, excludeSourceIds)
                 resolveDebridMovieSource(
                     targetSource = targetSource,
                     season = targetSeason,
@@ -487,7 +493,8 @@ class PlayerViewModel @Inject constructor(
         title: String?,
         imdbId: String?,
         sourceProfile: DebridSourceProfile?,
-        allowDirectHttpPassthrough: Boolean = true
+        allowDirectHttpPassthrough: Boolean = true,
+        excludeSourceIds: Set<String> = emptySet()
     ) {
         viewModelScope.launch {
             _debridResolutionState.value = DebridResolutionState.Loading
@@ -496,13 +503,16 @@ class PlayerViewModel @Inject constructor(
                 return@launch
             }
             try {
+                val savedId = sourceProfile?.streamId
                 val sources = withContext(Dispatchers.IO) {
                     unifiedSourceProvider.getMovieSources(
                         streamId = streamId,
                         title = title,
                         primaryCategoryId = "debrid",
                         yearHint = null,
-                        imdbId = imdbId
+                        imdbId = imdbId,
+                        priorityInfoHash = savedId.takeUnless { it in excludeSourceIds },
+                        preferredSourceType = sourceProfile?.sourceType
                     )
                 }
                 if (sources.isEmpty()) {
@@ -510,7 +520,7 @@ class PlayerViewModel @Inject constructor(
                     return@launch
                 }
                 resolveDebridMovieSource(
-                    targetSource = pickDebridSourceForContinuity(sources, sourceProfile?.streamId, sourceProfile),
+                    targetSource = pickDebridSourceForContinuity(sources, savedId, sourceProfile, excludeSourceIds),
                     season = null,
                     episode = null,
                     title = title,
@@ -624,20 +634,67 @@ class PlayerViewModel @Inject constructor(
     private fun pickDebridSourceForContinuity(
         sources: List<MovieSource>,
         infoHash: String?,
-        profile: DebridSourceProfile?
+        profile: DebridSourceProfile?,
+        excludeSourceIds: Set<String> = emptySet()
     ): MovieSource {
+        // Failover support: sources that already failed playback in this session
+        // are skipped so an error-triggered refresh moves to the next source
+        // instead of re-resolving the same broken one. If exclusion would leave
+        // nothing, fall back to the full list rather than failing hard.
+        val excludedStableIds = excludeSourceIds.mapNotNull { stableDebridIdentity(it) }.toSet()
+        val candidates = if (excludedStableIds.isEmpty()) {
+            sources
+        } else {
+            sources.filterNot { source ->
+                stableDebridIdentity(source.stream.stream_id) in excludedStableIds
+            }.ifEmpty { sources }
+        }
+
         val exactId = profile?.streamId ?: infoHash
-        sources.firstOrNull { source ->
+        candidates.firstOrNull { source ->
             !exactId.isNullOrBlank() && source.stream.stream_id.equals(exactId, ignoreCase = true)
         }?.let { return it }
 
-        val ranked = sources.sortedWith(
+        // stream_id carries a volatile "_<list index>" suffix, so the saved id
+        // rarely matches verbatim across fetches. Compare on the stable part
+        // (bare infoHash / title hash) so resume re-picks the same source.
+        val stableExactId = stableDebridIdentity(exactId)
+        if (stableExactId != null) {
+            candidates.firstOrNull { source ->
+                stableDebridIdentity(source.stream.stream_id) == stableExactId
+            }?.let { return it }
+        }
+
+        // Language tier: when the exact source is gone (or excluded after a
+        // failure), keep the user's audio language — restrict ranking to
+        // candidates sharing a requested language (or multi-audio) when any
+        // exist, instead of letting provider/quality outrank language.
+        val requestedLanguages = normalizeLanguageSet(profile?.languages)
+        val languagePool = if (requestedLanguages.isEmpty()) {
+            candidates
+        } else {
+            candidates.filter { source ->
+                val candidateLanguages = normalizeLanguageSet(source.languages)
+                candidateLanguages.contains("multi") ||
+                    candidateLanguages.intersect(requestedLanguages).isNotEmpty()
+            }.ifEmpty { candidates }
+        }
+
+        val ranked = languagePool.sortedWith(
             compareByDescending<MovieSource> { debridContinuityScore(it, profile) }
                 .thenByDescending { SourceFilterUtils.isPlaybackReady(it) }
                 .thenByDescending { qualityScore(it.quality) }
                 .thenByDescending { it.seeders ?: -1 }
         )
         return ranked.first()
+    }
+
+    private fun stableDebridIdentity(id: String?): String? {
+        if (id.isNullOrBlank()) return null
+        return id.trim()
+            .replace(Regex("_\\d+$"), "")
+            .lowercase()
+            .takeIf { it.isNotBlank() }
     }
 
     private fun debridContinuityScore(source: MovieSource, profile: DebridSourceProfile?): Int {

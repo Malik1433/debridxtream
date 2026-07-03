@@ -162,7 +162,16 @@ object TmdbImageUrl {
 
 data class TmdbCredits(
     @SerializedName("id") val id: Int?,
-    @SerializedName("cast") val cast: List<TmdbCast>?
+    @SerializedName("cast") val cast: List<TmdbCast>?,
+    @SerializedName("crew") val crew: List<TmdbCrew>? = null
+)
+
+data class TmdbCrew(
+    @SerializedName("id") val id: Int?,
+    @SerializedName("name") val name: String?,
+    @SerializedName("job") val job: String?,
+    @SerializedName("department") val department: String?,
+    @SerializedName("profile_path") val profilePath: String?
 )
 
 data class TmdbCast(

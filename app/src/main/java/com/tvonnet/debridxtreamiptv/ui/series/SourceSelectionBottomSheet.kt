@@ -75,10 +75,11 @@ class SourceSelectionBottomSheet(
         super.onStart()
         dialog?.window?.apply {
             setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-            setGravity(Gravity.BOTTOM)
+            setGravity(Gravity.END)
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             decorView.setPadding(0, 0, 0, 0)
             addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+            setWindowAnimations(R.style.SourcePanelAnimation)
         }
     }
 
@@ -105,7 +106,8 @@ class SourceSelectionBottomSheet(
     }
 
     private fun setupContentInfo() {
-        // Removed tvContentTitle usage
+        tvTitle.text = contentTitle.orEmpty()
+        tvTitle.visibility = if (contentTitle.isNullOrBlank()) View.GONE else View.VISIBLE
     }
 
     private fun setupAdapters() {
@@ -345,7 +347,11 @@ class SourceSelectionBottomSheet(
                 tvStatus.visibility = View.GONE
                 rvSources.visibility = View.VISIBLE
                 tvSourceCount.visibility = View.VISIBLE
-                tvSourceCount.text = "• ${displayedSources.size} sources found"
+                val cachedCount = displayedSources.count {
+                    it.cacheStatus == DebridCacheStatus.VERIFIED_CACHED ||
+                        it.cacheStatus == DebridCacheStatus.DIRECT_STREAM
+                }
+                tvSourceCount.text = "${displayedSources.size} sources found · $cachedCount cached"
                 sourcesAdapter.updateSelection(selectedStreamId, notify = false)
                 sourcesAdapter.submitList(displayedSources) {
                     sourcesAdapter.updateSelection(selectedStreamId)

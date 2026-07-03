@@ -91,6 +91,8 @@ class DebridRowViewHolder(
     fun bind(row: DebridRow, onRowLoadMore: (String) -> Unit) {
         tvRowTitle.text = row.title
         currentLoadMoreCallback = { onRowLoadMore(row.id) }
+        itemsAdapter.rowId = row.id
+        itemsAdapter.rowTitle = row.title
         
         // Reset valid state for the sentinel
         itemsAdapter.setCanLoadMore(row.canLoadMore)
@@ -124,9 +126,12 @@ class DebridItemsAdapter(
     companion object {
         private const val VIEW_TYPE_ITEM = 0
         private const val VIEW_TYPE_SKELETON = 1
+        private const val VIEW_TYPE_SEE_ALL = 2
     }
 
     private var canLoadMore = false
+    var rowId: String = ""
+    var rowTitle: String = ""
 
     fun setCanLoadMore(canLoad: Boolean) {
         if (canLoadMore != canLoad) {
@@ -145,34 +150,44 @@ class DebridItemsAdapter(
     }
 
     override fun getItemViewType(position: Int): Int {
-        // Use standard list size for check
         if (canLoadMore && position == super.getItemCount()) {
-            return VIEW_TYPE_SKELETON // This is now the "Sentinel"
+            return VIEW_TYPE_SKELETON
+        }
+        val item = getItem(position)
+        if (item.id.startsWith("SEE_ALL_")) {
+            return VIEW_TYPE_SEE_ALL
         }
         return VIEW_TYPE_ITEM
     }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        return if (viewType == VIEW_TYPE_SKELETON) {
-            val view = inflater.inflate(R.layout.item_debrid_loading, parent, false)
-            DebridLoadingViewHolder(view)
-        } else {
-            val view = inflater.inflate(R.layout.item_debrid_content, parent, false)
-            DebridItemViewHolder(view, onLeftBoundary)
+        return when (viewType) {
+            VIEW_TYPE_SKELETON -> {
+                val view = inflater.inflate(R.layout.item_debrid_loading, parent, false)
+                DebridLoadingViewHolder(view)
+            }
+            VIEW_TYPE_SEE_ALL -> {
+                val view = inflater.inflate(R.layout.item_debrid_see_all, parent, false)
+                DebridSeeAllViewHolder(view)
+            }
+            else -> {
+                val view = inflater.inflate(R.layout.item_debrid_content, parent, false)
+                DebridItemViewHolder(view, onLeftBoundary)
+            }
         }
     }
     
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         if (holder is DebridItemViewHolder) {
-            // Safe check for index
             if (position < super.getItemCount()) {
                 val item = getItem(position)
                 holder.bind(item, onItemClick, onItemFocused)
             }
+        } else if (holder is DebridSeeAllViewHolder) {
+            holder.bind(rowId, rowTitle)
         } else if (holder is DebridLoadingViewHolder) {
             holder.bind()
-            // Trigger load when bound (and it will also be focusable)
             onPrefetch()
         }
     }
@@ -420,3 +435,15 @@ class DebridLoadingViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView
  */
 
 
+
+class DebridSeeAllViewHolder(itemView: android.view.View) : RecyclerView.ViewHolder(itemView) {
+    fun bind(rowId: String, rowTitle: String) {
+        itemView.setOnClickListener {
+            val intent = android.content.Intent(itemView.context, com.tvonnet.debridxtreamiptv.ui.debrid.seeall.DebridSeeAllActivity::class.java).apply {
+                putExtra("EXTRA_ROW_ID", rowId)
+                putExtra("EXTRA_ROW_TITLE", rowTitle)
+            }
+            itemView.context.startActivity(intent)
+        }
+    }
+}

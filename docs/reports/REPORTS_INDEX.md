@@ -60,6 +60,17 @@ Main map for report/history/context files. Use this to choose the smallest usefu
 | `docs/reports/CODEX_AGENT_SETUP_REPORT.md` | Tooling | Current non-runtime | Codex/Claude Flow/MCP/tooling work. |
 | `docs/reports/AGENT_MODEL_ROUTING_POLICY.md` | Agent setup | Current non-runtime | Swarm/agent coordination work. |
 
+## Phase Audit Reports (Read-Only Diagnose Series)
+
+| File | Area | Status | Read when |
+|------|------|--------|-----------|
+| `docs/reports/AUDIT_PHASE1_PLAYER.md` | Player spine | 2026-06-12 read-only audit | Before fixing player buffering, stall, quality, or CW bugs. |
+| `docs/reports/AUDIT_PHASE2_LIVE.md` | Live TV | 2026-06-12 read-only audit | Before fixing Live zapping, EPG, channel list, or overlay bugs. |
+| `docs/reports/AUDIT_PHASE3_DEBRID.md` | Debrid chain | 2026-06-12 read-only audit | Before fixing Debrid resolver, source picker, RD auth, CW resume, or proxy detection bugs. |
+| `docs/reports/AUDIT_PHASE4_SERIES_VOD_CW.md` | Series/VOD/Episode Browser/CW | 2026-06-12 read-only audit | Before fixing Series detail, VOD detail, Episode Browser watched badges, Continue Watching identity/enrichment, or Home CW row bugs. |
+| `docs/reports/AUDIT_PHASE5_DPAD_UI.md` | D-pad focus / Home / Search / Settings / Login UI | 2026-06-12 read-only audit | Before fixing focus loss/jumps, BACK behavior, Home row jank, Search/Settings/Login UX, or sidebar animation bugs. |
+| `docs/reports/AUDIT_PHASE6_APPWIDE.md` | App-wide: leaks / ANR / threading / lifecycle / startup | 2026-06-12 read-only audit | Before fixing OOM/ANR crashes, EPG sync/worker bugs, Glide/cache sizing, crash-handler behavior, or memory leaks. Closes all Phase 1–2 cross-phase pointers. |
+
 ## Task / Audit / Closure Files
 
 | File or group | Area | Status | Read when |

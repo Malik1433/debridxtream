@@ -36,10 +36,13 @@ class DebridDiscoverViewModel @Inject constructor(
 
     // ── Filter State ────────────────────────────────────────────────────────────
 
-    private var currentType = "movie"
-    private var currentGenreId: String? = null
-    private var currentCatalogue = AddonCatalogRepository.CATALOGUE_POPULAR
-    private var currentYear: Int? = null
+    private val _filterState = MutableStateFlow(DiscoverFilterState())
+    val filterState: StateFlow<DiscoverFilterState> = _filterState.asStateFlow()
+
+    private var currentLanguage: String? = null
+    private var currentRegion: String? = null
+    private var currentReleaseDateGte: String? = null
+
     private var currentPage = 1
     private var items = mutableListOf<CatalogItem>()
     private var canLoadMore = true
@@ -93,9 +96,9 @@ class DebridDiscoverViewModel @Inject constructor(
      * @param type "movie" or "series"
      */
     fun setType(type: String) {
-        if (currentType == type) return
-        currentType = type
-        currentGenreId = null // reset genre when type changes
+        val currentState = _filterState.value
+        if (currentState.type == type) return
+        _filterState.value = currentState.copy(type = type, genreId = null)
         loadGenres(type)
         loadContent(reset = true)
     }
@@ -106,21 +109,23 @@ class DebridDiscoverViewModel @Inject constructor(
      * @param genreId The TMDB genre ID, or null for "All".
      */
     fun setGenre(genreId: Int?) {
-        val newId = genreId?.toString()
-        if (currentGenreId == newId) return
-        currentGenreId = newId
+        val currentState = _filterState.value
+        if (currentState.genreId == genreId) return
+        _filterState.value = currentState.copy(genreId = genreId)
         loadContent(reset = true)
     }
 
     fun setCatalogue(catalogue: String) {
-        if (currentCatalogue == catalogue) return
-        currentCatalogue = catalogue
+        val currentState = _filterState.value
+        if (currentState.catalogue == catalogue) return
+        _filterState.value = currentState.copy(catalogue = catalogue)
         loadContent(reset = true)
     }
 
     fun setYear(year: Int?) {
-        if (currentYear == year) return
-        currentYear = year
+        val currentState = _filterState.value
+        if (currentState.year == year) return
+        _filterState.value = currentState.copy(year = year)
         loadContent(reset = true)
     }
 
@@ -131,6 +136,12 @@ class DebridDiscoverViewModel @Inject constructor(
     }
 
     // ── Private ─────────────────────────────────────────────────────────────────
+
+    fun setCustomFilters(language: String?, region: String?, releaseDateGte: String?) {
+        currentLanguage = language
+        currentRegion = region
+        currentReleaseDateGte = releaseDateGte
+    }
 
     private fun loadGenres(type: String) {
         viewModelScope.launch {
@@ -152,12 +163,16 @@ class DebridDiscoverViewModel @Inject constructor(
 
         loadJob = viewModelScope.launch {
             try {
+                val state = _filterState.value
                 val result = catalogRepo.getDiscoveryContent(
-                    type = currentType,
+                    originalLanguage = currentLanguage,
+                    watchRegion = currentRegion,
+                    releaseDateGte = currentReleaseDateGte,
+                    type = state.type,
                     page = currentPage,
-                    catalogue = currentCatalogue,
-                    year = currentYear,
-                    withGenres = currentGenreId
+                    catalogue = state.catalogue,
+                    year = state.year,
+                    withGenres = state.genreId?.toString()
                 )
                 result.onSuccess { newItems ->
                     if (newItems.isEmpty()) {
@@ -183,6 +198,13 @@ class DebridDiscoverViewModel @Inject constructor(
 }
 
 // ── UI State models ──────────────────────────────────────────────────────────────
+
+data class DiscoverFilterState(
+    val type: String = "movie",
+    val catalogue: String = AddonCatalogRepository.CATALOGUE_POPULAR,
+    val genreId: Int? = null,
+    val year: Int? = null
+)
 
 sealed class DiscoverUiState {
     object Loading : DiscoverUiState()

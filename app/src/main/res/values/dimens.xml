@@ -151,4 +151,21 @@
     <dimen name="number_offset_x">-22dp</dimen>
     <dimen name="number_offset_y">24dp</dimen>
     <dimen name="chip_corner_radius">16dp</dimen>
+    <!-- Source Picker Redesign -->
+    <dimen name="dialog_corner_radius">16dp</dimen>
+    <dimen name="left_panel_width">390dp</dimen>
+    <dimen name="source_row_height">60dp</dimen>
+    <dimen name="source_row_corner">10dp</dimen>
+    <dimen name="badge_corner">6dp</dimen>
+    <dimen name="provider_badge_corner">8dp</dimen>
+    <dimen name="filter_pill_corner">20dp</dimen>
+    <dimen name="row_gap">7dp</dimen>
+    <dimen name="panel_padding_h">36dp</dimen>
+    <dimen name="panel_padding_v">22dp</dimen>
+    <dimen name="col_provider">80dp</dimen>
+    <dimen name="col_langs">250dp</dimen>
+    <dimen name="col_quality">80dp</dimen>
+    <dimen name="col_type">110dp</dimen>
+    <dimen name="col_filesize">140dp</dimen>
+    <dimen name="col_play">46dp</dimen>
 </resources>

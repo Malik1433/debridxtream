@@ -24,6 +24,10 @@ class MainApplication : Application(), Configuration.Provider {
             val prefs = getSharedPreferences("app_stability", android.content.Context.MODE_PRIVATE)
             prefs.edit().putInt("startup_crash_count", 0).apply()
         }
+        // Pre-warm the player cache in the background to avoid UI thread blocking later
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            com.tvonnet.debridxtreamiptv.util.PlayerCacheManager.getCache(this@MainApplication)
+        }
     }
 
     override val workManagerConfiguration: Configuration

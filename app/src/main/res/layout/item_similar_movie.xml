@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="76dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="10dp"
+    android:orientation="vertical"
+    android:padding="3dp"
+    android:focusable="true"
+    android:background="@drawable/cin_detail_similar_card">
+
+    <ImageView
+        android:id="@+id/iv_similar_poster"
+        android:layout_width="70dp"
+        android:layout_height="99dp"
+        android:scaleType="centerCrop"
+        android:background="@drawable/cin_detail_similar_poster"
+        tools:src="@tools:sample/backgrounds/scenic" />
+
+    <TextView
+        android:id="@+id/tv_similar_title"
+        android:layout_width="70dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:fontFamily="monospace"
+        android:textColor="#64748B"
+        android:textSize="9sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        tools:text="2021 · ★ 8.0" />
+</LinearLayout>

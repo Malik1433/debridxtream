@@ -269,13 +269,13 @@ class LoginFragment : Fragment() {
                     progressBar.visibility = View.GONE
                     navigateToInitialSync()
                 } else {
-                    val errorMsg = loginResult.exceptionOrNull()?.message ?: "Login failed"
-                    Toast.makeText(requireContext(), errorMsg, Toast.LENGTH_LONG).show()
+                    // Raw exception messages can embed the credentialed request URL — keep user-facing text stable.
+                    Toast.makeText(requireContext(), "Login failed. Please check your server address and credentials.", Toast.LENGTH_LONG).show()
                     loginInProgress = false
                     setLoginControlsEnabled(true)
                 }
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(requireContext(), "Login error. Please check your connection and try again.", Toast.LENGTH_LONG).show()
                 loginInProgress = false
                 setLoginControlsEnabled(true)
             } finally {

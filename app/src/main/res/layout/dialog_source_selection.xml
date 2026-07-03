@@ -1,239 +1,195 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- SELECT SOURCE — right-side slide-in panel per Claude Design handoff -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#99000000"
+    android:descendantFocusability="afterDescendants">
 
-    <!-- Dimming overlay covering the entire screen cleanly -->
     <View
         android:id="@+id/v_backdrop_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#99000000" />
+        android:background="@android:color/transparent" />
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/guideline_half"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.40" />
-
-    <!-- Main Sources Panel (Bottom Half-Sheet Glassmorphism) -->
-    <!-- Now spans match_parent so it isn't squished -->
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <!-- Right panel -->
+    <LinearLayout
         android:id="@+id/panel_sources"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:background="@drawable/cin_card_sources_bottom_sheet"
-        android:paddingTop="24dp"
-        android:paddingStart="56dp"
-        android:paddingEnd="56dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@id/guideline_half">
+        android:layout_width="410dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:orientation="vertical"
+        android:background="#0E0D15">
 
-        <!-- Title -->
-        <TextView
-            android:id="@+id/tv_dialog_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/movie_detail_sources_header"
-            android:textColor="@color/white"
-            android:textSize="22sp"
-            android:fontFamily="@font/inter_extrabold"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/layout_source_filters"
-            app:layout_constraintBottom_toBottomOf="@+id/layout_source_filters" />
+        <!-- Left edge border -->
+        <!-- (LinearLayout children below; border painted via a nested container) -->
 
-        <!-- Count -->
-        <TextView
-            android:id="@+id/tv_source_count"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp"
-            app:layout_constraintBottom_toBottomOf="@id/tv_dialog_title"
-            app:layout_constraintStart_toEndOf="@id/tv_dialog_title"
-            app:layout_constraintTop_toTopOf="@id/tv_dialog_title"
-            tools:text="• 225 sources found" />
-
-        <!-- Filter Section -->
-        <LinearLayout
-            android:id="@+id/layout_source_filters"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:orientation="horizontal"
-            android:gravity="end|center_vertical"
-            android:visibility="gone"
-            app:layout_constraintStart_toEndOf="@id/tv_source_count"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:visibility="visible">
+        <!-- HEADER ROW -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_header_container"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp"
+            android:background="#0E0D15">
 
             <TextView
-                android:id="@+id/chip_quality"
+                android:id="@+id/tv_header_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_tab_button_selector"
-                android:focusable="true"
-                android:focusableInTouchMode="true"
-                android:paddingStart="16dp"
-                android:paddingTop="6dp"
-                android:paddingEnd="16dp"
-                android:paddingBottom="6dp"
-                android:text="Quality: All"
-                android:textAllCaps="false"
-                android:textColor="@color/tab_button_text_selector"
-                android:textSize="13sp" />
+                android:text="SELECT SOURCE"
+                android:textColor="@color/source_text_primary"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="0.04"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toTopOf="@+id/tv_source_count"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintVertical_chainStyle="packed" />
 
             <TextView
-                android:id="@+id/chip_language"
+                android:id="@+id/tv_source_count"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_tab_button_selector"
-                android:focusable="true"
-                android:focusableInTouchMode="true"
-                android:paddingStart="16dp"
-                android:paddingTop="6dp"
-                android:paddingEnd="16dp"
-                android:paddingBottom="6dp"
-                android:text="Language: All"
-                android:textAllCaps="false"
-                android:textColor="@color/tab_button_text_selector"
-                android:textSize="13sp" />
+                android:textColor="@color/text_muted"
+                android:textSize="8sp"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.06"
+                app:layout_constraintTop_toBottomOf="@id/tv_header_title"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                tools:text="9 sources found · 6 cached" />
 
             <TextView
-                android:id="@+id/chip_type"
+                android:id="@+id/tv_dialog_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_tab_button_selector"
-                android:focusable="true"
-                android:focusableInTouchMode="true"
-                android:paddingStart="16dp"
-                android:paddingTop="6dp"
-                android:paddingEnd="16dp"
-                android:paddingBottom="6dp"
-                android:text="Type: All"
-                android:textAllCaps="false"
-                android:textColor="@color/tab_button_text_selector"
-                android:textSize="13sp" />
-        </LinearLayout>
+                android:textColor="@color/text_muted"
+                android:textSize="10sp"
+                android:fontFamily="monospace"
+                android:maxLines="1"
+                android:ellipsize="end"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                tools:text="Dune: Part Two (2024)" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <!-- Sources List -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_sources"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
-            app:layout_constraintBottom_toTopOf="@+id/v_footer_separator"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/layout_source_filters"
-            tools:listitem="@layout/item_movie_source"
-            tools:visibility="gone" />
+        <!-- FILTER ROW -->
+        <FrameLayout
+            android:id="@+id/filter_bar_layout"
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:background="#0E0D15">
 
-        <!-- Progress and Status -->
-        <ProgressBar
-            android:id="@+id/progress_bar"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:indeterminateTint="@color/white"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            <LinearLayout
+                android:id="@+id/layout_source_filters"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:gravity="center_vertical">
 
-        <TextView
-            android:id="@+id/tv_status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:focusable="true"
-            android:focusableInTouchMode="true"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/progress_bar"
-            tools:text="Searching for sources..." />
+                <TextView
+                    android:id="@+id/chip_quality"
+                    android:layout_width="wrap_content"
+                    android:layout_height="22dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/cin_detail_btn_glass"
+                    android:paddingStart="9dp"
+                    android:paddingEnd="9dp"
+                    android:gravity="center"
+                    android:focusable="true"
+                    android:text="Quality: All"
+                    android:textColor="@color/source_text_secondary"
+                    android:textSize="9sp" />
 
-        <!-- Footer Separator -->
+                <TextView
+                    android:id="@+id/chip_language"
+                    android:layout_width="wrap_content"
+                    android:layout_height="22dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/cin_detail_btn_glass"
+                    android:paddingStart="9dp"
+                    android:paddingEnd="9dp"
+                    android:gravity="center"
+                    android:focusable="true"
+                    android:text="Language: All"
+                    android:textColor="@color/source_text_secondary"
+                    android:textSize="9sp" />
+
+                <TextView
+                    android:id="@+id/chip_type"
+                    android:layout_width="wrap_content"
+                    android:layout_height="22dp"
+                    android:background="@drawable/cin_detail_btn_glass"
+                    android:paddingStart="9dp"
+                    android:paddingEnd="9dp"
+                    android:gravity="center"
+                    android:focusable="true"
+                    android:text="Type: All"
+                    android:textColor="@color/source_text_secondary"
+                    android:textSize="9sp" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Divider -->
         <View
-            android:id="@+id/v_footer_separator"
+            android:id="@+id/v_filter_divider"
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="#1AFFFFFF"
-            app:layout_constraintBottom_toTopOf="@+id/layout_footer_hints"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            android:background="#1AFFFFFF" />
 
-        <!-- Footer hints -->
-        <LinearLayout
-            android:id="@+id/layout_footer_hints"
+        <!-- SOURCE LIST -->
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="0dp"
-            android:paddingTop="16dp"
-            android:paddingBottom="24dp"
-            android:background="#FF09090C"
-            android:gravity="center"
-            android:orientation="horizontal"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent">
+            android:layout_height="0dp"
+            android:layout_weight="1">
 
-            <!-- OK Hint -->
-            <TextView
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_sources"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="true"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp" />
+
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_circle_dark_translucent"
-                android:paddingStart="8dp"
-                android:paddingTop="4dp"
-                android:paddingEnd="8dp"
-                android:paddingBottom="4dp"
-                android:text="OK"
-                android:textColor="@color/white"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+                android:layout_gravity="center"
+                android:orientation="vertical"
+                android:gravity="center_horizontal">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="Select to Play"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp" />
+                <ProgressBar
+                    android:id="@+id/progress_bar"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:indeterminateTint="@color/neon_cyan" />
 
-            <!-- BACK Hint -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="24dp"
-                android:background="@drawable/bg_circle_dark_translucent"
-                android:paddingStart="8dp"
-                android:paddingTop="4dp"
-                android:paddingEnd="8dp"
-                android:paddingBottom="4dp"
-                android:text="BACK"
-                android:textColor="@color/white"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/tv_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace"
+                    tools:text="Searching for sources..." />
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="Return to Details"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp" />
+    <!-- Panel left edge border -->
+    <View
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:layout_marginEnd="410dp"
+        android:background="#14FFFFFF" />
 
-        </LinearLayout>
-    </androidx.constraintlayout.widget.ConstraintLayout>
-</androidx.constraintlayout.widget.ConstraintLayout>
+</FrameLayout>

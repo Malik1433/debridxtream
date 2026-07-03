@@ -2,6 +2,11 @@
 
 Established engineering and UI patterns that have proven stable and performant in the DebridXtream codebase.
 
+## 0. Strongly-Typed Precomputation (Anti-"Stringly" Types)
+- **Definition:** Map raw network strings into strictly-typed `Enum` or `Sealed Class` domain objects precisely once at the boundary, rather than passing raw strings deep into UI filters, sorting loops, or rendering systems.
+- **Benefits:** Completely eliminates main-thread CPU spikes associated with regex, `.lowercase()`, and `.contains()` string manipulations inside $O(N \log N)$ sorting operations. Guarantees 100% type safety and instant $O(1)$ identity checks.
+- **Implementation:** Created domain enums (e.g., `VideoQuality`, `StreamLanguage`) with centralized safe `.parse()` methods. Precompute collections of these Enums (via `IdentityHashMap` mapping) before passing the dataset into `compareByDescending` logic blocks.
+
 ## 0A. Debrid Multi-Strike Stall Recovery
 - **Definition:** Treat Debrid VOD `READY`-state position freezes as warning windows before escalating to playback error, and refresh direct Debrid sources from metadata before replaying the same direct URL.
 - **Benefits:** Reduces false stop-after-some-time failures from temporary provider/CDN stalls while preserving terminal handling for truly dead, blocked, or expired sources.
@@ -325,4 +330,9 @@ Established engineering and UI patterns that have proven stable and performant i
 - **Definition:** Custom views inside a `ListView` (like dropdowns in a PopupWindow) that are marked as `isFocusable = true` will swallow D-pad interactions and prevent the ListView's `onItemClickListener` from firing on Android TV.
 - **Benefits:** Ensures dropdown menus and filters correctly register D-pad clicks without forcing the user to use an air mouse.
 - **Implementation:** Explicitly attach `setOnClickListener` to the root view of the list item inside the Adapter's `getView()`, and add an explicit `setOnKeyListener` on the `ListView` to catch `KEYCODE_DPAD_CENTER` and `KEYCODE_ENTER` and fire the callback using the ListView's `selectedItemPosition`. Call `anchor.post { anchor.requestFocus() }` on dismiss to return focus to the parent layout safely.
+
+## 57. Smart Focus Navigation for Player Overlays
+- **Definition:** Player overlays must smartly route focus based on the intent of the invoke key, while keeping visual focus states distinct.
+- **Benefits:** Prevents focus from getting lost when an overlay appears, ensures the user lands on the primary control (Play/Pause) for standard keys (Center/Up/Down), but bypasses and jumps to the seek-bar if the user invokes the overlay using Left/Right keys for immediate seeking.
+- **Implementation:** In `dispatchKeyEvent`, evaluate `KeyEvent.KEYCODE_DPAD_LEFT / RIGHT` to optionally `requestFocus()` and forward the down/up events to the `exo_progress` bar. Otherwise, explicitly route focus to `R.id.exo_play`. Provide thick 3dp or 4dp borders using high-contrast colors (like #FF3B30 or #FFFFFFFF) in the `state_focused` drawable selectors, and ensure the `BACK` key dismisses the overlay explicitly (`playerView.hideController()`) before bubbling up to exit the activity.
 

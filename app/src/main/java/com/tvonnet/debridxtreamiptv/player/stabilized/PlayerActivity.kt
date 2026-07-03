@@ -510,22 +510,8 @@ class PlayerActivity : AppCompatActivity() {
             playerView.setControllerVisibilityListener(object : PlayerView.ControllerVisibilityListener {
                 override fun onVisibilityChanged(visibility: Int) {
                     isControllerVisible = visibility == View.VISIBLE
-                    if (isControllerVisible) {
-                        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("PLAYER_CONTROLLER") {
-                            val targetBtn = playerView.findViewById<View>(R.id.exo_progress)
-                                ?: playerView.findViewById<View>(R.id.exo_play)
-                                ?: playerView.findViewById<View>(R.id.exo_pause)
-                            
-                            targetBtn?.post { 
-                                targetBtn.post { 
-                                    try {
-                                        targetBtn.requestFocus()
-                                    } finally {
-                                        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("PLAYER_CONTROLLER")
-                                    }
-                                }
-                            } ?: com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("PLAYER_CONTROLLER")
-                        }
+                    if (!isControllerVisible) {
+                        playerView.requestFocus()
                     }
                 }
             })
@@ -564,11 +550,13 @@ class PlayerActivity : AppCompatActivity() {
             val btnNext = playerView.findViewById<View>(R.id.btn_next_episode)
             if (contentType == ContentType.SERIES || contentType == ContentType.EPISODE) {
                 btnNext?.isVisible = true
+                playerView.findViewById<View>(R.id.exo_ffwd)?.nextFocusRightId = R.id.btn_next_episode
                 btnNext?.setOnClickListener {
                      playNextEpisode()
                 }
             } else {
                 btnNext?.isVisible = false
+                playerView.findViewById<View>(R.id.exo_ffwd)?.nextFocusRightId = R.id.exo_ffwd
             }
 
             playerView.findViewById<View>(R.id.btn_aspect_ratio)?.setOnClickListener {
@@ -920,7 +908,7 @@ class PlayerActivity : AppCompatActivity() {
         if (isInPictureInPictureMode) return
         val playerSnapshot = player ?: return
         trackManager.showAudioSelection(playerSnapshot) { dialog ->
-            showManagedTrackDialog(dialog)
+            showManagedTrackDialog(dialog, R.id.btn_player_audio)
         }
     }
 
@@ -928,7 +916,7 @@ class PlayerActivity : AppCompatActivity() {
         if (isInPictureInPictureMode) return
         val playerSnapshot = player ?: return
         trackManager.showSubtitleSelection(playerSnapshot, subtitleEntries) { dialog ->
-            showManagedTrackDialog(dialog)
+            showManagedTrackDialog(dialog, R.id.btn_player_subtitles)
         }
     }
 
@@ -958,15 +946,23 @@ class PlayerActivity : AppCompatActivity() {
                 return@launch
             }
 
-            val dialog = androidx.appcompat.app.AlertDialog.Builder(this@PlayerActivity)
-                .setTitle(R.string.player_language_title)
-                .setItems(distinctOptions.toTypedArray()) { dialog, which ->
-                    val selected = distinctOptions[which]
-                    applyDebridLanguagePreference(selected)
-                    dialog.dismiss()
+            lateinit var dialog: androidx.appcompat.app.AlertDialog
+            val adapter = TrackSelectionAdapter(distinctOptions, -1) { which ->
+                val selected = distinctOptions[which]
+                player?.let { p ->
+                    p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
+                        .setPreferredTextLanguage(selected)
+                        .setPreferredAudioLanguage(selected)
+                        .build()
                 }
+                applyDebridLanguagePreference(selected)
+                dialog.dismiss()
+            }
+            dialog = androidx.appcompat.app.AlertDialog.Builder(this@PlayerActivity, R.style.Theme_DebridXtream_CinematicDialog)
+                .setTitle(R.string.player_language_title)
+                .setAdapter(adapter, adapter.asDialogClickListener())
                 .create()
-            showManagedTrackDialog(dialog)
+            showManagedTrackDialog(dialog, R.id.btn_player_language)
         }
     }
 
@@ -1005,19 +1001,23 @@ class PlayerActivity : AppCompatActivity() {
             playerSnapshot,
             C.TRACK_TYPE_VIDEO
         )
+            .setTheme(R.style.Theme_DebridXtream_CinematicDialog)
             .setAllowAdaptiveSelections(true)
             .setAllowMultipleOverrides(false)
             .setTrackNameProvider(DefaultTrackNameProvider(resources))
             .build()
-        showManagedTrackDialog(dialog)
+        showManagedTrackDialog(dialog, R.id.btn_aspect_ratio)
     }
 
-    private fun showManagedTrackDialog(dialog: Dialog) {
+    private fun showManagedTrackDialog(dialog: Dialog, anchorViewId: Int? = null) {
         dismissActiveTrackDialog()
         activeTrackDialog = dialog
         dialog.setOnDismissListener {
             if (activeTrackDialog === dialog) {
                 activeTrackDialog = null
+            }
+            anchorViewId?.let { id ->
+                playerView.findViewById<View>(id)?.requestFocus()
             }
         }
         dialog.show()
@@ -1681,24 +1681,32 @@ class PlayerActivity : AppCompatActivity() {
                 httpDataSourceFactory.setUserAgent("DebridXtream/1.0 (Linux; Android 10; TV)")
             }
 
-            val dataSourceFactory = CacheDataSource.Factory()
-                .setCache(PlayerCacheManager.getCache(this))
-                .setUpstreamDataSourceFactory(httpDataSourceFactory)
-                .setCacheWriteDataSinkFactory(CacheDataSink.Factory().setCache(PlayerCacheManager.getCache(this)))
-                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-
-            val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
-            
             val isDebrid = playbackSource == PlaybackSource.DEBRID
+            
+            // 1. Bypass physical disk caching for high-bitrate Debrid streams to prevent I/O choking.
+            //    Using pure upstream network resolution (RAM only) ensures the decoder isn't starved by slow eMMC writes.
+            val mediaSourceFactory = if (isDebrid) {
+                DefaultMediaSourceFactory(httpDataSourceFactory)
+            } else {
+                val dataSourceFactory = CacheDataSource.Factory()
+                    .setCache(PlayerCacheManager.getCache(this))
+                    .setUpstreamDataSourceFactory(httpDataSourceFactory)
+                    .setCacheWriteDataSinkFactory(CacheDataSink.Factory().setCache(PlayerCacheManager.getCache(this)))
+                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+                DefaultMediaSourceFactory(dataSourceFactory)
+            }
+            
             val bufferConfig = PlayerBufferConfigFactory.buildConfig(this, settingsPreferences, contentType, streamUrl, isDebrid)
             val loadControl = DefaultLoadControl.Builder()
                 .setBufferDurationsMs(bufferConfig.minBufferMs, bufferConfig.maxBufferMs, bufferConfig.startPlaybackMs, bufferConfig.rebufferPlaybackMs)
-                .setTargetBufferBytes(PlayerBufferConfigFactory.resolveTargetBufferBytes(this))
+                // 2. Increase Target Buffer Bytes threshold for Debrid to allow heavy Pre-buffering
+                .setTargetBufferBytes(PlayerBufferConfigFactory.resolveTargetBufferBytes(this, isDebrid))
                 .setPrioritizeTimeOverSizeThresholds(true)
                 .build()
             
             val trackSelector = DefaultTrackSelector(this)
-            var parametersBuilder = trackSelector.buildUponParameters().setTunnelingEnabled(false)
+            // 3. Enable hardware Video Tunneling. This offloads audio/video synchronization to the hardware composer.
+            var parametersBuilder = trackSelector.buildUponParameters().setTunnelingEnabled(true)
             trackManager.preferredAudioLanguage?.let { parametersBuilder = parametersBuilder.setPreferredAudioLanguage(it) }
             trackManager.preferredSubtitleLanguage?.let { parametersBuilder = parametersBuilder.setPreferredTextLanguage(it) }
             trackSelector.parameters = parametersBuilder.build()
@@ -1790,7 +1798,13 @@ class PlayerActivity : AppCompatActivity() {
                         diagnosticsPlaybackFields() + mapOf("positionMs" to (player?.currentPosition ?: 0L))
                     )
                 }
-                override fun onTrackSelectionParametersChanged(parameters: androidx.media3.common.TrackSelectionParameters) = captureManualTrackSelection()
+                private val captureRunnable = Runnable { captureManualTrackSelection() }
+
+                override fun onTrackSelectionParametersChanged(parameters: androidx.media3.common.TrackSelectionParameters) {
+                    timeoutHandler.removeCallbacks(captureRunnable)
+                    timeoutHandler.postDelayed(captureRunnable, 1500)
+                }
+
                 override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                     PlaybackDiagnosticsRecorder.record(
                         this@PlayerActivity,
@@ -1801,18 +1815,25 @@ class PlayerActivity : AppCompatActivity() {
                         applyTrackIndexOverrides()
                         hasAppliedIndexOverride = true
                     }
-                    captureManualTrackSelection()
+                    
+                    timeoutHandler.removeCallbacks(captureRunnable)
+                    timeoutHandler.postDelayed(captureRunnable, 1500)
+                    
                     if (isSoftwareAudioEnabled) {
                         val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
                         var hasSupportedAudioSelected = false
                         var firstSupportedGroup: androidx.media3.common.Tracks.Group? = null
+                        var hasAudioOverride = false
                         for (group in audioGroups) {
+                            if (player?.trackSelectionParameters?.overrides?.containsKey(group.mediaTrackGroup) == true) {
+                                hasAudioOverride = true
+                            }
                             if (group.isSupported) {
                                 if (firstSupportedGroup == null) firstSupportedGroup = group
                                 if (group.isSelected) { hasSupportedAudioSelected = true; break }
                             }
                         }
-                        if (!hasSupportedAudioSelected && firstSupportedGroup != null && audioGroups.size > 1) {
+                        if (!hasSupportedAudioSelected && firstSupportedGroup != null && audioGroups.size > 1 && !hasAudioOverride) {
                              player?.trackSelectionParameters = player?.trackSelectionParameters?.buildUpon()?.setOverrideForType(TrackSelectionOverride(firstSupportedGroup.mediaTrackGroup, 0))?.build() ?: player?.trackSelectionParameters!!
                         }
                     }
@@ -2215,20 +2236,44 @@ class PlayerActivity : AppCompatActivity() {
         // LOG EVERY KEY FOR PROOF
         Log.d("PlayerActivity", "dispatchKeyEvent: code=${event.keyCode}, action=${event.action}")
         
-        if (event.action == KeyEvent.ACTION_DOWN) {
-            val xrayPanel = findViewById<View>(R.id.view_xray_panel)
-            if (xrayPanel != null && xrayPanel.visibility == View.VISIBLE) {
-                if (event.keyCode == KeyEvent.KEYCODE_BACK) {
-                    playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false
-                    toggleXRayPanel(false)
-                    return true
-                }
-            }
+        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+            val xray = findViewById<View>(R.id.view_xray_panel)
+            val isXrayVisible = xray != null && xray.visibility == View.VISIBLE
+            val isEpisodeBrowserVisible = ::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()
+            val isBrowserVisible = viewModel.browserState.value.isVisible
+            val isEpgVisible = contentType == ContentType.LIVE_TV && epgOverlayPinned && epgOverlayMode != EpgOverlayMode.HIDDEN
+            val isControllerVisible = playerView.isControllerFullyVisible
 
+            if (isXrayVisible || isEpisodeBrowserVisible || isBrowserVisible || isEpgVisible || isControllerVisible) {
+                if (event.action == KeyEvent.ACTION_UP) {
+                    if (isEpisodeBrowserVisible) {
+                        episodeBrowserController.hide()
+                        playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false
+                        toggleXRayPanel(false)
+                    } else if (isXrayVisible) {
+                        playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false
+                        toggleXRayPanel(false)
+                    } else if (isBrowserVisible) {
+                        viewModel.toggleBrowser(false)
+                    } else if (isEpgVisible) {
+                        hideEpgOverlay()
+                    } else if (isControllerVisible) {
+                        playerView.hideController()
+                    }
+                }
+                return true
+            }
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0 && supportsPictureInPicture()) {
+                enterPictureInPictureModeInternal()
+                return true
+            }
+        }
+
+        if (event.action == KeyEvent.ACTION_DOWN) {
             if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
                 if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                     episodeBrowserController.hide()
-                    showControllerFocusedOnSeekBar()
+                    showControllerWithSmartFocus()
                     return true
                 }
                 playerView.hideController()
@@ -2277,7 +2322,7 @@ class PlayerActivity : AppCompatActivity() {
                         KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
                         KeyEvent.KEYCODE_MEDIA_REWIND,
                         KeyEvent.KEYCODE_MENU -> {
-                            showControllerFocusedOnSeekBar(event)
+                            showControllerWithSmartFocus(event)
                             return true
                         }
                     }
@@ -2297,23 +2342,6 @@ class PlayerActivity : AppCompatActivity() {
                 KeyEvent.KEYCODE_INFO -> { if (contentType == ContentType.LIVE_TV) toggleEpgOverlayPinned() else { playerView.showController(); playerView.requestFocus() }; return true }
                 KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_GUIDE -> {
                     if (contentType == ContentType.LIVE_TV) { toggleEpgOverlayPinned(); return true }; if (playerView.isControllerFullyVisible) { showSubtitleSelection(); return true } 
-                }
-                KeyEvent.KEYCODE_BACK -> {
-                    if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
-                        episodeBrowserController.hide()
-                        playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false
-                        toggleXRayPanel(false)
-                        return true
-                    }
-                    val xray = findViewById<View>(R.id.view_xray_panel)
-                    if (xray != null && xray.visibility == View.VISIBLE) {
-                        playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false
-                        toggleXRayPanel(false)
-                        return true
-                    }
-                    if (viewModel.browserState.value.isVisible) { viewModel.toggleBrowser(false); return true }
-                    if (contentType == ContentType.LIVE_TV && epgOverlayPinned && epgOverlayMode != EpgOverlayMode.HIDDEN) { hideEpgOverlay(); return true }
-                    if (event.repeatCount > 0 && supportsPictureInPicture()) { enterPictureInPictureModeInternal(); return true }
                 }
             }
         }
@@ -2336,25 +2364,29 @@ class PlayerActivity : AppCompatActivity() {
         }
         
         if (!playerView.isControllerFullyVisible) {
-            showControllerFocusedOnSeekBar()
+            showControllerWithSmartFocus()
         }
     }
 
-    private fun showControllerFocusedOnSeekBar(sourceEvent: KeyEvent? = null) {
+    private fun showControllerWithSmartFocus(sourceEvent: KeyEvent? = null) {
         playerView.showController()
-        val seekBar = playerView.findViewById<View>(R.id.exo_progress)
         installControllerSeekNavigation()
-        Log.d("PLAYER_SEEK_FOCUS", "show controller focusSeek key=${sourceEvent?.keyCode}")
-        seekBar?.postDelayed({
-            seekBar.requestFocus()
-            val keyCode = sourceEvent?.keyCode
-            if (sourceEvent?.action == KeyEvent.ACTION_DOWN &&
-                (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
-            ) {
-                seekBar.dispatchKeyEvent(sourceEvent)
-                seekBar.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
+        val keyCode = sourceEvent?.keyCode
+        val wantsToSeek = keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+        Log.d("PLAYER_SEEK_FOCUS", "show controller focus key=$keyCode wantsToSeek=$wantsToSeek")
+        
+        playerView.postDelayed({
+            if (wantsToSeek) {
+                val seekBar = playerView.findViewById<View>(R.id.exo_progress)
+                seekBar?.requestFocus()
+                if (sourceEvent?.action == KeyEvent.ACTION_DOWN) {
+                    seekBar?.dispatchKeyEvent(sourceEvent)
+                    seekBar?.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode ?: KeyEvent.KEYCODE_UNKNOWN))
+                }
+            } else {
+                focusVisiblePlayPause()
             }
-        }, 50L) ?: playerView.requestFocus()
+        }, 50L)
     }
 
     private fun installControllerSeekNavigation() {
@@ -2484,7 +2516,24 @@ class PlayerActivity : AppCompatActivity() {
         finish()
         return true
     }
-    private fun updatePlayPauseVisibility(isPlaying: Boolean) { playerView.findViewById<View>(R.id.exo_play)?.isVisible = !isPlaying; playerView.findViewById<View>(R.id.exo_pause)?.isVisible = isPlaying; if (isControllerVisible) { val play = playerView.findViewById<View>(R.id.exo_play); val pause = playerView.findViewById<View>(R.id.exo_pause); if (isPlaying && play?.isFocused == true) pause?.post { pause.requestFocus() } else if (!isPlaying && pause?.isFocused == true) play?.post { play.requestFocus() } } }
+    private fun updatePlayPauseVisibility(isPlaying: Boolean) {
+        val play = playerView.findViewById<View>(R.id.exo_play)
+        val pause = playerView.findViewById<View>(R.id.exo_pause)
+        
+        // Fix focus hijacking: synchronously shift focus BEFORE hiding the currently focused view
+        if (isControllerVisible) {
+            if (isPlaying && play?.isFocused == true) {
+                pause?.isVisible = true
+                pause?.requestFocus()
+            } else if (!isPlaying && pause?.isFocused == true) {
+                play?.isVisible = true
+                play?.requestFocus()
+            }
+        }
+        
+        play?.isVisible = !isPlaying
+        pause?.isVisible = isPlaying
+    }
 
     private fun observeDebridResolutionState() {
         lifecycleScope.launch {

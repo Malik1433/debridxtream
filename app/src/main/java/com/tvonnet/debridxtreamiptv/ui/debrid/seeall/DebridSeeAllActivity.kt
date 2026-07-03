@@ -1,0 +1,166 @@
+package com.tvonnet.debridxtreamiptv.ui.debrid.seeall
+
+import android.content.Intent
+import android.os.Bundle
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
+import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.data.debrid.repository.CatalogItem
+import com.tvonnet.debridxtreamiptv.ui.debrid.discover.DebridDiscoverAdapter
+import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
+import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+
+@AndroidEntryPoint
+class DebridSeeAllActivity : AppCompatActivity() {
+
+    companion object {
+        const val EXTRA_ROW_ID = "EXTRA_ROW_ID"
+        const val EXTRA_ROW_TITLE = "EXTRA_ROW_TITLE"
+    }
+
+    private val viewModel: DebridSeeAllViewModel by viewModels()
+    private lateinit var adapter: DebridDiscoverAdapter
+
+    private var lastFocusedPosition = -1
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_debrid_see_all)
+
+        val rowId = intent.getStringExtra(EXTRA_ROW_ID) ?: ""
+        val rowTitle = intent.getStringExtra(EXTRA_ROW_TITLE) ?: ""
+
+        val tvTitle = findViewById<TextView>(R.id.textViewTitle)
+        tvTitle.text = rowTitle
+
+        val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewItems)
+        val progressBar = findViewById<android.widget.ProgressBar>(R.id.progressBar)
+        val tvError = findViewById<TextView>(R.id.tvError)
+
+        val layoutManager = GridLayoutManager(this, 6)
+        recyclerView.layoutManager = layoutManager
+        recyclerView.setHasFixedSize(true)
+        recyclerView.descendantFocusability = android.view.ViewGroup.FOCUS_AFTER_DESCENDANTS
+
+        if (savedInstanceState != null) {
+            lastFocusedPosition = savedInstanceState.getInt("LAST_FOCUSED_POSITION", -1)
+        }
+
+        adapter = DebridDiscoverAdapter(
+            onItemClick = { item ->
+                onItemClick(item)
+            },
+            onItemFocused = { item ->
+                updateBackdrop(item)
+                val focusedView = recyclerView.focusedChild ?: return@DebridDiscoverAdapter
+                val viewHolder = recyclerView.findContainingViewHolder(focusedView) ?: return@DebridDiscoverAdapter
+                lastFocusedPosition = viewHolder.bindingAdapterPosition
+            },
+            onLoadMore = {
+                viewModel.loadNextPage()
+            }
+        )
+        recyclerView.adapter = adapter
+
+        recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                val totalItemCount = layoutManager.itemCount
+                val lastVisibleItem = layoutManager.findLastVisibleItemPosition()
+
+                if (totalItemCount <= lastVisibleItem + 7) { // Threshold increased to 7
+                    viewModel.loadNextPage()
+                }
+            }
+        })
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    when (state) {
+                        is com.tvonnet.debridxtreamiptv.ui.debrid.seeall.DebridSeeAllUiState.Content -> {
+                            progressBar.visibility = android.view.View.GONE
+                            tvError.visibility = android.view.View.GONE
+                            recyclerView.visibility = android.view.View.VISIBLE
+                            adapter.submitItems(state.items, state.canLoadMore)
+
+                            // Restore focus memory if available
+                            if (lastFocusedPosition != -1 && lastFocusedPosition < state.items.size) {
+                                recyclerView.post {
+                                    val view = layoutManager.findViewByPosition(lastFocusedPosition)
+                                    view?.requestFocus()
+                                }
+                            }
+                        }
+                        is com.tvonnet.debridxtreamiptv.ui.debrid.seeall.DebridSeeAllUiState.Error -> {
+                            progressBar.visibility = android.view.View.GONE
+                            recyclerView.visibility = android.view.View.GONE
+                            tvError.visibility = android.view.View.VISIBLE
+                            tvError.text = state.message
+                        }
+                        com.tvonnet.debridxtreamiptv.ui.debrid.seeall.DebridSeeAllUiState.Loading -> {
+                            // Only show full loader if empty
+                            if (adapter.itemCount == 0) {
+                                progressBar.visibility = android.view.View.VISIBLE
+                                tvError.visibility = android.view.View.GONE
+                                recyclerView.visibility = android.view.View.GONE
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (savedInstanceState == null) {
+            viewModel.initRow(rowId)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt("LAST_FOCUSED_POSITION", lastFocusedPosition)
+    }
+
+    private fun onItemClick(item: CatalogItem) {
+        if (item.type == "movie") {
+            val intent = Intent(this, MovieDetailActivity::class.java).apply {
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.id)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_YEAR, item.year)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_RATING, item.rating)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
+            }
+            startActivity(intent)
+        } else {
+            val intent = Intent(this, SeriesDetailActivity::class.java).apply {
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, item.id)
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.title)
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
+                putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
+            }
+            startActivity(intent)
+        }
+    }
+
+    private fun updateBackdrop(item: CatalogItem) {
+        val imageUrl = item.backdropUrl ?: item.posterUrl ?: return
+        val ivBackdrop = findViewById<ImageView>(R.id.ivBackdrop)
+        Glide.with(this)
+            .load(imageUrl)
+            .transition(DrawableTransitionOptions.withCrossFade(500))
+            .into(ivBackdrop)
+    }
+}

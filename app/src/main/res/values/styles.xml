@@ -45,5 +45,10 @@
         <item name="android:windowEnterAnimation">@anim/dropdown_slide_in</item>
         <item name="android:windowExitAnimation">@anim/dropdown_slide_out</item>
     </style>
-    
+
+    <style name="SourcePanelAnimation">
+        <item name="android:windowEnterAnimation">@anim/panel_slide_in_right</item>
+        <item name="android:windowExitAnimation">@anim/panel_slide_out_right</item>
+    </style>
+
 </resources>

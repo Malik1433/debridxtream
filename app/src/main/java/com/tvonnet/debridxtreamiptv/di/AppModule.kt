@@ -237,15 +237,14 @@ object AppModule {
         return OkHttpClient.Builder()
             // 4K Pump: Massive Connection Pool for high-throughput segments
             .connectionPool(okhttp3.ConnectionPool(32, 10, TimeUnit.MINUTES))
-            .connectTimeout(60, TimeUnit.SECONDS) // Increased for slow 4K servers
-            .readTimeout(60, TimeUnit.SECONDS)    // Vital for large 4K chunks
-            .writeTimeout(60, TimeUnit.SECONDS)
+            .connectTimeout(15, TimeUnit.SECONDS) // Increased for slow 4K servers
+            .readTimeout(15, TimeUnit.SECONDS)    // Vital for large 4K chunks
+            .writeTimeout(15, TimeUnit.SECONDS)
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
             .build()
     }
-
     /**
      * Provides VodDao
      * Phase 1: Database Infrastructure

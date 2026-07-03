@@ -81,6 +81,9 @@ class MovieDetailActivity : AppCompatActivity() {
     @Inject
     lateinit var credentialsPrefs: CredentialsPreferences
 
+    @Inject
+    lateinit var favoriteDao: com.tvonnet.debridxtreamiptv.data.local.dao.FavoriteDao
+
     private lateinit var ivBackdrop: ImageView
 
     private lateinit var tvTitle: TextView
@@ -108,13 +111,23 @@ class MovieDetailActivity : AppCompatActivity() {
     private lateinit var sizeFilterAdapter: SizeFilterAdapter
     private lateinit var languageFilterAdapter: LanguageFilterAdapter
 
-    // TASK 020 New Views
+    // Redesign views
     private lateinit var layoutRdSummary: View
     private lateinit var tvRdSummaryText: TextView
     private lateinit var btnPlay: Button
     private lateinit var btnTrailer: Button
-    private lateinit var btnFavorite: Button
+    private lateinit var btnFavorite: ImageButton
     private lateinit var btnBack: ImageButton
+    private var isFavorite: Boolean = false
+    private lateinit var tvContentType: TextView
+    private lateinit var tvYear: TextView
+    private lateinit var tvQualityBadge: TextView
+    private lateinit var layoutRdStatus: View
+    private lateinit var tvPremiumBadge: TextView
+    private lateinit var tvBreadcrumbType: TextView
+    private lateinit var layoutSimilarRow: View
+    private lateinit var rvSimilar: RecyclerView
+    private lateinit var similarAdapter: SimilarMoviesAdapter
 
     // Movie data
     private var movieId: String? = null
@@ -204,10 +217,10 @@ class MovieDetailActivity : AppCompatActivity() {
         updateTrailerButtonState()
         displayMovieDetails()
         configureTabs()
+        loadFavoriteState()
         
         // Start data loading chain
         if (movieCategoryId == "debrid" && movieId != null) {
-            layoutRdSummary.visibility = View.VISIBLE
             val id = movieId!!.toIntOrNull()
             if (id != null) {
                 fetchTmdbDetails(movieId!!)
@@ -236,29 +249,29 @@ class MovieDetailActivity : AppCompatActivity() {
                     when (result) {
                         is com.tvonnet.debridxtreamiptv.data.Result.Success -> {
                             val details = result.data
-                            // Capture IMDb ID for source fetching
                             imdbId = details.imdbId
                             currentImdbId = imdbId
-                            
-                            // Update UI with fetched details
+
                             moviePlot = details.overview
                             movieRating = details.voteAverage?.toString()
                             movieYear = details.releaseDate?.take(4)
-                            movieDuration = details.runtime?.let { (it * 60).toString() } // Convert mins to seconds for formatDuration
+                            movieDuration = details.runtime?.let { (it * 60).toString() }
                             movieGenre = details.genres?.joinToString(", ") { it.name ?: "" }
+                            movieDirector = details.credits?.crew
+                                ?.firstOrNull { it.job?.equals("Director", ignoreCase = true) == true }
+                                ?.name
 
-                            // Cast
                             val castList = details.credits?.cast
                             if (!castList.isNullOrEmpty()) {
-                                castAdapter.submitList(castList.take(3))
+                                castAdapter.submitList(castList.take(5))
                                 tvCastTitle.visibility = View.VISIBLE
                                 rvCast.visibility = View.VISIBLE
                             } else {
                                 tvCastTitle.visibility = View.GONE
                                 rvCast.visibility = View.GONE
                             }
-                            // Update views
                             displayMovieDetails()
+                            loadSimilarMovies(id)
                         }
                         is com.tvonnet.debridxtreamiptv.data.Result.Error -> {
                             android.util.Log.e("MovieDetailActivity", "Failed to fetch TMDB details", result.exception)
@@ -307,13 +320,39 @@ class MovieDetailActivity : AppCompatActivity() {
         rvLanguageFilters = findViewById(R.id.rv_language_filters)
         rvSources = findViewById(R.id.rv_sources)
 
-        // TASK 020 View Binding
+        // Redesign view binding
         layoutRdSummary = findViewById(R.id.layout_rd_summary)
         tvRdSummaryText = findViewById(R.id.tv_rd_summary_text)
         btnPlay = findViewById(R.id.btn_play)
         btnTrailer = findViewById(R.id.btn_trailer)
         btnFavorite = findViewById(R.id.btn_favorite)
         btnBack = findViewById(R.id.btn_back)
+        tvContentType = findViewById(R.id.tv_content_type)
+        tvYear = findViewById(R.id.tv_year)
+        tvQualityBadge = findViewById(R.id.tv_quality_badge)
+        layoutRdStatus = findViewById(R.id.layout_rd_status)
+        tvPremiumBadge = findViewById(R.id.tv_premium_badge)
+        tvBreadcrumbType = findViewById(R.id.tv_breadcrumb_type)
+        layoutSimilarRow = findViewById(R.id.layout_similar_row)
+        rvSimilar = findViewById(R.id.rv_similar)
+
+        similarAdapter = SimilarMoviesAdapter { movie ->
+            val tmdbId = movie.id?.toString() ?: return@SimilarMoviesAdapter
+            val intent = android.content.Intent(this, MovieDetailActivity::class.java).apply {
+                putExtra(EXTRA_MOVIE_ID, tmdbId)
+                putExtra(EXTRA_MOVIE_NAME, movie.title)
+                putExtra(EXTRA_MOVIE_ICON, com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbImageUrl.getPosterUrl(movie.posterPath))
+                putExtra(EXTRA_MOVIE_BACKDROP, com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbImageUrl.getBackdropUrl(movie.backdropPath))
+                putExtra(EXTRA_MOVIE_YEAR, movie.releaseDate?.take(4))
+                putExtra(EXTRA_MOVIE_RATING, movie.voteAverage?.toString())
+                putExtra(EXTRA_MOVIE_CATEGORY_ID, "debrid")
+            }
+            startActivity(intent)
+        }
+        rvSimilar.apply {
+            layoutManager = LinearLayoutManager(this@MovieDetailActivity, LinearLayoutManager.HORIZONTAL, false)
+            adapter = similarAdapter
+        }
 
         setupClickListeners()
         setupFocusAnimations()
@@ -390,42 +429,52 @@ class MovieDetailActivity : AppCompatActivity() {
     private fun displayMovieDetails() {
         tvTitle.text = movieName ?: getString(R.string.movie_detail_unknown_movie)
 
+        // Content type label
+        if (isDebridMovie) {
+            tvContentType.text = "FEATURE FILM"
+            tvContentType.visibility = View.VISIBLE
+        } else {
+            tvContentType.visibility = View.GONE
+        }
+
+        // Rating
         val rating = movieRating?.toDoubleOrNull() ?: 0.0
         val hasRating = rating > 0.0
         tvRatingPercentage.visibility = if (hasRating) View.VISIBLE else View.GONE
-        tvRatingStars.visibility = if (hasRating) View.VISIBLE else View.GONE
+        tvRatingStars.visibility = View.GONE
         if (hasRating) {
-            displayRating(rating)
+            tvRatingPercentage.text = String.format("%.1f", rating)
         }
 
-        val genreText = when {
-            !movieGenre.isNullOrBlank() && !movieYear.isNullOrBlank() ->
-                getString(R.string.movie_detail_genre_and_year, movieGenre, movieYear)
-
-            !movieGenre.isNullOrBlank() -> movieGenre
-            !movieYear.isNullOrBlank() -> movieYear
-            else -> null
+        // Year
+        if (!movieYear.isNullOrBlank()) {
+            tvYear.text = movieYear
+            tvYear.visibility = View.VISIBLE
+        } else {
+            tvYear.visibility = View.GONE
         }
-        tvGenreYear.text = genreText.orEmpty()
-        tvGenreYear.visibility = if (genreText.isNullOrBlank()) View.GONE else View.VISIBLE
 
-        val hasMetadataRow = hasRating || !genreText.isNullOrBlank() || !movieDuration.isNullOrBlank()
+        // Genre (without year — year is separate now)
+        tvGenreYear.text = movieGenre.orEmpty()
+        tvGenreYear.visibility = if (movieGenre.isNullOrBlank()) View.GONE else View.VISIBLE
+
+        val hasMetadataRow = hasRating || !movieGenre.isNullOrBlank() || !movieDuration.isNullOrBlank() || !movieYear.isNullOrBlank()
         layoutMetadataRow.visibility = if (hasMetadataRow) View.VISIBLE else View.GONE
 
+        // Director
         if (!movieDirector.isNullOrBlank()) {
-            tvDirector.text = getString(R.string.movie_detail_directed_by, movieDirector)
+            tvDirector.text = movieDirector
             tvDirector.visibility = View.VISIBLE
         } else {
             tvDirector.visibility = View.GONE
         }
 
-
-
         val descriptionText = moviePlot?.takeIf { it.isNotBlank() }
         tvDescription.text = descriptionText.orEmpty()
         tvDescription.visibility = if (descriptionText.isNullOrBlank()) View.GONE else View.VISIBLE
 
-        val durationText = movieDuration?.takeIf { it.isNotBlank() }?.let { formatDuration(it) }
+        // Duration in compact format
+        val durationText = movieDuration?.takeIf { it.isNotBlank() }?.let { formatDurationCompact(it) }
         tvDuration.text = durationText.orEmpty()
         tvDuration.visibility = if (durationText.isNullOrBlank()) View.GONE else View.VISIBLE
 
@@ -434,6 +483,26 @@ class MovieDetailActivity : AppCompatActivity() {
                 .load(movieBackdrop)
                 .centerCrop()
                 .into(ivBackdrop)
+        }
+
+        // RD status and premium badge for debrid movies
+        if (isDebridMovie) {
+            layoutRdStatus.visibility = View.VISIBLE
+            tvBreadcrumbType.text = "/ MOVIES"
+        } else {
+            layoutRdStatus.visibility = View.GONE
+            tvBreadcrumbType.text = "/ VOD"
+        }
+    }
+
+    private fun formatDurationCompact(duration: String): String {
+        val seconds = duration.toLongOrNull()
+        return if (seconds != null) {
+            val hours = seconds / 3600
+            val minutes = (seconds % 3600) / 60
+            if (hours > 0) "${hours}H ${minutes}M" else "${minutes}M"
+        } else {
+            duration
         }
     }
 
@@ -465,8 +534,26 @@ class MovieDetailActivity : AppCompatActivity() {
     }
 
     private fun configureTabs() {
-        // No-op for now as we are using buttons instead of tabs for main actions
-        // But we keep the function if you want to restore tabs later
+    }
+
+    private fun loadSimilarMovies(tmdbId: Int) {
+        lifecycleScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    tmdbRemoteDataSource.getMovieRecommendations(tmdbId)
+                }
+                when (result) {
+                    is com.tvonnet.debridxtreamiptv.data.Result.Success -> {
+                        val movies = result.data.results?.take(6) ?: emptyList()
+                        if (movies.isNotEmpty()) {
+                            similarAdapter.submitList(movies)
+                            layoutSimilarRow.visibility = View.VISIBLE
+                        }
+                    }
+                    else -> {}
+                }
+            } catch (_: Exception) {}
+        }
     }
 
 
@@ -693,11 +780,12 @@ class MovieDetailActivity : AppCompatActivity() {
             return
         }
 
-        val verifiedCount = sources.count { it.cacheStatus == DebridCacheStatus.VERIFIED_CACHED }
-        val directCount = sources.count { it.cacheStatus == DebridCacheStatus.DIRECT_STREAM }
+        val cachedCount = sources.count {
+            it.cacheStatus == DebridCacheStatus.VERIFIED_CACHED || it.cacheStatus == DebridCacheStatus.DIRECT_STREAM
+        }
         val bestQuality = sources.mapNotNull { it.quality }.distinct()
-            .sortedByDescending { q -> 
-                when(q.uppercase()) {
+            .sortedByDescending { q ->
+                when (q.uppercase()) {
                     "4K" -> 100
                     "2160P" -> 99
                     "1080P" -> 80
@@ -706,29 +794,33 @@ class MovieDetailActivity : AppCompatActivity() {
                 }
             }.firstOrNull() ?: "HD"
 
-        val languages = sources.flatMap { it.languages ?: emptyList() }
-            .distinct()
-            .joinToString(", ")
+        val bestSize = sources.filter { it.quality?.uppercase() in listOf("4K", "2160P") }
+            .mapNotNull { it.sizeBytes }
+            .maxOrNull()
+            ?.let { formatSizeLabel(it) }
 
         layoutRdSummary.visibility = View.VISIBLE
         val summary = buildString {
-            append("Real-Debrid Ready")
-            if (verifiedCount > 0) {
-                append(" • $verifiedCount verified cached")
-            } else if (directCount > 0) {
-                append(" • $directCount direct sources")
-            } else {
-                append(" • ${sources.size} sources found")
-            }
-            append(" • Best: $bestQuality")
-            
-            if (languages.isNotBlank()) {
-                append("\nAvailable Languages: $languages")
-            } else {
-                append("\nLanguages available after source selection")
-            }
+            append("${sources.size} SOURCES FOUND")
+            append(" · $cachedCount CACHED")
+            append(" · BEST $bestQuality")
+            if (bestSize != null) append(" $bestSize")
         }
         tvRdSummaryText.text = summary
+
+        // Update quality badge
+        tvQualityBadge.text = bestQuality.uppercase()
+        tvQualityBadge.visibility = View.VISIBLE
+    }
+
+    private fun formatSizeLabel(sizeBytes: Long): String {
+        val gb = 1024.0 * 1024.0 * 1024.0
+        val mb = 1024.0 * 1024.0
+        return if (sizeBytes >= gb) {
+            String.format(java.util.Locale.US, "%.1f GB", sizeBytes / gb)
+        } else {
+            String.format(java.util.Locale.US, "%.0f MB", sizeBytes / mb)
+        }
     }
 
     private fun setupClickListeners() {
@@ -751,34 +843,75 @@ class MovieDetailActivity : AppCompatActivity() {
     }
 
     private fun setupFocusAnimations() {
-        val buttons = listOf(btnPlay, btnTrailer, btnFavorite, btnBack)
-        buttons.forEach { view ->
-            // Unfocused state: slightly transparent for depth
-            view.alpha = 0.85f
+        val focusViews: List<View> = listOf(btnPlay, btnTrailer, btnFavorite, btnBack)
+        focusViews.forEach { view ->
             view.setOnFocusChangeListener { v, hasFocus ->
                 if (hasFocus) {
                     v.animate()
-                        .scaleX(1.1f)
-                        .scaleY(1.1f)
+                        .scaleX(1.05f)
+                        .scaleY(1.05f)
                         .alpha(1.0f)
-                        .setDuration(250)
+                        .setDuration(200)
                         .setInterpolator(android.view.animation.DecelerateInterpolator())
                         .start()
                 } else {
                     v.animate()
                         .scaleX(1.0f)
                         .scaleY(1.0f)
-                        .alpha(0.85f)
-                        .setDuration(200)
+                        .alpha(0.9f)
+                        .setDuration(150)
                         .start()
                 }
             }
         }
     }
 
+    private fun loadFavoriteState() {
+        val streamId = movieId ?: return
+        lifecycleScope.launch {
+            isFavorite = withContext(Dispatchers.IO) { favoriteDao.isFavorite(streamId) }
+            updateFavoriteIcon()
+        }
+    }
+
     private fun toggleFavorite() {
-        // Logic to be implemented
-        Toast.makeText(this, "Added to favorites", Toast.LENGTH_SHORT).show()
+        val streamId = movieId ?: return
+        lifecycleScope.launch {
+            val nowFavorite = !isFavorite
+            withContext(Dispatchers.IO) {
+                if (nowFavorite) {
+                    favoriteDao.insertFavorite(
+                        com.tvonnet.debridxtreamiptv.data.local.entity.FavoriteEntity(
+                            streamId = streamId,
+                            type = "vod",
+                            name = movieName ?: "",
+                            iconUrl = movieIcon
+                        )
+                    )
+                } else {
+                    favoriteDao.deleteFavoriteByStreamId(streamId)
+                }
+            }
+            isFavorite = nowFavorite
+            updateFavoriteIcon()
+            Toast.makeText(
+                this@MovieDetailActivity,
+                if (nowFavorite) "Added to favorites" else "Removed from favorites",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    private fun updateFavoriteIcon() {
+        if (isFavorite) {
+            btnFavorite.setImageResource(R.drawable.ic_favorite)
+            btnFavorite.imageTintList = android.content.res.ColorStateList.valueOf(0xFFFF3366.toInt())
+        } else {
+            btnFavorite.setImageResource(R.drawable.ic_favorite_border)
+            btnFavorite.imageTintList = androidx.core.content.ContextCompat.getColorStateList(
+                this, R.color.cin_detail_focus_text
+            )
+        }
     }
 
 

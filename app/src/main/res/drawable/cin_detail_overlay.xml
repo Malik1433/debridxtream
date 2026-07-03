@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Left gradient fade for text readability -->
+    <item>
+        <shape>
+            <gradient
+                android:startColor="#FF06090E"
+                android:centerColor="#D906090E"
+                android:endColor="#3306090E"
+                android:angle="0" />
+        </shape>
+    </item>
+    <!-- Bottom gradient fade -->
+    <item android:gravity="bottom" android:height="400dp">
+        <shape>
+            <gradient
+                android:startColor="#0006090E"
+                android:endColor="#FF06090E"
+                android:angle="270" />
+        </shape>
+    </item>
+    <!-- Top haze for top bar -->
+    <item android:gravity="top" android:height="200dp">
+        <shape>
+            <gradient
+                android:startColor="#CC06090E"
+                android:endColor="#0006090E"
+                android:angle="270" />
+        </shape>
+    </item>
+</layer-list>

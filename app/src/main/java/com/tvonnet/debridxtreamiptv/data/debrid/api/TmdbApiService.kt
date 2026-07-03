@@ -116,4 +116,11 @@ interface TmdbApiService {
     suspend fun getTvGenres(
         @Query("api_key") apiKey: String
     ): TmdbGenreResponse
+
+    @GET("movie/{movie_id}/recommendations")
+    suspend fun getMovieRecommendations(
+        @Path("movie_id") movieId: String,
+        @Query("api_key") apiKey: String,
+        @Query("page") page: Int = 1
+    ): TmdbMovieResponse
 }

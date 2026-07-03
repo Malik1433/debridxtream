@@ -124,6 +124,7 @@
                             android:paddingHorizontal="16dp"
                             android:paddingVertical="0dp"
                             android:layout_marginEnd="12dp"
+                            android:focusedByDefault="true"
                             android:nextFocusDown="@+id/rv_top_10_movies" />
                             
                         <com.google.android.material.button.MaterialButton
@@ -174,7 +175,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:paddingStart="0dp"
-                    android:paddingEnd="36dp"
+                    android:paddingEnd="48dp"
                     android:clipToPadding="false"
                     android:clipChildren="false"
                     android:layout_marginBottom="22dp"
@@ -212,7 +213,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:paddingStart="0dp"
-                    android:paddingEnd="36dp"
+                    android:paddingEnd="48dp"
                     android:clipToPadding="false"
                     android:clipChildren="false"
                     android:layout_marginBottom="22dp"
@@ -260,7 +261,7 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:paddingStart="0dp"
-                        android:paddingEnd="36dp"
+                        android:paddingEnd="48dp"
                         android:clipToPadding="false"
                         android:clipChildren="false"
                         tools:listitem="@layout/item_recent_live_card"
@@ -308,7 +309,7 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:paddingStart="0dp"
-                        android:paddingEnd="36dp"
+                        android:paddingEnd="48dp"
                         android:clipToPadding="false"
                         android:clipChildren="false"
                         tools:listitem="@layout/item_continue_watching_card"
@@ -321,11 +322,21 @@
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
 
+        <!-- Dimming Overlay -->
+        <View
+            android:id="@+id/view_sidebar_dim_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#000000"
+            android:alpha="0.0"
+            android:visibility="gone"
+            android:elevation="8dp" />
+
         <!-- Premium Sidebar Panel (structured; full labels visible) -->
         <include
             android:id="@+id/sidebar_panel"
             layout="@layout/view_home_sidebar"
-            android:layout_width="@dimen/sidebar_width_expanded"
+            android:layout_width="72dp"
             android:layout_height="0dp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"

@@ -409,7 +409,7 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
 
     fun onRecentLiveItemClick(item: RecentLiveChannelItem) {
         val frag = fragment ?: return
-        Log.e("HISTORY_DEBUG", "Click Recent Live: ${item.channelName} | id=${item.channelId} | stream=${item.streamUrl}")
+        Log.e("HISTORY_DEBUG", "Click Recent Live: ${item.channelName} | id=${item.channelId} | stream=${SensitiveLogRedactor.describeUrl(item.streamUrl)}")
         launchLiveStream(
             streamId = item.channelId,
             fallbackTitle = item.channelName,

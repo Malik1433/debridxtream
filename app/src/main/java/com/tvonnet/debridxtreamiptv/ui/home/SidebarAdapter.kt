@@ -83,16 +83,22 @@ class SidebarAdapter(
             tvTitle.text = item.title
             ivIcon.setImageResource(item.iconRes)
             
+            if (bindingAdapterPosition == 0) {
+                itemView.nextFocusUpId = itemView.id
+            } else {
+                itemView.nextFocusUpId = View.NO_ID
+            }
+            
             // Selection state
             // Selection (active tab): Tint Icon Cyan.
             // Focus: Expand width, Show Text, Dark Background.
             
-            val tintColor = if (isSelected) {
-                ContextCompat.getColor(itemView.context, R.color.sidebar_text_primary)
-            } else {
-                ContextCompat.getColor(itemView.context, R.color.sidebar_text_dim)
-            }
-            ivIcon.setColorFilter(tintColor)
+            val colorPrimary = ContextCompat.getColor(itemView.context, R.color.sidebar_text_primary)
+            val colorDim = ContextCompat.getColor(itemView.context, R.color.sidebar_text_dim)
+            
+            val initialTintColor = if (isSelected) colorPrimary else colorDim
+            ivIcon.setColorFilter(initialTintColor)
+            
             viewSelectionIndicator.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
             val density = itemView.context.resources.displayMetrics.density
 
@@ -107,6 +113,18 @@ class SidebarAdapter(
 
             itemView.setOnFocusChangeListener { _, hasFocus ->
                 onFocusChange(hasFocus)
+                
+                val targetColor = if (hasFocus) 0xFFFFFFFF.toInt() else (if (isSelected) colorPrimary else 0x88FFFFFF.toInt())
+                val startColor = if (hasFocus) (if (isSelected) colorPrimary else 0x88FFFFFF.toInt()) else 0xFFFFFFFF.toInt()
+                
+                android.animation.ValueAnimator.ofArgb(startColor, targetColor).apply {
+                    duration = if (hasFocus) 220L else 180L
+                    interpolator = ease
+                    addUpdateListener { animator ->
+                        ivIcon.setColorFilter(animator.animatedValue as Int)
+                    }
+                    start()
+                }
                 
                 if (hasFocus) {
                     onItemFocused(item)

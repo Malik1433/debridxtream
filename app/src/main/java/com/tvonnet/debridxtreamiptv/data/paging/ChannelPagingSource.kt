@@ -30,14 +30,38 @@ class ChannelPagingSource(
                         // Search by channel number
                         stream.num?.toString()?.contains(searchQuery) == true
                     }
-                    Result.Success(filtered)
+                    Result.Success(mergeWithGlobalMatches(filtered))
                 }
-                is Result.Error -> result
+                is Result.Error -> {
+                    // Category fetch failed but the global index may still answer.
+                    val globalMatches = globalSearchMatches()
+                    if (globalMatches.isNotEmpty()) Result.Success(globalMatches) else result
+                }
                 is Result.Loading -> result
             }
         }
-        
+
         return result
+    }
+
+    /**
+     * Search must also cover channels from categories the user never opened —
+     * the search index keeps the full channel list in Room, so merge those
+     * global name matches after the current category's matches (category
+     * first to preserve familiar ordering; duplicates removed by stream id).
+     */
+    private suspend fun mergeWithGlobalMatches(categoryMatches: List<XtreamStream>): List<XtreamStream> {
+        val globalMatches = globalSearchMatches()
+        if (globalMatches.isEmpty()) return categoryMatches
+        return (categoryMatches + globalMatches).distinctBy { it.stream_id ?: "${it.num}_${it.name}" }
+    }
+
+    private suspend fun globalSearchMatches(): List<XtreamStream> {
+        return try {
+            repository.searchLive(searchQuery)
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
     
     override fun getLogTag(): String = "ChannelPagingSource"

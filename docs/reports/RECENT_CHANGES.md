@@ -2,8 +2,30 @@
 
 Track only the last 10 important changes. Newest first. Keep this file compact for regression debugging.
 
-Date: 2026-06-08
-Module: Debrid / Discover Dropdowns
+Date: 2026-06-12
+Module: Debrid / Resume fast-path + failover (RC-2 + RC-3 — see DIAG_DEBRID_CW_SLOW.md Rounds 2-3)
+Issue fixed: (RC-2) Debrid CW resume re-ran full multi-provider discovery; now, when the saved source's identity AND provider type are known, only that provider family is fetched first (10s budget) and full discovery runs only if the source vanished there. (RC-3) Error/timeout-triggered refreshes (`player_error_direct_refresh`, `buffer_timeout_direct_refresh`) previously re-resolved the same broken source every ~20s; failed source ids are now excluded per content session so the picker fails over to the next source, with a hard language-preference tier (same audio language or multi-audio outranks provider/quality on failover).
+Files changed: `UnifiedSourceProvider.kt`, `PlayerViewModel.kt`, `PlayerActivity.kt`
+Regression risk: Debrid resume fetch scope, failover source picking. Picker/new-content path, ranking formula, resolver contract, exact/stable continuity match precedence unchanged; scoped path auto-skips on failover and for items saved without provider type.
+QA result: Builds passed; installed on `192.168.178.35:5555`. Logcat: three `Scoped resume fetch hit: provider=STREMIO` events; RD verification+conversion dropped 11.5s → ~0.1s; click-to-playback 6.3-10s now bounded by the configured Stremio addons' own response time (4.7-7.7s observed). RC-3 failover not yet exercised on device (no playback errors occurred during QA window) — logic pending a live error to confirm.
+Issue fixed: New content never reached Continue Watching. (1) Flag trap: `recordPlaybackHistoryIfNeeded` latched `hasRecordedHistory = true` even when the save bailed early (player null / duration unset), permanently blocking the real onStop/onDestroy save for the session — flag now latches only when a save/remove decision ran with valid duration (`recordContinueWatchingHistory` returns Boolean). (2) Added `MIN_PROGRESS_ABSOLUTE_MS = 90_000`: 90s of absolute watch time qualifies for CW save even below the 5% ratio.
+Files changed: `PlayerHistoryManager.kt`
+Regression risk: CW save/remove decision timing only. Thresholds for watched-completion, tiny-progress removal semantics above 90s, watched-state recording, and Recent Live unchanged.
+QA result: Build passed; installed on `192.168.178.35:5555`. User confirmed new content now appears in Continue Watching ("issue resolve").
+
+Date: 2026-06-12
+Module: Home / Security (FIX-P0-1, P5-C1)
+Issue fixed: Recent Live click in `HomeNavigationRouter.onRecentLiveItemClick` logged the raw credentialed live stream URL via `Log.e`. The log line now routes through `SensitiveLogRedactor.describeUrl`, matching the adjacent Continue Watching click handler. Log-line-only edit; click routing and intent building untouched.
+Files changed: `HomeNavigationRouter.kt`
+Regression risk: None functional — one log statement. CW-protected file, no behavior changes.
+QA result: `:app:compileDebugKotlin` + `:app:assembleDebug` passed. APK installed on `192.168.178.35:5555`. Device logcat during a Recent Live click (17:08) showed only the redacted form (`stream=<redacted-url>`), no username/password; channel playback and CW resume (protected smoke check) confirmed working in the same session.
+
+Date: 2026-06-12
+Module: Debrid / CW Resume Latency (FIX-P1-12, absorbs FIX-P1-8 / P3-C1; + RC-1a stable continuity identity)
+Issue fixed: Debrid CW resume measured 18.1s click-to-playback. Three latency adders removed from `UnifiedSourceProvider`: (1) the sequential TMDB "Inception" health check (result was discarded — closes P3-C1/FIX-P1-8); (2) configured-Stremio fetch now runs inside the existing parallel provider block (movie + episode paths); (3) optional `priorityInfoHash` restricts RD cache verification to the resume's continuity-matched hash. Root-cause follow-up (RC-1a): `stream_id` carries a volatile `_<index>` suffix, so saved continuity ids never matched verbatim — `pickDebridSourceForContinuity` now also matches on the stable bare-hash part, and the priority hash strips the suffix before normalization.
+Files changed: `UnifiedSourceProvider.kt`, `PlayerViewModel.kt`
+Regression risk: Debrid source fetch ordering/verification scope and continuity matching. Ranking/scoring, dedup, Semaphore(1) pacing (FIX-P3-DB-1 territory), resolver contract, and picker full-verification path intentionally unchanged; exact verbatim match still takes precedence.
+QA result: Builds passed; installed on `192.168.178.35:5555`. Measured on device: episode CW resume 18.1s → ~1.1s; movie CW resume 0.66s; same source re-picked. User confirmed "kafi behtar". Known remaining: RC-2 (full discovery on direct-play resume, ~6s when no fast path), RC-3 (`player_error_direct_refresh` retry loop on flaky direct sources — reason code captured, fix pending).
 Issue fixed: Fixed the on-device crash when opening Debrid Discover dropdowns. Root cause was dropdown row creation calling `ResourcesCompat.getFont(... R.font.plus_jakarta_sans)` at runtime, which failed on the target Fire TV with `Resources$NotFoundException`; the adapter now reuses the already-resolved Type selector typeface instead of loading the font resource for each row.
 Files changed: `DebridDiscoverActivity.kt`, `DEBRID_MODULE_REPORT.md`, `RECENT_CHANGES.md`
 Regression risk: Debrid Discover dropdown row typography only. Type/Catalogue/Genre/Year filtering, TMDB backend parameters, poster grid, sidebar, playback, source picker, watched state, and Continue Watching were intentionally unchanged.
