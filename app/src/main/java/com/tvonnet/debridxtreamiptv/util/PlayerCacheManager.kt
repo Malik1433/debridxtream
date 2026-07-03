@@ -20,12 +20,10 @@ object PlayerCacheManager {
     @Synchronized
     fun getCache(context: Context): SimpleCache {
         if (cache == null) {
-            kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
-                val cacheDir = File(context.cacheDir, CACHE_DIR_NAME)
-                val evictor = LeastRecentlyUsedCacheEvictor(MAX_CACHE_SIZE)
-                val databaseProvider = StandaloneDatabaseProvider(context)
-                cache = SimpleCache(cacheDir, evictor, databaseProvider)
-            }
+            val cacheDir = File(context.cacheDir, CACHE_DIR_NAME)
+            val evictor = LeastRecentlyUsedCacheEvictor(MAX_CACHE_SIZE)
+            val databaseProvider = StandaloneDatabaseProvider(context)
+            cache = SimpleCache(cacheDir, evictor, databaseProvider)
         }
         return cache!!
     }

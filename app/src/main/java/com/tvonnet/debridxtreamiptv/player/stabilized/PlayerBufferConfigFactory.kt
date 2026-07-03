@@ -35,8 +35,16 @@ object PlayerBufferConfigFactory {
     }
 
     fun resolveTargetBufferBytes(context: Context, isDebrid: Boolean): Int {
-        // High-bitrate 4K Debrid streams need large buffers; 32MB is too restrictive.
-        if (isDebrid) return 128 * 1024 * 1024 // 128MB memory buffer
+        if (isDebrid) {
+            // High-bitrate 4K Debrid streams need large buffers, but a flat 128MB
+            // risks OOM on 1GB Fire TV sticks — scale with device RAM class.
+            val snapshot = DeviceProfile.get(context)
+            return when {
+                snapshot.isLowRamDevice -> 48 * 1024 * 1024
+                snapshot.totalRamGb <= 2.5 -> 96 * 1024 * 1024
+                else -> 128 * 1024 * 1024
+            }
+        }
 
         return if (DeviceProfile.isLowRamDevice(context)) {
             LOW_RAM_TARGET_BUFFER_BYTES
@@ -108,13 +116,24 @@ object PlayerBufferConfigFactory {
         isDebrid: Boolean
     ): BufferConfig {
         if (isDebrid) {
-            // Apply approved high-bitrate Debrid parameters
-            return BufferConfig(
-                minBufferMs = 30000,
-                maxBufferMs = 60000,
-                startPlaybackMs = 2500,
-                rebufferPlaybackMs = 5000
-            )
+            // High-bitrate Debrid parameters. On low-RAM devices the 30-60s window
+            // (600MB+ for a 4K remux) exhausts the heap — verified OOM on a 1.5GB
+            // Fire TV Stick 4K — so cap the buffer window there.
+            return if (DeviceProfile.isLowRamDevice(context)) {
+                BufferConfig(
+                    minBufferMs = 15000,
+                    maxBufferMs = LOW_RAM_MAX_BUFFER_MS,
+                    startPlaybackMs = 2500,
+                    rebufferPlaybackMs = 5000
+                )
+            } else {
+                BufferConfig(
+                    minBufferMs = 30000,
+                    maxBufferMs = 60000,
+                    startPlaybackMs = 2500,
+                    rebufferPlaybackMs = 5000
+                )
+            }
         }
 
         val baseMaxBuffer = calculateSmartBuffer(context)

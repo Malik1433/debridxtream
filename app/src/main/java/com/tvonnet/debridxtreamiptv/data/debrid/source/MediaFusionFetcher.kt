@@ -106,7 +106,7 @@ class MediaFusionFetcher @Inject constructor(
         return streams
     }
 
-    private fun buildUrlFromBase(baseUrl: String, imdbId: String, season: Int?, episode: Int?, type: ContentType): String {
+    internal fun buildUrlFromBase(baseUrl: String, imdbId: String, season: Int?, episode: Int?, type: ContentType): String {
         return when (type) {
             ContentType.MOVIE -> "$baseUrl/movie/$imdbId.json"
             ContentType.SERIES -> "$baseUrl/series/$imdbId:$season:$episode.json"

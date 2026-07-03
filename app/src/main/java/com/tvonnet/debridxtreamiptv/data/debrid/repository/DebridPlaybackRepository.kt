@@ -8,7 +8,9 @@ import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureClassifier
 import com.tvonnet.debridxtreamiptv.data.debrid.source.RealDebridRemoteDataSource
 import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -124,33 +126,36 @@ class DebridPlaybackRepository @Inject constructor(
                 .head()
                 .applyPlaybackHeaders(headers)
                 .build()
-            client.newCall(request).execute().use { response ->
-                val readiness = if (response.isRedirect) {
-                    isReadyAddonProxyRedirect(client, response, headers)
-                } else {
-                    classifyAddonProxyResponse(response)
+            val (readiness, statusCode, wasRedirect) = withContext(Dispatchers.IO) {
+                client.newCall(request).execute().use { response ->
+                    val result = if (response.isRedirect) {
+                        isReadyAddonProxyRedirect(client, response, headers)
+                    } else {
+                        classifyAddonProxyResponse(response)
+                    }
+                    Triple(result, response.code, response.isRedirect)
                 }
-                diagnosticsContext?.let { context ->
-                    PlaybackDiagnosticsRecorder.record(
-                        context,
-                        "readiness_check_finished",
-                        PlaybackDiagnosticsRecorder.urlFields(context, url) +
-                            PlaybackDiagnosticsRecorder.headerFields(effectiveAddonProxyPlaybackHeaders(headers)) +
-                            mapOf(
-                                "provider" to provider,
-                                "sourceName" to sourceName,
-                                "sourceType" to sourceType,
-                                "required" to true,
-                                "ready" to (readiness == AddonProxyReadiness.READY),
-                                "readinessOutcome" to readiness.name,
-                                "httpStatusCode" to response.code,
-                                "isRedirect" to response.isRedirect,
-                                "reasonCode" to readiness.name
-                            )
-                    )
-                }
-                Success(readiness)
             }
+            diagnosticsContext?.let { context ->
+                PlaybackDiagnosticsRecorder.record(
+                    context,
+                    "readiness_check_finished",
+                    PlaybackDiagnosticsRecorder.urlFields(context, url) +
+                        PlaybackDiagnosticsRecorder.headerFields(effectiveAddonProxyPlaybackHeaders(headers)) +
+                        mapOf(
+                            "provider" to provider,
+                            "sourceName" to sourceName,
+                            "sourceType" to sourceType,
+                            "required" to true,
+                            "ready" to (readiness == AddonProxyReadiness.READY),
+                            "readinessOutcome" to readiness.name,
+                            "httpStatusCode" to statusCode,
+                            "isRedirect" to wasRedirect,
+                            "reasonCode" to readiness.name
+                        )
+                )
+            }
+            Success(readiness)
         } catch (e: Exception) {
             diagnosticsContext?.let { context ->
                 PlaybackDiagnosticsRecorder.record(
@@ -305,9 +310,21 @@ class DebridPlaybackRepository @Inject constructor(
             value.equals("aio", ignoreCase = true)
     }
 
+    private data class CachedResolution(val url: String, val expiresAtMs: Long)
+
+    private val resolvedLinkCache = java.util.concurrent.ConcurrentHashMap<String, CachedResolution>()
+
+    private companion object {
+        const val RESOLVED_LINK_TTL_MS = 15 * 60 * 1000L
+    }
+
     /**
      * Resolve a magnet/infoHash to a streamable URL via Real-Debrid
      * Flow: Add magnet → Poll until ready → Select file → Unrestrict link
+     *
+     * Successful resolutions are cached for [RESOLVED_LINK_TTL_MS] so replays/episode
+     * restarts skip the full add-magnet→poll→unrestrict chain. Pass [bypassCache]=true
+     * on retries so a dead link is never served back from cache.
      */
     suspend fun resolveDebridUrl(
         infoHash: String?,
@@ -315,7 +332,8 @@ class DebridPlaybackRepository @Inject constructor(
         seasonNumber: Int? = null,
         episodeNumber: Int? = null,
         episodeTitle: String? = null,
-        allowDirectStreamUrlPassthrough: Boolean = true
+        allowDirectStreamUrlPassthrough: Boolean = true,
+        bypassCache: Boolean = false
     ): Result<String> {
         if (infoHash.isNullOrBlank() && magnet.isNullOrBlank()) {
             return Error(Exception("No infoHash or magnet provided"))
@@ -356,6 +374,25 @@ class DebridPlaybackRepository @Inject constructor(
         }
         val sourceKey = normalizeSourceKey(infoHash, magnetLink)
 
+        val resolutionCacheKey = buildString {
+            append(sourceKey)
+            episodeHint?.let { append(":s").append(it.season).append("e").append(it.episode) }
+        }
+        if (bypassCache) {
+            resolvedLinkCache.remove(resolutionCacheKey)
+        } else {
+            resolvedLinkCache[resolutionCacheKey]?.let { cached ->
+                if (cached.expiresAtMs > System.currentTimeMillis()) {
+                    android.util.Log.d(
+                        "DebridPlayback",
+                        "Using cached resolved link for ${SensitiveLogRedactor.describeHash(infoHash)}"
+                    )
+                    return Success(cached.url)
+                }
+                resolvedLinkCache.remove(resolutionCacheKey)
+            }
+        }
+
         realDebridRateLimiter.globalCooldown()?.let { cooldown ->
             android.util.Log.w("DebridPlayback", "Skipping RD playback during global cooldown")
             return Error(cooldown)
@@ -394,7 +431,7 @@ class DebridPlaybackRepository @Inject constructor(
 
         // Step 2: Poll for torrent info until status = downloaded or timeout
         var attempts = 0
-        val maxAttempts = 30 // 30 * 2s = 60s timeout
+        val maxAttempts = 18 // 0.5s+1s+2s then 4s intervals ≈ 63s total budget
         var torrentInfo: com.tvonnet.debridxtreamiptv.data.debrid.model.RealDebridTorrentInfoResponse? = null
         var hasReAddedTorrent = false
         var finalVideoLink: String? = null
@@ -443,13 +480,13 @@ class DebridPlaybackRepository @Inject constructor(
                                     }
                                 }
                             }
-                            delay(2000) // Wait 2s before retry
+                            delay(pollDelayMs(attempts))
                         }
                         "error", "dead", "magnet_error" -> {
                             return Error(Exception("Torrent failed with status: $status"))
                         }
                         else -> {
-                            delay(2000)
+                            delay(pollDelayMs(attempts))
                         }
                     }
                 }
@@ -468,8 +505,18 @@ class DebridPlaybackRepository @Inject constructor(
             ?: return Error(Exception("No links available in torrent for requested episode"))
 
         // Step 4: Unrestrict the link with retry
-        return unrestrictLinkWithRetry(videoLink, 3, sourceKey)
+        val result = unrestrictLinkWithRetry(videoLink, 3, sourceKey)
+        if (result is Success) {
+            resolvedLinkCache[resolutionCacheKey] =
+                CachedResolution(result.data, System.currentTimeMillis() + RESOLVED_LINK_TTL_MS)
+        }
+        return result
     }
+
+    // Exponential poll intervals: cached torrents become ready within the first
+    // 1-2 polls, so start fast (500ms) and back off to 4s for slow downloads.
+    private fun pollDelayMs(attempt: Int): Long =
+        if (attempt >= 3) 4000L else 500L shl attempt
 
     private suspend fun unrestrictLinkWithRetry(link: String, maxRetries: Int, sourceKey: String?): Result<String> {
         var attempts = 0
@@ -702,7 +749,9 @@ class DebridPlaybackRepository @Inject constructor(
     private fun normalizeSourceKey(infoHash: String?, magnetLink: String?): String? {
         val hash = infoHash?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
             ?: magnetLink?.let { extractHashFromMagnet(it) }
-        return hash ?: magnetLink?.trim()?.lowercase()?.take(120)?.takeIf { it.isNotBlank() }
+        // Full string, not a truncated prefix: two different magnets sharing the first
+        // N chars must never collapse to the same rate-limit/resolution-cache key.
+        return hash ?: magnetLink?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
     }
 
     private fun extractHashFromMagnet(magnetLink: String): String? {

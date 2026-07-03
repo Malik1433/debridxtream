@@ -32,6 +32,7 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.bumptech.glide.Glide
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -40,9 +41,12 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
+import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.ui.DefaultTrackNameProvider
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.TrackSelectionDialogBuilder
@@ -123,6 +127,27 @@ class PlayerActivity : AppCompatActivity() {
     private var timeoutMs: Long = TIMEOUT_MS
     private val timeoutHandler = Handler(Looper.getMainLooper())
     private val timeoutRunnable = Runnable { handleTimeout() }
+    private val retryHandler = Handler(Looper.getMainLooper())
+    private var frameRateMatchedForCurrentSource = false
+
+    // Fail fast on permanently broken sources so app-level fallback kicks in quickly;
+    // transient errors back off exponentially with jitter to avoid retry storms.
+    private val playbackLoadErrorPolicy = object : DefaultLoadErrorHandlingPolicy() {
+        override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
+            val responseCode =
+                (loadErrorInfo.exception as? HttpDataSource.InvalidResponseCodeException)?.responseCode
+            if (responseCode == 401 || responseCode == 403 || responseCode == 404 ||
+                responseCode == 410 || responseCode == 416 || responseCode == 451
+            ) {
+                return C.TIME_UNSET
+            }
+            val exponentialMs = 1000L shl (loadErrorInfo.errorCount - 1).coerceIn(0, 3)
+            return exponentialMs + (0..400).random()
+        }
+    }
+
+    private fun retryBackoffDelayMs(): Long =
+        (1000L shl (retryCount - 1).coerceIn(0, 3)) + (0..400).random()
     private var lastDirectAddonProxyTimeoutContext: String? = null
     private var lastDirectAddonProxyServerErrorContext: String? = null
     private var hasRenderedFirstFrameForCurrentSource = false
@@ -140,6 +165,8 @@ class PlayerActivity : AppCompatActivity() {
     private var debugEnabled = false
     private var switchCount = 0
     private var debugListener: Player.Listener? = null
+    private var playerListener: Player.Listener? = null
+    private val captureRunnable = Runnable { captureManualTrackSelection() }
     private val debugOverlayHandler = Handler(Looper.getMainLooper())
     private val debugOverlayRunnable = object : Runnable {
         override fun run() {
@@ -272,6 +299,8 @@ class PlayerActivity : AppCompatActivity() {
         const val EXTRA_LIVE_RETURN_CATEGORY_ID = "LIVE_RETURN_CATEGORY_ID"
         private const val TIMEOUT_MS = 25000L
         private const val MEDIAFUSION_TIMEOUT_MS = 35000L
+        // Live viewers zap away from dead streams fast — detect failure fast too.
+        private const val LIVE_TIMEOUT_MS = 12000L
         private const val OVERLAY_TIMEOUT = 6000L
         private const val MIN_PROGRESS_TO_TRACK_MS = 15_000L
         private const val MIN_DURATION_TO_TRACK_MS = 60_000L
@@ -799,6 +828,7 @@ class PlayerActivity : AppCompatActivity() {
         
         isSwitching = true
         switchCount++
+        frameRateMatchedForCurrentSource = false
         Log.i("PlayerActivity", "Performing seamless switch to: ${SensitiveLogRedactor.describeUrl(newUrl)}")
         
         timeoutHandler.removeCallbacks(timeoutRunnable)
@@ -1682,10 +1712,12 @@ class PlayerActivity : AppCompatActivity() {
             }
 
             val isDebrid = playbackSource == PlaybackSource.DEBRID
-            
+
             // 1. Bypass physical disk caching for high-bitrate Debrid streams to prevent I/O choking.
             //    Using pure upstream network resolution (RAM only) ensures the decoder isn't starved by slow eMMC writes.
-            val mediaSourceFactory = if (isDebrid) {
+            //    Live streams also bypass: an infinite TS stream through a 500MB LRU cache is
+            //    pure eviction churn with zero reuse value.
+            val mediaSourceFactory = if (isDebrid || contentType == ContentType.LIVE_TV) {
                 DefaultMediaSourceFactory(httpDataSourceFactory)
             } else {
                 val dataSourceFactory = CacheDataSource.Factory()
@@ -1694,14 +1726,19 @@ class PlayerActivity : AppCompatActivity() {
                     .setCacheWriteDataSinkFactory(CacheDataSink.Factory().setCache(PlayerCacheManager.getCache(this)))
                     .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
                 DefaultMediaSourceFactory(dataSourceFactory)
-            }
+            }.setLoadErrorHandlingPolicy(playbackLoadErrorPolicy)
             
             val bufferConfig = PlayerBufferConfigFactory.buildConfig(this, settingsPreferences, contentType, streamUrl, isDebrid)
+            val backBufferMs =
+                if (contentType != ContentType.LIVE_TV && !DeviceProfile.isLowRamDevice(this)) 15000 else 0
             val loadControl = DefaultLoadControl.Builder()
                 .setBufferDurationsMs(bufferConfig.minBufferMs, bufferConfig.maxBufferMs, bufferConfig.startPlaybackMs, bufferConfig.rebufferPlaybackMs)
                 // 2. Increase Target Buffer Bytes threshold for Debrid to allow heavy Pre-buffering
                 .setTargetBufferBytes(PlayerBufferConfigFactory.resolveTargetBufferBytes(this, isDebrid))
-                .setPrioritizeTimeOverSizeThresholds(true)
+                // On low-RAM devices the byte cap must win: with time-priority a single
+                // high-bitrate 4K stream buffers past the heap limit and OOMs the app.
+                .setPrioritizeTimeOverSizeThresholds(!DeviceProfile.isLowRamDevice(this))
+                .setBackBuffer(backBufferMs, /* retainBackBufferFromKeyframe= */ true)
                 .build()
             
             val trackSelector = DefaultTrackSelector(this)
@@ -1713,7 +1750,16 @@ class PlayerActivity : AppCompatActivity() {
 
             val isSoftwareAudioEnabled = com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(this).isSoftwareAudioEnabled()
             val extensionMode = if (isSoftwareAudioEnabled) DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
-            val renderersFactory = DefaultRenderersFactory(this).setExtensionRendererMode(extensionMode)
+            val renderersFactory = DefaultRenderersFactory(this)
+                .setExtensionRendererMode(extensionMode)
+                // If the primary hardware decoder fails to initialize (e.g. HEVC on a busy
+                // or incapable SoC), fall back to a lower-priority decoder instead of erroring.
+                .setEnableDecoderFallback(true)
+
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build()
 
             player = ExoPlayer.Builder(this)
                 .setRenderersFactory(renderersFactory)
@@ -1722,8 +1768,13 @@ class PlayerActivity : AppCompatActivity() {
                 .setTrackSelector(trackSelector)
                 .setSeekForwardIncrementMs(15000)
                 .setSeekBackIncrementMs(15000)
+                .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ true)
+                .setHandleAudioBecomingNoisy(true)
+                .setWakeMode(C.WAKE_MODE_NETWORK)
+                .setSeekParameters(SeekParameters.CLOSEST_SYNC)
                 .build()
                 .also { playerView.player = it }
+            frameRateMatchedForCurrentSource = false
 
             val mediaItem = buildMediaItem(streamUrl)
             player?.setMediaItem(mediaItem, /* resetPosition = */ true)
@@ -1740,7 +1791,7 @@ class PlayerActivity : AppCompatActivity() {
             // player?.play() removed as playWhenReady=true is sufficient
             startStallMonitor()
 
-            player?.addListener(object : Player.Listener {
+            playerListener = object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     PlaybackDiagnosticsRecorder.record(
                         this@PlayerActivity,
@@ -1753,7 +1804,10 @@ class PlayerActivity : AppCompatActivity() {
                     )
                     if (playbackState == Player.STATE_READY) {
                          isSwitching = false
-                         if (player?.currentPosition ?: 0L > 1000) startPositionMs = 0L 
+                         // Keep the resume target alive while a debrid re-resolve is in flight:
+                         // clearing it here would make the upcoming seamless switch start from 0.
+                         if (!isResolvingDebrid && player?.currentPosition ?: 0L > 1000) startPositionMs = 0L
+                        maybeMatchDisplayFrameRate()
                         timeoutHandler.removeCallbacks(timeoutRunnable)
                         retryCount = 0
                         lastBufferingStartMs = 0L
@@ -1798,8 +1852,6 @@ class PlayerActivity : AppCompatActivity() {
                         diagnosticsPlaybackFields() + mapOf("positionMs" to (player?.currentPosition ?: 0L))
                     )
                 }
-                private val captureRunnable = Runnable { captureManualTrackSelection() }
-
                 override fun onTrackSelectionParametersChanged(parameters: androidx.media3.common.TrackSelectionParameters) {
                     timeoutHandler.removeCallbacks(captureRunnable)
                     timeoutHandler.postDelayed(captureRunnable, 1500)
@@ -1843,8 +1895,9 @@ class PlayerActivity : AppCompatActivity() {
                     timeoutHandler.removeCallbacks(timeoutRunnable)
                     handlePlaybackError(error)
                 }
-            })
-            
+            }
+            playerListener?.let { player?.addListener(it) }
+
             debugListener?.let { player?.removeListener(it) }
             debugListener = object : Player.Listener {
                 override fun onPlaybackStateChanged(state: Int) {
@@ -1958,7 +2011,7 @@ class PlayerActivity : AppCompatActivity() {
                 diagnosticsPlaybackFields() + mapOf("releaseReason" to "player_error_retry")
             )
             player?.release(); player = null
-            Handler(Looper.getMainLooper()).postDelayed({ currentUrl?.let { initializePlayer(it) } }, retryCount * 1000L)
+            retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, retryBackoffDelayMs())
         } else {
             handleTerminalPlaybackFailure(errorMessage)
         }
@@ -2090,7 +2143,7 @@ class PlayerActivity : AppCompatActivity() {
                     diagnosticsPlaybackFields(timedOutUrl) + mapOf("releaseReason" to "buffer_timeout_retry")
                 )
                 player?.release(); player = null
-                Handler(Looper.getMainLooper()).postDelayed({ currentUrl?.let { initializePlayer(it) } }, 2000)
+                retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, 2000)
             } else {
                 handleTerminalPlaybackFailure("Connection timeout")
             }
@@ -2130,8 +2183,53 @@ class PlayerActivity : AppCompatActivity() {
             "release_player",
             diagnosticsPlaybackFields() + mapOf("releaseReason" to reason)
         )
-        updateLastPlaybackPosition(); timeoutHandler.removeCallbacks(timeoutRunnable); overlayHandler.removeCallbacks(overlayHideRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; stopStallMonitor()
+        updateLastPlaybackPosition(); timeoutHandler.removeCallbacks(timeoutRunnable); timeoutHandler.removeCallbacks(captureRunnable); retryHandler.removeCallbacksAndMessages(null); overlayHandler.removeCallbacks(overlayHideRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; stopStallMonitor()
+        playerListener?.let { player?.removeListener(it) }; playerListener = null
+        debugListener?.let { player?.removeListener(it) }; debugListener = null
         player?.stop(); player?.release(); player = null; playerView.player = null
+    }
+
+    /**
+     * Switch the display to a refresh rate that is an integer multiple of the content
+     * frame rate (e.g. 23.976fps film → 23.976/47.952Hz instead of judddering on 60Hz).
+     * Skipped for live TV: a mode switch blanks the screen 1-2s, unacceptable while zapping.
+     */
+    private fun maybeMatchDisplayFrameRate() {
+        if (frameRateMatchedForCurrentSource) return
+        if (contentType == ContentType.LIVE_TV) return
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val frameRate = player?.videoFormat?.frameRate ?: return
+        if (frameRate <= 0f) return
+        frameRateMatchedForCurrentSource = true
+        try {
+            val display = window.decorView.display ?: return
+            val currentMode = display.mode
+            val candidates = display.supportedModes.filter {
+                it.physicalWidth == currentMode.physicalWidth && it.physicalHeight == currentMode.physicalHeight
+            }
+            val best = candidates.minWithOrNull(
+                compareBy(
+                    { (frameRateMismatch(frameRate, it.refreshRate) * 1000).toInt() },
+                    { -it.refreshRate }
+                )
+            ) ?: return
+            if (best.modeId == currentMode.modeId) return
+            val currentMismatch = frameRateMismatch(frameRate, currentMode.refreshRate)
+            val bestMismatch = frameRateMismatch(frameRate, best.refreshRate)
+            // Only blank the display when the current mode actually judders and the target doesn't.
+            if (currentMismatch < 0.01f || bestMismatch >= currentMismatch) return
+            Log.i("PlayerActivity", "Frame-rate match: ${frameRate}fps -> ${best.refreshRate}Hz (mode ${best.modeId})")
+            window.attributes = window.attributes.also { it.preferredDisplayModeId = best.modeId }
+        } catch (e: Exception) {
+            Log.w("PlayerActivity", "Frame-rate matching failed", e)
+        }
+    }
+
+    // Distance of refreshRate from the nearest integer multiple of frameRate (0 = judder-free).
+    private fun frameRateMismatch(frameRate: Float, refreshRate: Float): Float {
+        if (refreshRate < frameRate - 0.1f) return Float.MAX_VALUE
+        val ratio = refreshRate / frameRate
+        return kotlin.math.abs(ratio - kotlin.math.round(ratio))
     }
 
     private fun startStallMonitor() {
@@ -2144,7 +2242,11 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onDestroy() { super.onDestroy(); dismissActiveTrackDialog(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_destroy"); PlaybackDiagnosticsRecorder.finishSession(this, "activity_destroyed") }
 
-    private fun resolveTimeoutMs(url: String): Long = if (url.lowercase().contains("mediafusion.elfhosted.com")) MEDIAFUSION_TIMEOUT_MS else TIMEOUT_MS
+    private fun resolveTimeoutMs(url: String): Long = when {
+        url.lowercase().contains("mediafusion.elfhosted.com") -> MEDIAFUSION_TIMEOUT_MS
+        contentType == ContentType.LIVE_TV -> LIVE_TIMEOUT_MS
+        else -> TIMEOUT_MS
+    }
 
     override fun finish() {
         setLiveExitResultIfNeeded()

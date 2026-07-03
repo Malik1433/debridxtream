@@ -35,10 +35,10 @@ class MediaFusionFetcherTest {
         val prefs = mockk<DebridPreferences>()
         every { prefs.getMediaFusionUrl() } returns null
         val fetcher = MediaFusionFetcher(null, prefs) // Service not needed for this test if we separate logic
-        val url = fetcher.buildUrl("tt1375666", null, null, ContentType.MOVIE)
-        
-        val expectedBase = "https://mediafusion.elfhosted.com/D-mgiVOlhrq7BpXFyvhkNZOZxt3Tlc0eC0WoZeRkwi9CJdlVJ5ybgEQncIW5yi3sbiUxVmxkObwz883q-l-xH9QtGkjI4mMLP7omPTqEQq3PRsCFlwOPPhb3AUEVw8jRWb/stream"
-        assertEquals("$expectedBase/movie/tt1375666.json", url)
+        val base = "https://mediafusion.elfhosted.com/stream"
+        val url = fetcher.buildUrlFromBase(base, "tt1375666", null, null, ContentType.MOVIE)
+
+        assertEquals("$base/movie/tt1375666.json", url)
     }
 
     @Test
@@ -46,9 +46,9 @@ class MediaFusionFetcherTest {
         val prefs = mockk<DebridPreferences>()
         every { prefs.getMediaFusionUrl() } returns null
         val fetcher = MediaFusionFetcher(null, prefs)
-        val url = fetcher.buildUrl("tt0944947", 1, 1, ContentType.SERIES)
-        
-        val expectedBase = "https://mediafusion.elfhosted.com/D-mgiVOlhrq7BpXFyvhkNZOZxt3Tlc0eC0WoZeRkwi9CJdlVJ5ybgEQncIW5yi3sbiUxVmxkObwz883q-l-xH9QtGkjI4mMLP7omPTqEQq3PRsCFlwOPPhb3AUEVw8jRWb/stream"
-        assertEquals("$expectedBase/series/tt0944947:1:1.json", url)
+        val base = "https://mediafusion.elfhosted.com/stream"
+        val url = fetcher.buildUrlFromBase(base, "tt0944947", 1, 1, ContentType.SERIES)
+
+        assertEquals("$base/series/tt0944947:1:1.json", url)
     }
 }

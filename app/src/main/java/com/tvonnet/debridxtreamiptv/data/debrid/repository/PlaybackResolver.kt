@@ -66,7 +66,10 @@ class PlaybackResolver @Inject constructor(
                     seasonNumber = seasonNumber,
                     episodeNumber = episodeNumber,
                     episodeTitle = episodeTitle,
-                    allowDirectStreamUrlPassthrough = allowDirectHttpPassthrough
+                    allowDirectStreamUrlPassthrough = allowDirectHttpPassthrough,
+                    // isExpired marks a forced re-resolution (retry after failure):
+                    // never serve a possibly dead link back from the resolution cache.
+                    bypassCache = isExpired || attempt > 1
                 )
 
                 when (result) {
