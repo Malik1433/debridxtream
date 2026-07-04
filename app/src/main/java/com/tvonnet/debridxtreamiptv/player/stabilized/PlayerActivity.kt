@@ -893,6 +893,15 @@ class PlayerActivity : AppCompatActivity() {
         val builder = MediaItem.Builder().setUri(url)
         val mimeHint = resolveMediaMimeType(url)
         mimeHint?.let { builder.setMimeType(it) }
+        if (contentType == ContentType.LIVE_TV) {
+            // Gentle speed-based live catch-up for HLS/DASH; ignored for raw TS.
+            builder.setLiveConfiguration(
+                MediaItem.LiveConfiguration.Builder()
+                    .setMinPlaybackSpeed(0.97f)
+                    .setMaxPlaybackSpeed(1.03f)
+                    .build()
+            )
+        }
         if (subtitleConfigs.isNotEmpty()) {
             builder.setSubtitleConfigurations(subtitleConfigs)
         }
@@ -1738,15 +1747,22 @@ class PlayerActivity : AppCompatActivity() {
             //    Using pure upstream network resolution (RAM only) ensures the decoder isn't starved by slow eMMC writes.
             //    Live streams also bypass: an infinite TS stream through a 500MB LRU cache is
             //    pure eviction churn with zero reuse value.
+            // TS tuning: start decode from any keyframe and detect access units so
+            // MPEG-TS zaps render the first frame 300-500ms sooner than defaults.
+            val extractorsFactory = DefaultExtractorsFactory()
+                .setTsExtractorFlags(
+                    androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
+                        androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS
+                )
             val mediaSourceFactory = if (isDebrid || contentType == ContentType.LIVE_TV) {
-                DefaultMediaSourceFactory(httpDataSourceFactory)
+                DefaultMediaSourceFactory(httpDataSourceFactory, extractorsFactory)
             } else {
                 val dataSourceFactory = CacheDataSource.Factory()
                     .setCache(PlayerCacheManager.getCache(this))
                     .setUpstreamDataSourceFactory(httpDataSourceFactory)
                     .setCacheWriteDataSinkFactory(CacheDataSink.Factory().setCache(PlayerCacheManager.getCache(this)))
                     .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-                DefaultMediaSourceFactory(dataSourceFactory)
+                DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
             }.setLoadErrorHandlingPolicy(playbackLoadErrorPolicy)
             
             val bufferConfig = PlayerBufferConfigFactory.buildConfig(this, settingsPreferences, contentType, streamUrl, isDebrid)
@@ -1767,6 +1783,17 @@ class PlayerActivity : AppCompatActivity() {
             var parametersBuilder = trackSelector.buildUponParameters().setTunnelingEnabled(true)
             trackManager.preferredAudioLanguage?.let { parametersBuilder = parametersBuilder.setPreferredAudioLanguage(it) }
             trackManager.preferredSubtitleLanguage?.let { parametersBuilder = parametersBuilder.setPreferredTextLanguage(it) }
+            // On a known-slow connection, cap adaptive selections at 1080p/8Mbps so
+            // HLS/DASH masters don't pick a 4K rendition that immediately stalls.
+            // Single-track streams (torrents, raw TS) are unaffected.
+            val savedNetworkQuality = runCatching {
+                NetworkQuality.valueOf(settingsPreferences.getNetworkQuality())
+            }.getOrDefault(NetworkQuality.MODERATE)
+            if (savedNetworkQuality == NetworkQuality.SLOW) {
+                parametersBuilder = parametersBuilder
+                    .setMaxVideoSize(1920, 1080)
+                    .setMaxVideoBitrate(8_000_000)
+            }
             trackSelector.parameters = parametersBuilder.build()
 
             val isSoftwareAudioEnabled = com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(this).isSoftwareAudioEnabled()
@@ -1862,6 +1889,8 @@ class PlayerActivity : AppCompatActivity() {
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                     if (contentType != ContentType.LIVE_TV) {
                         updatePlayPauseVisibility(playWhenReady)
+                    } else if (playWhenReady) {
+                        maybeSnapToLiveEdge()
                     }
                 }
                 override fun onRenderedFirstFrame() {
@@ -2208,6 +2237,21 @@ class PlayerActivity : AppCompatActivity() {
         playerListener?.let { player?.removeListener(it) }; playerListener = null
         debugListener?.let { player?.removeListener(it) }; debugListener = null
         player?.stop(); player?.release(); player = null; playerView.player = null
+    }
+
+    /**
+     * After a pause on live TV the stream resumes where it stopped, drifting behind
+     * the broadcast. Viewers expect play = live NOW, so snap to the live edge when
+     * more than 30s behind (HLS/DASH only — raw TS has no live window).
+     */
+    private fun maybeSnapToLiveEdge() {
+        val p = player ?: return
+        if (!p.isCurrentMediaItemLive) return
+        val offsetMs = p.currentLiveOffset
+        if (offsetMs != C.TIME_UNSET && offsetMs > 30_000L) {
+            Log.i("PlayerActivity", "Resuming ${offsetMs}ms behind live — snapping to live edge")
+            p.seekToDefaultPosition()
+        }
     }
 
     /**
