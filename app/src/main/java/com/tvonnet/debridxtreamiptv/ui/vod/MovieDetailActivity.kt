@@ -160,6 +160,9 @@ class MovieDetailActivity : AppCompatActivity() {
     private val failedDebridStreamIds = linkedSetOf<String>()
     private var pendingDebridReturnFocusStreamIds: List<String> = emptyList()
     private var openedFromPlaybackFailure: Boolean = false
+    // Consecutive automatic source-failover attempts; the picker resets it so a
+    // bad night of sources degrades to manual choice instead of an endless chain.
+    private var autoFallbackAttempts = 0
 
     private val playerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -177,11 +180,14 @@ class MovieDetailActivity : AppCompatActivity() {
                 failedDebridStreamIds.add(failedStreamId)
                 markDebridSourceStatus(failedStreamId, DebridCacheStatus.NOT_CACHED)
             }
-            val allowAutoPlayNext = autoPlayNext && !openedFromPlaybackFailure
+            val allowAutoPlayNext = autoPlayNext && !openedFromPlaybackFailure &&
+                autoFallbackAttempts < MAX_AUTO_FALLBACK_ATTEMPTS
             notifyDebridFailure(failReason, allowAutoPlayNext)
             if (allowAutoPlayNext && !failedStreamId.isNullOrBlank()) {
+                autoFallbackAttempts++
                 autoPlayNextDebridSource(failedStreamId)
             } else {
+                autoFallbackAttempts = 0
                 showDebridSourcePicker(consumeDebridReturnFocusStreamIds())
             }
         }
@@ -202,6 +208,7 @@ class MovieDetailActivity : AppCompatActivity() {
         const val EXTRA_MOVIE_BACKDROP = "MOVIE_BACKDROP"
         const val EXTRA_MOVIE_CATEGORY_ID = "MOVIE_CATEGORY_ID"
         const val EXTRA_MOVIE_TRAILER = "MOVIE_TRAILER"
+        private const val MAX_AUTO_FALLBACK_ATTEMPTS = 3
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

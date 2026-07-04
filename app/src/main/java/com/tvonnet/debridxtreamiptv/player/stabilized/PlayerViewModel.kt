@@ -453,6 +453,12 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             _debridResolutionState.value = DebridResolutionState.Loading
             try {
+                // If the countdown pre-warm for this exact episode is still running,
+                // let it finish instead of firing a duplicate RD resolution chain —
+                // its result is waiting in the resolved-link cache.
+                if (lastPreResolvedEpisodeKey == "$seriesId:$targetSeason:$targetEpisode") {
+                    nextEpisodePreResolveJob?.join()
+                }
                 // On failover the saved source is dead — verify the candidate
                 // pool instead of fast-pathing verification to the dead hash.
                 val savedId = sourceProfile?.streamId ?: infoHash
@@ -480,10 +486,71 @@ class PlayerViewModel @Inject constructor(
                     episode = targetEpisode,
                     title = seriesTitle,
                     directPreferred = sourceProfile?.directPlayback == true,
-                    allowDirectHttpPassthrough = allowDirectHttpPassthrough
+                    allowDirectHttpPassthrough = allowDirectHttpPassthrough,
+                    // Fresh next-episode loads may reuse the pre-warmed link;
+                    // failover (excluded sources) must always re-resolve.
+                    forceFresh = excludeSourceIds.isNotEmpty()
                 )
             } catch (e: Exception) {
                 _debridResolutionState.value = DebridResolutionState.Error("Failed to fetch sources: ${e.message}")
+            }
+        }
+    }
+
+    private var nextEpisodePreResolveJob: kotlinx.coroutines.Job? = null
+    private var lastPreResolvedEpisodeKey: String? = null
+
+    /**
+     * Silently warm the debrid resolution for the upcoming episode while the
+     * next-episode countdown is on screen. The resolved URL lands in the
+     * repository's resolved-link cache, so the real resolution on confirm is a
+     * cache hit. Never emits DebridResolutionState — failures stay invisible
+     * and the confirm path remains the single source of truth.
+     */
+    fun preResolveNextDebridEpisode(
+        seriesId: String,
+        targetSeason: Int,
+        targetEpisode: Int,
+        seriesTitle: String?,
+        infoHash: String?,
+        sourceProfile: DebridSourceProfile? = null
+    ) {
+        val key = "$seriesId:$targetSeason:$targetEpisode"
+        if (lastPreResolvedEpisodeKey == key) return
+        lastPreResolvedEpisodeKey = key
+        nextEpisodePreResolveJob?.cancel()
+        nextEpisodePreResolveJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val sources = unifiedSourceProvider.getSeriesEpisodeSources(
+                    seriesId = seriesId,
+                    seasonNumber = targetSeason,
+                    episodeNumber = targetEpisode,
+                    title = seriesTitle ?: "",
+                    yearHint = null,
+                    priorityInfoHash = sourceProfile?.streamId ?: infoHash,
+                    preferredSourceType = sourceProfile?.sourceType
+                )
+                if (sources.isEmpty()) return@launch
+                val targetSource = pickDebridSourceForContinuity(sources, infoHash, sourceProfile)
+                val magnet = targetSource.stream.direct_source
+                val hashToResolve = targetSource.stream.stream_id
+                // Direct-playable URLs start instantly anyway; only magnet
+                // resolution benefits from warming.
+                if (isDirectPlayableUrl(magnet)) return@launch
+                if (magnet.isNullOrBlank() && hashToResolve.isNullOrBlank()) return@launch
+                playbackResolver.resolve(
+                    source = "debrid",
+                    streamUrl = null,
+                    isExpired = false,
+                    infoHash = hashToResolve,
+                    magnet = magnet,
+                    seasonNumber = targetSeason,
+                    episodeNumber = targetEpisode,
+                    episodeTitle = seriesTitle,
+                    allowDirectHttpPassthrough = true
+                )
+            } catch (_: Exception) {
+                // Pre-warm only — the confirm path will resolve for real.
             }
         }
     }
@@ -566,7 +633,8 @@ class PlayerViewModel @Inject constructor(
         episode: Int?,
         title: String?,
         directPreferred: Boolean,
-        allowDirectHttpPassthrough: Boolean
+        allowDirectHttpPassthrough: Boolean,
+        forceFresh: Boolean = true
     ) {
         val magnet = targetSource.stream.direct_source
         val hashToResolve = targetSource.stream.stream_id
@@ -598,7 +666,9 @@ class PlayerViewModel @Inject constructor(
             playbackResolver.resolve(
                 source = "debrid",
                 streamUrl = null,
-                isExpired = true,
+                // forceFresh bypasses the resolved-link cache (failure refresh);
+                // a fresh next-episode load may hit a pre-warmed cached link.
+                isExpired = forceFresh,
                 infoHash = hashToResolve,
                 magnet = magnet,
                 seasonNumber = season,

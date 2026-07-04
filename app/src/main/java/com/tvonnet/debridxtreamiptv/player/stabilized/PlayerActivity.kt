@@ -608,6 +608,27 @@ class PlayerActivity : AppCompatActivity() {
                 override fun onPlayNextEpisodeRequested() {
                     playNextEpisode()
                 }
+                override fun onNextEpisodePromptShown(nextEpisode: com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2) {
+                    if (playbackSource != PlaybackSource.DEBRID || contentType != ContentType.EPISODE) return
+                    val currentSeason = seasonNumberExtra ?: return
+                    val currentEpisode = episodeNumberExtra ?: return
+                    val tmdbId = debridSeriesLookupId().takeIf { it.isNotBlank() } ?: return
+                    val targetSeason = nextEpisode.seasonNumber.takeIf { it >= currentSeason } ?: currentSeason
+                    val targetEpisode = when {
+                        nextEpisode.seasonNumber == currentSeason && nextEpisode.episodeNumber > currentEpisode ->
+                            nextEpisode.episodeNumber
+                        nextEpisode.seasonNumber > currentSeason -> nextEpisode.episodeNumber
+                        else -> currentEpisode + 1
+                    }
+                    viewModel.preResolveNextDebridEpisode(
+                        seriesId = tmdbId,
+                        targetSeason = targetSeason,
+                        targetEpisode = targetEpisode,
+                        seriesTitle = seriesTitleExtra,
+                        infoHash = debridInfoHashExtra ?: debridStreamIdExtra,
+                        sourceProfile = currentDebridSourceProfile()
+                    )
+                }
             })
             nextEpisodeManager.setupViews()
             observeSeriesPlaylistState()
@@ -2573,14 +2594,16 @@ class PlayerActivity : AppCompatActivity() {
                 "httpStatusCode" to PlaybackDiagnosticsRecorder.httpStatusCode(reason)
             )
         )
-        if (preferReturnToSources && finishWithReturnToSources(autoPlayNext = false, reason = reason)) {
+        // autoPlayNext=true: the detail screens auto-try the next ranked source
+        // (capped there) instead of dropping the user at the picker.
+        if (preferReturnToSources && finishWithReturnToSources(autoPlayNext = true, reason = reason)) {
             return
         }
         val redirected = redirectToFailureDetail(reason)
         if (redirected) {
             return
         }
-        if (!finishWithReturnToSources(autoPlayNext = false, reason = reason)) {
+        if (!finishWithReturnToSources(autoPlayNext = true, reason = reason)) {
             showError(
                 if (reason.contains("timeout", ignoreCase = true)) {
                     "Connection timeout\n\nStream is too slow or unavailable"

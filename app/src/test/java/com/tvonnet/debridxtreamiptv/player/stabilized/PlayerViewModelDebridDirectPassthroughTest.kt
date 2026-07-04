@@ -240,7 +240,8 @@ open class PlayerViewModelDebridDirectPassthroughTest {
             episode,
             title,
             directPreferred,
-            allowDirectHttpPassthrough
+            allowDirectHttpPassthrough,
+            /* forceFresh= */ true
         )
     }
 }

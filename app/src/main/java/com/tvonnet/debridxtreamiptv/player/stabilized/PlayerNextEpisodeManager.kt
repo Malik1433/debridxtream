@@ -25,6 +25,9 @@ class PlayerNextEpisodeManager(
         fun isPlayerPlaying(): Boolean
         fun getNextEpisode(): EpisodeEntityV2?
         fun onPlayNextEpisodeRequested()
+
+        /** Fired once when the countdown prompt appears — the 15s window for pre-resolving. */
+        fun onNextEpisodePromptShown(nextEpisode: EpisodeEntityV2) {}
     }
 
     private var nextEpisodeOverlay: View? = null
@@ -111,6 +114,7 @@ class PlayerNextEpisodeManager(
         
         nextEpisodeOverlay?.isVisible = true
         tvNextEpTitle?.text = nextEp.title ?: "Episode ${nextEp.episodeNumber}"
+        delegate.onNextEpisodePromptShown(nextEp)
         
         nextEpisodeTimer?.cancel()
         nextEpisodeTimer = object : CountDownTimer(15000, 1000) {

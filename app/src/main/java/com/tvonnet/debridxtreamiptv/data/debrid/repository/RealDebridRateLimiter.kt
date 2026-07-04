@@ -80,7 +80,11 @@ class RealDebridRateLimiter @Inject constructor() {
     )
 
     companion object {
-        private const val MIN_REQUEST_INTERVAL_MS = 1200L
+        // Real-Debrid's documented API limit is 250 req/min; 400ms spacing keeps us
+        // at 150 req/min (60% of the cap) while cutting ~3s off every resolution
+        // chain vs the old 1200ms spacing. 429 responses still trigger the global
+        // cooldown below, so the account stays protected if RD tightens the limit.
+        private const val MIN_REQUEST_INTERVAL_MS = 400L
         private const val DEFAULT_RATE_LIMIT_SECONDS = 120L
         private const val BLOCKED_SOURCE_TTL_MS = 30L * 60L * 1000L
         private const val UNAVAILABLE_SOURCE_TTL_MS = 5L * 60L * 1000L
