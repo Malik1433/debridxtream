@@ -219,6 +219,12 @@ class PlayerActivity : AppCompatActivity() {
     private var lastProgressCheckMs = 0L
     private var lastBufferingStartMs = 0L
     private var stallStrikeCount = 0
+    // Video-freeze watchdog: position keeps advancing with audio when only the
+    // video decoder dies (e.g. HEVC GuiExt alloc failures on MTK Fire TVs), so
+    // rendered-frame progress is tracked separately from position progress.
+    private var lastRenderedFrameCount = -1
+    private var lastVideoRenderProgressMs = 0L
+    private var disableTunnelingForSession = false
     private val stallRunnable = object : Runnable {
         override fun run() {
             checkForStall()
@@ -301,6 +307,7 @@ class PlayerActivity : AppCompatActivity() {
         private const val MEDIAFUSION_TIMEOUT_MS = 35000L
         // Live viewers zap away from dead streams fast — detect failure fast too.
         private const val LIVE_TIMEOUT_MS = 12000L
+        private const val VIDEO_FREEZE_THRESHOLD_MS = 8000L
         private const val OVERLAY_TIMEOUT = 6000L
         private const val MIN_PROGRESS_TO_TRACK_MS = 15_000L
         private const val MIN_DURATION_TO_TRACK_MS = 60_000L
@@ -1747,22 +1754,18 @@ class PlayerActivity : AppCompatActivity() {
             //    Using pure upstream network resolution (RAM only) ensures the decoder isn't starved by slow eMMC writes.
             //    Live streams also bypass: an infinite TS stream through a 500MB LRU cache is
             //    pure eviction churn with zero reuse value.
-            // TS tuning: start decode from any keyframe and detect access units so
-            // MPEG-TS zaps render the first frame 300-500ms sooner than defaults.
-            val extractorsFactory = DefaultExtractorsFactory()
-                .setTsExtractorFlags(
-                    androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
-                        androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS
-                )
+            // NOTE: do NOT set TsExtractor FLAG_ALLOW_NON_IDR_KEYFRAMES /
+            // FLAG_DETECT_ACCESS_UNITS here — they froze video (audio kept playing)
+            // on some AVC live TS channels (Belgium category) on MTK Fire TVs.
             val mediaSourceFactory = if (isDebrid || contentType == ContentType.LIVE_TV) {
-                DefaultMediaSourceFactory(httpDataSourceFactory, extractorsFactory)
+                DefaultMediaSourceFactory(httpDataSourceFactory)
             } else {
                 val dataSourceFactory = CacheDataSource.Factory()
                     .setCache(PlayerCacheManager.getCache(this))
                     .setUpstreamDataSourceFactory(httpDataSourceFactory)
                     .setCacheWriteDataSinkFactory(CacheDataSink.Factory().setCache(PlayerCacheManager.getCache(this)))
                     .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-                DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
+                DefaultMediaSourceFactory(dataSourceFactory)
             }.setLoadErrorHandlingPolicy(playbackLoadErrorPolicy)
             
             val bufferConfig = PlayerBufferConfigFactory.buildConfig(this, settingsPreferences, contentType, streamUrl, isDebrid)
@@ -1780,7 +1783,11 @@ class PlayerActivity : AppCompatActivity() {
             
             val trackSelector = DefaultTrackSelector(this)
             // 3. Enable hardware Video Tunneling. This offloads audio/video synchronization to the hardware composer.
-            var parametersBuilder = trackSelector.buildUponParameters().setTunnelingEnabled(true)
+            if (disableTunnelingForSession) {
+                Log.i("PlayerActivity", "Tunneling disabled for this session after video freeze")
+            }
+            var parametersBuilder = trackSelector.buildUponParameters()
+                .setTunnelingEnabled(!disableTunnelingForSession)
             trackManager.preferredAudioLanguage?.let { parametersBuilder = parametersBuilder.setPreferredAudioLanguage(it) }
             trackManager.preferredSubtitleLanguage?.let { parametersBuilder = parametersBuilder.setPreferredTextLanguage(it) }
             // On a known-slow connection, cap adaptive selections at 1080p/8Mbps so
@@ -2087,7 +2094,11 @@ class PlayerActivity : AppCompatActivity() {
             val stallThresholdMs = if (isLowRamDevice) LOW_RAM_STALL_THRESHOLD_MS else STALL_THRESHOLD_MS
             val requiredStrikes = readyStallRequiredStrikes(isLowRamDevice)
             val currentPos = p.currentPosition
-            if (currentPos > lastBoundPosition) { lastBoundPosition = currentPos; lastProgressCheckMs = now; stallStrikeCount = 0; return }
+            if (currentPos > lastBoundPosition) {
+                lastBoundPosition = currentPos; lastProgressCheckMs = now; stallStrikeCount = 0
+                checkVideoRenderProgress(p, now)
+                return
+            }
             if (currentPos > 0 && now - lastProgressCheckMs >= stallThresholdMs) {
                 stallStrikeCount++
                 if (stallStrikeCount >= requiredStrikes) {
@@ -2116,6 +2127,50 @@ class PlayerActivity : AppCompatActivity() {
                 lastProgressCheckMs = now
             }
         } else { lastBoundPosition = p.currentPosition; lastProgressCheckMs = now; stallStrikeCount = 0 }
+    }
+
+    /**
+     * Detects "audio plays, video frozen": playback position advances but the video
+     * decoder stops producing rendered frames (seen on MTK Fire TV HEVC live channels
+     * — GuiExt alloc errors leave the tunneled decoder outputting nothing). First
+     * occurrence re-initializes the player with tunneling disabled for the rest of
+     * this session; repeats fall through to the normal error/retry path.
+     */
+    private fun checkVideoRenderProgress(p: ExoPlayer, now: Long) {
+        if (p.videoFormat == null) { lastRenderedFrameCount = -1; return }
+        val counters = p.videoDecoderCounters ?: return
+        counters.ensureUpdated()
+        val rendered = counters.renderedOutputBufferCount
+        if (rendered != lastRenderedFrameCount) {
+            lastRenderedFrameCount = rendered
+            lastVideoRenderProgressMs = now
+            return
+        }
+        if (lastVideoRenderProgressMs == 0L) { lastVideoRenderProgressMs = now; return }
+        if (now - lastVideoRenderProgressMs < VIDEO_FREEZE_THRESHOLD_MS) return
+
+        PlaybackDiagnosticsRecorder.record(
+            this,
+            "video_freeze_detected",
+            diagnosticsPlaybackFields() + mapOf(
+                "positionMs" to p.currentPosition,
+                "renderedFrames" to rendered,
+                "tunnelingDisabledRetry" to !disableTunnelingForSession
+            )
+        )
+        lastVideoRenderProgressMs = now
+        lastRenderedFrameCount = -1
+
+        if (!disableTunnelingForSession) {
+            disableTunnelingForSession = true
+            Log.w("PlayerActivity", "Video frozen while audio playing — reinitializing without tunneling")
+            showToast("Recovering video...")
+            if (contentType != ContentType.LIVE_TV && p.currentPosition > 1000L) startPositionMs = p.currentPosition
+            player?.release(); player = null
+            retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, 250L)
+        } else {
+            handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
+        }
     }
 
     private fun readyStallRequiredStrikes(isLowRamDevice: Boolean): Int {
@@ -2300,6 +2355,7 @@ class PlayerActivity : AppCompatActivity() {
     private fun startStallMonitor() {
         lastBoundPosition = player?.currentPosition ?: 0L
         lastProgressCheckMs = SystemClock.elapsedRealtime(); stallStrikeCount = 0
+        lastRenderedFrameCount = -1; lastVideoRenderProgressMs = 0L
         stallHandler.removeCallbacks(stallRunnable); stallHandler.postDelayed(stallRunnable, 5000)
     }
 

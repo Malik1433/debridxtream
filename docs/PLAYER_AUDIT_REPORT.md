@@ -1,6 +1,8 @@
 # Video Player Ultra-Deep Audit Report
 
 > **Re-Audit v2 (2026-07-04)** — after P0/P1/OOM fixes, a second three-agent deep audit graded the player against Netflix/Stremio/TiviMate. See the "Re-Audit v2 Scorecard" section at the bottom of this document. **Verdict: not yet Netflix/Stremio level — core engine B-, IPTV live C, Debrid delivery D+.** The debrid rate-limiter cost, missing auto-fallback, live-stream disk caching, and zap latency are the main separators.
+>
+> **Final Audit v3 (2026-07-04, post Phase A/B/C + freeze fix)** — line-by-line verification of every shipped fix (all present and correct) plus on-device evidence (crash-free on the previously-OOMing 1.5GB stick; zap ~1.28s measured; video-freeze watchdog fired and recovered in live logs; Belgium-channel freeze root-caused to the Phase C TS extractor flags and reverted same-day, device-verified). **Verdict: Core engine B+, IPTV live B-, Debrid B — solid commercial mid-tier, daily-driver quality. Remaining gap to full Netflix/Stremio parity is narrow and known:** (1) startup preload/parallel-prepare architecture, (2) zap pre-buffering pool (in progress in a parallel session), (3) TorBox pipeline (in progress in a parallel session), (4) runtime ABR feedback loop, (5) detail-page pre-resolution (deferred product decision — RD account pollution risk).
 
 **Date:** 2026-07-03
 **Scope:** Full playback pipeline — ExoPlayer/Media3 core engine, network/streaming delivery layer, UI/lifecycle/track management
