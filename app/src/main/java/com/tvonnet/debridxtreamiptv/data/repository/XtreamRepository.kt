@@ -85,6 +85,7 @@ data class MovieSource(
     val isPrimary: Boolean,
     val languages: List<String>? = null,
     val quality: String? = null,
+    val codec: String? = null,
     val sizeBytes: Long? = null,
     val seeders: Int? = null,
     val isCached: Boolean? = null,

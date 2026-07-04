@@ -990,6 +990,7 @@ class UnifiedSourceProvider @Inject constructor(
                 cacheStatusByHash = cacheStatusByHash
             )
             val cachedFlag = cacheStatus.toLegacyCachedFlag()
+            val codecTag = extractCodecTag(addonStream.title)
 
             // Enhanced label creation with rich metadata from extras
             val label = (addonStream.extras["displayTitle"] as? String)
@@ -1007,6 +1008,10 @@ class UnifiedSourceProvider @Inject constructor(
                     // Add quality if available
                     if (!addonStream.quality.isNullOrBlank() && addonStream.quality != "Unknown") {
                         append(" ${addonStream.quality}")
+                    }
+
+                    if (!codecTag.isNullOrBlank()) {
+                        append(" $codecTag")
                     }
 
                     // Add size if available
@@ -1070,6 +1075,7 @@ class UnifiedSourceProvider @Inject constructor(
                 isPrimary = index == 0,
                 languages = addonStream.languages,
                 quality = addonStream.quality,
+                codec = codecTag,
                 sizeBytes = addonStream.sizeBytes,
                 seeders = addonStream.seeders,
                 isCached = cachedFlag,
@@ -1106,6 +1112,26 @@ class UnifiedSourceProvider @Inject constructor(
                 Log.d(TAG, "   - $quality: ${sources.size} sources")
             }
         }
+    }
+
+    /**
+     * Pull codec/format markers out of a release name so the picker can show
+     * "4K HEVC" vs "4K REMUX" — the difference between a 5GB and a 60GB play.
+     */
+    internal fun extractCodecTag(title: String?): String? {
+        val text = title?.lowercase() ?: return null
+        val parts = mutableListOf<String>()
+        if (text.contains("remux")) parts.add("REMUX")
+        when {
+            Regex("hevc|[hx][ .\\-]?265").containsMatchIn(text) -> parts.add("HEVC")
+            text.contains("av1") -> parts.add("AV1")
+            Regex("avc\\b|[hx][ .\\-]?264").containsMatchIn(text) -> parts.add("H264")
+        }
+        when {
+            Regex("\\b(dv|dovi)\\b|dolby[ .\\-]?vision").containsMatchIn(text) -> parts.add("DV")
+            text.contains("hdr") -> parts.add("HDR")
+        }
+        return parts.takeIf { it.isNotEmpty() }?.joinToString(" ")
     }
 
     private fun getSourceLabel(source: AddonSourceType): String {
@@ -1316,11 +1342,11 @@ class UnifiedSourceProvider @Inject constructor(
         val languageKey = normalizeVariantPart(
             stream.languages?.joinToString(",")?.lowercase()
         )
-        val providerKey = normalizeVariantPart(
-            stream.extras["providerName"] as? String ?: stream.extras["sourceName"] as? String
-        )
-        val sourceTypeKey = normalizeVariantPart(stream.source.name)
-        val sourceNameKey = normalizeVariantPart(stream.extras["sourceName"] as? String)
+        // The same torrent offered by two providers is only a real choice when the
+        // DELIVERY differs: an addon-proxy direct URL streams immediately, while a
+        // magnet goes through the RD resolution chain. Provider names alone must
+        // not duplicate picker rows for an identical torrent.
+        val deliveryKey = if (stream.url.isNullOrBlank()) "magnet" else "direct"
         val fileIdxKey = (stream.extras["fileIdx"] as? Number)?.toString()
             ?: (stream.extras["fileIdx"] as? String)?.trim()?.takeIf { it.isNotBlank() }
         val bingeGroupKey = normalizeVariantPart(stream.extras["bingeGroup"] as? String)
@@ -1330,11 +1356,7 @@ class UnifiedSourceProvider @Inject constructor(
             append('|')
             append(languageKey)
             append('|')
-            append(providerKey)
-            append('|')
-            append(sourceTypeKey)
-            append('|')
-            append(sourceNameKey)
+            append(deliveryKey)
             append('|')
             append(fileIdxKey.orEmpty())
             append('|')
