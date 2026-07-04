@@ -63,11 +63,15 @@ class CacheHelper(private val context: Context) {
             cache
         } catch (e: OutOfMemoryError) {
             Log.e(TAG, "OutOfMemoryError reading cache - file too large. Clearing cache.", e)
+            closeQuietly(reader)
+            reader = null
             clearCache()
             null
         } catch (e: Exception) {
             Log.e(TAG, "Failed to read cache", e)
-            // If parsing fails, clear corrupt cache
+            // If parsing fails, clear corrupt cache; close first so Windows allows the delete
+            closeQuietly(reader)
+            reader = null
             clearCache()
             null
         } finally {
@@ -78,7 +82,15 @@ class CacheHelper(private val context: Context) {
             }
         }
     }
-    
+
+    private fun closeQuietly(reader: BufferedReader?) {
+        try {
+            reader?.close()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to close reader", e)
+        }
+    }
+
     fun clearCache() {
         try {
             val file = File(context.filesDir, cacheFileName)
