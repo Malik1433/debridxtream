@@ -94,4 +94,12 @@ interface SeriesDao {
 
     @Query("SELECT * FROM series_v2 WHERE seriesId = :seriesId")
     suspend fun getSeriesById(seriesId: String): SeriesEntity?
+
+    /**
+     * Candidate rows for cross-category stream aggregation: any series whose name
+     * contains the given core title (decorated variants like "EN| Title 4K" match).
+     * Callers verify candidates with normalized-name equality.
+     */
+    @Query("SELECT * FROM series_v2 WHERE name LIKE '%' || :coreTitle || '%' LIMIT 200")
+    suspend fun findSeriesByNameLike(coreTitle: String): List<SeriesEntity>
 }

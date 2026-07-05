@@ -1,0 +1,306 @@
+package com.tvonnet.debridxtreamiptv.ui.series
+
+import android.app.Activity
+import android.app.AlertDialog
+import android.content.Context
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder
+import com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity
+import com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
+import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class CinEpisodeAdapter(
+    private val onEpisodeClick: (EpisodeUiModel) -> Unit,
+    private val onEpisodeFocused: (EpisodeUiModel) -> Unit
+) : ListAdapter<EpisodeUiModel, CinEpisodeAdapter.EpisodeViewHolder>(DIFF_CALLBACK) {
+
+    init { setHasStableIds(true) }
+
+    override fun getItemId(position: Int): Long = getItem(position).id.hashCode().toLong()
+
+    private var selectedEpisodeId: String? = null
+    private val adapterScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val watchedKeys = mutableSetOf<String>()
+
+    fun submitEpisodes(newItems: List<EpisodeUiModel>, selectedId: String?) {
+        selectedEpisodeId = selectedId
+        submitList(newItems)
+    }
+
+    fun setSelectedEpisode(episodeId: String?) {
+        if (selectedEpisodeId == episodeId) return
+        val prev = selectedEpisodeId
+        selectedEpisodeId = episodeId
+        prev?.let { notifyItemChangedById(it) }
+        episodeId?.let { notifyItemChangedById(it) }
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EpisodeViewHolder {
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_episode_cin, parent, false)
+        return EpisodeViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: EpisodeViewHolder, position: Int) {
+        holder.bind(getItem(position), getItem(position).id == selectedEpisodeId)
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        adapterScope.cancel()
+    }
+
+    inner class EpisodeViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val ivThumb: ImageView = itemView.findViewById(R.id.iv_episode_thumb)
+        private val tvEpNum: TextView = itemView.findViewById(R.id.tv_episode_number)
+        private val tvDuration: TextView = itemView.findViewById(R.id.tv_duration)
+        private val tvTitle: TextView = itemView.findViewById(R.id.tv_title)
+        private val tvSubtitle: TextView = itemView.findViewById(R.id.tv_subtitle)
+        private val layoutProgress: FrameLayout = itemView.findViewById(R.id.layout_progress)
+        private val vProgressFill: View = itemView.findViewById(R.id.v_progress_fill)
+        private val vBadgeBg: View = itemView.findViewById(R.id.v_badge_bg)
+        private val ivWatched: ImageView = itemView.findViewById(R.id.iv_watched_indicator)
+        private val ivPlayIcon: ImageView = itemView.findViewById(R.id.iv_play_icon)
+
+        init {
+            itemView.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) onEpisodeClick(getItem(pos))
+            }
+            itemView.setOnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) {
+                    val pos = bindingAdapterPosition
+                    if (pos != RecyclerView.NO_POSITION) onEpisodeFocused(getItem(pos))
+                }
+            }
+            itemView.setOnLongClickListener {
+                val pos = bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }
+                    ?: return@setOnLongClickListener false
+                val item = getItem(pos)
+                val context = itemView.context
+                val identityKey = watchedIdentityKey(context, item) ?: return@setOnLongClickListener false
+                val isWatched = watchedKeys.contains(identityKey)
+                val actionTitle = if (isWatched) "Mark as Unwatched" else "Mark as Watched"
+                AlertDialog.Builder(context)
+                    .setTitle(item.title)
+                    .setItems(arrayOf(actionTitle)) { _, _ ->
+                        toggleWatched(context, item, identityKey, !isWatched)
+                    }
+                    .show()
+                true
+            }
+        }
+
+        fun bind(item: EpisodeUiModel, isSelected: Boolean) {
+            tvEpNum.text = "E${String.format("%02d", item.episodeNumber ?: 0)}"
+            tvTitle.text = item.title
+
+            val durationMin = item.durationMinutes
+            tvDuration.text = if (durationMin != null) "${durationMin}M" else ""
+
+            val thumbnail = item.thumbnailUrl?.takeIf { it.isNotBlank() }
+            Glide.with(itemView)
+                .load(thumbnail)
+                .placeholder(R.drawable.tv_card_placeholder)
+                .error(R.drawable.tv_card_placeholder)
+                .centerCrop()
+                .into(ivThumb)
+
+            val context = itemView.context
+            val identityKey = watchedIdentityKey(context, item)
+            val isWatched = identityKey != null && watchedKeys.contains(identityKey)
+
+            if (identityKey != null && !watchedKeys.contains(identityKey)) {
+                loadWatchedState(identityKey)
+            }
+
+            val actuallyWatched = item.isWatched || isWatched
+            val resumePos = item.resumePosition
+            val hasProgress = !actuallyWatched && resumePos > 0 && durationMin != null && durationMin > 0
+
+            // Progress bar
+            if (hasProgress) {
+                layoutProgress.visibility = View.VISIBLE
+                val totalMs = durationMin!! * 60_000L
+                val pct = ((resumePos.toFloat() / totalMs) * 100).coerceIn(0f, 100f)
+                val params = vProgressFill.layoutParams
+                vProgressFill.post {
+                    val parentWidth = (vProgressFill.parent as? View)?.width ?: 0
+                    val newWidth = (parentWidth * pct / 100f).toInt()
+                    val lp = vProgressFill.layoutParams
+                    lp.width = newWidth
+                    vProgressFill.layoutParams = lp
+                }
+            } else {
+                layoutProgress.visibility = View.GONE
+            }
+
+            // Badge
+            when {
+                actuallyWatched -> {
+                    vBadgeBg.setBackgroundResource(R.drawable.cin_series_ep_badge_watched)
+                    ivWatched.visibility = View.VISIBLE
+                    ivPlayIcon.visibility = View.GONE
+                }
+                isSelected -> {
+                    vBadgeBg.setBackgroundResource(R.drawable.cin_series_ep_badge_active)
+                    ivWatched.visibility = View.GONE
+                    ivPlayIcon.visibility = View.VISIBLE
+                    ivPlayIcon.setColorFilter(0xFF041014.toInt())
+                }
+                else -> {
+                    vBadgeBg.setBackgroundResource(R.drawable.cin_series_ep_badge_play)
+                    ivWatched.visibility = View.GONE
+                    ivPlayIcon.visibility = View.VISIBLE
+                    ivPlayIcon.setColorFilter(0xFFF1F5F9.toInt())
+                }
+            }
+
+            // Subtitle
+            tvSubtitle.text = when {
+                actuallyWatched -> "WATCHED · ${tvDuration.text}"
+                hasProgress -> {
+                    val totalMs = durationMin!! * 60_000L
+                    val pct = ((resumePos.toFloat() / totalMs) * 100).toInt().coerceIn(0, 100)
+                    "RESUME · ${pct}%"
+                }
+                else -> item.description?.take(20) ?: ""
+            }
+
+            itemView.isSelected = isSelected
+        }
+    }
+
+    private fun loadWatchedState(identityKey: String) {
+        adapterScope.launch {
+            val isWatched = withContext(Dispatchers.IO) {
+                watchedRepository()?.getState(identityKey)?.isWatched == true
+            }
+            if (isWatched && watchedKeys.add(identityKey)) {
+                notifyItemChangedByIdentity(identityKey)
+            }
+        }
+    }
+
+    private fun toggleWatched(context: Context, item: EpisodeUiModel, identityKey: String, watched: Boolean) {
+        adapterScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val timestamp = System.currentTimeMillis()
+                    val repo = watchedRepository()
+                    val state = repo.getState(identityKey) ?: WatchedStateEntity(
+                        identityKey = identityKey,
+                        contentType = WatchedStateEntity.CONTENT_TYPE_EPISODE,
+                        source = WatchedStateEntity.SOURCE_DEBRID,
+                        title = item.title,
+                        year = seriesYear(context),
+                        seriesId = seriesIdentity(context),
+                        seasonNumber = selectedSeasonNumber(context),
+                        episodeNumber = item.episodeNumber,
+                        durationMs = (item.durationMinutes ?: 0).toLong() * 60_000L,
+                        updatedAt = timestamp
+                    )
+                    repo.setManualWatched(state, watched, timestamp)
+                }
+            }
+            result.onSuccess {
+                if (watched) watchedKeys.add(identityKey) else watchedKeys.remove(identityKey)
+                notifyItemChangedByIdentity(identityKey)
+                Toast.makeText(context, if (watched) "Marked watched" else "Marked unwatched", Toast.LENGTH_SHORT).show()
+            }.onFailure {
+                Toast.makeText(context, "Unable to update watched state", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun watchedIdentityKey(context: Context, item: EpisodeUiModel): String? {
+        if (!isDebridContext(context)) return null
+        return WatchedIdentityBuilder.debridEpisode(
+            seriesIdentity = seriesIdentity(context),
+            seasonNumber = selectedSeasonNumber(context),
+            episodeNumber = item.episodeNumber,
+            seriesTitle = seriesTitle(context),
+            seriesYear = seriesYear(context),
+            fallbackDiscriminator = item.id.ifBlank { item.title }
+        )
+    }
+
+    private fun watchedRepository(): WatchedStateRepository {
+        val appContext = lastContext?.applicationContext
+            ?: throw IllegalStateException("Missing adapter context")
+        return EntryPointAccessors.fromApplication(
+            appContext,
+            SeriesEpisodeAdapterEntryPoint::class.java
+        ).watchedStateRepository()
+    }
+
+    private var lastContext: Context? = null
+
+    private fun isDebridContext(context: Context): Boolean {
+        lastContext = context.applicationContext
+        val activity = context.findActivity()
+        return activity?.intent?.getBooleanExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, false) == true
+    }
+
+    private fun seriesIdentity(context: Context): String? =
+        context.findActivity()?.intent?.getStringExtra(SeriesDetailActivity.EXTRA_SERIES_ID)
+
+    private fun seriesTitle(context: Context): String? =
+        context.findActivity()?.intent?.getStringExtra(SeriesDetailActivity.EXTRA_SERIES_NAME)
+
+    private fun seriesYear(context: Context): String? =
+        context.findActivity()?.intent?.getStringExtra(SeriesDetailActivity.EXTRA_SERIES_RELEASE_DATE)?.take(4)
+
+    private fun selectedSeasonNumber(context: Context): Int? {
+        val activity = context.findActivity() ?: return null
+        return runCatching {
+            val field = activity.javaClass.getDeclaredField("selectedSeasonKey")
+            field.isAccessible = true
+            (field.get(activity) as? String)?.toIntOrNull()
+        }.getOrNull()
+    }
+
+    private fun Context.findActivity(): Activity? {
+        var current = this
+        while (current is android.content.ContextWrapper) {
+            if (current is Activity) return current
+            current = current.baseContext
+        }
+        return null
+    }
+
+    private fun notifyItemChangedByIdentity(identityKey: String) {
+        val index = currentList.indexOfFirst { watchedIdentityKey(lastContext ?: return, it) == identityKey }
+        if (index != -1) notifyItemChanged(index)
+    }
+
+    private fun notifyItemChangedById(id: String) {
+        val index = currentList.indexOfFirst { it.id == id }
+        if (index != -1) notifyItemChanged(index)
+    }
+
+    companion object {
+        private val DIFF_CALLBACK = object : DiffUtil.ItemCallback<EpisodeUiModel>() {
+            override fun areItemsTheSame(old: EpisodeUiModel, new: EpisodeUiModel) = old.id == new.id
+            override fun areContentsTheSame(old: EpisodeUiModel, new: EpisodeUiModel) = old == new
+        }
+    }
+}

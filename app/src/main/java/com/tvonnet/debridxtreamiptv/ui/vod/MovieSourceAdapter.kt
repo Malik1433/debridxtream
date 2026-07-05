@@ -97,7 +97,11 @@ class MovieSourceAdapter(
             }
 
             // Col 5: Type Badge
-            val typeLabel = if (source.cacheStatus == DebridCacheStatus.NOT_CACHED) "TORRENT" else "DIRECT"
+            val typeLabel = when {
+                source.sourceType == "IPTV" -> "IPTV"
+                source.cacheStatus == DebridCacheStatus.NOT_CACHED -> "TORRENT"
+                else -> "DIRECT"
+            }
             binding.tvType.text = typeLabel
             if (typeLabel == "DIRECT") {
                 binding.tvType.setBackgroundResource(R.drawable.cin_pill_cached)
@@ -200,6 +204,8 @@ class MovieSourceAdapter(
             // Design palette: RD cyan, AIO amber, STRM green, generic glass
             val darkText = 0xFF0E0D15.toInt()
             val (badgeText, badgeBg, textColor) = when {
+                provider.contains("IPTV") || label == "IPTV" ->
+                    Triple("IPTV", R.drawable.cin_src_badge_xtream, 0xFFE8B94A.toInt())
                 sourceName.contains("AIO") || label.contains("AIOSTREAMS") ->
                     Triple("AIO", R.drawable.cin_src_badge_aio_amber, darkText)
                 sourceName.contains("STREMTHRU") || sourceName.contains("STRM") || label.contains("STREMTHRU") ->

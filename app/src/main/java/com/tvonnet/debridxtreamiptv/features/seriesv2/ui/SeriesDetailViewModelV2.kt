@@ -11,6 +11,8 @@ import com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.repository.XtreamSeriesRepositoryV2
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.SeriesDetailUiState
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.SeriesNavigationEvent
+import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.IptvStreamGroup
+import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.IptvStreamOption
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.EpisodeDaoV2
 import com.tvonnet.debridxtreamiptv.data.local.dao.WatchedStateDao
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -90,6 +92,22 @@ class SeriesDetailViewModelV2 @Inject constructor(
         initialValue = emptyList()
     )
 
+    /** (seasons, episodes) totals for the metadata line. */
+    val seriesTotals: StateFlow<Pair<Int, Int>> = episodeDao.observeSeasonEpisodeCounts(seriesId)
+        .map { counts -> counts.size to counts.sumOf { it.totalEpisodes } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0 to 0)
+
+    /** (watched, total) for the currently-selected season. */
+    val seasonProgress: StateFlow<Pair<Int, Int>> = combine(
+        episodeDao.observeSeasonEpisodeCounts(seriesId),
+        watchedStateDao.observeWatchedCountsForSeries(seriesId),
+        _selectedSeason
+    ) { totals, watched, selected ->
+        val total = totals.firstOrNull { it.season_number == selected }?.totalEpisodes ?: 0
+        val done = watched.firstOrNull { it.season_number == selected }?.watchedEpisodes ?: 0
+        done to total
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0 to 0)
+
     // Episodes Stream (Paging Data) - Filtered by Season Logic
     // If _selectedSeason is null, we might show "All" or just "Season 1" default.
     // For now, let's assume if null, show all (or handle per requirements). 
@@ -158,17 +176,134 @@ class SeriesDetailViewModelV2 @Inject constructor(
         initialValue = SeriesDetailUiState.Loading
     )
 
-    fun onEpisodeClicked(episode: EpisodeEntityV2) {
+    // ── Stream selection panel (multi-category aggregation) ────────────────────
+
+    private val _streamPanel = MutableStateFlow(StreamPanelState())
+    val streamPanel: StateFlow<StreamPanelState> = _streamPanel
+
+    /** Distinct category listings the show appears in — drives the hero summary. */
+    private val _categoryListingCount = MutableStateFlow(0)
+    val categoryListingCount: StateFlow<Int> = _categoryListingCount
+
+    private var pendingEpisode: EpisodeEntityV2? = null
+    private var aggregateJob: kotlinx.coroutines.Job? = null
+    private var resolveJob: kotlinx.coroutines.Job? = null
+
+    init {
         viewModelScope.launch {
-            val streamUrl = repository.getStreamUrl(episode.episodeId, episode.containerExtension)
+            _categoryListingCount.value = runCatching { repository.countCategoryListings(seriesId) }.getOrDefault(0)
+        }
+    }
+
+    /**
+     * Opening an episode no longer plays immediately — it presents the aggregated
+     * streams for that episode across every playlist category.
+     */
+    fun onEpisodeClicked(episode: EpisodeEntityV2) {
+        pendingEpisode = episode
+        val label = "S%02d · E%02d".format(episode.seasonNumber, episode.episodeNumber)
+        val title = episode.title?.takeIf { it.isNotBlank() && !it.equals("null", true) }
+            ?: "Episode ${episode.episodeNumber}"
+
+        _streamPanel.value = StreamPanelState(
+            visible = true,
+            loading = true,
+            episodeHeaderRight = label,
+            episodeLabel = "$label · $title",
+            filters = _streamPanel.value.filters
+        )
+
+        aggregateJob?.cancel()
+        aggregateJob = viewModelScope.launch {
+            // DB-only aggregation — effectively instant. Unresolved rows get their
+            // playable URL on selection (resolveStreamOption), never up front.
+            val groups = runCatching {
+                repository.aggregateEpisodeStreams(seriesId, episode.seasonNumber, episode.episodeNumber)
+            }.getOrElse {
+                _streamPanel.value = _streamPanel.value.copy(loading = false, error = it.message ?: "Failed to load streams")
+                return@launch
+            }
+
+            // Only apply if the panel is still targeting this episode
+            if (pendingEpisode?.episodeId != episode.episodeId) return@launch
+            _streamPanel.value = _streamPanel.value.copy(
+                loading = false,
+                allGroups = groups,
+                error = if (groups.isEmpty()) "NO STREAMS AVAILABLE" else null
+            )
+
+            // Background sweep (throttled): fill in playable URLs and silently drop
+            // listings that genuinely lack this episode, so dead rows never get
+            // clicked. Results persist in the DB — next opens are pre-verified.
+            val verified = runCatching {
+                repository.verifyStreamGroups(groups, episode.seasonNumber, episode.episodeNumber)
+            }.getOrNull() ?: return@launch
+            if (pendingEpisode?.episodeId != episode.episodeId) return@launch
+            if (verified != _streamPanel.value.allGroups) {
+                _streamPanel.value = _streamPanel.value.copy(
+                    allGroups = verified,
+                    error = if (verified.isEmpty()) "NO STREAMS AVAILABLE" else null
+                )
+            }
+        }
+    }
+
+    fun cycleFilter(key: FilterKey) {
+        val f = _streamPanel.value.filters
+        val next = when (key) {
+            FilterKey.QUALITY -> f.copy(quality = QUALITY_OPTIONS.next(f.quality))
+            FilterKey.LANGUAGE -> f.copy(language = LANGUAGE_OPTIONS.next(f.language))
+            FilterKey.CONTAINER -> f.copy(container = CONTAINER_OPTIONS.next(f.container))
+        }
+        _streamPanel.value = _streamPanel.value.copy(filters = next)
+    }
+
+    fun closeStreamPanel() {
+        aggregateJob?.cancel()
+        resolveJob?.cancel()
+        pendingEpisode = null
+        _streamPanel.value = StreamPanelState(filters = _streamPanel.value.filters)
+    }
+
+    fun onStreamSelected(option: IptvStreamOption) {
+        val episode = pendingEpisode ?: return
+        // Repeat click on the row that's already resolving — let it finish.
+        if (resolveJob?.isActive == true && _streamPanel.value.resolvingStreamId == option.streamId) return
+        resolveJob?.cancel()
+        resolveJob = viewModelScope.launch {
+            // Unresolved rows need one network fetch for that sibling only.
+            val needsResolve = option.playUrl.isBlank()
+            if (needsResolve) {
+                _streamPanel.value = _streamPanel.value.copy(resolvingStreamId = option.streamId)
+            }
+            val resolved = try {
+                repository.resolveStreamOption(option, episode.seasonNumber, episode.episodeNumber)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // A newer click superseded this one — don't report a false
+                // "not available"; just stop quietly.
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("SeriesDetailViewModelV2", "resolveStreamOption failed: ${e.message}")
+                null
+            }
+
+            if (resolved == null) {
+                _streamPanel.value = _streamPanel.value.copy(resolvingStreamId = null)
+                _navigationEvents.send(
+                    SeriesNavigationEvent.ShowMessage("Episode not available in this category")
+                )
+                return@launch
+            }
+
+            closeStreamPanel()
             _navigationEvents.send(
                 SeriesNavigationEvent.NavigateToPlayer(
-                    streamUrl = streamUrl,
-                    episodeId = episode.episodeId,
+                    streamUrl = resolved.playUrl,
+                    episodeId = resolved.streamId,
                     seriesId = seriesId,
                     title = episode.title ?: "Episode ${episode.episodeNumber}",
                     posterUrl = episode.thumbnail,
-                    containerExtension = episode.containerExtension,
+                    containerExtension = resolved.containerExtension,
                     seasonNumber = episode.seasonNumber,
                     episodeNumber = episode.episodeNumber
                 )
@@ -179,6 +314,53 @@ class SeriesDetailViewModelV2 @Inject constructor(
     fun onRetry() {
         refreshTrigger.value += 1
     }
+
+    companion object {
+        val QUALITY_OPTIONS = listOf("All", "4K", "1080P", "720P", "SD")
+        val LANGUAGE_OPTIONS = listOf("All", "EN", "HI", "FR", "AR", "MULTI")
+        val CONTAINER_OPTIONS = listOf("All", "MP4", "MKV", "TS")
+
+        private fun List<String>.next(current: String): String {
+            val i = indexOf(current)
+            return this[(if (i < 0) 0 else (i + 1) % size)]
+        }
+    }
+}
+
+enum class FilterKey { QUALITY, LANGUAGE, CONTAINER }
+
+data class StreamFilters(
+    val quality: String = "All",
+    val language: String = "All",
+    val container: String = "All"
+)
+
+data class StreamPanelState(
+    val visible: Boolean = false,
+    val loading: Boolean = false,
+    val episodeLabel: String = "",
+    val episodeHeaderRight: String = "",
+    val allGroups: List<IptvStreamGroup> = emptyList(),
+    val filters: StreamFilters = StreamFilters(),
+    val error: String? = null,
+    /** Stream row currently being resolved to a playable URL (shows a spinner). */
+    val resolvingStreamId: String? = null
+) {
+    /** Groups after applying the active quality / language / container filters. */
+    val filteredGroups: List<IptvStreamGroup>
+        get() {
+            if (filters.quality == "All" && filters.language == "All" && filters.container == "All") return allGroups
+            return allGroups.mapNotNull { g ->
+                val kept = g.streams.filter { s ->
+                    (filters.quality == "All" || s.quality.label.equals(filters.quality, true)) &&
+                        (filters.language == "All" || s.languages.any { it.code.equals(filters.language, true) }) &&
+                        (filters.container == "All" || s.container.equals(filters.container, true))
+                }
+                if (kept.isEmpty()) null else g.copy(streams = kept)
+            }
+        }
+
+    val filteredStreamCount: Int get() = filteredGroups.sumOf { it.streams.size }
 }
 
 enum class SeasonWatchedState { UNWATCHED, IN_PROGRESS, WATCHED }

@@ -92,6 +92,20 @@ enum class StreamLanguage(val label: String) {
 }
 
 object SourceFilterUtils {
+
+    /**
+     * Human-facing source name used for the source filter and its dropdown options:
+     * the addon's own name when it reports one, else the provider label ("MediaFusion",
+     * "TorrentIO", "IPTV"…), else "Other".
+     */
+    fun sourceDisplayName(source: MovieSource): String {
+        if (source.sourceType == "IPTV") return "IPTV"
+        // `provider` carries the configured addon's name (StremThru, AIO, Debridio…);
+        // `sourceName` is per-stream text and useless as a filter bucket.
+        return source.provider?.takeIf { it.isNotBlank() }
+            ?: source.sourceName?.takeIf { it.isNotBlank() }
+            ?: "Other"
+    }
     private const val GB_BYTES = 1024L * 1024L * 1024L
 
     val SIZE_OPTIONS = listOf(
@@ -148,10 +162,9 @@ object SourceFilterUtils {
             filtered = filtered.filter { source ->
                 when (type) {
                     "RD Cached" -> source.cacheStatus == DebridCacheStatus.VERIFIED_CACHED
-                    "Direct" -> source.cacheStatus == DebridCacheStatus.DIRECT_STREAM
-                    "Torrent/Add-on" -> source.cacheStatus == DebridCacheStatus.NOT_CACHED
-                    "Unknown" -> source.cacheStatus == DebridCacheStatus.UNKNOWN
-                    else -> true
+                    // Everything else filters by the actual source name (addon /
+                    // provider / IPTV) so users can isolate a single source.
+                    else -> sourceDisplayName(source).equals(type, ignoreCase = true)
                 }
             }
         }

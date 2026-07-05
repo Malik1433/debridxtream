@@ -36,4 +36,11 @@ interface SeriesDaoV2 {
 
     @Query("SELECT * FROM series_v2_core WHERE series_id = :seriesId LIMIT 1")
     suspend fun getSeriesById(seriesId: String): SeriesEntityV2?
+
+    /**
+     * Sibling series that share the same display name (case-insensitive) — the same
+     * show listed under multiple playlist categories. Used for stream aggregation.
+     */
+    @Query("SELECT * FROM series_v2_core WHERE name = :name COLLATE NOCASE")
+    suspend fun getSeriesByName(name: String): List<SeriesEntityV2>
 }

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A single stream row inside the SELECT STREAM panel. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="30dp"
+    android:layout_marginStart="6dp"
+    android:layout_marginEnd="6dp"
+    android:background="@drawable/iptv_stream_row_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="6dp"
+    android:paddingEnd="6dp">
+
+    <!-- Provider chip -->
+    <TextView
+        android:id="@+id/tv_provider"
+        android:layout_width="40dp"
+        android:layout_height="20dp"
+        android:fontFamily="monospace"
+        android:gravity="center"
+        android:textStyle="bold"
+        android:textColor="#0E0D15"
+        android:textSize="7sp"
+        tools:text="SRV1" />
+
+    <!-- Languages -->
+    <LinearLayout
+        android:id="@+id/layout_langs"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="5dp"
+        android:orientation="horizontal" />
+
+    <!-- Name -->
+    <TextView
+        android:id="@+id/tv_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="5dp"
+        android:fontFamily="monospace"
+        android:textColor="#E2E8F0"
+        android:textSize="6.5sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        tools:text="Nightfall Protocol S01E03 2160p MULTI" />
+
+    <!-- Quality badge -->
+    <TextView
+        android:id="@+id/tv_quality"
+        android:layout_width="40dp"
+        android:layout_height="16dp"
+        android:layout_marginStart="5dp"
+        android:gravity="center"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:textSize="6.5sp"
+        tools:text="4K" />
+
+    <!-- Container badge -->
+    <TextView
+        android:id="@+id/tv_container"
+        android:layout_width="wrap_content"
+        android:layout_height="16dp"
+        android:layout_marginStart="5dp"
+        android:fontFamily="monospace"
+        android:gravity="center"
+        android:minWidth="34dp"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:textSize="6sp"
+        tools:text="MKV" />
+
+    <!-- Play circle -->
+    <FrameLayout
+        android:layout_width="23dp"
+        android:layout_height="23dp"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/iptv_play_circle">
+
+        <ImageView
+            android:id="@+id/iv_play"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_play_arrow_24"
+            app:tint="#64748B"
+            xmlns:app="http://schemas.android.com/apk/res-auto" />
+    </FrameLayout>
+</LinearLayout>

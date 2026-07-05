@@ -1,6 +1,7 @@
 package com.tvonnet.debridxtreamiptv.features.seriesv2.ui
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView.Adapter.StateRestorationPolicy
@@ -8,7 +9,8 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
-import com.tvonnet.debridxtreamiptv.databinding.ItemEpisodeV2Binding
+import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.databinding.ItemEpisodeCinBinding
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -21,6 +23,10 @@ interface EpisodesAdapterEntryPoint {
     fun watchedStateRepository(): com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
 }
 
+/**
+ * Horizontal episode strip for the IPTV Series Detail screen. Renders the cyan
+ * "cinematic" episode card (item_episode_cin) with watched / resume / active states.
+ */
 class EpisodesAdapterV2(
     private val onEpisodeClick: (EpisodeEntityV2) -> Unit,
     private val onEpisodeFocused: (EpisodeEntityV2) -> Unit = {}
@@ -31,7 +37,7 @@ class EpisodesAdapterV2(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EpisodeViewHolder {
-        val binding = ItemEpisodeV2Binding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding = ItemEpisodeCinBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return EpisodeViewHolder(binding)
     }
 
@@ -52,28 +58,32 @@ class EpisodesAdapterV2(
     var imdbId: String? = null
     var watchedKeys: Set<String> = emptySet()
 
-    inner class EpisodeViewHolder(private val binding: ItemEpisodeV2Binding) : RecyclerView.ViewHolder(binding.root) {
-        
+    private var selectedEpisodeId: String? = null
+
+    fun setSelectedEpisode(episodeId: String?) {
+        if (selectedEpisodeId == episodeId) return
+        val prev = selectedEpisodeId
+        selectedEpisodeId = episodeId
+        val items = snapshot().items
+        prev?.let { id -> items.indexOfFirst { it.episodeId == id }.takeIf { it >= 0 }?.let { notifyItemChanged(it, Any()) } }
+        episodeId?.let { id -> items.indexOfFirst { it.episodeId == id }.takeIf { it >= 0 }?.let { notifyItemChanged(it, Any()) } }
+    }
+
+    inner class EpisodeViewHolder(private val binding: ItemEpisodeCinBinding) : RecyclerView.ViewHolder(binding.root) {
+
         init {
             binding.root.setOnClickListener {
                 val item = getItem(bindingAdapterPosition)
                 if (item != null) onEpisodeClick(item)
             }
-            
-            // Clean Focus Handling
-            binding.vFocusBorder.setBackgroundResource(com.tvonnet.debridxtreamiptv.R.drawable.bg_episode_focus_glow)
-            binding.vFocusBorder.visibility = android.view.View.INVISIBLE
-            
-            binding.root.setOnFocusChangeListener { v, hasFocus ->
-                // Toggle Border Visibility
-                binding.vFocusBorder.visibility = if (hasFocus) android.view.View.VISIBLE else android.view.View.INVISIBLE
 
+            binding.root.setOnFocusChangeListener { _, hasFocus ->
                 if (hasFocus) {
                     val item = getItem(bindingAdapterPosition)
                     if (item != null) onEpisodeFocused(item)
                 }
             }
-            
+
             binding.root.setOnLongClickListener {
                 val item = getItem(bindingAdapterPosition)
                 if (item != null) {
@@ -120,47 +130,84 @@ class EpisodesAdapterV2(
         }
 
         fun bind(episode: EpisodeEntityV2) {
-            binding.tvEpisodeNumber.text = "E${episode.episodeNumber}"
-            
+            binding.tvEpisodeNumber.text = "E%02d".format(episode.episodeNumber)
+
             val rawTitle = episode.title
             val cleanTitle = if (rawTitle.isNullOrEmpty() || rawTitle.equals("null", ignoreCase = true)) {
                 "Episode ${episode.episodeNumber}"
-            } else {
-                rawTitle
-            }
+            } else rawTitle
             binding.tvTitle.text = cleanTitle
-            
-            // Format meta line: Episode X • Y mins • Plot
+
             val durationText = formatDuration(episode.duration)
-            val plotSnippet = episode.plot?.take(30)?.let { if (it.length < (episode.plot?.length ?: 0)) "$it..." else it } ?: ""
-            val metaBuilder = StringBuilder("Episode ${episode.episodeNumber}")
-            if (durationText.isNotEmpty()) metaBuilder.append(" • $durationText")
-            if (plotSnippet.isNotEmpty()) metaBuilder.append(" • $plotSnippet")
-            
-            binding.tvDuration.text = metaBuilder.toString()
-            binding.tvPlot.text = episode.plot ?: ""
+            binding.tvDuration.text = durationText
+            binding.tvDuration.visibility = if (durationText.isEmpty()) View.GONE else View.VISIBLE
+
+            val identityKey = watchedIdentityKey(episode)
+            val watched = identityKey != null && watchedKeys.contains(identityKey)
+            val isActive = episode.episodeId == selectedEpisodeId
+
+            // Resume progress (only if we have a real position within a known duration)
+            val durationMs = episode.duration * 1000L
+            val resume = episode.resumePosition
+            val hasProgress = resume in 1 until durationMs.coerceAtLeast(1) && !watched
+            if (hasProgress) {
+                binding.layoutProgress.visibility = View.VISIBLE
+                val pct = (resume.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+                binding.vProgressFill.post {
+                    val parent = binding.layoutProgress.width
+                    val lp = binding.vProgressFill.layoutParams
+                    lp.width = (parent * pct).toInt()
+                    binding.vProgressFill.layoutParams = lp
+                }
+            } else {
+                binding.layoutProgress.visibility = View.GONE
+            }
+
+            // Subtitle line
+            binding.tvSubtitle.text = when {
+                watched -> "WATCHED" + (if (durationText.isNotEmpty()) " · $durationText" else "")
+                hasProgress -> {
+                    val pct = ((resume.toFloat() / durationMs.toFloat()) * 100).toInt().coerceIn(0, 100)
+                    "RESUME · $pct%"
+                }
+                !episode.releaseDate.isNullOrBlank() -> episode.releaseDate
+                else -> "EPISODE ${episode.episodeNumber}"
+            }
+
+            // Badge: watched (green + check), active (cyan + play), or default (dark + play)
+            when {
+                watched -> {
+                    binding.vBadgeBg.setBackgroundResource(R.drawable.cin_series_ep_badge_watched)
+                    binding.ivWatchedIndicator.visibility = View.VISIBLE
+                    binding.ivPlayIcon.visibility = View.GONE
+                }
+                isActive -> {
+                    binding.vBadgeBg.setBackgroundResource(R.drawable.cin_series_ep_badge_active)
+                    binding.ivWatchedIndicator.visibility = View.GONE
+                    binding.ivPlayIcon.visibility = View.VISIBLE
+                    binding.ivPlayIcon.setColorFilter(0xFF041014.toInt())
+                }
+                else -> {
+                    binding.vBadgeBg.setBackgroundResource(R.drawable.cin_series_ep_badge_play)
+                    binding.ivWatchedIndicator.visibility = View.GONE
+                    binding.ivPlayIcon.visibility = View.VISIBLE
+                    binding.ivPlayIcon.setColorFilter(0xFFF1F5F9.toInt())
+                }
+            }
 
             val imageUrl = if (!episode.thumbnail.isNullOrEmpty()) episode.thumbnail else seriesCoverUrl
-            
             Glide.with(binding.root.context)
                 .load(imageUrl)
                 .transition(DrawableTransitionOptions.withCrossFade())
-                .placeholder(com.tvonnet.debridxtreamiptv.R.drawable.placeholder_poster)
-                .error(com.tvonnet.debridxtreamiptv.R.drawable.placeholder_poster)
+                .placeholder(R.drawable.placeholder_poster)
+                .error(R.drawable.placeholder_poster)
                 .into(binding.ivEpisodeThumb)
-
-            val identityKey = watchedIdentityKey(episode)
-            if (identityKey != null) {
-                binding.ivWatchedIndicator.visibility = if (watchedKeys.contains(identityKey)) android.view.View.VISIBLE else android.view.View.GONE
-            } else {
-                binding.ivWatchedIndicator.visibility = android.view.View.GONE
-            }
         }
-        
+
         private fun formatDuration(seconds: Long): String {
             if (seconds <= 0) return ""
             val m = seconds / 60
-            return "${m} min"
+            return "${m}M"
         }
 
         private fun watchedIdentityKey(episode: EpisodeEntityV2): String? {
@@ -201,7 +248,6 @@ class EpisodesAdapterV2(
                 ?: imdbId?.trim()?.takeIf { it.isNotBlank() }
                 ?: seriesId?.trim()?.takeIf { it.isNotBlank() }
         }
-
     }
 
     object EpisodeDiffCallback : DiffUtil.ItemCallback<EpisodeEntityV2>() {

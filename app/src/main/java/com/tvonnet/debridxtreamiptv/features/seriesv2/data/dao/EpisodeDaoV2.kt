@@ -44,5 +44,9 @@ interface EpisodeDaoV2 {
     @Query("SELECT * FROM episodes_v2_core WHERE episode_id = :episodeId LIMIT 1")
     suspend fun getEpisodeById(episodeId: String): EpisodeEntityV2?
 
+    /** Matching episode within a sibling series, used for cross-category aggregation. */
+    @Query("SELECT * FROM episodes_v2_core WHERE series_id = :seriesId AND season_number = :seasonNum AND episode_number = :episodeNum LIMIT 1")
+    suspend fun getEpisode(seriesId: String, seasonNum: Int, episodeNum: Int): EpisodeEntityV2?
+
     // Added for Playlist Logic (Get specific episode logic potentially needed later or just use list)
 }

@@ -288,26 +288,23 @@ class SourceSelectionBottomSheet(
     }
 
     private fun buildDynamicTypeOptions(sources: List<MovieSource>): Array<String> {
+        // Filter by actual source names (addon / provider / IPTV) so users can
+        // isolate any single source; "RD Cached" stays as a cross-source shortcut.
         val options = mutableListOf("All")
         if (sources.any { it.cacheStatus == DebridCacheStatus.VERIFIED_CACHED }) {
             options.add("RD Cached")
         }
-        if (sources.any { it.cacheStatus == DebridCacheStatus.DIRECT_STREAM }) {
-            options.add("Direct")
-        }
-        if (sources.any { it.cacheStatus == DebridCacheStatus.NOT_CACHED }) {
-            options.add("Torrent/Add-on")
-        }
-        if (sources.any { it.cacheStatus == DebridCacheStatus.UNKNOWN }) {
-            options.add("Unknown")
-        }
+        sources.map { SourceFilterUtils.sourceDisplayName(it) }
+            .distinct()
+            .sortedBy { it.lowercase() }
+            .forEach { options.add(it) }
         return options.toTypedArray()
     }
 
     private fun updateFilterOptions() {
         chipQuality.text = "Quality: ${filterState.preferredQuality ?: "All"} ▼"
         chipLanguage.text = "Language: ${filterState.preferredLanguage ?: "All"} ▼"
-        chipType.text = "Type: ${filterState.preferredType ?: "All"} ▼"
+        chipType.text = "Source: ${filterState.preferredType ?: "All"} ▼"
         
         layoutSourceFilters.visibility = View.VISIBLE
     }

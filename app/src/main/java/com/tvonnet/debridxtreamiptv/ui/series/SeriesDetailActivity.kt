@@ -2,12 +2,19 @@ package com.tvonnet.debridxtreamiptv.ui.series
 
 import android.app.Activity
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.PopupWindow
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.AppCompatButton
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -55,6 +62,7 @@ import javax.inject.Inject
 class SeriesDetailActivity : AppCompatActivity() {
 
     companion object {
+        private const val MAX_AUTO_FALLBACK_ATTEMPTS = 3
         const val EXTRA_SERIES_ID = "SERIES_ID"
         const val EXTRA_SERIES_NAME = "SERIES_NAME"
         const val EXTRA_SERIES_COVER = "SERIES_COVER"
@@ -87,6 +95,9 @@ class SeriesDetailActivity : AppCompatActivity() {
     @Inject
     lateinit var playbackResolver: com.tvonnet.debridxtreamiptv.data.debrid.repository.PlaybackResolver
 
+    @Inject
+    lateinit var seriesRepositoryV2: com.tvonnet.debridxtreamiptv.features.seriesv2.data.repository.XtreamSeriesRepositoryV2
+
     private var isDebridContent: Boolean = false
 
     private lateinit var ivBackdrop: ImageView
@@ -101,15 +112,33 @@ class SeriesDetailActivity : AppCompatActivity() {
     private lateinit var rvSeasons: RecyclerView
     private lateinit var rvEpisodes: RecyclerView
     private lateinit var tvEmptyEpisodes: TextView
-    private lateinit var btnWatchNow: Button
-    private lateinit var btnWatchTrailer: Button
-    private lateinit var btnAddFavorite: Button
+    private lateinit var btnWatchNow: AppCompatButton
+    private lateinit var btnWatchTrailer: AppCompatButton
+    private lateinit var btnAddFavorite: ImageButton
     private lateinit var btnRefresh: Button
     private lateinit var loadingOverlay: View
     private lateinit var tvLoadingMessage: TextView
 
+    // New cinematic views
+    private lateinit var tvContentType: TextView
+    private lateinit var tvYear: TextView
+    private lateinit var tvSeasonEpisodeCount: TextView
+    private lateinit var tvQualityBadge: TextView
+    private lateinit var tvCcBadge: TextView
+    private lateinit var layoutRdSummary: LinearLayout
+    private lateinit var tvRdSummary: TextView
+    private lateinit var layoutResume: LinearLayout
+    private lateinit var tvResumeLabel: TextView
+    private lateinit var tvResumeRight: TextView
+    private lateinit var vResumeProgress: View
+    private lateinit var tvResumeEpTitle: TextView
+    private lateinit var btnSeasonSelector: AppCompatButton
+    private lateinit var tvSeasonProgress: TextView
+    private lateinit var tvPremiumBadge: TextView
+
+    private var isFavorite: Boolean = false
     private lateinit var seasonsAdapter: SeriesSeasonAdapter
-    private lateinit var episodesAdapter: SeriesEpisodeAdapter
+    private lateinit var cinEpisodeAdapter: CinEpisodeAdapter
 
     private val viewModel: SeriesDetailViewModel by viewModels()
 
@@ -137,6 +166,9 @@ class SeriesDetailActivity : AppCompatActivity() {
     private val failedDebridStreamIdsByEpisode = mutableMapOf<String, MutableSet<String>>()
     private var activeDebridSourceRequestEpisodeId: String? = null
     private var openedFromPlaybackFailure: Boolean = false
+    // Consecutive automatic source-failover attempts; the picker resets it so a
+    // bad night of sources degrades to manual choice instead of an endless chain.
+    private var autoFallbackAttempts = 0
 
     private val playerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -155,11 +187,14 @@ class SeriesDetailActivity : AppCompatActivity() {
                 failedDebridStreamIdsByEpisode.getOrPut(episode.id) { linkedSetOf() }.add(failedStreamId)
                 markDebridEpisodeSourceCached(episode.id, failedStreamId, false)
             }
-            val allowAutoPlayNext = autoPlayNext && !openedFromPlaybackFailure
+            val allowAutoPlayNext = autoPlayNext && !openedFromPlaybackFailure &&
+                autoFallbackAttempts < MAX_AUTO_FALLBACK_ATTEMPTS
             notifyDebridFailure(failReason, allowAutoPlayNext)
             if (allowAutoPlayNext && !failedStreamId.isNullOrBlank() && episode != null) {
+                autoFallbackAttempts++
                 autoPlayNextDebridEpisodeSource(episode, failedStreamId)
             } else {
+                autoFallbackAttempts = 0
                 lastDebridEpisode?.let {
                     fetchAndShowDebridSources(it, consumeDebridReturnFocusStreamIds(it.id))
                 }
@@ -212,12 +247,29 @@ class SeriesDetailActivity : AppCompatActivity() {
         loadingOverlay = findViewById(R.id.layout_loading_overlay)
         tvLoadingMessage = findViewById(R.id.tv_loading_message)
 
+        // New cinematic views
+        tvContentType = findViewById(R.id.tv_content_type)
+        tvYear = findViewById(R.id.tv_year)
+        tvSeasonEpisodeCount = findViewById(R.id.tv_season_episode_count)
+        tvQualityBadge = findViewById(R.id.tv_quality_badge)
+        tvCcBadge = findViewById(R.id.tv_cc_badge)
+        layoutRdSummary = findViewById(R.id.layout_rd_summary)
+        tvRdSummary = findViewById(R.id.tv_rd_summary)
+        layoutResume = findViewById(R.id.layout_resume)
+        tvResumeLabel = findViewById(R.id.tv_resume_label)
+        tvResumeRight = findViewById(R.id.tv_resume_right)
+        vResumeProgress = findViewById(R.id.v_resume_progress)
+        tvResumeEpTitle = findViewById(R.id.tv_resume_ep_title)
+        btnSeasonSelector = findViewById(R.id.btn_season_selector)
+        tvSeasonProgress = findViewById(R.id.tv_season_progress)
+        tvPremiumBadge = findViewById(R.id.tv_premium_badge)
+
         rvSeasons.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         rvSeasons.setHasFixedSize(true)
-        androidx.recyclerview.widget.LinearSnapHelper().attachToRecyclerView(rvSeasons)
         rvEpisodes.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         rvEpisodes.setHasFixedSize(true)
 
+        setupFocusAnimations()
     }
 
     private fun setupAdapters() {
@@ -225,28 +277,30 @@ class SeriesDetailActivity : AppCompatActivity() {
             onSeasonSelected = { season ->
                 selectedSeasonKey = season.key
                 showEpisodesForSeason(season.key)
+                updateSeasonButton()
             },
             onSeasonFocused = { season ->
                 selectedSeasonKey = season.key
                 showEpisodesForSeason(season.key)
+                updateSeasonButton()
             }
         )
         rvSeasons.adapter = seasonsAdapter
 
-        episodesAdapter = SeriesEpisodeAdapter(
+        cinEpisodeAdapter = CinEpisodeAdapter(
             onEpisodeClick = { episode ->
                 selectedEpisode = episode
-                episodesAdapter.setSelectedEpisode(episode.id)
+                cinEpisodeAdapter.setSelectedEpisode(episode.id)
                 updateWatchNowState()
                 playEpisode(episode)
             },
             onEpisodeFocused = { episode ->
                 selectedEpisode = episode
-                episodesAdapter.setSelectedEpisode(episode.id)
+                cinEpisodeAdapter.setSelectedEpisode(episode.id)
                 updateWatchNowState()
             }
         )
-        rvEpisodes.adapter = episodesAdapter
+        rvEpisodes.adapter = cinEpisodeAdapter
     }
 
     private fun getSeriesDataFromIntent() {
@@ -271,9 +325,6 @@ class SeriesDetailActivity : AppCompatActivity() {
             finish()
             return
         }
-        
-        // Week 14: Set transition name for Shared Element Transition
-        ivPoster.transitionName = "series_poster_$seriesId"
     }
 
     private fun setupClickListeners() {
@@ -294,60 +345,150 @@ class SeriesDetailActivity : AppCompatActivity() {
                 refreshSeries(id)
             }
         }
+
+        btnSeasonSelector.setOnClickListener {
+            showSeasonPopup()
+        }
     }
+
+    private fun showSeasonPopup() {
+        val seasons = currentDetail?.seasons ?: currentDetail?.episodes?.keys?.sorted()?.map { key ->
+            XtreamSeasonInfo(season_number = key, name = "Season ${key.toIntOrNull() ?: key}", overview = null, air_date = null, cover = null)
+        } ?: return
+
+        val popupView = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(0xFF0E0D15.toInt())
+            setPadding(dp(6), dp(6), dp(6), dp(6))
+        }
+
+        val headerTv = TextView(this).apply {
+            text = "SELECT SEASON"
+            setTextColor(0xFF64748B.toInt())
+            textSize = 5f
+            typeface = android.graphics.Typeface.MONOSPACE
+            letterSpacing = 0.12f
+            setPadding(dp(5), dp(3), dp(5), dp(4))
+        }
+        popupView.addView(headerTv)
+
+        val popup = PopupWindow(
+            popupView,
+            dp(118),
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xFF0E0D15.toInt()))
+            elevation = 12f
+        }
+
+        val episodeKeys = currentDetail?.episodes?.keys?.sortedWith(compareBy { it.toIntOrNull() ?: Int.MAX_VALUE }) ?: emptyList()
+        episodeKeys.forEachIndexed { index, key ->
+            val seasonNum = key.toIntOrNull() ?: (index + 1)
+            val epCount = currentDetail?.episodes?.get(key)?.size ?: 0
+            val isActive = key == selectedSeasonKey
+
+            val itemView = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(7), dp(0), dp(7), dp(0))
+                minimumHeight = dp(22)
+                isFocusable = true
+                isClickable = true
+                if (isActive) setBackgroundColor(0x0F00F0FF)
+                setOnClickListener {
+                    selectedSeasonKey = key
+                    showEpisodesForSeason(key)
+                    updateSeasonButton()
+                    popup.dismiss()
+                }
+                setOnFocusChangeListener { v, hasFocus ->
+                    if (hasFocus) v.setBackgroundColor(0x2400F0FF)
+                    else v.setBackgroundColor(if (isActive) 0x0F00F0FF else 0x00000000)
+                }
+            }
+
+            val labelTv = TextView(this).apply {
+                text = "Season $seasonNum"
+                setTextColor(if (isActive) 0xFF00F0FF.toInt() else 0xFFE2E8F0.toInt())
+                textSize = 7f
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            itemView.addView(labelTv)
+
+            val countTv = TextView(this).apply {
+                text = "$epCount EP"
+                setTextColor(0xFF64748B.toInt())
+                textSize = 6f
+                typeface = android.graphics.Typeface.MONOSPACE
+            }
+            itemView.addView(countTv)
+
+            if (isActive) {
+                val dot = TextView(this).apply {
+                    text = " ●"
+                    setTextColor(0xFF00F0FF.toInt())
+                    textSize = 6f
+                }
+                itemView.addView(dot)
+            }
+
+            popupView.addView(itemView)
+        }
+
+        popup.showAsDropDown(btnSeasonSelector, 0, -btnSeasonSelector.height - popupView.measuredHeight, Gravity.START or Gravity.BOTTOM)
+    }
+
+    private fun updateSeasonButton() {
+        val seasonNum = selectedSeasonKey?.toIntOrNull()
+        btnSeasonSelector.text = if (seasonNum != null) "SEASON $seasonNum" else "SEASON"
+    }
+
+    private fun setupFocusAnimations() {
+        val focusTargets = listOf<View>(btnWatchNow, btnWatchTrailer, btnAddFavorite, btnSeasonSelector)
+        focusTargets.forEach { view ->
+            view.setOnFocusChangeListener { v, hasFocus ->
+                val scale = if (hasFocus) 1.05f else 1.0f
+                val alpha = if (hasFocus) 1.0f else 0.9f
+                v.animate().scaleX(scale).scaleY(scale).alpha(alpha).setDuration(150).start()
+            }
+        }
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun displaySeriesInfo() {
         tvTitle.text = seriesName ?: getString(R.string.series_detail_title_placeholder)
 
         val ratingValue = seriesRating?.toDoubleOrNull() ?: 0.0
-        displayRating(ratingValue)
+        tvRatingPercentage.text = String.format("%.1f", ratingValue)
 
-        val yearText = buildGenreYearText(seriesGenre, seriesReleaseDate)
-        tvGenreYear.text = yearText
+        // Year
+        val year = seriesReleaseDate?.takeIf { it.isNotBlank() }?.take(4)
+        tvYear.text = year ?: ""
 
-        if (!seriesDirector.isNullOrBlank()) {
-            tvDirector.visibility = View.VISIBLE
-            tvDirector.text = getString(R.string.movie_detail_directed_by, seriesDirector)
-        } else {
-            tvDirector.visibility = View.GONE
-        }
+        // Genre (just the genre text, no year)
+        tvGenreYear.text = seriesGenre?.takeIf { it.isNotBlank() } ?: ""
 
-        if (!seriesCast.isNullOrBlank()) {
-            tvCast.visibility = View.VISIBLE
-            tvCast.text = getString(R.string.movie_detail_cast, seriesCast)
-        } else {
-            tvCast.visibility = View.GONE
-        }
+        // Content type label
+        tvContentType.text = if (isDebridContent) "LIMITED SERIES" else "TV SERIES"
 
         tvDescription.text = seriesPlot?.takeIf { it.isNotBlank() }
             ?: getString(R.string.series_detail_description_placeholder)
 
-        if (!seriesBackdrop.isNullOrBlank()) {
+        // Backdrop
+        val backdropUrl = seriesBackdrop ?: seriesCover
+        if (!backdropUrl.isNullOrBlank()) {
             Glide.with(this)
-                .load(seriesBackdrop)
+                .load(backdropUrl)
                 .centerCrop()
                 .into(ivBackdrop)
         } else {
             ivBackdrop.setImageDrawable(null)
         }
 
-        // Removed postpone logic to fix build
-        // supportPostponeEnterTransition()
-
-        if (!seriesCover.isNullOrBlank()) {
-            Glide.with(this)
-                .load(seriesCover)
-                .placeholder(R.drawable.tv_card_placeholder)
-                .error(R.drawable.tv_card_placeholder)
-                .centerCrop()
-                .into(ivPoster)
-        } else {
-            ivPoster.setImageResource(R.drawable.tv_card_placeholder)
-        }
-        
-        android.util.Log.d("SeriesDetailActivity", "Displaying series info: $seriesName")
-
         updateWatchNowState()
+        updateSeasonButton()
     }
     
 
@@ -362,10 +503,7 @@ class SeriesDetailActivity : AppCompatActivity() {
     }
 
     private fun displayRating(rating: Double) {
-        val stars = (rating / 2.0).coerceAtLeast(0.0).toInt().coerceAtMost(5)
-        val starString = "★".repeat(stars) + "☆".repeat(5 - stars)
-        tvRatingStars.text = starString
-        tvRatingPercentage.text = getString(R.string.movie_detail_rating_format, rating)
+        tvRatingPercentage.text = String.format("%.1f", rating)
     }
 
     private fun buildGenreYearText(genre: String?, releaseDate: String?): String {
@@ -533,11 +671,8 @@ class SeriesDetailActivity : AppCompatActivity() {
             val initialKey = selectedSeasonKey ?: seasonItems.first().key
             selectedSeasonKey = initialKey
             showEpisodesForSeason(initialKey)
-            rvSeasons.post {
-                rvSeasons.post {
-                    rvSeasons.requestFocus()
-                }
-            }
+            updateSeasonButton()
+            rvEpisodes.post { rvEpisodes.requestFocus() }
         } else {
             showEpisodes(emptyList())
         }
@@ -581,22 +716,99 @@ class SeriesDetailActivity : AppCompatActivity() {
     private fun showEpisodes(episodes: List<EpisodeUiModel>) {
         if (episodes.isEmpty()) {
             tvEmptyEpisodes.visibility = View.VISIBLE
-            episodesAdapter.submitEpisodes(emptyList(), null)
+            cinEpisodeAdapter.submitEpisodes(emptyList(), null)
             selectedEpisode = null
         } else {
             tvEmptyEpisodes.visibility = View.GONE
             val currentSelectionId = selectedEpisode?.id
             val newSelection = episodes.firstOrNull { it.id == currentSelectionId } ?: episodes.first()
             selectedEpisode = newSelection
-            episodesAdapter.submitEpisodes(episodes, newSelection.id)
-            // Removed auto-focus to prevent jumping when navigating seasons
-            // rvEpisodes.post { rvEpisodes.requestFocus() }
+            cinEpisodeAdapter.submitEpisodes(episodes, newSelection.id)
         }
         updateWatchNowState()
+        updateSeasonProgress(episodes)
+        updateResumeSection(episodes)
+    }
+
+    private fun updateSeasonProgress(episodes: List<EpisodeUiModel>) {
+        val watchedCount = episodes.count { it.isWatched }
+        tvSeasonProgress.text = "$watchedCount / ${episodes.size} WATCHED"
+
+        // Update season/episode count in metadata
+        val totalSeasons = currentDetail?.seasons?.size
+            ?: currentDetail?.episodes?.keys?.size ?: 0
+        val totalEpisodes = currentDetail?.episodes?.values?.sumOf { it.size } ?: episodes.size
+        tvSeasonEpisodeCount.text = "$totalSeasons SEASONS · $totalEpisodes EPISODES"
+    }
+
+    private fun updateResumeSection(episodes: List<EpisodeUiModel>) {
+        val resumeEp = episodes.firstOrNull { it.resumePosition > 0 && !it.isWatched }
+        if (resumeEp != null && resumeEp.durationMinutes != null && resumeEp.durationMinutes > 0) {
+            layoutResume.visibility = View.VISIBLE
+            val seasonNum = selectedSeasonKey?.toIntOrNull() ?: 1
+            val epNum = resumeEp.episodeNumber ?: 1
+            tvResumeLabel.text = "CONTINUE · S${String.format("%02d", seasonNum)} · E${String.format("%02d", epNum)}"
+
+            val totalMs = resumeEp.durationMinutes * 60_000L
+            val pct = ((resumeEp.resumePosition.toFloat() / totalMs) * 100).toInt().coerceIn(0, 100)
+            val minsLeft = ((totalMs - resumeEp.resumePosition) / 60_000L).coerceAtLeast(1)
+            tvResumeRight.text = "$pct% · ${minsLeft}M LEFT"
+            tvResumeEpTitle.text = resumeEp.title
+
+            vResumeProgress.post {
+                val parent = vResumeProgress.parent as? View ?: return@post
+                val lp = vResumeProgress.layoutParams
+                lp.width = (parent.width * pct / 100f).toInt()
+                vResumeProgress.layoutParams = lp
+            }
+        } else {
+            layoutResume.visibility = View.GONE
+        }
     }
 
     private fun updateWatchNowState() {
         btnWatchNow.isEnabled = selectedEpisode != null
+        val ep = selectedEpisode
+        val seasonNum = selectedSeasonKey?.toIntOrNull() ?: 1
+        val epNum = ep?.episodeNumber ?: 1
+        val epLabel = "S${String.format("%02d", seasonNum)} · E${String.format("%02d", epNum)}"
+        val hasResume = ep != null && ep.resumePosition > 0 && !ep.isWatched
+        btnWatchNow.text = if (hasResume) "Resume $epLabel" else "Play $epLabel"
+    }
+
+    private fun updateRdSummary(sources: List<com.tvonnet.debridxtreamiptv.data.repository.MovieSource>) {
+        if (sources.isEmpty()) {
+            layoutRdSummary.visibility = View.GONE
+            return
+        }
+        layoutRdSummary.visibility = View.VISIBLE
+        val cachedCount = sources.count { it.isCached == true }
+        val bestQuality = when {
+            sources.any { it.quality?.contains("4K", true) == true || it.quality?.contains("2160", true) == true } -> "4K"
+            sources.any { it.quality?.contains("1080", true) == true } -> "1080P"
+            sources.any { it.quality?.contains("720", true) == true } -> "720P"
+            else -> ""
+        }
+        val bestSize = sources.filter { it.isCached == true }
+            .mapNotNull { it.sizeBytes }
+            .maxOrNull()
+        val sizeLabel = if (bestSize != null) " ${formatSizeLabel(bestSize)}" else ""
+        val qualityPart = if (bestQuality.isNotEmpty()) " · BEST $bestQuality$sizeLabel" else ""
+        tvRdSummary.text = "${sources.size} SOURCES / EPISODE · $cachedCount CACHED$qualityPart"
+
+        // Update quality badge
+        if (bestQuality.isNotEmpty()) {
+            tvQualityBadge.visibility = View.VISIBLE
+            tvQualityBadge.text = bestQuality
+        }
+    }
+
+    private fun formatSizeLabel(bytes: Long): String {
+        return when {
+            bytes >= 1_073_741_824L -> String.format("%.1f GB", bytes / 1_073_741_824.0)
+            bytes >= 1_048_576L -> String.format("%.0f MB", bytes / 1_048_576.0)
+            else -> "${bytes / 1024} KB"
+        }
     }
 
     private suspend fun handleSeriesDetailError(error: Exception) {
@@ -761,7 +973,11 @@ class SeriesDetailActivity : AppCompatActivity() {
                         episode = episode.episodeNumber
                     ) + PlaybackDiagnosticsRecorder.sourceFields(this, source)
                 )
-                playDebridEpisode(source, episode)
+                if (source.sourceType == "IPTV") {
+                    playIptvSourceFromDebrid(source, episode)
+                } else {
+                    playDebridEpisode(source, episode)
+                }
             },
             onStateChanged = { state ->
                 debridFilterStateByEpisode[episode.id] = state
@@ -806,7 +1022,7 @@ class SeriesDetailActivity : AppCompatActivity() {
             try {
                 val (seasonNumber, episodeNumber) = episodeFetchContext
                 
-                val sources = withContext(Dispatchers.IO) {
+                val debridSources = withContext(Dispatchers.IO) {
                     unifiedSourceProvider.getSeriesEpisodeSources(
                         seriesId = seriesId,
                         seasonNumber = seasonNumber,
@@ -815,8 +1031,13 @@ class SeriesDetailActivity : AppCompatActivity() {
                         yearHint = seriesReleaseDate?.take(4)
                     )
                 }
-                android.util.Log.e("SeriesDetailActivity", "Received ${sources.size} sources from provider. Updating bottom sheet.")
+                // Cross-source: append IPTV listings of the same show (matched by
+                // title across the Xtream catalog). DB-only, effectively instant.
+                val iptvGroups = iptvGroupsForEpisode(seasonNumber, episodeNumber)
+                val sources = debridSources + mapIptvGroupsToSources(iptvGroups)
+                android.util.Log.e("SeriesDetailActivity", "Received ${debridSources.size} debrid + ${sources.size - debridSources.size} IPTV sources. Updating bottom sheet.")
                 cachedDebridSourcesByEpisode[episode.id] = sources
+                updateRdSummary(sources)
                 if (activeDebridSourceRequestEpisodeId != requestEpisodeId || selectedEpisode?.id != requestEpisodeId) {
                     android.util.Log.d("SeriesDetailActivity", "Ignoring stale Debrid sources for episode=$requestEpisodeId")
                     return@launch
@@ -833,15 +1054,197 @@ class SeriesDetailActivity : AppCompatActivity() {
                         mapOf("sourceListCacheHit" to false)
                 )
                 bottomSheet.showSources(sources)
-                refreshMediaFusionCacheStatus(episode.id, sources, bottomSheet)
+
+                // Background: verify IPTV rows (drop listings lacking this episode,
+                // fill playable URLs), then run the MediaFusion refresh on the final
+                // list so the two updates can't clobber each other.
+                val verifiedGroups = verifyIptvGroups(iptvGroups, seasonNumber, episodeNumber)
+                val finalSources = debridSources + mapIptvGroupsToSources(verifiedGroups)
+                if (activeDebridSourceRequestEpisodeId != requestEpisodeId || selectedEpisode?.id != requestEpisodeId) return@launch
+                cachedDebridSourcesByEpisode[episode.id] = finalSources
+                if (finalSources != sources) {
+                    bottomSheet.showSources(finalSources)
+                }
+                refreshMediaFusionCacheStatus(episode.id, finalSources, bottomSheet)
             } catch (e: Exception) {
                 android.util.Log.e("SeriesDetailActivity", "Error fetching sources: ${e.message}", e)
                 if (activeDebridSourceRequestEpisodeId != requestEpisodeId || selectedEpisode?.id != requestEpisodeId) {
                     android.util.Log.d("SeriesDetailActivity", "Ignoring stale Debrid source error for episode=$requestEpisodeId")
                     return@launch
                 }
-                bottomSheet.showError(e.message ?: "Failed to load sources")
+                // Debrid failed — IPTV listings of the same show may still be playable.
+                // Show them immediately; verify in the background (never before showing).
+                val (s, ep) = episodeFetchContext
+                val iptvFallbackGroups = iptvGroupsForEpisode(s, ep)
+                val iptvFallback = mapIptvGroupsToSources(iptvFallbackGroups)
+                if (iptvFallback.isNotEmpty()) {
+                    cachedDebridSourcesByEpisode[episode.id] = iptvFallback
+                    bottomSheet.showSources(iptvFallback)
+                    val verifiedFallback = mapIptvGroupsToSources(verifyIptvGroups(iptvFallbackGroups, s, ep))
+                    if (activeDebridSourceRequestEpisodeId != requestEpisodeId || selectedEpisode?.id != requestEpisodeId) return@launch
+                    if (verifiedFallback.isNotEmpty() && verifiedFallback != iptvFallback) {
+                        cachedDebridSourcesByEpisode[episode.id] = verifiedFallback
+                        bottomSheet.showSources(verifiedFallback)
+                    }
+                } else {
+                    bottomSheet.showError(e.message ?: "Failed to load sources")
+                }
             }
+        }
+    }
+
+    /** IPTV cross-category aggregation for this show (DB-only, instant). */
+    private suspend fun iptvGroupsForEpisode(
+        seasonNumber: Int,
+        episodeNumber: Int
+    ): List<com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.IptvStreamGroup> {
+        val title = seriesName?.takeIf { it.isNotBlank() } ?: return emptyList()
+        return try {
+            withContext(Dispatchers.IO) {
+                seriesRepositoryV2.aggregateStreamsForTitle(
+                    title, seasonNumber, episodeNumber, yearHint = seriesReleaseDate?.take(4)
+                )
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("SeriesDetailActivity", "iptvGroupsForEpisode failed: ${e.message}")
+            emptyList()
+        }
+    }
+
+    /** Throttled availability sweep over the IPTV groups; never throws. */
+    private suspend fun verifyIptvGroups(
+        groups: List<com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.IptvStreamGroup>,
+        seasonNumber: Int,
+        episodeNumber: Int
+    ): List<com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.IptvStreamGroup> {
+        if (groups.isEmpty()) return groups
+        return try {
+            withContext(Dispatchers.IO) {
+                seriesRepositoryV2.verifyStreamGroups(groups, seasonNumber, episodeNumber)
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("SeriesDetailActivity", "verifyIptvGroups failed: ${e.message}")
+            groups
+        }
+    }
+
+    /**
+     * Map the IPTV cross-category aggregation onto [MovieSource] rows so the Debrid
+     * source sheet can offer the same show's Xtream streams alongside debrid results.
+     * Unresolved listings carry an empty direct_source and resolve on selection.
+     */
+    private fun mapIptvGroupsToSources(
+        groups: List<com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.IptvStreamGroup>
+    ): List<com.tvonnet.debridxtreamiptv.data.repository.MovieSource> {
+        return try {
+            groups.flatMap { group ->
+                group.streams.map { opt ->
+                    com.tvonnet.debridxtreamiptv.data.repository.MovieSource(
+                        stream = com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo(
+                            num = null,
+                            name = "${group.categoryName} · ${opt.name}",
+                            stream_type = "series",
+                            stream_id = "iptv:${opt.sourceSeriesId}",
+                            stream_icon = null,
+                            rating = null,
+                            rating_5based = null,
+                            added = null,
+                            category_id = group.categoryId,
+                            category_ids = null,
+                            container_extension = opt.containerExtension,
+                            custom_sid = opt.streamId.takeUnless { it.startsWith("pending:") },
+                            direct_source = opt.playUrl.ifBlank { null },
+                            releaseDate = null,
+                            duration = null,
+                            plot = null,
+                            cast = null,
+                            director = null,
+                            genre = null,
+                            youtube_trailer = null,
+                            cover = null,
+                            rating_imdb = null
+                        ),
+                        category = null,
+                        // The source row renders `label` as its title — lead with the
+                        // playlist category so the user sees where each stream lives.
+                        label = "${group.categoryName} · ${opt.name}",
+                        isPrimary = false,
+                        languages = opt.languages.map { it.code.lowercase() },
+                        quality = opt.quality.label,
+                        isCached = true,
+                        cacheStatus = DebridCacheStatus.DIRECT_STREAM,
+                        provider = "IPTV",
+                        sourceType = "IPTV",
+                        sourceName = group.categoryName
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("SeriesDetailActivity", "mapIptvGroupsToSources failed: ${e.message}")
+            emptyList()
+        }
+    }
+
+    /** Play an injected IPTV source picked from the Debrid source sheet. */
+    private fun playIptvSourceFromDebrid(
+        source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource,
+        episode: EpisodeUiModel
+    ) {
+        val seasonNumber = selectedSeasonKey?.toIntOrNull()
+        val episodeNumber = episode.episodeNumber
+        val iptvSeriesId = source.stream.stream_id?.removePrefix("iptv:")
+
+        lifecycleScope.launch {
+            var url = source.stream.direct_source
+            var iptvEpisodeId = source.stream.custom_sid
+            if (url.isNullOrBlank()) {
+                if (iptvSeriesId.isNullOrBlank() || seasonNumber == null || episodeNumber == null) {
+                    Toast.makeText(this@SeriesDetailActivity, "Stream unavailable", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                showLoading(true)
+                val resolved = withContext(Dispatchers.IO) {
+                    try {
+                        seriesRepositoryV2.resolveIptvPlayUrl(iptvSeriesId, seasonNumber, episodeNumber)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        android.util.Log.w("SeriesDetailActivity", "resolveIptvPlayUrl failed: ${e.message}")
+                        null
+                    }
+                }
+                showLoading(false)
+                if (resolved == null) {
+                    Toast.makeText(
+                        this@SeriesDetailActivity,
+                        "Episode not available in this IPTV category",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return@launch
+                }
+                url = resolved.first
+                iptvEpisodeId = resolved.third
+            }
+
+            val intent = PlayerActivity.createIntent(
+                context = this@SeriesDetailActivity,
+                streamUrl = url!!,
+                title = episode.title,
+                contentId = iptvEpisodeId ?: "iptv:$iptvSeriesId:$seasonNumber:$episodeNumber",
+                contentType = ContentType.EPISODE,
+                posterUrl = seriesCover ?: episode.thumbnailUrl,
+                backdropUrl = seriesBackdrop,
+                seriesTitle = seriesName,
+                episodeTitle = episode.title,
+                seasonNumber = seasonNumber,
+                episodeNumber = episodeNumber
+            )
+            iptvSeriesId?.let { intent.putExtra(PlayerActivity.EXTRA_SERIES_ID, it) }
+            startActivity(intent)
         }
     }
 
@@ -1276,11 +1679,14 @@ class SeriesDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateFavoriteButton(isFavorite: Boolean) {
-        btnAddFavorite.text = if (isFavorite) {
-            getString(R.string.series_detail_remove_from_favorites)
+    private fun updateFavoriteButton(isFav: Boolean) {
+        this.isFavorite = isFav
+        if (isFav) {
+            btnAddFavorite.setImageResource(R.drawable.ic_favorite)
+            btnAddFavorite.imageTintList = android.content.res.ColorStateList.valueOf(0xFFFF3366.toInt())
         } else {
-            getString(R.string.series_detail_add_to_favorites)
+            btnAddFavorite.setImageResource(R.drawable.ic_favorite_border)
+            btnAddFavorite.imageTintList = resources.getColorStateList(R.color.cin_detail_focus_text, theme)
         }
     }
 
@@ -1337,7 +1743,7 @@ class SeriesDetailActivity : AppCompatActivity() {
         if (!::btnWatchTrailer.isInitialized) return
         val canResolveTrailer = TrailerValueParser.parse(seriesTrailerUrl) != null || seriesId?.toIntOrNull() != null
         btnWatchTrailer.isEnabled = canResolveTrailer && !isTrailerLookupInProgress
-        btnWatchTrailer.alpha = if (canResolveTrailer) 1.0f else 0.45f
+        btnWatchTrailer.alpha = if (canResolveTrailer && !isTrailerLookupInProgress) 1.0f else 0.45f
     }
 
     private fun showLoading(show: Boolean) {
