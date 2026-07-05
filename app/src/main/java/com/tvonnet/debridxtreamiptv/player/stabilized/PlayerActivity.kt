@@ -225,6 +225,12 @@ class PlayerActivity : AppCompatActivity() {
     private var lastRenderedFrameCount = -1
     private var lastVideoRenderProgressMs = 0L
     private var disableTunnelingForSession = false
+    // Some providers' live TS streams carry backward PTS jumps right after start;
+    // the decoder renders the first frame and then drops everything as "late".
+    // Re-preparing the same URL resets the timestamp adjuster past the bad region.
+    private var liveFreezeReprepares = 0
+    private var lastFreezeRecoveryUrl: String? = null
+    private var lastFreezeRecoveryAtMs = 0L
     private val stallRunnable = object : Runnable {
         override fun run() {
             checkForStall()
@@ -308,6 +314,13 @@ class PlayerActivity : AppCompatActivity() {
         // Live viewers zap away from dead streams fast — detect failure fast too.
         private const val LIVE_TIMEOUT_MS = 12000L
         private const val VIDEO_FREEZE_THRESHOLD_MS = 8000L
+        // Live viewers zap within seconds — catch a frozen first frame fast.
+        private const val LIVE_VIDEO_FREEZE_THRESHOLD_MS = 4000L
+        private const val MAX_LIVE_FREEZE_REPREPARES = 2
+        // Dead/looping provider restreams reconnect forever without this cap:
+        // the server replays the same GOP on every connection, so retry #3+
+        // can never succeed. Fail fast with a clear message instead.
+        private const val LIVE_MAX_RETRIES = 2
         private const val OVERLAY_TIMEOUT = 6000L
         private const val MIN_PROGRESS_TO_TRACK_MS = 15_000L
         private const val MIN_DURATION_TO_TRACK_MS = 60_000L
@@ -2052,7 +2065,7 @@ class PlayerActivity : AppCompatActivity() {
             handleTerminalPlaybackFailure(errorMessage, preferReturnToSources = true)
             return
         }
-        if (retryCount < maxRetries) {
+        if (retryCount < (if (contentType == ContentType.LIVE_TV) LIVE_MAX_RETRIES else maxRetries)) {
             retryCount++
             PlaybackDiagnosticsRecorder.record(
                 this,
@@ -2176,7 +2189,9 @@ class PlayerActivity : AppCompatActivity() {
             return
         }
         if (lastVideoRenderProgressMs == 0L) { lastVideoRenderProgressMs = now; return }
-        if (now - lastVideoRenderProgressMs < VIDEO_FREEZE_THRESHOLD_MS) return
+        val freezeThresholdMs =
+            if (contentType == ContentType.LIVE_TV) LIVE_VIDEO_FREEZE_THRESHOLD_MS else VIDEO_FREEZE_THRESHOLD_MS
+        if (now - lastVideoRenderProgressMs < freezeThresholdMs) return
 
         PlaybackDiagnosticsRecorder.record(
             this,
@@ -2189,6 +2204,28 @@ class PlayerActivity : AppCompatActivity() {
         )
         lastVideoRenderProgressMs = now
         lastRenderedFrameCount = -1
+
+        if (contentType == ContentType.LIVE_TV) {
+            // Live freeze = usually broken PTS in the provider's TS mux, not the
+            // decoder. Re-preparing the same URL restarts the timestamp adjuster
+            // from the current live data, past the discontinuity.
+            if (currentUrl != lastFreezeRecoveryUrl || now - lastFreezeRecoveryAtMs > 60_000L) {
+                liveFreezeReprepares = 0
+                lastFreezeRecoveryUrl = currentUrl
+            }
+            if (liveFreezeReprepares < MAX_LIVE_FREEZE_REPREPARES) {
+                liveFreezeReprepares++
+                lastFreezeRecoveryAtMs = now
+                Log.w(
+                    "PlayerActivity",
+                    "Live video frozen (rendered=$rendered) — re-preparing stream, attempt $liveFreezeReprepares/$MAX_LIVE_FREEZE_REPREPARES"
+                )
+                currentUrl?.let { performSeamlessSwitch(it) }
+            } else {
+                handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
+            }
+            return
+        }
 
         if (!disableTunnelingForSession) {
             disableTunnelingForSession = true
@@ -2250,7 +2287,7 @@ class PlayerActivity : AppCompatActivity() {
                 handleTerminalPlaybackFailure("Connection timeout")
                 return
             }
-            if (retryCount < maxRetries) {
+            if (retryCount < (if (contentType == ContentType.LIVE_TV) LIVE_MAX_RETRIES else maxRetries)) {
                 retryCount++
                 PlaybackDiagnosticsRecorder.record(
                     this,
@@ -2734,10 +2771,12 @@ class PlayerActivity : AppCompatActivity() {
         }
         if (!finishWithReturnToSources(autoPlayNext = true, reason = reason)) {
             showError(
-                if (reason.contains("timeout", ignoreCase = true)) {
-                    "Connection timeout\n\nStream is too slow or unavailable"
-                } else {
-                    "Playback failed\n\n$reason"
+                when {
+                    contentType == ContentType.LIVE_TV ->
+                        "Channel stream is broken at the provider\n\nTry another channel or source"
+                    reason.contains("timeout", ignoreCase = true) ->
+                        "Connection timeout\n\nStream is too slow or unavailable"
+                    else -> "Playback failed\n\n$reason"
                 }
             )
             Handler(Looper.getMainLooper()).postDelayed({ finish() }, 3000)
