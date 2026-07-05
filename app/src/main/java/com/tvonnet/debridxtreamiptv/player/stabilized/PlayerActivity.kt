@@ -913,8 +913,13 @@ class PlayerActivity : AppCompatActivity() {
         val builder = MediaItem.Builder().setUri(url)
         val mimeHint = resolveMediaMimeType(url)
         mimeHint?.let { builder.setMimeType(it) }
-        if (contentType == ContentType.LIVE_TV) {
-            // Gentle speed-based live catch-up for HLS/DASH; ignored for raw TS.
+        // LiveConfiguration ONLY for HLS/DASH. On raw TS it flips the item to
+        // "live window" mode and the live-offset control seeks an unseekable
+        // stream ~200ms after the first frame — an endless flush/reload loop
+        // that froze every .ts channel on the first frame (device-diagnosed).
+        if (contentType == ContentType.LIVE_TV &&
+            (mimeHint == MimeTypes.APPLICATION_M3U8 || mimeHint == MimeTypes.APPLICATION_MPD)
+        ) {
             builder.setLiveConfiguration(
                 MediaItem.LiveConfiguration.Builder()
                     .setMinPlaybackSpeed(0.97f)
@@ -1758,7 +1763,16 @@ class PlayerActivity : AppCompatActivity() {
                 httpDataSourceFactory.setDefaultRequestProperties(requestHeaders)
             }
             if (requestHeaders?.keys?.any { it.equals("User-Agent", ignoreCase = true) } != true) {
-                httpDataSourceFactory.setUserAgent("DebridXtream/1.0 (Linux; Android 10; TV)")
+                // Xtream panels throttle/starve stream requests from unknown player UAs
+                // (first GOP then nothing) — identify playback exactly like our API
+                // client does. Debrid CDNs don't care, keep the app UA there.
+                httpDataSourceFactory.setUserAgent(
+                    if (playbackSource == PlaybackSource.DEBRID) {
+                        "DebridXtream/1.0 (Linux; Android 10; TV)"
+                    } else {
+                        "IPTVSmartersPlayer"
+                    }
+                )
             }
 
             val isDebrid = playbackSource == PlaybackSource.DEBRID

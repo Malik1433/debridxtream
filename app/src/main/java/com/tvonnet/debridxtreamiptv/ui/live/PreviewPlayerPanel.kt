@@ -110,7 +110,7 @@ class PreviewPlayerPanel(
         
         // Setup/reuse Player
         val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
-            .setUserAgent("DebridXtream/1.0 (Linux; Android 10; TV)")
+            .setUserAgent("IPTVSmartersPlayer")
         val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
         
         val player = previewPlayer ?: ExoPlayer.Builder(context)
