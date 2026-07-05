@@ -2007,6 +2007,25 @@ class PlayerActivity : AppCompatActivity() {
         if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
             player?.seekToDefaultPosition(); player?.prepare(); player?.playWhenReady = true; return
         }
+        // Tunneled playback forces a HW_AV_SYNC AudioTrack, which Fire TV cannot open
+        // for software-decoded multichannel PCM (e.g. FFmpeg 5.1 audio on 4K HEVC
+        // torrents). The stream URL is fine — re-resolving loops forever. Re-init
+        // locally without tunneling instead.
+        if (isAudioSinkInitFailure(error) && !disableTunnelingForSession) {
+            disableTunnelingForSession = true
+            Log.w("PlayerActivity", "Audio sink init failed under tunneling — reinitializing without tunneling")
+            PlaybackDiagnosticsRecorder.record(
+                this,
+                "audio_sink_tunneling_retry",
+                diagnosticsPlaybackFields() + mapOf("errorCode" to error.errorCode)
+            )
+            if (contentType != ContentType.LIVE_TV && (player?.currentPosition ?: 0L) > 1000L) {
+                startPositionMs = player!!.currentPosition
+            }
+            player?.release(); player = null
+            retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, 250L)
+            return
+        }
         val cause = error.cause
         val errorMessage = when (cause) {
             is HttpDataSource.InvalidResponseCodeException -> "HTTP ${cause.responseCode}"
@@ -2072,6 +2091,16 @@ class PlayerActivity : AppCompatActivity() {
         } else {
             handleTerminalPlaybackFailure(errorMessage)
         }
+    }
+
+    private fun isAudioSinkInitFailure(error: PlaybackException): Boolean {
+        if (error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED) return true
+        var cause: Throwable? = error.cause
+        while (cause != null) {
+            if (cause is androidx.media3.exoplayer.audio.AudioSink.InitializationException) return true
+            cause = cause.cause
+        }
+        return false
     }
 
     private fun isTerminalDirectHttpPlaybackError(error: PlaybackException): Boolean {
