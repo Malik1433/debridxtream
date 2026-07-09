@@ -2,6 +2,8 @@ package com.tvonnet.debridxtreamiptv.ui.home
 
 import android.content.Context
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -20,6 +22,7 @@ import com.tvonnet.debridxtreamiptv.data.model.*
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.Calendar
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 
@@ -54,6 +57,83 @@ class HomeFragment : Fragment() {
 
     internal var currentHeroItem: FeaturedItem? = null
     internal var isNavigatingFromHome = false
+
+    private val clockHandler = Handler(Looper.getMainLooper())
+    private val clockRunnable = object : Runnable {
+        override fun run() {
+            tickClock()
+            clockHandler.postDelayed(this, 30_000L)
+        }
+    }
+
+    // ── Hero auto-rotation (3 featured titles, 7s cadence, paused on hero focus) ──
+    private var heroRotation: List<FeaturedItem> = emptyList()
+    private var heroIdx = 0
+    private val heroHandler = Handler(Looper.getMainLooper())
+    private val heroRunnable = object : Runnable {
+        override fun run() {
+            rotateHero()
+            heroHandler.postDelayed(this, 7_000L)
+        }
+    }
+
+    private fun isHeroPaused(): Boolean {
+        val focusedId = view?.findFocus()?.id ?: return false
+        return focusedId == R.id.btn_hero_watch ||
+            focusedId == R.id.btn_hero_details ||
+            focusedId == R.id.btn_hero_fav
+    }
+
+    private fun rotateHero() {
+        if (heroRotation.size < 2 || isHeroPaused()) return
+        heroIdx = (heroIdx + 1) % heroRotation.size
+        applyHero(animated = true)
+    }
+
+    private fun applyHero(animated: Boolean) {
+        val item = heroRotation.getOrNull(heroIdx) ?: return
+        heroManager.updateHeroSection(item)
+        updateHeroDots()
+        if (animated) {
+            view?.findViewById<View>(R.id.hero_content)?.let { heroContent ->
+                heroContent.animate().cancel()
+                heroContent.alpha = 0f
+                heroContent.translationY = 16f
+                heroContent.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(500)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .start()
+            }
+        }
+    }
+
+    private fun updateHeroDots() {
+        val v = view ?: return
+        val dotIds = intArrayOf(R.id.dot_hero_0, R.id.dot_hero_1, R.id.dot_hero_2)
+        val density = v.resources.displayMetrics.density
+        dotIds.forEachIndexed { i, id ->
+            val dot = v.findViewById<View>(id) ?: return@forEachIndexed
+            dot.isVisible = heroRotation.size > 1 && i < heroRotation.size
+            val lp = dot.layoutParams
+            lp.width = ((if (i == heroIdx) 11f else 3f) * density).toInt()
+            dot.layoutParams = lp
+            dot.setBackgroundResource(
+                if (i == heroIdx) R.drawable.bg_hero_dot_active else R.drawable.bg_hero_dot
+            )
+        }
+    }
+
+    private fun tickClock() {
+        val view = view ?: return
+        val tvClock = view.findViewById<TextView>(R.id.tv_status_clock) ?: return
+        val cal = Calendar.getInstance()
+        val hour = cal.get(Calendar.HOUR).let { if (it == 0) 12 else it }
+        val min = cal.get(Calendar.MINUTE)
+        val amPm = if (cal.get(Calendar.AM_PM) == Calendar.AM) "AM" else "PM"
+        tvClock.text = String.format("%d:%02d %s", hour, min, amPm)
+    }
     
     internal fun isRvContinueWatchingInitialized() = ::rvContinueWatching.isInitialized
     internal fun isRvRecentLiveInitialized() = ::rvRecentLive.isInitialized
@@ -112,7 +192,12 @@ class HomeFragment : Fragment() {
         
         loadData()
         setupObservers()
-        
+
+        tickClock()
+        clockHandler.postDelayed(clockRunnable, 30_000L)
+        heroHandler.postDelayed(heroRunnable, 7_000L)
+        loadIptvExpiry()
+
         view.post {
             focusManager.applyInitialFocusIfNeeded(viewModel.uiState.value)
         }
@@ -133,17 +218,23 @@ class HomeFragment : Fragment() {
                         recentLiveAdapter.updateItems(state.recentLiveChannels)
                         top10MoviesAdapter.updateItems(state.top10Movies)
                         top10SeriesAdapter.updateItems(state.top10Series)
+                        updateSectionCounts(state)
                         updateHistoryRowVisibility(state)
                         updateHeroNavigationTargets()
                         keyRoutingManager.refreshContentRowKeyRouting()
                         focusManager.restoreContentFocusAfterDataUpdate(focusSnapshot)
                         
-                        // Update Hero with first available top row item
-                        val heroCandidate = state.top10Movies.firstOrNull() ?: state.top10Series.firstOrNull()
-                        if (heroCandidate != null) {
-                            heroManager.updateHeroSection(heroCandidate)
-                        } else {
-                            heroManager.clearHeroSection()
+                        // Hero rotation pool: 3 featured titles (spec: auto-rotate every 7s)
+                        val newRotation = (state.top10Movies + state.top10Series).take(3)
+                        if (newRotation != heroRotation) {
+                            heroRotation = newRotation
+                            heroIdx = 0
+                            if (heroRotation.isEmpty()) {
+                                heroManager.clearHeroSection()
+                                updateHeroDots()
+                            } else {
+                                applyHero(animated = false)
+                            }
                         }
                         
                         focusManager.applyInitialFocusIfNeeded(state)
@@ -209,6 +300,17 @@ class HomeFragment : Fragment() {
         }
     }
 
+    private fun updateSectionCounts(state: HomeUiState) {
+        view?.findViewById<TextView>(R.id.tv_count_top_10_movies)?.text =
+            if (state.top10Movies.isNotEmpty()) "${state.top10Movies.size} TITLES" else ""
+        view?.findViewById<TextView>(R.id.tv_count_top_10_series)?.text =
+            if (state.top10Series.isNotEmpty()) "${state.top10Series.size} TITLES" else ""
+        view?.findViewById<TextView>(R.id.tv_count_recent_live)?.text =
+            if (state.recentLiveChannels.isNotEmpty()) "${state.recentLiveChannels.size} TITLES" else ""
+        view?.findViewById<TextView>(R.id.tv_count_continue_watching)?.text =
+            if (state.continueWatching.isNotEmpty()) "${state.continueWatching.size} TITLES" else ""
+    }
+
     private fun updateHistoryRowVisibility(state: HomeUiState) {
         val hasCW = state.continueWatching.isNotEmpty()
         val hasRL = state.recentLiveChannels.isNotEmpty()
@@ -218,6 +320,60 @@ class HomeFragment : Fragment() {
         
         sectionRecentLive.isVisible = hasRL
         rvRecentLive.isVisible = hasRL
+    }
+
+    // ── IPTV expiry chip: bound to real Xtream account expiry ──
+    private fun loadIptvExpiry() {
+        val username = credentialsPrefs.getUsername() ?: return
+        val password = credentialsPrefs.getPassword() ?: return
+        if (!repository.isInitialized()) return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = repository.login(username, password)
+            val expSeconds = (result as? com.tvonnet.debridxtreamiptv.data.Result.Success)
+                ?.data?.user_info?.exp_date?.toLongOrNull() ?: return@launch
+            if (view != null) applyIptvExpiry(expSeconds)
+        }
+    }
+
+    private fun applyIptvExpiry(expEpochSeconds: Long) {
+        val v = view ?: return
+        val nowSeconds = System.currentTimeMillis() / 1000L
+        val daysLeft = kotlin.math.ceil((expEpochSeconds - nowSeconds) / 86_400.0).toInt()
+
+        val label: String
+        val color: Int
+        val borderColor: Int
+        when {
+            daysLeft < 0 -> {
+                label = "EXPIRED"
+                color = 0xFFFF3355.toInt()
+                borderColor = 0x73FF3355
+            }
+            daysLeft <= 7 -> {
+                label = "${daysLeft}D LEFT"
+                color = 0xFFFFAA00.toInt()
+                borderColor = 0x66FFAA00
+            }
+            daysLeft <= 30 -> {
+                label = "${daysLeft}D LEFT"
+                color = 0xFFFFAA00.toInt()
+                borderColor = 0x38FFAA00
+            }
+            else -> {
+                label = "${daysLeft / 30}M ${daysLeft % 30}D"
+                color = 0xFF00FF88.toInt()
+                borderColor = 0x3800FF88
+            }
+        }
+
+        v.findViewById<TextView>(R.id.tv_iptv_expiry)?.apply {
+            text = label
+            setTextColor(color)
+        }
+        v.findViewById<ImageView>(R.id.iv_iptv_icon)?.setColorFilter(color)
+        val chip = v.findViewById<View>(R.id.ll_iptv_expiry)
+        val bg = chip?.background?.mutate() as? android.graphics.drawable.GradientDrawable
+        bg?.setStroke((resources.displayMetrics.density).toInt().coerceAtLeast(1), borderColor)
     }
 
     private fun updateHeroNavigationTargets() {
@@ -252,9 +408,8 @@ class HomeFragment : Fragment() {
 
         top10MoviesAdapter = Top10Adapter(
             items = emptyList(),
-            onItemFocused = { index, item -> 
+            onItemFocused = { index, _ ->
                 focusManager.rememberContentFocus(HomeContentFocusArea.MOVIES, index)
-                heroManager.updateHeroSection(item) 
             },
             onItemClick = { item -> navigationRouter.onFeaturedItemClick(item) },
             onLeftBoundary = { focusManager.returnToSidebar() }
@@ -263,9 +418,8 @@ class HomeFragment : Fragment() {
 
         top10SeriesAdapter = Top10Adapter(
             items = emptyList(),
-            onItemFocused = { index, item -> 
+            onItemFocused = { index, _ ->
                 focusManager.rememberContentFocus(HomeContentFocusArea.SERIES, index)
-                heroManager.updateHeroSection(item) 
             },
             onItemClick = { item -> navigationRouter.onFeaturedItemClick(item) },
             onLeftBoundary = { focusManager.returnToSidebar() }
@@ -274,6 +428,8 @@ class HomeFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        clockHandler.removeCallbacks(clockRunnable)
+        heroHandler.removeCallbacks(heroRunnable)
         if (::navigationRouter.isInitialized) navigationRouter.cleanup()
         if (::sidebarManager.isInitialized) sidebarManager.cleanup()
         if (::heroManager.isInitialized) heroManager.cleanup()

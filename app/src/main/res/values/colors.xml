@@ -305,5 +305,35 @@
     <color name="text_muted">#64748B</color>
     <color name="focus_ring">#D4AF37</color>
     <color name="focus_ring_cyan">#00F0FF</color>
+
+    <!-- ========== VOD MOVIES REDESIGN ========== -->
+    <color name="vod_accent_cyan">#00F0FF</color>
+    <color name="vod_accent_blue">#0077FF</color>
+    <color name="vod_text_primary">#F1F5F9</color>
+    <color name="vod_text_secondary">#94A3B8</color>
+    <color name="vod_text_muted">#64748B</color>
+    <color name="vod_text_faint">#475569</color>
+    <color name="vod_text_ghost">#3D4F60</color>
+    <color name="vod_amber">#FFAA00</color>
+    <color name="vod_green">#00FF88</color>
+    <color name="vod_bg">#06090E</color>
+    <color name="vod_sidebar_bg">#F70A0C14</color>
+    <color name="vod_sidebar_border">#0DFFFFFF</color>
+    <color name="vod_hero_start">#F70D1535</color>
+    <color name="vod_hero_end">#EB0A101C</color>
+
+    <!-- ========== IPTV VOD SERIES REDESIGN (purple mirror of VOD Movies) ========== -->
+    <color name="series_accent_purple">#A78BFA</color>
+    <color name="series_accent_violet">#7C3AED</color>
+
+    <!-- Live Player cinematic OSD (Live Player - Spec.md) -->
+    <color name="live_badge_red">#FF3355</color>
+    <color name="live_next_purple">#7C3AED</color>
+    <color name="live_osd_text_primary">#F1F5F9</color>
+    <color name="live_osd_text_soft">#CBD5E1</color>
+    <color name="live_osd_text_dim">#94A3B8</color>
+    <color name="live_osd_text_muted">#64748B</color>
+    <color name="live_osd_text_faint">#475569</color>
+    <color name="live_hint_divider">#334155</color>
 </resources>
 

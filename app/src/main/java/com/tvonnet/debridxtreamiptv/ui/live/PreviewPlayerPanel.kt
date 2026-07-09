@@ -225,6 +225,14 @@ class PreviewPlayerPanel(
     fun getCurrentStream(): XtreamStream? = currentStream
     
     fun isPlaying(): Boolean = previewPlayer?.isPlaying == true
+
+    /** Preview is created muted by default; callers (e.g. the EPG guide) may want audio. */
+    fun setVolume(volume: Float) {
+        previewPlayer?.volume = volume.coerceIn(0f, 1f)
+    }
+
+    /** Exposes the underlying player so callers can seamlessly switch it to a fullscreen view. */
+    fun getPlayer(): ExoPlayer? = previewPlayer
     
     // Lifecycle methods
     override fun onResume(owner: LifecycleOwner) {

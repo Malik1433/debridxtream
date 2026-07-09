@@ -91,36 +91,57 @@ class Top10Adapter(
     class Top10ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val ivPoster: ImageView = itemView.findViewById(R.id.iv_poster)
         private val tvRank: TextView = itemView.findViewById(R.id.tv_rank_number)
+        private val tvCardTitle: TextView? = itemView.findViewById(R.id.tv_card_title)
+        private val tvCardSub: TextView? = itemView.findViewById(R.id.tv_card_sub)
+        private val quickInfo: View? = itemView.findViewById(R.id.quick_info_bubble)
+        private var dwellRunnable: Runnable? = null
+
+        init {
+            com.tvonnet.debridxtreamiptv.util.FocusGlow.attachSelector(
+                itemView.findViewById(R.id.view_focus_glow)
+            )
+        }
 
         fun bind(
-            item: FeaturedItem, 
-            position: Int, 
-            onFocus: (Int, FeaturedItem) -> Unit, 
+            item: FeaturedItem,
+            position: Int,
+            onFocus: (Int, FeaturedItem) -> Unit,
             onClick: (FeaturedItem) -> Unit,
             onLeftBoundary: () -> Unit
         ) {
             tvRank.text = (position + 1).toString()
+            tvCardTitle?.text = item.title
+            val subText = item.rating?.takeIf { it.isNotBlank() }?.let { "★ $it" } ?: ""
+            tvCardSub?.text = subText
 
-            val cornerRadius = (12 * itemView.context.resources.displayMetrics.density).toInt()
-            
+            quickInfo?.let { bubble ->
+                bubble.findViewById<TextView>(R.id.qi_title)?.text = item.title
+                bubble.findViewById<TextView>(R.id.qi_tag)?.text =
+                    if (item.contentType == com.tvonnet.debridxtreamiptv.data.model.ContentType.SERIES) "SERIES" else "MOVIE"
+                bubble.findViewById<TextView>(R.id.qi_sub)?.text = subText
+            }
+
+            val cornerRadius = (4 * itemView.context.resources.displayMetrics.density).toInt()
+
             Glide.with(itemView.context)
                 .load(item.posterUrl)
                 .apply(RequestOptions().transform(CenterCrop(), RoundedCorners(cornerRadius)))
-                .placeholder(R.drawable.bg_card_focus_cyan) 
+                .placeholder(R.drawable.bg_card_focus_cyan)
                 .error(R.drawable.bg_card_focus_cyan)
                 .into(ivPoster)
 
             itemView.setOnClickListener { onClick(item) }
 
             itemView.setOnFocusChangeListener { view, hasFocus ->
-                FocusEffects.applyCinematicFocus(view, hasFocus, scale = 1.15f)
-                FocusEffects.apply3DTilt(view, hasFocus)
-                
+                FocusEffects.applyCinematicFocus(view, hasFocus, scale = 1.06f)
+
                 if (hasFocus) {
                     view.z = 20f // Topmost layering for no-clipping scale-up
                     onFocus(position, item)
+                    scheduleDwellInfo()
                 } else {
                     view.z = 0f
+                    cancelDwellInfo()
                 }
             }
 
@@ -132,6 +153,35 @@ class Top10Adapter(
                     }
                 }
                 false
+            }
+        }
+
+        /** Dwell quick-info: bubble appears only after ~450ms of resting on the card. */
+        private fun scheduleDwellInfo() {
+            val bubble = quickInfo ?: return
+            cancelDwellInfo()
+            val runnable = Runnable {
+                if (itemView.hasFocus()) {
+                    bubble.visibility = View.VISIBLE
+                    bubble.alpha = 0f
+                    bubble.translationY = 8f
+                    bubble.animate()
+                        .alpha(1f)
+                        .translationY(0f)
+                        .setDuration(180)
+                        .start()
+                }
+            }
+            dwellRunnable = runnable
+            itemView.postDelayed(runnable, 450L)
+        }
+
+        private fun cancelDwellInfo() {
+            dwellRunnable?.let { itemView.removeCallbacks(it) }
+            dwellRunnable = null
+            quickInfo?.let { bubble ->
+                bubble.animate().cancel()
+                bubble.visibility = View.GONE
             }
         }
     }

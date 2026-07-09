@@ -4,11 +4,9 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:padding="2dp"
-    android:focusable="true"
-    android:focusableInTouchMode="true"
     android:clipToPadding="false"
     android:clipChildren="false">
-    
+
     <androidx.cardview.widget.CardView
         android:id="@+id/card_skeleton"
         android:layout_width="match_parent"
@@ -18,18 +16,59 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintDimensionRatio="2:3"
-        app:cardCornerRadius="12dp"
+        app:cardCornerRadius="10dp"
         app:cardElevation="0dp"
-        app:cardBackgroundColor="#1AFFFFFF">
-        
-        <!-- Shimmer Overlay -->
-        <View
-            android:id="@+id/v_shimmer"
-            android:layout_width="300dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="-150dp"
-            android:background="@drawable/bg_shimmer_gradient" />
-            
+        app:cardBackgroundColor="#0C1119">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <!-- Subtle border to echo the loaded card -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_movie_skeleton_border" />
+
+            <!-- Shimmer sweep (cyan-tinted) -->
+            <View
+                android:id="@+id/v_shimmer"
+                android:layout_width="220dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="-110dp"
+                android:background="@drawable/bg_shimmer_gradient" />
+
+            <!-- Quality badge placeholder (top-right) -->
+            <View
+                android:layout_width="26dp"
+                android:layout_height="14dp"
+                android:layout_gravity="top|end"
+                android:layout_margin="8dp"
+                android:background="@drawable/bg_skeleton_pill" />
+
+            <!-- Glass footer placeholder -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:orientation="vertical"
+                android:paddingHorizontal="10dp"
+                android:paddingBottom="12dp"
+                android:paddingTop="10dp">
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="10dp"
+                    android:background="@drawable/bg_skeleton_pill" />
+
+                <View
+                    android:layout_width="60dp"
+                    android:layout_height="8dp"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_skeleton_pill" />
+            </LinearLayout>
+        </FrameLayout>
+
     </androidx.cardview.widget.CardView>
-    
+
 </androidx.constraintlayout.widget.ConstraintLayout>

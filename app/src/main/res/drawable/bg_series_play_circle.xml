@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Focus play-overlay circle: 52dp, bg rgba(167,139,250,0.12), border 2dp rgba(167,139,250,0.65) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#1FA78BFA" />
+    <stroke
+        android:width="2dp"
+        android:color="#A6A78BFA" />
+</shape>

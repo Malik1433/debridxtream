@@ -26,7 +26,12 @@ data class SettingsUiState(
     val stremioAddonUrls: Set<String> = emptySet(),
     val isEpgAutoSyncEnabled: Boolean = true,
     val epgSyncIntervalHours: String = "6",
-    val isSoftwareAudioEnabled: Boolean = true
+    val isSoftwareAudioEnabled: Boolean = true,
+    val preferredAudioLang: String = "EN",
+    val liveTvStyle: String = "guide",
+    val epgTimelineZoom: String = "standard",
+    val epgRowDensity: String = "standard",
+    val epgGenreTint: Boolean = true
 )
 
 enum class SettingCategory {
@@ -51,6 +56,7 @@ class SettingsViewModel @Inject constructor(
     private fun loadSettings() {
         val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(context)
         val audioPrefs = com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(context)
+        val credentialsPrefs = com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences(context)
         _uiState.update {
             it.copy(
                 playerEngine = prefs.getPlayerEngine(),
@@ -63,9 +69,19 @@ class SettingsViewModel @Inject constructor(
                 stremioAddonUrls = prefs.getStremioAddonUrls(),
                 isEpgAutoSyncEnabled = defaultPrefs.getBoolean("epg_auto_sync", true),
                 epgSyncIntervalHours = defaultPrefs.getString("epg_sync_interval", "6") ?: "6",
-                isSoftwareAudioEnabled = audioPrefs.isSoftwareAudioEnabled()
+                isSoftwareAudioEnabled = audioPrefs.isSoftwareAudioEnabled(),
+                preferredAudioLang = credentialsPrefs.preferredAudioLang,
+                liveTvStyle = audioPrefs.getLiveTvStyle(),
+                epgTimelineZoom = audioPrefs.getEpgTimelineZoom(),
+                epgRowDensity = audioPrefs.getEpgRowDensity(),
+                epgGenreTint = audioPrefs.isEpgGenreTintEnabled()
             )
         }
+    }
+
+    fun setPreferredAudioLang(lang: String) {
+        com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences(context).preferredAudioLang = lang
+        _uiState.update { it.copy(preferredAudioLang = lang) }
     }
 
     fun selectCategory(category: SettingCategory) {
@@ -96,6 +112,27 @@ class SettingsViewModel @Inject constructor(
     fun toggleUiScale(enabled: Boolean) {
         prefs.setUiScaleAnimation(enabled)
         _uiState.update { it.copy(isUiScaleEnabled = enabled) }
+    }
+
+    // ── Live TV EPG guide appearance ────────────────────────────────────
+    fun setLiveTvStyle(style: String) {
+        com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(context).saveLiveTvStyle(style)
+        _uiState.update { it.copy(liveTvStyle = style) }
+    }
+
+    fun setEpgTimelineZoom(zoom: String) {
+        com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(context).saveEpgTimelineZoom(zoom)
+        _uiState.update { it.copy(epgTimelineZoom = zoom) }
+    }
+
+    fun setEpgRowDensity(density: String) {
+        com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(context).saveEpgRowDensity(density)
+        _uiState.update { it.copy(epgRowDensity = density) }
+    }
+
+    fun toggleEpgGenreTint(enabled: Boolean) {
+        com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(context).saveEpgGenreTint(enabled)
+        _uiState.update { it.copy(epgGenreTint = enabled) }
     }
 
     fun logoutDebrid() {

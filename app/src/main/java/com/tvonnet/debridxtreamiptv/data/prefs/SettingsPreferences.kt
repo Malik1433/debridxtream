@@ -108,7 +108,41 @@ class SettingsPreferences(private val context: Context) {
     fun saveSoftwareAudioEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SOFTWARE_AUDIO, enabled).apply()
     }
-    
+
+    // ── Live TV layout (Classic 3-column vs new EPG Guide) ───────────────
+    fun getLiveTvStyle(): String {
+        return prefs.getString(KEY_LIVE_TV_STYLE, STYLE_GUIDE) ?: STYLE_GUIDE
+    }
+
+    fun saveLiveTvStyle(style: String) {
+        prefs.edit().putString(KEY_LIVE_TV_STYLE, style).apply()
+    }
+
+    // ── EPG Guide tweakables (Live TV EPG spec §7) ───────────────────────
+    fun getEpgTimelineZoom(): String {
+        return prefs.getString(KEY_EPG_TIMELINE_ZOOM, ZOOM_STANDARD) ?: ZOOM_STANDARD
+    }
+
+    fun saveEpgTimelineZoom(zoom: String) {
+        prefs.edit().putString(KEY_EPG_TIMELINE_ZOOM, zoom).apply()
+    }
+
+    fun getEpgRowDensity(): String {
+        return prefs.getString(KEY_EPG_ROW_DENSITY, DENSITY_STANDARD) ?: DENSITY_STANDARD
+    }
+
+    fun saveEpgRowDensity(density: String) {
+        prefs.edit().putString(KEY_EPG_ROW_DENSITY, density).apply()
+    }
+
+    fun isEpgGenreTintEnabled(): Boolean {
+        return prefs.getBoolean(KEY_EPG_GENRE_TINT, true)
+    }
+
+    fun saveEpgGenreTint(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_EPG_GENRE_TINT, enabled).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "iptv_settings"
         private const val KEY_REFRESH_INTERVAL = "refresh_interval_hours"
@@ -124,6 +158,24 @@ class SettingsPreferences(private val context: Context) {
         private const val KEY_LAST_TEXT_INDEX = "last_text_idx_"
         private const val KEY_SERIES_AUDIO_INDEX = "series_audio_idx_"
         private const val KEY_SERIES_TEXT_INDEX = "series_text_idx_"
+
+        // Live TV layout
+        const val KEY_LIVE_TV_STYLE = "live_tv_style"
+        const val STYLE_GUIDE = "guide"
+        const val STYLE_CLASSIC = "classic"
+
+        // EPG Guide tweakables
+        const val KEY_EPG_TIMELINE_ZOOM = "epg_timeline_zoom"
+        const val ZOOM_COMPACT = "compact"
+        const val ZOOM_STANDARD = "standard"
+        const val ZOOM_WIDE = "wide"
+
+        const val KEY_EPG_ROW_DENSITY = "epg_row_density"
+        const val DENSITY_COZY = "cozy"
+        const val DENSITY_STANDARD = "standard"
+        const val DENSITY_ROOMY = "roomy"
+
+        const val KEY_EPG_GENRE_TINT = "epg_genre_tint"
     }
 }
 

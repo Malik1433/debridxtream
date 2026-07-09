@@ -231,6 +231,10 @@ class PlayerActivity : AppCompatActivity() {
     private var liveFreezeReprepares = 0
     private var lastFreezeRecoveryUrl: String? = null
     private var lastFreezeRecoveryAtMs = 0L
+    // Provider socket drops surface as STATE_ENDED; reconnect in place, but cap
+    // it so an instantly-dropping stream degrades to the error path, not a loop.
+    private var endedReconnects = 0
+    private var lastEndedReconnectAtMs = 0L
     private val stallRunnable = object : Runnable {
         override fun run() {
             checkForStall()
@@ -286,6 +290,8 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var trackManager: PlayerTrackManager
     private lateinit var episodeBrowserController: EpisodeBrowserController
     private var currentZapRequestId = 0L
+    // Cinematic live OSD (design_handoff Live Player); non-null only for LIVE_TV.
+    private var liveOsd: LivePlayerOsdManager? = null
 
     companion object {
         const val EXTRA_STREAM_URL = "STREAM_URL"
@@ -523,7 +529,10 @@ class PlayerActivity : AppCompatActivity() {
 
         if (contentType == ContentType.LIVE_TV) {
             setupOverlayViews()
+            setupLiveOsd()
             bindChannelMeta(channelName)
+            // Backdrop covers the black surface until the first frame renders.
+            liveOsd?.showZapBackdrop()
         } else {
             // New Redesign: We use the Controller's Top Bar instead of a separate VOD overlay
         }
@@ -739,13 +748,16 @@ class PlayerActivity : AppCompatActivity() {
             if (lastOverlayState == null) {
                 lastOverlayState = PlayerOverlayUiState(epgAvailable = false, isSyncing = true, errorMessage = null)
             }
-            showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false)
+            if (liveOsd == null) showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false)
         } else {
             playerView.showController()
         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (liveOsd?.handleDrawerBack() == true) {
+                    return
+                }
                 if (viewModel.browserState.value.isVisible) {
                     viewModel.toggleBrowser(false)
                     return
@@ -772,13 +784,22 @@ class PlayerActivity : AppCompatActivity() {
     private fun zapChannel(direction: Int) {
         val target = viewModel.moveZap(direction) ?: run {
             val isReady = viewModel.zapState.value?.channels?.isNotEmpty() == true
-            showToast(
-                if (isReady) getString(R.string.player_zap_unavailable)
+            val msg = if (isReady) getString(R.string.player_zap_unavailable)
                 else getString(R.string.player_zap_loading)
-            )
+            liveOsd?.showToast(msg.uppercase(Locale.getDefault())) ?: showToast(msg)
             return
         }
+        tuneToZapChannel(target)
+    }
 
+    /** OK-tune from the surf drawer (Live Player OSD spec §7). */
+    private fun tuneToZapIndex(index: Int) {
+        val target = viewModel.zapTo(index) ?: return
+        liveOsd?.showToast("▶ TUNING · ${target.name}")
+        tuneToZapChannel(target)
+    }
+
+    private fun tuneToZapChannel(target: ZapChannel) {
         currentZapRequestId++
         val reqId = currentZapRequestId
 
@@ -792,10 +813,70 @@ class PlayerActivity : AppCompatActivity() {
         currentEpgChannelId = epgKey
         viewModel.observeEpg(epgKey, target.streamId)
 
-        val keepPinned = epgOverlayPinned && epgOverlayMode != EpgOverlayMode.HIDDEN
-        showEpgOverlay(mode = EpgOverlayMode.COMPACT, pinned = keepPinned)
+        val osd = liveOsd
+        if (osd != null) {
+            osd.setChannelNumber((viewModel.zapState.value?.index ?: 0) + 1)
+            osd.setFavorites(viewModel.liveFavoriteIds.value, target.streamId)
+            osd.showZapOsd()
+        } else {
+            val keepPinned = epgOverlayPinned && epgOverlayMode != EpgOverlayMode.HIDDEN
+            showEpgOverlay(mode = EpgOverlayMode.COMPACT, pinned = keepPinned)
+        }
 
         performSeamlessSwitch(target.streamUrl, reqId)
+    }
+
+    private fun setupLiveOsd() {
+        if (liveOsd != null) return
+        val osdRoot = findViewById<View>(R.id.view_live_osd) ?: return
+        liveOsd = LivePlayerOsdManager(
+            root = osdRoot,
+            playerView = playerView,
+            playerProvider = { player },
+            onOpenGuide = {
+                viewModel.toggleBrowser(
+                    true,
+                    viewModel.zapState.value?.categoryId ?: liveCategoryId,
+                    contentId
+                )
+            },
+            onTuneChannel = { index -> tuneToZapIndex(index) },
+            onToggleFavorite = { toggleLiveFavorite() },
+            onCategorySelected = { categoryId ->
+                viewModel.switchZapCategory(categoryId, baseServerUrl ?: prefs.getServerUrl())
+            }
+        ).also {
+            it.show()
+            it.showOsd(focus = false)
+        }
+        viewModel.observeLiveFavorites()
+        viewModel.loadSurfCategories()
+        lifecycleScope.launch {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                viewModel.liveFavoriteIds.collect { ids ->
+                    liveOsd?.setFavorites(ids, contentId)
+                }
+            }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                viewModel.surfCategories.collect { cats ->
+                    liveOsd?.setCategories(cats)
+                }
+            }
+        }
+    }
+
+    private fun toggleLiveFavorite() {
+        val id = contentId
+        val name = pendingChannelName
+        lifecycleScope.launch {
+            val added = viewModel.toggleLiveFavorite(id, name, channelLogoUrl) ?: return@launch
+            liveOsd?.showToast(
+                if (added) "★ ADDED TO FAVORITES · ${name.orEmpty()}"
+                else "REMOVED FROM FAVORITES"
+            )
+        }
     }
 
     private fun playUrl(url: String) {
@@ -870,6 +951,7 @@ class PlayerActivity : AppCompatActivity() {
         isSwitching = true
         switchCount++
         frameRateMatchedForCurrentSource = false
+        liveOsd?.showZapBackdrop()
         Log.i("PlayerActivity", "Performing seamless switch to: ${SensitiveLogRedactor.describeUrl(newUrl)}")
         
         timeoutHandler.removeCallbacks(timeoutRunnable)
@@ -1161,6 +1243,8 @@ class PlayerActivity : AppCompatActivity() {
                     if (contentType != ContentType.LIVE_TV) return@collect
                     val number = state?.let { (it.index + 1).coerceAtLeast(1) } ?: 1
                     tvChannelNumber?.text = number.toString()
+                    liveOsd?.setChannelNumber(state?.let { it.index + 1 })
+                    state?.let { liveOsd?.setZapState(it.categoryId, it.categoryName, it.channels, it.index) }
                 }
             }
         }
@@ -1542,8 +1626,12 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun renderOverlay(state: PlayerOverlayUiState) {
         lastOverlayState = state
-        if (epgOverlay == null) return
         if (contentType != ContentType.LIVE_TV) return
+        liveOsd?.let { osd ->
+            osd.bindEpg(state.now, state.next ?: state.upcoming.firstOrNull())
+            return
+        }
+        if (epgOverlay == null) return
 
         val statusText = when {
             state.isSyncing -> getString(R.string.player_epg_syncing)
@@ -1596,6 +1684,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun bindChannelMeta(channelName: String?) {
         pendingChannelName = channelName
+        liveOsd?.bindChannel(channelName, channelLogoUrl)
         val nameView = tvChannelName ?: return
         nameView.text = channelName ?: getString(R.string.player_epg_channel_unknown)
         imgChannelLogo?.let { logoView ->
@@ -1908,6 +1997,38 @@ class PlayerActivity : AppCompatActivity() {
                         timeoutHandler.removeCallbacks(timeoutRunnable)
                         lastBufferingStartMs = 0L
                         if (playbackState == Player.STATE_ENDED) {
+                             val nowMs = SystemClock.elapsedRealtime()
+                             if (nowMs - lastEndedReconnectAtMs > 30_000L) endedReconnects = 0
+                             val canReconnect = endedReconnects < 3
+                             // A live stream never legitimately ends — ENDED means the
+                             // provider dropped the socket. Reconnect instead of
+                             // silently finishing back to the channel list.
+                             if (contentType == ContentType.LIVE_TV) {
+                                  if (canReconnect) {
+                                       endedReconnects++; lastEndedReconnectAtMs = nowMs
+                                       Log.w("PlayerActivity", "Live stream ended unexpectedly — reconnecting ($endedReconnects/3)")
+                                       currentUrl?.let { performSeamlessSwitch(it) }
+                                  } else {
+                                       handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
+                                  }
+                                  return
+                             }
+                             // Same for VOD: a mid-stream socket drop reports ENDED
+                             // long before the real end. Only finish when actually
+                             // at the end of the content; otherwise resume in place.
+                             val durationMs = player?.duration ?: 0L
+                             val positionMs = player?.currentPosition ?: 0L
+                             val endedMidStream = durationMs > 0L && positionMs < durationMs - 15_000L
+                             if (endedMidStream && canReconnect) {
+                                  endedReconnects++; lastEndedReconnectAtMs = nowMs
+                                  Log.w(
+                                      "PlayerActivity",
+                                      "Stream ended ${durationMs - positionMs}ms before content end — resuming ($endedReconnects/3)"
+                                  )
+                                  startPositionMs = positionMs
+                                  currentUrl?.let { performSeamlessSwitch(it) }
+                                  return
+                             }
                              if (contentType == ContentType.SERIES || contentType == ContentType.EPISODE) {
                                   val state = viewModel.seriesPlaylistState.value
                                   if (canUseDebridResolver() || state?.hasNext == true) {
@@ -1929,6 +2050,7 @@ class PlayerActivity : AppCompatActivity() {
                 }
                 override fun onRenderedFirstFrame() {
                     hasRenderedFirstFrameForCurrentSource = true
+                    liveOsd?.hideZapBackdrop()
                     maybeRecordDirectAddonProxySuccess()
                     PlaybackDiagnosticsRecorder.record(
                         this@PlayerActivity,
@@ -2441,7 +2563,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun stopStallMonitor() = stallHandler.removeCallbacks(stallRunnable)
 
-    override fun onDestroy() { super.onDestroy(); dismissActiveTrackDialog(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_destroy"); PlaybackDiagnosticsRecorder.finishSession(this, "activity_destroyed") }
+    override fun onDestroy() { super.onDestroy(); dismissActiveTrackDialog(); liveOsd?.release(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_destroy"); PlaybackDiagnosticsRecorder.finishSession(this, "activity_destroyed") }
 
     private fun resolveTimeoutMs(url: String): Long = when {
         url.lowercase().contains("mediafusion.elfhosted.com") -> MEDIAFUSION_TIMEOUT_MS
@@ -2540,6 +2662,11 @@ class PlayerActivity : AppCompatActivity() {
         Log.d("PlayerActivity", "dispatchKeyEvent: code=${event.keyCode}, action=${event.action}")
         
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+            // Surf drawer: BACK steps categories→channels→close; else exits (spec §8).
+            if (liveOsd?.isDrawerOpen == true) {
+                if (event.action == KeyEvent.ACTION_UP) liveOsd?.handleDrawerBack()
+                return true
+            }
             val xray = findViewById<View>(R.id.view_xray_panel)
             val isXrayVisible = xray != null && xray.visibility == View.VISIBLE
             val isEpisodeBrowserVisible = ::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()
@@ -2632,19 +2759,37 @@ class PlayerActivity : AppCompatActivity() {
                 }
             }
 
+            // Cinematic live OSD routing (spec §8): ◀ drawer, ▶/OK controls row.
+            // Zap keys fall through to the branches below.
+            if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible) {
+                liveOsd?.let { osd -> if (osd.handleKeyEvent(event)) return true }
+            }
+            val surfDrawerOpen = liveOsd?.isDrawerOpen == true
+
             when (event.keyCode) {
-                KeyEvent.KEYCODE_DPAD_LEFT -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible) { viewModel.toggleBrowser(true, viewModel.zapState.value?.categoryId ?: liveCategoryId, contentId); return true } }
+                KeyEvent.KEYCODE_DPAD_LEFT -> { if (contentType == ContentType.LIVE_TV && liveOsd == null && !viewModel.browserState.value.isVisible) { viewModel.toggleBrowser(true, viewModel.zapState.value?.categoryId ?: liveCategoryId, contentId); return true } }
                 KeyEvent.KEYCODE_CAPTIONS -> { if (contentType != ContentType.LIVE_TV) { showSubtitleSelection(); return true } }
-                KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_UP -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible) { zapChannel(direction = +1); return true } }
-                KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_DOWN -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible) { zapChannel(direction = -1); return true } }
-                KeyEvent.KEYCODE_DPAD_UP -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible) { zapChannel(direction = +1); return true } }
+                KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_UP -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen) { zapChannel(direction = +1); return true } }
+                KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_DOWN -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen) { zapChannel(direction = -1); return true } }
+                KeyEvent.KEYCODE_DPAD_UP -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen) { zapChannel(direction = +1); return true } }
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible) { zapChannel(direction = -1); return true }
+                    if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen) { zapChannel(direction = -1); return true }
                 }
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { if (contentType == ContentType.LIVE_TV) { if (viewModel.browserState.value.isVisible) return super.dispatchKeyEvent(event); if (epgOverlayMode != EpgOverlayMode.HIDDEN && !epgOverlayPinned) hideEpgOverlay() else showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false); return true } }
-                KeyEvent.KEYCODE_INFO -> { if (contentType == ContentType.LIVE_TV) toggleEpgOverlayPinned() else { playerView.showController(); playerView.requestFocus() }; return true }
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { if (contentType == ContentType.LIVE_TV) { if (viewModel.browserState.value.isVisible || liveOsd != null) return super.dispatchKeyEvent(event); if (epgOverlayMode != EpgOverlayMode.HIDDEN && !epgOverlayPinned) hideEpgOverlay() else showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false); return true } }
+                KeyEvent.KEYCODE_INFO -> {
+                    if (contentType == ContentType.LIVE_TV) {
+                        liveOsd?.showOsd(focus = true) ?: toggleEpgOverlayPinned()
+                    } else { playerView.showController(); playerView.requestFocus() }
+                    return true
+                }
                 KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_GUIDE -> {
-                    if (contentType == ContentType.LIVE_TV) { toggleEpgOverlayPinned(); return true }; if (playerView.isControllerFullyVisible) { showSubtitleSelection(); return true } 
+                    if (contentType == ContentType.LIVE_TV) {
+                        liveOsd?.let {
+                            viewModel.toggleBrowser(true, viewModel.zapState.value?.categoryId ?: liveCategoryId, contentId)
+                        } ?: toggleEpgOverlayPinned()
+                        return true
+                    }
+                    if (playerView.isControllerFullyVisible) { showSubtitleSelection(); return true }
                 }
             }
         }
@@ -2652,7 +2797,7 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent): Boolean {
-        if (contentType == ContentType.LIVE_TV) { when (keyCode) { KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { toggleEpgOverlayPinned(); return true } } }
+        if (contentType == ContentType.LIVE_TV) { when (keyCode) { KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { liveOsd?.showOsd(focus = true) ?: toggleEpgOverlayPinned(); return true } } }
         return super.onKeyLongPress(keyCode, event)
     }
 
@@ -2723,12 +2868,12 @@ class PlayerActivity : AppCompatActivity() {
         } catch (e: Exception) { showToast("PiP failed") }
     }
 
-    private fun hideUiForPiP() { playerView.hideController(); epgOverlay?.isVisible = false; vodInfoOverlay?.isVisible = false; supportActionBar?.hide(); historyManager.recordPlaybackHistoryIfNeeded() }
-    private fun showUiForNormalMode() { if (!isInPictureInPictureMode) { supportActionBar?.show(); if (contentType == ContentType.LIVE_TV) updateOverlayVisibility() else updateVodOverlayVisibility() } }
+    private fun hideUiForPiP() { playerView.hideController(); epgOverlay?.isVisible = false; vodInfoOverlay?.isVisible = false; liveOsd?.hideForPip(); supportActionBar?.hide(); historyManager.recordPlaybackHistoryIfNeeded() }
+    private fun showUiForNormalMode() { if (!isInPictureInPictureMode) { supportActionBar?.show(); liveOsd?.show(); if (contentType == ContentType.LIVE_TV) updateOverlayVisibility() else updateVodOverlayVisibility() } }
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) { super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig); this.isInPictureInPictureMode = isInPictureInPictureMode; if (isInPictureInPictureMode) hideUiForPiP() else showUiForNormalMode() }
 
-    private fun updateOverlayVisibility() { val hasContent = epgOverlay != null; val shouldShow = when (contentType) { ContentType.LIVE_TV -> hasContent && epgOverlayMode != EpgOverlayMode.HIDDEN && !isInPictureInPictureMode; else -> hasContent && isControllerVisible && !isInPictureInPictureMode }; setOverlayVisible(shouldShow) }
+    private fun updateOverlayVisibility() { if (liveOsd != null) { setOverlayVisible(false); return }; val hasContent = epgOverlay != null; val shouldShow = when (contentType) { ContentType.LIVE_TV -> hasContent && epgOverlayMode != EpgOverlayMode.HIDDEN && !isInPictureInPictureMode; else -> hasContent && isControllerVisible && !isInPictureInPictureMode }; setOverlayVisible(shouldShow) }
     private fun updateVodOverlayVisibility() { setVodOverlayVisible(contentType != ContentType.LIVE_TV && isControllerVisible && !isInPictureInPictureMode) }
 
     private fun setOverlayVisible(visible: Boolean) { val o = epgOverlay ?: return; if (visible) { if (o.isVisible) return; o.alpha = 0f; o.isVisible = true; o.animate().alpha(1f).setDuration(160).start() } else { if (!o.isVisible) return; o.animate().alpha(0f).setDuration(140).withEndAction { o.isVisible = false }.start() } }

@@ -186,7 +186,19 @@ class MainActivity : AppCompatActivity() {
             return
         }
         
-        // Priority 2: Root Level Handling
+        // Priority 2: Pre-login screens are the root when signed out — exit the app
+        // instead of falling through to the "navigate back to Home" branch, which
+        // would open a blank Home with no credentials.
+        if (currentFragment is LoginFragment) {
+            if (!currentFragment.handleBackPress()) finish()
+            return
+        }
+        if (currentFragment is InitialSyncFragment) {
+            finish()
+            return
+        }
+
+        // Priority 3: Root Level Handling
         if (currentFragment is com.tvonnet.debridxtreamiptv.ui.home.HomeFragment) {
             // 2a. If at Home, check scroll first
             val handled = currentFragment.handleBackPress()

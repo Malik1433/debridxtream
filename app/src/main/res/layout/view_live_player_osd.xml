@@ -1,0 +1,842 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cinematic Live Player OSD — design_handoff_debxtrem_tv_ui/Live Player.dc.html
+     All dimensions are design-px ÷ 2 (1920×1080 px canvas → 960×540 dp on Fire TV). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/live_osd_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:visibility="gone"
+    tools:visibility="visible">
+
+    <!-- ══ Zap backdrop: per-channel gradient + watermark while the next stream buffers ══ -->
+    <FrameLayout
+        android:id="@+id/live_zap_backdrop"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/live_zap_backdrop_gradient"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <TextView
+            android:id="@+id/live_zap_backdrop_initials"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:alpha="0.16"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:letterSpacing="-0.04"
+            android:textColor="@android:color/white"
+            android:textSize="60sp"
+            android:textStyle="bold"
+            tools:text="ARD" />
+    </FrameLayout>
+
+    <!-- ══ Top + bottom scrims (fade with bottom OSD) ══ -->
+    <View
+        android:id="@+id/live_scrim_top"
+        android:layout_width="match_parent"
+        android:layout_height="110dp"
+        android:layout_gravity="top"
+        android:background="@drawable/bg_live_scrim_top" />
+
+    <View
+        android:id="@+id/live_scrim_bottom"
+        android:layout_width="match_parent"
+        android:layout_height="245dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bg_live_scrim_bottom" />
+
+    <!-- ══ CHANNEL BUG (top-left, always visible) ══ -->
+    <LinearLayout
+        android:id="@+id/live_channel_bug"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="28dp"
+        android:layout_marginTop="20dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:id="@+id/live_bug_logo"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:background="@drawable/bg_live_bug_logo"
+            android:elevation="4dp">
+
+            <TextView
+                android:id="@+id/live_bug_initials"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:letterSpacing="-0.02"
+                android:textColor="@android:color/white"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                tools:text="ARD" />
+
+            <ImageView
+                android:id="@+id/live_bug_logo_img"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:padding="4dp"
+                android:scaleType="fitCenter"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/live_bug_number"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:textColor="@color/live_osd_text_muted"
+                    android:textSize="8sp"
+                    tools:text="003" />
+
+                <TextView
+                    android:id="@+id/live_bug_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:letterSpacing="-0.01"
+                    android:maxWidth="300dp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:shadowColor="#99000000"
+                    android:shadowDy="1"
+                    android:shadowRadius="6"
+                    android:textColor="@color/live_osd_text_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    tools:text="SKY SPORT 1" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2.5dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_live_badge_live"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="4.5dp"
+                    android:paddingVertical="1.5dp">
+
+                    <View
+                        android:id="@+id/live_bug_live_dot"
+                        android:layout_width="2.5dp"
+                        android:layout_height="2.5dp"
+                        android:background="@drawable/bg_live_dot" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="3dp"
+                        android:fontFamily="monospace"
+                        android:letterSpacing="0.08"
+                        android:text="LIVE"
+                        android:textColor="@android:color/white"
+                        android:textSize="5sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/live_bug_quality"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:background="@drawable/bg_live_badge_quality_4k"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.04"
+                    android:paddingHorizontal="4dp"
+                    android:paddingVertical="1.5dp"
+                    android:textColor="#041014"
+                    android:textSize="5sp"
+                    android:textStyle="bold"
+                    tools:text="4K UHD" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ══ TOP-RIGHT STATUS (always visible) ══ -->
+    <LinearLayout
+        android:id="@+id/live_status_row"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:layout_marginTop="23dp"
+        android:layout_marginEnd="28dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="10dp"
+            android:gravity="bottom"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="2dp"
+                android:layout_height="4dp"
+                android:background="@drawable/bg_live_signal_bar" />
+
+            <View
+                android:layout_width="2dp"
+                android:layout_height="6dp"
+                android:layout_marginStart="1.5dp"
+                android:background="@drawable/bg_live_signal_bar" />
+
+            <View
+                android:layout_width="2dp"
+                android:layout_height="8dp"
+                android:layout_marginStart="1.5dp"
+                android:background="@drawable/bg_live_signal_bar" />
+
+            <View
+                android:layout_width="2dp"
+                android:layout_height="10dp"
+                android:layout_marginStart="1.5dp"
+                android:alpha="0.35"
+                android:background="@drawable/bg_live_signal_bar" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_live_conn_chip"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="3dp">
+
+            <View
+                android:layout_width="3dp"
+                android:layout_height="3dp"
+                android:background="@drawable/bg_live_dot"
+                android:backgroundTint="@color/neon_green" />
+
+            <TextView
+                android:id="@+id/live_conn_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="3.5dp"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.06"
+                android:textColor="@color/live_osd_text_soft"
+                android:textSize="5.5sp"
+                tools:text="XTREAM · 4K" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/live_clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.06"
+            android:textColor="@color/live_osd_text_primary"
+            android:textSize="8sp"
+            tools:text="9:41 PM" />
+    </LinearLayout>
+
+    <!-- ══ ZAP OSD (big channel number, 2.6s after zap) ══ -->
+    <LinearLayout
+        android:id="@+id/live_zap_osd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="28dp"
+        android:layout_marginTop="70dp"
+        android:background="@drawable/bg_live_zap_card"
+        android:elevation="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="13dp"
+        android:paddingVertical="9dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <TextView
+            android:id="@+id/live_zap_number"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:letterSpacing="-0.02"
+            android:shadowColor="#6600F0FF"
+            android:shadowRadius="10"
+            android:textColor="@color/neon_cyan"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            tools:text="003" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="9dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/live_zap_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:maxWidth="260dp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textColor="@color/live_osd_text_primary"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                tools:text="SKY SPORT 1" />
+
+            <TextView
+                android:id="@+id/live_zap_now"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="monospace"
+                android:maxWidth="260dp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textColor="@color/neon_cyan"
+                android:textSize="6.5sp"
+                tools:text="Bundesliga: BVB vs FCB" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ══ BOTTOM OSD ══ -->
+    <LinearLayout
+        android:id="@+id/live_bottom_osd"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:paddingHorizontal="28dp"
+        android:paddingBottom="17dp">
+
+        <!-- now / next row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="11dp"
+            android:gravity="bottom"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="4dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="monospace"
+                        android:letterSpacing="0.16"
+                        android:text="NOW PLAYING"
+                        android:textColor="@color/neon_cyan"
+                        android:textSize="6.5sp" />
+
+                    <TextView
+                        android:id="@+id/live_genre"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:textColor="@color/live_osd_text_dim"
+                        android:textSize="6.5sp"
+                        android:visibility="gone"
+                        tools:text="Live Sport"
+                        tools:visibility="visible" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/live_now_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:letterSpacing="-0.02"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:shadowColor="#99000000"
+                    android:shadowDy="1.5"
+                    android:shadowRadius="10"
+                    android:textColor="@color/live_osd_text_primary"
+                    android:textSize="23sp"
+                    android:textStyle="bold"
+                    tools:text="Bundesliga: BVB vs FCB" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/live_time_start"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="monospace"
+                        android:textColor="@color/live_osd_text_soft"
+                        android:textSize="6.5sp"
+                        tools:text="20:15" />
+
+                    <ProgressBar
+                        android:id="@+id/live_progress"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="0dp"
+                        android:layout_height="2.5dp"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:max="100"
+                        android:progressDrawable="@drawable/live_progress_bar"
+                        tools:progress="48" />
+
+                    <TextView
+                        android:id="@+id/live_time_end"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="monospace"
+                        android:textColor="@color/live_osd_text_soft"
+                        android:textSize="6.5sp"
+                        tools:text="22:00" />
+
+                    <TextView
+                        android:id="@+id/live_min_left"
+                        android:layout_width="46dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="monospace"
+                        android:gravity="end"
+                        android:textColor="@color/neon_cyan"
+                        android:textSize="6.5sp"
+                        tools:text="55 MIN LEFT" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/live_next_card"
+                android:layout_width="190dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="13dp"
+                android:background="@drawable/bg_live_next_card"
+                android:orientation="vertical"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="8dp">
+
+                <TextView
+                    android:id="@+id/live_next_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.14"
+                    android:textColor="@color/live_next_purple"
+                    android:textSize="5.5sp"
+                    tools:text="UP NEXT · 22:00" />
+
+                <TextView
+                    android:id="@+id/live_next_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:textColor="#E2E8F0"
+                    android:textSize="9.5sp"
+                    android:textStyle="bold"
+                    tools:text="Match Analysis" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- controls row -->
+        <LinearLayout
+            android:id="@+id/live_controls_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/btn_live_channels"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:background="@drawable/bg_live_ctl_btn"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp">
+
+                <ImageView
+                    android:id="@+id/ic_live_channels"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_live_list"
+                    android:tint="@color/live_osd_text_primary" />
+
+                <TextView
+                    android:id="@+id/tv_live_channels"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5.5dp"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:text="Channels"
+                    android:textColor="@color/live_osd_text_primary"
+                    android:textSize="8sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_live_guide"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:layout_marginStart="7dp"
+                android:background="@drawable/bg_live_ctl_btn"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp">
+
+                <ImageView
+                    android:id="@+id/ic_live_guide"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_live_guide"
+                    android:tint="@color/live_osd_text_primary" />
+
+                <TextView
+                    android:id="@+id/tv_live_guide"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5.5dp"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:text="TV Guide"
+                    android:textColor="@color/live_osd_text_primary"
+                    android:textSize="8sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_live_cc"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:layout_marginStart="7dp"
+                android:background="@drawable/bg_live_ctl_btn"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:text="CC"
+                    android:textColor="@color/live_osd_text_muted"
+                    android:textSize="6sp" />
+
+                <TextView
+                    android:id="@+id/live_cc_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:textColor="@color/live_osd_text_soft"
+                    android:textSize="7.5sp"
+                    android:textStyle="bold"
+                    tools:text="Off" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_live_audio"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:layout_marginStart="7dp"
+                android:background="@drawable/bg_live_ctl_btn"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp">
+
+                <ImageView
+                    android:id="@+id/ic_live_audio"
+                    android:layout_width="9.5dp"
+                    android:layout_height="9.5dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_live_audio"
+                    android:tint="@color/live_osd_text_soft" />
+
+                <TextView
+                    android:id="@+id/live_audio_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:textColor="@color/live_osd_text_soft"
+                    android:textSize="7.5sp"
+                    android:textStyle="bold"
+                    tools:text="Stereo" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_live_aspect"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:layout_marginStart="7dp"
+                android:background="@drawable/bg_live_ctl_btn"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp">
+
+                <ImageView
+                    android:id="@+id/ic_live_aspect"
+                    android:layout_width="9.5dp"
+                    android:layout_height="9.5dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_live_aspect"
+                    android:tint="@color/live_osd_text_soft" />
+
+                <TextView
+                    android:id="@+id/live_aspect_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:textColor="@color/live_osd_text_soft"
+                    android:textSize="7.5sp"
+                    android:textStyle="bold"
+                    tools:text="Fit" />
+            </LinearLayout>
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <FrameLayout
+                android:id="@+id/btn_live_fav"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:background="@drawable/bg_live_ctl_fav"
+                android:focusable="true">
+
+                <ImageView
+                    android:id="@+id/live_fav_icon"
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_live_star" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <!-- hint bar -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="9dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.1"
+                android:text="▲▼ CHANGE CHANNEL"
+                android:textColor="@color/live_osd_text_muted"
+                android:textSize="6sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="11dp"
+                android:fontFamily="monospace"
+                android:text="│"
+                android:textColor="@color/live_hint_divider"
+                android:textSize="6sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.1"
+                android:text="◀ CHANNEL LIST"
+                android:textColor="@color/live_osd_text_muted"
+                android:textSize="6sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="11dp"
+                android:fontFamily="monospace"
+                android:text="│"
+                android:textColor="@color/live_hint_divider"
+                android:textSize="6sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.1"
+                android:text="OK SELECT"
+                android:textColor="@color/live_osd_text_muted"
+                android:textSize="6sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="11dp"
+                android:fontFamily="monospace"
+                android:text="│"
+                android:textColor="@color/live_hint_divider"
+                android:textSize="6sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.1"
+                android:text="BACK EXIT"
+                android:textColor="@color/live_osd_text_muted"
+                android:textSize="6sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ══ CHANNEL SURF DRAWER ══ -->
+    <View
+        android:id="@+id/live_drawer_scrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#66000000"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/live_surf_drawer"
+        android:layout_width="270dp"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_live_drawer"
+        android:elevation="8dp"
+        android:orientation="vertical"
+        android:paddingTop="17dp"
+        android:paddingBottom="10dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="15dp"
+            android:paddingEnd="15dp"
+            android:paddingBottom="10dp">
+
+            <View
+                android:layout_width="2dp"
+                android:layout_height="11dp"
+                android:background="@color/neon_cyan" />
+
+            <TextView
+                android:id="@+id/live_surf_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:letterSpacing="-0.01"
+                android:text="@string/live_osd_channels_title"
+                android:textColor="@color/live_osd_text_primary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/live_surf_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:fontFamily="monospace"
+                android:textColor="@color/live_osd_text_faint"
+                android:textSize="6sp"
+                tools:text="12 LIVE" />
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_live_surf"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingHorizontal="8dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="10dp"
+            android:scrollbars="none" />
+    </LinearLayout>
+
+    <!-- ══ TOAST ══ -->
+    <LinearLayout
+        android:id="@+id/live_toast"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal|top"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/bg_live_toast"
+        android:elevation="10dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="11dp"
+        android:paddingVertical="6.5dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <View
+            android:id="@+id/live_toast_dot"
+            android:layout_width="4dp"
+            android:layout_height="4dp"
+            android:background="@drawable/bg_live_dot"
+            android:backgroundTint="@color/neon_cyan" />
+
+        <TextView
+            android:id="@+id/live_toast_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.06"
+            android:textColor="@color/neon_cyan"
+            android:textSize="7.5sp"
+            tools:text="▶ TUNING · SKY SPORT 1" />
+    </LinearLayout>
+</FrameLayout>

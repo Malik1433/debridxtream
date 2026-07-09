@@ -7,36 +7,37 @@
     android:clickable="true"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    android:padding="2dp"
+    android:padding="4dp"
     android:clipToPadding="false"
     android:clipChildren="false">
 
-    <!-- Focused Glow View (Anchored to Card) -->
+    <!-- Focus glow: app-default cyan bloom. MUST extend 12dp beyond the poster so the
+         inset blur spills outward (matches home cards). Drawable set in code. -->
     <View
         android:id="@+id/glow_focus"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_margin="-12dp"
-        android:alpha="0"
-        android:background="@drawable/bg_movie_focus_cyan"
+        android:duplicateParentState="true"
         app:layout_constraintTop_toTopOf="@id/card_container"
         app:layout_constraintBottom_toBottomOf="@id/card_container"
         app:layout_constraintStart_toStartOf="@id/card_container"
         app:layout_constraintEnd_toEndOf="@id/card_container" />
 
+    <!-- ─── POSTER ─── -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_container"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintDimensionRatio="2:3"
-        app:cardCornerRadius="10dp"
+        app:cardCornerRadius="8dp"
         app:cardElevation="0dp"
-        android:stateListAnimator="@animator/selector_card_scale"
-        app:cardBackgroundColor="@android:color/transparent">
+        android:duplicateParentState="true"
+        android:foreground="@drawable/card_focus_cinematic"
+        app:cardBackgroundColor="#0C1119">
 
         <!-- Poster Image -->
         <ImageView
@@ -46,16 +47,16 @@
             android:contentDescription="Movie Poster"
             android:scaleType="centerCrop" />
 
-        <!-- Top Right Quality Badge (e.g., 4K) -->
+        <!-- Quality Badge (top-right) -->
         <LinearLayout
             android:id="@+id/ll_quality_badge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
-            android:layout_margin="6dp"
+            android:layout_margin="8dp"
             android:background="@drawable/bg_badge_quality"
             android:orientation="horizontal"
-            android:paddingHorizontal="5dp"
+            android:paddingHorizontal="6dp"
             android:paddingVertical="2dp"
             android:gravity="center">
 
@@ -63,14 +64,34 @@
                 android:id="@+id/tv_quality_value"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="4K"
-                android:textColor="@android:color/white"
+                android:text="HD"
+                android:textColor="@color/vod_accent_cyan"
                 android:textSize="9sp"
-                android:fontFamily="@font/plus_jakarta_sans"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.04" />
         </LinearLayout>
 
-        <!-- Top Left Favorite Heart -->
+        <!-- Watched badge (top-left) -->
+        <FrameLayout
+            android:id="@+id/fl_watched_badge"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="top|start"
+            android:layout_margin="8dp"
+            android:background="@drawable/bg_watched_badge"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/iv_watched_check"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_check_circle"
+                app:tint="@color/vod_green" />
+        </FrameLayout>
+
+        <!-- Favorite indicator (hidden by default) -->
         <ImageView
             android:id="@+id/iv_favorite_indicator"
             android:layout_width="24dp"
@@ -79,125 +100,118 @@
             android:layout_margin="4dp"
             android:padding="5dp"
             android:src="@drawable/ic_favorite"
-            app:tint="@color/brand_cyan"
+            app:tint="@color/vod_accent_cyan"
             android:background="@drawable/bg_circle_dark_translucent"
             android:visibility="gone" />
 
-        <!-- Top Right Watched Checkmark (or beside quality badge) -->
-        <!-- But layout is a CardView containing a FrameLayout-like behavior.
-             Let's put the watched indicator at the bottom-right of the poster, just above the glass footer.
-             Wait, a CardView stacks children. Layout gravity can be used.
-             Let's put it at center-end or top-start below favorite?
-             Top-Left below favorite: -->
-        <ImageView
-            android:id="@+id/iv_watched_indicator"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_gravity="top|start"
-            android:layout_marginStart="8dp"
-            android:layout_marginTop="36dp"
-            android:padding="6dp"
-            android:src="@drawable/ic_check_circle"
-            app:tint="@android:color/white"
-            android:background="@drawable/bg_watched_badge"
-            android:clickable="false"
-            android:focusable="false"
-            android:elevation="6dp"
-            android:visibility="gone" />
-
-        <!-- Glass Metadata Layer -->
-        <LinearLayout
+        <!-- Progress bar (bottom of poster, for in-progress movies) -->
+        <FrameLayout
+            android:id="@+id/fl_progress_bar"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="3dp"
             android:layout_gravity="bottom"
-            android:background="@drawable/bg_glass_card_footer"
-            android:orientation="vertical"
-            android:paddingBottom="12dp"
-            android:paddingHorizontal="10dp"
-            android:paddingTop="12dp">
+            android:visibility="gone">
 
-            <TextView
-                android:id="@+id/tv_movie_title"
+            <View
+                android:id="@+id/progress_bar_track"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:maxLines="2"
-                android:ellipsize="end"
-                android:text="Movie Title"
-                android:textColor="@android:color/white"
-                android:textSize="16sp"
-                android:fontFamily="@font/plus_jakarta_sans"
-                android:textStyle="bold"
-                android:lineSpacingExtra="2dp"
-                android:letterSpacing="0.01" />
+                android:layout_height="match_parent"
+                android:background="#1AFFFFFF" />
 
-            <!-- Metadata Row: Star | Rating | Year | Lang -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginTop="2dp">
-
-                <ImageView
-                    android:layout_width="12dp"
-                    android:layout_height="12dp"
-                    android:src="@drawable/ic_favorite" 
-                    app:tint="#FFD700"
-                    android:contentDescription="Rating Star"/>
-
-                <TextView
-                    android:id="@+id/tv_movie_rating_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="8.9"
-                    android:textColor="#CCFFFFFF"
-                    android:textSize="13sp"
-                    android:fontFamily="@font/plus_jakarta_sans"
-                    android:layout_marginStart="2dp"/>
-                
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text=" • "
-                    android:textColor="#66FFFFFF"
-                    android:textSize="8sp"
-                    android:layout_marginStart="2dp"/>
-
-                 <TextView
-                    android:id="@+id/tv_movie_year"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="2024"
-                    android:textColor="#CCFFFFFF"
-                    android:textSize="13sp"
-                    android:fontFamily="@font/plus_jakarta_sans"
-                    android:layout_marginStart="4dp"/>
-
-                <!-- Extra space before badge -->
-                <Space
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"/>
-
-                <!-- Language / Format Badge -->
-                <TextView
-                    android:id="@+id/tv_lang_badge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="MULTI"
-                    android:textColor="#FFFFFF"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:fontFamily="@font/plus_jakarta_sans"
-                    android:paddingHorizontal="4dp"
-                    android:paddingVertical="1dp"
-                    android:background="@drawable/bg_badge_quality"
-                    android:visibility="gone"/>
-
-            </LinearLayout>
-
-        </LinearLayout>
-
+            <View
+                android:id="@+id/progress_bar_fill"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_progress_fill" />
+        </FrameLayout>
     </androidx.cardview.widget.CardView>
+
+    <!-- ─── META (below poster, per design) ─── -->
+    <TextView
+        android:id="@+id/tv_movie_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="9dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:text="Movie Title"
+        android:textColor="#E2E8F0"
+        android:textSize="14sp"
+        android:fontFamily="sans-serif-medium"
+        app:layout_constraintTop_toBottomOf="@id/card_container"
+        app:layout_constraintStart_toStartOf="@id/card_container"
+        app:layout_constraintEnd_toEndOf="@id/card_container" />
+
+    <!-- Sub-meta row: ★ rating · year · genre -->
+    <LinearLayout
+        android:id="@+id/ll_movie_meta"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        app:layout_constraintTop_toBottomOf="@id/tv_movie_title"
+        app:layout_constraintStart_toStartOf="@id/card_container"
+        app:layout_constraintEnd_toEndOf="@id/card_container">
+
+        <TextView
+            android:id="@+id/tv_star"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="★"
+            android:textColor="@color/vod_accent_cyan"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/tv_movie_rating_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="3dp"
+            android:text="N/A"
+            android:textColor="#64748B"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.04" />
+
+        <TextView
+            android:id="@+id/tv_meta_dot1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="5dp"
+            android:text="·"
+            android:textColor="#3D4F60"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/tv_movie_year"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="#64748B"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.04" />
+
+        <TextView
+            android:id="@+id/tv_meta_dot2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="5dp"
+            android:text="·"
+            android:textColor="#3D4F60"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/tv_genre_short"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text=""
+            android:textColor="#64748B"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:singleLine="true"
+            android:ellipsize="end" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -105,7 +105,9 @@ internal class HomeFocusManager(private var fragment: HomeFragment?) {
     }
 
     fun isHeroButtonFocus(currentFocus: View): Boolean {
-        return currentFocus.id == R.id.btn_hero_watch || currentFocus.id == R.id.btn_hero_details
+        return currentFocus.id == R.id.btn_hero_watch ||
+            currentFocus.id == R.id.btn_hero_details ||
+            currentFocus.id == R.id.btn_hero_fav
     }
 
     fun restoreContentFocus(): Boolean {
@@ -376,7 +378,30 @@ internal class HomeFocusManager(private var fragment: HomeFragment?) {
     fun focusHeroPrimaryButton(): Boolean {
         val frag = fragment ?: return false
         if (frag.currentHeroItem == null) return false
-        return requestFocusSafely(frag.view?.findViewById(R.id.btn_hero_watch))
+        val focused = requestFocusSafely(frag.view?.findViewById(R.id.btn_hero_watch))
+        if (focused) {
+            // Spec: reaching the hero scrolls the page fully to top
+            frag.view?.findViewById<NestedScrollView>(R.id.scroll_content)?.smoothScrollTo(0, 0)
+        }
+        return focused
+    }
+
+    /**
+     * Focus memory: DOWN from a hero button returns to the LAST focused rail card
+     * (any rail), not card[0].
+     */
+    fun restoreLastRailFocus(): Boolean {
+        val frag = fragment ?: return false
+        if (lastContentFocusArea != HomeContentFocusArea.HERO && isRememberedContentFocusValid()) {
+            return requestContentFocus(
+                recyclerFor(lastContentFocusArea),
+                rememberedIndexFor(lastContentFocusArea)
+            )
+        }
+        firstAvailableContentArea()?.let { area ->
+            return requestContentFocus(recyclerFor(area), rememberedIndexFor(area))
+        }
+        return false
     }
 
     fun getItemCount(recyclerView: RecyclerView): Int {

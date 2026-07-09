@@ -22,7 +22,14 @@ data class MovieDetailV2UiState(
     val genre: String? = null,
     val rating: String? = null,
     val backdropUrl: String? = null,
-    val posterUrl: String? = null
+    val posterUrl: String? = null,
+    val tmdbId: Int? = null,
+    val imdbId: String? = null,
+    val director: String? = null,
+    val cast: List<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbCast> = emptyList(),
+    val ageRating: String? = null,
+    val runtimeMinutes: Int? = null,
+    val recommendations: List<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbMovie> = emptyList()
 )
 
 @HiltViewModel
@@ -69,20 +76,28 @@ class MovieDetailViewModelV2 @Inject constructor(
                     return@launch
                 }
 
-                val (tmdbId, backdropPath, posterPath, overview, releaseDate, genres, voteAverage) = match
-                android.util.Log.d("MovieDetailV2", "TMDB match id=$tmdbId release=$releaseDate")
-                val trailerKey = withContext(Dispatchers.IO) { fetchBestTrailerKey(tmdbId) }
+                val tmdbId = match.id
+                android.util.Log.d("MovieDetailV2", "TMDB match id=$tmdbId release=${match.releaseDate}")
+                val trailerKey = match.trailerKey ?: withContext(Dispatchers.IO) { fetchBestTrailerKey(tmdbId) }
                 android.util.Log.d("MovieDetailV2", "TMDB trailer key=${trailerKey ?: "null"}")
+                val recommendations = withContext(Dispatchers.IO) { fetchRecommendations(tmdbId) }
 
                 _uiState.value = MovieDetailV2UiState(
                     isLoading = false,
                     trailerValue = trailerKey,
-                    plot = overview,
-                    year = releaseDate?.take(4),
-                    genre = genres?.takeIf { it.isNotBlank() },
-                    rating = voteAverage?.takeIf { it.isNotBlank() },
-                    backdropUrl = backdropPath,
-                    posterUrl = posterPath
+                    plot = match.overview,
+                    year = match.releaseDate?.take(4),
+                    genre = match.genres?.takeIf { it.isNotBlank() },
+                    rating = match.voteAverage?.takeIf { it.isNotBlank() },
+                    backdropUrl = match.backdropUrl,
+                    posterUrl = match.posterUrl,
+                    tmdbId = tmdbId,
+                    imdbId = match.imdbId,
+                    director = match.director,
+                    cast = match.cast,
+                    ageRating = match.ageRating,
+                    runtimeMinutes = match.runtime,
+                    recommendations = recommendations
                 )
             } catch (e: Exception) {
                 android.util.Log.e("MovieDetailV2", "TMDB enrich failed", e)
@@ -98,7 +113,13 @@ class MovieDetailViewModelV2 @Inject constructor(
         val overview: String?,
         val releaseDate: String?,
         val genres: String?,
-        val voteAverage: String?
+        val voteAverage: String?,
+        val imdbId: String? = null,
+        val director: String? = null,
+        val cast: List<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbCast> = emptyList(),
+        val ageRating: String? = null,
+        val runtime: Int? = null,
+        val trailerKey: String? = null
     )
 
     private suspend fun findBestTmdbMatch(title: String, yearHint: String?): TmdbMatch? {
@@ -136,6 +157,10 @@ class MovieDetailViewModelV2 @Inject constructor(
             val posterUrl = detailsData.posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
             val genres = detailsData.genres?.joinToString(", ") { it.name.orEmpty() }?.trim()?.takeIf { it.isNotBlank() }
             val voteAverage = detailsData.voteAverage?.toString()
+            val director = detailsData.credits?.crew
+                ?.firstOrNull { it.job?.equals("Director", ignoreCase = true) == true }
+                ?.name
+            val cast = detailsData.credits?.cast?.take(5) ?: emptyList()
 
             return TmdbMatch(
                 id = detailsData.id ?: best.third,
@@ -144,11 +169,44 @@ class MovieDetailViewModelV2 @Inject constructor(
                 overview = detailsData.overview,
                 releaseDate = detailsData.releaseDate,
                 genres = genres,
-                voteAverage = voteAverage
+                voteAverage = voteAverage,
+                imdbId = detailsData.imdbId,
+                director = director,
+                cast = cast,
+                ageRating = extractCertification(detailsData.releaseDates),
+                runtime = detailsData.runtime
             )
         }
 
         return null
+    }
+
+    /** Picks a content/age certification, preferring US then GB, else the first available. */
+    private fun extractCertification(
+        releaseDates: com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbReleaseDatesResponse?
+    ): String? {
+        val results = releaseDates?.results ?: return null
+        fun certFor(country: String): String? = results
+            .firstOrNull { it.countryCode.equals(country, ignoreCase = true) }
+            ?.releaseDates
+            ?.mapNotNull { it.certification?.trim() }
+            ?.firstOrNull { it.isNotBlank() }
+        return certFor("US")
+            ?: certFor("GB")
+            ?: results.flatMap { it.releaseDates ?: emptyList() }
+                .mapNotNull { it.certification?.trim() }
+                .firstOrNull { it.isNotBlank() }
+    }
+
+    private suspend fun fetchRecommendations(
+        tmdbMovieId: Int
+    ): List<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbMovie> {
+        return try {
+            tmdbRemoteDataSource.getMovieRecommendations(tmdbMovieId)
+                .getOrNull()?.results?.take(6) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     private suspend fun fetchBestTrailerKey(tmdbMovieId: Int): String? {

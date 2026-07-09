@@ -1,5 +1,6 @@
 package com.tvonnet.debridxtreamiptv.ui.vod
 
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,12 +11,16 @@ import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
 
 class CategorySidebarAdapter(
     categories: List<XtreamCategory>,
+    private val layoutRes: Int = R.layout.item_vod_category,
+    private val activeBgRes: Int = R.drawable.bg_vod_category_active,
+    private val accentColor: Int = Color.parseColor("#00F0FF"),
+    /** Optional per-category count for the sidebar badge; null hides that row's count. */
+    private val countProvider: ((String?) -> Int?)? = null,
     private val onCategoryClick: (XtreamCategory) -> Unit
-) : RecyclerView.Adapter<CategorySidebarViewHolder>() {
+) : RecyclerView.Adapter<CategorySidebarAdapter.ViewHolder>() {
 
     var onItemFocused: ((position: Int) -> Unit)? = null
 
-    
     init {
         setHasStableIds(true)
     }
@@ -24,45 +29,35 @@ class CategorySidebarAdapter(
         val categoryId = categories[position].category_id
         return categoryId?.hashCode()?.toLong() ?: position.toLong()
     }
-    
+
     private var categories: List<XtreamCategory> = categories
     private var selectedPosition = 0
-    private var isExpanded = false
 
     fun setExpanded(expanded: Boolean) {
-        if (isExpanded == expanded) return
-        isExpanded = expanded
-        notifyItemRangeChanged(0, itemCount)
+        // Sidebar is always expanded in new design — no-op
     }
-    
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CategorySidebarViewHolder {
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_category_sidebar, parent, false)
-        return CategorySidebarViewHolder(view)
+            .inflate(layoutRes, parent, false)
+        return ViewHolder(view)
     }
-    
-    override fun onBindViewHolder(holder: CategorySidebarViewHolder, position: Int) {
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val category = categories[position]
         val isSelected = position == selectedPosition
-        holder.bind(category, isSelected, isExpanded, onItemFocused) {
-            // Update selected position
+        holder.bind(category, isSelected, activeBgRes, accentColor, countProvider?.invoke(category.category_id), onItemFocused) {
             val oldPosition = selectedPosition
             selectedPosition = holder.bindingAdapterPosition
             notifyItemChanged(oldPosition)
             notifyItemChanged(selectedPosition)
-            
-            // Notify callback
             onCategoryClick(category)
         }
     }
-    
+
     override fun getItemCount() = categories.size
 
-    // setExpanded removed as sidebar is always expanded now
-
-    
     fun updateCategories(newCategories: List<XtreamCategory>, selectedCategoryId: String?) {
-// ... (omitted diff callback for brevity but keeping logic)
         val diffCallback = object : androidx.recyclerview.widget.DiffUtil.Callback() {
             override fun getOldListSize() = categories.size
             override fun getNewListSize() = newCategories.size
@@ -74,13 +69,13 @@ class CategorySidebarAdapter(
             }
         }
         val diffResult = androidx.recyclerview.widget.DiffUtil.calculateDiff(diffCallback)
-        
+
         categories = newCategories
         selectedPosition = selectedCategoryId
             ?.let { id -> categories.indexOfFirst { it.category_id == id } }
             ?.takeIf { it >= 0 }
             ?: 0
-            
+
         diffResult.dispatchUpdatesTo(this)
     }
 
@@ -103,128 +98,75 @@ class CategorySidebarAdapter(
         if (oldPosition in categories.indices) notifyItemChanged(oldPosition)
         if (selectedPosition in categories.indices) notifyItemChanged(selectedPosition)
     }
-}
 
-class CategorySidebarViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-    private val tvCategoryName = itemView.findViewById<TextView>(R.id.tv_category_name)
-    private val tvCategoryCode = itemView.findViewById<TextView>(R.id.tv_category_code)
-    private val ivCategoryIcon = itemView.findViewById<android.widget.ImageView>(R.id.iv_category_icon)
-    private val vActiveIndicator = itemView.findViewById<View>(R.id.v_active_indicator)
-    
-    fun bind(category: XtreamCategory, isSelected: Boolean, isExpanded: Boolean, onItemFocused: ((Int) -> Unit)?, onClick: () -> Unit) {
-        itemView.isFocusable = true
-        itemView.isFocusableInTouchMode = true
-        itemView.setTag(R.id.tag_category_id, category.category_id)
-        
-        val rawName = category.category_name ?: "Unknown"
-        
-        // --- Code Parsing Logic ---
-        // 1. Check for pipe pattern |EN|
-        val codeRegex = Regex("""(?i)[\|\[\(\s]*(MULTI|EN|FR|IT|ES|DE|RU|TR|AR|NL|PT|PL|UK|US|IN|PK|CA|AU|BR)[\|\]\)\s]*""")
-        val match = codeRegex.find(rawName)
-        val parsedCode = match?.groupValues?.get(1)?.uppercase(java.util.Locale.ROOT)
-        
-        val finalCode = when {
-            parsedCode != null -> parsedCode
-            rawName.contains("Favorite", true) -> "FAV"
-            rawName.contains("Netflix", true) -> "NFLX"
-            rawName.contains("Amazon", true) -> "PRME"
-            rawName.contains("Disney", true) -> "DSNY"
-            else -> {
-                // Initials fallback: "World Cup Replay" -> "WCR"
-                val words = rawName.split(" ", "|", "/", "-").filter { it.isNotBlank() }
-                if (words.size >= 2) {
-                    words.take(3).mapNotNull { it.firstOrNull()?.uppercaseChar() }.joinToString("")
-                } else {
-                    rawName.take(3).uppercase(java.util.Locale.ROOT).trim()
-                }
-            }
-        }
-        
-        tvCategoryCode.text = finalCode
-        tvCategoryCode.visibility = View.VISIBLE
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val tvCategoryName = itemView.findViewById<TextView>(R.id.tv_category_name)
+        private val tvCategoryCount = itemView.findViewById<TextView>(R.id.tv_category_count)
+        private val vActiveIndicator = itemView.findViewById<View>(R.id.v_active_indicator)
 
-        if (isExpanded) {
-            // Expanded Mode: Code + Name + Icon
-            val titleCasedName = rawName.split(" ").joinToString(" ") { word ->
-                word.lowercase().replaceFirstChar { it.uppercase() }
-            }
-            tvCategoryName.text = titleCasedName
-            tvCategoryName.visibility = View.VISIBLE
-            ivCategoryIcon.visibility = View.GONE // Keep it clean for now, only code + name
-        } else {
-            // Collapsed Mode: Code only
-            tvCategoryName.visibility = View.GONE
-            ivCategoryIcon.visibility = View.GONE
-        }
-        
-        // Map common names to icons
-        val lowerName = rawName.lowercase()
-        val iconRes = when {
-            lowerName.contains("netflix") -> R.drawable.ic_movie
-            lowerName.contains("amazon") || lowerName.contains("prime") -> R.drawable.ic_movie
-            lowerName.contains("favorite") || lowerName.contains("favourite") -> R.drawable.ic_favorite
-            lowerName.contains("action") -> R.drawable.ic_movie
-            lowerName.contains("comedy") -> R.drawable.ic_movie
-            lowerName.contains("horror") -> R.drawable.ic_movie
-            lowerName.contains("kids") || lowerName.contains("family") -> R.drawable.ic_movie
-            else -> R.drawable.ic_movie
-        }
-        ivCategoryIcon.setImageResource(iconRes)
-        
-        // Active indicator visibility
-        vActiveIndicator.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
-        
-        // Base styling based on selection
-        if (isSelected) {
-            // We only show selection background if NOT focused, otherwise focus background takes over
-            if (!itemView.hasFocus()) {
-                itemView.setBackgroundResource(R.color.sidebar_emerald_soft_bg)
-            }
-        } else {
-            if (!itemView.hasFocus()) {
-                itemView.setBackgroundResource(android.R.color.transparent)
-            }
-        }
-        
-        itemView.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
-            if (hasFocus) {
-                val pos = bindingAdapterPosition
-                if (pos != RecyclerView.NO_POSITION) {
-                    onItemFocused?.invoke(pos)
-                }
-                
-                v.setBackgroundResource(R.drawable.bg_sidebar_item_focused_glass)
-                tvCategoryName.setTextColor(android.graphics.Color.WHITE)
-                tvCategoryCode.setTextColor(android.graphics.Color.WHITE)
-                tvCategoryName.setTypeface(tvCategoryName.typeface, android.graphics.Typeface.BOLD)
-                tvCategoryCode.setTypeface(tvCategoryCode.typeface, android.graphics.Typeface.BOLD)
-                tvCategoryName.setShadowLayer(15f, 0f, 0f, android.graphics.Color.parseColor("#4000E5FF"))
-                ivCategoryIcon.setColorFilter(android.graphics.Color.WHITE)
-                ivCategoryIcon.animate().scaleX(1.15f).scaleY(1.15f).setDuration(200).start()
-                tvCategoryName.isSelected = true
+        fun bind(
+            category: XtreamCategory,
+            isSelected: Boolean,
+            activeBgRes: Int,
+            accentColor: Int,
+            count: Int?,
+            onItemFocused: ((Int) -> Unit)?,
+            onClick: () -> Unit
+        ) {
+            itemView.isFocusable = true
+            itemView.isFocusableInTouchMode = true
+            itemView.setTag(R.id.tag_category_id, category.category_id)
+
+            // Show the category name AS-IS (default) — do NOT strip provider/country
+            // tags like "|AR|", "|PH|", "|MULTI|". The user needs the country code to
+            // tell which country a category belongs to.
+            tvCategoryName.text = category.category_name?.takeIf { it.isNotBlank() } ?: "Unknown"
+
+            // Count badge — show when a count is available, hide gracefully otherwise.
+            if (count != null && count >= 0) {
+                tvCategoryCount?.text = count.toString()
+                tvCategoryCount?.visibility = View.VISIBLE
             } else {
-                if (isSelected) {
-                    v.setBackgroundResource(R.color.sidebar_emerald_soft_bg)
-                } else {
-                    v.setBackgroundResource(android.R.color.transparent)
-                }
-                
-                val textColor = if (isSelected) android.graphics.Color.WHITE else android.graphics.Color.parseColor("#B3FFFFFF")
-                tvCategoryName.setTextColor(textColor)
-                tvCategoryCode.setTextColor(if (isSelected) android.graphics.Color.WHITE else android.graphics.Color.parseColor("#00E5FF"))
-                tvCategoryName.typeface = android.graphics.Typeface.create("sans-serif-medium", if (isSelected) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
-                tvCategoryCode.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
-                tvCategoryName.setShadowLayer(0f, 0f, 0f, android.graphics.Color.TRANSPARENT)
-                
-                ivCategoryIcon.setColorFilter(textColor)
-                ivCategoryIcon.animate().scaleX(1.0f).scaleY(1.0f).setDuration(200).start()
-                tvCategoryName.isSelected = false
+                tvCategoryCount?.visibility = View.GONE
             }
-        }
-        
-        itemView.setOnClickListener {
-            onClick()
+
+            // Active indicator
+            vActiveIndicator.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
+
+            // Styling
+            if (isSelected) {
+                itemView.setBackgroundResource(activeBgRes)
+                tvCategoryName.setTextColor(Color.parseColor("#F1F5F9"))
+                tvCategoryCount?.setTextColor(accentColor)
+            } else {
+                itemView.setBackgroundResource(android.R.color.transparent)
+                tvCategoryName.setTextColor(Color.parseColor("#64748B"))
+                tvCategoryCount?.setTextColor(Color.parseColor("#3D4F60"))
+            }
+
+            itemView.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
+                if (hasFocus) {
+                    val pos = bindingAdapterPosition
+                    if (pos != RecyclerView.NO_POSITION) {
+                        onItemFocused?.invoke(pos)
+                    }
+                    v.setBackgroundResource(activeBgRes)
+                    tvCategoryName.setTextColor(Color.WHITE)
+                    tvCategoryCount?.setTextColor(accentColor)
+                } else {
+                    if (isSelected) {
+                        v.setBackgroundResource(activeBgRes)
+                        tvCategoryName.setTextColor(Color.parseColor("#F1F5F9"))
+                        tvCategoryCount?.setTextColor(accentColor)
+                    } else {
+                        v.setBackgroundResource(android.R.color.transparent)
+                        tvCategoryName.setTextColor(Color.parseColor("#64748B"))
+                        tvCategoryCount?.setTextColor(Color.parseColor("#3D4F60"))
+                    }
+                }
+            }
+
+            itemView.setOnClickListener { onClick() }
         }
     }
 }

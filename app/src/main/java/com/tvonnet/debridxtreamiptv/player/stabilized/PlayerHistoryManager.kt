@@ -101,16 +101,71 @@ class PlayerHistoryManager(
 
         if (type == ContentType.EPISODE) viewModel.updatePlaybackStatus(contentId, isWatched, if (isWatched) 0 else pos, dur)
         if (isTinyProgress) {
-            removeExactContinueWatching(type, item)
+            handleTinyProgressExit(type, item)
             return true
         }
         if (isWatched) {
-            removeExactContinueWatching(type, item)
+            removeCompletedContinueWatching(type, item)
             return true
         }
 
         saveContinueWatchingIfAllowed(item, pos, dur, type)
         return true
+    }
+
+    /** Finds the Continue Watching entry that maps to the same logical content (any source). */
+    private fun findLogicalContinueWatchingMatch(item: ContinueWatchingItem): ContinueWatchingItem? {
+        val key = WatchHistoryPreferences.continueWatchingKey(item)
+        return watchHistoryPrefs.getContinueWatchingList().firstOrNull {
+            WatchHistoryPreferences.continueWatchingKey(it) == key
+        }
+    }
+
+    private fun isSameLogicalPlayback(a: ContinueWatchingItem, b: ContinueWatchingItem): Boolean {
+        if (a.contentType != ContentType.EPISODE && a.contentType != ContentType.SERIES) return true
+        return a.seasonNumber != null && a.episodeNumber != null &&
+            a.seasonNumber == b.seasonNumber && a.episodeNumber == b.episodeNumber
+    }
+
+    /**
+     * Tiny watch (<90s and <5%). If the same content is already in Continue Watching
+     * via the OTHER source (IPTV vs Debrid), re-home that entry to the source the user
+     * just played from — keeping its progress — so resume always follows the LAST used
+     * source. Without this, a short IPTV play leaves the stale Debrid entry in place
+     * and the tile silently resumes via Debrid (and vice versa).
+     */
+    private fun handleTinyProgressExit(type: ContentType, item: ContinueWatchingItem) {
+        val existing = findLogicalContinueWatchingMatch(item)
+        if (existing != null &&
+            existing.source != item.source &&
+            existing.currentPosition > 0 &&
+            existing.totalDuration > 0
+        ) {
+            if (isSameLogicalPlayback(item, existing)) {
+                val rehomed = item.copy(
+                    currentPosition = existing.currentPosition,
+                    totalDuration = existing.totalDuration
+                )
+                logContinueWatchingSave(rehomed, rehomed.currentPosition, rehomed.totalDuration)
+                watchHistoryPrefs.saveContinueWatchingItem(rehomed)
+            }
+            // Different episode of the same show via the other source: leave it alone.
+            return
+        }
+        removeExactContinueWatching(type, item)
+    }
+
+    /**
+     * Content finished. Besides the exact entry, also clear a stale same-content entry
+     * left by the OTHER source for the same episode/movie so the finished title doesn't
+     * resurrect in Continue Watching via the old source.
+     */
+    private fun removeCompletedContinueWatching(type: ContentType, item: ContinueWatchingItem) {
+        removeExactContinueWatching(type, item)
+        val existing = findLogicalContinueWatchingMatch(item) ?: return
+        if (existing.source != item.source && isSameLogicalPlayback(item, existing)) {
+            watchHistoryPrefs.removeContinueWatchingItem(existing)
+        }
     }
 
     private fun buildContinueWatchingItem(

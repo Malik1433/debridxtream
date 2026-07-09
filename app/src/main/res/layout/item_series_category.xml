@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sidebar category row: [active bar] [name flex/ellipsize] [count fixed right slot].
+     Horizontal layout so a long name truncates and the count never overlaps it.
+     IDs preserved: v_active_indicator, tv_category_name, tv_category_count. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:layout_marginHorizontal="8dp"
+    android:layout_marginVertical="2dp"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:background="@android:color/transparent"
+    android:nextFocusRight="@id/rv_series_grid"
+    android:nextFocusUp="@id/btn_search"
+    android:paddingStart="0dp"
+    android:paddingEnd="14dp">
+
+    <!-- Left active indicator bar (flush at the row's left edge) -->
+    <View
+        android:id="@+id/v_active_indicator"
+        android:layout_width="3dp"
+        android:layout_height="20dp"
+        android:background="@color/series_accent_purple"
+        android:visibility="invisible" />
+
+    <!-- Category name (flexes, truncates) -->
+    <TextView
+        android:id="@+id/tv_category_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="13dp"
+        android:text="Category"
+        android:textColor="@color/vod_text_muted"
+        android:textSize="14sp"
+        android:fontFamily="sans-serif-medium"
+        android:singleLine="true"
+        android:ellipsize="end" />
+
+    <!-- Count badge (fixed right slot; hidden until a count is set) -->
+    <TextView
+        android:id="@+id/tv_category_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:textColor="@color/vod_text_ghost"
+        android:textSize="11sp"
+        android:fontFamily="monospace"
+        android:letterSpacing="0.06"
+        android:singleLine="true"
+        android:visibility="gone" />
+
+</LinearLayout>

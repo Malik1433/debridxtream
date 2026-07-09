@@ -5,8 +5,16 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Transaction
+import androidx.sqlite.db.SupportSQLiteQuery
 import com.tvonnet.debridxtreamiptv.data.local.entity.VodEntity
+
+/** Number of synced movie rows per category id (for the sidebar count badges). */
+data class CategoryMovieCount(
+    val categoryId: String,
+    val count: Int
+)
 
 /**
  * DAO for VOD Movies
@@ -38,17 +46,34 @@ interface VodDao {
         ORDER BY num ASC
     """)
     fun getMoviesByCategory(categoryId: String, searchQuery: String = ""): PagingSource<Int, VodEntity>
-    
+
     /**
-     * Get all movies for global search
+     * Dynamic paging query supporting genre filtering + sort ordering.
+     * The SQL is assembled in the ViewModel (category + optional search/genre + ORDER BY).
+     */
+    @RawQuery(observedEntities = [VodEntity::class])
+    fun getMoviesByCategoryRaw(query: SupportSQLiteQuery): PagingSource<Int, VodEntity>
+
+    /**
+     * Search movies by name, optionally scoped to a single category.
+     * categoryId == null → search across all categories (global behavior).
      */
     @Query("""
-        SELECT * FROM vod_v2 
+        SELECT * FROM vod_v2
         WHERE name LIKE '%' || :query || '%'
+          AND (:categoryId IS NULL OR categoryId = :categoryId)
         LIMIT 50
     """)
-    suspend fun searchMovies(query: String): List<VodEntity>
-    
+    suspend fun searchMovies(query: String, categoryId: String?): List<VodEntity>
+
+    /** Total distinct synced movies (used for the "All Movies" / "Recently Added" counts). */
+    @Query("SELECT COUNT(DISTINCT streamId) FROM vod_v2")
+    suspend fun getTotalMovieCount(): Int
+
+    /** Per-category synced movie counts, in one pass, for the sidebar badges. */
+    @Query("SELECT categoryId AS categoryId, COUNT(*) AS count FROM vod_v2 WHERE categoryId IS NOT NULL GROUP BY categoryId")
+    suspend fun getMovieCountsByCategory(): List<CategoryMovieCount>
+
     @Query("DELETE FROM vod_v2")
     suspend fun deleteAllMovies()
 

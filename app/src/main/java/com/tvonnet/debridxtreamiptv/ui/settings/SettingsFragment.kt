@@ -139,9 +139,40 @@ class SettingsFragment : Fragment() {
                     description = "Automatically switch tracks if the main audio format (like AC3/EAC3) is unsupported",
                     isChecked = state.isSoftwareAudioEnabled,
                     onToggle = { viewModel.toggleSoftwareAudio(it) }
+                ),
+                SettingItem.Selection(
+                    key = "preferred_audio_lang",
+                    title = "Preferred Audio Language",
+                    currentValue = getPreferredAudioLangName(state.preferredAudioLang),
+                    onClick = { showPreferredAudioLangSelector(state.preferredAudioLang) }
                 )
             )
             SettingCategory.VISUALS -> listOf(
+                SettingItem.Selection(
+                    key = "live_tv_style",
+                    title = "Live TV Layout",
+                    currentValue = getLiveTvStyleName(state.liveTvStyle),
+                    onClick = { showLiveTvStyleSelector(state.liveTvStyle) }
+                ),
+                SettingItem.Selection(
+                    key = "epg_zoom",
+                    title = "TV Guide Timeline Zoom",
+                    currentValue = getEpgZoomName(state.epgTimelineZoom),
+                    onClick = { showEpgZoomSelector(state.epgTimelineZoom) }
+                ),
+                SettingItem.Selection(
+                    key = "epg_density",
+                    title = "TV Guide Row Density",
+                    currentValue = getEpgDensityName(state.epgRowDensity),
+                    onClick = { showEpgDensitySelector(state.epgRowDensity) }
+                ),
+                SettingItem.Toggle(
+                    key = "epg_genre_tint",
+                    title = "TV Guide Genre Colors",
+                    description = "Tint channels and programs by genre in the new Live TV guide",
+                    isChecked = state.epgGenreTint,
+                    onToggle = { viewModel.toggleEpgGenreTint(it) }
+                ),
                 SettingItem.Toggle(
                     key = "scale",
                     title = "Card Animation",
@@ -237,6 +268,28 @@ class SettingsFragment : Fragment() {
             SettingCategory.LOGOUT -> emptyList()
         }
         detailAdapter.submitList(items)
+    }
+
+    private val audioLangValues = arrayOf("EN", "HI", "FR", "ES", "MULTI", "ALL")
+    private val audioLangLabels = arrayOf(
+        "English (EN)", "Hindi (HI)", "French (FR)", "Spanish (ES)",
+        "Multilingual (MULTI)", "No preference (ALL)"
+    )
+
+    private fun getPreferredAudioLangName(code: String): String {
+        val index = audioLangValues.indexOf(code.uppercase()).takeIf { it != -1 } ?: 0
+        return audioLangLabels[index]
+    }
+
+    private fun showPreferredAudioLangSelector(current: String) {
+        val checkedItem = audioLangValues.indexOf(current.uppercase()).takeIf { it != -1 } ?: 0
+        AlertDialog.Builder(requireContext())
+            .setTitle("Preferred Audio Language")
+            .setSingleChoiceItems(audioLangLabels, checkedItem) { dialog, which ->
+                viewModel.setPreferredAudioLang(audioLangValues[which])
+                dialog.dismiss()
+            }
+            .show()
     }
 
     private fun getEngineName(engine: String): String {
@@ -493,6 +546,59 @@ class SettingsFragment : Fragment() {
             .setTitle("Select Player Engine")
             .setSingleChoiceItems(options, checkedItem) { dialog, which ->
                 viewModel.setPlayerEngine(values[which])
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    // ── Live TV EPG guide appearance selectors ──────────────────────────
+    private val liveTvStyleValues = arrayOf("guide", "classic")
+    private val liveTvStyleLabels = arrayOf("New EPG Guide", "Classic (3-column)")
+
+    private fun getLiveTvStyleName(value: String) =
+        liveTvStyleLabels[liveTvStyleValues.indexOf(value).takeIf { it != -1 } ?: 0]
+
+    private fun showLiveTvStyleSelector(current: String) {
+        val checked = liveTvStyleValues.indexOf(current).takeIf { it != -1 } ?: 0
+        AlertDialog.Builder(requireContext())
+            .setTitle("Live TV Layout")
+            .setSingleChoiceItems(liveTvStyleLabels, checked) { dialog, which ->
+                viewModel.setLiveTvStyle(liveTvStyleValues[which])
+                dialog.dismiss()
+                Toast.makeText(requireContext(), "Applies next time you open Live TV", Toast.LENGTH_SHORT).show()
+            }
+            .show()
+    }
+
+    private val epgZoomValues = arrayOf("compact", "standard", "wide")
+    private val epgZoomLabels = arrayOf("Compact", "Standard", "Wide")
+
+    private fun getEpgZoomName(value: String) =
+        epgZoomLabels[epgZoomValues.indexOf(value).takeIf { it != -1 } ?: 1]
+
+    private fun showEpgZoomSelector(current: String) {
+        val checked = epgZoomValues.indexOf(current).takeIf { it != -1 } ?: 1
+        AlertDialog.Builder(requireContext())
+            .setTitle("TV Guide Timeline Zoom")
+            .setSingleChoiceItems(epgZoomLabels, checked) { dialog, which ->
+                viewModel.setEpgTimelineZoom(epgZoomValues[which])
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private val epgDensityValues = arrayOf("cozy", "standard", "roomy")
+    private val epgDensityLabels = arrayOf("Cozy", "Standard", "Roomy")
+
+    private fun getEpgDensityName(value: String) =
+        epgDensityLabels[epgDensityValues.indexOf(value).takeIf { it != -1 } ?: 1]
+
+    private fun showEpgDensitySelector(current: String) {
+        val checked = epgDensityValues.indexOf(current).takeIf { it != -1 } ?: 1
+        AlertDialog.Builder(requireContext())
+            .setTitle("TV Guide Row Density")
+            .setSingleChoiceItems(epgDensityLabels, checked) { dialog, which ->
+                viewModel.setEpgRowDensity(epgDensityValues[which])
                 dialog.dismiss()
             }
             .show()

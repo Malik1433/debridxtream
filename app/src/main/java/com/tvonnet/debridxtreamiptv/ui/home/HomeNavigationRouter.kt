@@ -14,7 +14,9 @@ import androidx.lifecycle.lifecycleScope
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.*
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
+import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import com.tvonnet.debridxtreamiptv.ui.live.LiveFragment
+import com.tvonnet.debridxtreamiptv.ui.live.guide.LiveTvGuideFragment
 import com.tvonnet.debridxtreamiptv.ui.vod.VodFragment
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesFragment
 import com.tvonnet.debridxtreamiptv.ui.search.SearchFragment
@@ -38,7 +40,11 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
         if (frag.isNavigatingFromHome || !frag.isAdded || frag.parentFragmentManager.isStateSaved) return
 
         val targetFragment = when (section) {
-            "live" -> LiveFragment()
+            "live" -> if (SettingsPreferences(frag.requireContext()).getLiveTvStyle() == SettingsPreferences.STYLE_CLASSIC) {
+                LiveFragment()
+            } else {
+                LiveTvGuideFragment()
+            }
             "movies" -> VodFragment()
             "series" -> SeriesFragment()
             "debrid" -> com.tvonnet.debridxtreamiptv.ui.debrid.DebridFragment()
@@ -314,6 +320,7 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
                             putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
                             putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
                             putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
+                            putExtra(MovieDetailActivity.EXTRA_SOURCE_RAIL, "Continue Watching")
                         }
                         startActivityPreservingContentFocus(movieIntent)
                     } else {

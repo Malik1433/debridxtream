@@ -52,6 +52,29 @@ class WatchHistoryPreferences(private val context: Context) {
         return deduped
     }
     
+    /**
+     * Finds the saved Continue-Watching entry for a MOVIE matching any of the
+     * supplied identifiers (contentId / TMDB / IMDB / normalized title), used to
+     * drive the Movie Detail resume bar. Returns null when nothing was watched.
+     */
+    fun getMovieResumeItem(
+        contentId: String?,
+        tmdbId: String?,
+        imdbId: String?,
+        title: String?
+    ): ContinueWatchingItem? {
+        val titleKey = normalizeTitleKey(title)
+        return getContinueWatchingList().firstOrNull { item ->
+            if (item.contentType != com.tvonnet.debridxtreamiptv.data.model.ContentType.MOVIE) {
+                return@firstOrNull false
+            }
+            (!contentId.isNullOrBlank() && item.contentId == contentId) ||
+                (!tmdbId.isNullOrBlank() && item.tmdbId == tmdbId) ||
+                (!imdbId.isNullOrBlank() && item.imdbId == imdbId) ||
+                (titleKey.isNotEmpty() && normalizeTitleKey(item.title) == titleKey)
+        }
+    }
+
     fun removeContinueWatchingItem(contentId: String) {
         val currentList = getContinueWatchingList().toMutableList()
         currentList.removeAll { it.contentId == contentId || continueWatchingKey(it) == contentId }
@@ -91,16 +114,44 @@ class WatchHistoryPreferences(private val context: Context) {
         fun continueWatchingKey(item: ContinueWatchingItem): String {
             val isSeries = item.contentType == com.tvonnet.debridxtreamiptv.data.model.ContentType.EPISODE ||
                 item.contentType == com.tvonnet.debridxtreamiptv.data.model.ContentType.SERIES
+            // Prefer the normalized title so the SAME content watched via IPTV and via
+            // Debrid maps to ONE entry (IPTV uses the Xtream series_id while Debrid uses
+            // the TMDB id, so id-based keys can never match across sources).
+            val titleKey = normalizeTitleKey(
+                if (isSeries) item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title else item.title
+            )
             val stableId = when {
+                titleKey.isNotEmpty() -> "title:$titleKey"
                 !item.seriesId.isNullOrBlank() -> "seriesId:${item.seriesId}"
                 !item.tmdbId.isNullOrBlank() -> "tmdb:${item.tmdbId}"
                 !item.imdbId.isNullOrBlank() -> "imdb:${item.imdbId}"
-                isSeries && !item.seriesTitle.isNullOrBlank() ->
-                    "title:${normalizeKey(item.seriesTitle)}"
-                !item.title.isNullOrBlank() -> "title:${normalizeKey(item.title)}"
                 else -> "content:${item.contentId}"
             }
             return if (isSeries) "series:$stableId" else "movie:$stableId"
+        }
+
+        /**
+         * Normalizes a title into a cross-source identity key. Strips IPTV list
+         * prefixes ("EN| ", "DE - "), bracketed segments ("(2008)", "[MULTI]") and
+         * common quality tags so "EN| Breaking Bad 4K" and "Breaking Bad" merge.
+         */
+        fun normalizeTitleKey(value: String?): String {
+            if (value.isNullOrBlank()) return ""
+            var s = value.trim().lowercase()
+            s = s.replace(Regex("\\(.*?\\)|\\[.*?]"), " ")
+            s = s.replace(Regex("^\\s*[a-z]{2,3}\\s*[|:\\-]\\s*"), " ")
+            s = s.replace(
+                Regex("\\b(4k|uhd|fhd|hd|sd|2160p|1080p|720p|480p|hevc|x264|x265|h264|h265|hdr|dv|multi|dual|audio|web-?dl|webrip|bluray|remux)\\b"),
+                " "
+            )
+            // Strip bare year tokens so "Breaking Bad 2008" merges with "Breaking Bad".
+            // Skip when the whole title is a year (movies like "1917" / "2012").
+            val withoutYears = s.replace(Regex("\\b(19|20)\\d{2}\\b"), " ")
+            if (withoutYears.isNotBlank() && withoutYears.replace(Regex("[^a-z0-9]"), "").isNotEmpty()) {
+                s = withoutYears
+            }
+            s = s.replace(Regex("[^a-z0-9]+"), " ").trim()
+            return s.replace(' ', '-')
         }
 
         fun suppressContinueWatchingWrite(itemKey: String) {

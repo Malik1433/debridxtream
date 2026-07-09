@@ -119,6 +119,7 @@ class DebridSearchActivity : AppCompatActivity() {
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_YEAR, item.year)
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_RATING, item.rating)
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid") // Crucial for Debrid logic
+                putExtra(MovieDetailActivity.EXTRA_SOURCE_RAIL, "Search Results")
             }
             startActivity(intent)
         } else if (item.type == "show" || item.type == "series") {

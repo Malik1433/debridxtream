@@ -43,7 +43,9 @@ data class SeriesUiState(
     val error: String? = null,
     val categoryStatus: SeriesCategoryStatus? = null,
     val searchQuery: String = "",
-    val isSearching: Boolean = false
+    val isSearching: Boolean = false,
+    /** category_id -> number of synced series, for the sidebar count badges. */
+    val categoryCounts: Map<String, Int> = emptyMap()
 )
 
 sealed class SeriesEvent {
@@ -54,6 +56,9 @@ sealed class SeriesEvent {
     object ClearSearch : SeriesEvent()
     object Retry : SeriesEvent()
 }
+
+/** Sort order for the series grid. Mirrors the sort chips in the Series header. */
+enum class SeriesSortMode { RECENTLY_ADDED, TOP_RATED, A_TO_Z, MOST_EPISODES }
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -68,8 +73,46 @@ class SeriesViewModel @Inject constructor(
     companion object {
         private val CATEGORY_CACHE_TTL_MS = TimeUnit.MINUTES.toMillis(15)
 
+        /** Synthetic sidebar rows (above Favorites). Sentinel ids can't collide with real Xtream ids. */
+        const val ALL_SERIES_CATEGORY_ID = "__all_series__"
+        const val RECENTLY_ADDED_CATEGORY_ID = "__recently_added__"
+
+        /** "Recently Added" = the newest-cached N series (fixed cap, distinct from All Series). */
+        const val RECENT_LIMIT = 100
+
         @VisibleForTesting
         var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    }
+
+    private fun isVirtualCategory(categoryId: String?): Boolean =
+        categoryId == ALL_SERIES_CATEGORY_ID || categoryId == RECENTLY_ADDED_CATEGORY_ID
+
+    /** Prepend the two synthetic categories above the real Xtream ones. */
+    private fun withVirtualCategories(real: List<XtreamCategory>): List<XtreamCategory> {
+        val virtual = listOf(
+            XtreamCategory(ALL_SERIES_CATEGORY_ID, "All Series", null),
+            XtreamCategory(RECENTLY_ADDED_CATEGORY_ID, "Recently Added", null)
+        )
+        return virtual + real.filterNot { isVirtualCategory(it.category_id) }
+    }
+
+    private fun refreshCategoryCounts() {
+        viewModelScope.launch {
+            val counts = withContext(ioDispatcher) {
+                try {
+                    val perCat = seriesDao.getSeriesCountsByCategory().associate { it.categoryId to it.count }
+                    val total = seriesDao.getTotalSeriesCount()
+                    perCat + mapOf(
+                        ALL_SERIES_CATEGORY_ID to total,
+                        // Capped list → count is the cap (or fewer if the catalog is small).
+                        RECENTLY_ADDED_CATEGORY_ID to minOf(RECENT_LIMIT, total)
+                    )
+                } catch (_: Exception) {
+                    emptyMap()
+                }
+            }
+            _uiState.update { it.copy(categoryCounts = counts) }
+        }
     }
     
     private val _uiState = MutableStateFlow(SeriesUiState())
@@ -81,17 +124,31 @@ class SeriesViewModel @Inject constructor(
      */
     private val _selectedCategoryFlow = MutableStateFlow<String?>(null)
     private val _searchQueryFlow = MutableStateFlow("")
-    
+    private val _sortModeFlow = MutableStateFlow(SeriesSortMode.RECENTLY_ADDED)
+    private val _genreFlow = MutableStateFlow<String?>(null)
+
+    data class SeriesQuery(
+        val categoryId: String,
+        val searchQuery: String,
+        val sortMode: SeriesSortMode,
+        val genre: String?
+    )
+
     val pagedSeries: Flow<PagingData<XtreamSeriesInfo>> = combine(
         _selectedCategoryFlow.filterNotNull(),
-        _searchQueryFlow
-    ) { categoryId, searchQuery ->
-        Pair(categoryId, searchQuery)
-    }.flatMapLatest { (categoryId, searchQuery) ->
-        if (categoryId == FAVORITES_CATEGORY_ID) {
+        _searchQueryFlow,
+        _sortModeFlow,
+        _genreFlow
+    ) { categoryId, searchQuery, sortMode, genre ->
+        SeriesQuery(categoryId, searchQuery, sortMode, genre)
+    }.flatMapLatest { q ->
+        if (q.categoryId == FAVORITES_CATEGORY_ID) {
             repository.getFavoritesByType("series")
                 .map { favorites ->
-                    val items = buildFavoriteSeries(favorites, searchQuery)
+                    val items = sortSeries(
+                        filterByGenre(buildFavoriteSeries(favorites, q.searchQuery), q.genre),
+                        q.sortMode
+                    )
                     PagingData.from(items)
                 }
         } else {
@@ -101,7 +158,7 @@ class SeriesViewModel @Inject constructor(
                     enablePlaceholders = false,
                     prefetchDistance = 20
                 ),
-                pagingSourceFactory = { seriesDao.getSeriesByCategory(categoryId, searchQuery) }
+                pagingSourceFactory = { seriesDao.getSeriesByCategoryRaw(buildSeriesQuery(q)) }
             ).flow
 
             pagerFlow.map { pagingData ->
@@ -111,7 +168,93 @@ class SeriesViewModel @Inject constructor(
             }
         }
     }.cachedIn(viewModelScope)
-    
+
+    private fun buildSeriesQuery(q: SeriesQuery): androidx.sqlite.db.SimpleSQLiteQuery {
+        val args = mutableListOf<Any>()
+        val conditions = mutableListOf<String>()
+
+        // "All Series" / "Recently Added" span every category (no category filter).
+        // Real categories keep their per-category filter.
+        if (!isVirtualCategory(q.categoryId)) {
+            conditions += "categoryId = ?"
+            args += q.categoryId
+        }
+        if (q.searchQuery.isNotBlank()) {
+            conditions += "name LIKE '%' || ? || '%'"
+            args += q.searchQuery
+        }
+        if (!q.genre.isNullOrBlank()) {
+            conditions += "genre LIKE '%' || ? || '%'"
+            args += q.genre
+        }
+
+        val whereClause =
+            if (conditions.isNotEmpty()) " WHERE " + conditions.joinToString(" AND ") else ""
+
+        val sql = if (q.categoryId == RECENTLY_ADDED_CATEGORY_ID) {
+            // "Recently Added" = the RECENT_LIMIT most-recently-cached series, newest first.
+            // Cap in an INNER subquery so the Room PagingSource's appended LIMIT/OFFSET pages
+            // WITHIN the capped set instead of overriding the cap. Genre/search predicates
+            // apply inside the inner WHERE so filtering still works.
+            "SELECT * FROM (SELECT * FROM series_v2$whereClause ORDER BY cachedAt DESC LIMIT $RECENT_LIMIT)"
+        } else {
+            val order = when (q.sortMode) {
+                // series_v2 has no 'added' timestamp column; provider order (num) is the
+                // closest proxy — newest additions arrive with the highest num.
+                SeriesSortMode.RECENTLY_ADDED -> " ORDER BY num DESC"
+                SeriesSortMode.TOP_RATED -> " ORDER BY rating5based DESC, name COLLATE NOCASE ASC"
+                SeriesSortMode.A_TO_Z -> " ORDER BY name COLLATE NOCASE ASC"
+                // Episode counts only exist for series whose details were cached locally
+                // (legacy `episodes` or v2 `episodes_v2_core`); everything else sorts
+                // to the tail alphabetically.
+                SeriesSortMode.MOST_EPISODES ->
+                    " ORDER BY MAX(" +
+                        "(SELECT COUNT(*) FROM episodes e WHERE e.seriesId = series_v2.seriesId), " +
+                        "(SELECT COUNT(*) FROM episodes_v2_core v WHERE v.series_id = series_v2.seriesId)" +
+                        ") DESC, name COLLATE NOCASE ASC"
+            }
+            "SELECT * FROM series_v2$whereClause$order"
+        }
+        return androidx.sqlite.db.SimpleSQLiteQuery(sql, args.toTypedArray())
+    }
+
+    private fun filterByGenre(series: List<XtreamSeriesInfo>, genre: String?): List<XtreamSeriesInfo> {
+        if (genre.isNullOrBlank()) return series
+        return series.filter { it.genre?.contains(genre, ignoreCase = true) == true }
+    }
+
+    private fun sortSeries(series: List<XtreamSeriesInfo>, sortMode: SeriesSortMode): List<XtreamSeriesInfo> {
+        return when (sortMode) {
+            SeriesSortMode.RECENTLY_ADDED -> series.sortedByDescending { it.num ?: 0 }
+            SeriesSortMode.TOP_RATED -> series.sortedByDescending { it.rating_5based ?: 0.0 }
+            SeriesSortMode.A_TO_Z -> series.sortedBy { it.name?.lowercase() ?: "" }
+            SeriesSortMode.MOST_EPISODES -> series.sortedByDescending { s ->
+                s.episodes?.values?.sumOf { it.size } ?: 0
+            }
+        }
+    }
+
+    fun setSortMode(mode: SeriesSortMode) {
+        _sortModeFlow.value = mode
+    }
+
+    /** Pass null or "All" to clear the genre filter. */
+    fun setGenre(genre: String?) {
+        _genreFlow.value = genre?.takeIf { it.isNotBlank() && !it.equals("All", ignoreCase = true) }
+    }
+
+    /**
+     * Season/episode counts per series from the local episodes cache.
+     * Series without cached details are absent from the map.
+     */
+    suspend fun getEpisodeCounts(): Map<String, Pair<Int, Int>> = withContext(ioDispatcher) {
+        try {
+            seriesDao.getSeriesEpisodeCounts().associate { it.seriesId to (it.seasonCount to it.episodeCount) }
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
     init {
         // Initialize repository with credentials before loading data
         initializeRepository()
@@ -152,16 +295,15 @@ class SeriesViewModel @Inject constructor(
     private fun loadCategories() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingCategories = true, error = null) }
-            
-            val categories = withContext(ioDispatcher) {
+
+            val realCategories = withContext(ioDispatcher) {
                 repository.ensureSeriesCategories()
             }
-            
-            if (categories.isEmpty()) {
-                handleEmptyCategories("No series categories found.")
-            } else {
-                updateCategories(categories, finalizeLoading = true)
-            }
+
+            // Always show the two virtual categories (All Series / Recently Added) at the
+            // top, even when the provider returns no real categories.
+            updateCategories(withVirtualCategories(realCategories), finalizeLoading = true)
+            refreshCategoryCounts()
         }
     }
     
@@ -179,29 +321,33 @@ class SeriesViewModel @Inject constructor(
                 
                 // Trigger paging for this category
                 _selectedCategoryFlow.value = categoryId
-                
-                if (categoryId == FAVORITES_CATEGORY_ID) {
-                    _uiState.update { 
+
+                if (categoryId == FAVORITES_CATEGORY_ID || isVirtualCategory(categoryId)) {
+                    // Favorites + virtual (All Series / Recently Added) read the local DB;
+                    // there is no per-category server fetch for them.
+                    _uiState.update {
                         it.copy(
                             isLoadingSeries = false,
-                            isSwitchingCategory = false 
-                        ) 
+                            isSwitchingCategory = false
+                        )
                     }
                 } else {
                     // Fetch series from repository (lazy loading / sync)
                     val result = withContext(ioDispatcher) {
                         repository.fetchSeriesForCategory(categoryId)
                     }
-                    
-                    result.onSuccess { 
+
+                    result.onSuccess {
                         // Week 14: Clear transition flag after sync + propagation delay
                         kotlinx.coroutines.delay(1000) // Increased delay for stability
-                        _uiState.update { 
+                        _uiState.update {
                             it.copy(
                                 isLoadingSeries = false,
-                                isSwitchingCategory = false 
-                            ) 
+                                isSwitchingCategory = false
+                            )
                         }
+                        // New rows may have been synced — refresh the sidebar counts.
+                        refreshCategoryCounts()
                     }
                     
                     result.onFailure { error ->

@@ -32,7 +32,9 @@ data class VodUiState(
     val isSwitchingCategory: Boolean = false, // New: track transition period
     val error: String? = null,
     val searchQuery: String = "",
-    val isSearching: Boolean = false
+    val isSearching: Boolean = false,
+    /** category_id -> number of synced movies, for the sidebar count badges. */
+    val categoryCounts: Map<String, Int> = emptyMap()
 )
 
 sealed class VodEvent {
@@ -44,6 +46,9 @@ sealed class VodEvent {
     object Retry : VodEvent()
 }
 
+/** Sort order for the movie grid. Mirrors the sort chips in the VOD header. */
+enum class VodSortMode { RECENTLY_ADDED, TOP_RATED, A_TO_Z, NEWEST }
+
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class VodViewModel @Inject constructor(
@@ -53,6 +58,44 @@ class VodViewModel @Inject constructor(
     val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     
+    companion object {
+        /** Synthetic sidebar rows (above Favorites). Sentinel ids can't collide with real Xtream ids. */
+        const val ALL_MOVIES_CATEGORY_ID = "__all_movies__"
+        const val RECENTLY_ADDED_VOD_CATEGORY_ID = "__recently_added_vod__"
+
+        /** "Recently Added" = the newest N movies by the provider `added` timestamp. */
+        const val RECENT_LIMIT = 100
+    }
+
+    private fun isVirtualCategory(categoryId: String?): Boolean =
+        categoryId == ALL_MOVIES_CATEGORY_ID || categoryId == RECENTLY_ADDED_VOD_CATEGORY_ID
+
+    /** Prepend the two synthetic categories above the real Xtream ones. */
+    private fun withVirtualCategories(real: List<XtreamCategory>): List<XtreamCategory> {
+        val virtual = listOf(
+            XtreamCategory(ALL_MOVIES_CATEGORY_ID, "All Movies", null),
+            XtreamCategory(RECENTLY_ADDED_VOD_CATEGORY_ID, "Recently Added", null)
+        )
+        return virtual + real.filterNot { isVirtualCategory(it.category_id) }
+    }
+
+    private fun refreshCategoryCounts() {
+        viewModelScope.launch {
+            val counts = try {
+                val perCat = vodDao.getMovieCountsByCategory().associate { it.categoryId to it.count }
+                val total = vodDao.getTotalMovieCount()
+                perCat + mapOf(
+                    ALL_MOVIES_CATEGORY_ID to total,
+                    // Capped list → count is the cap (or fewer if the catalog is small).
+                    RECENTLY_ADDED_VOD_CATEGORY_ID to minOf(RECENT_LIMIT, total)
+                )
+            } catch (_: Exception) {
+                emptyMap()
+            }
+            _uiState.update { it.copy(categoryCounts = counts) }
+        }
+    }
+
     private val _uiState = MutableStateFlow(VodUiState())
     val uiState: StateFlow<VodUiState> = _uiState.asStateFlow()
     
@@ -62,17 +105,31 @@ class VodViewModel @Inject constructor(
      */
     private val _selectedCategoryFlow = MutableStateFlow<String?>(null)
     private val _searchQueryFlow = MutableStateFlow("")
-    
+    private val _sortModeFlow = MutableStateFlow(VodSortMode.RECENTLY_ADDED)
+    private val _genreFlow = MutableStateFlow<String?>(null)
+
+    data class MovieQuery(
+        val categoryId: String,
+        val searchQuery: String,
+        val sortMode: VodSortMode,
+        val genre: String?
+    )
+
     val pagedMovies: Flow<PagingData<XtreamVodInfo>> = combine(
         _selectedCategoryFlow.filterNotNull(),
-        _searchQueryFlow
-    ) { categoryId, searchQuery ->
-        Pair(categoryId, searchQuery)
-    }.flatMapLatest { (categoryId, searchQuery) ->
-        if (categoryId == FAVORITES_CATEGORY_ID) {
+        _searchQueryFlow,
+        _sortModeFlow,
+        _genreFlow
+    ) { categoryId, searchQuery, sortMode, genre ->
+        MovieQuery(categoryId, searchQuery, sortMode, genre)
+    }.flatMapLatest { q ->
+        if (q.categoryId == FAVORITES_CATEGORY_ID) {
             repository.getFavoritesByType("vod")
                 .map { favorites ->
-                    val items = buildFavoriteMovies(favorites, searchQuery)
+                    val items = sortMovies(
+                        filterByGenre(buildFavoriteMovies(favorites, q.searchQuery), q.genre),
+                        q.sortMode
+                    )
                     PagingData.from(items)
                 }
         } else {
@@ -82,13 +139,78 @@ class VodViewModel @Inject constructor(
                     enablePlaceholders = true, // Placeholders work well with Room
                     prefetchDistance = 20
                 ),
-                pagingSourceFactory = { vodDao.getMoviesByCategory(categoryId, searchQuery) }
+                pagingSourceFactory = {
+                    vodDao.getMoviesByCategoryRaw(buildMovieQuery(q))
+                }
             ).flow
                 .map { pagingData ->
                     pagingData.map { entity -> entity.toXtreamVodInfo() }
                 }
         }
     }.cachedIn(viewModelScope)
+
+    private fun buildMovieQuery(q: MovieQuery): androidx.sqlite.db.SimpleSQLiteQuery {
+        val args = mutableListOf<Any>()
+        val conditions = mutableListOf<String>()
+
+        // "All Movies" / "Recently Added" span every category (no category filter).
+        // Real categories keep their per-category filter.
+        if (!isVirtualCategory(q.categoryId)) {
+            conditions += "categoryId = ?"
+            args += q.categoryId
+        }
+        if (q.searchQuery.isNotBlank()) {
+            conditions += "name LIKE '%' || ? || '%'"
+            args += q.searchQuery
+        }
+        if (!q.genre.isNullOrBlank()) {
+            conditions += "genre LIKE '%' || ? || '%'"
+            args += q.genre
+        }
+
+        val whereClause =
+            if (conditions.isNotEmpty()) " WHERE " + conditions.joinToString(" AND ") else ""
+
+        val sql = if (q.categoryId == RECENTLY_ADDED_VOD_CATEGORY_ID) {
+            // "Recently Added" = the RECENT_LIMIT newest movies by the provider `added`
+            // timestamp (VOD has a real one, unlike series). Cap in an INNER subquery so
+            // the Room PagingSource's appended LIMIT/OFFSET pages WITHIN the capped set.
+            "SELECT * FROM (SELECT * FROM vod_v2$whereClause ORDER BY CAST(added AS INTEGER) DESC LIMIT $RECENT_LIMIT)"
+        } else {
+            val order = when (q.sortMode) {
+                // 'added' is a unix-timestamp string; cast for numeric ordering, fall back to num
+                VodSortMode.RECENTLY_ADDED -> " ORDER BY CAST(added AS INTEGER) DESC, num DESC"
+                VodSortMode.TOP_RATED -> " ORDER BY rating5based DESC, name COLLATE NOCASE ASC"
+                VodSortMode.A_TO_Z -> " ORDER BY name COLLATE NOCASE ASC"
+                VodSortMode.NEWEST -> " ORDER BY releaseDate DESC, CAST(added AS INTEGER) DESC"
+            }
+            "SELECT * FROM vod_v2$whereClause$order"
+        }
+        return androidx.sqlite.db.SimpleSQLiteQuery(sql, args.toTypedArray())
+    }
+
+    private fun filterByGenre(movies: List<XtreamVodInfo>, genre: String?): List<XtreamVodInfo> {
+        if (genre.isNullOrBlank()) return movies
+        return movies.filter { it.genre?.contains(genre, ignoreCase = true) == true }
+    }
+
+    private fun sortMovies(movies: List<XtreamVodInfo>, sortMode: VodSortMode): List<XtreamVodInfo> {
+        return when (sortMode) {
+            VodSortMode.RECENTLY_ADDED -> movies.sortedByDescending { it.added?.toLongOrNull() ?: 0L }
+            VodSortMode.TOP_RATED -> movies.sortedByDescending { it.rating_5based ?: 0.0 }
+            VodSortMode.A_TO_Z -> movies.sortedBy { it.name?.lowercase() ?: "" }
+            VodSortMode.NEWEST -> movies.sortedByDescending { it.releaseDate ?: "" }
+        }
+    }
+
+    fun setSortMode(mode: VodSortMode) {
+        _sortModeFlow.value = mode
+    }
+
+    /** Pass null or "All" to clear the genre filter. */
+    fun setGenre(genre: String?) {
+        _genreFlow.value = genre?.takeIf { it.isNotBlank() && !it.equals("All", ignoreCase = true) }
+    }
     
     init {
         // Auto-load categories on initialization
@@ -111,28 +233,23 @@ class VodViewModel @Inject constructor(
             try {
                 _uiState.update { it.copy(isLoadingCategories = true, error = null) }
                 
-                val categories = repository.ensureVodCategories()
-                
-                if (categories.isEmpty()) {
-                    _uiState.update {
-                        it.copy(
-                            isLoadingCategories = false,
-                            error = "No movie categories found. Please login and sync."
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            categories = categories,
-                            isLoadingCategories = false,
-                            selectedCategoryId = categories.firstOrNull()?.category_id
-                        )
-                    }
-                    
-                    // Auto-load first category
-                    categories.firstOrNull()?.category_id?.let { categoryId ->
-                        loadMoviesForCategory(categoryId)
-                    }
+                val realCategories = repository.ensureVodCategories()
+
+                // Always show the two virtual categories (All Movies / Recently Added) at
+                // the top, even when the provider returns no real categories.
+                val categories = withVirtualCategories(realCategories)
+                _uiState.update {
+                    it.copy(
+                        categories = categories,
+                        isLoadingCategories = false,
+                        selectedCategoryId = categories.firstOrNull()?.category_id
+                    )
+                }
+                refreshCategoryCounts()
+
+                // Auto-load the default landing (All Movies).
+                categories.firstOrNull()?.category_id?.let { categoryId ->
+                    loadMoviesForCategory(categoryId)
                 }
             } catch (e: Exception) {
                 _uiState.update {
@@ -159,27 +276,31 @@ class VodViewModel @Inject constructor(
                 
                 // Trigger paging for this category (DB observation)
                 _selectedCategoryFlow.value = categoryId
-                
-                if (categoryId == FAVORITES_CATEGORY_ID) {
-                    _uiState.update { 
+
+                if (categoryId == FAVORITES_CATEGORY_ID || isVirtualCategory(categoryId)) {
+                    // Favorites + virtual (All Movies / Recently Added) read the local DB;
+                    // there is no per-category server fetch for them.
+                    _uiState.update {
                         it.copy(
                             isLoadingMovies = false,
-                            isSwitchingCategory = false 
-                        ) 
+                            isSwitchingCategory = false
+                        )
                     }
                 } else {
                     // Trigger network sync (Hybrid Sync)
                     val result = repository.fetchVodStreamsForCategory(categoryId)
-                    
-                    result.onSuccess { 
+
+                    result.onSuccess {
                         // Week 14: Clear transition flag after sync + propagation delay
                         kotlinx.coroutines.delay(500)
-                        _uiState.update { 
+                        _uiState.update {
                             it.copy(
                                 isLoadingMovies = false,
-                                isSwitchingCategory = false 
-                            ) 
+                                isSwitchingCategory = false
+                            )
                         }
+                        // New rows may have been synced — refresh the sidebar counts.
+                        refreshCategoryCounts()
                     }
                     
                     result.onFailure { error ->

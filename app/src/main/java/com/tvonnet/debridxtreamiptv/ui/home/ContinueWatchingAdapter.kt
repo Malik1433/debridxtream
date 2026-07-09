@@ -96,7 +96,15 @@ class ContinueWatchingAdapter(
         private val progressWatch: ProgressBar = itemView.findViewById(R.id.progress_watch)
         private val tvContinueProgress: TextView = itemView.findViewById(R.id.tv_continue_progress)
         private val tvContinueTypeBadge: TextView = itemView.findViewById(R.id.tv_continue_type_badge)
-        
+        private val quickInfo: View? = itemView.findViewById(R.id.quick_info_bubble)
+        private var dwellRunnable: Runnable? = null
+
+        init {
+            com.tvonnet.debridxtreamiptv.util.FocusGlow.attachSelector(
+                itemView.findViewById(R.id.view_focus_glow)
+            )
+        }
+
         fun bind(
             item: ContinueWatchingItem,
             onClick: (ContinueWatchingItem) -> Unit,
@@ -156,6 +164,12 @@ class ContinueWatchingAdapter(
                 }
             }
 
+            quickInfo?.let { bubble ->
+                bubble.findViewById<TextView>(R.id.qi_title)?.text = formatTitle(item)
+                bubble.findViewById<TextView>(R.id.qi_tag)?.text = "RESUME"
+                bubble.findViewById<TextView>(R.id.qi_sub)?.text = item.formattedProgress
+            }
+
             itemView.setOnFocusChangeListener { view, hasFocus ->
                 view.animate()
                     .scaleX(if (hasFocus) 1.06f else 1.0f)
@@ -167,12 +181,43 @@ class ContinueWatchingAdapter(
                 if (!hasFocus) {
                     suppressNextClick = false
                     longPressHandled = false
+                    cancelDwellInfo()
+                    return@setOnFocusChangeListener
                 }
-                if (!hasFocus) return@setOnFocusChangeListener
+                scheduleDwellInfo()
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
                     onFocused(position, item)
                 }
+            }
+        }
+
+        /** Dwell quick-info: bubble appears only after ~450ms of resting on the card. */
+        private fun scheduleDwellInfo() {
+            val bubble = quickInfo ?: return
+            cancelDwellInfo()
+            val runnable = Runnable {
+                if (itemView.hasFocus()) {
+                    bubble.visibility = View.VISIBLE
+                    bubble.alpha = 0f
+                    bubble.translationY = 8f
+                    bubble.animate()
+                        .alpha(1f)
+                        .translationY(0f)
+                        .setDuration(180)
+                        .start()
+                }
+            }
+            dwellRunnable = runnable
+            itemView.postDelayed(runnable, 450L)
+        }
+
+        private fun cancelDwellInfo() {
+            dwellRunnable?.let { itemView.removeCallbacks(it) }
+            dwellRunnable = null
+            quickInfo?.let { bubble ->
+                bubble.animate().cancel()
+                bubble.visibility = View.GONE
             }
         }
 

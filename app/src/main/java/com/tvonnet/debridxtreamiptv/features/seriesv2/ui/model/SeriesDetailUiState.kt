@@ -30,7 +30,8 @@ sealed interface SeriesNavigationEvent {
         val posterUrl: String?,
         val containerExtension: String?,
         val seasonNumber: Int,
-        val episodeNumber: Int?
+        val episodeNumber: Int?,
+        val resumePositionMs: Long = 0L
     ) : SeriesNavigationEvent
     data object NavigateBack : SeriesNavigationEvent
     data class ShowMessage(val msg: String) : SeriesNavigationEvent

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Cyan hairline on the right edge -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#2E00F0FF" />
+        </shape>
+    </item>
+    <!-- Drawer glass body -->
+    <item android:right="1dp">
+        <shape android:shape="rectangle">
+            <gradient android:angle="270" android:startColor="#F70C111B" android:endColor="#FA080B12" />
+        </shape>
+    </item>
+</layer-list>

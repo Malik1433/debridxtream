@@ -2281,12 +2281,12 @@ class XtreamRepository @Inject constructor(
     }
     // --- Search Functionality ---
 
-    suspend fun searchSeries(query: String): List<XtreamSeriesInfo> {
-        return seriesDao?.searchSeries(query)?.map { it.toXtreamSeriesInfo() } ?: emptyList()
+    suspend fun searchSeries(query: String, categoryId: String? = null): List<XtreamSeriesInfo> {
+        return seriesDao?.searchSeries(query, categoryId)?.map { it.toXtreamSeriesInfo() } ?: emptyList()
     }
 
-    suspend fun searchVod(query: String): List<XtreamVodInfo> {
-        return vodDao?.searchMovies(query)?.map { it.toXtreamVodInfo() } ?: emptyList()
+    suspend fun searchVod(query: String, categoryId: String? = null): List<XtreamVodInfo> {
+        return vodDao?.searchMovies(query, categoryId)?.map { it.toXtreamVodInfo() } ?: emptyList()
     }
 
     suspend fun searchLive(query: String): List<XtreamStream> {

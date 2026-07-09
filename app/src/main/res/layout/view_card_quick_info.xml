@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_quick_info"
+    android:paddingStart="7dp"
+    android:paddingEnd="7dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp"
+    android:elevation="12dp"
+    android:visibility="gone">
+
+    <TextView
+        android:id="@+id/qi_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Title"
+        android:textColor="#F1F5F9"
+        android:textSize="7.5sp"
+        android:textStyle="bold"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:singleLine="true"
+        android:ellipsize="end" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="2.5dp">
+
+        <TextView
+            android:id="@+id/qi_tag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="MOVIE"
+            android:textColor="#00F0FF"
+            android:textSize="5.5sp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.04" />
+
+        <TextView
+            android:id="@+id/qi_sub"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text=""
+            android:textColor="#64748B"
+            android:textSize="5.5sp"
+            android:fontFamily="monospace"
+            android:singleLine="true"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+</LinearLayout>

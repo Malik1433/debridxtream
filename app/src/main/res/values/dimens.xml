@@ -143,10 +143,11 @@
     <!-- ========== HOME REDESIGN (PHASE 1) ========== -->
     <dimen name="spacing_proximity_tight">4dp</dimen>
     <dimen name="spacing_section_distinct">32dp</dimen>
-    <dimen name="poster_top_10_width">124dp</dimen>
-    <dimen name="poster_top_10_height">186dp</dimen> <!-- 2:3 Ratio -->
+    <dimen name="poster_top_10_width">110dp</dimen>
+    <dimen name="poster_top_10_height">165dp</dimen> <!-- 2:3 Ratio -->
     <dimen name="sidebar_width_collapsed">104dp</dimen>
     <dimen name="sidebar_width_expanded">252dp</dimen>
+    <dimen name="vod_sidebar_width">210dp</dimen>
     <dimen name="number_text_size">104sp</dimen>
     <dimen name="number_offset_x">-22dp</dimen>
     <dimen name="number_offset_y">24dp</dimen>

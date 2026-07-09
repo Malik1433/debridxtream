@@ -5,22 +5,25 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.core.content.ContextCompat
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.RecyclerView
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.SidebarItem
 
-
+/**
+ * Icon-only floating nav rail adapter (Home Screen design).
+ * Focus: cyan icon + capsule highlight + floating label flyout.
+ * Active (selected): left dot indicator + light icon.
+ */
 class SidebarAdapter(
     private val items: List<SidebarItem>,
     private val onFocusChange: (Boolean) -> Unit = {},
     private val onItemFocused: (SidebarItem) -> Unit = {},
+    private val onItemFocusView: (View, SidebarItem, Boolean) -> Unit = { _, _, _ -> },
     private val onDpadRight: () -> Boolean = { false },
     private val onItemSelected: (Int) -> Unit
 ) : RecyclerView.Adapter<SidebarAdapter.SidebarViewHolder>() {
-    
+
     init {
         setHasStableIds(true)
     }
@@ -29,9 +32,7 @@ class SidebarAdapter(
         return items[position].id.toLong()
     }
 
-    private val attachedHolders = mutableSetOf<SidebarViewHolder>()
     private var selectedPosition = items.indexOfFirst { it.id == 1 }.takeIf { it >= 0 } ?: 0
-    private var isExpanded: Boolean = true
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SidebarViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -56,23 +57,6 @@ class SidebarAdapter(
         notifyItemChanged(selectedPosition)
     }
 
-    fun setExpanded(expanded: Boolean, animate: Boolean = true) {
-        if (expanded == isExpanded) return
-        isExpanded = expanded
-        attachedHolders.forEach { it.applyExpandedState(expanded, animate) }
-    }
-
-    override fun onViewAttachedToWindow(holder: SidebarViewHolder) {
-        super.onViewAttachedToWindow(holder)
-        attachedHolders.add(holder)
-        holder.applyExpandedState(isExpanded, animate = false)
-    }
-
-    override fun onViewDetachedFromWindow(holder: SidebarViewHolder) {
-        attachedHolders.remove(holder)
-        super.onViewDetachedFromWindow(holder)
-    }
-
     inner class SidebarViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val ivIcon: ImageView = itemView.findViewById(R.id.iv_icon)
         private val tvTitle: TextView = itemView.findViewById(R.id.tv_title)
@@ -82,91 +66,39 @@ class SidebarAdapter(
         fun bind(item: SidebarItem, isSelected: Boolean) {
             tvTitle.text = item.title
             ivIcon.setImageResource(item.iconRes)
-            
+
             if (bindingAdapterPosition == 0) {
                 itemView.nextFocusUpId = itemView.id
             } else {
                 itemView.nextFocusUpId = View.NO_ID
             }
-            
-            // Selection state
-            // Selection (active tab): Tint Icon Cyan.
-            // Focus: Expand width, Show Text, Dark Background.
-            
-            val colorPrimary = ContextCompat.getColor(itemView.context, R.color.sidebar_text_primary)
-            val colorDim = ContextCompat.getColor(itemView.context, R.color.sidebar_text_dim)
-            
-            val initialTintColor = if (isSelected) colorPrimary else colorDim
-            ivIcon.setColorFilter(initialTintColor)
-            
-            viewSelectionIndicator.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
-            val density = itemView.context.resources.displayMetrics.density
 
-            applyExpandedState(expanded = isExpanded, animate = false)
+            applyIdleState(isSelected)
 
-            // Initial State
-            itemView.setBackgroundResource(
-                if (isSelected) R.drawable.bg_sidebar_nav_active else R.drawable.bg_sidebar_nav_default
-            )
-            // Persistent Dimmed Active state when grid is focused
-            itemView.alpha = if (isSelected && !itemView.hasFocus()) 0.6f else 1.0f
-
-            itemView.setOnFocusChangeListener { _, hasFocus ->
+            itemView.setOnFocusChangeListener { v, hasFocus ->
                 onFocusChange(hasFocus)
-                
-                val targetColor = if (hasFocus) 0xFFFFFFFF.toInt() else (if (isSelected) colorPrimary else 0x88FFFFFF.toInt())
-                val startColor = if (hasFocus) (if (isSelected) colorPrimary else 0x88FFFFFF.toInt()) else 0xFFFFFFFF.toInt()
-                
+                onItemFocusView(v, item, hasFocus)
+
+                val targetColor = if (hasFocus) COLOR_FOCUSED else idleColor(isSelected)
+                val startColor = if (hasFocus) idleColor(isSelected) else COLOR_FOCUSED
                 android.animation.ValueAnimator.ofArgb(startColor, targetColor).apply {
-                    duration = if (hasFocus) 220L else 180L
+                    duration = if (hasFocus) 200L else 160L
                     interpolator = ease
                     addUpdateListener { animator ->
                         ivIcon.setColorFilter(animator.animatedValue as Int)
                     }
                     start()
                 }
-                
+
                 if (hasFocus) {
                     onItemFocused(item)
-                    itemView.alpha = 1f
-                    // Visuals
-                    itemView.setBackgroundResource(
-                        if (isSelected) R.drawable.bg_sidebar_nav_active else R.drawable.bg_sidebar_nav_focused
-                    )
-                    
-                    // Text Reveal
-                    tvTitle.visibility = View.VISIBLE
-                    tvTitle.alpha = 1f
-
-                    // Scale/Elevation
-                    itemView.animate()
-                        .scaleX(1.05f)
-                        .scaleY(1.05f)
-                        .translationZ(4f * density)
-                        .setInterpolator(ease)
-                        .setDuration(220)
-                        .start()
-
+                    viewSelectionIndicator.visibility = View.INVISIBLE
                 } else {
-                    // Persistent Active visibility
-                    itemView.alpha = if (isSelected) 0.6f else 1f
-                    
-                    // Reset Visuals
-                    itemView.setBackgroundResource(
-                        if (isSelected) R.drawable.bg_sidebar_nav_active else R.drawable.bg_sidebar_nav_default
-                    )
-                    
-                    // Reset Scale
-                    itemView.animate()
-                        .scaleX(1.0f)
-                        .scaleY(1.0f)
-                        .translationZ(0f)
-                        .setInterpolator(ease)
-                        .setDuration(180)
-                        .start()
+                    viewSelectionIndicator.visibility =
+                        if (isSelected) View.VISIBLE else View.INVISIBLE
                 }
             }
-            
+
             itemView.setOnClickListener {
                 val position = bindingAdapterPosition
                 if (position == RecyclerView.NO_POSITION) return@setOnClickListener
@@ -184,54 +116,22 @@ class SidebarAdapter(
             }
         }
 
-        fun applyExpandedState(expanded: Boolean, animate: Boolean) {
-            applyRowLayout(expanded, animate)
+        private fun applyIdleState(isSelected: Boolean) {
+            itemView.setBackgroundResource(0)
+            ivIcon.setColorFilter(idleColor(isSelected))
+            viewSelectionIndicator.visibility =
+                if (isSelected && !itemView.hasFocus()) View.VISIBLE else View.INVISIBLE
+            tvTitle.alpha = 0f
+            tvTitle.visibility = View.GONE
         }
 
-        private fun applyRowLayout(expanded: Boolean, animate: Boolean) {
-            val iconLp = ivIcon.layoutParams as? ConstraintLayout.LayoutParams ?: return
-            val titleLp = tvTitle.layoutParams as? ConstraintLayout.LayoutParams ?: return
+        private fun idleColor(isSelected: Boolean): Int =
+            if (isSelected) COLOR_ACTIVE else COLOR_IDLE
+    }
 
-            if (expanded) {
-                // Icon pinned left, title visible
-                iconLp.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
-                iconLp.endToEnd = ConstraintLayout.LayoutParams.UNSET
-                ivIcon.layoutParams = iconLp
-
-                titleLp.startToEnd = ivIcon.id
-                tvTitle.layoutParams = titleLp
-
-                tvTitle.visibility = View.VISIBLE
-                if (animate) {
-                    tvTitle.animate().alpha(1f).setDuration(220).setInterpolator(ease).start()
-                } else {
-                    tvTitle.alpha = 1f
-                }
-                itemView.setPadding(
-                    (16 * itemView.resources.displayMetrics.density).toInt(),
-                    itemView.paddingTop,
-                    (12 * itemView.resources.displayMetrics.density).toInt(),
-                    itemView.paddingBottom
-                )
-            } else {
-                // Icons-only, perfectly centered; title fully hidden (no truncation)
-                iconLp.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
-                iconLp.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
-                ivIcon.layoutParams = iconLp
-
-                if (animate) {
-                    tvTitle.animate()
-                        .alpha(0f)
-                        .setDuration(180)
-                        .setInterpolator(ease)
-                        .withEndAction { tvTitle.visibility = View.GONE }
-                        .start()
-                } else {
-                    tvTitle.alpha = 0f
-                    tvTitle.visibility = View.GONE
-                }
-                itemView.setPadding(0, itemView.paddingTop, 0, itemView.paddingBottom)
-            }
-        }
+    companion object {
+        private const val COLOR_FOCUSED = 0xFF00F0FF.toInt()
+        private const val COLOR_ACTIVE = 0xFFE2E8F0.toInt()
+        private const val COLOR_IDLE = 0xFF64748B.toInt()
     }
 }

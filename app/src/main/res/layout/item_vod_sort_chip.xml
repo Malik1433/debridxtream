@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tv_sort_chip"
+    android:layout_width="wrap_content"
+    android:layout_height="28dp"
+    android:paddingHorizontal="12dp"
+    android:gravity="center"
+    android:background="@drawable/bg_vod_sort_chip_default"
+    android:text="SORT"
+    android:textColor="@color/vod_text_muted"
+    android:textSize="11sp"
+    android:fontFamily="monospace"
+    android:letterSpacing="0.06"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:layout_marginStart="6dp" />

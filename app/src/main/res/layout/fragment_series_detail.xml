@@ -135,7 +135,7 @@
             android:textStyle="bold"
             android:letterSpacing="-0.02"
             android:lineSpacingMultiplier="1.02"
-            android:maxLines="2"
+            android:maxLines="1"
             android:ellipsize="end"
             tools:text="Nightfall Protocol" />
 
@@ -394,55 +394,55 @@
             android:orientation="horizontal"
             android:padding="3dp">
 
-            <!-- Play / Resume button -->
+            <!-- Play / Resume button — 60px design -> 30dp, matched to Movie Detail play button (38dp) -->
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_watch_now"
                 android:layout_width="wrap_content"
-                android:layout_height="29dp"
+                android:layout_height="38dp"
                 android:background="@drawable/cin_detail_btn_watch"
                 android:drawableStart="@drawable/ic_play_arrow_24"
-                android:drawablePadding="6dp"
+                android:drawablePadding="8dp"
                 android:drawableTint="#041014"
+                android:focusable="true"
+                android:gravity="center"
+                android:letterSpacing="0.04"
+                android:minWidth="0dp"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:text="Play S01 · E01"
+                android:textAllCaps="false"
+                android:textColor="#041014"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <!-- Trailer button — 60px design, matched to Movie Detail trailer button (38dp) -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_watch_trailer"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/cin_detail_btn_glass"
                 android:focusable="true"
                 android:gravity="center"
                 android:letterSpacing="0.04"
                 android:minWidth="0dp"
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
-                android:text="Play S01 · E01"
-                android:textAllCaps="false"
-                android:textColor="#041014"
-                android:textSize="9sp"
-                android:textStyle="bold" />
-
-            <!-- Trailer button -->
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_watch_trailer"
-                android:layout_width="wrap_content"
-                android:layout_height="29dp"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/cin_detail_btn_glass"
-                android:focusable="true"
-                android:gravity="center"
-                android:letterSpacing="0.04"
-                android:minWidth="0dp"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
                 android:text="Trailer"
                 android:textAllCaps="false"
                 android:textColor="#F1F5F9"
-                android:textSize="9sp"
+                android:textSize="12sp"
                 android:textStyle="bold" />
 
-            <!-- Favorite button -->
+            <!-- Favorite button — 60px design, matched to Movie Detail favorite (38dp) -->
             <ImageButton
                 android:id="@+id/btn_add_favorite"
-                android:layout_width="29dp"
-                android:layout_height="29dp"
-                android:layout_marginStart="8dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="10dp"
                 android:background="@drawable/cin_detail_btn_glass"
                 android:focusable="true"
-                android:padding="6dp"
+                android:padding="9dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_favorite_border"
                 app:tint="@color/cin_detail_focus_text" />
@@ -482,22 +482,22 @@
                 android:textStyle="bold"
                 android:letterSpacing="0.16" />
 
-            <!-- Season selector button -->
+            <!-- Season selector button — 46px design -> 30dp, Outfit 700 17px -> 12sp -->
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_season_selector"
                 android:layout_width="wrap_content"
-                android:layout_height="18dp"
-                android:layout_marginStart="10dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="12dp"
                 android:background="@drawable/cin_series_season_btn"
                 android:focusable="true"
                 android:gravity="center"
                 android:minWidth="0dp"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:text="SEASON 1"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:text="SEASON 1 ▾"
                 android:textAllCaps="false"
                 android:textColor="#00F0FF"
-                android:textSize="7sp"
+                android:textSize="12sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.06" />
 
@@ -543,6 +543,66 @@
             android:orientation="horizontal"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             tools:listitem="@layout/item_episode_cin" />
+    </LinearLayout>
+
+    <!-- ══ HINT BAR ══ -->
+    <LinearLayout
+        android:id="@+id/layout_hint_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="◄ ► ▲ ▼ NAVIGATE"
+            android:textColor="#64748B"
+            android:textSize="6sp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.1" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="11dp"
+            android:layout_marginEnd="11dp"
+            android:text="│"
+            android:textColor="#334155"
+            android:textSize="6sp"
+            android:fontFamily="monospace" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="OK / ENTER SELECT"
+            android:textColor="#64748B"
+            android:textSize="6sp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.1" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="11dp"
+            android:layout_marginEnd="11dp"
+            android:text="│"
+            android:textColor="#334155"
+            android:textSize="6sp"
+            android:fontFamily="monospace" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="BACK / ESC RETURN"
+            android:textColor="#64748B"
+            android:textSize="6sp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.1" />
     </LinearLayout>
 
     <!-- Hidden legacy views (keep IDs for Activity binding compat) -->

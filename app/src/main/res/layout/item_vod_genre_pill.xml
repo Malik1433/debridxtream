@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tv_genre_pill"
+    android:layout_width="wrap_content"
+    android:layout_height="28dp"
+    android:paddingHorizontal="13dp"
+    android:gravity="center"
+    android:background="@drawable/bg_vod_genre_pill_default"
+    android:text="Genre"
+    android:textColor="@color/vod_text_muted"
+    android:textSize="13sp"
+    android:fontFamily="sans-serif-medium"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:layout_marginEnd="8dp" />

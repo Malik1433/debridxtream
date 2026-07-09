@@ -3,97 +3,110 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/home_sidebar_container"
-    android:layout_width="72dp"
+    android:layout_width="48dp"
     android:layout_height="match_parent"
-    android:background="@drawable/sidebar_alive_bg"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
-    android:paddingTop="20dp"
-    android:paddingBottom="20dp"
+    android:background="@drawable/bg_nav_rail"
+    android:paddingTop="11dp"
+    android:paddingBottom="11dp"
     android:elevation="16dp"
     android:clipChildren="false"
     android:clipToPadding="false">
 
-    <!-- Header (Logo + App Name) -->
-    <LinearLayout
+    <!-- Logo mark "DX" -->
+    <FrameLayout
         android:id="@+id/sidebar_header"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:background="@drawable/bg_logo_mark"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <ImageView
-            android:id="@+id/iv_sidebar_logo"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/ic_login_logo"
-            android:contentDescription="@string/app_name"
-            android:scaleType="fitCenter" />
-
         <TextView
-            android:id="@+id/tv_sidebar_app_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="@string/app_title"
-            android:textColor="@color/sidebar_text_primary"
-            android:textSize="18sp"
+            android:layout_gravity="center"
+            android:text="DX"
+            android:textColor="#041014"
+            android:textSize="10.5sp"
             android:textStyle="bold"
             android:fontFamily="@font/plus_jakarta_sans"
-            android:singleLine="true"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:letterSpacing="0.02" />
-    </LinearLayout>
+            android:includeFontPadding="false"
+            android:letterSpacing="-0.04" />
+    </FrameLayout>
 
-    <!-- Subtle divider under header -->
+    <!-- Magnetic sliding highlight capsule (behind nav icons) -->
     <View
-        android:id="@+id/sidebar_header_divider"
+        android:id="@+id/sidebar_capsule"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:background="@drawable/bg_nav_item_focused"
+        android:alpha="0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Main navigation list (icon-only, flyout labels) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_sidebar"
         android:layout_width="0dp"
-        android:layout_height="1dp"
-        android:layout_marginTop="16dp"
-        android:background="@color/sidebar_divider_line"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="15dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/sidebar_header" />
 
-    <!-- Main navigation list (full labels visible) -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_sidebar"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="16dp"
-        android:clipChildren="false"
-        android:clipToPadding="false"
-        android:overScrollMode="never"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/sidebar_header_divider"
-        app:layout_constraintBottom_toTopOf="@id/sidebar_settings_divider" />
-
     <!-- Divider before settings -->
     <View
         android:id="@+id/sidebar_settings_divider"
-        android:layout_width="0dp"
+        android:layout_width="22dp"
         android:layout_height="1dp"
-        android:layout_marginTop="20dp"
-        android:layout_marginBottom="20dp"
-        android:background="@color/sidebar_divider_line"
+        android:layout_marginBottom="8dp"
+        android:background="#14FFFFFF"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toTopOf="@id/sidebar_settings_item" />
 
-    <!-- Settings (bottom) -->
+    <!-- Settings -->
     <include
         android:id="@+id/sidebar_settings_item"
         layout="@layout/item_sidebar_nav"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="28dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="6dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        app:layout_constraintBottom_toTopOf="@id/sidebar_profile_mark" />
+
+    <!-- Profile mark -->
+    <FrameLayout
+        android:id="@+id/sidebar_profile_mark"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:background="@drawable/bg_profile_mark"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="A"
+            android:textColor="@color/white"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/plus_jakarta_sans"
+            android:includeFontPadding="false" />
+    </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

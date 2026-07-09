@@ -122,14 +122,23 @@ internal class HomeKeyRoutingManager(private var fragment: HomeFragment?) {
         }
     }
 
+    // Visual rail order (top → bottom): CONTINUE_WATCHING, MOVIES, SERIES, RECENT_LIVE
     fun moveFocusUpFromArea(area: HomeContentFocusArea, position: Int): Boolean {
         val frag = fragment ?: return false
         return when (area) {
             HomeContentFocusArea.CONTINUE_WATCHING -> {
+                frag.focusManager.focusHeroPrimaryButton()
+            }
+            HomeContentFocusArea.MOVIES -> {
                 when {
-                    frag.isRvRecentLiveInitialized() && frag.focusManager.getItemCount(frag.rvRecentLive) > 0 -> frag.focusManager.requestContentFocus(frag.rvRecentLive, position)
-                    frag.isRvTop10SeriesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Series) > 0 -> frag.focusManager.requestContentFocus(frag.rvTop10Series, position)
+                    frag.isRvContinueWatchingInitialized() && frag.focusManager.getItemCount(frag.rvContinueWatching) > 0 -> frag.focusManager.requestContentFocus(frag.rvContinueWatching, position)
+                    else -> frag.focusManager.focusHeroPrimaryButton()
+                }
+            }
+            HomeContentFocusArea.SERIES -> {
+                when {
                     frag.isRvTop10MoviesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Movies) > 0 -> frag.focusManager.requestContentFocus(frag.rvTop10Movies, position)
+                    frag.isRvContinueWatchingInitialized() && frag.focusManager.getItemCount(frag.rvContinueWatching) > 0 -> frag.focusManager.requestContentFocus(frag.rvContinueWatching, position)
                     else -> frag.focusManager.focusHeroPrimaryButton()
                 }
             }
@@ -137,17 +146,9 @@ internal class HomeKeyRoutingManager(private var fragment: HomeFragment?) {
                 when {
                     frag.isRvTop10SeriesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Series) > 0 -> frag.focusManager.requestContentFocus(frag.rvTop10Series, position)
                     frag.isRvTop10MoviesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Movies) > 0 -> frag.focusManager.requestContentFocus(frag.rvTop10Movies, position)
+                    frag.isRvContinueWatchingInitialized() && frag.focusManager.getItemCount(frag.rvContinueWatching) > 0 -> frag.focusManager.requestContentFocus(frag.rvContinueWatching, position)
                     else -> frag.focusManager.focusHeroPrimaryButton()
                 }
-            }
-            HomeContentFocusArea.SERIES -> {
-                when {
-                    frag.isRvTop10MoviesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Movies) > 0 -> frag.focusManager.requestContentFocus(frag.rvTop10Movies, position)
-                    else -> frag.focusManager.focusHeroPrimaryButton()
-                }
-            }
-            HomeContentFocusArea.MOVIES -> {
-                frag.focusManager.focusHeroPrimaryButton()
             }
             HomeContentFocusArea.HERO -> false
         }
@@ -157,11 +158,13 @@ internal class HomeKeyRoutingManager(private var fragment: HomeFragment?) {
         val frag = fragment ?: return false
         return when (area) {
             HomeContentFocusArea.HERO -> {
+                frag.focusManager.restoreLastRailFocus() || true
+            }
+            HomeContentFocusArea.CONTINUE_WATCHING -> {
                 when {
                     frag.isRvTop10MoviesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Movies) > 0 -> frag.focusManager.requestContentFocus(frag.rvTop10Movies, position)
                     frag.isRvTop10SeriesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Series) > 0 -> frag.focusManager.requestContentFocus(frag.rvTop10Series, position)
                     frag.isRvRecentLiveInitialized() && frag.focusManager.getItemCount(frag.rvRecentLive) > 0 -> frag.focusManager.requestContentFocus(frag.rvRecentLive, position)
-                    frag.isRvContinueWatchingInitialized() && frag.focusManager.getItemCount(frag.rvContinueWatching) > 0 -> frag.focusManager.requestContentFocus(frag.rvContinueWatching, position)
                     else -> true
                 }
             }
@@ -169,24 +172,16 @@ internal class HomeKeyRoutingManager(private var fragment: HomeFragment?) {
                 when {
                     frag.isRvTop10SeriesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Series) > 0 -> frag.focusManager.requestContentFocus(frag.rvTop10Series, position)
                     frag.isRvRecentLiveInitialized() && frag.focusManager.getItemCount(frag.rvRecentLive) > 0 -> frag.focusManager.requestContentFocus(frag.rvRecentLive, position)
-                    frag.isRvContinueWatchingInitialized() && frag.focusManager.getItemCount(frag.rvContinueWatching) > 0 -> frag.focusManager.requestContentFocus(frag.rvContinueWatching, position)
                     else -> true
                 }
             }
             HomeContentFocusArea.SERIES -> {
                 when {
                     frag.isRvRecentLiveInitialized() && frag.focusManager.getItemCount(frag.rvRecentLive) > 0 -> frag.focusManager.requestContentFocus(frag.rvRecentLive, position)
-                    frag.isRvContinueWatchingInitialized() && frag.focusManager.getItemCount(frag.rvContinueWatching) > 0 -> frag.focusManager.requestContentFocus(frag.rvContinueWatching, position)
                     else -> true
                 }
             }
-            HomeContentFocusArea.RECENT_LIVE -> {
-                when {
-                    frag.isRvContinueWatchingInitialized() && frag.focusManager.getItemCount(frag.rvContinueWatching) > 0 -> frag.focusManager.requestContentFocus(frag.rvContinueWatching, position)
-                    else -> true
-                }
-            }
-            HomeContentFocusArea.CONTINUE_WATCHING -> true
+            HomeContentFocusArea.RECENT_LIVE -> true
         }
     }
 }

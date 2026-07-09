@@ -82,6 +82,7 @@ data class ZapChannel(
 
 data class ZapState(
     val categoryId: String,
+    val categoryName: String?,
     val channels: List<ZapChannel>,
     val index: Int
 )
@@ -1150,8 +1151,78 @@ class PlayerViewModel @Inject constructor(
 
             if (list.isEmpty()) return@launch
 
+            val categoryName = cacheManager.getCategories("live")
+                ?.firstOrNull { it.category_id == categoryId }
+                ?.category_name
+
             val index = list.indexOfFirst { it.streamId == currentStreamId }.takeIf { it >= 0 } ?: 0
-            _zapState.value = ZapState(categoryId = categoryId, channels = list, index = index)
+            _zapState.value = ZapState(
+                categoryId = categoryId,
+                categoryName = categoryName,
+                channels = list,
+                index = index
+            )
+        }
+    }
+
+    // ── surf-drawer category picker (Live Player OSD, second-LEFT) ───────────
+    private val _surfCategories = MutableStateFlow<List<XtreamCategory>>(emptyList())
+    val surfCategories: StateFlow<List<XtreamCategory>> = _surfCategories.asStateFlow()
+
+    /** Preload live categories so the drawer's category picker is instant. */
+    fun loadSurfCategories() {
+        if (_surfCategories.value.isNotEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val cats = cacheManager.getCategories("live")
+                ?: runCatching { repository.ensureLiveCategories() }.getOrNull()
+            if (!cats.isNullOrEmpty()) _surfCategories.value = cats
+        }
+    }
+
+    /**
+     * Reload the zap channel list for a category picked in the surf drawer.
+     * Playback stays on the current channel; index resets to 0 for the new list.
+     */
+    fun switchZapCategory(categoryId: String, baseServerUrl: String?) {
+        if (categoryId.isBlank() || baseServerUrl.isNullOrBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val prefs = CredentialsPreferences(context)
+            repository.ensureInitialized(baseServerUrl, prefs.getUsername(), prefs.getPassword())
+
+            var streams = cacheManager.getChannels(categoryId, streamType = "live")
+            if (streams.isNullOrEmpty()) {
+                val result = repository.fetchLiveStreamsForCategory(categoryId)
+                if (result is Result.Success) streams = result.data
+            }
+            val safeStreams = streams.orEmpty()
+            if (safeStreams.isEmpty()) return@launch
+
+            val categoryName = cacheManager.getCategories("live")
+                ?.firstOrNull { it.category_id == categoryId }
+                ?.category_name
+
+            val list = safeStreams
+                .filter { !it.stream_id.isNullOrBlank() }
+                .map { stream ->
+                    ZapChannel(
+                        streamId = stream.stream_id!!,
+                        name = stream.name ?: context.getString(R.string.player_epg_channel_unknown),
+                        logoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
+                        epgChannelId = stream.epg_channel_id,
+                        streamUrl = repository.buildLiveStreamUrl(stream, baseServerUrl)
+                    )
+                }
+            if (list.isEmpty()) return@launch
+
+            // Keep the currently-playing channel selected if it lives in this category.
+            val currentId = _zapState.value?.let { it.channels.getOrNull(it.index)?.streamId }
+            val index = list.indexOfFirst { it.streamId == currentId }.takeIf { it >= 0 } ?: 0
+            _zapState.value = ZapState(
+                categoryId = categoryId,
+                categoryName = categoryName,
+                channels = list,
+                index = index
+            )
         }
     }
 
@@ -1166,6 +1237,42 @@ class PlayerViewModel @Inject constructor(
         val updated = state.copy(index = nextIndex)
         _zapState.value = updated
         return updated.channels[nextIndex]
+    }
+
+    /** Direct tune from the surf drawer (Live Player OSD). */
+    fun zapTo(index: Int): ZapChannel? {
+        val state = _zapState.value ?: return null
+        if (index !in state.channels.indices) return null
+        val updated = state.copy(index = index)
+        _zapState.value = updated
+        return updated.channels[index]
+    }
+
+    private val _liveFavoriteIds = MutableStateFlow<Set<String>>(emptySet())
+    val liveFavoriteIds: StateFlow<Set<String>> = _liveFavoriteIds.asStateFlow()
+    private var liveFavoritesJob: Job? = null
+
+    fun observeLiveFavorites() {
+        if (liveFavoritesJob != null) return
+        liveFavoritesJob = viewModelScope.launch(Dispatchers.IO) {
+            repository.getFavoritesByType("live").collect { favs ->
+                _liveFavoriteIds.value = favs.map { it.streamId }.toSet()
+            }
+        }
+    }
+
+    /** Toggles the live-channel favorite; returns the new state for toast copy. */
+    suspend fun toggleLiveFavorite(streamId: String?, name: String?, iconUrl: String?): Boolean? {
+        if (streamId.isNullOrBlank()) return null
+        return withContext(Dispatchers.IO) {
+            if (repository.isFavorite(streamId)) {
+                repository.removeFavorite(streamId)
+                false
+            } else {
+                repository.addFavorite(streamId, "live", name ?: "", iconUrl)
+                true
+            }
+        }
     }
 
     private val _browserState = MutableStateFlow(BrowserUiState())

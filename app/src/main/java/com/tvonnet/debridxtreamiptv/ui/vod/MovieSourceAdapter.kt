@@ -1,5 +1,6 @@
 package com.tvonnet.debridxtreamiptv.ui.vod
 
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.TextView
@@ -21,13 +22,27 @@ class MovieSourceAdapter(
 ) : ListAdapter<MovieSource, MovieSourceAdapter.SourceViewHolder>(DiffCallback) {
 
     private var selectedStreamId: String? = null
-    
+    private var bestStreamId: String? = null
+
     init {
         setHasStableIds(true)
     }
-    
+
     override fun getItemId(position: Int): Long {
         return getItem(position).stream.stream_id.hashCode().toLong()
+    }
+
+    /** Marks the given source row as the BEST PICK (accent bar + badge). */
+    fun updateBestPick(streamId: String?) {
+        val oldId = bestStreamId
+        if (oldId == streamId) return
+        bestStreamId = streamId
+        for (i in 0 until itemCount) {
+            val item = getItem(i)
+            if (item.stream.stream_id == oldId || item.stream.stream_id == streamId) {
+                notifyItemChanged(i)
+            }
+        }
     }
 
     fun updateSelection(streamId: String?, notify: Boolean = true) {
@@ -111,14 +126,13 @@ class MovieSourceAdapter(
                 binding.tvType.setTextColor(binding.root.context.getColor(R.color.white))
             }
 
-            // Col 6: Size
-            val sizeLabel = source.sizeBytes
-                ?.takeIf { it > 0 }
-                ?.let { formatSizeLabel(it) }
-            binding.tvFilesize.isVisible = !sizeLabel.isNullOrBlank()
-            if (!sizeLabel.isNullOrBlank()) {
-                binding.tvFilesize.text = sizeLabel
-            }
+            // Col 6: Size text + proportional visual bar
+            bindSizeColumn(source)
+
+            // BEST PICK treatment (first cached source after sorting)
+            val isBestItem = bestStreamId != null && source.stream.stream_id == bestStreamId
+            binding.vBestAccent.isVisible = isBestItem
+            binding.tvBestBadge.isVisible = isBestItem
 
             val isSelectedItem = source.stream.stream_id == selectedStreamId
             binding.root.isSelected = isSelectedItem
@@ -127,20 +141,21 @@ class MovieSourceAdapter(
             FocusGlintHelper.updateListener(binding.root) { _, hasFocus ->
                 val stillSelected = source.stream.stream_id == selectedStreamId
                 binding.root.isSelected = stillSelected
-                
-                binding.ivPlay.isVisible = hasFocus
+
+                // Best row keeps its badge instead of the play circle.
+                binding.ivPlay.isVisible = hasFocus && !isBestItem
                 binding.ivPlay.alpha = if (hasFocus) 1.0f else 0.0f
-                
+
                 if (hasFocus) {
                     onSourceFocused(source)
                 }
             }
-            
+
             FocusGlintHelper.forceReset(binding.root)
-            
+
             if (binding.root.isFocused) {
                 FocusGlintHelper.attach(binding.root)
-                binding.ivPlay.isVisible = true
+                binding.ivPlay.isVisible = !isBestItem
                 binding.ivPlay.alpha = 1.0f
             } else {
                 binding.ivPlay.isVisible = false
@@ -276,6 +291,44 @@ class MovieSourceAdapter(
                 String.format(Locale.US, "%.0f MB", sizeBytes / mb)
             }
         }
+
+        /**
+         * Renders the file size text plus a mini bar whose fill length is
+         * proportional to the largest source in the current list and whose
+         * colour encodes the size tier (cyan ≤6GB, amber 6-15GB, red >15GB).
+         */
+        private fun bindSizeColumn(source: MovieSource) {
+            val sizeBytes = source.sizeBytes?.takeIf { it > 0 }
+            if (sizeBytes == null) {
+                binding.tvFilesize.isVisible = false
+                binding.layoutSizeBar.isVisible = false
+                return
+            }
+
+            binding.tvFilesize.isVisible = true
+            binding.tvFilesize.text = formatSizeLabel(sizeBytes)
+            binding.layoutSizeBar.isVisible = true
+
+            val maxBytes = currentList.maxOfOrNull { it.sizeBytes ?: 0L }
+                ?.takeIf { it > 0 } ?: sizeBytes
+            val fraction = (sizeBytes.toDouble() / maxBytes.toDouble()).coerceIn(0.05, 1.0)
+
+            val density = binding.root.resources.displayMetrics.density
+            val trackPx = (SIZE_BAR_WIDTH_DP * density).toInt()
+            val fillView = binding.vSizeBarFill
+            fillView.layoutParams = fillView.layoutParams.apply {
+                width = (trackPx * fraction).toInt().coerceAtLeast((2 * density).toInt())
+            }
+            fillView.requestLayout()
+
+            val gb = sizeBytes / (1024.0 * 1024.0 * 1024.0)
+            val fillColor = when {
+                gb <= 6.0 -> SIZE_COLOR_CYAN
+                gb <= 15.0 -> SIZE_COLOR_AMBER
+                else -> SIZE_COLOR_RED
+            }
+            fillView.backgroundTintList = ColorStateList.valueOf(fillColor)
+        }
     }
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
@@ -289,6 +342,11 @@ class MovieSourceAdapter(
     }
 
     companion object {
+        private const val SIZE_BAR_WIDTH_DP = 40f
+        private const val SIZE_COLOR_CYAN = 0xFF00F0FF.toInt()
+        private const val SIZE_COLOR_AMBER = 0x99FFAA00.toInt()
+        private const val SIZE_COLOR_RED = 0x99FF3355.toInt()
+
         private val DiffCallback = object : DiffUtil.ItemCallback<MovieSource>() {
             override fun areItemsTheSame(oldItem: MovieSource, newItem: MovieSource): Boolean {
                 return oldItem.stream.stream_id == newItem.stream.stream_id

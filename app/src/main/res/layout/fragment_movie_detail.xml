@@ -8,6 +8,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false"
     android:background="#06090E">
 
     <!-- Full-bleed backdrop -->
@@ -38,18 +40,35 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Back button -->
+        <!-- Back button (removed from design — hardware BACK handles it) -->
         <ImageButton
             android:id="@+id/btn_back"
-            android:layout_width="34dp"
-            android:layout_height="34dp"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
             android:background="@drawable/cin_detail_back_circle"
             android:contentDescription="Back"
             android:scaleType="centerInside"
             android:src="@drawable/ic_back"
-            android:focusable="true"
+            android:focusable="false"
+            android:visibility="gone"
             android:nextFocusDown="@id/btn_play"
             app:tint="@color/cin_detail_focus_text" />
+
+        <!-- Back-to-rail context hint -->
+        <TextView
+            android:id="@+id/tv_back_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="12dp"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.06"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:visibility="gone"
+            tools:visibility="visible"
+            tools:text="◄ BACK TO CONTINUE WATCHING" />
 
         <!-- Breadcrumb -->
         <LinearLayout
@@ -216,6 +235,70 @@
                     android:textSize="10sp" />
             </LinearLayout>
 
+            <!-- IMDb rating (OMDb) -->
+            <LinearLayout
+                android:id="@+id/badge_imdb"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/cin_detail_rating_badge"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="IMDb"
+                    android:textColor="@color/neon_amber"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:fontFamily="@font/inter_extrabold"
+                    android:letterSpacing="0.04" />
+
+                <TextView
+                    android:id="@+id/tv_imdb_rating"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:textColor="@color/source_text_primary"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace"
+                    android:textStyle="bold"
+                    tools:text="8.6" />
+            </LinearLayout>
+
+            <!-- Rotten Tomatoes rating (OMDb) -->
+            <LinearLayout
+                android:id="@+id/badge_rt"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/cin_detail_rating_badge"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🍅"
+                    android:textSize="10sp" />
+
+                <TextView
+                    android:id="@+id/tv_rt_rating"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:textColor="@color/source_text_primary"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace"
+                    android:textStyle="bold"
+                    tools:text="92%" />
+            </LinearLayout>
+
             <TextView
                 android:id="@+id/tv_year"
                 android:layout_width="wrap_content"
@@ -276,6 +359,21 @@
                 tools:visibility="visible"
                 tools:text="4K DV" />
 
+            <!-- Age / content rating badge (R / PG-13 / 18+) -->
+            <TextView
+                android:id="@+id/tv_age_rating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/cin_detail_quality_badge"
+                android:textColor="@color/source_text_secondary"
+                android:textSize="9sp"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.08"
+                android:visibility="gone"
+                tools:visibility="visible"
+                tools:text="PG-13" />
+
             <!-- Hidden legacy IDs -->
             <TextView android:id="@+id/tv_rating_stars" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
         </com.google.android.flexbox.FlexboxLayout>
@@ -323,17 +421,87 @@
             android:includeFontPadding="false"
             tools:text="Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family." />
 
+        <!-- Resume bar (shown only when 0 < progress < 100) -->
+        <LinearLayout
+            android:id="@+id/layout_resume_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/cin_resume_bar_bg"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="9dp"
+            android:paddingBottom="9dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:src="@drawable/ic_play"
+                android:scaleType="fitCenter"
+                app:tint="@color/neon_cyan" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="10dp"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/tv_resume_elapsed"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textColor="@color/neon_cyan"
+                        android:textSize="11sp"
+                        android:fontFamily="monospace"
+                        android:letterSpacing="0.10"
+                        tools:text="RESUME FROM 1H 42M" />
+
+                    <TextView
+                        android:id="@+id/tv_resume_remaining"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:textColor="@color/text_muted"
+                        android:textSize="10sp"
+                        android:fontFamily="monospace"
+                        tools:text="1H 4M LEFT" />
+                </LinearLayout>
+
+                <ProgressBar
+                    android:id="@+id/pb_resume"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="4dp"
+                    android:layout_marginTop="6dp"
+                    android:max="100"
+                    android:progressDrawable="@drawable/cin_resume_progress"
+                    tools:progress="62" />
+            </LinearLayout>
+        </LinearLayout>
+
         <!-- Action buttons -->
         <LinearLayout
             android:id="@+id/container_actions"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp"
-            android:paddingStart="4dp"
-            android:paddingEnd="4dp"
-            android:layout_marginStart="-4dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:layout_marginStart="-10dp"
             android:clipChildren="false"
             android:clipToPadding="false"
             android:orientation="horizontal"
@@ -371,6 +539,9 @@
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
                 android:background="@drawable/cin_detail_btn_glass"
+                android:drawableStart="@drawable/ic_trailer_video"
+                android:drawablePadding="6dp"
+                android:drawableTint="@color/cin_detail_focus_text"
                 android:text="Trailer"
                 android:textColor="@color/cin_detail_focus_text"
                 android:textSize="12sp"

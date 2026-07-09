@@ -4,60 +4,47 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_container"
     android:layout_width="match_parent"
-    android:layout_height="56dp"
-    android:background="@drawable/selector_sidebar_item"
-    android:paddingStart="16dp"
-    android:paddingEnd="12dp"
-    android:clipChildren="false"
+    android:layout_height="28dp"
+    android:layout_marginBottom="4dp"
     android:clickable="true"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    android:stateListAnimator="@animator/sidebar_item_animator">
+    android:clipChildren="false"
+    android:clipToPadding="false">
 
-    <!-- Selection Indicator (Left Strip - Glow) -->
+    <!-- Active indicator dot (left edge, extends into rail padding) -->
     <View
         android:id="@+id/view_selection_indicator"
-        android:layout_width="3dp"
-        android:layout_height="20dp"
-        android:layout_marginStart="0dp"
-        android:background="@color/sidebar_active_emerald"
+        android:layout_width="2dp"
+        android:layout_height="11dp"
+        android:translationX="-7dp"
+        android:background="@color/brand_cyan"
         android:visibility="invisible"
-        android:outlineSpotShadowColor="@color/sidebar_emerald_glow"
-        android:outlineAmbientShadowColor="@color/sidebar_active_emerald"
         android:elevation="3dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Icon -->
+    <!-- Icon — centered in the 28dp cell -->
     <ImageView
         android:id="@+id/iv_icon"
-        android:layout_width="22dp"
-        android:layout_height="22dp"
+        android:layout_width="13dp"
+        android:layout_height="13dp"
         app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:src="@android:drawable/ic_menu_search"
-        app:tint="@color/selector_sidebar_text" />
+        tools:src="@android:drawable/ic_menu_search" />
 
-    <!-- Title -->
+    <!-- Title (never shown; label rendered by the shared nav_flyout in the fragment) -->
     <TextView
         android:id="@+id/tv_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="14dp"
-        android:alpha="1"
-        android:fontFamily="@font/plus_jakarta_sans"
         android:text="Search"
-        android:textColor="@color/selector_sidebar_text"
-        android:textSize="15sp"
-        android:textStyle="bold"
-        android:maxLines="1"
-        android:singleLine="true"
-        android:ellipsize="end"
-        android:visibility="visible"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/iv_icon"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

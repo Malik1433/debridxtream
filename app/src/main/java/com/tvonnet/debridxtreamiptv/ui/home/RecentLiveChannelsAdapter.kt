@@ -92,6 +92,12 @@ class RecentLiveChannelsAdapter(
     class RecentLiveViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val ivChannelLogo: ImageView = itemView.findViewById(R.id.iv_channel_logo)
         private val tvChannelName: TextView = itemView.findViewById(R.id.tv_channel_name)
+
+        init {
+            com.tvonnet.debridxtreamiptv.util.FocusGlow.attachSelector(
+                itemView.findViewById(R.id.view_focus_glow)
+            )
+        }
         
         fun bind(
             item: RecentLiveChannelItem,
@@ -107,7 +113,15 @@ class RecentLiveChannelsAdapter(
                 onClick(item)
             }
 
-            itemView.setOnFocusChangeListener { _, hasFocus ->
+            itemView.setOnFocusChangeListener { view, hasFocus ->
+                view.animate()
+                    .scaleX(if (hasFocus) 1.06f else 1.0f)
+                    .scaleY(if (hasFocus) 1.06f else 1.0f)
+                    .translationY(if (hasFocus) -6f else 0f)
+                    .setDuration(200L)
+                    .setInterpolator(android.view.animation.PathInterpolator(0.22f, 1f, 0.36f, 1f))
+                    .start()
+                view.elevation = if (hasFocus) 22f else 4f
                 if (!hasFocus) return@setOnFocusChangeListener
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {

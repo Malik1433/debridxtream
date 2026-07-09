@@ -142,6 +142,9 @@ class DebridSeeAllActivity : AppCompatActivity() {
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_YEAR, item.year)
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_RATING, item.rating)
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
+                intent.getStringExtra(EXTRA_ROW_TITLE)?.takeIf { it.isNotBlank() }?.let {
+                    putExtra(MovieDetailActivity.EXTRA_SOURCE_RAIL, it)
+                }
             }
             startActivity(intent)
         } else {

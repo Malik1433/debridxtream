@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/epg_bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingStart="28dp"
+        android:paddingEnd="28dp"
+        android:paddingTop="14dp">
+
+        <!-- ── DETAIL PANEL ─────────────────────────────────────── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/epg_detail_height"
+            android:orientation="horizontal">
+
+            <!-- Preview tile -->
+            <FrameLayout
+                android:id="@+id/preview_tile"
+                android:layout_width="@dimen/epg_preview_tile_width"
+                android:layout_height="match_parent"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:clickable="true"><!-- OK on this tile expands the preview to fullscreen -->
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <TextView
+                        android:id="@+id/tv_tile_initials"
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:gravity="center"
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp"
+                        android:fontFamily="sans-serif-black"
+                        android:background="#22FFFFFF" />
+
+                    <TextView
+                        android:id="@+id/tv_tile_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:textColor="@color/epg_text_primary"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="" />
+                </LinearLayout>
+
+                <androidx.media3.ui.PlayerView
+                    android:id="@+id/preview_player_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone"
+                    app:use_controller="false"
+                    app:resize_mode="zoom"
+                    app:surface_type="texture_view" />
+
+                <TextView
+                    android:id="@+id/tv_badge_live"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top|start"
+                    android:layout_margin="12dp"
+                    android:background="@drawable/bg_epg_badge_live"
+                    android:paddingStart="11dp"
+                    android:paddingEnd="11dp"
+                    android:paddingTop="5dp"
+                    android:paddingBottom="5dp"
+                    android:text="● LIVE"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tv_badge_quality"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="12dp"
+                    android:background="@drawable/bg_epg_pill"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:textColor="@color/epg_text_primary"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <!-- Info block -->
+            <LinearLayout
+                android:id="@+id/info_block"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginStart="24dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.14"
+                    android:textColor="@color/epg_status_onair"
+                    android:textSize="13sp"
+                    android:fontFamily="monospace"
+                    android:text="" />
+
+                <TextView
+                    android:id="@+id/tv_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:textColor="@color/epg_text_primary"
+                    android:textSize="24sp"
+                    android:fontFamily="sans-serif-black"
+                    android:text="" />
+
+                <TextView
+                    android:id="@+id/tv_meta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textColor="@color/epg_text_secondary"
+                    android:textSize="13sp"
+                    android:fontFamily="monospace"
+                    android:text="" />
+
+                <TextView
+                    android:id="@+id/tv_desc"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:textColor="@color/epg_text_secondary"
+                    android:textSize="15sp"
+                    android:text="" />
+
+                <FrameLayout
+                    android:id="@+id/progress_track"
+                    android:layout_width="match_parent"
+                    android:layout_height="4dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_epg_progress_track"
+                    android:visibility="gone">
+
+                    <View
+                        android:id="@+id/progress_fill"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_epg_progress_fill" />
+                </FrameLayout>
+
+                <Space
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <Button
+                    android:id="@+id/btn_primary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_epg_primary_btn"
+                    android:paddingStart="20dp"
+                    android:paddingEnd="20dp"
+                    android:textAllCaps="false"
+                    android:textColor="@color/epg_text_primary"
+                    android:textSize="15sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Add to Favorites" />
+            </LinearLayout>
+
+            <!-- Right info -->
+            <LinearLayout
+                android:id="@+id/right_info"
+                android:layout_width="160dp"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="end">
+
+                <TextView
+                    android:id="@+id/tv_clock"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.06"
+                    android:textColor="@color/epg_text_primary"
+                    android:textSize="17sp"
+                    android:fontFamily="monospace"
+                    android:text="" />
+
+                <TextView
+                    android:id="@+id/chip_xtream"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_epg_pill"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="5dp"
+                    android:paddingBottom="5dp"
+                    android:text="● XTREAM"
+                    android:textColor="@color/epg_genre_sports"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace" />
+
+                <TextView
+                    android:id="@+id/tv_channel_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textColor="@color/epg_text_faint"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace"
+                    android:text="" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ── CATEGORY STRIP + DAY TABS ────────────────────────── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <HorizontalScrollView
+                android:id="@+id/chips_scroll"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:focusable="false"
+                android:descendantFocusability="afterDescendants"
+                android:clipChildren="false"
+                android:scrollbars="none">
+
+                <FrameLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clipChildren="false">
+
+                    <!-- Single sliding highlight that glides + morphs between chips -->
+                    <View
+                        android:id="@+id/chip_highlight"
+                        android:layout_width="10dp"
+                        android:layout_height="10dp"
+                        android:background="@drawable/bg_epg_chip_highlight"
+                        android:visibility="invisible" />
+
+                    <LinearLayout
+                        android:id="@+id/chips_container"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </FrameLayout>
+            </HorizontalScrollView>
+
+            <LinearLayout
+                android:id="@+id/day_tabs"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:orientation="horizontal" />
+        </LinearLayout>
+
+        <!-- ── EPG GRID ─────────────────────────────────────────── -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="8dp">
+
+            <com.tvonnet.debridxtreamiptv.ui.live.guide.EpgGridView
+                android:id="@+id/epg_grid"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <ProgressBar
+                android:id="@+id/loading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/empty"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:textColor="@color/epg_text_muted"
+                android:textSize="16sp"
+                android:visibility="gone"
+                android:text="" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_jump_now"
+        android:layout_width="wrap_content"
+        android:layout_height="46dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="24dp"
+        android:background="@drawable/bg_epg_jump_now"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:textAllCaps="false"
+        android:textColor="@color/epg_text_primary"
+        android:textSize="14sp"
+        android:fontFamily="sans-serif-medium"
+        android:text="● Jump to Now" />
+
+    <!-- In-place fullscreen: the preview player grows into this overlay (same ExoPlayer,
+         switched via PlayerView.switchTargetView) so the video never disconnects. -->
+    <FrameLayout
+        android:id="@+id/fullscreen_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#000000"
+        android:clickable="true"
+        android:focusable="false"
+        android:elevation="24dp"
+        android:visibility="gone">
+
+        <androidx.media3.ui.PlayerView
+            android:id="@+id/fullscreen_player_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:focusable="true"
+            app:use_controller="true"
+            app:show_timeout="4000"
+            app:resize_mode="fit"
+            app:surface_type="texture_view" />
+    </FrameLayout>
+
+</FrameLayout>

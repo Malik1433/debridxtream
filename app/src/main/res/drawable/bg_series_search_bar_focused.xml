@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Focused state for the sidebar search pill: purple-tinted fill + purple border. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#1FA78BFA" />
+    <stroke android:width="1dp" android:color="#A6A78BFA" />
+    <corners android:radius="8dp" />
+</shape>

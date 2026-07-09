@@ -29,6 +29,11 @@ internal class HomeHeroManager(private var fragment: HomeFragment?) {
                 setOnKeyListener(null)
                 animate().cancel()
             }
+            frag.view?.findViewById<View>(R.id.btn_hero_fav)?.apply {
+                setOnFocusChangeListener(null)
+                setOnKeyListener(null)
+                animate().cancel()
+            }
         }
         fragment = null
     }
@@ -38,6 +43,10 @@ internal class HomeHeroManager(private var fragment: HomeFragment?) {
         frag.currentHeroItem = item
         frag.tvHeroTitle.text = item.title
         frag.tvHeroDescription.text = item.description ?: "Watch this amazing content on DebridXtream. Cinematic experience."
+
+        item.rating?.takeIf { it.isNotBlank() }?.let { rating ->
+            frag.view?.findViewById<android.widget.TextView>(R.id.tv_hero_rating)?.text = "$rating ★"
+        }
 
         val heroUrl = item.backdropUrl ?: item.posterUrl
 
@@ -64,14 +73,35 @@ internal class HomeHeroManager(private var fragment: HomeFragment?) {
 
         val btnWatch = frag.view?.findViewById<View>(R.id.btn_hero_watch)
         val btnDetails = frag.view?.findViewById<View>(R.id.btn_hero_details)
+        val btnFav = frag.view?.findViewById<View>(R.id.btn_hero_fav)
 
-        btnWatch?.setOnFocusChangeListener { v, hasFocus ->
+        val heroKeyListener = View.OnKeyListener { v, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        if (v.id == R.id.btn_hero_watch) {
+                            return@OnKeyListener frag.focusManager.returnToSidebar()
+                        }
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        // Focus memory: land back on the LAST focused rail card
+                        return@OnKeyListener frag.focusManager.restoreLastRailFocus()
+                    }
+                }
+            }
+            false
+        }
+
+        val heroFocusListener = View.OnFocusChangeListener { v, hasFocus ->
             FocusEffects.applyCinematicFocus(v, hasFocus, scale = 1.05f)
             v.z = if (hasFocus) 10f else 0f
+            toggleHeroGlow(v.id, hasFocus)
             if (hasFocus) {
                 frag.focusManager.rememberHeroFocusIfUserDriven()
             }
         }
+
+        btnWatch?.onFocusChangeListener = heroFocusListener
         btnWatch?.setOnClickListener {
             val heroItem = frag.currentHeroItem
             if (heroItem == null) {
@@ -80,26 +110,9 @@ internal class HomeHeroManager(private var fragment: HomeFragment?) {
                 frag.navigationRouter.onFeaturedItemClick(heroItem)
             }
         }
-        btnWatch?.setOnKeyListener { _, keyCode, event ->
-            if (event.action == KeyEvent.ACTION_DOWN) {
-                when (keyCode) {
-                    KeyEvent.KEYCODE_DPAD_LEFT -> return@setOnKeyListener frag.focusManager.returnToSidebar()
-                    KeyEvent.KEYCODE_DPAD_DOWN -> {
-                        return@setOnKeyListener frag.focusManager.requestContentFocus(frag.rvTop10Movies, frag.focusManager.lastMovieIndex) ||
-                            frag.focusManager.requestContentFocus(frag.rvTop10Series, frag.focusManager.lastSeriesIndex)
-                    }
-                }
-            }
-            false
-        }
+        btnWatch?.setOnKeyListener(heroKeyListener)
 
-        btnDetails?.setOnFocusChangeListener { v, hasFocus ->
-            FocusEffects.applyCinematicFocus(v, hasFocus, scale = 1.05f)
-            v.z = if (hasFocus) 10f else 0f
-            if (hasFocus) {
-                frag.focusManager.rememberHeroFocusIfUserDriven()
-            }
-        }
+        btnDetails?.onFocusChangeListener = heroFocusListener
         btnDetails?.setOnClickListener {
             val heroItem = frag.currentHeroItem
             if (heroItem == null) {
@@ -108,17 +121,49 @@ internal class HomeHeroManager(private var fragment: HomeFragment?) {
                 frag.navigationRouter.openFeaturedDetails(heroItem)
             }
         }
-        btnDetails?.setOnKeyListener { _, keyCode, event ->
-            if (event.action == KeyEvent.ACTION_DOWN) {
-                when (keyCode) {
-                    KeyEvent.KEYCODE_DPAD_LEFT -> return@setOnKeyListener frag.focusManager.returnToSidebar()
-                    KeyEvent.KEYCODE_DPAD_DOWN -> {
-                        return@setOnKeyListener frag.focusManager.requestContentFocus(frag.rvTop10Movies, frag.focusManager.lastMovieIndex) ||
-                            frag.focusManager.requestContentFocus(frag.rvTop10Series, frag.focusManager.lastSeriesIndex)
-                    }
-                }
+        btnDetails?.setOnKeyListener(heroKeyListener)
+
+        btnFav?.onFocusChangeListener = heroFocusListener
+        btnFav?.setOnKeyListener(heroKeyListener)
+    }
+
+    private fun toggleHeroGlow(buttonId: Int, hasFocus: Boolean) {
+        val frag = fragment ?: return
+        val glowId = when (buttonId) {
+            R.id.btn_hero_watch -> R.id.glow_hero_watch
+            R.id.btn_hero_details -> R.id.glow_hero_details
+            R.id.btn_hero_fav -> R.id.glow_hero_fav
+            else -> return
+        }
+        val root = frag.view ?: return
+        val glow = root.findViewById<View>(glowId) ?: return
+        val button = root.findViewById<View>(buttonId) ?: return
+        if (glow.background == null) {
+            com.tvonnet.debridxtreamiptv.util.FocusGlow.attachAlways(glow)
+        }
+
+        // Size the glow to button + 12dp halo on each side (a plain match_parent View
+        // would fill all available space inside the wrap_content wrapper).
+        if (hasFocus && button.width > 0) {
+            val pad = (2 * com.tvonnet.debridxtreamiptv.util.FocusGlow.GLOW_PAD_DP *
+                button.resources.displayMetrics.density).toInt()
+            val lp = glow.layoutParams
+            if (lp.width != button.width + pad || lp.height != button.height + pad) {
+                lp.width = button.width + pad
+                lp.height = button.height + pad
+                glow.layoutParams = lp
             }
-            false
+        }
+
+        glow.animate().cancel()
+        if (hasFocus) {
+            glow.visibility = View.VISIBLE
+            glow.alpha = 0f
+            glow.animate().alpha(1f).setDuration(180).start()
+        } else {
+            glow.animate().alpha(0f).setDuration(140)
+                .withEndAction { glow.visibility = View.INVISIBLE }
+                .start()
         }
     }
 

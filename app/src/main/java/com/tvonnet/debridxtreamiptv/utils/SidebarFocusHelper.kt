@@ -19,8 +19,8 @@ import androidx.interpolator.view.animation.FastOutSlowInInterpolator
  */
 object SidebarFocusHelper {
 
-    private const val COLLAPSED_WIDTH_DP = 72f
-    private const val EXPANDED_WIDTH_DP = 252f
+    private const val COLLAPSED_WIDTH_DP = 96f
+    private const val EXPANDED_WIDTH_DP = 260f
     private const val ANIMATION_DURATION = 300L
     private const val FOCUS_GRACE_PERIOD_MS = 100L
 

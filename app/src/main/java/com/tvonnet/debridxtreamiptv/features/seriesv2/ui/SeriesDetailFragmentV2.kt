@@ -259,7 +259,8 @@ class SeriesDetailFragmentV2 : Fragment() {
             episodeTitle = event.title,
             seasonNumber = event.seasonNumber,
             episodeNumber = event.episodeNumber,
-            seriesId = event.seriesId
+            seriesId = event.seriesId,
+            startPositionMs = event.resumePositionMs
         )
         startActivity(intent)
     }
@@ -330,9 +331,25 @@ class SeriesDetailFragmentV2 : Fragment() {
 
     private fun updatePlayButton(episode: EpisodeEntityV2) {
         val label = "S%02d · E%02d".format(episode.seasonNumber, episode.episodeNumber)
-        val resumed = episode.resumePosition > 0 && episode.duration > 0 &&
-            episode.resumePosition < episode.duration * 1000L
-        binding.btnPlay.text = if (resumed) "Resume $label" else "Play $label"
+        // Default label immediately; EpisodeEntityV2.resumePosition is never populated
+        // in the V2 flow, so the real progress comes from WatchedStateRepository.
+        binding.btnPlay.text = "Play $label"
+        viewLifecycleOwner.lifecycleScope.launch {
+            val key = com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder.iptvEpisode(
+                episodeId = episode.episodeId,
+                seriesId = arguments?.getString(ARG_SERIES_ID),
+                seasonNumber = episode.seasonNumber,
+                episodeNumber = episode.episodeNumber,
+                fallbackDiscriminator = episode.episodeId.ifBlank { episode.title }
+            )
+            val state = watchedStateRepository.getState(key)
+            val resumed = state != null && !state.isWatched && state.progressMs > 0L &&
+                (state.durationMs <= 0L || state.progressMs < state.durationMs)
+            if (_binding == null) return@launch
+            // Ignore stale results if focus moved to another episode meanwhile.
+            if (activeEpisode?.episodeId != episode.episodeId) return@launch
+            binding.btnPlay.text = if (resumed) "Resume $label" else "Play $label"
+        }
     }
 
     // ── Season selector ────────────────────────────────────────────────────────

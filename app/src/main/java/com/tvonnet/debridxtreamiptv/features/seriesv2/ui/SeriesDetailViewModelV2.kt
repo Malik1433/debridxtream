@@ -15,6 +15,7 @@ import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.IptvStreamGroup
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.IptvStreamOption
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.EpisodeDaoV2
 import com.tvonnet.debridxtreamiptv.data.local.dao.WatchedStateDao
+import com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -295,6 +296,16 @@ class SeriesDetailViewModelV2 @Inject constructor(
                 return@launch
             }
 
+            // Real saved progress for this episode. The player saves under the
+            // content id it receives (resolved.streamId), so read back with the
+            // same WatchedIdentityBuilder key to make Resume start at the right spot.
+            val resumeMs = resolveEpisodeResumeMs(
+                episodeStreamId = resolved.streamId,
+                seasonNumber = episode.seasonNumber,
+                episodeNumber = episode.episodeNumber,
+                fallbackDiscriminator = episode.episodeId.ifBlank { episode.title }
+            )
+
             closeStreamPanel()
             _navigationEvents.send(
                 SeriesNavigationEvent.NavigateToPlayer(
@@ -305,10 +316,36 @@ class SeriesDetailViewModelV2 @Inject constructor(
                     posterUrl = episode.thumbnail,
                     containerExtension = resolved.containerExtension,
                     seasonNumber = episode.seasonNumber,
-                    episodeNumber = episode.episodeNumber
+                    episodeNumber = episode.episodeNumber,
+                    resumePositionMs = resumeMs
                 )
             )
         }
+    }
+
+    /**
+     * Reads the real saved playback position for an IPTV episode from the
+     * watched-state store. Mirrors the key the player saves under
+     * (WatchedIdentityBuilder.iptvEpisode with the stream/content id), because
+     * EpisodeEntityV2.resumePosition is never populated in the V2 flow.
+     * Returns 0 when there is no in-progress state (unwatched with progress).
+     */
+    private suspend fun resolveEpisodeResumeMs(
+        episodeStreamId: String,
+        seasonNumber: Int,
+        episodeNumber: Int?,
+        fallbackDiscriminator: String?
+    ): Long {
+        val key = WatchedIdentityBuilder.iptvEpisode(
+            episodeId = episodeStreamId,
+            seriesId = seriesId,
+            seasonNumber = seasonNumber,
+            episodeNumber = episodeNumber,
+            fallbackDiscriminator = fallbackDiscriminator
+        )
+        val state = watchedStateDao.getState(key) ?: return 0L
+        if (state.isWatched) return 0L
+        return state.progressMs.takeIf { it > 0L } ?: 0L
     }
 
     fun onRetry() {

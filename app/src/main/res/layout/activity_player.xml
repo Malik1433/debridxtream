@@ -26,6 +26,13 @@
         android:layout_marginEnd="24dp"
         android:layout_marginBottom="24dp" />
 
+    <!-- Cinematic Live Player OSD (LIVE_TV only) -->
+    <include
+        android:id="@+id/view_live_osd"
+        layout="@layout/view_live_player_osd"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
     <include
         android:id="@+id/view_channel_browser"
         layout="@layout/view_player_channel_browser"

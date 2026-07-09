@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simulated cyan bloom: concentric strokes fading outward.
+     Drawn by a glow view that is 8dp larger than the card on every side. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <stroke android:width="3dp" android:color="#0D00F0FF" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+    <item android:left="2dp" android:top="2dp" android:right="2dp" android:bottom="2dp">
+        <shape android:shape="rectangle">
+            <stroke android:width="3dp" android:color="#1A00F0FF" />
+            <corners android:radius="9dp" />
+        </shape>
+    </item>
+    <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
+        <shape android:shape="rectangle">
+            <stroke android:width="3dp" android:color="#3300F0FF" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+    <item android:left="6dp" android:top="6dp" android:right="6dp" android:bottom="6dp">
+        <shape android:shape="rectangle">
+            <stroke android:width="2dp" android:color="#7300F0FF" />
+            <corners android:radius="6dp" />
+        </shape>
+    </item>
+    <item android:left="7dp" android:top="7dp" android:right="7dp" android:bottom="7dp">
+        <shape android:shape="rectangle">
+            <stroke android:width="2dp" android:color="#CC00F0FF" />
+            <corners android:radius="5dp" />
+        </shape>
+    </item>
+</layer-list>

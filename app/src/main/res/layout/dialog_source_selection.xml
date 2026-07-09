@@ -63,10 +63,47 @@
                 app:layout_constraintStart_toStartOf="parent"
                 tools:text="9 sources found · 6 cached" />
 
+            <!-- Language priority chip (top-right; hidden when pref = ALL) -->
+            <LinearLayout
+                android:id="@+id/chip_lang_priority"
+                android:layout_width="wrap_content"
+                android:layout_height="20dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/cin_lang_priority_chip"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:visibility="gone"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                tools:visibility="visible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🌐"
+                    android:textSize="9sp"
+                    android:includeFontPadding="false" />
+
+                <TextView
+                    android:id="@+id/tv_lang_priority"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/neon_cyan"
+                    android:textSize="8sp"
+                    android:textStyle="bold"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.08"
+                    tools:text="EN PRIORITY" />
+            </LinearLayout>
+
             <TextView
                 android:id="@+id/tv_dialog_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
                 android:textColor="@color/text_muted"
                 android:textSize="10sp"
                 android:fontFamily="monospace"
@@ -74,7 +111,7 @@
                 android:ellipsize="end"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/chip_lang_priority"
                 tools:text="Dune: Part Two (2024)" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 

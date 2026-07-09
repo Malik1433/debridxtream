@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Live TV EPG Guide colors (from "Live TV EPG - Spec.md"). ARGB = #AARRGGBB. -->
+<resources>
+    <color name="epg_bg">#FF06090E</color>
+    <color name="epg_panel_bg">#FA0B1019</color>
+    <color name="epg_channel_cell_bg">#F50B1019</color>
+    <color name="epg_header_bg">#FA0B1019</color>
+
+    <color name="epg_cyan">#FF00F0FF</color>
+    <color name="epg_blue">#FF0077FF</color>
+    <color name="epg_now">#FFFF3355</color>
+    <color name="epg_fav">#FFFFAA00</color>
+
+    <color name="epg_text_primary">#FFF1F5F9</color>
+    <color name="epg_text_secondary">#FF94A3B8</color>
+    <color name="epg_text_muted">#FF64748B</color>
+    <color name="epg_text_faint">#FF475569</color>
+
+    <!-- Program block states -->
+    <color name="epg_program_default">#B3121925</color>
+    <color name="epg_program_past">#660C111B</color>
+    <color name="epg_program_now">#1A00F0FF</color>
+    <color name="epg_program_border">#0FFFFFFF</color>
+    <color name="epg_program_border_now">#6600F0FF</color>
+
+    <!-- Focus -->
+    <color name="epg_focus_border">#FF00F0FF</color>
+    <color name="epg_focus_bg">#1A00F0FF</color>
+    <color name="epg_focus_glow">#6600F0FF</color>
+
+    <!-- Grid + chips -->
+    <color name="epg_grid_line">#0AFFFFFF</color>
+    <color name="epg_chip_bg">#08FFFFFF</color>
+    <color name="epg_chip_border">#0FFFFFFF</color>
+    <color name="epg_chip_active_bg">#1A00F0FF</color>
+    <color name="epg_chip_active_border">#5900F0FF</color>
+
+    <!-- Status labels -->
+    <color name="epg_status_onair">#FF00F0FF</color>
+    <color name="epg_status_ended">#FF64748B</color>
+    <color name="epg_status_upnext">#FF7C3AED</color>
+
+    <!-- Genre colors (spec §6) -->
+    <color name="epg_genre_news">#FF3584E4</color>
+    <color name="epg_genre_sports">#FF00FF88</color>
+    <color name="epg_genre_movies">#FFD4AF37</color>
+    <color name="epg_genre_entertainment">#FFA78BFA</color>
+    <color name="epg_genre_kids">#FFFF6BA8</color>
+    <color name="epg_genre_music">#FFFFAA00</color>
+    <color name="epg_genre_general">#FF64748B</color>
+</resources>

@@ -64,6 +64,18 @@ class CredentialsPreferences(private val context: Context) {
         }
     }
 
+    /**
+     * Preferred audio language used to bias source ordering on the Movie/Series
+     * detail source panels. One of EN / HI / FR / ES / MULTI / ALL. "ALL" means
+     * no preference (chip hidden, no language boost). Defaults to EN.
+     */
+    var preferredAudioLang: String
+        get() = prefs.getString(KEY_PREFERRED_AUDIO_LANG, DEFAULT_PREFERRED_AUDIO_LANG)
+            ?: DEFAULT_PREFERRED_AUDIO_LANG
+        set(value) {
+            prefs.edit().putString(KEY_PREFERRED_AUDIO_LANG, value).apply()
+        }
+
     fun getSyncCode(): String? {
         return prefs.getString(KEY_SYNC_CODE, null) ?: identityPrefs.getLegacySyncCode()
     }
@@ -99,6 +111,8 @@ class CredentialsPreferences(private val context: Context) {
         const val KEY_LOGGED_IN = "logged_in"
         const val KEY_SYNC_CODE = "sync_code"
         const val KEY_DEVICE_ID = "device_id"
+        const val KEY_PREFERRED_AUDIO_LANG = "preferred_audio_lang"
+        const val DEFAULT_PREFERRED_AUDIO_LANG = "EN"
     }
 
 

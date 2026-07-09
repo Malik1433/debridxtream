@@ -32,6 +32,15 @@
     <!-- Player -->
     <string name="player_zap_unavailable">No more channels</string>
     <string name="player_zap_loading">Loading channels…</string>
+    <!-- Cinematic live player OSD -->
+    <string name="live_osd_off">Off</string>
+    <string name="live_osd_original">Original</string>
+    <string name="live_osd_min_left">%1$d MIN LEFT</string>
+    <string name="live_osd_channel_count">%1$d LIVE</string>
+    <string name="live_osd_channels_title">Channels</string>
+    <string name="live_osd_categories_title">Categories</string>
+    <string name="live_osd_category_count">%1$d CATEGORIES</string>
+    <string name="live_osd_categories_loading">Loading categories…</string>
     <string name="movie_detail_minutes_duration">%1$dm</string>
     <string name="movie_detail_generic_duration">%1$s</string>
     <string name="movie_detail_added_to_favorites">Added to favorites</string>
@@ -93,6 +102,7 @@
     <string name="recent_searches">Recent Searches</string>
     <string name="clear_history">Clear History</string>
     <string name="search_no_results">No results found for \"%1$s\"</string>
+    <string name="search_in_scope">Search in %1$s…</string>
     <string name="search_results_count">%1$d results found</string>
     <string name="search_live_tv_results">Live TV (%1$d)</string>
     <string name="search_vod_results">Movies (%1$d)</string>

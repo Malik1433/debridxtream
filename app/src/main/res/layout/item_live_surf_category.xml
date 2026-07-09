@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="37dp"
+    android:layout_marginBottom="3dp"
+    android:background="@drawable/bg_live_surf_row"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="8dp">
+
+    <TextView
+        android:id="@+id/cat_code"
+        android:layout_width="32dp"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:gravity="center"
+        android:letterSpacing="0.02"
+        android:maxLines="1"
+        android:textColor="@color/neon_cyan"
+        android:textSize="6.5sp"
+        android:textStyle="bold"
+        tools:text="SPRT" />
+
+    <TextView
+        android:id="@+id/cat_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="9dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:maxLines="1"
+        android:textColor="@color/live_osd_text_primary"
+        android:textSize="7.5sp"
+        android:textStyle="bold"
+        tools:text="Sports HD" />
+
+    <ImageView
+        android:id="@+id/cat_active"
+        android:layout_width="7dp"
+        android:layout_height="7dp"
+        android:layout_marginStart="4dp"
+        android:background="@drawable/bg_live_dot"
+        android:contentDescription="@null"
+        android:visibility="gone"
+        tools:visibility="visible" />
+</LinearLayout>

@@ -10,6 +10,7 @@ import android.webkit.WebView
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.ImageButton
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -27,6 +28,8 @@ import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.onSuccess
 import com.tvonnet.debridxtreamiptv.data.onFailure
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
+import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
+import com.tvonnet.debridxtreamiptv.data.omdb.OmdbClient
 import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureType
 import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
@@ -122,12 +125,28 @@ class MovieDetailActivity : AppCompatActivity() {
     private lateinit var tvContentType: TextView
     private lateinit var tvYear: TextView
     private lateinit var tvQualityBadge: TextView
+    private lateinit var tvAgeRating: TextView
+    private lateinit var badgeImdb: View
+    private lateinit var tvImdbRating: TextView
+    private lateinit var badgeRt: View
+    private lateinit var tvRtRating: TextView
     private lateinit var layoutRdStatus: View
     private lateinit var tvPremiumBadge: TextView
     private lateinit var tvBreadcrumbType: TextView
+    private lateinit var tvBackHint: TextView
+    private var movieSourceRail: String? = null
     private lateinit var layoutSimilarRow: View
     private lateinit var rvSimilar: RecyclerView
     private lateinit var similarAdapter: SimilarMoviesAdapter
+
+    // Resume bar
+    private lateinit var layoutResumeBar: View
+    private lateinit var tvResumeElapsed: TextView
+    private lateinit var tvResumeRemaining: TextView
+    private lateinit var pbResume: ProgressBar
+    private val watchHistoryPrefs by lazy { WatchHistoryPreferences(this) }
+    private var hasResumePosition: Boolean = false
+    private var resumePositionMs: Long = 0L
 
     // Movie data
     private var movieId: String? = null
@@ -143,6 +162,7 @@ class MovieDetailActivity : AppCompatActivity() {
     private var movieContainer: String? = null
     private var movieBackdrop: String? = null
     private var movieTrailerUrl: String? = null
+    private var movieAgeRating: String? = null
     private var hasTrailer: Boolean = false
     private var isTrailerLookupInProgress: Boolean = false
     private var movieCategoryId: String? = null
@@ -208,6 +228,7 @@ class MovieDetailActivity : AppCompatActivity() {
         const val EXTRA_MOVIE_BACKDROP = "MOVIE_BACKDROP"
         const val EXTRA_MOVIE_CATEGORY_ID = "MOVIE_CATEGORY_ID"
         const val EXTRA_MOVIE_TRAILER = "MOVIE_TRAILER"
+        const val EXTRA_SOURCE_RAIL = "SOURCE_RAIL"
         private const val MAX_AUTO_FALLBACK_ATTEMPTS = 3
     }
 
@@ -225,7 +246,8 @@ class MovieDetailActivity : AppCompatActivity() {
         displayMovieDetails()
         configureTabs()
         loadFavoriteState()
-        
+        refreshResumeState()
+
         // Start data loading chain
         if (movieCategoryId == "debrid" && movieId != null) {
             val id = movieId!!.toIntOrNull()
@@ -258,6 +280,7 @@ class MovieDetailActivity : AppCompatActivity() {
                             val details = result.data
                             imdbId = details.imdbId
                             currentImdbId = imdbId
+                            loadExternalRatings()
 
                             moviePlot = details.overview
                             movieRating = details.voteAverage?.toString()
@@ -267,6 +290,7 @@ class MovieDetailActivity : AppCompatActivity() {
                             movieDirector = details.credits?.crew
                                 ?.firstOrNull { it.job?.equals("Director", ignoreCase = true) == true }
                                 ?.name
+                            movieAgeRating = extractCertification(details.releaseDates)
 
                             val castList = details.credits?.cast
                             if (!castList.isNullOrEmpty()) {
@@ -277,7 +301,20 @@ class MovieDetailActivity : AppCompatActivity() {
                                 tvCastTitle.visibility = View.GONE
                                 rvCast.visibility = View.GONE
                             }
+                            // Cache a trailer key so the Trailer button dwell-preview
+                            // and enabled state work without a second lookup.
+                            if (movieTrailerUrl.isNullOrBlank()) {
+                                val key = details.videos?.results?.firstOrNull {
+                                    it.site?.lowercase() == "youtube" && it.type?.lowercase() == "trailer"
+                                }?.key ?: details.videos?.results?.firstOrNull {
+                                    it.site?.lowercase() == "youtube"
+                                }?.key
+                                if (!key.isNullOrBlank()) movieTrailerUrl = key
+                            }
+                            updateTrailerButtonState()
+
                             displayMovieDetails()
+                            refreshResumeState()
                             loadSimilarMovies(id)
                         }
                         is com.tvonnet.debridxtreamiptv.data.Result.Error -> {
@@ -337,11 +374,22 @@ class MovieDetailActivity : AppCompatActivity() {
         tvContentType = findViewById(R.id.tv_content_type)
         tvYear = findViewById(R.id.tv_year)
         tvQualityBadge = findViewById(R.id.tv_quality_badge)
+        tvAgeRating = findViewById(R.id.tv_age_rating)
+        badgeImdb = findViewById(R.id.badge_imdb)
+        tvImdbRating = findViewById(R.id.tv_imdb_rating)
+        badgeRt = findViewById(R.id.badge_rt)
+        tvRtRating = findViewById(R.id.tv_rt_rating)
         layoutRdStatus = findViewById(R.id.layout_rd_status)
         tvPremiumBadge = findViewById(R.id.tv_premium_badge)
         tvBreadcrumbType = findViewById(R.id.tv_breadcrumb_type)
+        tvBackHint = findViewById(R.id.tv_back_hint)
         layoutSimilarRow = findViewById(R.id.layout_similar_row)
         rvSimilar = findViewById(R.id.rv_similar)
+
+        layoutResumeBar = findViewById(R.id.layout_resume_bar)
+        tvResumeElapsed = findViewById(R.id.tv_resume_elapsed)
+        tvResumeRemaining = findViewById(R.id.tv_resume_remaining)
+        pbResume = findViewById(R.id.pb_resume)
 
         similarAdapter = SimilarMoviesAdapter { movie ->
             val tmdbId = movie.id?.toString() ?: return@SimilarMoviesAdapter
@@ -428,6 +476,7 @@ class MovieDetailActivity : AppCompatActivity() {
         movieBackdrop = intent.getStringExtra(EXTRA_MOVIE_BACKDROP)
         movieTrailerUrl = intent.getStringExtra(EXTRA_MOVIE_TRAILER)
         movieCategoryId = intent.getStringExtra(EXTRA_MOVIE_CATEGORY_ID)
+        movieSourceRail = intent.getStringExtra(EXTRA_SOURCE_RAIL)
         isDebridMovie = movieCategoryId == "debrid"
     }
 
@@ -435,6 +484,15 @@ class MovieDetailActivity : AppCompatActivity() {
 
     private fun displayMovieDetails() {
         tvTitle.text = movieName ?: getString(R.string.movie_detail_unknown_movie)
+
+        // Back-to-rail context hint (shown when the caller told us where we came from)
+        val rail = movieSourceRail?.trim()
+        if (!rail.isNullOrBlank()) {
+            tvBackHint.text = "◄ BACK TO ${rail.uppercase(java.util.Locale.getDefault())}"
+            tvBackHint.visibility = View.VISIBLE
+        } else {
+            tvBackHint.visibility = View.GONE
+        }
 
         // Content type label
         if (isDebridMovie) {
@@ -465,7 +523,17 @@ class MovieDetailActivity : AppCompatActivity() {
         tvGenreYear.text = movieGenre.orEmpty()
         tvGenreYear.visibility = if (movieGenre.isNullOrBlank()) View.GONE else View.VISIBLE
 
-        val hasMetadataRow = hasRating || !movieGenre.isNullOrBlank() || !movieDuration.isNullOrBlank() || !movieYear.isNullOrBlank()
+        // Age / content rating badge
+        val ageRating = movieAgeRating?.trim()
+        if (!ageRating.isNullOrBlank()) {
+            tvAgeRating.text = ageRating
+            tvAgeRating.visibility = View.VISIBLE
+        } else {
+            tvAgeRating.visibility = View.GONE
+        }
+
+        val hasMetadataRow = hasRating || !movieGenre.isNullOrBlank() || !movieDuration.isNullOrBlank() ||
+            !movieYear.isNullOrBlank() || !ageRating.isNullOrBlank()
         layoutMetadataRow.visibility = if (hasMetadataRow) View.VISIBLE else View.GONE
 
         // Director
@@ -492,14 +560,73 @@ class MovieDetailActivity : AppCompatActivity() {
                 .into(ivBackdrop)
         }
 
-        // RD status and premium badge for debrid movies
-        if (isDebridMovie) {
-            layoutRdStatus.visibility = View.VISIBLE
-            tvBreadcrumbType.text = "/ MOVIES"
+        // RD CONNECTED status pill removed per updated design — keep hidden.
+        layoutRdStatus.visibility = View.GONE
+        tvBreadcrumbType.text = if (isDebridMovie) "/ MOVIES" else "/ VOD"
+    }
+
+    /**
+     * Shows the resume bar when a saved watch position exists for this movie with
+     * 0 < progress < 100%, and flips the Watch Now button label to "Resume".
+     */
+    private fun refreshResumeState() {
+        if (!::layoutResumeBar.isInitialized) return
+
+        val resumeItem = watchHistoryPrefs.getMovieResumeItem(
+            contentId = movieId,
+            tmdbId = movieId?.takeIf { it.toIntOrNull() != null },
+            imdbId = currentImdbId,
+            title = movieName
+        )
+
+        val position = resumeItem?.currentPosition ?: 0L
+        val duration = resumeItem?.totalDuration ?: 0L
+        val progress = if (duration > 0L) ((position * 100) / duration).toInt() else 0
+
+        hasResumePosition = resumeItem != null && position > 0L && progress in 1..99
+        resumePositionMs = if (hasResumePosition) position else 0L
+        if (hasResumePosition) {
+            tvResumeElapsed.text = "RESUME FROM ${formatResumeTime(position)}"
+            tvResumeRemaining.text = "${formatResumeTime(duration - position)} LEFT"
+            pbResume.progress = progress
+            layoutResumeBar.visibility = View.VISIBLE
         } else {
-            layoutRdStatus.visibility = View.GONE
-            tvBreadcrumbType.text = "/ VOD"
+            layoutResumeBar.visibility = View.GONE
         }
+
+        if (::btnPlay.isInitialized) {
+            btnPlay.text = if (hasResumePosition) "Resume" else "Watch Now"
+        }
+    }
+
+    /** Formats a millisecond duration as a clock: "1:12:34" / "12:34". */
+    private fun formatResumeTime(milliseconds: Long): String {
+        val totalSeconds = milliseconds.coerceAtLeast(0L) / 1000L
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+        return if (hours > 0) {
+            String.format(java.util.Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format(java.util.Locale.US, "%d:%02d", minutes, seconds)
+        }
+    }
+
+    /** Picks a content/age certification, preferring US then GB, else the first available. */
+    private fun extractCertification(
+        releaseDates: com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbReleaseDatesResponse?
+    ): String? {
+        val results = releaseDates?.results ?: return null
+        fun certFor(country: String): String? = results
+            .firstOrNull { it.countryCode.equals(country, ignoreCase = true) }
+            ?.releaseDates
+            ?.mapNotNull { it.certification?.trim() }
+            ?.firstOrNull { it.isNotBlank() }
+        return certFor("US")
+            ?: certFor("GB")
+            ?: results.flatMap { it.releaseDates ?: emptyList() }
+                .mapNotNull { it.certification?.trim() }
+                .firstOrNull { it.isNotBlank() }
     }
 
     private fun formatDurationCompact(duration: String): String {
@@ -543,6 +670,29 @@ class MovieDetailActivity : AppCompatActivity() {
     private fun configureTabs() {
     }
 
+    /** Fetches IMDb + Rotten Tomatoes scores from OMDb and shows them in the ratings row. */
+    private fun loadExternalRatings() {
+        val imdb = currentImdbId ?: return
+        lifecycleScope.launch {
+            val ratings = OmdbClient.fetchRatings(imdb) ?: return@launch
+            ratings.imdbRating?.let {
+                tvImdbRating.text = it
+                badgeImdb.visibility = View.VISIBLE
+            }
+            ratings.rottenTomatoes?.let {
+                tvRtRating.text = it
+                badgeRt.visibility = View.VISIBLE
+            }
+            // OMDb age rating as a fallback when TMDB certification is missing.
+            if (movieAgeRating.isNullOrBlank() && !ratings.rated.isNullOrBlank()) {
+                movieAgeRating = ratings.rated
+                tvAgeRating.text = ratings.rated
+                tvAgeRating.visibility = View.VISIBLE
+                layoutMetadataRow.visibility = View.VISIBLE
+            }
+        }
+    }
+
     private fun loadSimilarMovies(tmdbId: Int) {
         lifecycleScope.launch {
             try {
@@ -554,6 +704,13 @@ class MovieDetailActivity : AppCompatActivity() {
                         val movies = result.data.results?.take(6) ?: emptyList()
                         if (movies.isNotEmpty()) {
                             similarAdapter.submitList(movies)
+                            val title = movieName?.trim()
+                            findViewById<TextView>(R.id.header_similar).text =
+                                if (!title.isNullOrBlank()) {
+                                    "BECAUSE YOU WATCHED ${title.uppercase(java.util.Locale.getDefault())}"
+                                } else {
+                                    "SIMILAR MOVIES"
+                                }
                             layoutSimilarRow.visibility = View.VISIBLE
                         }
                     }
@@ -706,7 +863,8 @@ class MovieDetailActivity : AppCompatActivity() {
             initialSelectedStreamId = selectedDebridStreamId,
             initialReturnFocusStreamIds = returnFocusStreamIds,
             contentTitle = movieName,
-            backdropUrl = movieBackdrop
+            backdropUrl = movieBackdrop,
+            preferredAudioLang = credentialsPrefs.preferredAudioLang
         )
 
         bottomSheet.show(supportFragmentManager, com.tvonnet.debridxtreamiptv.ui.series.SourceSelectionBottomSheet.TAG)
@@ -869,6 +1027,45 @@ class MovieDetailActivity : AppCompatActivity() {
                         .setDuration(150)
                         .start()
                 }
+                if (v.id == R.id.btn_trailer) {
+                    if (hasFocus) scheduleTrailerPreview() else cancelTrailerPreview()
+                }
+            }
+        }
+    }
+
+    private val trailerPreviewHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var trailerPreviewRunnable: Runnable? = null
+    private var trailerPreviewShown = false
+
+    /** After a 2.5s dwell on the Trailer button, crossfade the backdrop to the
+     * trailer's YouTube thumbnail as a lightweight preview. */
+    private fun scheduleTrailerPreview() {
+        cancelTrailerPreview()
+        val key = TrailerValueParser.parse(movieTrailerUrl)?.youtubeId ?: return
+        val runnable = Runnable {
+            Glide.with(this)
+                .load("https://img.youtube.com/vi/$key/hqdefault.jpg")
+                .centerCrop()
+                .transition(com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade(500))
+                .into(ivBackdrop)
+            trailerPreviewShown = true
+        }
+        trailerPreviewRunnable = runnable
+        trailerPreviewHandler.postDelayed(runnable, 2500L)
+    }
+
+    private fun cancelTrailerPreview() {
+        trailerPreviewRunnable?.let { trailerPreviewHandler.removeCallbacks(it) }
+        trailerPreviewRunnable = null
+        if (trailerPreviewShown) {
+            trailerPreviewShown = false
+            if (!movieBackdrop.isNullOrBlank()) {
+                Glide.with(this)
+                    .load(movieBackdrop)
+                    .centerCrop()
+                    .transition(com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade(400))
+                    .into(ivBackdrop)
             }
         }
     }
@@ -1088,7 +1285,8 @@ class MovieDetailActivity : AppCompatActivity() {
                 debridStreamId = sourceOverride?.stream?.stream_id,
                 debridBingeGroup = sourceOverride?.bingeGroup,
                 debridFileIdx = sourceOverride?.fileIdx,
-                playbackSource = playbackSource
+                playbackSource = playbackSource,
+                startPositionMs = resumePositionMs
             )
             startActivity(intent)
         }
@@ -1544,10 +1742,13 @@ class MovieDetailActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Refresh in case the user just watched some of this movie and returned.
+        refreshResumeState()
     }
 
     override fun onPause() {
         super.onPause()
+        cancelTrailerPreview()
     }
 
     override fun onDestroy() {

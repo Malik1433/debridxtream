@@ -98,6 +98,9 @@ class SeriesDetailActivity : AppCompatActivity() {
     @Inject
     lateinit var seriesRepositoryV2: com.tvonnet.debridxtreamiptv.features.seriesv2.data.repository.XtreamSeriesRepositoryV2
 
+    @Inject
+    lateinit var watchedStateRepository: com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
+
     private var isDebridContent: Boolean = false
 
     private lateinit var ivBackdrop: ImageView
@@ -139,6 +142,12 @@ class SeriesDetailActivity : AppCompatActivity() {
     private var isFavorite: Boolean = false
     private lateinit var seasonsAdapter: SeriesSeasonAdapter
     private lateinit var cinEpisodeAdapter: CinEpisodeAdapter
+
+    // Current season's episodes + their loaded watch progress (episodeId -> pct / watched set)
+    private var currentEpisodes: List<EpisodeUiModel> = emptyList()
+    private val episodeProgress = mutableMapOf<String, Int>()
+    private val episodeProgressMs = mutableMapOf<String, Long>()
+    private val episodeWatched = mutableSetOf<String>()
 
     private val viewModel: SeriesDetailViewModel by viewModels()
 
@@ -329,7 +338,16 @@ class SeriesDetailActivity : AppCompatActivity() {
 
     private fun setupClickListeners() {
         btnWatchNow.setOnClickListener {
-            selectedEpisode?.let { playEpisode(it) }
+            selectedEpisode?.let { episode ->
+                val hasResume = isDebridContent &&
+                    !episodeWatched.contains(episode.id) &&
+                    episodeProgress.containsKey(episode.id)
+                if (hasResume) {
+                    resumeDebridEpisode(episode)
+                } else {
+                    playEpisode(episode)
+                }
+            }
         }
 
         btnWatchTrailer.setOnClickListener {
@@ -352,66 +370,82 @@ class SeriesDetailActivity : AppCompatActivity() {
     }
 
     private fun showSeasonPopup() {
-        val seasons = currentDetail?.seasons ?: currentDetail?.episodes?.keys?.sorted()?.map { key ->
-            XtreamSeasonInfo(season_number = key, name = "Season ${key.toIntOrNull() ?: key}", overview = null, air_date = null, cover = null)
-        } ?: return
+        val episodeKeys = currentDetail?.episodes?.keys
+            ?.sortedWith(compareBy { it.toIntOrNull() ?: Int.MAX_VALUE }) ?: return
+        if (episodeKeys.isEmpty()) return
+
+        // Rounded panel background (design: #0E0D15, cyan border, 8px radius)
+        val panelBg = android.graphics.drawable.GradientDrawable().apply {
+            setColor(0xFF0E0D15.toInt())
+            cornerRadius = dp(8).toFloat()
+            setStroke(dp(1), 0x4000F0FF)
+        }
 
         val popupView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF0E0D15.toInt())
+            background = panelBg
             setPadding(dp(6), dp(6), dp(6), dp(6))
         }
 
         val headerTv = TextView(this).apply {
             text = "SELECT SEASON"
             setTextColor(0xFF64748B.toInt())
-            textSize = 5f
+            textSize = 9f
             typeface = android.graphics.Typeface.MONOSPACE
             letterSpacing = 0.12f
-            setPadding(dp(5), dp(3), dp(5), dp(4))
+            setPadding(dp(8), dp(5), dp(8), dp(6))
         }
         popupView.addView(headerTv)
 
         val popup = PopupWindow(
             popupView,
-            dp(118),
+            dp(178),
             ViewGroup.LayoutParams.WRAP_CONTENT,
             true
         ).apply {
-            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xFF0E0D15.toInt()))
-            elevation = 12f
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+            elevation = dp(12).toFloat()
         }
 
-        val episodeKeys = currentDetail?.episodes?.keys?.sortedWith(compareBy { it.toIntOrNull() ?: Int.MAX_VALUE }) ?: emptyList()
         episodeKeys.forEachIndexed { index, key ->
             val seasonNum = key.toIntOrNull() ?: (index + 1)
             val epCount = currentDetail?.episodes?.get(key)?.size ?: 0
             val isActive = key == selectedSeasonKey
 
+            val itemBg = android.graphics.drawable.GradientDrawable().apply {
+                setColor(if (isActive) 0x1400F0FF else 0x00000000)
+                cornerRadius = dp(5).toFloat()
+            }
             val itemView = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(7), dp(0), dp(7), dp(0))
-                minimumHeight = dp(22)
+                setPadding(dp(12), 0, dp(10), 0)
+                minimumHeight = dp(40)
                 isFocusable = true
                 isClickable = true
-                if (isActive) setBackgroundColor(0x0F00F0FF)
+                background = itemBg
                 setOnClickListener {
                     selectedSeasonKey = key
                     showEpisodesForSeason(key)
                     updateSeasonButton()
                     popup.dismiss()
                 }
-                setOnFocusChangeListener { v, hasFocus ->
-                    if (hasFocus) v.setBackgroundColor(0x2400F0FF)
-                    else v.setBackgroundColor(if (isActive) 0x0F00F0FF else 0x00000000)
+                setOnFocusChangeListener { _, hasFocus ->
+                    itemBg.setColor(
+                        when {
+                            hasFocus -> 0x2400F0FF
+                            isActive -> 0x1400F0FF
+                            else -> 0x00000000
+                        }
+                    )
                 }
             }
 
             val labelTv = TextView(this).apply {
                 text = "Season $seasonNum"
                 setTextColor(if (isActive) 0xFF00F0FF.toInt() else 0xFFE2E8F0.toInt())
-                textSize = 7f
+                textSize = 14f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             }
             itemView.addView(labelTv)
@@ -419,29 +453,40 @@ class SeriesDetailActivity : AppCompatActivity() {
             val countTv = TextView(this).apply {
                 text = "$epCount EP"
                 setTextColor(0xFF64748B.toInt())
-                textSize = 6f
+                textSize = 11f
                 typeface = android.graphics.Typeface.MONOSPACE
+                setPadding(0, 0, dp(8), 0)
             }
             itemView.addView(countTv)
 
-            if (isActive) {
-                val dot = TextView(this).apply {
-                    text = " ●"
-                    setTextColor(0xFF00F0FF.toInt())
-                    textSize = 6f
-                }
-                itemView.addView(dot)
+            val check = TextView(this).apply {
+                text = if (isActive) "●" else ""
+                setTextColor(0xFF00F0FF.toInt())
+                textSize = 11f
             }
+            itemView.addView(check)
 
-            popupView.addView(itemView)
+            popupView.addView(itemView, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(2) })
         }
 
-        popup.showAsDropDown(btnSeasonSelector, 0, -btnSeasonSelector.height - popupView.measuredHeight, Gravity.START or Gravity.BOTTOM)
+        popupView.measure(
+            View.MeasureSpec.makeMeasureSpec(dp(178), View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        popup.showAsDropDown(
+            btnSeasonSelector,
+            0,
+            -btnSeasonSelector.height - popupView.measuredHeight - dp(4),
+            Gravity.START or Gravity.BOTTOM
+        )
     }
 
     private fun updateSeasonButton() {
         val seasonNum = selectedSeasonKey?.toIntOrNull()
-        btnSeasonSelector.text = if (seasonNum != null) "SEASON $seasonNum" else "SEASON"
+        btnSeasonSelector.text = if (seasonNum != null) "SEASON $seasonNum ▾" else "SEASON ▾"
     }
 
     private fun setupFocusAnimations() {
@@ -668,7 +713,11 @@ class SeriesDetailActivity : AppCompatActivity() {
         seasonsAdapter.submitList(seasonItems, selectedSeasonKey)
 
         if (seasonItems.isNotEmpty()) {
-            val initialKey = selectedSeasonKey ?: seasonItems.first().key
+            // Prefer the first season that actually has episodes (skip empty "Specials" / season 0).
+            val firstWithEpisodes = seasonItems.firstOrNull { season ->
+                !currentDetail?.episodes?.get(season.key).isNullOrEmpty()
+            }?.key
+            val initialKey = selectedSeasonKey ?: firstWithEpisodes ?: seasonItems.first().key
             selectedSeasonKey = initialKey
             showEpisodesForSeason(initialKey)
             updateSeasonButton()
@@ -714,6 +763,7 @@ class SeriesDetailActivity : AppCompatActivity() {
     }
 
     private fun showEpisodes(episodes: List<EpisodeUiModel>) {
+        currentEpisodes = episodes
         if (episodes.isEmpty()) {
             tvEmptyEpisodes.visibility = View.VISIBLE
             cinEpisodeAdapter.submitEpisodes(emptyList(), null)
@@ -728,6 +778,90 @@ class SeriesDetailActivity : AppCompatActivity() {
         updateWatchNowState()
         updateSeasonProgress(episodes)
         updateResumeSection(episodes)
+        loadSeasonWatchedProgress()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Returning from the player: re-read watched-state so progress bars,
+        // the continue bar and the Play/Resume label reflect the latest position.
+        if (::cinEpisodeAdapter.isInitialized && currentEpisodes.isNotEmpty()) {
+            loadSeasonWatchedProgress()
+        }
+    }
+
+    /**
+     * Loads real watched-state (progress + watched) for every episode in the current
+     * season and pushes it to the adapter, the continue bar and the Play button.
+     * Bound to the season's episode data, not the focused card.
+     */
+    private fun loadSeasonWatchedProgress() {
+        val episodes = currentEpisodes
+        if (episodes.isEmpty()) return
+        val seasonNumber = selectedSeasonKey?.toIntOrNull()
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                val progress = HashMap<String, Int>()
+                val progressMs = HashMap<String, Long>()
+                val watched = HashSet<String>()
+                for (ep in episodes) {
+                    var pct: Int? = null
+                    var posMs: Long? = null
+                    var isW = ep.isWatched
+                    // 1) resume position carried by the episode model (Xtream)
+                    val durMin = ep.durationMinutes ?: 0
+                    if (ep.resumePosition > 0 && durMin > 0) {
+                        pct = ((ep.resumePosition.toFloat() / (durMin * 60_000L)) * 100).toInt().coerceIn(0, 100)
+                        posMs = ep.resumePosition
+                    }
+                    // 2) watched-state store (Debrid + anything with a saved position)
+                    if (seasonNumber != null) {
+                        val key = if (isDebridContent) {
+                            com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder.debridEpisode(
+                                seriesIdentity = seriesId,
+                                seasonNumber = seasonNumber,
+                                episodeNumber = ep.episodeNumber,
+                                seriesTitle = seriesName,
+                                seriesYear = seriesReleaseDate?.take(4),
+                                fallbackDiscriminator = ep.id.ifBlank { ep.title }
+                            )
+                        } else {
+                            com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder.iptvEpisode(
+                                episodeId = ep.id,
+                                seriesId = seriesId,
+                                seasonNumber = seasonNumber,
+                                episodeNumber = ep.episodeNumber,
+                                fallbackDiscriminator = ep.id.ifBlank { ep.title }
+                            )
+                        }
+                        val state = watchedStateRepository.getState(key)
+                        if (state != null) {
+                            if (state.isWatched) isW = true
+                            if (!state.isWatched && state.durationMs > 0 && state.progressMs > 0) {
+                                pct = ((state.progressMs.toFloat() / state.durationMs) * 100).toInt().coerceIn(0, 100)
+                                posMs = state.progressMs
+                            }
+                        }
+                    }
+                    if (isW) {
+                        watched.add(ep.id)
+                    } else if (pct != null && pct in 1..99) {
+                        progress[ep.id] = pct
+                        posMs?.let { progressMs[ep.id] = it }
+                    }
+                }
+                Triple(progress, progressMs, watched)
+            }
+            episodeProgress.clear()
+            episodeProgress.putAll(result.first)
+            episodeProgressMs.clear()
+            episodeProgressMs.putAll(result.second)
+            episodeWatched.clear()
+            episodeWatched.addAll(result.third)
+            cinEpisodeAdapter.applyOverrides(episodeProgress, episodeWatched)
+            updateResumeSection(episodes)
+            updateWatchNowState()
+        }
     }
 
     private fun updateSeasonProgress(episodes: List<EpisodeUiModel>) {
@@ -742,27 +876,35 @@ class SeriesDetailActivity : AppCompatActivity() {
     }
 
     private fun updateResumeSection(episodes: List<EpisodeUiModel>) {
-        val resumeEp = episodes.firstOrNull { it.resumePosition > 0 && !it.isWatched }
-        if (resumeEp != null && resumeEp.durationMinutes != null && resumeEp.durationMinutes > 0) {
-            layoutResume.visibility = View.VISIBLE
-            val seasonNum = selectedSeasonKey?.toIntOrNull() ?: 1
-            val epNum = resumeEp.episodeNumber ?: 1
-            tvResumeLabel.text = "CONTINUE · S${String.format("%02d", seasonNum)} · E${String.format("%02d", epNum)}"
-
-            val totalMs = resumeEp.durationMinutes * 60_000L
-            val pct = ((resumeEp.resumePosition.toFloat() / totalMs) * 100).toInt().coerceIn(0, 100)
-            val minsLeft = ((totalMs - resumeEp.resumePosition) / 60_000L).coerceAtLeast(1)
-            tvResumeRight.text = "$pct% · ${minsLeft}M LEFT"
-            tvResumeEpTitle.text = resumeEp.title
-
-            vResumeProgress.post {
-                val parent = vResumeProgress.parent as? View ?: return@post
-                val lp = vResumeProgress.layoutParams
-                lp.width = (parent.width * pct / 100f).toInt()
-                vResumeProgress.layoutParams = lp
-            }
+        // Bound to the season's in-progress episode data (0 < progress < 100),
+        // sourced from episodeProgress which loadSeasonWatchedProgress() fills.
+        val resumeEp = episodes.firstOrNull {
+            !episodeWatched.contains(it.id) && episodeProgress.containsKey(it.id)
+        }
+        if (resumeEp != null) {
+            val pct = episodeProgress[resumeEp.id] ?: 0
+            val durMin = resumeEp.durationMinutes ?: 0
+            val minsLeft = if (durMin > 0) {
+                ((durMin.toLong() * (100 - pct)) / 100).coerceAtLeast(1)
+            } else 1L
+            renderResumeBar(resumeEp, pct, minsLeft)
         } else {
             layoutResume.visibility = View.GONE
+        }
+    }
+
+    private fun renderResumeBar(episode: EpisodeUiModel, pct: Int, minsLeft: Long) {
+        layoutResume.visibility = View.VISIBLE
+        val seasonNum = selectedSeasonKey?.toIntOrNull() ?: 1
+        val epNum = episode.episodeNumber ?: 1
+        tvResumeLabel.text = "CONTINUE · S${String.format("%02d", seasonNum)} · E${String.format("%02d", epNum)}"
+        tvResumeRight.text = "$pct% · ${minsLeft}M LEFT"
+        tvResumeEpTitle.text = episode.title
+        vResumeProgress.post {
+            val parent = vResumeProgress.parent as? View ?: return@post
+            val lp = vResumeProgress.layoutParams
+            lp.width = (parent.width * pct / 100f).toInt()
+            vResumeProgress.layoutParams = lp
         }
     }
 
@@ -772,7 +914,8 @@ class SeriesDetailActivity : AppCompatActivity() {
         val seasonNum = selectedSeasonKey?.toIntOrNull() ?: 1
         val epNum = ep?.episodeNumber ?: 1
         val epLabel = "S${String.format("%02d", seasonNum)} · E${String.format("%02d", epNum)}"
-        val hasResume = ep != null && ep.resumePosition > 0 && !ep.isWatched
+        val hasResume = ep != null && !episodeWatched.contains(ep.id) &&
+            (episodeProgress.containsKey(ep.id) || (ep.resumePosition > 0 && !ep.isWatched))
         btnWatchNow.text = if (hasResume) "Resume $epLabel" else "Play $epLabel"
     }
 
@@ -912,6 +1055,75 @@ class SeriesDetailActivity : AppCompatActivity() {
         )
     }
 
+    /**
+     * Resume button: play the in-progress episode directly instead of re-opening
+     * the source list. Reuses the source picked last time when possible, otherwise
+     * silently fetches sources and auto-picks the best cached one. The player
+     * restores the saved position from watch history.
+     */
+    private fun resumeDebridEpisode(episode: EpisodeUiModel) {
+        val cached = cachedDebridSourcesByEpisode[episode.id]
+        if (!cached.isNullOrEmpty()) {
+            val source = pickResumeSource(episode, cached)
+            if (source != null) {
+                playDebridEpisode(source, episode)
+                return
+            }
+        }
+
+        val fetchContext = resolveDebridEpisodeFetchContext(episode)
+        if (fetchContext == null) {
+            fetchAndShowDebridSources(episode)
+            return
+        }
+
+        showLoading(true)
+        lifecycleScope.launch {
+            try {
+                val (seasonNumber, episodeNumber) = fetchContext
+                val sources = withContext(Dispatchers.IO) {
+                    unifiedSourceProvider.getSeriesEpisodeSources(
+                        seriesId = seriesId,
+                        seasonNumber = seasonNumber,
+                        episodeNumber = episodeNumber,
+                        title = seriesName,
+                        yearHint = seriesReleaseDate?.take(4)
+                    )
+                }
+                cachedDebridSourcesByEpisode[episode.id] = sources
+                showLoading(false)
+                val source = pickResumeSource(episode, sources)
+                if (source != null) {
+                    playDebridEpisode(source, episode)
+                } else {
+                    fetchAndShowDebridSources(episode)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("SeriesDetailActivity", "Resume source fetch failed: ${e.message}", e)
+                showLoading(false)
+                fetchAndShowDebridSources(episode)
+            }
+        }
+    }
+
+    private fun pickResumeSource(
+        episode: EpisodeUiModel,
+        sources: List<com.tvonnet.debridxtreamiptv.data.repository.MovieSource>
+    ): com.tvonnet.debridxtreamiptv.data.repository.MovieSource? {
+        val failedIds = failedDebridStreamIdsByEpisode[episode.id].orEmpty()
+        // 1) Source picked last time for this episode (same session)
+        val preferredId = selectedDebridStreamIdByEpisode[episode.id]
+        if (!preferredId.isNullOrBlank() && preferredId !in failedIds) {
+            sources.firstOrNull { it.stream.stream_id == preferredId }?.let { return it }
+        }
+        // 2) Best available: respect the episode's filter state, prefer cached
+        val filterState = debridFilterStateByEpisode[episode.id]
+            ?: com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterState()
+        val candidates = SourceFilterUtils.apply(sources, filterState)
+            .filterNot { source -> source.stream.stream_id?.let { it in failedIds } == true }
+        return candidates.firstOrNull { it.isCached == true } ?: candidates.firstOrNull()
+    }
+
     private fun playEpisode(episode: EpisodeUiModel) {
         if (isDebridContent) {
             fetchAndShowDebridSources(episode)
@@ -933,6 +1145,9 @@ class SeriesDetailActivity : AppCompatActivity() {
             baseServerUrl = serverUrl
         )
 
+        // Saved resume position for this episode (null when watched or never started).
+        val resumeMs = episodeProgressMs[episode.id]
+            ?.takeIf { it > 0 && !episodeWatched.contains(episode.id) }
         val intent = PlayerActivity.createIntent(
             context = this,
             streamUrl = streamUrl,
@@ -943,7 +1158,8 @@ class SeriesDetailActivity : AppCompatActivity() {
             seriesTitle = seriesName,
             episodeTitle = episode.title,
             seasonNumber = selectedSeasonKey?.toIntOrNull(),
-            episodeNumber = episode.episodeNumber
+            episodeNumber = episode.episodeNumber,
+            startPositionMs = resumeMs
         )
         seriesId?.let { intent.putExtra(PlayerActivity.EXTRA_SERIES_ID, it) }
         startActivity(intent)
@@ -986,7 +1202,8 @@ class SeriesDetailActivity : AppCompatActivity() {
             initialSelectedStreamId = initialSelectedStreamId,
             initialReturnFocusStreamIds = returnFocusStreamIds,
             contentTitle = seriesName,
-            backdropUrl = seriesBackdrop
+            backdropUrl = seriesBackdrop,
+            preferredAudioLang = credentialsPreferences.preferredAudioLang
         )
 
         bottomSheet.show(supportFragmentManager, SourceSelectionBottomSheet.TAG)
@@ -1262,6 +1479,9 @@ class SeriesDetailActivity : AppCompatActivity() {
         val episodeNumber = episode.episodeNumber
         val tmdbId = seriesId
         val seriesTitle = seriesName
+        // Saved resume position for this episode (null when watched or never started)
+        val resumeMs = episodeProgressMs[episode.id]
+            ?.takeIf { it > 0 && !episodeWatched.contains(episode.id) }
         val isDirectHttp = magnet?.startsWith("http", ignoreCase = true) == true &&
             magnet.endsWith(".torrent", ignoreCase = true).not()
 
@@ -1306,7 +1526,8 @@ class SeriesDetailActivity : AppCompatActivity() {
                 debridQuality = source.quality,
                 debridStreamId = source.stream.stream_id,
                 debridBingeGroup = source.bingeGroup,
-                debridFileIdx = source.fileIdx
+                debridFileIdx = source.fileIdx,
+                startPositionMs = resumeMs
             )
             intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
             playerLauncher.launch(intent)
@@ -1419,7 +1640,8 @@ class SeriesDetailActivity : AppCompatActivity() {
                         debridQuality = source.quality,
                         debridStreamId = source.stream.stream_id,
                         debridBingeGroup = source.bingeGroup,
-                        debridFileIdx = source.fileIdx
+                        debridFileIdx = source.fileIdx,
+                        startPositionMs = resumeMs
                     )
                     intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
                     playerLauncher.launch(intent)

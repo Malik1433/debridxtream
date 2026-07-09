@@ -1,74 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView 
+<androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="144dp"
-    android:layout_height="108dp"
-    android:layout_marginEnd="14dp"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="9dp"
     android:layout_marginTop="6dp"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="6dp"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    app:cardBackgroundColor="@color/cin_ink_700"
-    app:cardCornerRadius="8dp"
-    app:cardElevation="6dp"
-    android:foreground="@drawable/card_focus_enhanced">
+    android:clipChildren="false"
+    android:clipToPadding="false">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@drawable/cin_channel_card_state"
-        android:padding="10dp">
+    <!-- Cyan bloom behind the card (visible on focus; drawable set in code) -->
+    <View
+        android:id="@+id/view_focus_glow"
+        android:layout_width="152dp"
+        android:layout_height="96dp"
+        android:duplicateParentState="true"
+        app:layout_constraintStart_toStartOf="@+id/card_live"
+        app:layout_constraintEnd_toEndOf="@+id/card_live"
+        app:layout_constraintTop_toTopOf="@+id/card_live"
+        app:layout_constraintBottom_toBottomOf="@+id/card_live" />
 
-        <TextView
-            android:id="@+id/tv_live_badge"
-            android:layout_width="wrap_content"
-            android:layout_height="18dp"
-            android:background="@drawable/cin_badge_live"
-            android:fontFamily="@font/plus_jakarta_sans"
-            android:gravity="center"
-            android:includeFontPadding="false"
-            android:minWidth="36dp"
-            android:paddingStart="7dp"
-            android:paddingEnd="7dp"
-            android:text="LIVE"
-            android:textColor="@color/white"
-            android:textSize="9sp"
-            android:textStyle="bold"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_live"
+        android:layout_width="128dp"
+        android:layout_height="72dp"
+        android:duplicateParentState="true"
+        app:cardBackgroundColor="@color/cin_ink_700"
+        app:cardCornerRadius="4dp"
+        app:cardElevation="4dp"
+        android:foreground="@drawable/card_focus_cinematic"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
-        <!-- Channel Logo -->
-        <ImageView
-            android:id="@+id/iv_channel_logo"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:scaleType="fitCenter"
-            android:contentDescription="Channel Logo"
-            app:layout_constraintTop_toBottomOf="@id/tv_live_badge"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintBottom_toTopOf="@id/tv_channel_name"
-            android:layout_marginTop="6dp"
-            android:layout_marginBottom="6dp" />
-
-        <!-- Channel Name -->
-        <TextView
-            android:id="@+id/tv_channel_name"
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Channel"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:textColor="@color/cin_text_primary"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:gravity="center"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_live_card_glass"
+            android:padding="6dp">
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+            <!-- LIVE badge -->
+            <TextView
+                android:id="@+id/tv_live_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="11dp"
+                android:background="@drawable/cin_badge_live"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:text="LIVE"
+                android:textColor="@color/white"
+                android:textSize="5sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.08"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
-</androidx.cardview.widget.CardView>
+            <!-- Channel Logo -->
+            <ImageView
+                android:id="@+id/iv_channel_logo"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:scaleType="fitCenter"
+                android:contentDescription="Channel Logo"
+                app:layout_constraintTop_toBottomOf="@id/tv_live_badge"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toTopOf="@id/tv_channel_name"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp" />
 
+            <!-- Channel Name (bottom-left) -->
+            <TextView
+                android:id="@+id/tv_channel_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Channel"
+                android:textSize="7sp"
+                android:textStyle="bold"
+                android:textColor="#F1F5F9"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:gravity="start"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.cardview.widget.CardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

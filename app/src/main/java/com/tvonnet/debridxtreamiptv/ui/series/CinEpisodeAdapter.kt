@@ -39,6 +39,23 @@ class CinEpisodeAdapter(
     private var selectedEpisodeId: String? = null
     private val adapterScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val watchedKeys = mutableSetOf<String>()
+    // identityKey -> progress percent (1..99) for in-progress episodes
+    private val progressByKey = mutableMapOf<String, Int>()
+    private val loadedKeys = mutableSetOf<String>()
+
+    // Activity-pushed overrides (authoritative, refreshed on resume).
+    // Keyed by episode id.
+    private var progressOverride: Map<String, Int> = emptyMap()
+    private var watchedOverride: Set<String> = emptySet()
+
+    /** Called by the Activity after (re)loading watched-state so progress/resume reflect real data. */
+    fun applyOverrides(progress: Map<String, Int>, watched: Set<String>) {
+        progressOverride = progress
+        watchedOverride = watched
+        // Force the lazy per-row loader to re-query too.
+        loadedKeys.clear()
+        notifyDataSetChanged()
+    }
 
     fun submitEpisodes(newItems: List<EpisodeUiModel>, selectedId: String?) {
         selectedEpisodeId = selectedId
@@ -128,25 +145,28 @@ class CinEpisodeAdapter(
             val identityKey = watchedIdentityKey(context, item)
             val isWatched = identityKey != null && watchedKeys.contains(identityKey)
 
-            if (identityKey != null && !watchedKeys.contains(identityKey)) {
+            if (identityKey != null && !loadedKeys.contains(identityKey)) {
                 loadWatchedState(identityKey)
             }
 
-            val actuallyWatched = item.isWatched || isWatched
-            val resumePos = item.resumePosition
-            val hasProgress = !actuallyWatched && resumePos > 0 && durationMin != null && durationMin > 0
+            val actuallyWatched = item.isWatched || isWatched || watchedOverride.contains(item.id)
+
+            // Progress percent: prefer Activity override (authoritative), then stored watched-state, then item.resumePosition
+            val overridePct = progressOverride[item.id]
+            val storedPct = identityKey?.let { progressByKey[it] }
+            val fallbackPct = if (item.resumePosition > 0 && durationMin != null && durationMin > 0) {
+                ((item.resumePosition.toFloat() / (durationMin * 60_000L)) * 100).toInt().coerceIn(0, 100)
+            } else null
+            val pct = (overridePct ?: storedPct ?: fallbackPct)?.takeIf { it in 1..99 }
+            val hasProgress = !actuallyWatched && pct != null
 
             // Progress bar
             if (hasProgress) {
                 layoutProgress.visibility = View.VISIBLE
-                val totalMs = durationMin!! * 60_000L
-                val pct = ((resumePos.toFloat() / totalMs) * 100).coerceIn(0f, 100f)
-                val params = vProgressFill.layoutParams
                 vProgressFill.post {
                     val parentWidth = (vProgressFill.parent as? View)?.width ?: 0
-                    val newWidth = (parentWidth * pct / 100f).toInt()
                     val lp = vProgressFill.layoutParams
-                    lp.width = newWidth
+                    lp.width = (parentWidth * pct!! / 100f).toInt()
                     vProgressFill.layoutParams = lp
                 }
             } else {
@@ -177,11 +197,7 @@ class CinEpisodeAdapter(
             // Subtitle
             tvSubtitle.text = when {
                 actuallyWatched -> "WATCHED · ${tvDuration.text}"
-                hasProgress -> {
-                    val totalMs = durationMin!! * 60_000L
-                    val pct = ((resumePos.toFloat() / totalMs) * 100).toInt().coerceIn(0, 100)
-                    "RESUME · ${pct}%"
-                }
+                hasProgress -> "RESUME · ${pct}%"
                 else -> item.description?.take(20) ?: ""
             }
 
@@ -190,13 +206,24 @@ class CinEpisodeAdapter(
     }
 
     private fun loadWatchedState(identityKey: String) {
+        loadedKeys.add(identityKey)
         adapterScope.launch {
-            val isWatched = withContext(Dispatchers.IO) {
-                watchedRepository()?.getState(identityKey)?.isWatched == true
+            val state = withContext(Dispatchers.IO) {
+                watchedRepository()?.getState(identityKey)
             }
-            if (isWatched && watchedKeys.add(identityKey)) {
-                notifyItemChangedByIdentity(identityKey)
+            var changed = false
+            if (state?.isWatched == true) {
+                if (watchedKeys.add(identityKey)) changed = true
             }
+            // Compute progress percent from stored resume position
+            if (state != null && !state.isWatched && state.durationMs > 0 && state.progressMs > 0) {
+                val pct = ((state.progressMs.toFloat() / state.durationMs) * 100).toInt().coerceIn(0, 100)
+                if (pct in 1..99 && progressByKey[identityKey] != pct) {
+                    progressByKey[identityKey] = pct
+                    changed = true
+                }
+            }
+            if (changed) notifyItemChangedByIdentity(identityKey)
         }
     }
 

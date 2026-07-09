@@ -104,6 +104,26 @@ class SearchFragment : Fragment() {
         setupRecyclerViews()
         observeState()
 
+        // Series-scope (set when opened from the Series screen): restrict search to
+        // series, optionally within a single category. Must be set before any query runs.
+        arguments?.let { args ->
+            if (args.getBoolean("series_scope", false)) {
+                val categoryId = args.getString("category_id")
+                viewModel.setSeriesScope(categoryId, true)
+                val categoryName = args.getString("category_name")
+                if (!categoryName.isNullOrBlank() && ::etSearchQuery.isInitialized) {
+                    etSearchQuery.hint = getString(R.string.search_in_scope, categoryName)
+                }
+            } else if (args.getBoolean("vod_scope", false)) {
+                val categoryId = args.getString("category_id")
+                viewModel.setVodScope(categoryId, true)
+                val categoryName = args.getString("category_name")
+                if (!categoryName.isNullOrBlank() && ::etSearchQuery.isInitialized) {
+                    etSearchQuery.hint = getString(R.string.search_in_scope, categoryName)
+                }
+            }
+        }
+
         // Check for voice query from MainActivity
         arguments?.let { args ->
             val voiceQuery = args.getString("voice_query")

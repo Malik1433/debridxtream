@@ -64,7 +64,21 @@ data class TmdbMovieDetails(
     @SerializedName("genres") val genres: List<TmdbGenre>?,
     @SerializedName("tagline") val tagline: String?,
     @SerializedName("videos") val videos: TmdbVideoResponse? = null,
-    @SerializedName("credits") val credits: TmdbCredits? = null
+    @SerializedName("credits") val credits: TmdbCredits? = null,
+    @SerializedName("release_dates") val releaseDates: TmdbReleaseDatesResponse? = null
+)
+
+data class TmdbReleaseDatesResponse(
+    @SerializedName("results") val results: List<TmdbReleaseDatesByCountry>? = null
+)
+
+data class TmdbReleaseDatesByCountry(
+    @SerializedName("iso_3166_1") val countryCode: String? = null,
+    @SerializedName("release_dates") val releaseDates: List<TmdbReleaseDateEntry>? = null
+)
+
+data class TmdbReleaseDateEntry(
+    @SerializedName("certification") val certification: String? = null
 )
 
 data class TmdbTvShowDetails(

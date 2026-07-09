@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Live TV EPG Guide dimensions (from "Live TV EPG - Spec.md"). -->
+<resources>
+    <dimen name="epg_nav_rail_width">148dp</dimen>
+    <dimen name="epg_detail_height">176dp</dimen>
+    <dimen name="epg_channel_col_width">300dp</dimen>
+    <dimen name="epg_header_height">44dp</dimen>
+
+    <!-- Row density (spec §7) -->
+    <dimen name="epg_row_cozy">58dp</dimen>
+    <dimen name="epg_row_standard">70dp</dimen>
+    <dimen name="epg_row_roomy">96dp</dimen>
+
+    <dimen name="epg_preview_tile_width">300dp</dimen>
+    <dimen name="epg_chip_height">40dp</dimen>
+    <dimen name="epg_day_tab_height">34dp</dimen>
+</resources>

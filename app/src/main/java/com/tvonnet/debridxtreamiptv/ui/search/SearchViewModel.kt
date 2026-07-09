@@ -69,9 +69,34 @@ class SearchViewModel @Inject constructor(
 ) : BaseViewModel<SearchUiState, SearchEvent>() {
     
     override fun getInitialState() = SearchUiState()
-    
+
     // Search query flow for debouncing
     private val _searchQuery = MutableStateFlow("")
+
+    // Series-scope (set when search is opened from the Series screen). When enabled,
+    // only series are searched (optionally within a single category) and the other
+    // sections stay empty. Not set → global search (backward compatible).
+    private var seriesScopeEnabled = false
+    private var seriesScopeCategoryId: String? = null
+
+    /** Enable/disable series-only scope and the category filter (null = all series). */
+    fun setSeriesScope(categoryId: String?, enabled: Boolean) {
+        seriesScopeEnabled = enabled
+        seriesScopeCategoryId = categoryId
+        android.util.Log.i("SearchScope", "setSeriesScope enabled=$enabled categoryId=$categoryId")
+    }
+
+    // VOD-scope (set when search is opened from the Movies screen). When enabled, only
+    // movies are searched (optionally within a single category); other sections stay empty.
+    private var vodScopeEnabled = false
+    private var vodScopeCategoryId: String? = null
+
+    /** Enable/disable movies-only scope and the category filter (null = all movies). */
+    fun setVodScope(categoryId: String?, enabled: Boolean) {
+        vodScopeEnabled = enabled
+        vodScopeCategoryId = categoryId
+        android.util.Log.i("SearchScope", "setVodScope enabled=$enabled categoryId=$categoryId")
+    }
     
     init {
         setupSearch()
@@ -141,11 +166,59 @@ class SearchViewModel @Inject constructor(
     private fun performSearch(query: String) {
         viewModelScope.launch(exceptionHandler) {
             updateState { copy(isSearching = true, error = null) }
-            
+
             try {
+                if (seriesScopeEnabled) {
+                    // Series-only scope: search series (optionally within one category),
+                    // leave Live/VOD/EPG empty so those sections collapse.
+                    val series = repository.searchSeries(query, seriesScopeCategoryId)
+                    android.util.Log.i(
+                        "SearchScope",
+                        "scoped search q='$query' categoryId=$seriesScopeCategoryId -> ${series.size} series"
+                    )
+                    updateState {
+                        copy(
+                            liveResults = emptyList(),
+                            vodResults = emptyList(),
+                            seriesResults = series,
+                            epgResults = emptyList(),
+                            isSearching = false,
+                            error = if (series.isEmpty()) {
+                                "No results found for '$query'. Please ensure content is loaded by browsing categories."
+                            } else null
+                        )
+                    }
+                    return@launch
+                }
+
+                if (vodScopeEnabled) {
+                    // Movies-only scope: search movies (optionally within one category),
+                    // leave Live/Series/EPG empty so those sections collapse.
+                    val vod = repository.searchVod(query, vodScopeCategoryId)
+                    android.util.Log.i(
+                        "SearchScope",
+                        "scoped VOD search q='$query' categoryId=$vodScopeCategoryId -> ${vod.size} movies"
+                    )
+                    updateState {
+                        copy(
+                            liveResults = emptyList(),
+                            vodResults = vod,
+                            seriesResults = emptyList(),
+                            epgResults = emptyList(),
+                            isSearching = false,
+                            error = if (vod.isEmpty()) {
+                                "No results found for '$query'. Please ensure content is loaded by browsing categories."
+                            } else null
+                        )
+                    }
+                    return@launch
+                }
+
+                android.util.Log.i("SearchScope", "GLOBAL search q='$query' (scope disabled)")
+
                 // Week 14: Use efficient Database Search (Parallel Execution)
                 // This replaces the memory-intensive cache reading
-                
+
                 val liveResults = async { repository.searchLive(query) }
                 val vodResults = async { repository.searchVod(query) }
                 val seriesResults = async { repository.searchSeries(query) }
@@ -155,10 +228,10 @@ class SearchViewModel @Inject constructor(
                 val vod = vodResults.await()
                 val series = seriesResults.await()
                 val epg = epgResults.await()
-                
+
                 // Calculate total results
                 val totalResults = live.size + vod.size + series.size + epg.size
-                
+
                 // Update state with results
                 updateState {
                     copy(
@@ -172,7 +245,7 @@ class SearchViewModel @Inject constructor(
                         } else null
                     )
                 }
-                
+
             } catch (e: Exception) {
                 updateState {
                     copy(

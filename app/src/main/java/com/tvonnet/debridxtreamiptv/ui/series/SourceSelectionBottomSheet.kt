@@ -22,6 +22,7 @@ import com.tvonnet.debridxtreamiptv.ui.sources.SizeFilterAdapter
 import com.tvonnet.debridxtreamiptv.ui.sources.SizeFilterOption
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterState
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
+import com.tvonnet.debridxtreamiptv.ui.sources.SourceSorter
 import com.tvonnet.debridxtreamiptv.ui.vod.MovieSourceAdapter
 
 class SourceSelectionBottomSheet(
@@ -31,11 +32,14 @@ class SourceSelectionBottomSheet(
     initialSelectedStreamId: String? = null,
     initialReturnFocusStreamIds: List<String> = emptyList(),
     private val contentTitle: String? = null,
-    private val backdropUrl: String? = null
+    private val backdropUrl: String? = null,
+    private val preferredAudioLang: String = "ALL"
 ) : DialogFragment() {
 
     private lateinit var tvTitle: TextView
     private lateinit var tvSourceCount: TextView
+    private lateinit var chipLangPriority: View
+    private lateinit var tvLangPriority: TextView
     private lateinit var progressBar: ProgressBar
     private lateinit var tvStatus: TextView
     private lateinit var rvSources: RecyclerView
@@ -88,6 +92,8 @@ class SourceSelectionBottomSheet(
 
         tvTitle = view.findViewById(R.id.tv_dialog_title)
         tvSourceCount = view.findViewById(R.id.tv_source_count)
+        chipLangPriority = view.findViewById(R.id.chip_lang_priority)
+        tvLangPriority = view.findViewById(R.id.tv_lang_priority)
         progressBar = view.findViewById(R.id.progress_bar)
         tvStatus = view.findViewById(R.id.tv_status)
         rvSources = view.findViewById(R.id.rv_sources)
@@ -108,7 +114,22 @@ class SourceSelectionBottomSheet(
     private fun setupContentInfo() {
         tvTitle.text = contentTitle.orEmpty()
         tvTitle.visibility = if (contentTitle.isNullOrBlank()) View.GONE else View.VISIBLE
+
+        // Language priority chip — only when a specific language is preferred.
+        if (hasLanguagePriority()) {
+            tvLangPriority.text = "${languagePriorityCode()} PRIORITY"
+            chipLangPriority.visibility = View.VISIBLE
+        } else {
+            chipLangPriority.visibility = View.GONE
+        }
     }
+
+    private fun hasLanguagePriority(): Boolean {
+        val code = preferredAudioLang.trim()
+        return code.isNotEmpty() && !code.equals("ALL", ignoreCase = true)
+    }
+
+    private fun languagePriorityCode(): String = preferredAudioLang.trim().uppercase()
 
     private fun setupAdapters() {
         // Sources Adapter
@@ -203,7 +224,9 @@ class SourceSelectionBottomSheet(
         }
 
         isLoading = false
-        allSources = newSources
+        // Sort by preferred-language score BEFORE any filters are applied so the
+        // ordering is stable regardless of the in-panel filter chips.
+        allSources = SourceSorter.sort(newSources, preferredAudioLang)
 
         if (allSources.isEmpty()) {
             displayedSources = emptyList()
@@ -310,7 +333,8 @@ class SourceSelectionBottomSheet(
     }
 
     private fun applyFilters() {
-        displayedSources = SourceFilterUtils.apply(allSources, filterState)
+        // Order-preserving filter keeps the SourceSorter ranking intact.
+        displayedSources = SourceFilterUtils.filter(allSources, filterState)
 
         statusMessage = if (displayedSources.isEmpty()) getString(R.string.source_filters_empty) else null
         if (isAdded) {
@@ -348,7 +372,16 @@ class SourceSelectionBottomSheet(
                     it.cacheStatus == DebridCacheStatus.VERIFIED_CACHED ||
                         it.cacheStatus == DebridCacheStatus.DIRECT_STREAM
                 }
-                tvSourceCount.text = "${displayedSources.size} sources found · $cachedCount cached"
+                tvSourceCount.text = if (hasLanguagePriority()) {
+                    "${displayedSources.size} sources · sorted by ${languagePriorityCode()} priority"
+                } else {
+                    "${displayedSources.size} sources found · $cachedCount cached"
+                }
+                // First cached source after sorting = BEST PICK.
+                val bestStreamId = displayedSources
+                    .firstOrNull { SourceSorter.isCached(it) }
+                    ?.stream?.stream_id
+                sourcesAdapter.updateBestPick(bestStreamId)
                 sourcesAdapter.updateSelection(selectedStreamId, notify = false)
                 sourcesAdapter.submitList(displayedSources) {
                     sourcesAdapter.updateSelection(selectedStreamId)

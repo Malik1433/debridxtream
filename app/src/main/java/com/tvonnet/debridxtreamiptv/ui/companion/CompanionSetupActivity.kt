@@ -11,8 +11,6 @@ import com.journeyapps.barcodescanner.BarcodeEncoder
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.databinding.ActivityCompanionSetupBinding
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
-import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
-import com.tvonnet.debridxtreamiptv.network.CompanionUrlValidator
 import java.util.*
 
 
@@ -167,62 +165,7 @@ class CompanionSetupActivity : AppCompatActivity() {
         if (isConfigured) return
         isConfigured = true
 
-        val iptv = data["iptv"] as? Map<*, *>
-        val debridTokenLegacy = data["debrid"] as? String
-        val mediafusionLegacy = data["mediafusion"] as? String
-        val debridConfig = data["debridConfig"] as? Map<*, *>
-        val stremioUrlsLegacy = data["stremioAddonUrls"] as? List<*>
-
-        // Save IPTV Config using project-standard CredentialsPreferences
-        // We set loggedIn to FALSE initially so LoginFragment can trigger its own validation/login flow
-        iptv?.let {
-            val server = it["url"] as? String
-            val username = it["username"] as? String
-            val password = it["password"] as? String
-            
-            val safeServer = server?.let { CompanionUrlValidator.normalizeSafeHttpUrl(it) }
-            if (safeServer != null && username != null && password != null) {
-                CredentialsPreferences(applicationContext).saveSyncedCredentials(safeServer, username, password)
-            }
-        }
-
-
-        // Save Debrid Config using project-standard DebridPreferences
-        val debridPrefs = DebridPreferences(applicationContext)
-
-        // New schema: debridConfig { token, mediaFusionUrl, stremioAddonUrls }
-        debridConfig?.let { cfg ->
-            val token = cfg["token"] as? String
-            val mediaFusionUrl = cfg["mediaFusionUrl"] as? String
-            val stremioAddonUrls = CompanionUrlValidator.normalizeSafeAddonUrls(
-                (cfg["stremioAddonUrls"] as? List<*>)
-                ?.mapNotNull { it as? String }
-            )
-
-            if (!token.isNullOrBlank()) {
-                debridPrefs.saveRealDebridToken(token)
-            }
-            val safeMediaFusionUrl = mediaFusionUrl?.let { CompanionUrlValidator.normalizeSafeHttpUrl(it) }
-            if (safeMediaFusionUrl != null) {
-                debridPrefs.saveMediaFusionUrl(safeMediaFusionUrl)
-            }
-            if (stremioAddonUrls.isNotEmpty()) {
-                debridPrefs.setStremioAddonUrls(stremioAddonUrls)
-            }
-        }
-
-        // Legacy fields (backward compatible)
-        debridTokenLegacy?.takeIf { it.isNotBlank() }?.let { debridPrefs.saveRealDebridToken(it) }
-        mediafusionLegacy
-            ?.let { CompanionUrlValidator.normalizeSafeHttpUrl(it) }
-            ?.let { debridPrefs.saveMediaFusionUrl(it) }
-        val stremioAddonUrls = CompanionUrlValidator.normalizeSafeAddonUrls(
-            stremioUrlsLegacy
-            ?.mapNotNull { it as? String }
-        )
-        if (stremioAddonUrls.isNotEmpty()) {
-            debridPrefs.setStremioAddonUrls(stremioAddonUrls)
-        }
+        CompanionConfigApplier.apply(applicationContext, data)
 
         Toast.makeText(this, "Configuration Received! Happy Streaming.", Toast.LENGTH_LONG).show()
 
