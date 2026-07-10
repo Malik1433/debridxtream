@@ -63,6 +63,7 @@
                     android:visibility="gone"
                     app:use_controller="false"
                     app:resize_mode="zoom"
+                    app:keep_content_on_player_reset="true"
                     app:surface_type="texture_view" />
 
                 <TextView
@@ -343,8 +344,18 @@
             android:layout_height="match_parent"
             android:focusable="false"
             app:use_controller="false"
-            app:resize_mode="fit"
+            app:resize_mode="zoom"
+            app:keep_content_on_player_reset="true"
             app:surface_type="texture_view" />
+
+        <!-- Snapshot of the last rendered frame, shown while the new surface
+             warms up so the hand-off never flashes black. -->
+        <ImageView
+            android:id="@+id/fullscreen_cover"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
     </FrameLayout>
 
 </FrameLayout>

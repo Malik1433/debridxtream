@@ -1,5 +1,6 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
+import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -27,17 +28,32 @@ object LiveSharedPlayer {
     var streamId: String? = null
         private set
 
+    /**
+     * Snapshot of the LAST rendered video frame at hand-off time. The adopting
+     * screen shows it as a cover until its own surface renders the first frame,
+     * so the transition never flashes black.
+     */
+    private var frame: Bitmap? = null
+
     private val timeoutRunnable = Runnable { release("adopt_timeout") }
 
     /** Park a RUNNING player for the next screen to adopt. */
-    fun offer(p: ExoPlayer, url: String?, id: String?) {
+    fun offer(p: ExoPlayer, url: String?, id: String?, frameBitmap: Bitmap? = null) {
         if (player !== p) release("replaced")
         player = p
         streamUrl = url
         streamId = id
+        frame = frameBitmap
         handler.removeCallbacks(timeoutRunnable)
         handler.postDelayed(timeoutRunnable, ADOPT_TIMEOUT_MS)
-        Log.i(TAG, "offer: id=$id")
+        Log.i(TAG, "offer: id=$id frame=${frameBitmap != null}")
+    }
+
+    /** One-shot: the hand-off frame snapshot (cleared on take). */
+    fun takeFrame(): Bitmap? {
+        val f = frame
+        frame = null
+        return f
     }
 
     /**
@@ -68,5 +84,6 @@ object LiveSharedPlayer {
         player = null
         streamUrl = null
         streamId = null
+        frame = null
     }
 }

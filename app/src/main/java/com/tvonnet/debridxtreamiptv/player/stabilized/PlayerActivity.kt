@@ -119,6 +119,7 @@ class PlayerActivity : AppCompatActivity() {
     // True when this session was launched from the Live TV EPG guide with a shared
     // preview player to adopt (seamless mini <-> fullscreen continuity).
     private val sharedLiveSession by lazy { intent.getBooleanExtra(EXTRA_SHARED_LIVE_PLAYER, false) }
+    private var sharedExitInProgress = false
     private lateinit var watchHistoryPrefs: WatchHistoryPreferences
     internal lateinit var historyManager: PlayerHistoryManager
 
@@ -782,10 +783,22 @@ class PlayerActivity : AppCompatActivity() {
                 manualExit = true
                 updateLastPlaybackPosition()
                 historyManager.recordPlaybackHistoryIfNeeded()
-                val handedBack = handBackSharedPlayerIfNeeded()
+                if (sharedLiveSession && contentType == ContentType.LIVE_TV && player != null) {
+                    if (sharedExitInProgress) return
+                    sharedExitInProgress = true
+                    // Snapshot the on-screen frame first (async for SurfaceView),
+                    // then hand the running player back and leave without animation.
+                    captureFrameForHandOff { frame ->
+                        if (isFinishing || isDestroyed) return@captureFrameForHandOff
+                        handBackSharedPlayerIfNeeded(frame)
+                        releasePlayer()
+                        finish()
+                        overridePendingTransition(0, 0)
+                    }
+                    return
+                }
                 releasePlayer()
                 finish()
-                if (handedBack) overridePendingTransition(0, 0)
             }
         })
     }
@@ -1868,6 +1881,9 @@ class PlayerActivity : AppCompatActivity() {
                     "player_adopted_shared",
                     diagnosticsPlaybackFields(streamUrl, null)
                 )
+                // Cover our surface with the guide's last rendered frame until we
+                // draw our own first frame — the hand-off never flashes black.
+                LiveSharedPlayer.takeFrame()?.let { showAdoptedCover(it) }
             } else {
             didPlaybackComplete = false
             hasAppliedIndexOverride = false
@@ -2525,7 +2541,7 @@ class PlayerActivity : AppCompatActivity() {
      * (via [LiveSharedPlayer]) instead of releasing it, so playback continues
      * seamlessly through the shrink-to-mini transition.
      */
-    private fun handBackSharedPlayerIfNeeded(): Boolean {
+    private fun handBackSharedPlayerIfNeeded(frame: android.graphics.Bitmap? = null): Boolean {
         if (!sharedLiveSession || contentType != ContentType.LIVE_TV) return false
         val p = player ?: return false
         playerListener?.let { p.removeListener(it) }
@@ -2536,13 +2552,77 @@ class PlayerActivity : AppCompatActivity() {
         timeoutHandler.removeCallbacks(timeoutRunnable)
         playerView.player = null
         player = null
-        LiveSharedPlayer.offer(p, currentUrl, contentId)
+        LiveSharedPlayer.offer(p, currentUrl, contentId, frame)
         PlaybackDiagnosticsRecorder.record(
             this,
             "player_handed_back_shared",
             diagnosticsPlaybackFields()
         )
         return true
+    }
+
+    /**
+     * Snapshot the currently displayed video frame (TextureView directly,
+     * SurfaceView via PixelCopy) so the guide can mask its surface warm-up.
+     * Always calls [onDone] (with null on failure) — never blocks the exit.
+     */
+    private fun captureFrameForHandOff(onDone: (android.graphics.Bitmap?) -> Unit) {
+        val v = playerView.videoSurfaceView
+        when (v) {
+            is android.view.TextureView -> onDone(runCatching { v.getBitmap() }.getOrNull())
+            is android.view.SurfaceView -> {
+                val w = v.width
+                val h = v.height
+                if (w <= 0 || h <= 0) { onDone(null); return }
+                val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+                try {
+                    android.view.PixelCopy.request(v, bitmap, { result ->
+                        onDone(if (result == android.view.PixelCopy.SUCCESS) bitmap else null)
+                    }, android.os.Handler(android.os.Looper.getMainLooper()))
+                } catch (e: Exception) {
+                    onDone(null)
+                }
+            }
+            else -> onDone(null)
+        }
+    }
+
+    /** Bridge frame from the guide, removed as soon as our surface renders. */
+    private fun showAdoptedCover(bitmap: android.graphics.Bitmap) {
+        val cover = android.widget.ImageView(this).apply {
+            setImageBitmap(bitmap)
+            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+            setBackgroundColor(android.graphics.Color.BLACK)
+        }
+        addContentView(
+            cover,
+            android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+        var removed = false
+        val remove = {
+            if (!removed) {
+                removed = true
+                cover.animate().alpha(0f).setDuration(150).withEndAction {
+                    (cover.parent as? android.view.ViewGroup)?.removeView(cover)
+                }.start()
+            }
+        }
+        val p = player
+        if (p == null) { remove(); return }
+        val listener = object : Player.Listener {
+            override fun onRenderedFirstFrame() {
+                p.removeListener(this)
+                remove()
+            }
+        }
+        p.addListener(listener)
+        timeoutHandler.postDelayed({
+            p.removeListener(listener)
+            remove()
+        }, 800)
     }
 
     private fun releasePlayer(reason: String = "unspecified") {

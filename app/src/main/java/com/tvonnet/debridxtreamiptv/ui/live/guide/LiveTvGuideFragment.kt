@@ -30,6 +30,8 @@ import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import com.tvonnet.debridxtreamiptv.databinding.FragmentLiveTvGuideBinding
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import com.tvonnet.debridxtreamiptv.player.stabilized.LiveSharedPlayer
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.live.PreviewPlayerPanel
@@ -431,6 +433,56 @@ class LiveTvGuideFragment : Fragment() {
         previewHandler.postDelayed(r, 450)
     }
 
+    // ── Seamless transition helpers (never show black between surfaces) ─────
+
+    /** Snapshot the last rendered frame of a TextureView-based PlayerView. */
+    private fun captureFrame(pv: androidx.media3.ui.PlayerView): android.graphics.Bitmap? =
+        runCatching { (pv.videoSurfaceView as? android.view.TextureView)?.getBitmap() }.getOrNull()
+
+    /**
+     * Run [action] once the player renders its first frame on the CURRENT
+     * surface — with a timeout fallback so the UI can never get stuck.
+     */
+    private fun onceFirstFrame(player: ExoPlayer, timeoutMs: Long, action: () -> Unit) {
+        var done = false
+        val listener = object : Player.Listener {
+            override fun onRenderedFirstFrame() {
+                if (done) return
+                done = true
+                player.removeListener(this)
+                action()
+            }
+        }
+        player.addListener(listener)
+        previewHandler.postDelayed({
+            if (!done) {
+                done = true
+                player.removeListener(listener)
+                action()
+            }
+        }, timeoutMs)
+    }
+
+    /** Show the hand-off frame snapshot over the bridge video. */
+    private fun showBridgeCover(bitmap: android.graphics.Bitmap?) {
+        if (bitmap == null) return
+        binding.fullscreenCover.setImageBitmap(bitmap)
+        binding.fullscreenCover.alpha = 1f
+        binding.fullscreenCover.visibility = View.VISIBLE
+    }
+
+    /** Fade the cover away once live frames are flowing underneath it. */
+    private fun fadeBridgeCover() {
+        if (_binding == null || binding.fullscreenCover.visibility != View.VISIBLE) return
+        binding.fullscreenCover.animate().alpha(0f).setDuration(150).withEndAction {
+            _binding?.let {
+                binding.fullscreenCover.visibility = View.GONE
+                binding.fullscreenCover.setImageDrawable(null)
+                binding.fullscreenCover.alpha = 1f
+            }
+        }.start()
+    }
+
     // ── In-place fullscreen (grows the preview, keeps the same player) ──────
     /** Returns [left, top, width, height] of the preview tile relative to the fragment root. */
     private fun tileRectInRoot(): FloatArray {
@@ -475,8 +527,12 @@ class LiveTvGuideFragment : Fragment() {
         fc.translationY = r[1]
         fc.visibility = View.VISIBLE
         // Keep the SAME player rendering while the tile grows — no reconnect.
-        previewPanel?.getPlayer()?.let {
-            androidx.media3.ui.PlayerView.switchTargetView(it, binding.previewPlayerView, binding.fullscreenPlayerView)
+        // A snapshot of the current frame covers the bridge until its own
+        // surface renders, so the switch never flashes black.
+        previewPanel?.getPlayer()?.let { p ->
+            showBridgeCover(captureFrame(binding.previewPlayerView))
+            androidx.media3.ui.PlayerView.switchTargetView(p, binding.previewPlayerView, binding.fullscreenPlayerView)
+            onceFirstFrame(p, 600) { fadeBridgeCover() }
         }
         fc.animate().scaleX(1f).scaleY(1f).translationX(0f).translationY(0f)
             .setDuration(360).setInterpolator(OvershootInterpolator(0.5f))
@@ -504,7 +560,10 @@ class LiveTvGuideFragment : Fragment() {
             return
         }
         val streamUrl = stream.toLiveStreamUrl(serverUrl, username, password)
-        previewPanel?.detachPlayer()?.let { LiveSharedPlayer.offer(it, streamUrl, stream.stream_id) }
+        // Hand the running player over WITH a snapshot of its latest frame, so
+        // PlayerActivity can cover its own surface warm-up (no black flash).
+        val handOffFrame = captureFrame(binding.fullscreenPlayerView)
+        previewPanel?.detachPlayer()?.let { LiveSharedPlayer.offer(it, streamUrl, stream.stream_id, handOffFrame) }
         val intent = PlayerActivity.createIntent(
             context = requireContext(),
             streamUrl = streamUrl,
@@ -537,6 +596,7 @@ class LiveTvGuideFragment : Fragment() {
         val returnedId = data?.getStringExtra(PlayerActivity.EXTRA_LIVE_RETURN_CHANNEL_ID)
         val channel = viewModel.uiState.value.channels.firstOrNull { it.streamId == returnedId }
             ?: currentChannel
+        val returnFrame = LiveSharedPlayer.takeFrame()
         val player = LiveSharedPlayer.adopt()
         if (player == null || channel == null) {
             // No shared player came back (error / cold exit) — fresh preview instead.
@@ -547,8 +607,12 @@ class LiveTvGuideFragment : Fragment() {
             return
         }
         // Same player keeps rendering fullscreen, then the drop shrinks into the tile.
+        // The frame PlayerActivity handed over covers the bridge until our own
+        // surface starts rendering — no black in between.
+        showBridgeCover(returnFrame)
         binding.fullscreenPlayerView.player = player
         player.playWhenReady = true
+        onceFirstFrame(player, 600) { fadeBridgeCover() }
         lastPreviewStreamId = channel.streamId
         updateDetail(channel, channel.currentProgram(System.currentTimeMillis()))
         val root = binding.root
@@ -561,8 +625,13 @@ class LiveTvGuideFragment : Fragment() {
                 if (_binding == null) return@withEndAction
                 androidx.media3.ui.PlayerView.switchTargetView(player, binding.fullscreenPlayerView, binding.previewPlayerView)
                 previewPanel?.adoptPlayer(player, channel.stream)
-                cancelFullscreenBridge()
-                (fullscreenReturnFocus ?: binding.epgGrid).requestFocus()
+                // Hold the (tile-sized) bridge over the mini view until the mini
+                // surface renders its first frame, then remove it seamlessly.
+                onceFirstFrame(player, 500) {
+                    if (_binding == null) return@onceFirstFrame
+                    cancelFullscreenBridge()
+                    (fullscreenReturnFocus ?: binding.epgGrid).requestFocus()
+                }
             }.start()
     }
 
