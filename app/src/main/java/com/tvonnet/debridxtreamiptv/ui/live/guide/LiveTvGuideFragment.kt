@@ -10,9 +10,10 @@ import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.content.Intent
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
-import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -29,6 +30,7 @@ import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import com.tvonnet.debridxtreamiptv.databinding.FragmentLiveTvGuideBinding
+import com.tvonnet.debridxtreamiptv.player.stabilized.LiveSharedPlayer
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.live.PreviewPlayerPanel
 import com.tvonnet.debridxtreamiptv.util.GlobalConfig
@@ -62,8 +64,12 @@ class LiveTvGuideFragment : Fragment() {
 
     private var currentChannel: GuideChannel? = null
     private var isFullscreen = false
-    private var backCallback: OnBackPressedCallback? = null
     private var fullscreenReturnFocus: View? = null
+
+    /** Receives the live-return extras + the shared player when fullscreen exits. */
+    private val livePlayerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result -> onReturnedFromPlayer(result.data) }
 
     private val clockFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
     private val dayLabels = listOf("Today", "Tomorrow", "+2 day", "+3 day")
@@ -93,27 +99,27 @@ class LiveTvGuideFragment : Fragment() {
             requireContext(),
             binding.root,
             okHttpClient,
-            onFullscreenClick = { tune(it) },
+            onFullscreenClick = { s ->
+                (viewModel.uiState.value.channels.firstOrNull { it.streamId == s.stream_id } ?: currentChannel)
+                    ?.let { enterFullscreenFor(it) }
+            },
             onFavoriteClick = { Toast.makeText(requireContext(), "Favorites", Toast.LENGTH_SHORT).show() }
         )
         viewLifecycleOwner.lifecycle.addObserver(previewPanel!!)
 
-        // Preview tile: OK opens the focused channel in the full Live TV player.
-        binding.previewTile.setOnClickListener { currentChannel?.let { tune(it.stream) } }
+        // Preview tile: OK grows the preview into the fullscreen Live TV player.
+        binding.previewTile.setOnClickListener { currentChannel?.let { enterFullscreenFor(it) } }
         binding.previewTile.setOnFocusChangeListener { _, hasFocus ->
             binding.previewTile.foreground =
                 if (hasFocus) ContextCompat.getDrawable(requireContext(), R.drawable.bg_epg_focus_ring) else null
         }
-        backCallback = object : OnBackPressedCallback(false) {
-            override fun handleOnBackPressed() { exitFullscreen() }
-        }
-        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback!!)
 
         binding.epgGrid.listener = object : EpgGridView.Listener {
             override fun onFocusChanged(channel: GuideChannel, program: GuideProgram?) = updateDetail(channel, program)
-            // Fullscreen opens the full Live TV PlayerActivity (EPG overlay, details, channel zapping).
-            override fun onProgramSelected(channel: GuideChannel, program: GuideProgram?) = tune(channel.stream)
-            override fun onChannelSelected(channel: GuideChannel) = tune(channel.stream)
+            // Fullscreen = grow morph → hand the running player to PlayerActivity
+            // (EPG overlay, details, channel zapping) — no reconnect either way.
+            override fun onProgramSelected(channel: GuideChannel, program: GuideProgram?) = enterFullscreenFor(channel)
+            override fun onChannelSelected(channel: GuideChannel) = enterFullscreenFor(channel)
             override fun onExitLeft() {
                 binding.chipsContainer.getChildAt(selectedChipIndex())?.requestFocus()
             }
@@ -415,7 +421,7 @@ class LiveTvGuideFragment : Fragment() {
         if (id == lastPreviewStreamId && binding.previewPlayerView.visibility == View.VISIBLE) return
         pendingPreview?.let { previewHandler.removeCallbacks(it) }
         val r = Runnable {
-            if (_binding == null) return@Runnable
+            if (_binding == null || isFullscreen) return@Runnable
             lastPreviewStreamId = id
             binding.previewPlayerView.visibility = View.VISIBLE
             previewPanel?.play(stream)
@@ -438,8 +444,13 @@ class LiveTvGuideFragment : Fragment() {
         )
     }
 
-    /** Unified fullscreen entry: make sure this channel is previewing, then grow it. */
+    /**
+     * Fullscreen = water-drop grow of the live preview, then hand the RUNNING
+     * player to PlayerActivity (full Live TV UI: EPG overlay, details, zapping).
+     * The stream never reconnects in either direction.
+     */
     private fun enterFullscreenFor(channel: GuideChannel) {
+        if (isFullscreen) return
         val stream = channel.stream
         val id = stream.stream_id
         if (id != null && id != lastPreviewStreamId) {
@@ -449,14 +460,10 @@ class LiveTvGuideFragment : Fragment() {
             previewPanel?.play(stream)
             previewPanel?.setVolume(1f)
         }
-        enterFullscreen()
-    }
-
-    private fun enterFullscreen() {
-        if (isFullscreen) return
-        val player = previewPanel?.getPlayer() ?: return
+        isFullscreen = true
         pendingPreview?.let { previewHandler.removeCallbacks(it) }
         fullscreenReturnFocus = binding.root.findFocus()
+
         val root = binding.root
         val r = tileRectInRoot()
         val fc = binding.fullscreenContainer
@@ -467,25 +474,83 @@ class LiveTvGuideFragment : Fragment() {
         fc.translationX = r[0]
         fc.translationY = r[1]
         fc.visibility = View.VISIBLE
-        // Move the SAME player to the fullscreen view — playback continues uninterrupted.
-        androidx.media3.ui.PlayerView.switchTargetView(player, binding.previewPlayerView, binding.fullscreenPlayerView)
-        // Focus the player itself so D-pad shows/uses the transport controls,
-        // and keep the controller pinned (no auto-hide) so it's always visible in fullscreen.
-        binding.fullscreenPlayerView.controllerShowTimeoutMs = 0
-        binding.fullscreenPlayerView.controllerHideOnTouch = false
-        binding.fullscreenPlayerView.requestFocus()
-        binding.fullscreenPlayerView.showController()
+        // Keep the SAME player rendering while the tile grows — no reconnect.
+        previewPanel?.getPlayer()?.let {
+            androidx.media3.ui.PlayerView.switchTargetView(it, binding.previewPlayerView, binding.fullscreenPlayerView)
+        }
         fc.animate().scaleX(1f).scaleY(1f).translationX(0f).translationY(0f)
-            .setDuration(360).setInterpolator(OvershootInterpolator(0.5f)).start()
-        isFullscreen = true
-        backCallback?.isEnabled = true
+            .setDuration(360).setInterpolator(OvershootInterpolator(0.5f))
+            .withEndAction {
+                if (_binding == null) return@withEndAction
+                handOffToPlayerActivity(channel)
+            }
+            .start()
     }
 
-    private fun exitFullscreen() {
-        if (!isFullscreen) return
-        isFullscreen = false
-        backCallback?.isEnabled = false
-        val player = previewPanel?.getPlayer()
+    /**
+     * Grow finished: park the running preview player in [LiveSharedPlayer] and
+     * launch PlayerActivity, which adopts it (no reconnect) and provides the
+     * full Live TV UI. The fullscreen bridge stays visible so the return
+     * transition starts from a fullscreen frame.
+     */
+    private fun handOffToPlayerActivity(channel: GuideChannel) {
+        val stream = channel.stream
+        val creds = CredentialsPreferences(requireContext())
+        val serverUrl = creds.getServerUrl()
+        val username = creds.getUsername()
+        val password = creds.getPassword()
+        if (serverUrl == null || username == null || password == null) {
+            cancelFullscreenBridge()
+            return
+        }
+        val streamUrl = stream.toLiveStreamUrl(serverUrl, username, password)
+        previewPanel?.detachPlayer()?.let { LiveSharedPlayer.offer(it, streamUrl, stream.stream_id) }
+        val intent = PlayerActivity.createIntent(
+            context = requireContext(),
+            streamUrl = streamUrl,
+            title = stream.name ?: "Live",
+            channelName = stream.name,
+            channelLogo = GlobalConfig.resolveIconUrl(stream.stream_icon),
+            epgChannelId = stream.epg_channel_id?.takeIf { it.isNotBlank() } ?: stream.stream_id,
+            contentId = stream.stream_id ?: streamUrl,
+            contentType = ContentType.LIVE_TV,
+            posterUrl = GlobalConfig.resolveIconUrl(stream.stream_icon),
+            liveCategoryId = stream.category_id ?: viewModel.uiState.value.selectedCategoryId,
+            // Channel list for up/down zapping inside the player.
+            liveChannelIds = ArrayList(viewModel.uiState.value.channels.mapNotNull { it.stream.stream_id })
+                .takeIf { it.isNotEmpty() },
+            baseServerUrl = serverUrl,
+            sharedLivePlayer = true
+        )
+        livePlayerLauncher.launch(intent)
+        requireActivity().overridePendingTransition(0, 0)
+        // The TextureView keeps its last frame as a visual bridge until we return.
+        binding.fullscreenPlayerView.player = null
+    }
+
+    /** BACK from fullscreen: adopt the player back and shrink it into the mini tile. */
+    private fun onReturnedFromPlayer(data: Intent?) {
+        if (_binding == null) {
+            LiveSharedPlayer.release("guide_view_gone")
+            return
+        }
+        val returnedId = data?.getStringExtra(PlayerActivity.EXTRA_LIVE_RETURN_CHANNEL_ID)
+        val channel = viewModel.uiState.value.channels.firstOrNull { it.streamId == returnedId }
+            ?: currentChannel
+        val player = LiveSharedPlayer.adopt()
+        if (player == null || channel == null) {
+            // No shared player came back (error / cold exit) — fresh preview instead.
+            cancelFullscreenBridge()
+            lastPreviewStreamId = null
+            channel?.let { updateDetail(it, it.currentProgram(System.currentTimeMillis())) }
+            (fullscreenReturnFocus ?: binding.epgGrid).requestFocus()
+            return
+        }
+        // Same player keeps rendering fullscreen, then the drop shrinks into the tile.
+        binding.fullscreenPlayerView.player = player
+        player.playWhenReady = true
+        lastPreviewStreamId = channel.streamId
+        updateDetail(channel, channel.currentProgram(System.currentTimeMillis()))
         val root = binding.root
         val r = tileRectInRoot()
         val fc = binding.fullscreenContainer
@@ -494,41 +559,19 @@ class LiveTvGuideFragment : Fragment() {
             .setDuration(320).setInterpolator(DecelerateInterpolator())
             .withEndAction {
                 if (_binding == null) return@withEndAction
-                if (player != null) {
-                    androidx.media3.ui.PlayerView.switchTargetView(player, binding.fullscreenPlayerView, binding.previewPlayerView)
-                }
-                fc.visibility = View.GONE
-                fc.scaleX = 1f; fc.scaleY = 1f; fc.translationX = 0f; fc.translationY = 0f
-                (fullscreenReturnFocus ?: binding.previewTile).requestFocus()
+                androidx.media3.ui.PlayerView.switchTargetView(player, binding.fullscreenPlayerView, binding.previewPlayerView)
+                previewPanel?.adoptPlayer(player, channel.stream)
+                cancelFullscreenBridge()
+                (fullscreenReturnFocus ?: binding.epgGrid).requestFocus()
             }.start()
     }
 
-    // ── Playback ────────────────────────────────────────────────────────
-    private fun tune(stream: XtreamStream) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            val creds = CredentialsPreferences(requireContext())
-            val serverUrl = creds.getServerUrl() ?: return@launch
-            val username = creds.getUsername() ?: return@launch
-            val password = creds.getPassword() ?: return@launch
-            val streamUrl = stream.toLiveStreamUrl(serverUrl, username, password)
-            val intent = PlayerActivity.createIntent(
-                context = requireContext(),
-                streamUrl = streamUrl,
-                title = stream.name ?: "Live",
-                channelName = stream.name,
-                channelLogo = GlobalConfig.resolveIconUrl(stream.stream_icon),
-                epgChannelId = stream.epg_channel_id?.takeIf { it.isNotBlank() } ?: stream.stream_id,
-                contentId = stream.stream_id ?: streamUrl,
-                contentType = ContentType.LIVE_TV,
-                posterUrl = GlobalConfig.resolveIconUrl(stream.stream_icon),
-                liveCategoryId = stream.category_id ?: viewModel.uiState.value.selectedCategoryId,
-                // Channel list for up/down zapping inside the player.
-                liveChannelIds = ArrayList(viewModel.uiState.value.channels.mapNotNull { it.stream.stream_id })
-                    .takeIf { it.isNotEmpty() },
-                baseServerUrl = serverUrl
-            )
-            startActivity(intent)
-        }
+    /** Hide the fullscreen bridge and reset its transforms. */
+    private fun cancelFullscreenBridge() {
+        val fc = binding.fullscreenContainer
+        fc.visibility = View.GONE
+        fc.scaleX = 1f; fc.scaleY = 1f; fc.translationX = 0f; fc.translationY = 0f
+        isFullscreen = false
     }
 
     private fun startClock() {

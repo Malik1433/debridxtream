@@ -59,10 +59,14 @@
             android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboardHidden" />
 
+        <!-- configChanges: survive the display-mode switches (frame-rate matching)
+             the video player triggers, so the Live TV guide behind it isn't
+             destroyed/recreated and the shared-player hand-back keeps working. -->
         <activity
             android:name=".ui.MainActivity"
             android:banner="@drawable/tv_banner"
             android:label="@string/app_name"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|uiMode|density"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

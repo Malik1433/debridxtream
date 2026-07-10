@@ -233,6 +233,24 @@ class PreviewPlayerPanel(
 
     /** Exposes the underlying player so callers can seamlessly switch it to a fullscreen view. */
     fun getPlayer(): ExoPlayer? = previewPlayer
+
+    /** Detaches and returns the current player WITHOUT releasing it (shared hand-off). */
+    fun detachPlayer(): ExoPlayer? {
+        val p = previewPlayer
+        previewPlayer = null
+        previewPlayerView?.player = null
+        return p
+    }
+
+    /** Adopts an already-playing player (e.g. handed back from the fullscreen session). */
+    fun adoptPlayer(p: ExoPlayer, stream: XtreamStream) {
+        if (previewPlayer !== p) previewPlayer?.release()
+        previewPlayer = p
+        previewPlayerView?.player = p
+        currentStream = stream
+        p.playWhenReady = true
+        updateStreamInfo(stream)
+    }
     
     // Lifecycle methods
     override fun onResume(owner: LifecycleOwner) {

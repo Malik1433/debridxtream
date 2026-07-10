@@ -115,6 +115,10 @@ class PlayerActivity : AppCompatActivity() {
 
     internal var player: ExoPlayer? = null
     private lateinit var playerView: PlayerView
+
+    // True when this session was launched from the Live TV EPG guide with a shared
+    // preview player to adopt (seamless mini <-> fullscreen continuity).
+    private val sharedLiveSession by lazy { intent.getBooleanExtra(EXTRA_SHARED_LIVE_PLAYER, false) }
     private lateinit var watchHistoryPrefs: WatchHistoryPreferences
     internal lateinit var historyManager: PlayerHistoryManager
 
@@ -310,6 +314,7 @@ class PlayerActivity : AppCompatActivity() {
         const val EXTRA_LIVE_CHANNEL_IDS = "LIVE_CHANNEL_IDS"
         const val EXTRA_BASE_SERVER_URL = "BASE_SERVER_URL"
         const val EXTRA_LIVE_RETURN_CHANNEL_ID = "LIVE_RETURN_CHANNEL_ID"
+        const val EXTRA_SHARED_LIVE_PLAYER = "SHARED_LIVE_PLAYER"
         const val EXTRA_LIVE_RETURN_CHANNEL_NAME = "LIVE_RETURN_CHANNEL_NAME"
         const val EXTRA_LIVE_RETURN_CHANNEL_LOGO = "LIVE_RETURN_CHANNEL_LOGO"
         const val EXTRA_LIVE_RETURN_EPG_CHANNEL_ID = "LIVE_RETURN_EPG_CHANNEL_ID"
@@ -405,7 +410,8 @@ class PlayerActivity : AppCompatActivity() {
             debridFileIdx: Int? = null,
             subtitles: List<String>? = null,
             expiresAt: Long? = null,
-            seriesId: String? = null
+            seriesId: String? = null,
+            sharedLivePlayer: Boolean = false
         ): Intent {
             return Intent(context, PlayerActivity::class.java).apply {
                 putExtra(EXTRA_STREAM_URL, streamUrl)
@@ -422,6 +428,7 @@ class PlayerActivity : AppCompatActivity() {
                 liveChannelIds?.let { putStringArrayListExtra(EXTRA_LIVE_CHANNEL_IDS, it) }
                 baseServerUrl?.let { putExtra(EXTRA_BASE_SERVER_URL, it) }
                 putExtra(EXTRA_SERIES_ID, seriesId)
+                putExtra(EXTRA_SHARED_LIVE_PLAYER, sharedLivePlayer)
                 startPositionMs?.let { putExtra(EXTRA_START_POSITION, it) }
                 headers?.let { putExtra(EXTRA_STREAM_HEADERS, HashMap(it)) }
                 tmdbId?.let { putExtra(EXTRA_TMDB_ID, it) }
@@ -775,8 +782,10 @@ class PlayerActivity : AppCompatActivity() {
                 manualExit = true
                 updateLastPlaybackPosition()
                 historyManager.recordPlaybackHistoryIfNeeded()
+                val handedBack = handBackSharedPlayerIfNeeded()
                 releasePlayer()
                 finish()
+                if (handedBack) overridePendingTransition(0, 0)
             }
         })
     }
@@ -1834,6 +1843,32 @@ class PlayerActivity : AppCompatActivity() {
                 releasePlayer("reinitialize")
             }
 
+            val isSoftwareAudioEnabled = com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(this).isSoftwareAudioEnabled()
+
+            // Shared hand-off from the Live TV EPG guide: adopt the already-running
+            // preview player (same stream) instead of building a new pipeline, so
+            // going fullscreen never reconnects or rebuffers.
+            val adoptedShared = if (sharedLiveSession && contentType == ContentType.LIVE_TV) {
+                LiveSharedPlayer.adopt(streamUrl)
+            } else {
+                null
+            }
+            if (adoptedShared != null) {
+                didPlaybackComplete = false
+                hasAppliedIndexOverride = false
+                timeoutHandler.removeCallbacks(timeoutRunnable)
+                hasRenderedFirstFrameForCurrentSource = true
+                frameRateMatchedForCurrentSource = false
+                player = adoptedShared.also {
+                    playerView.player = it
+                    it.volume = 1f
+                }
+                PlaybackDiagnosticsRecorder.record(
+                    this,
+                    "player_adopted_shared",
+                    diagnosticsPlaybackFields(streamUrl, null)
+                )
+            } else {
             didPlaybackComplete = false
             hasAppliedIndexOverride = false
             timeoutHandler.removeCallbacks(timeoutRunnable)
@@ -1919,7 +1954,6 @@ class PlayerActivity : AppCompatActivity() {
             }
             trackSelector.parameters = parametersBuilder.build()
 
-            val isSoftwareAudioEnabled = com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(this).isSoftwareAudioEnabled()
             val extensionMode = if (isSoftwareAudioEnabled) DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
             val renderersFactory = DefaultRenderersFactory(this)
                 .setExtensionRendererMode(extensionMode)
@@ -1957,6 +1991,7 @@ class PlayerActivity : AppCompatActivity() {
             player?.prepare()
             if (startPositionMs > 0L) {
                 player?.seekTo(startPositionMs)
+            }
             }
             player?.playWhenReady = true
             // player?.play() removed as playWhenReady=true is sufficient
@@ -2483,6 +2518,32 @@ class PlayerActivity : AppCompatActivity() {
     override fun onStart() { super.onStart(); registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() } }
     override fun onPause() { super.onPause(); player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
     override fun onStop() { super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_stop") }
+
+    /**
+     * Live TV sessions launched from the EPG guide share one ExoPlayer with the
+     * guide's mini preview. On exit, hand the running player back to the guide
+     * (via [LiveSharedPlayer]) instead of releasing it, so playback continues
+     * seamlessly through the shrink-to-mini transition.
+     */
+    private fun handBackSharedPlayerIfNeeded(): Boolean {
+        if (!sharedLiveSession || contentType != ContentType.LIVE_TV) return false
+        val p = player ?: return false
+        playerListener?.let { p.removeListener(it) }
+        playerListener = null
+        debugListener?.let { p.removeListener(it) }
+        debugListener = null
+        stopStallMonitor()
+        timeoutHandler.removeCallbacks(timeoutRunnable)
+        playerView.player = null
+        player = null
+        LiveSharedPlayer.offer(p, currentUrl, contentId)
+        PlaybackDiagnosticsRecorder.record(
+            this,
+            "player_handed_back_shared",
+            diagnosticsPlaybackFields()
+        )
+        return true
+    }
 
     private fun releasePlayer(reason: String = "unspecified") {
         PlaybackDiagnosticsRecorder.record(
