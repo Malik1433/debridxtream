@@ -68,6 +68,13 @@ class LiveTvGuideFragment : Fragment() {
     private var isFullscreen = false
     private var fullscreenReturnFocus: View? = null
 
+    /**
+     * Channel to select in the grid once it (re)loads — set on return from
+     * fullscreen, because the grid data arrives asynchronously and an immediate
+     * focusChannel() can hit an empty/new grid.
+     */
+    private var pendingGridFocusStreamId: String? = null
+
     /** Receives the live-return extras + the shared player when fullscreen exits. */
     private val livePlayerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -173,6 +180,12 @@ class LiveTvGuideFragment : Fragment() {
 
                     if (!state.isLoading) {
                         binding.epgGrid.setData(state.channels, state.windowStartMs, state.windowSpanMinutes, state.nowMs)
+                        // Re-apply the selection carried back from fullscreen zapping
+                        // now that the grid actually has its data.
+                        pendingGridFocusStreamId?.let { id ->
+                            binding.epgGrid.focusChannel(id)
+                            pendingGridFocusStreamId = null
+                        }
                         if (state.channels.isNotEmpty()) binding.epgGrid.requestFocus()
                     }
                 }
@@ -471,18 +484,6 @@ class LiveTvGuideFragment : Fragment() {
         binding.fullscreenCover.visibility = View.VISIBLE
     }
 
-    /** Fade the cover away once live frames are flowing underneath it. */
-    private fun fadeBridgeCover() {
-        if (_binding == null || binding.fullscreenCover.visibility != View.VISIBLE) return
-        binding.fullscreenCover.animate().alpha(0f).setDuration(150).withEndAction {
-            _binding?.let {
-                binding.fullscreenCover.visibility = View.GONE
-                binding.fullscreenCover.setImageDrawable(null)
-                binding.fullscreenCover.alpha = 1f
-            }
-        }.start()
-    }
-
     // ── In-place fullscreen (grows the preview, keeps the same player) ──────
     /** Returns [left, top, width, height] of the preview tile relative to the fragment root. */
     private fun tileRectInRoot(): FloatArray {
@@ -526,14 +527,11 @@ class LiveTvGuideFragment : Fragment() {
         fc.translationX = r[0]
         fc.translationY = r[1]
         fc.visibility = View.VISIBLE
-        // Keep the SAME player rendering while the tile grows — no reconnect.
-        // A snapshot of the current frame covers the bridge until its own
-        // surface renders, so the switch never flashes black.
-        previewPanel?.getPlayer()?.let { p ->
-            showBridgeCover(captureFrame(binding.previewPlayerView))
-            androidx.media3.ui.PlayerView.switchTargetView(p, binding.previewPlayerView, binding.fullscreenPlayerView)
-            onceFirstFrame(p, 600) { fadeBridgeCover() }
-        }
+        // Grow a SNAPSHOT of the preview only. The live player keeps rendering
+        // in the mini underneath — no surface switch here at all. The single
+        // real switch happens inside PlayerActivity, hidden under its own
+        // cover. Fewer switches = no frozen frames.
+        showBridgeCover(captureFrame(binding.previewPlayerView))
         fc.animate().scaleX(1f).scaleY(1f).translationX(0f).translationY(0f)
             .setDuration(360).setInterpolator(OvershootInterpolator(0.5f))
             .withEndAction {
@@ -560,9 +558,10 @@ class LiveTvGuideFragment : Fragment() {
             return
         }
         val streamUrl = stream.toLiveStreamUrl(serverUrl, username, password)
-        // Hand the running player over WITH a snapshot of its latest frame, so
-        // PlayerActivity can cover its own surface warm-up (no black flash).
-        val handOffFrame = captureFrame(binding.fullscreenPlayerView)
+        // Hand the running player over WITH a snapshot of its latest frame
+        // (still rendering in the mini), so PlayerActivity can cover its own
+        // surface warm-up — the one real switch stays invisible.
+        val handOffFrame = captureFrame(binding.previewPlayerView)
         previewPanel?.detachPlayer()?.let { LiveSharedPlayer.offer(it, streamUrl, stream.stream_id, handOffFrame) }
         val intent = PlayerActivity.createIntent(
             context = requireContext(),
@@ -583,8 +582,6 @@ class LiveTvGuideFragment : Fragment() {
         )
         livePlayerLauncher.launch(intent)
         requireActivity().overridePendingTransition(0, 0)
-        // The TextureView keeps its last frame as a visual bridge until we return.
-        binding.fullscreenPlayerView.player = null
     }
 
     /** BACK from fullscreen: adopt the player back and shrink it into the mini tile. */
@@ -602,44 +599,56 @@ class LiveTvGuideFragment : Fragment() {
             // No shared player came back (error / cold exit) — fresh preview instead.
             cancelFullscreenBridge()
             lastPreviewStreamId = null
-            channel?.let { updateDetail(it, it.currentProgram(System.currentTimeMillis())) }
-            (fullscreenReturnFocus ?: binding.epgGrid).requestFocus()
+            channel?.let {
+                updateDetail(it, it.currentProgram(System.currentTimeMillis()))
+                binding.epgGrid.focusChannel(it.streamId)
+                pendingGridFocusStreamId = it.streamId
+            }
+            (fullscreenReturnFocus?.takeIf { it.isAttachedToWindow } ?: binding.epgGrid).requestFocus()
             return
         }
-        // Same player keeps rendering fullscreen, then the drop shrinks into the tile.
-        // The frame PlayerActivity handed over covers the bridge until our own
-        // surface starts rendering — no black in between.
+        // The frame PlayerActivity handed over shrinks into the tile as a
+        // SNAPSHOT, while the player re-attaches DIRECTLY to the mini view
+        // underneath — the only surface switch on the way back, fully hidden
+        // by the moving cover. No frozen video, no black.
         showBridgeCover(returnFrame)
-        binding.fullscreenPlayerView.player = player
-        player.playWhenReady = true
-        onceFirstFrame(player, 600) { fadeBridgeCover() }
+        previewPanel?.adoptPlayer(player, channel.stream)
         lastPreviewStreamId = channel.streamId
         updateDetail(channel, channel.currentProgram(System.currentTimeMillis()))
+        // If the user zapped to another channel in fullscreen, move the grid
+        // selection there so OK doesn't re-tune the previous channel — both now
+        // and whenever the grid data (re)arrives.
+        binding.epgGrid.focusChannel(channel.streamId)
+        pendingGridFocusStreamId = channel.streamId
+
+        var miniPainted = false
+        var shrinkDone = false
+        fun maybeFinishReturn() {
+            if (!miniPainted || !shrinkDone || _binding == null) return
+            cancelFullscreenBridge()
+            (fullscreenReturnFocus?.takeIf { it.isAttachedToWindow } ?: binding.epgGrid).requestFocus()
+        }
+        // Remove the bridge only when BOTH the shrink is done and the mini
+        // surface has painted — never a blank tile in between.
+        onceFirstFrame(player, 800) { miniPainted = true; maybeFinishReturn() }
         val root = binding.root
         val r = tileRectInRoot()
         val fc = binding.fullscreenContainer
         fc.animate().scaleX(r[2] / root.width.toFloat()).scaleY(r[3] / root.height.toFloat())
             .translationX(r[0]).translationY(r[1])
             .setDuration(320).setInterpolator(DecelerateInterpolator())
-            .withEndAction {
-                if (_binding == null) return@withEndAction
-                androidx.media3.ui.PlayerView.switchTargetView(player, binding.fullscreenPlayerView, binding.previewPlayerView)
-                previewPanel?.adoptPlayer(player, channel.stream)
-                // Hold the (tile-sized) bridge over the mini view until the mini
-                // surface renders its first frame, then remove it seamlessly.
-                onceFirstFrame(player, 500) {
-                    if (_binding == null) return@onceFirstFrame
-                    cancelFullscreenBridge()
-                    (fullscreenReturnFocus ?: binding.epgGrid).requestFocus()
-                }
-            }.start()
+            .withEndAction { shrinkDone = true; maybeFinishReturn() }
+            .start()
     }
 
-    /** Hide the fullscreen bridge and reset its transforms. */
+    /** Hide the fullscreen bridge, drop its cover snapshot, reset transforms. */
     private fun cancelFullscreenBridge() {
         val fc = binding.fullscreenContainer
         fc.visibility = View.GONE
         fc.scaleX = 1f; fc.scaleY = 1f; fc.translationX = 0f; fc.translationY = 0f
+        binding.fullscreenCover.visibility = View.GONE
+        binding.fullscreenCover.setImageDrawable(null)
+        binding.fullscreenCover.alpha = 1f
         isFullscreen = false
     }
 

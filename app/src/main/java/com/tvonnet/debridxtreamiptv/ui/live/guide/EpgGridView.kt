@@ -190,6 +190,19 @@ class EpgGridView @JvmOverloads constructor(
         if (hasFocus()) animateHighlight(true)
     }
 
+    /**
+     * Programmatically move the focus/selection to a channel row — used when
+     * returning from fullscreen after the user zapped to another channel there,
+     * so OK doesn't re-tune the previously selected channel.
+     */
+    fun focusChannel(streamId: String) {
+        val idx = channels.indexOfFirst { it.streamId == streamId }
+        if (idx < 0 || idx == focusRow) return
+        focusRow = idx
+        focusProg = -1
+        onFocusMoved(snap = true)
+    }
+
     fun scrollToNow(animated: Boolean) {
         if (nowMinute < 0 || nowMinute > spanMinutes) return
         val target = (nowMinute * ppm - laneViewport / 4f).coerceIn(0f, maxScrollX)
