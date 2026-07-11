@@ -71,6 +71,27 @@ class LiveTvGuideViewModel @Inject constructor(
         return streams.map { toGuideChannel(it, emptyList(), favIds) }
     }
 
+    /**
+     * Show an explicit channel list in the grid (e.g. the results picked from
+     * search), bypassing category loading so the chosen channel is guaranteed
+     * present and selectable → OK on its tile goes fullscreen. Search rows carry
+     * no EPG, so program columns read "No Information" until a category reload.
+     */
+    fun showChannels(channels: List<GuideChannel>) {
+        val window = dayWindow(0)
+        _uiState.update {
+            it.copy(
+                selectedCategoryId = SEARCH_RESULT_CATEGORY_ID,
+                channels = channels,
+                windowStartMs = window.first,
+                windowSpanMinutes = GuideUiState.DAY_SPAN_MINUTES,
+                nowMs = System.currentTimeMillis(),
+                isLoading = false,
+                error = if (channels.isEmpty()) "No channels found." else null
+            )
+        }
+    }
+
     /** Categories whose name matches [query] (client-side filter for unified search). */
     fun filterCategories(query: String): List<GuideCategory> {
         val cats = _uiState.value.categories
@@ -244,5 +265,7 @@ class LiveTvGuideViewModel @Inject constructor(
 
     companion object {
         private const val MAX_CHANNELS = 300
+        // Transient pseudo-category for showing an explicit list (search picks).
+        private const val SEARCH_RESULT_CATEGORY_ID = "search_result"
     }
 }

@@ -502,9 +502,19 @@ class LiveTvGuideFragment : Fragment() {
         val rv = dialogView.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_guide_search_results)
         val empty = dialogView.findViewById<TextView>(R.id.tv_guide_search_empty)
 
+        var lastChannels: List<GuideChannel> = emptyList()
         val adapter = LiveSearchAdapter(
             onCategory = { cat -> dialog.dismiss(); viewModel.selectCategory(cat.id) },
-            onChannel = { ch -> dialog.dismiss(); selectForPreview(ch) }
+            onChannel = { ch ->
+                dialog.dismiss()
+                // Show the matched channels in the grid so the picked one is
+                // present + selected → OK on its tile goes fullscreen.
+                val list = lastChannels.ifEmpty { listOf(ch) }
+                pendingGridFocusStreamId = ch.streamId
+                selectForPreview(ch)
+                viewModel.showChannels(list)
+                binding.epgGrid.focusChannel(ch.streamId)
+            }
         )
         rv.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(ctx)
         rv.adapter = adapter
@@ -516,6 +526,7 @@ class LiveTvGuideFragment : Fragment() {
             job = viewLifecycleOwner.lifecycleScope.launch {
                 val channels = if (query.isBlank()) emptyList() else viewModel.searchChannels(query)
                 if (!isActive) return@launch
+                lastChannels = channels
                 val rows = ArrayList<LiveSearchAdapter.Row>()
                 if (cats.isNotEmpty()) {
                     rows.add(LiveSearchAdapter.Row.Header(getString(R.string.live_guide_search_categories)))
