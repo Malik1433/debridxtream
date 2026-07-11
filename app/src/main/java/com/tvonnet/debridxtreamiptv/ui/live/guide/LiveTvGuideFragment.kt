@@ -514,7 +514,9 @@ class LiveTvGuideFragment : Fragment() {
         // Remember DELIBERATE picks so "Resume Last Channel" can restore them.
         // Skip auto-selects (persist=false) so they never overwrite the real last channel.
         if (persist) channel.streamId.takeIf { it.isNotBlank() }?.let {
-            SettingsPreferences(requireContext()).setLastLiveStreamId(it)
+            val sp = SettingsPreferences(requireContext())
+            sp.setLastLiveStreamId(it)
+            sp.setLastLiveCategoryId(viewModel.uiState.value.selectedCategoryId)
         }
     }
 
@@ -585,6 +587,9 @@ class LiveTvGuideFragment : Fragment() {
 
         rebuild("") // open on the full category list; typing filters + finds channels
         dialog.show()
+        // Fixed window size so the RecyclerView (weight=1) gets a bounded height
+        // and scrolls with focus instead of overflowing the dialog off-screen.
+        dialog.window?.setLayout(dp(860), dp(660))
     }
 
     // ── Seamless transition helpers (never show black between surfaces) ─────

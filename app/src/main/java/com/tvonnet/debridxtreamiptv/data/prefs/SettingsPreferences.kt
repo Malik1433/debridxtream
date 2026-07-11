@@ -160,6 +160,15 @@ class SettingsPreferences(private val context: Context) {
         prefs.edit().putString(KEY_LAST_LIVE_STREAM_ID, streamId).apply()
     }
 
+    /** Category the last channel was watched in, so Resume can reopen that list. */
+    fun getLastLiveCategoryId(): String? {
+        return prefs.getString(KEY_LAST_LIVE_CATEGORY_ID, null)
+    }
+
+    fun setLastLiveCategoryId(categoryId: String?) {
+        prefs.edit().putString(KEY_LAST_LIVE_CATEGORY_ID, categoryId).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "iptv_settings"
         private const val KEY_REFRESH_INTERVAL = "refresh_interval_hours"
@@ -197,6 +206,7 @@ class SettingsPreferences(private val context: Context) {
         // Live TV resume
         const val KEY_RESUME_LAST_LIVE = "resume_last_live"
         const val KEY_LAST_LIVE_STREAM_ID = "last_live_stream_id"
+        const val KEY_LAST_LIVE_CATEGORY_ID = "last_live_category_id"
     }
 }
 

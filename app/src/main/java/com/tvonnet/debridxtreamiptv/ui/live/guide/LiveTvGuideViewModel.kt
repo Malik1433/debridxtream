@@ -7,6 +7,7 @@ import com.tvonnet.debridxtreamiptv.data.local.dao.EpgDao
 import com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity
 import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
+import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.util.FAVORITES_CATEGORY_ID
 import com.tvonnet.debridxtreamiptv.util.GlobalConfig
@@ -60,6 +61,16 @@ class LiveTvGuideViewModel @Inject constructor(
         // not just the first lazily-loaded one. Live-only (no VOD/series) so it
         // stays light and never competes with channel playback.
         runCatching { repository.scheduleLiveIndexSyncIfStale() }
+        // Resume Last Channel: open directly on the category the last channel was
+        // watched in, so it's present + selectable in the grid (not just the mini).
+        runCatching {
+            val sp = SettingsPreferences(context)
+            if (sp.isResumeLastLiveEnabled()) {
+                sp.getLastLiveCategoryId()
+                    ?.takeIf { it != GuideUiState.CATEGORY_ALL && it != SEARCH_RESULT_CATEGORY_ID }
+                    ?.let { cat -> _uiState.update { it.copy(selectedCategoryId = cat) } }
+            }
+        }
         load()
     }
 

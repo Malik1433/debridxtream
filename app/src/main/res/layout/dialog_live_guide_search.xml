@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Unified search overlay for the Live TV guide (categories + channels). -->
+<!-- Unified search overlay for the Live TV guide (categories + channels).
+     Root fills the fixed dialog window; the RecyclerView takes the remaining
+     height (weight=1) so it is always bounded and scrolls with focus. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="820dp"
-    android:layout_height="wrap_content"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@color/surface_elevated"
     android:padding="28dp">
@@ -32,14 +34,6 @@
         android:focusable="true"
         android:focusableInTouchMode="true" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_guide_search_results"
-        android:layout_width="match_parent"
-        android:layout_height="480dp"
-        android:layout_marginTop="16dp"
-        android:clipToPadding="false"
-        android:descendantFocusability="afterDescendants" />
-
     <TextView
         android:id="@+id/tv_guide_search_empty"
         android:layout_width="match_parent"
@@ -51,5 +45,14 @@
         android:textColor="@color/text_tertiary"
         android:textSize="15sp"
         android:visibility="gone" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_guide_search_results"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="16dp"
+        android:clipToPadding="false"
+        android:descendantFocusability="afterDescendants" />
 
 </LinearLayout>
