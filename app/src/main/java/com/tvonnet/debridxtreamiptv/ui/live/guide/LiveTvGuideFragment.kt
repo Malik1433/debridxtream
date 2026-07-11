@@ -78,6 +78,12 @@ class LiveTvGuideFragment : Fragment() {
      */
     private var pendingGridFocusStreamId: String? = null
 
+    /** Guards the resume "beyond-cap" fetch so repeated state emissions don't re-launch it. */
+    private var resumeInFlight = false
+
+    /** Shared prefs accessor (SharedPreferences is process-cached; just avoid re-allocating). */
+    private val settingsPrefs by lazy { SettingsPreferences(requireContext()) }
+
     /** Receives the live-return extras + the shared player when fullscreen exits. */
     private val livePlayerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -157,7 +163,7 @@ class LiveTvGuideFragment : Fragment() {
     }
 
     private fun applyGridConfig() {
-        val prefs = SettingsPreferences(requireContext())
+        val prefs = settingsPrefs
         val rowH = when (prefs.getEpgRowDensity()) {
             SettingsPreferences.DENSITY_COZY -> R.dimen.epg_row_cozy
             SettingsPreferences.DENSITY_ROOMY -> R.dimen.epg_row_roomy
@@ -200,9 +206,9 @@ class LiveTvGuideFragment : Fragment() {
                         // auto-select once (like TiviMate). If "Resume Last Channel"
                         // is on, start on the last-watched channel instead.
                         if (previewChannel == null && state.channels.isNotEmpty() && !isFullscreen) {
-                            val prefs = SettingsPreferences(requireContext())
-                            val lastId = prefs.getLastLiveStreamId()
-                            val inList = if (prefs.isResumeLastLiveEnabled() && lastId != null) {
+                            val lastId = settingsPrefs.getLastLiveStreamId()
+                            val resume = settingsPrefs.isResumeLastLiveEnabled() && lastId != null
+                            val inList = if (resume) {
                                 state.channels.firstOrNull { it.streamId == lastId }
                             } else null
                             when {
@@ -210,14 +216,21 @@ class LiveTvGuideFragment : Fragment() {
                                     selectForPreview(inList, persist = false)
                                     binding.epgGrid.focusChannel(inList.streamId)
                                 }
-                                prefs.isResumeLastLiveEnabled() && lastId != null -> {
+                                resume -> {
                                     // Saved channel isn't in the loaded list (e.g. beyond
-                                    // the "All" cap) — fetch it from the full index and play
-                                    // it in the mini; grid stays on the first tile.
-                                    val fallback = state.channels.first()
-                                    viewLifecycleOwner.lifecycleScope.launch {
-                                        val ch = viewModel.getChannelById(lastId)
-                                        if (previewChannel == null) selectForPreview(ch ?: fallback, persist = false)
+                                    // the "All" cap) — fetch it from the full index once and
+                                    // play it in the mini; grid stays on the first tile.
+                                    if (!resumeInFlight) {
+                                        resumeInFlight = true
+                                        val fallback = state.channels.first()
+                                        viewLifecycleOwner.lifecycleScope.launch {
+                                            try {
+                                                val ch = viewModel.getChannelById(lastId!!)
+                                                if (previewChannel == null) selectForPreview(ch ?: fallback, persist = false)
+                                            } finally {
+                                                resumeInFlight = false
+                                            }
+                                        }
                                     }
                                 }
                                 else -> selectForPreview(state.channels.first(), persist = false)
@@ -514,9 +527,8 @@ class LiveTvGuideFragment : Fragment() {
         // Remember DELIBERATE picks so "Resume Last Channel" can restore them.
         // Skip auto-selects (persist=false) so they never overwrite the real last channel.
         if (persist) channel.streamId.takeIf { it.isNotBlank() }?.let {
-            val sp = SettingsPreferences(requireContext())
-            sp.setLastLiveStreamId(it)
-            sp.setLastLiveCategoryId(viewModel.uiState.value.selectedCategoryId)
+            settingsPrefs.setLastLiveStreamId(it)
+            settingsPrefs.setLastLiveCategoryId(viewModel.uiState.value.selectedCategoryId)
         }
     }
 

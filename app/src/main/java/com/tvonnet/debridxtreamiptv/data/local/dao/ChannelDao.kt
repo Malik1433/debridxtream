@@ -77,4 +77,8 @@ interface ChannelDao {
     /** All live channels across the whole index (search-index + lazily-browsed rows). */
     @Query("SELECT * FROM channels WHERE streamType = 'live'")
     suspend fun getAllLiveChannels(): List<ChannelEntity>
+
+    /** Deduped count of live channels — cheap badge for the "All" tab (no row materialize). */
+    @Query("SELECT COUNT(DISTINCT streamId) FROM channels WHERE streamType = 'live'")
+    suspend fun countAllLiveChannels(): Int
 }

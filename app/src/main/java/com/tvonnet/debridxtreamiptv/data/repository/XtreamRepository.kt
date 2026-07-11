@@ -2298,6 +2298,11 @@ class XtreamRepository @Inject constructor(
         return cacheManager?.getAllLiveChannels() ?: emptyList()
     }
 
+    /** Deduped live-channel count for the "All" badge (cheaper than materializing the list). */
+    suspend fun countAllLiveChannels(): Int {
+        return cacheManager?.countAllLiveChannels() ?: 0
+    }
+
     suspend fun searchEpg(query: String): List<com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity> {
         return epgDao?.searchPrograms(query, System.currentTimeMillis()) ?: emptyList()
     }

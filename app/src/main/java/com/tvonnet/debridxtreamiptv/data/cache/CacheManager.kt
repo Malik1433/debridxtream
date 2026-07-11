@@ -397,10 +397,22 @@ class CacheManager @Inject constructor(
         return try {
             channelDao.getAllLiveChannels()
                 .map { it.toXtreamStream() }
-                .distinctBy { it.stream_id ?: "${it.num}_${it.name}" }
+                // Dedupe by real stream id only; never merge blank-id rows (they are
+                // distinct channels — a "${num}_${name}" fallback would collide "null_X").
+                .distinctBy { it.stream_id?.takeIf { s -> s.isNotBlank() } ?: it }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load all live channels", e)
             emptyList()
+        }
+    }
+
+    /** Deduped count of live channels for the "All" badge (avoids a full row scan). */
+    suspend fun countAllLiveChannels(): Int {
+        return try {
+            channelDao.countAllLiveChannels()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to count all live channels", e)
+            0
         }
     }
 

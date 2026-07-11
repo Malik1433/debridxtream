@@ -138,6 +138,9 @@ class LiveTvGuideViewModel @Inject constructor(
 
     fun selectDay(dayIndex: Int) {
         if (dayIndex == _uiState.value.dayIndex) return
+        // Search-result view is an ad-hoc list with no per-day EPG to reload —
+        // ignore day switches so the grid isn't wiped (see loadChannels guard).
+        if (_uiState.value.selectedCategoryId == SEARCH_RESULT_CATEGORY_ID) return
         _uiState.update { it.copy(dayIndex = dayIndex) }
         loadChannels()
     }
@@ -163,7 +166,7 @@ class LiveTvGuideViewModel @Inject constructor(
         val cache = repository.readCache()
         val liveCats = cache?.live?.categories ?: repository.ensureLiveCategories()
         val streams = cache?.live?.streams ?: emptyList()
-        val allCount = repository.getAllLiveChannels().size.takeIf { it > 0 } ?: streams.size
+        val allCount = repository.countAllLiveChannels().takeIf { it > 0 } ?: streams.size
         val result = mutableListOf(
             GuideCategory(GuideUiState.CATEGORY_ALL, "All", allCount),
             GuideCategory(FAVORITES_CATEGORY_ID, "★ Favorites", favoriteIds().size)
@@ -184,6 +187,9 @@ class LiveTvGuideViewModel @Inject constructor(
     }
 
     private fun loadChannels() {
+        // Keep the search-result list as-is: it's an explicit set pushed by
+        // showChannels(), not a category to (re)fetch (which would blank the grid).
+        if (_uiState.value.selectedCategoryId == SEARCH_RESULT_CATEGORY_ID) return
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             val state = _uiState.value
