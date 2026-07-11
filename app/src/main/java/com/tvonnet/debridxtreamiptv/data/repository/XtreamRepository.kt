@@ -2333,6 +2333,30 @@ class XtreamRepository @Inject constructor(
         }
     }
 
+    /**
+     * Live-only index refresh for the Live TV guide. Unlike the full search
+     * index it fetches ONLY the live catalog (no VOD/series) so it stays light
+     * and never competes with channel playback for the server's connections.
+     */
+    fun scheduleLiveIndexSyncIfStale() {
+        if (!isIndexStageStale(KEY_SEARCH_INDEX_LIVE_TIME)) return
+        searchIndexScope.launch {
+            val service = apiService ?: return@launch
+            if (!searchIndexMutex.tryLock()) return@launch
+            try {
+                if (isIndexStageStale(KEY_SEARCH_INDEX_LIVE_TIME) && indexLiveCatalog(service)) {
+                    markIndexStageFresh(KEY_SEARCH_INDEX_LIVE_TIME)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Live index sync failed: ${e.javaClass.simpleName}")
+            } finally {
+                searchIndexMutex.unlock()
+            }
+        }
+    }
+
     private fun isIndexStageStale(stageKey: String): Boolean {
         return System.currentTimeMillis() - syncPrefs.getLong(stageKey, 0L) >= SEARCH_INDEX_REFRESH_INTERVAL_MS
     }

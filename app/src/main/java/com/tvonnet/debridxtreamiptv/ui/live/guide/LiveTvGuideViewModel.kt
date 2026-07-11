@@ -56,9 +56,10 @@ class LiveTvGuideViewModel @Inject constructor(
 
     init {
         initializeRepository()
-        // Build/refresh the full live-channel index so "All" and search cover
-        // every category, not just the first lazily-loaded one.
-        runCatching { repository.scheduleSearchIndexSyncIfStale() }
+        // Build/refresh the LIVE index so "All" and search cover every category,
+        // not just the first lazily-loaded one. Live-only (no VOD/series) so it
+        // stays light and never competes with channel playback.
+        runCatching { repository.scheduleLiveIndexSyncIfStale() }
         load()
     }
 
