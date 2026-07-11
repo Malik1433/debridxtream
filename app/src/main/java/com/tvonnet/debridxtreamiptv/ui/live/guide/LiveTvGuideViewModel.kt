@@ -56,7 +56,26 @@ class LiveTvGuideViewModel @Inject constructor(
 
     init {
         initializeRepository()
+        // Build/refresh the full live-channel index so "All" and search cover
+        // every category, not just the first lazily-loaded one.
+        runCatching { repository.scheduleSearchIndexSyncIfStale() }
         load()
+    }
+
+    /** Channels matching [query] across the whole live index (for unified search). */
+    suspend fun searchChannels(query: String): List<GuideChannel> {
+        if (query.isBlank()) return emptyList()
+        val favIds = favoriteIds()
+        val streams = withContext(Dispatchers.IO) { repository.searchLive(query.trim()) }
+        return streams.map { toGuideChannel(it, emptyList(), favIds) }
+    }
+
+    /** Categories whose name matches [query] (client-side filter for unified search). */
+    fun filterCategories(query: String): List<GuideCategory> {
+        val cats = _uiState.value.categories
+        val q = query.trim()
+        if (q.isBlank()) return cats
+        return cats.filter { it.name.contains(q, ignoreCase = true) }
     }
 
     private fun initializeRepository() {
@@ -102,8 +121,9 @@ class LiveTvGuideViewModel @Inject constructor(
         val cache = repository.readCache()
         val liveCats = cache?.live?.categories ?: repository.ensureLiveCategories()
         val streams = cache?.live?.streams ?: emptyList()
+        val allCount = repository.getAllLiveChannels().size.takeIf { it > 0 } ?: streams.size
         val result = mutableListOf(
-            GuideCategory(GuideUiState.CATEGORY_ALL, "All", streams.size),
+            GuideCategory(GuideUiState.CATEGORY_ALL, "All", allCount),
             GuideCategory(FAVORITES_CATEGORY_ID, "★ Favorites", favoriteIds().size)
         )
         // Per-category counts are unknown until the category is opened (channels are
@@ -136,7 +156,9 @@ class LiveTvGuideViewModel @Inject constructor(
                 // Match the classic screen: fetch a real category's channels on demand
                 // (API/DB), not just whatever happens to be in the cache.
                 val filtered = when (state.selectedCategoryId) {
-                    GuideUiState.CATEGORY_ALL -> allStreams
+                    // Full catalog from the index; fall back to the partial cache
+                    // if the index hasn't synced yet (never worse than before).
+                    GuideUiState.CATEGORY_ALL -> repository.getAllLiveChannels().ifEmpty { allStreams }
                     FAVORITES_CATEGORY_ID -> favIds.mapNotNull { id ->
                         runCatching { repository.getLiveStreamById(id) }.getOrNull()
                     }

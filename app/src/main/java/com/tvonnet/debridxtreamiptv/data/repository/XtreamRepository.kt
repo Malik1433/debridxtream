@@ -2293,6 +2293,11 @@ class XtreamRepository @Inject constructor(
         return cacheManager?.searchChannels(query) ?: emptyList()
     }
 
+    /** Full live-channel catalog from the index (backs the guide's "All" tab). */
+    suspend fun getAllLiveChannels(): List<XtreamStream> {
+        return cacheManager?.getAllLiveChannels() ?: emptyList()
+    }
+
     suspend fun searchEpg(query: String): List<com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity> {
         return epgDao?.searchPrograms(query, System.currentTimeMillis()) ?: emptyList()
     }

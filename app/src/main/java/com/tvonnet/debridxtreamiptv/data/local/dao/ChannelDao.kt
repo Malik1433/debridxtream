@@ -73,4 +73,8 @@ interface ChannelDao {
 
     @Query("SELECT streamId FROM channels")
     suspend fun getAllChannelIds(): List<String>
+
+    /** All live channels across the whole index (search-index + lazily-browsed rows). */
+    @Query("SELECT * FROM channels WHERE streamType = 'live'")
+    suspend fun getAllLiveChannels(): List<ChannelEntity>
 }

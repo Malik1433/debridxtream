@@ -390,6 +390,21 @@ class CacheManager @Inject constructor(
     }
 
     /**
+     * Every live channel in the index (full catalog), deduped by stream id.
+     * Backs the "All" tab so it isn't limited to the first lazily-loaded category.
+     */
+    suspend fun getAllLiveChannels(): List<XtreamStream> {
+        return try {
+            channelDao.getAllLiveChannels()
+                .map { it.toXtreamStream() }
+                .distinctBy { it.stream_id ?: "${it.num}_${it.name}" }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load all live channels", e)
+            emptyList()
+        }
+    }
+
+    /**
      * Search-index support: add channels the table doesn't know yet so global
      * search covers never-opened categories. Rows are inserted under a
      * synthetic category id that no browse query uses, and EXISTING rows are

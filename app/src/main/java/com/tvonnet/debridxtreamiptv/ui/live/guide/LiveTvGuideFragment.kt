@@ -209,12 +209,36 @@ class LiveTvGuideFragment : Fragment() {
     }
 
     // ── Category chips ──────────────────────────────────────────────────
+    private val TAG_SEARCH_CHIP = "__guide_search__"
+
     private fun buildChipsIfNeeded(state: GuideUiState) {
         val signature = state.categories.joinToString("|") { it.id }
         if (signature == builtCategoriesSignature) return
         builtCategoriesSignature = signature
         binding.chipsContainer.removeAllViews()
         val chips = ArrayList<TextView>()
+        // Unified search — always the first chip; OK opens the search overlay.
+        val searchChip = TextView(requireContext()).apply {
+            id = View.generateViewId()
+            text = "🔍  Search"
+            textSize = 13f
+            setPadding(dp(16), dp(9), dp(16), dp(9))
+            isFocusable = true
+            isSingleLine = true
+            background = chipOutline()
+            setTextColor(pillTextColors())
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = dp(10) }
+            tag = TAG_SEARCH_CHIP
+            setOnClickListener { showSearchDialog() }
+            setOnFocusChangeListener { v, hasFocus ->
+                if (hasFocus) moveHighlightTo(v)
+                else v.post { if (binding.chipsContainer.findFocus() == null) hideHighlight() }
+            }
+        }
+        chips.add(searchChip)
+        binding.chipsContainer.addView(searchChip)
         state.categories.forEach { cat ->
             val chip = TextView(requireContext()).apply {
                 id = View.generateViewId()
@@ -465,6 +489,64 @@ class LiveTvGuideFragment : Fragment() {
         binding.epgGrid.setPlayingChannel(channel.streamId)
         previewPanel?.play(channel.stream)
         previewPanel?.setVolume(1f)
+    }
+
+    // ── Unified search overlay (categories + channels) ─────────────────────
+    private fun showSearchDialog() {
+        val ctx = requireContext()
+        val dialogView = LayoutInflater.from(ctx).inflate(R.layout.dialog_live_guide_search, null)
+        val dialog = android.app.AlertDialog.Builder(ctx).setView(dialogView).create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val etSearch = dialogView.findViewById<android.widget.EditText>(R.id.et_guide_search)
+        val rv = dialogView.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_guide_search_results)
+        val empty = dialogView.findViewById<TextView>(R.id.tv_guide_search_empty)
+
+        val adapter = LiveSearchAdapter(
+            onCategory = { cat -> dialog.dismiss(); viewModel.selectCategory(cat.id) },
+            onChannel = { ch -> dialog.dismiss(); selectForPreview(ch) }
+        )
+        rv.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(ctx)
+        rv.adapter = adapter
+
+        var job: kotlinx.coroutines.Job? = null
+        fun rebuild(query: String) {
+            job?.cancel()
+            val cats = viewModel.filterCategories(query)
+            job = viewLifecycleOwner.lifecycleScope.launch {
+                val channels = if (query.isBlank()) emptyList() else viewModel.searchChannels(query)
+                if (!isActive) return@launch
+                val rows = ArrayList<LiveSearchAdapter.Row>()
+                if (cats.isNotEmpty()) {
+                    rows.add(LiveSearchAdapter.Row.Header(getString(R.string.live_guide_search_categories)))
+                    cats.forEach { rows.add(LiveSearchAdapter.Row.CategoryRow(it)) }
+                }
+                if (channels.isNotEmpty()) {
+                    rows.add(LiveSearchAdapter.Row.Header(getString(R.string.live_guide_search_channels)))
+                    channels.forEach { rows.add(LiveSearchAdapter.Row.ChannelRow(it)) }
+                }
+                adapter.submit(rows)
+                val isEmpty = rows.isEmpty()
+                empty.visibility = if (isEmpty && query.isNotBlank()) View.VISIBLE else View.GONE
+                rv.visibility = if (isEmpty) View.GONE else View.VISIBLE
+            }
+        }
+
+        etSearch.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) { rebuild(s?.toString().orEmpty()) }
+        })
+
+        etSearch.requestFocus()
+        etSearch.postDelayed({
+            (ctx.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+                as? android.view.inputmethod.InputMethodManager)
+                ?.showSoftInput(etSearch, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }, 100)
+
+        rebuild("") // open on the full category list; typing filters + finds channels
+        dialog.show()
     }
 
     // ── Seamless transition helpers (never show black between surfaces) ─────

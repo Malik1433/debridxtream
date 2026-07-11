@@ -109,6 +109,11 @@
     <string name="search_series_results">Series (%1$d)</string>
     <string name="search_programs_results">Programs (%1$d)</string>
     <string name="live_category_search_hint">Search categories</string>
+    <string name="live_guide_search_hint">Search</string>
+    <string name="live_guide_search_field_hint">Type a category or channel name…</string>
+    <string name="live_guide_search_empty">No categories or channels match</string>
+    <string name="live_guide_search_categories">CATEGORIES</string>
+    <string name="live_guide_search_channels">CHANNELS</string>
     <string name="stream_icon">Stream Icon</string>
     <string name="search_limited_cache_hint">💡 Tip: Browse more categories in Live TV, Movies, and Series to load more content for searching.</string>
     

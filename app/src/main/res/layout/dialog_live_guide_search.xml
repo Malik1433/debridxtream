@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Unified search overlay for the Live TV guide (categories + channels). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="820dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/surface_elevated"
+    android:padding="28dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/live_guide_search_hint"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary_new"
+        android:layout_marginBottom="18dp" />
+
+    <EditText
+        android:id="@+id/et_guide_search"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/live_guide_search_field_hint"
+        android:textSize="18sp"
+        android:textColor="@color/text_primary_new"
+        android:textColorHint="@color/text_tertiary"
+        android:background="@color/surface_dark"
+        android:padding="16dp"
+        android:inputType="text"
+        android:imeOptions="actionSearch"
+        android:nextFocusDown="@+id/rv_guide_search_results"
+        android:focusable="true"
+        android:focusableInTouchMode="true" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_guide_search_results"
+        android:layout_width="match_parent"
+        android:layout_height="480dp"
+        android:layout_marginTop="16dp"
+        android:clipToPadding="false"
+        android:descendantFocusability="afterDescendants" />
+
+    <TextView
+        android:id="@+id/tv_guide_search_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingTop="24dp"
+        android:paddingBottom="24dp"
+        android:text="@string/live_guide_search_empty"
+        android:textColor="@color/text_tertiary"
+        android:textSize="15sp"
+        android:visibility="gone" />
+
+</LinearLayout>
