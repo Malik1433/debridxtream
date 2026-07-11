@@ -65,6 +65,9 @@ class LiveTvGuideFragment : Fragment() {
     private var highlightShown = false
 
     private var currentChannel: GuideChannel? = null
+
+    /** The deliberately SELECTED channel playing in the mini preview (OK to change). */
+    private var previewChannel: GuideChannel? = null
     private var isFullscreen = false
     private var fullscreenReturnFocus: View? = null
 
@@ -116,9 +119,12 @@ class LiveTvGuideFragment : Fragment() {
         )
         viewLifecycleOwner.lifecycle.addObserver(previewPanel!!)
 
-        // Preview tile: OK grows the preview into the fullscreen Live TV player.
+        // Preview tile: OK grows the PLAYING channel into the fullscreen player.
         // The focus ring is drawn on the video bridge (it covers the tile).
-        binding.previewTile.setOnClickListener { currentChannel?.let { enterFullscreenFor(it) } }
+        binding.previewTile.setOnClickListener {
+            previewChannel?.let { enterFullscreenFor(it) }
+                ?: currentChannel?.let { selectForPreview(it) }
+        }
         binding.previewTile.setOnFocusChangeListener { _, hasFocus ->
             binding.fullscreenContainer.foreground =
                 if (hasFocus) ContextCompat.getDrawable(requireContext(), R.drawable.bg_epg_focus_ring_thick) else null
@@ -129,10 +135,10 @@ class LiveTvGuideFragment : Fragment() {
 
         binding.epgGrid.listener = object : EpgGridView.Listener {
             override fun onFocusChanged(channel: GuideChannel, program: GuideProgram?) = updateDetail(channel, program)
-            // Fullscreen = grow morph → hand the running player to PlayerActivity
-            // (EPG overlay, details, channel zapping) — no reconnect either way.
-            override fun onProgramSelected(channel: GuideChannel, program: GuideProgram?) = enterFullscreenFor(channel)
-            override fun onChannelSelected(channel: GuideChannel) = enterFullscreenFor(channel)
+            // Standard TV pattern: focus browses, first OK selects (mini preview
+            // tunes), OK again on the playing channel goes fullscreen.
+            override fun onProgramSelected(channel: GuideChannel, program: GuideProgram?) = selectOrFullscreen(channel)
+            override fun onChannelSelected(channel: GuideChannel) = selectOrFullscreen(channel)
             override fun onExitLeft() {
                 binding.chipsContainer.getChildAt(selectedChipIndex())?.requestFocus()
             }
@@ -189,6 +195,11 @@ class LiveTvGuideFragment : Fragment() {
                         pendingGridFocusStreamId?.let { id ->
                             binding.epgGrid.focusChannel(id)
                             pendingGridFocusStreamId = null
+                        }
+                        // Something should always be playing when the guide opens:
+                        // auto-select the first channel once (like TiviMate).
+                        if (previewChannel == null && state.channels.isNotEmpty() && !isFullscreen) {
+                            selectForPreview(state.channels.first())
                         }
                         if (state.channels.isNotEmpty()) binding.epgGrid.requestFocus()
                     }
@@ -386,8 +397,6 @@ class LiveTvGuideFragment : Fragment() {
         binding.tvTileInitials.text = channel.initials()
         binding.tvTileName.text = channel.name
 
-        schedulePreview(channel.stream)
-
         binding.tvBadgeQuality.visibility = if (channel.quality != null) View.VISIBLE else View.GONE
         binding.tvBadgeQuality.text = channel.quality ?: ""
 
@@ -434,19 +443,28 @@ class LiveTvGuideFragment : Fragment() {
         binding.btnPrimary.text = if (ended || isNow) "Add to Favorites" else "Set Reminder"
     }
 
-    /** Debounced live preview: only start playing once focus settles on a channel. */
-    private fun schedulePreview(stream: XtreamStream) {
-        val id = stream.stream_id ?: return
-        if (id == lastPreviewStreamId && previewPanel?.getPlayer() != null) return
-        pendingPreview?.let { previewHandler.removeCallbacks(it) }
-        val r = Runnable {
-            if (_binding == null || isFullscreen) return@Runnable
-            lastPreviewStreamId = id
-            previewPanel?.play(stream)
-            previewPanel?.setVolume(1f)   // mini preview plays with sound
+    /**
+     * Standard TV pattern: focus only browses; OK selects. First OK on a
+     * channel tunes the mini preview to it; OK again (on the channel that is
+     * already previewing) goes fullscreen.
+     */
+    private fun selectOrFullscreen(channel: GuideChannel) {
+        val id = channel.streamId
+        if (id.isNotEmpty() && id == lastPreviewStreamId && previewPanel?.getPlayer() != null) {
+            enterFullscreenFor(channel)
+        } else {
+            selectForPreview(channel)
         }
-        pendingPreview = r
-        previewHandler.postDelayed(r, 450)
+    }
+
+    /** Deliberate selection: tune the mini preview to this channel (with sound). */
+    private fun selectForPreview(channel: GuideChannel) {
+        pendingPreview?.let { previewHandler.removeCallbacks(it) }
+        previewChannel = channel
+        lastPreviewStreamId = channel.streamId
+        binding.epgGrid.setPlayingChannel(channel.streamId)
+        previewPanel?.play(channel.stream)
+        previewPanel?.setVolume(1f)
     }
 
     // ── Seamless transition helpers (never show black between surfaces) ─────
@@ -595,6 +613,7 @@ class LiveTvGuideFragment : Fragment() {
             lastPreviewStreamId = null
             channel?.let {
                 updateDetail(it, it.currentProgram(System.currentTimeMillis()))
+                selectForPreview(it)
                 binding.epgGrid.focusChannel(it.streamId)
                 pendingGridFocusStreamId = it.streamId
             }
@@ -609,7 +628,9 @@ class LiveTvGuideFragment : Fragment() {
         binding.fullscreenContainer.visibility = View.VISIBLE
         showBridgeCover(returnFrame)
         previewPanel?.adoptPlayer(player, channel.stream)
+        previewChannel = channel
         lastPreviewStreamId = channel.streamId
+        binding.epgGrid.setPlayingChannel(channel.streamId)
         updateDetail(channel, channel.currentProgram(System.currentTimeMillis()))
         // If the user zapped to another channel in fullscreen, move the grid
         // selection there so OK doesn't re-tune the previous channel — both now

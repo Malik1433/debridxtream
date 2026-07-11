@@ -190,6 +190,16 @@ class EpgGridView @JvmOverloads constructor(
         if (hasFocus()) animateHighlight(true)
     }
 
+    // The channel currently playing in the mini preview (name drawn in cyan).
+    private var playingStreamId: String? = null
+
+    /** Mark the channel that is playing in the mini preview. */
+    fun setPlayingChannel(streamId: String?) {
+        if (playingStreamId == streamId) return
+        playingStreamId = streamId
+        invalidate()
+    }
+
     /**
      * Programmatically move the focus/selection to a channel row — used when
      * returning from fullscreen after the user zapped to another channel there,
@@ -417,8 +427,8 @@ class EpgGridView @JvmOverloads constructor(
                 textDisplay.textSize = sp(10f)
                 canvas.drawText("★", tileLeft + tileSize - dp(7f), tileTop + dp(9f), textDisplay)
             }
-            // channel name
-            textDisplay.color = cTextPrimary
+            // channel name (cyan for the channel playing in the mini preview)
+            textDisplay.color = if (ch.streamId == playingStreamId) cCyan else cTextPrimary
             textDisplay.textSize = sp(13f)
             val nameLeft = tileLeft + tileSize + dp(10f)
             val name = ellipsize(ch.name, textDisplay, channelColWidth - nameLeft - dp(8f))
