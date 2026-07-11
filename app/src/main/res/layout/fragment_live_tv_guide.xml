@@ -56,16 +56,6 @@
                         android:text="" />
                 </LinearLayout>
 
-                <androidx.media3.ui.PlayerView
-                    android:id="@+id/preview_player_view"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:visibility="gone"
-                    app:use_controller="false"
-                    app:resize_mode="zoom"
-                    app:keep_content_on_player_reset="true"
-                    app:surface_type="texture_view" />
-
                 <TextView
                     android:id="@+id/tv_badge_live"
                     android:layout_width="wrap_content"
@@ -325,30 +315,35 @@
         android:fontFamily="sans-serif-medium"
         android:text="● Jump to Now" />
 
-    <!-- Fullscreen transition bridge: the preview player grows in this overlay
-         (same ExoPlayer via PlayerView.switchTargetView), then the running player
-         is handed to PlayerActivity — and shrinks back here on return. -->
+    <!-- Persistent video bridge: the ONE PlayerView the guide ever renders live
+         video into. At rest it is scaled/translated onto the preview tile (mini
+         mode); on OK it grows to fullscreen with LIVE video (TextureView keeps
+         rendering through transforms — zero surface switches in the guide),
+         then the running player is handed to PlayerActivity. On return it
+         re-adopts the player (the only switch, hidden under the frame cover)
+         and shrinks live back onto the tile. -->
     <FrameLayout
         android:id="@+id/fullscreen_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#000000"
+        android:background="@android:color/transparent"
         android:clickable="true"
         android:focusable="false"
         android:elevation="24dp"
         android:visibility="gone">
 
         <androidx.media3.ui.PlayerView
-            android:id="@+id/fullscreen_player_view"
+            android:id="@+id/preview_player_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:focusable="false"
             app:use_controller="false"
             app:resize_mode="zoom"
             app:keep_content_on_player_reset="true"
+            app:shutter_background_color="@android:color/transparent"
             app:surface_type="texture_view" />
 
-        <!-- Snapshot of the last rendered frame, shown while the new surface
+        <!-- Snapshot of the last rendered frame, shown while a new surface
              warms up so the hand-off never flashes black. -->
         <ImageView
             android:id="@+id/fullscreen_cover"
