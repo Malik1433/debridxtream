@@ -198,15 +198,30 @@ class LiveTvGuideFragment : Fragment() {
                         }
                         // Something should always be playing when the guide opens:
                         // auto-select once (like TiviMate). If "Resume Last Channel"
-                        // is on and that channel is in the list, start there instead.
+                        // is on, start on the last-watched channel instead.
                         if (previewChannel == null && state.channels.isNotEmpty() && !isFullscreen) {
                             val prefs = SettingsPreferences(requireContext())
-                            val start = if (prefs.isResumeLastLiveEnabled()) {
-                                val lastId = prefs.getLastLiveStreamId()
-                                state.channels.firstOrNull { it.streamId == lastId } ?: state.channels.first()
-                            } else state.channels.first()
-                            selectForPreview(start)
-                            binding.epgGrid.focusChannel(start.streamId)
+                            val lastId = prefs.getLastLiveStreamId()
+                            val inList = if (prefs.isResumeLastLiveEnabled() && lastId != null) {
+                                state.channels.firstOrNull { it.streamId == lastId }
+                            } else null
+                            when {
+                                inList != null -> {
+                                    selectForPreview(inList, persist = false)
+                                    binding.epgGrid.focusChannel(inList.streamId)
+                                }
+                                prefs.isResumeLastLiveEnabled() && lastId != null -> {
+                                    // Saved channel isn't in the loaded list (e.g. beyond
+                                    // the "All" cap) — fetch it from the full index and play
+                                    // it in the mini; grid stays on the first tile.
+                                    val fallback = state.channels.first()
+                                    viewLifecycleOwner.lifecycleScope.launch {
+                                        val ch = viewModel.getChannelById(lastId)
+                                        if (previewChannel == null) selectForPreview(ch ?: fallback, persist = false)
+                                    }
+                                }
+                                else -> selectForPreview(state.channels.first(), persist = false)
+                            }
                         }
                         if (state.channels.isNotEmpty()) binding.epgGrid.requestFocus()
                     }
@@ -489,15 +504,16 @@ class LiveTvGuideFragment : Fragment() {
     }
 
     /** Deliberate selection: tune the mini preview to this channel (with sound). */
-    private fun selectForPreview(channel: GuideChannel) {
+    private fun selectForPreview(channel: GuideChannel, persist: Boolean = true) {
         pendingPreview?.let { previewHandler.removeCallbacks(it) }
         previewChannel = channel
         lastPreviewStreamId = channel.streamId
         binding.epgGrid.setPlayingChannel(channel.streamId)
         previewPanel?.play(channel.stream)
         previewPanel?.setVolume(1f)
-        // Remember what's playing so "Resume Last Channel" can restore it next open.
-        channel.streamId.takeIf { it.isNotBlank() }?.let {
+        // Remember DELIBERATE picks so "Resume Last Channel" can restore them.
+        // Skip auto-selects (persist=false) so they never overwrite the real last channel.
+        if (persist) channel.streamId.takeIf { it.isNotBlank() }?.let {
             SettingsPreferences(requireContext()).setLastLiveStreamId(it)
         }
     }

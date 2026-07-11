@@ -10,6 +10,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.util.GlideUtils
@@ -78,11 +79,15 @@ class LiveSearchAdapter(
                     isClickable = true
                     setOnFocusChangeListener { v, has ->
                         v.setBackgroundColor(if (has) focusColor else Color.TRANSPARENT)
-                        // Keep the focused row on screen — LinearLayoutManager's
-                        // auto-scroll can lag on long D-pad runs, so scroll explicitly.
+                        // Keep the focused row visible. smoothScrollToPosition does
+                        // nothing when the target is already partially attached, so
+                        // force the position (offset ~1/3 down) to always scroll.
                         if (has) (v.parent as? RecyclerView)?.let { rv ->
                             val pos = rv.getChildAdapterPosition(v)
-                            if (pos != RecyclerView.NO_POSITION) rv.smoothScrollToPosition(pos)
+                            val lm = rv.layoutManager as? LinearLayoutManager
+                            if (pos != RecyclerView.NO_POSITION && lm != null) {
+                                rv.post { lm.scrollToPositionWithOffset(pos, rv.height / 3) }
+                            }
                         }
                     }
                 }

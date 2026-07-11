@@ -92,6 +92,15 @@ class LiveTvGuideViewModel @Inject constructor(
         }
     }
 
+    /** A single channel by stream id (from the full index) — used by Resume Last
+     *  Channel when the saved channel isn't in the currently loaded list. */
+    suspend fun getChannelById(streamId: String): GuideChannel? {
+        val stream = withContext(Dispatchers.IO) {
+            runCatching { repository.getLiveStreamById(streamId) }.getOrNull()
+        } ?: return null
+        return toGuideChannel(stream, emptyList(), favoriteIds())
+    }
+
     /** Categories whose name matches [query] (client-side filter for unified search). */
     fun filterCategories(query: String): List<GuideCategory> {
         val cats = _uiState.value.categories
