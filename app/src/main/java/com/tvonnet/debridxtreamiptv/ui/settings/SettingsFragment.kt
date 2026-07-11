@@ -154,6 +154,13 @@ class SettingsFragment : Fragment() {
                     currentValue = getLiveTvStyleName(state.liveTvStyle),
                     onClick = { showLiveTvStyleSelector(state.liveTvStyle) }
                 ),
+                SettingItem.Toggle(
+                    key = "resume_last_live",
+                    title = "Resume Last Channel",
+                    description = "Open Live TV on the last channel you watched instead of the first",
+                    isChecked = state.resumeLastLive,
+                    onToggle = { viewModel.toggleResumeLastLive(it) }
+                ),
                 SettingItem.Selection(
                     key = "epg_zoom",
                     title = "TV Guide Timeline Zoom",

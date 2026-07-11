@@ -78,6 +78,12 @@ class LiveSearchAdapter(
                     isClickable = true
                     setOnFocusChangeListener { v, has ->
                         v.setBackgroundColor(if (has) focusColor else Color.TRANSPARENT)
+                        // Keep the focused row on screen — LinearLayoutManager's
+                        // auto-scroll can lag on long D-pad runs, so scroll explicitly.
+                        if (has) (v.parent as? RecyclerView)?.let { rv ->
+                            val pos = rv.getChildAdapterPosition(v)
+                            if (pos != RecyclerView.NO_POSITION) rv.smoothScrollToPosition(pos)
+                        }
                     }
                 }
                 if (viewType == TYPE_CATEGORY) {

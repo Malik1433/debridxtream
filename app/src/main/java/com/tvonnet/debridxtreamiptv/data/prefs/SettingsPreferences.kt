@@ -143,6 +143,23 @@ class SettingsPreferences(private val context: Context) {
         prefs.edit().putBoolean(KEY_EPG_GENRE_TINT, enabled).apply()
     }
 
+    /** When on, Live TV opens on the last-watched channel instead of the first. */
+    fun isResumeLastLiveEnabled(): Boolean {
+        return prefs.getBoolean(KEY_RESUME_LAST_LIVE, false)
+    }
+
+    fun setResumeLastLiveEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_RESUME_LAST_LIVE, enabled).apply()
+    }
+
+    fun getLastLiveStreamId(): String? {
+        return prefs.getString(KEY_LAST_LIVE_STREAM_ID, null)
+    }
+
+    fun setLastLiveStreamId(streamId: String?) {
+        prefs.edit().putString(KEY_LAST_LIVE_STREAM_ID, streamId).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "iptv_settings"
         private const val KEY_REFRESH_INTERVAL = "refresh_interval_hours"
@@ -176,6 +193,10 @@ class SettingsPreferences(private val context: Context) {
         const val DENSITY_ROOMY = "roomy"
 
         const val KEY_EPG_GENRE_TINT = "epg_genre_tint"
+
+        // Live TV resume
+        const val KEY_RESUME_LAST_LIVE = "resume_last_live"
+        const val KEY_LAST_LIVE_STREAM_ID = "last_live_stream_id"
     }
 }
 

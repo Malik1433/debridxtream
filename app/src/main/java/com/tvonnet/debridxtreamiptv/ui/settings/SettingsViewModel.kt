@@ -31,7 +31,8 @@ data class SettingsUiState(
     val liveTvStyle: String = "guide",
     val epgTimelineZoom: String = "standard",
     val epgRowDensity: String = "standard",
-    val epgGenreTint: Boolean = true
+    val epgGenreTint: Boolean = true,
+    val resumeLastLive: Boolean = false
 )
 
 enum class SettingCategory {
@@ -74,7 +75,8 @@ class SettingsViewModel @Inject constructor(
                 liveTvStyle = audioPrefs.getLiveTvStyle(),
                 epgTimelineZoom = audioPrefs.getEpgTimelineZoom(),
                 epgRowDensity = audioPrefs.getEpgRowDensity(),
-                epgGenreTint = audioPrefs.isEpgGenreTintEnabled()
+                epgGenreTint = audioPrefs.isEpgGenreTintEnabled(),
+                resumeLastLive = audioPrefs.isResumeLastLiveEnabled()
             )
         }
     }
@@ -133,6 +135,11 @@ class SettingsViewModel @Inject constructor(
     fun toggleEpgGenreTint(enabled: Boolean) {
         com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(context).saveEpgGenreTint(enabled)
         _uiState.update { it.copy(epgGenreTint = enabled) }
+    }
+
+    fun toggleResumeLastLive(enabled: Boolean) {
+        com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(context).setResumeLastLiveEnabled(enabled)
+        _uiState.update { it.copy(resumeLastLive = enabled) }
     }
 
     fun logoutDebrid() {

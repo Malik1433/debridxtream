@@ -197,9 +197,16 @@ class LiveTvGuideFragment : Fragment() {
                             pendingGridFocusStreamId = null
                         }
                         // Something should always be playing when the guide opens:
-                        // auto-select the first channel once (like TiviMate).
+                        // auto-select once (like TiviMate). If "Resume Last Channel"
+                        // is on and that channel is in the list, start there instead.
                         if (previewChannel == null && state.channels.isNotEmpty() && !isFullscreen) {
-                            selectForPreview(state.channels.first())
+                            val prefs = SettingsPreferences(requireContext())
+                            val start = if (prefs.isResumeLastLiveEnabled()) {
+                                val lastId = prefs.getLastLiveStreamId()
+                                state.channels.firstOrNull { it.streamId == lastId } ?: state.channels.first()
+                            } else state.channels.first()
+                            selectForPreview(start)
+                            binding.epgGrid.focusChannel(start.streamId)
                         }
                         if (state.channels.isNotEmpty()) binding.epgGrid.requestFocus()
                     }
@@ -489,6 +496,10 @@ class LiveTvGuideFragment : Fragment() {
         binding.epgGrid.setPlayingChannel(channel.streamId)
         previewPanel?.play(channel.stream)
         previewPanel?.setVolume(1f)
+        // Remember what's playing so "Resume Last Channel" can restore it next open.
+        channel.streamId.takeIf { it.isNotBlank() }?.let {
+            SettingsPreferences(requireContext()).setLastLiveStreamId(it)
+        }
     }
 
     // ── Unified search overlay (categories + channels) ─────────────────────
