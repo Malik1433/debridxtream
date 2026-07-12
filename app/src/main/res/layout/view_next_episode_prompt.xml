@@ -1,132 +1,195 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  VOD Player redesign: "UP NEXT" card (bottom-right, design px ÷2 @ 2x density).
+  Preserves ids used by PlayerNextEpisodeManager: tv_next_episode_title,
+  tv_countdown_seconds, progress_countdown, btn_play_now, btn_cancel.
+-->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#99000000"
     android:focusable="false"
     android:visibility="gone"
     tools:visibility="visible">
 
-    <!-- Bottom Right Container for the Prompt -->
-    <androidx.cardview.widget.CardView
-        android:layout_width="wrap_content"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="190dp"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="48dp"
-        android:layout_marginBottom="48dp"
-        android:descendantFocusability="afterDescendants"
-        app:cardBackgroundColor="@color/card_background_dark"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="8dp"
+        android:layout_marginEnd="28dp"
+        android:layout_marginBottom="100dp"
+        android:background="@drawable/bg_vodp_upnext_card"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="400dp"
-            android:layout_height="wrap_content"
-            android:padding="16dp">
+        <FrameLayout
+            android:id="@+id/layout_upnext_thumb"
+            android:layout_width="match_parent"
+            android:layout_height="90dp"
+            app:layout_constraintTop_toTopOf="parent">
 
-            <!-- ... (TextViews omitted for brevity, they remain unchanged) ... -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/gradient_overlay_bottom" />
 
             <TextView
                 android:id="@+id/tv_up_next_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Up Next"
-                android:textColor="@color/brand_orange"
+                android:layout_gravity="top|start"
+                android:layout_margin="7dp"
+                android:background="@drawable/bg_vodp_upnext_badge"
+                android:paddingStart="5dp"
+                android:paddingEnd="5dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:text="UP NEXT"
+                android:fontFamily="monospace"
                 android:textStyle="bold"
-                android:textSize="14sp"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <TextView
-                android:id="@+id/tv_next_episode_title"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:text="Episode 5: The Great Escape"
                 android:textColor="@android:color/white"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                app:layout_constraintEnd_toStartOf="@+id/progress_countdown"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tv_up_next_label" />
+                android:textSize="5sp"
+                android:letterSpacing="0.08" />
+
+            <FrameLayout
+                android:id="@+id/btn_play_now"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_gravity="center"
+                android:focusable="true"
+                android:clickable="true"
+                android:focusedByDefault="true"
+                android:background="@drawable/bg_vodp_upnext_playcircle"
+                android:nextFocusDown="@id/btn_cancel">
+                <ImageView
+                    android:layout_width="11dp"
+                    android:layout_height="11dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_play_arrow_24"
+                    android:tint="@color/neon_cyan"
+                    tools:ignore="ContentDescription" />
+            </FrameLayout>
 
             <ProgressBar
                 android:id="@+id/progress_countdown"
                 style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="64dp"
-                android:layout_height="64dp"
-                android:layout_marginStart="16dp"
-                android:background="@drawable/circle_shape"
-                android:indeterminate="false"
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:layout_gravity="bottom"
                 android:max="100"
-                android:progress="75"
-                android:progressDrawable="@drawable/circular_progress_bar"
-                app:layout_constraintBottom_toBottomOf="@+id/tv_next_episode_title"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@+id/tv_next_episode_title" />
-                
+                android:progress="0"
+                android:progressDrawable="@drawable/bg_vodp_countdown_bar" />
+
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/tv_up_next_ep_label"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:layout_marginTop="8dp"
+            android:text="NEXT EPISODE"
+            android:fontFamily="monospace"
+            android:textColor="@color/stremio_text_faint"
+            android:textSize="6sp"
+            android:letterSpacing="0.10"
+            app:layout_constraintTop_toBottomOf="@id/layout_upnext_thumb"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_next_episode_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:fontFamily="sans-serif-medium"
+            android:textStyle="bold"
+            android:textColor="@color/stremio_text_primary"
+            android:textSize="9sp"
+            android:letterSpacing="-0.01"
+            app:layout_constraintTop_toBottomOf="@id/tv_up_next_ep_label"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:text="Episode 5: The Great Escape" />
+
+        <LinearLayout
+            android:id="@+id/layout_upnext_status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:layout_marginTop="5dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            app:layout_constraintTop_toBottomOf="@id/tv_next_episode_title"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <View
+                android:layout_width="3dp"
+                android:layout_height="3dp"
+                android:layout_marginEnd="4dp"
+                android:background="@drawable/bg_circle_cyan_dot" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Playing in "
+                android:fontFamily="monospace"
+                android:textColor="@color/neon_cyan"
+                android:textSize="6sp"
+                android:letterSpacing="0.06" />
             <TextView
                 android:id="@+id/tv_countdown_seconds"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="15"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/white"
-                app:layout_constraintBottom_toBottomOf="@+id/progress_countdown"
-                app:layout_constraintEnd_toEndOf="@+id/progress_countdown"
-                app:layout_constraintStart_toStartOf="@+id/progress_countdown"
-                app:layout_constraintTop_toTopOf="@+id/progress_countdown" />
-
-            <LinearLayout
+                android:fontFamily="monospace"
+                android:textColor="@color/neon_cyan"
+                android:textSize="6sp"
+                android:letterSpacing="0.06"
+                tools:text="30" />
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tv_next_episode_title">
+                android:text="s"
+                android:fontFamily="monospace"
+                android:textColor="@color/neon_cyan"
+                android:textSize="6sp"
+                android:letterSpacing="0.06" />
 
-                <androidx.appcompat.widget.AppCompatButton
-                    android:id="@+id/btn_play_now"
-                    android:layout_width="140dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="16dp"
-                    android:background="@drawable/selector_btn_primary"
-                    android:backgroundTint="@color/brand_orange"
-                    android:focusable="true"
-                    android:clickable="true"
-                    android:focusedByDefault="true"
-                    android:nextFocusRight="@+id/btn_cancel"
-                    android:text="Play Now"
-                    android:textAllCaps="false"
-                    android:textColor="@android:color/white"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
 
-                <androidx.appcompat.widget.AppCompatButton
-                    android:id="@+id/btn_cancel"
-                    android:layout_width="100dp"
-                    android:layout_height="wrap_content"
-                    android:background="?attr/selectableItemBackground"
-                    android:focusable="true"
-                    android:clickable="true"
-                    android:nextFocusLeft="@+id/btn_play_now"
-                    android:text="Cancel"
-                    android:textAllCaps="false"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp" />
+            <TextView
+                android:id="@+id/btn_cancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="5dp"
+                android:paddingEnd="5dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:background="@drawable/bg_player_ref_button"
+                android:focusable="true"
+                android:clickable="true"
+                android:nextFocusUp="@id/btn_play_now"
+                android:text="BACK"
+                android:fontFamily="monospace"
+                android:textColor="@color/stremio_text_darkest"
+                android:textSize="6sp" />
 
-            </LinearLayout>
+        </LinearLayout>
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="10dp"
+            app:layout_constraintTop_toBottomOf="@id/layout_upnext_status" />
 
-    </androidx.cardview.widget.CardView>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

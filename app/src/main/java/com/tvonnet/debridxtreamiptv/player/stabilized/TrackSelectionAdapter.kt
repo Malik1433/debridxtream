@@ -37,7 +37,12 @@ class TrackSelectionAdapter(
         val ivCheck = view.findViewById<ImageView>(R.id.iv_track_check)
 
         tvName.text = getItem(position)
-        ivCheck.visibility = if (position == selectedIndex) View.VISIBLE else View.INVISIBLE
+        val isSelected = position == selectedIndex
+        ivCheck.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
+        // VOD Player redesign: active row label is cyan, others are light.
+        val ctx = view.context
+        val labelColor = if (isSelected) R.color.neon_cyan else R.color.stremio_text_primary
+        tvName.setTextColor(androidx.core.content.ContextCompat.getColor(ctx, labelColor))
 
         return view
     }

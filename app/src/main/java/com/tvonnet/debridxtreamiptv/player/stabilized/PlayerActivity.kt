@@ -612,21 +612,38 @@ class PlayerActivity : AppCompatActivity() {
             player?.let { updatePlayPauseVisibility(it.isPlaying) }
             bindModernMetadata(streamTitle)
             setupInteractiveAnimations()
+            setupSeekOverlay()
 
             val btnNext = playerView.findViewById<View>(R.id.btn_next_episode)
-            if (contentType == ContentType.SERIES || contentType == ContentType.EPISODE) {
+            val btnPrev = playerView.findViewById<View>(R.id.btn_prev_episode)
+            val btnEpisodes = playerView.findViewById<View>(R.id.btn_episodes)
+            val isSeriesControls = contentType == ContentType.SERIES || contentType == ContentType.EPISODE
+            if (isSeriesControls) {
                 btnNext?.isVisible = true
-                playerView.findViewById<View>(R.id.exo_ffwd)?.nextFocusRightId = R.id.btn_next_episode
                 btnNext?.setOnClickListener {
                      playNextEpisode()
                 }
+                // VOD Player redesign: series-only PREV EP + EPISODES controls.
+                btnPrev?.isVisible = true
+                btnPrev?.setOnClickListener {
+                    playPreviousEpisode()
+                }
+                btnEpisodes?.isVisible = true
+                btnEpisodes?.setOnClickListener {
+                    playerView.hideController()
+                    showEpisodeBrowser()
+                }
             } else {
                 btnNext?.isVisible = false
-                playerView.findViewById<View>(R.id.exo_ffwd)?.nextFocusRightId = R.id.exo_ffwd
+                btnPrev?.isVisible = false
+                btnEpisodes?.isVisible = false
             }
+            // VOD Player redesign: explicit horizontal focus chain so play/pause visibility
+            // swaps never trap focus (both exo_play & exo_pause share the same L/R links).
+            wireControlFocus(isSeriesControls)
 
             playerView.findViewById<View>(R.id.btn_aspect_ratio)?.setOnClickListener {
-                cycleResizeMode()
+                showAspectSelection()
             }
 
             nextEpisodeManager = PlayerNextEpisodeManager(this, playerView, object : PlayerNextEpisodeManager.Delegate {
@@ -1274,6 +1291,53 @@ class PlayerActivity : AppCompatActivity() {
 
     private lateinit var nextEpisodeManager: PlayerNextEpisodeManager
 
+    // Standard TV BACK: armed after 1st BACK hides the controller, so the 2nd BACK exits
+    // even if media3 auto-re-shows the controller (e.g. while paused). Disarmed on explicit show.
+    private var backHideArmed = false
+
+    // VOD Player redesign: custom design seek bar (visual only; media3 TimeBar handles scrubbing).
+    private var seekOverlay: VodSeekOverlay? = null
+    private val seekOverlayHandler = Handler(Looper.getMainLooper())
+    private val seekOverlayRunnable = object : Runnable {
+        override fun run() {
+            updateSeekOverlay()
+            seekOverlayHandler.postDelayed(this, 500)
+        }
+    }
+
+    private fun updateSeekOverlay() {
+        val p = player ?: return
+        val dur = p.duration
+        if (dur > 0L) {
+            seekOverlay?.setProgress(p.currentPosition.toFloat() / dur)
+            seekOverlay?.setBuffered(p.bufferedPosition.toFloat() / dur)
+        } else {
+            seekOverlay?.setProgress(0f)
+            seekOverlay?.setBuffered(0f)
+        }
+    }
+
+    private fun setupSeekOverlay() {
+        seekOverlay = playerView.findViewById(R.id.vod_seek_overlay)
+        val timeBar = playerView.findViewById<androidx.media3.ui.DefaultTimeBar>(R.id.exo_progress)
+        timeBar?.addListener(object : androidx.media3.ui.TimeBar.OnScrubListener {
+            override fun onScrubStart(timeBar: androidx.media3.ui.TimeBar, position: Long) {
+                seekOverlay?.setFocusedVisual(true)
+            }
+            override fun onScrubMove(timeBar: androidx.media3.ui.TimeBar, position: Long) {
+                val dur = player?.duration ?: 0L
+                if (dur > 0L) seekOverlay?.setProgress(position.toFloat() / dur)
+            }
+            override fun onScrubStop(timeBar: androidx.media3.ui.TimeBar, position: Long, canceled: Boolean) {
+                seekOverlay?.setFocusedVisual(false)
+                updateSeekOverlay()
+            }
+        })
+        timeBar?.setOnFocusChangeListener { _, focused -> seekOverlay?.setFocusedVisual(focused) }
+        seekOverlayHandler.removeCallbacks(seekOverlayRunnable)
+        seekOverlayHandler.post(seekOverlayRunnable)
+    }
+
 
 
     private fun observeSeriesPlaylistState() {
@@ -1640,7 +1704,39 @@ class PlayerActivity : AppCompatActivity() {
                  showError("Next episode data missing")
              }
         } else {
-            viewModel.getNextEpisode() 
+            viewModel.getNextEpisode()
+        }
+    }
+
+    private fun playPreviousEpisode() {
+        if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.hidePrompt() }
+
+        // Finalize watched state for CURRENT episode before switching identities
+        historyManager.recordPlaybackHistoryIfNeeded()
+
+        if (playbackSource == PlaybackSource.DEBRID && contentType == ContentType.EPISODE) {
+            val currentSeason = seasonNumberExtra ?: -1
+            val currentEpisode = episodeNumberExtra ?: -1
+            val tmdbId = debridSeriesLookupId().takeIf { it.isNotBlank() }
+
+            if (tmdbId != null && currentSeason != -1 && currentEpisode != -1) {
+                val prevEp = viewModel.getPrevEpisode()
+                val targetSeason = prevEp?.seasonNumber ?: currentSeason
+                val targetEpisode = prevEp?.episodeNumber ?: (currentEpisode - 1).coerceAtLeast(1)
+
+                viewModel.loadNextDebridEpisode(
+                    seriesId = tmdbId,
+                    targetSeason = targetSeason,
+                    targetEpisode = targetEpisode,
+                    seriesTitle = seriesTitleExtra,
+                    infoHash = debridInfoHashExtra ?: debridStreamIdExtra,
+                    sourceProfile = currentDebridSourceProfile()
+                )
+            } else {
+                showError("Previous episode data missing")
+            }
+        } else {
+            viewModel.getPrevEpisode()
         }
     }
 
@@ -2511,6 +2607,74 @@ class PlayerActivity : AppCompatActivity() {
     private fun showError(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     private fun showToast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 
+    /**
+     * VOD Player redesign: wire explicit L/R DPAD focus across the transport row so navigation
+     * never dead-ends — critical because exo_play/exo_pause overlap and swap visibility.
+     */
+    private fun wireControlFocus(isSeries: Boolean) {
+        fun link(id: Int, leftId: Int, rightId: Int) {
+            playerView.findViewById<View>(id)?.apply {
+                nextFocusLeftId = leftId
+                nextFocusRightId = rightId
+            }
+        }
+        if (isSeries) {
+            link(R.id.exo_rew, R.id.exo_rew, R.id.btn_prev_episode)
+            link(R.id.btn_prev_episode, R.id.exo_rew, R.id.exo_play)
+            link(R.id.exo_play, R.id.btn_prev_episode, R.id.btn_next_episode)
+            link(R.id.exo_pause, R.id.btn_prev_episode, R.id.btn_next_episode)
+            link(R.id.btn_next_episode, R.id.exo_play, R.id.exo_ffwd)
+            link(R.id.exo_ffwd, R.id.btn_next_episode, R.id.btn_episodes)
+            link(R.id.btn_episodes, R.id.exo_ffwd, R.id.btn_player_audio)
+            link(R.id.btn_player_audio, R.id.btn_episodes, R.id.btn_player_subtitles)
+        } else {
+            link(R.id.exo_rew, R.id.exo_rew, R.id.exo_play)
+            link(R.id.exo_play, R.id.exo_rew, R.id.exo_ffwd)
+            link(R.id.exo_pause, R.id.exo_rew, R.id.exo_ffwd)
+            link(R.id.exo_ffwd, R.id.exo_play, R.id.btn_player_audio)
+            link(R.id.btn_player_audio, R.id.exo_ffwd, R.id.btn_player_subtitles)
+        }
+        link(R.id.btn_player_subtitles, R.id.btn_player_audio, R.id.btn_aspect_ratio)
+        link(R.id.btn_aspect_ratio, R.id.btn_player_subtitles, R.id.btn_aspect_ratio)
+    }
+
+    /** VOD Player redesign: styled aspect-ratio selection popup (design ASPECT MENU). */
+    private fun showAspectSelection() {
+        if (isInPictureInPictureMode) return
+        val modes = listOf(
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT to "Fit",
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL to "Stretch",
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM to "Zoom",
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH to "Fixed Width",
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT to "Fixed Height"
+        )
+        val labels = modes.map { it.second }
+        val current = modes.indexOfFirst { it.first == playerView.resizeMode }.coerceAtLeast(0)
+        lateinit var dialog: androidx.appcompat.app.AlertDialog
+        val adapter = TrackSelectionAdapter(labels, current) { which ->
+            val mode = modes[which].first
+            playerView.resizeMode = mode
+            updateAspectLabel(mode)
+            dialog.dismiss()
+        }
+        dialog = androidx.appcompat.app.AlertDialog.Builder(this, R.style.Theme_DebridXtream_CinematicDialog)
+            .setTitle("Aspect Ratio")
+            .setAdapter(adapter, adapter.asDialogClickListener())
+            .create()
+        showManagedTrackDialog(dialog, R.id.btn_aspect_ratio)
+    }
+
+    private fun updateAspectLabel(mode: Int) {
+        val label = when (mode) {
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL -> "FILL"
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> "ZOOM"
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH -> "W·FIT"
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT -> "H·FIT"
+            else -> "FIT"
+        }
+        playerView.findViewById<TextView>(R.id.tv_aspect_label)?.text = label
+    }
+
     private fun cycleResizeMode() {
         val nextMode = when (playerView.resizeMode) {
             androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
@@ -2533,7 +2697,7 @@ class PlayerActivity : AppCompatActivity() {
     override fun onResume() { super.onResume(); startDebugOverlay(); if (player == null) currentUrl?.let { initializePlayer(it) } else startStallMonitor() }
     override fun onStart() { super.onStart(); registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() } }
     override fun onPause() { super.onPause(); player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
-    override fun onStop() { super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_stop") }
+    override fun onStop() { super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); seekOverlayHandler.removeCallbacks(seekOverlayRunnable); unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_stop") }
 
     /**
      * Live TV sessions launched from the EPG guide share one ExoPlayer with the
@@ -2808,14 +2972,18 @@ class PlayerActivity : AppCompatActivity() {
                 if (event.action == KeyEvent.ACTION_UP) liveOsd?.handleDrawerBack()
                 return true
             }
+            // VOD Player redesign: BACK cancels the "Up Next" auto-play prompt instead of exiting.
+            if (::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible) {
+                if (event.action == KeyEvent.ACTION_UP) nextEpisodeManager.hidePrompt()
+                return true
+            }
             val xray = findViewById<View>(R.id.view_xray_panel)
             val isXrayVisible = xray != null && xray.visibility == View.VISIBLE
             val isEpisodeBrowserVisible = ::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()
             val isBrowserVisible = viewModel.browserState.value.isVisible
             val isEpgVisible = contentType == ContentType.LIVE_TV && epgOverlayPinned && epgOverlayMode != EpgOverlayMode.HIDDEN
-            val isControllerVisible = playerView.isControllerFullyVisible
-
-            if (isXrayVisible || isEpisodeBrowserVisible || isBrowserVisible || isEpgVisible || isControllerVisible) {
+            // Overlays (xray / episodes panel / channel browser / pinned EPG) get dismissed by BACK.
+            if (isXrayVisible || isEpisodeBrowserVisible || isBrowserVisible || isEpgVisible) {
                 if (event.action == KeyEvent.ACTION_UP) {
                     if (isEpisodeBrowserVisible) {
                         episodeBrowserController.hide()
@@ -2828,57 +2996,51 @@ class PlayerActivity : AppCompatActivity() {
                         viewModel.toggleBrowser(false)
                     } else if (isEpgVisible) {
                         hideEpgOverlay()
-                    } else if (isControllerVisible) {
-                        playerView.hideController()
                     }
                 }
                 return true
             }
+            // Long-press BACK -> PiP (if supported).
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0 && supportsPictureInPicture()) {
                 enterPictureInPictureModeInternal()
+                return true
+            }
+            // Standard TV BACK: 1st press hides a visible controller, 2nd press exits the player.
+            if (event.action == KeyEvent.ACTION_UP) {
+                if (isInPictureInPictureMode) return super.dispatchKeyEvent(event)
+                if (isControllerVisible && !backHideArmed) {
+                    playerView.hideController()
+                    backHideArmed = true
+                    return true
+                }
+                finish()
+                return true
+            }
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                // Swallow DOWN so only our ACTION_UP path acts (unless long-press PiP fired above).
                 return true
             }
         }
 
         if (event.action == KeyEvent.ACTION_DOWN) {
             if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
-                if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                    episodeBrowserController.hide()
-                    showControllerWithSmartFocus()
-                    return true
-                }
+                // VOD Player redesign: right-side vertical panel. Delegate UP/DOWN to the list;
+                // LEFT/BACK close the panel — restore transport controls when it closes.
                 playerView.hideController()
                 val handled = episodeBrowserController.handleKeyEvent(event)
                 Log.d("EP_BROWSER_FOCUS_FIX", "browser visible key=${event.keyCode} handled=$handled")
+                if (!episodeBrowserController.isVisible()) {
+                    showControllerWithSmartFocus()
+                }
                 if (handled) return true
             }
 
-            // Priority 1: Handle DPAD_DOWN for Episode Browser
-            if (event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                val isSeries = isSeriesEpisodePlayback()
-                val isFocusOnBottomControls = currentFocus?.let { focus ->
-                    val id = focus.id
-                    id == R.id.exo_play || id == R.id.exo_rew || id == R.id.exo_ffwd || 
-                    id == R.id.btn_player_volume || id == R.id.volume_progress || id == R.id.btn_next_episode
-                } ?: false
+            // VOD Player redesign: the episodes list opens ONLY via the EPISODES button now
+            // (DPAD_DOWN no longer auto-opens it).
 
-                Log.d("PlayerActivity", "DPAD_DOWN detected: isSeries=$isSeries, browserVisible=${viewModel.browserState.value.isVisible}")
-                if (isSeries && !viewModel.browserState.value.isVisible && (!playerView.isControllerFullyVisible || isFocusOnBottomControls)) {
-                    playerView.hideController()
-                    if (!episodeBrowserController.isVisible()) {
-                        showEpisodeBrowser()
-                    } else {
-                        episodeBrowserController.requestFocus()
-                    }
-                    return true
-                }
-            }
-
-            // Priority 2: Standard Controller triggers
+            // Standard Controller triggers
             if (contentType != ContentType.LIVE_TV && playerView.useController && !(::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible) && !playerView.isControllerFullyVisible) {
-                // EXCLUDE DPAD_DOWN from showing the standard controller if it's a series (we want episode browser handled above)
-                val isSeriesDown = event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && isSeriesEpisodePlayback()
-                if (!isSeriesDown) {
+                run {
                     when (event.keyCode) {
                         KeyEvent.KEYCODE_DPAD_LEFT,
                         KeyEvent.KEYCODE_DPAD_RIGHT,
@@ -2896,6 +3058,7 @@ class PlayerActivity : AppCompatActivity() {
                             showControllerWithSmartFocus(event)
                             return true
                         }
+                        else -> {}
                     }
                 }
             }
@@ -2958,6 +3121,8 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun showControllerWithSmartFocus(sourceEvent: KeyEvent? = null) {
+        // Explicit user show re-arms the two-step BACK (1st hide, 2nd exit).
+        backHideArmed = false
         playerView.showController()
         installControllerSeekNavigation()
         val keyCode = sourceEvent?.keyCode

@@ -18,6 +18,11 @@ class PlayerNextEpisodeManager(
     private val playerView: PlayerView,
     private val delegate: Delegate
 ) {
+    companion object {
+        /** VOD Player redesign: auto-play countdown window (design = 30s). */
+        private const val COUNTDOWN_MS = 30000L
+    }
+
     interface Delegate {
         fun isPlaybackEligibleForPrompt(): Boolean
         fun getPlayerDuration(): Long
@@ -94,8 +99,8 @@ class PlayerNextEpisodeManager(
         if (duration <= 0L) return
 
         val remaining = duration - position
-        val percentThresholdMs = (duration * 0.97).toLong() 
-        val timeThresholdMs = 45000L 
+        val percentThresholdMs = (duration * 0.87).toLong()
+        val timeThresholdMs = 30000L
         
         val showPrompt = position >= percentThresholdMs || remaining < timeThresholdMs
         
@@ -117,11 +122,11 @@ class PlayerNextEpisodeManager(
         delegate.onNextEpisodePromptShown(nextEp)
         
         nextEpisodeTimer?.cancel()
-        nextEpisodeTimer = object : CountDownTimer(15000, 1000) {
+        nextEpisodeTimer = object : CountDownTimer(COUNTDOWN_MS, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 val sec = (millisUntilFinished / 1000).toInt()
                 tvCountdownSeconds?.text = sec.toString()
-                val progress = ((15000 - millisUntilFinished) / 150.0).toInt()
+                val progress = ((COUNTDOWN_MS - millisUntilFinished) / (COUNTDOWN_MS / 100.0)).toInt()
                 nextEpisodeOverlay?.findViewById<ProgressBar>(R.id.progress_countdown)?.progress = progress
             }
             override fun onFinish() {

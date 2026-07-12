@@ -1,40 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- VOD Player redesign: cyan menu row (check + label). -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/bg_track_selection_row"
-    android:paddingHorizontal="24dp"
-    android:paddingVertical="16dp"
-    android:layout_marginVertical="4dp"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="12dp"
+    android:layout_marginVertical="2dp"
     android:layout_marginHorizontal="8dp">
+
+    <ImageView
+        android:id="@+id/iv_track_check"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:src="@drawable/ic_track_check"
+        app:tint="@color/neon_cyan"
+        android:visibility="invisible"
+        android:focusable="false"
+        android:clickable="false"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/tv_track_name"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:fontFamily="@font/plus_jakarta_sans"
-        android:textColor="@color/white"
-        android:textSize="14sp"
-        android:textStyle="bold"
-        android:focusable="false"
-        android:clickable="false"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/iv_track_check"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        android:layout_marginEnd="16dp" />
-
-    <ImageView
-        android:id="@+id/iv_track_check"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:src="@drawable/ic_track_check"
-        app:tint="@color/brand_cyan"
-        android:visibility="invisible"
+        android:layout_marginStart="12dp"
+        android:fontFamily="sans-serif-medium"
+        android:textColor="@color/stremio_text_primary"
+        android:textSize="15sp"
         android:focusable="false"
         android:clickable="false"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/iv_track_check"
         app:layout_constraintTop_toTopOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

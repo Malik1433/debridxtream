@@ -352,5 +352,31 @@
     <color name="live_osd_text_muted">#64748B</color>
     <color name="live_osd_text_faint">#475569</color>
     <color name="live_hint_divider">#334155</color>
+
+    <!-- ══════ VOD Player redesign (VOD Player.dc.html) ══════ -->
+    <!-- Cyan/blue accents reuse neon_cyan #00F0FF and stremio_blue #0077FF -->
+    <color name="vodp_glass_card">#B8060912</color>       <!-- rgba(6,9,18,0.72) controls glass -->
+    <color name="vodp_glass_stroke">#12FFFFFF</color>     <!-- rgba(255,255,255,0.07) -->
+    <color name="vodp_ctl_bg">#8C0C111B</color>          <!-- rgba(12,17,27,0.55) button rest -->
+    <color name="vodp_ctl_stroke">#14FFFFFF</color>      <!-- rgba(255,255,255,0.08) -->
+    <color name="vodp_ctl_focus_bg">#1A00F0FF</color>    <!-- rgba(0,240,255,0.10) -->
+    <color name="vodp_play_bg">#2E0077FF</color>         <!-- rgba(0,119,255,0.18) -->
+    <color name="vodp_play_stroke">#660077FF</color>     <!-- rgba(0,119,255,0.40) -->
+    <color name="vodp_play_focus_bg">#2600F0FF</color>   <!-- rgba(0,240,255,0.15) -->
+    <color name="vodp_seek_track">#1FFFFFFF</color>      <!-- rgba(255,255,255,0.12) -->
+    <color name="vodp_seek_buffered">#33FFFFFF</color>   <!-- rgba(255,255,255,0.20) -->
+    <color name="vodp_panel_grad_top">#FC090C18</color>  <!-- rgba(9,12,24,0.99) -->
+    <color name="vodp_panel_grad_bottom">#FC050710</color> <!-- rgba(5,7,16,0.99) -->
+    <color name="vodp_panel_border">#2100F0FF</color>    <!-- rgba(0,240,255,0.13) -->
+    <color name="vodp_ep_row_bg">#0BFFFFFF</color>       <!-- subtle rest card fill -->
+    <color name="vodp_ep_row_stroke">#0FFFFFFF</color>   <!-- rgba(255,255,255,0.06) -->
+    <color name="vodp_ep_row_focus_bg">#1400F0FF</color> <!-- rgba(0,240,255,0.08) -->
+    <color name="vodp_upnext_bg">#EB0A0E18</color>       <!-- rgba(10,14,24,0.92) -->
+    <color name="vodp_upnext_border">#3300F0FF</color>   <!-- rgba(0,240,255,0.20) -->
+    <color name="vodp_now_badge">#00F0FF</color>
+    <color name="vodp_now_badge_text">#041014</color>
+    <color name="vodp_quality_grad_start">#A06000</color>
+    <color name="vodp_quality_grad_end">#FFAA00</color>
+    <color name="vodp_tab_rest_bg">#0DFFFFFF</color>
 </resources>
 

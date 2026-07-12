@@ -55,12 +55,60 @@ class EpisodeBrowserController(
     private var focusedPosition = RecyclerView.NO_POSITION
     private var fallbackImageUrl: String? = null
 
+    // VOD Player redesign: stacked coverflow — the centred card sits in front (full size),
+    // the cards above/below peek out ~half from behind it, receding with scale/dim/z-depth.
+    private val cardOverlapPx = (86f * container.resources.displayMetrics.density).toInt()
+
     init {
         rvEpisodes.adapter = adapter
         rvEpisodes.isFocusable = true
         rvEpisodes.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
-        // Ensure container is hidden by default
+        rvEpisodes.clipChildren = false
+        rvEpisodes.clipToPadding = false
+        (rvEpisodes.itemAnimator as? androidx.recyclerview.widget.SimpleItemAnimator)?.supportsChangeAnimations = false
+
+        // overlap consecutive cards so neighbours tuck behind the centre card
+        rvEpisodes.addItemDecoration(object : RecyclerView.ItemDecoration() {
+            override fun getItemOffsets(
+                outRect: android.graphics.Rect,
+                view: View,
+                parent: RecyclerView,
+                state: RecyclerView.State
+            ) {
+                val pos = parent.getChildAdapterPosition(view)
+                outRect.top = if (pos > 0) -cardOverlapPx else 0
+            }
+        })
+
+        rvEpisodes.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                applyCoverflowTransforms()
+            }
+        })
+        rvEpisodes.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
+            override fun onChildViewAttachedToWindow(view: View) { view.post { applyCoverflowTransforms() } }
+            override fun onChildViewDetachedFromWindow(view: View) {}
+        })
+
         container.isVisible = false
+    }
+
+    /** Scale/dim/z each visible card by its distance from the vertical centre (front-to-back stack). */
+    private fun applyCoverflowTransforms() {
+        val cy = rvEpisodes.height / 2f
+        for (i in 0 until rvEpisodes.childCount) {
+            val child = rvEpisodes.getChildAt(i)
+            val childCy = (child.top + child.bottom) / 2f
+            val step = (child.height - cardOverlapPx).coerceAtLeast(1)
+            val n = ((childCy - cy) / step)
+            val an = kotlin.math.abs(n).coerceAtMost(2.5f)
+            val scale = (1f - 0.13f * an).coerceAtLeast(0.6f)
+            child.scaleX = scale
+            child.scaleY = scale
+            child.alpha = (1f - 0.4f * an).coerceAtLeast(0.12f)
+            // centre card in front (highest Z); neighbours recede behind it
+            child.translationZ = 30f - 12f * an
+        }
     }
 
     fun isVisible(): Boolean = container.isVisible
@@ -88,7 +136,9 @@ class EpisodeBrowserController(
                 requestFocusAt(0)
             }
         }
+        val wasHidden = !container.isVisible
         container.isVisible = true
+        if (wasHidden) animateIn()
         tvMessage.isVisible = false
         // If not loading, focus the list. If loading, focus the loading spinner or container.
         if (pbLoading.isVisible) {
@@ -100,22 +150,41 @@ class EpisodeBrowserController(
     }
 
     fun hide() {
+        container.animate().cancel()
         container.isVisible = false
+    }
+
+    /** VOD Player redesign: panel slide-in — translateX(80→0) + alpha(0→1), 400ms FastOutSlowIn. */
+    private fun animateIn() {
+        val dx = 80f * container.resources.displayMetrics.density
+        container.translationX = dx
+        container.alpha = 0f
+        container.animate()
+            .translationX(0f)
+            .alpha(1f)
+            .setDuration(400L)
+            .setInterpolator(android.view.animation.PathInterpolator(0.4f, 0f, 0.2f, 1f))
+            .start()
     }
 
     fun handleKeyEvent(event: KeyEvent): Boolean {
         if (!container.isVisible || event.action != KeyEvent.ACTION_DOWN) return false
+        // VOD Player redesign: right-side panel is a VERTICAL list.
+        // UP/DOWN move within the list; LEFT (or BACK) closes; RIGHT is a no-op.
         val handled = when (event.keyCode) {
-            KeyEvent.KEYCODE_DPAD_LEFT -> {
+            KeyEvent.KEYCODE_DPAD_UP -> {
                 moveFocusBy(-1)
                 true
             }
-            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+            KeyEvent.KEYCODE_DPAD_DOWN -> {
                 moveFocusBy(1)
                 true
             }
-            KeyEvent.KEYCODE_DPAD_UP,
-            KeyEvent.KEYCODE_DPAD_DOWN -> true
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                hide()
+                true
+            }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> true
             KeyEvent.KEYCODE_DPAD_CENTER,
             KeyEvent.KEYCODE_ENTER,
             KeyEvent.KEYCODE_NUMPAD_ENTER -> {
@@ -155,7 +224,9 @@ class EpisodeBrowserController(
         seasonTitle?.let { tvTitle.text = it }
         Log.e("IPTV_EP_LOAD_FIX", "CONTROLLER message=$message")
         adapter.submitList(emptyList())
+        val wasHidden = !container.isVisible
         container.isVisible = true
+        if (wasHidden) animateIn()
         pbLoading.isVisible = false
         rvEpisodes.isVisible = false
         tvMessage.text = message
@@ -186,13 +257,24 @@ class EpisodeBrowserController(
     }
 
     private fun requestFocusAt(position: Int) {
-        rvEpisodes.scrollToPosition(position)
         rvEpisodes.post {
-            val layoutManager = rvEpisodes.layoutManager as? LinearLayoutManager
-            layoutManager?.scrollToPositionWithOffset(position, 0)
-            rvEpisodes.post {
-                rvEpisodes.findViewHolderForAdapterPosition(position)?.itemView?.requestFocus()
-                    ?: rvEpisodes.requestFocus()
+            val lm = rvEpisodes.layoutManager as? LinearLayoutManager ?: return@post
+            val existing = lm.findViewByPosition(position)
+            if (existing != null) {
+                // Smoothly bring the focused card to the vertical centre (coverflow feel).
+                val delta = (existing.top + existing.height / 2) - rvEpisodes.height / 2
+                if (delta != 0) rvEpisodes.smoothScrollBy(0, delta)
+                existing.requestFocus()
+                rvEpisodes.post { applyCoverflowTransforms() }
+            } else {
+                val approxCard = (164 * rvEpisodes.resources.displayMetrics.density).toInt()
+                val offset = ((rvEpisodes.height - approxCard) / 2).coerceAtLeast(0)
+                lm.scrollToPositionWithOffset(position, offset)
+                rvEpisodes.post {
+                    rvEpisodes.findViewHolderForAdapterPosition(position)?.itemView?.requestFocus()
+                        ?: rvEpisodes.requestFocus()
+                    applyCoverflowTransforms()
+                }
             }
         }
     }
@@ -365,17 +447,11 @@ class EpisodeBrowserController(
         private val tvPlayingBadge: TextView = view.findViewById(R.id.tv_playing_badge)
 
         init {
+            // Coverflow scale/dim/z is driven by list position (see applyCoverflowTransforms);
+            // the focus listener only toggles the selected border + title marquee.
             itemView.setOnFocusChangeListener { view, hasFocus ->
                 view.isActivated = hasFocus
-                view.animate()
-                    .scaleX(if (hasFocus) 1.06f else 1.0f)
-                    .scaleY(if (hasFocus) 1.06f else 1.0f)
-                    .setDuration(120L)
-                    .start()
-                view.elevation = if (hasFocus) 24f else 0f
                 tvTitle.isSelected = hasFocus
-                tvTitle.isActivated = hasFocus
-                tvMeta.isActivated = hasFocus
             }
         }
 
@@ -391,11 +467,9 @@ class EpisodeBrowserController(
             tvMeta.text = "Season ${episode.seasonNumber}"
             tvDuration.text = formatEpisodeDuration(episode.durationSecs, episode.duration)
             tvDuration.isVisible = tvDuration.text.isNotBlank()
-            tvPlayingBadge.text = if (isActive) "Playing" else "Watched"
+            tvPlayingBadge.text = if (isActive) "▶ NOW" else "✓ WATCHED"
             tvPlayingBadge.isVisible = isActive || isWatched
             itemView.isSelected = isActive
-            itemView.scaleX = if (itemView.hasFocus()) 1.06f else 1.0f
-            itemView.scaleY = if (itemView.hasFocus()) 1.06f else 1.0f
 
             val imageUrl = episode.thumbnail
                 ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }

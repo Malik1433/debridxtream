@@ -1,14 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- VOD Player redesign: 96dp play/pause circle. Rest: rgba(0,119,255,.18)+2px rgba(0,119,255,.4); Focus: cyan .15 + 2px #00F0FF -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape android:shape="oval">
-            <solid android:color="#FFFFFFFF" />
-            <stroke android:width="4dp" android:color="#FF3B30" />
+            <solid android:color="@color/vodp_play_focus_bg" />
+            <stroke android:width="2dp" android:color="@color/neon_cyan" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape android:shape="oval">
+            <solid android:color="@color/vodp_play_focus_bg" />
+            <stroke android:width="2dp" android:color="@color/neon_cyan" />
         </shape>
     </item>
     <item>
         <shape android:shape="oval">
-            <solid android:color="#FFFFFFFF" />
+            <solid android:color="@color/vodp_play_bg" />
+            <stroke android:width="2dp" android:color="@color/vodp_play_stroke" />
         </shape>
     </item>
 </selector>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Up Next card: rgba(10,14,24,0.92), radius 18, 1px rgba(0,240,255,0.20) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/vodp_upnext_bg" />
+    <corners android:radius="18dp" />
+    <stroke android:width="1dp" android:color="@color/vodp_upnext_border" />
+</shape>

@@ -12,6 +12,7 @@
         android:keepScreenOn="true"
         app:show_buffering="when_playing"
         app:use_controller="true"
+        app:animation_enabled="false"
         app:controller_layout_id="@layout/custom_player_control_view" />
 
 
@@ -43,9 +44,12 @@
     <include
         android:id="@+id/view_episode_browser"
         layout="@layout/view_player_episode_browser"
-        android:layout_width="match_parent"
-        android:layout_height="320dp"
-        android:layout_gravity="bottom"
+        android:layout_width="340dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end|center_vertical"
+        android:layout_marginTop="96dp"
+        android:layout_marginBottom="96dp"
+        android:layout_marginEnd="26dp"
         android:visibility="gone" />
 
     <include

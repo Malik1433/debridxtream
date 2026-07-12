@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- VOD Player redesign: cyan glass popup (design AUDIO/SUBTITLES/ASPECT menu). -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#E6121212" />
+    <solid android:color="#FA070914" />
     <corners android:radius="16dp" />
-    <stroke android:width="1dp" android:color="#33FFFFFF" />
+    <stroke android:width="1dp" android:color="@color/vodp_upnext_border" />
 </shape>

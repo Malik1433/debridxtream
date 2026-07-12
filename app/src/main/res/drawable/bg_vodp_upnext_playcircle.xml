@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Up-next thumbnail center play circle: rgba(0,240,255,0.15) + 2px rgba(0,240,255,0.4) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="@color/vodp_play_focus_bg" />
+    <stroke android:width="2dp" android:color="@color/vodp_upnext_border" />
+</shape>

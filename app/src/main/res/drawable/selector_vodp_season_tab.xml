@@ -1,24 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- VOD Player redesign: track menu row. Focus = cyan fill + 1px #00F0FF. -->
+<!-- Season tab pill. Rest: faint fill; Focus/selected: cyan border -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape android:shape="rectangle">
             <solid android:color="@color/vodp_ctl_focus_bg" />
-            <corners android:radius="10dp" />
+            <corners android:radius="7dp" />
             <stroke android:width="1dp" android:color="@color/neon_cyan" />
         </shape>
     </item>
-    <item android:state_pressed="true">
+    <item android:state_selected="true">
         <shape android:shape="rectangle">
             <solid android:color="@color/vodp_ctl_focus_bg" />
-            <corners android:radius="10dp" />
-            <stroke android:width="1dp" android:color="@color/neon_cyan" />
+            <corners android:radius="7dp" />
+            <stroke android:width="1dp" android:color="@color/vodp_panel_border" />
         </shape>
     </item>
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="@android:color/transparent" />
-            <corners android:radius="10dp" />
+            <solid android:color="@color/vodp_tab_rest_bg" />
+            <corners android:radius="7dp" />
+            <stroke android:width="1dp" android:color="@color/vodp_ep_row_stroke" />
         </shape>
     </item>
 </selector>

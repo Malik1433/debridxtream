@@ -1,22 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  VOD Player redesign: BIG episode card for a centered carousel (focused card centered & full,
+  neighbours peek half above/below). Preserves ViewHolder ids.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="232dp"
-    android:layout_height="188dp"
+    android:layout_width="match_parent"
+    android:layout_height="164dp"
+    android:orientation="vertical"
     android:focusable="true"
     android:clickable="true"
-    android:background="@drawable/selector_episode_focus"
-    android:padding="7dp">
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:padding="4dp">
 
+    <!-- big thumbnail -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cv_thumb"
         android:layout_width="match_parent"
-        android:layout_height="130dp"
-        app:cardCornerRadius="8dp"
-        app:cardElevation="3dp"
-        app:cardBackgroundColor="#1A1F29"
-        app:layout_constraintTop_toTopOf="parent">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="#12202A">
 
         <ImageView
             android:id="@+id/iv_episode_thumb"
@@ -32,30 +39,24 @@
             android:background="@drawable/bg_episode_placeholder"
             android:gravity="center"
             android:orientation="vertical"
-            android:padding="12dp"
             android:visibility="gone">
-
             <TextView
                 android:id="@+id/tv_placeholder_episode_number"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#D6F4FF"
-                android:textSize="28sp"
+                android:fontFamily="monospace"
+                android:textColor="@color/neon_cyan"
+                android:textSize="22sp"
                 android:textStyle="bold"
                 tools:text="E01" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Episode"
-                android:textColor="#9FB7C5"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
         </LinearLayout>
 
-        <!-- Episode Badge -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/gradient_overlay_bottom" />
+
+        <!-- episode number badge -->
         <TextView
             android:id="@+id/tv_episode_number"
             android:layout_width="wrap_content"
@@ -67,28 +68,33 @@
             android:paddingEnd="8dp"
             android:paddingTop="2dp"
             android:paddingBottom="2dp"
+            android:fontFamily="monospace"
+            android:textStyle="bold"
             android:textColor="#FFFFFF"
             android:textSize="10sp"
-            android:textStyle="bold"
             tools:text="E01" />
 
+        <!-- playing / watched badge -->
         <TextView
             android:id="@+id/tv_playing_badge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
             android:layout_margin="8dp"
-            android:background="@drawable/bg_episode_playing_badge"
+            android:background="@drawable/bg_vodp_now_badge"
             android:paddingStart="8dp"
-            android:paddingTop="2dp"
             android:paddingEnd="8dp"
+            android:paddingTop="2dp"
             android:paddingBottom="2dp"
-            android:text="Playing"
-            android:textColor="#171000"
-            android:textSize="10sp"
+            android:fontFamily="monospace"
             android:textStyle="bold"
-            android:visibility="gone" />
+            android:text="▶ NOW"
+            android:textColor="@color/vodp_now_badge_text"
+            android:textSize="9sp"
+            android:visibility="gone"
+            tools:visibility="visible" />
 
+        <!-- duration badge -->
         <TextView
             android:id="@+id/tv_episode_duration"
             android:layout_width="wrap_content"
@@ -96,40 +102,62 @@
             android:layout_gravity="bottom|end"
             android:layout_margin="8dp"
             android:background="@drawable/bg_continue_type_badge"
-            android:paddingStart="7dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
             android:paddingTop="2dp"
-            android:paddingEnd="7dp"
             android:paddingBottom="2dp"
+            android:fontFamily="monospace"
             android:textColor="#E7EDF3"
-            android:textSize="10sp"
-            android:textStyle="bold"
+            android:textSize="9sp"
             tools:text="42m" />
 
     </androidx.cardview.widget.CardView>
 
+    <!-- title + meta -->
     <TextView
         android:id="@+id/tv_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:textColor="@color/selector_episode_title_color"
-        android:textSize="13sp"
-        android:textStyle="bold"
         android:maxLines="1"
         android:ellipsize="end"
-        app:layout_constraintTop_toBottomOf="@+id/cv_thumb"
+        android:fontFamily="sans-serif-medium"
+        android:textStyle="bold"
+        android:textColor="@color/stremio_text_primary"
+        android:textSize="13sp"
         tools:text="The Name of the Game" />
 
-    <TextView
-        android:id="@+id/tv_episode_meta"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:textColor="#A8B7C3"
-        android:textSize="11sp"
-        app:layout_constraintTop_toBottomOf="@id/tv_title"
-        tools:text="Season 1" />
+        android:layout_marginTop="3dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <TextView
+            android:id="@+id/tv_episode_meta"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif"
+            android:textColor="@color/stremio_text_muted"
+            android:textSize="9sp"
+            tools:text="Season 1" />
+
+        <ProgressBar
+            android:id="@+id/progress_episode"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="90dp"
+            android:layout_height="2dp"
+            android:max="100"
+            android:progress="0"
+            android:progressDrawable="@drawable/bg_vodp_countdown_bar"
+            android:visibility="gone"
+            tools:visibility="visible"
+            tools:progress="60" />
+
+    </LinearLayout>
+
+</LinearLayout>

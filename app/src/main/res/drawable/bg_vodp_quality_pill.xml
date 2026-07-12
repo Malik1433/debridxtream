@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Top-bar quality pill: linear-gradient(135deg,#a06000,#ffaa00), radius 5 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="315"
+        android:startColor="@color/vodp_quality_grad_start"
+        android:endColor="@color/vodp_quality_grad_end"
+        android:type="linear" />
+    <corners android:radius="5dp" />
+</shape>
