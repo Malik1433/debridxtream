@@ -1165,6 +1165,50 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    // ── per-channel current EPG for the v2 rich surf rows + ON AIR NOW panel ──
+    // Keyed by streamId → the program on air right now for that channel.
+    private val _surfEpg = MutableStateFlow<Map<String, EpgEntity>>(emptyMap())
+    val surfEpg: StateFlow<Map<String, EpgEntity>> = _surfEpg.asStateFlow()
+
+    /** Batch-load current EPG for every channel in the active zap list. */
+    fun refreshSurfEpg() {
+        val state = _zapState.value ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            val epgIds = state.channels.mapNotNull { it.epgChannelId?.takeIf { id -> id.isNotBlank() } }
+            val byEpgId = repository.getCurrentProgramsByEpgId(epgIds)
+            if (byEpgId.isEmpty()) {
+                _surfEpg.value = emptyMap()
+                return@launch
+            }
+            _surfEpg.value = state.channels.mapNotNull { ch ->
+                val prog = ch.epgChannelId?.let { byEpgId[it] } ?: return@mapNotNull null
+                ch.streamId to prog
+            }.toMap()
+        }
+    }
+
+    // ── windowed EPG for the in-player TV Guide grid (Live Player v2) ─────────
+    // Keyed by streamId → the programmes overlapping the visible guide window.
+    private val _guideEpg = MutableStateFlow<Map<String, List<EpgEntity>>>(emptyMap())
+    val guideEpg: StateFlow<Map<String, List<EpgEntity>>> = _guideEpg.asStateFlow()
+
+    /** Batch-load windowed EPG for every channel in the active zap list. */
+    fun loadGuideEpg(windowStart: Long, windowEnd: Long) {
+        val state = _zapState.value ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            val epgIds = state.channels.mapNotNull { it.epgChannelId?.takeIf { id -> id.isNotBlank() } }
+            val byEpgId = repository.getProgramsByEpgIdInRange(epgIds, windowStart, windowEnd)
+            if (byEpgId.isEmpty()) {
+                _guideEpg.value = emptyMap()
+                return@launch
+            }
+            _guideEpg.value = state.channels.mapNotNull { ch ->
+                val progs = ch.epgChannelId?.let { byEpgId[it] } ?: return@mapNotNull null
+                ch.streamId to progs
+            }.toMap()
+        }
+    }
+
     // ── surf-drawer category picker (Live Player OSD, second-LEFT) ───────────
     private val _surfCategories = MutableStateFlow<List<XtreamCategory>>(emptyList())
     val surfCategories: StateFlow<List<XtreamCategory>> = _surfCategories.asStateFlow()

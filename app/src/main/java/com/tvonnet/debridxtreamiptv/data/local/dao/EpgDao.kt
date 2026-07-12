@@ -93,11 +93,28 @@ interface EpgDao {
      * Get all programs for multiple channels (batch query)
      */
     @Query("""
-        SELECT * FROM epg 
-        WHERE channelId IN (:channelIds) 
+        SELECT * FROM epg
+        WHERE channelId IN (:channelIds)
         ORDER BY channelId ASC, start ASC
     """)
     fun getProgramsByChannels(channelIds: List<String>): Flow<List<EpgEntity>>
+
+    /**
+     * Get programs for multiple channels overlapping a time window (one-shot).
+     * Used by the in-player TV Guide grid (Live Player v2).
+     */
+    @Query("""
+        SELECT * FROM epg
+        WHERE channelId IN (:channelIds)
+        AND stop > :startTime
+        AND start < :endTime
+        ORDER BY channelId ASC, start ASC
+    """)
+    suspend fun getProgramsForChannelsInRange(
+        channelIds: List<String>,
+        startTime: Long,
+        endTime: Long
+    ): List<EpgEntity>
     
     /**
      * Clear old EPG data (expired programs)

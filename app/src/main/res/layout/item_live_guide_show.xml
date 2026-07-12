@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One programme block inside a TV-Guide row timeline (Live Player v2).
+     Width/height are assigned programmatically (positioned by air-time). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_vertical"
+    android:orientation="vertical"
+    android:paddingHorizontal="8dp">
+
+    <TextView
+        android:id="@+id/guide_show_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:maxLines="1"
+        android:textColor="@color/live_osd_text_soft"
+        android:textSize="6.5sp"
+        android:textStyle="bold"
+        tools:text="Bundesliga Recap" />
+
+    <TextView
+        android:id="@+id/guide_show_time"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1.5dp"
+        android:ellipsize="end"
+        android:fontFamily="monospace"
+        android:maxLines="1"
+        android:textColor="@color/live_osd_text_faint"
+        android:textSize="5sp"
+        tools:text="20:15 · 60m" />
+</LinearLayout>

@@ -859,12 +859,8 @@ class PlayerActivity : AppCompatActivity() {
             root = osdRoot,
             playerView = playerView,
             playerProvider = { player },
-            onOpenGuide = {
-                viewModel.toggleBrowser(
-                    true,
-                    viewModel.zapState.value?.categoryId ?: liveCategoryId,
-                    contentId
-                )
+            onRequestGuideData = { windowStart, windowEnd ->
+                viewModel.loadGuideEpg(windowStart, windowEnd)
             },
             onTuneChannel = { index -> tuneToZapIndex(index) },
             onToggleFavorite = { toggleLiveFavorite() },
@@ -895,6 +891,13 @@ class PlayerActivity : AppCompatActivity() {
             repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
                 viewModel.surfEpg.collect { map ->
                     liveOsd?.setSurfEpg(map)
+                }
+            }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                viewModel.guideEpg.collect { map ->
+                    liveOsd?.setGuideEpg(map)
                 }
             }
         }
@@ -2996,6 +2999,11 @@ class PlayerActivity : AppCompatActivity() {
         Log.d("PlayerActivity", "dispatchKeyEvent: code=${event.keyCode}, action=${event.action}")
         
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+            // In-player TV Guide: BACK closes the grid instead of exiting.
+            if (liveOsd?.isGuideOpen == true) {
+                if (event.action == KeyEvent.ACTION_UP) liveOsd?.handleGuideBack()
+                return true
+            }
             // Surf drawer: BACK steps categories→channels→close; else exits (spec §8).
             if (liveOsd?.isDrawerOpen == true) {
                 if (event.action == KeyEvent.ACTION_UP) liveOsd?.handleDrawerBack()
@@ -3090,15 +3098,17 @@ class PlayerActivity : AppCompatActivity() {
                 liveOsd?.let { osd -> if (osd.handleKeyEvent(event)) return true }
             }
             val surfDrawerOpen = liveOsd?.isDrawerOpen == true
+            // Guide owns the screen while open — never zap the channel underneath it.
+            val guideOpen = liveOsd?.isGuideOpen == true
 
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_LEFT -> { if (contentType == ContentType.LIVE_TV && liveOsd == null && !viewModel.browserState.value.isVisible) { viewModel.toggleBrowser(true, viewModel.zapState.value?.categoryId ?: liveCategoryId, contentId); return true } }
                 KeyEvent.KEYCODE_CAPTIONS -> { if (contentType != ContentType.LIVE_TV) { showSubtitleSelection(); return true } }
-                KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_UP -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen) { zapChannel(direction = +1); return true } }
-                KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_DOWN -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen) { zapChannel(direction = -1); return true } }
-                KeyEvent.KEYCODE_DPAD_UP -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen) { zapChannel(direction = +1); return true } }
+                KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_UP -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = +1); return true } }
+                KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_DOWN -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = -1); return true } }
+                KeyEvent.KEYCODE_DPAD_UP -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = +1); return true } }
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen) { zapChannel(direction = -1); return true }
+                    if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = -1); return true }
                 }
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { if (contentType == ContentType.LIVE_TV) { if (viewModel.browserState.value.isVisible || liveOsd != null) return super.dispatchKeyEvent(event); if (epgOverlayMode != EpgOverlayMode.HIDDEN && !epgOverlayPinned) hideEpgOverlay() else showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false); return true } }
                 KeyEvent.KEYCODE_INFO -> {

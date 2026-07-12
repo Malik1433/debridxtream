@@ -38,6 +38,7 @@
     <string name="live_osd_min_left">%1$d MIN LEFT</string>
     <string name="live_osd_channel_count">%1$d LIVE</string>
     <string name="live_osd_channels_title">Channels</string>
+    <string name="live_guide_title">TV Guide</string>
     <string name="live_osd_categories_title">Categories</string>
     <string name="live_osd_category_count">%1$d CATEGORIES</string>
     <string name="live_osd_categories_loading">Loading categories…</string>

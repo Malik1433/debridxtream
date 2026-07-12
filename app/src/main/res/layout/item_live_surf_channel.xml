@@ -2,17 +2,25 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="37dp"
-    android:layout_marginBottom="3dp"
+    android:layout_height="46dp"
+    android:layout_marginBottom="2.5dp"
     android:background="@drawable/bg_live_surf_row"
     android:focusable="true"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingHorizontal="8dp">
+    android:clipToPadding="false">
 
+    <!-- category color bar -->
+    <View
+        android:id="@+id/surf_cat_bar"
+        android:layout_width="2dp"
+        android:layout_height="match_parent"
+        android:background="@color/neon_cyan" />
+
+    <!-- channel number -->
     <TextView
         android:id="@+id/surf_num"
-        android:layout_width="15dp"
+        android:layout_width="24dp"
         android:layout_height="wrap_content"
         android:fontFamily="monospace"
         android:gravity="center"
@@ -20,11 +28,11 @@
         android:textSize="6.5sp"
         tools:text="003" />
 
+    <!-- logo badge -->
     <FrameLayout
         android:id="@+id/surf_logo"
-        android:layout_width="25dp"
-        android:layout_height="25dp"
-        android:layout_marginStart="7dp">
+        android:layout_width="31dp"
+        android:layout_height="31dp">
 
         <TextView
             android:id="@+id/surf_logo_text"
@@ -33,7 +41,7 @@
             android:layout_gravity="center"
             android:fontFamily="@font/plus_jakarta_sans"
             android:textColor="@android:color/white"
-            android:textSize="6.5sp"
+            android:textSize="7sp"
             android:textStyle="bold"
             tools:text="SKY" />
 
@@ -42,17 +50,18 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:contentDescription="@null"
-            android:padding="3dp"
+            android:padding="3.5dp"
             android:scaleType="fitCenter"
             android:visibility="gone" />
     </FrameLayout>
 
+    <!-- info -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="7dp"
         android:layout_weight="1"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:paddingHorizontal="7dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -62,14 +71,14 @@
 
             <TextView
                 android:id="@+id/surf_name"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="0"
+                android:layout_weight="1"
                 android:fontFamily="@font/plus_jakarta_sans"
                 android:maxLines="1"
                 android:ellipsize="end"
                 android:textColor="@color/live_osd_text_primary"
-                android:textSize="7.5sp"
+                android:textSize="8sp"
                 android:textStyle="bold"
                 tools:text="SKY SPORT 1" />
 
@@ -77,13 +86,13 @@
                 android:id="@+id/surf_playing"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
+                android:layout_marginStart="5dp"
                 android:background="@drawable/bg_live_playing_badge"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.06"
-                android:paddingHorizontal="3dp"
-                android:paddingVertical="0.5dp"
-                android:text="PLAYING"
+                android:paddingHorizontal="3.5dp"
+                android:paddingVertical="1dp"
+                android:text="▶ PLAYING"
                 android:textColor="#041014"
                 android:textSize="4.5sp"
                 android:textStyle="bold"
@@ -95,23 +104,72 @@
             android:id="@+id/surf_now"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="2.5dp"
             android:maxLines="1"
             android:ellipsize="end"
-            android:textColor="@color/live_osd_text_dim"
+            android:textColor="@color/live_osd_text_muted"
             android:textSize="6.5sp"
-            android:visibility="gone"
-            tools:text="Bundesliga: BVB vs FCB"
-            tools:visibility="visible" />
+            tools:text="Bundesliga: BVB vs FCB" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ProgressBar
+                android:id="@+id/surf_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="100dp"
+                android:layout_height="1.5dp"
+                android:max="100"
+                android:progressDrawable="@drawable/live_progress_bar"
+                tools:progress="48" />
+
+            <TextView
+                android:id="@+id/surf_left"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:fontFamily="monospace"
+                android:textColor="@color/live_osd_text_faint"
+                android:textSize="5sp"
+                tools:text="55m left" />
+        </LinearLayout>
     </LinearLayout>
 
-    <ImageView
-        android:id="@+id/surf_fav"
-        android:layout_width="8dp"
-        android:layout_height="8dp"
-        android:layout_marginStart="4dp"
-        android:contentDescription="@null"
-        android:src="@drawable/ic_live_star_filled"
-        android:visibility="gone"
-        tools:visibility="visible" />
+    <!-- right meta -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="vertical"
+        android:paddingEnd="9dp">
+
+        <TextView
+            android:id="@+id/surf_quality"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_live_badge_quality_hd"
+            android:fontFamily="monospace"
+            android:paddingHorizontal="4.5dp"
+            android:paddingVertical="1.5dp"
+            android:textColor="#041014"
+            android:textSize="5.5sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:text="4K UHD"
+            tools:visibility="visible" />
+
+        <ImageView
+            android:id="@+id/surf_fav"
+            android:layout_width="7dp"
+            android:layout_height="7dp"
+            android:layout_marginTop="4dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_live_star_filled"
+            android:visibility="gone"
+            tools:visibility="visible" />
+    </LinearLayout>
 </LinearLayout>

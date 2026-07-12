@@ -3,6 +3,7 @@ package com.tvonnet.debridxtreamiptv.player.stabilized
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -13,8 +14,8 @@ import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
 import java.util.Locale
 
 /**
- * Category rows for the live-player surf drawer (second-LEFT picker).
- * Mirrors [LiveSurfChannelAdapter] styling; the active category gets the cyan dot.
+ * Rich category rows for the Live Player v2 side-by-side picker (second-LEFT):
+ * icon badge + label + channel count + active chevron. Mirrors surf-row styling.
  */
 class LiveSurfCategoryAdapter(
     private val onCategoryClick: (XtreamCategory) -> Unit
@@ -22,10 +23,12 @@ class LiveSurfCategoryAdapter(
 
     private var categories: List<XtreamCategory> = emptyList()
     private var selectedCategoryId: String? = null
+    private var counts: Map<String, Int> = emptyMap()
 
-    fun submit(categories: List<XtreamCategory>, selectedCategoryId: String?) {
+    fun submit(categories: List<XtreamCategory>, selectedCategoryId: String?, counts: Map<String, Int>) {
         this.categories = categories
         this.selectedCategoryId = selectedCategoryId
+        this.counts = counts
         notifyDataSetChanged()
     }
 
@@ -37,29 +40,39 @@ class LiveSurfCategoryAdapter(
         return Holder(view)
     }
 
-    override fun onBindViewHolder(holder: Holder, position: Int) {
-        holder.bind(categories[position])
-    }
+    override fun onBindViewHolder(holder: Holder, position: Int) = holder.bind(categories[position])
 
     inner class Holder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val code: TextView = itemView.findViewById(R.id.cat_code)
+        private val accent: View = itemView.findViewById(R.id.cat_accent)
+        private val icon: FrameLayout = itemView.findViewById(R.id.cat_icon)
+        private val abbr: TextView = itemView.findViewById(R.id.cat_abbr)
         private val name: TextView = itemView.findViewById(R.id.cat_name)
-        private val active: ImageView = itemView.findViewById(R.id.cat_active)
+        private val count: TextView = itemView.findViewById(R.id.cat_count)
+        private val chevron: ImageView = itemView.findViewById(R.id.cat_chevron)
 
         fun bind(category: XtreamCategory) {
             val ctx = itemView.context
+            val density = ctx.resources.displayMetrics.density
             val isSelected = category.category_id != null && category.category_id == selectedCategoryId
             val rawName = category.category_name ?: "Unknown"
 
             name.text = rawName
-            code.text = deriveCode(rawName)
-            active.isVisible = isSelected
+            abbr.text = deriveCode(rawName)
+            icon.background = LivePlayerOsdManager.channelTileGradient(rawName, 6.5f * density)
+            accent.setBackgroundColor(LivePlayerOsdManager.accentColor(rawName))
+
+            val c = category.category_id?.let { counts[it] }
+            if (c != null) {
+                count.isVisible = true
+                count.text = if (c == 1) "1 channel" else "$c channels"
+            } else {
+                count.isVisible = false
+            }
+
+            chevron.isVisible = isSelected
             itemView.isActivated = isSelected
             name.setTextColor(
-                ContextCompat.getColor(
-                    ctx,
-                    if (isSelected) R.color.neon_cyan else R.color.live_osd_text_primary
-                )
+                ContextCompat.getColor(ctx, if (isSelected) R.color.neon_cyan else R.color.live_osd_text_primary)
             )
 
             itemView.setOnClickListener { onCategoryClick(category) }

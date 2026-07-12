@@ -662,6 +662,44 @@ class XtreamRepository @Inject constructor(
         }
     }
     
+    /**
+     * Batch current-program lookup for the Live Player surf list / mini-EPG.
+     * Returns a map keyed by EPG channel id → the program on air right now.
+     */
+    suspend fun getCurrentProgramsByEpgId(epgChannelIds: List<String>): Map<String, EpgEntity> {
+        val dao = epgDao ?: return emptyMap()
+        val ids = epgChannelIds.filter { it.isNotBlank() }.distinct()
+        if (ids.isEmpty()) return emptyMap()
+        return try {
+            dao.getCurrentProgramsForChannels(ids, System.currentTimeMillis())
+                .associateBy { it.channelId }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to batch-load current EPG", e)
+            emptyMap()
+        }
+    }
+
+    /**
+     * Windowed EPG for the in-player TV Guide grid: programmes for the given EPG
+     * channel ids overlapping [startTime, endTime), grouped by channelId.
+     */
+    suspend fun getProgramsByEpgIdInRange(
+        epgChannelIds: List<String>,
+        startTime: Long,
+        endTime: Long
+    ): Map<String, List<EpgEntity>> {
+        val dao = epgDao ?: return emptyMap()
+        val ids = epgChannelIds.filter { it.isNotBlank() }.distinct()
+        if (ids.isEmpty()) return emptyMap()
+        return try {
+            dao.getProgramsForChannelsInRange(ids, startTime, endTime)
+                .groupBy { it.channelId }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to batch-load windowed EPG", e)
+            emptyMap()
+        }
+    }
+
     private suspend fun fetchVodCategoriesAndStreams(): Result<VodCacheData> {
         return try {
             val categoriesResponse = apiService?.getVodCategories(username, password)

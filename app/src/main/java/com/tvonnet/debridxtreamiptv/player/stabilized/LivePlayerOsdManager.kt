@@ -3,6 +3,7 @@ package com.tvonnet.debridxtreamiptv.player.stabilized
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.animation.AlphaAnimation
@@ -40,7 +41,7 @@ class LivePlayerOsdManager(
     private val root: View,
     private val playerView: PlayerView,
     private val playerProvider: () -> Player?,
-    private val onOpenGuide: () -> Unit,
+    private val onRequestGuideData: (Long, Long) -> Unit,
     private val onTuneChannel: (Int) -> Unit,
     private val onToggleFavorite: () -> Unit,
     private val onCategorySelected: (String) -> Unit
@@ -73,13 +74,14 @@ class LivePlayerOsdManager(
     private val zapNow: TextView = root.findViewById(R.id.live_zap_now)
     private val bottomOsd: View = root.findViewById(R.id.live_bottom_osd)
     private val nowTitle: TextView = root.findViewById(R.id.live_now_title)
+    private val nowDesc: TextView = root.findViewById(R.id.live_now_desc)
     private val timeStart: TextView = root.findViewById(R.id.live_time_start)
     private val timeEnd: TextView = root.findViewById(R.id.live_time_end)
     private val minLeft: TextView = root.findViewById(R.id.live_min_left)
     private val progress: ProgressBar = root.findViewById(R.id.live_progress)
-    private val nextLabel: TextView = root.findViewById(R.id.live_next_label)
-    private val nextTitle: TextView = root.findViewById(R.id.live_next_title)
-    private val nextCard: View = root.findViewById(R.id.live_next_card)
+    // ON AIR NOW mini-EPG (bottom OSD, v2)
+    private val onAirClock: TextView = root.findViewById(R.id.live_onair_clock)
+    private val onAirList: RecyclerView = root.findViewById(R.id.rv_live_onair)
     private val btnChannels: View = root.findViewById(R.id.btn_live_channels)
     private val btnGuide: View = root.findViewById(R.id.btn_live_guide)
     private val btnCc: View = root.findViewById(R.id.btn_live_cc)
@@ -95,15 +97,31 @@ class LivePlayerOsdManager(
     private val surfTitle: TextView = root.findViewById(R.id.live_surf_title)
     private val surfCount: TextView = root.findViewById(R.id.live_surf_count)
     private val surfList: RecyclerView = root.findViewById(R.id.rv_live_surf)
+    // preview strip (top of channel drawer, v2)
+    private val previewBg: View = root.findViewById(R.id.live_preview_bg)
+    private val previewLogo: FrameLayout = root.findViewById(R.id.live_preview_logo)
+    private val previewLogoText: TextView = root.findViewById(R.id.live_preview_logo_text)
+    private val previewLogoImg: ImageView = root.findViewById(R.id.live_preview_logo_img)
+    private val previewName: TextView = root.findViewById(R.id.live_preview_name)
+    private val previewNow: TextView = root.findViewById(R.id.live_preview_now)
+    private val previewQuality: TextView = root.findViewById(R.id.live_preview_quality)
+    private val previewProgress: ProgressBar = root.findViewById(R.id.live_preview_progress)
+    // categories side panel (v2)
+    private val catsDrawer: View = root.findViewById(R.id.live_cats_drawer)
+    private val catsList: RecyclerView = root.findViewById(R.id.rv_live_cats)
     private val toast: View = root.findViewById(R.id.live_toast)
     private val toastDot: View = root.findViewById(R.id.live_toast_dot)
     private val toastText: TextView = root.findViewById(R.id.live_toast_text)
+    // in-player TV Guide grid (v2)
+    private val guideOverlay: View = root.findViewById(R.id.live_guide_overlay)
+    private val guideTimebar: FrameLayout = root.findViewById(R.id.live_guide_timebar)
+    private val guideClock: TextView = root.findViewById(R.id.live_guide_clock)
+    private val guideList: RecyclerView = root.findViewById(R.id.rv_live_guide)
 
     private val controls = listOf(btnChannels, btnGuide, btnCc, btnAudio, btnAspect, btnFav)
 
     // ── state ──────────────────────────────────────────────────────────────
     private var currentNow: EpgEntity? = null
-    private var currentNext: EpgEntity? = null
     private var isFavorite = false
     private var aspectIndex = 0
     private var zapChannels: List<ZapChannel> = emptyList()
@@ -112,41 +130,62 @@ class LivePlayerOsdManager(
     private var channelName: String? = null
     private var connectionLabel: String = "XTREAM"
 
-    // Surf drawer can show the current category's channels, or the category picker.
-    private enum class DrawerMode { CHANNELS, CATEGORIES }
-    private var drawerMode: DrawerMode = DrawerMode.CHANNELS
+    // Two-panel surf drawer: channel list, optionally with the category picker.
+    private enum class Panel { NONE, CHANNELS, BOTH }
+    private var panel: Panel = Panel.NONE
     private var categories: List<XtreamCategory> = emptyList()
     private var currentCategoryId: String? = null
     private var currentCategoryName: String? = null
     private var pendingCategoryRefocus = false
+    private var surfEpg: Map<String, EpgEntity> = emptyMap()
+    private var previewIndex: Int = -1
 
-    val isDrawerOpen: Boolean get() = drawer.isVisible
+    // in-player TV Guide grid state (v2)
+    private var guideEpg: Map<String, List<EpgEntity>> = emptyMap()
+    private var guideRowsCache: List<GuideRow> = emptyList()
+    private var guideOpen = false
+    private var guideRow = 0
+    private var guideShowIdx = 0
+    private var guideTimelineWidthPx = 0
+    private var guideWindowStartMs = 0L
+    private val guideAdapter = LiveGuideAdapter()
+
+    val isDrawerOpen: Boolean get() = panel != Panel.NONE
+    val isGuideOpen: Boolean get() = guideOpen
     val isOsdVisible: Boolean get() = bottomOsd.isVisible && bottomOsd.alpha > 0.5f
 
-    private val surfAdapter = LiveSurfChannelAdapter { index ->
-        closeDrawer(refocusControls = false)
-        onTuneChannel(index)
-    }
+    private val surfAdapter = LiveSurfChannelAdapter(
+        onChannelClick = { index ->
+            closeDrawer(refocusControls = false)
+            onTuneChannel(index)
+        },
+        onChannelFocus = { index -> updatePreview(index) }
+    )
 
-    private val categoryAdapter = LiveSurfCategoryAdapter { category ->
+    private val categoryAdapter: LiveSurfCategoryAdapter = LiveSurfCategoryAdapter { category ->
         val catId = category.category_id ?: return@LiveSurfCategoryAdapter
         currentCategoryId = catId
         currentCategoryName = category.category_name
-        // Ask PlayerActivity to reload the zap list for the picked category, then
-        // flip back to the channel list. The refreshed list arrives async via
-        // setZapState, which re-asserts focus because of this flag.
+        // Reload the zap list for the picked category; the refreshed list arrives
+        // async via setZapState, which re-submits the category highlight + re-asserts
+        // focus because of this flag.
         pendingCategoryRefocus = true
         onCategorySelected(catId)
-        switchDrawerToChannels()
     }
+
+    private val onAirAdapter = LiveOnAirAdapter()
 
     private val hideOsdRunnable = Runnable { hideOsd() }
     private val hideZapRunnable = Runnable { hideZapOsd() }
     private val hideToastRunnable = Runnable { dismissToast() }
     private val minuteTicker = object : Runnable {
         override fun run() {
-            clock.text = clockFormat.format(Date())
+            val now = clockFormat.format(Date())
+            clock.text = now
+            onAirClock.text = now
+            guideClock.text = now
             updateProgressRow()
+            refreshOnAir()
             handler.postDelayed(this, 30_000L)
         }
     }
@@ -154,9 +193,18 @@ class LivePlayerOsdManager(
     init {
         surfList.layoutManager = LinearLayoutManager(root.context)
         surfList.adapter = surfAdapter
+        catsList.layoutManager = LinearLayoutManager(root.context)
+        catsList.adapter = categoryAdapter
+        onAirList.layoutManager = LinearLayoutManager(root.context)
+        onAirList.adapter = onAirAdapter
+        onAirList.isFocusable = false
+
+        guideList.layoutManager = LinearLayoutManager(root.context)
+        guideList.adapter = guideAdapter
+        guideList.isFocusable = false
 
         btnChannels.setOnClickListener { openDrawer() }
-        btnGuide.setOnClickListener { onOpenGuide() }
+        btnGuide.setOnClickListener { openGuide() }
         btnCc.setOnClickListener { cycleCc() }
         btnAudio.setOnClickListener { cycleAudio() }
         btnAspect.setOnClickListener { cycleAspect() }
@@ -271,26 +319,24 @@ class LivePlayerOsdManager(
     // ── EPG binding ────────────────────────────────────────────────────────
     fun bindEpg(now: EpgEntity?, next: EpgEntity?) {
         currentNow = now
-        currentNext = next
 
         val title = now?.title
         nowTitle.text = title ?: root.context.getString(R.string.epg_no_info)
         nowTitle.alpha = 0f
         nowTitle.animate().alpha(1f).setDuration(400).start()
 
+        // v2 program-description line under the NOW title
+        val desc = now?.description?.trim()
+        if (desc.isNullOrBlank()) {
+            nowDesc.isVisible = false
+        } else {
+            nowDesc.isVisible = true
+            nowDesc.text = desc
+        }
+
         if (zapOsd.isVisible) {
             zapNow.text = title.orEmpty()
             zapNow.isVisible = !title.isNullOrBlank()
-        }
-
-        if (next?.title.isNullOrBlank()) {
-            nextCard.isVisible = false
-        } else {
-            nextCard.isVisible = true
-            nextLabel.text = "UP NEXT · " + (next?.start?.let { timeFormat.format(Date(it)) } ?: "--:--")
-            nextTitle.text = next?.title
-            nextTitle.alpha = 0f
-            nextTitle.animate().alpha(1f).setDuration(400).start()
         }
         updateProgressRow()
     }
@@ -311,6 +357,104 @@ class LivePlayerOsdManager(
         progress.progress = (elapsed * 100 / duration).toInt()
         val left = ((duration - elapsed) / 60_000L).coerceAtLeast(1L)
         minLeft.text = root.context.getString(R.string.live_osd_min_left, left)
+    }
+
+    // ── per-channel EPG (v2 rich rows + ON AIR NOW + preview strip) ─────────
+    /** Current-program snapshot for every channel, keyed by streamId. */
+    fun setSurfEpg(map: Map<String, EpgEntity>) {
+        surfEpg = map
+        refreshOnAir()
+        if (panel != Panel.NONE) {
+            surfAdapter.submit(zapChannels, zapIndex, favoriteIds, rowEpgMap(), categoryColor())
+        }
+        if (previewIndex in zapChannels.indices) bindPreviewStrip(zapChannels[previewIndex])
+    }
+
+    private fun toRowEpg(e: EpgEntity?): SurfRowEpg? {
+        if (e == null || e.stop <= e.start) return e?.let { SurfRowEpg(it.title, 0, null) }
+        val now = System.currentTimeMillis()
+        val dur = (e.stop - e.start).coerceAtLeast(1L)
+        val elapsed = (now - e.start).coerceIn(0L, dur)
+        val pct = (elapsed * 100 / dur).toInt()
+        val leftMin = ((dur - elapsed) / 60_000L).coerceAtLeast(1L)
+        return SurfRowEpg(e.title, pct, "${leftMin}m left")
+    }
+
+    private fun rowEpgMap(): Map<String, SurfRowEpg> =
+        surfEpg.mapNotNull { (id, e) -> toRowEpg(e)?.let { id to it } }.toMap()
+
+    private fun categoryColor(): Int = accentColor(currentCategoryName)
+
+    private fun categoryCounts(): Map<String, Int> =
+        currentCategoryId?.let { mapOf(it to zapChannels.size) } ?: emptyMap()
+
+    /** ON AIR NOW mini-EPG: prev / current / next around the tuned channel. */
+    private fun refreshOnAir() {
+        val n = zapChannels.size
+        if (n == 0 || zapIndex < 0) {
+            onAirAdapter.submit(emptyList())
+            return
+        }
+        val offsets = when {
+            n >= 3 -> listOf(-1, 0, 1)
+            n == 2 -> listOf(0, 1)
+            else -> listOf(0)
+        }
+        val rows = offsets.map { off ->
+            val idx = ((zapIndex + off) % n + n) % n
+            val ch = zapChannels[idx]
+            val e = surfEpg[ch.streamId]
+            OnAirRow(
+                name = ch.name,
+                num = String.format("%03d", idx + 1),
+                nowTitle = e?.title,
+                logoUrl = ch.logoUrl,
+                isActive = off == 0,
+                progress = toRowEpg(e)?.progress ?: 0
+            )
+        }
+        onAirAdapter.submit(rows)
+    }
+
+    private fun updatePreview(index: Int) {
+        if (index !in zapChannels.indices) return
+        previewIndex = index
+        bindPreviewStrip(zapChannels[index])
+    }
+
+    private fun bindPreviewStrip(ch: ZapChannel) {
+        val density = root.resources.displayMetrics.density
+        previewName.text = ch.name
+        previewLogoText.text = channelInitials(ch.name)
+        previewLogo.background = channelTileGradient(ch.name, 6f * density)
+        previewBg.background = watermarkGradient(ch.name)
+        if (!ch.logoUrl.isNullOrBlank()) {
+            previewLogoImg.isVisible = true
+            GlideUtils.loadChannelLogo(previewLogoImg, ch.logoUrl)
+        } else {
+            previewLogoImg.isVisible = false
+        }
+        val e = surfEpg[ch.streamId]
+        previewNow.text = e?.title
+        previewNow.isVisible = !e?.title.isNullOrBlank()
+        val rp = toRowEpg(e)
+        if (rp != null && rp.progress > 0) {
+            previewProgress.isVisible = true
+            previewProgress.progress = rp.progress
+        } else {
+            previewProgress.isVisible = false
+        }
+        val q = detectQuality(ch.name)
+        if (q == null) {
+            previewQuality.isVisible = false
+        } else {
+            previewQuality.isVisible = true
+            previewQuality.text = q
+            previewQuality.setBackgroundResource(
+                if (q.contains("4K")) R.drawable.bg_live_badge_quality_4k
+                else R.drawable.bg_live_badge_quality_hd
+            )
+        }
     }
 
     // ── chrome (channel bug + top-right status) show / hide ────────────────
@@ -390,24 +534,23 @@ class LivePlayerOsdManager(
 
     private fun isControlFocused(): Boolean = controls.any { it.isFocused }
 
-    // ── channel surf drawer ────────────────────────────────────────────────
+    // ── two-panel surf drawer (channels + category picker, v2) ─────────────
     fun setZapState(categoryId: String, categoryName: String?, channels: List<ZapChannel>, index: Int) {
         currentCategoryId = categoryId
         currentCategoryName = categoryName
         zapChannels = channels
         zapIndex = index
-        if (drawerMode == DrawerMode.CHANNELS) {
-            surfTitle.text = categoryName ?: root.context.getString(R.string.live_osd_channels_title)
-            surfCount.text = root.context.getString(R.string.live_osd_channel_count, channels.size)
-            if (isDrawerOpen) {
-                surfAdapter.submit(channels, index, favoriteIds, nowTitlesForAdapter())
-                // Only a category switch re-asserts focus (the async list swap under
-                // the open drawer would otherwise drop D-pad focus). A normal tune
-                // is closing the drawer, so leave its focus alone.
-                if (pendingCategoryRefocus) {
-                    pendingCategoryRefocus = false
-                    focusSurfRow(index.coerceAtLeast(0))
-                }
+        surfTitle.text = categoryName ?: root.context.getString(R.string.live_osd_channels_title)
+        surfCount.text = root.context.getString(R.string.live_osd_channel_count, channels.size)
+        refreshOnAir()
+        if (panel != Panel.NONE) {
+            surfAdapter.submit(channels, index, favoriteIds, rowEpgMap(), categoryColor())
+            categoryAdapter.submit(categories, currentCategoryId, categoryCounts())
+            // A category switch refreshes the list async; re-assert focus + preview.
+            if (pendingCategoryRefocus) {
+                pendingCategoryRefocus = false
+                updatePreview(index.coerceAtLeast(0))
+                focusSurfRow(index.coerceAtLeast(0))
             }
         }
     }
@@ -420,25 +563,19 @@ class LivePlayerOsdManager(
         }
     }
 
-    /** Category picker data for the second-LEFT drawer view. */
+    /** Category picker data for the second-LEFT panel. */
     fun setCategories(cats: List<XtreamCategory>) {
         categories = cats
+        if (panel == Panel.BOTH) categoryAdapter.submit(cats, currentCategoryId, categoryCounts())
     }
 
     fun setFavorites(ids: Set<String>, currentStreamId: String?) {
         favoriteIds = ids
         isFavorite = currentStreamId != null && ids.contains(currentStreamId)
         favIcon.setImageResource(if (isFavorite) R.drawable.ic_live_star_filled else R.drawable.ic_live_star)
-        if (isDrawerOpen) {
-            surfAdapter.submit(zapChannels, zapIndex, favoriteIds, nowTitlesForAdapter())
+        if (panel != Panel.NONE) {
+            surfAdapter.submit(zapChannels, zapIndex, favoriteIds, rowEpgMap(), categoryColor())
         }
-    }
-
-    private fun nowTitlesForAdapter(): Map<String, String> {
-        // EPG is observed only for the tuned channel; show its NOW line in the list.
-        val id = zapChannels.getOrNull(zapIndex)?.streamId ?: return emptyMap()
-        val title = currentNow?.title ?: return emptyMap()
-        return mapOf(id to title)
     }
 
     fun openDrawer() {
@@ -447,67 +584,60 @@ class LivePlayerOsdManager(
             return
         }
         handler.removeCallbacks(hideOsdRunnable)
-        // Always open on the channel list of the current category (first LEFT).
-        drawerMode = DrawerMode.CHANNELS
-        surfList.adapter = surfAdapter
+        panel = Panel.CHANNELS
         surfTitle.text = currentCategoryName ?: root.context.getString(R.string.live_osd_channels_title)
         surfCount.text = root.context.getString(R.string.live_osd_channel_count, zapChannels.size)
-        surfAdapter.submit(zapChannels, zapIndex, favoriteIds, nowTitlesForAdapter())
+        surfAdapter.submit(zapChannels, zapIndex, favoriteIds, rowEpgMap(), categoryColor())
+        updatePreview(zapIndex.coerceAtLeast(0))
         drawerScrim.alpha = 0f
         drawerScrim.isVisible = true
         drawerScrim.animate().alpha(1f).setDuration(250).start()
         drawer.isVisible = true
         drawer.translationX = -drawer.layoutParams.width.toFloat()
         drawer.animate().translationX(0f).setDuration(300).setInterpolator(easeOutExpo).start()
-        // OSD fades to 15% while the drawer is open (spec §7)
-        bottomOsd.animate().alpha(0.15f).setDuration(250).start()
-        val target = zapIndex.coerceAtLeast(0)
-        surfList.scrollToPosition(target)
-        surfList.post {
-            surfList.findViewHolderForAdapterPosition(target)?.itemView?.requestFocus()
-                ?: surfList.requestFocus()
-        }
+        catsDrawer.isVisible = false
+        // OSD dims to ~12% while the drawer is open (spec).
+        bottomOsd.animate().alpha(0.12f).setDuration(250).start()
+        focusSurfRow(zapIndex.coerceAtLeast(0))
     }
 
-    /** Second LEFT while on the channel list — swap to the category picker in place. */
-    private fun switchDrawerToCategories() {
+    /** Second LEFT — slide the category picker in far-left; channel list shifts right. */
+    private fun openCategories() {
         if (categories.isEmpty()) {
             showToast(root.context.getString(R.string.live_osd_categories_loading))
             return
         }
-        drawerMode = DrawerMode.CATEGORIES
-        surfTitle.text = root.context.getString(R.string.live_osd_categories_title)
-        surfCount.text = root.context.getString(R.string.live_osd_category_count, categories.size)
-        categoryAdapter.submit(categories, currentCategoryId)
-        surfList.adapter = categoryAdapter
+        panel = Panel.BOTH
+        categoryAdapter.submit(categories, currentCategoryId, categoryCounts())
+        val catW = catsDrawer.layoutParams.width.toFloat()
+        catsDrawer.isVisible = true
+        catsDrawer.translationX = -catW
+        catsDrawer.animate().translationX(0f).setDuration(320).setInterpolator(easeOutExpo).start()
+        drawer.animate().translationX(catW).setDuration(320).setInterpolator(easeOutExpo).start()
         val selected = categories.indexOfFirst { it.category_id == currentCategoryId }.coerceAtLeast(0)
-        surfList.scrollToPosition(selected)
-        surfList.post {
-            surfList.findViewHolderForAdapterPosition(selected)?.itemView?.requestFocus()
-                ?: surfList.requestFocus()
+        catsList.scrollToPosition(selected)
+        catsList.post {
+            catsList.findViewHolderForAdapterPosition(selected)?.itemView?.requestFocus()
+                ?: catsList.requestFocus()
         }
     }
 
-    /** Back to the channel list (RIGHT from categories, or after picking one). */
-    private fun switchDrawerToChannels() {
-        drawerMode = DrawerMode.CHANNELS
-        surfTitle.text = currentCategoryName ?: root.context.getString(R.string.live_osd_channels_title)
-        surfCount.text = root.context.getString(R.string.live_osd_channel_count, zapChannels.size)
-        surfAdapter.submit(zapChannels, zapIndex, favoriteIds, nowTitlesForAdapter())
-        surfList.adapter = surfAdapter
-        val target = zapIndex.coerceAtLeast(0)
-        surfList.scrollToPosition(target)
-        surfList.post {
-            surfList.findViewHolderForAdapterPosition(target)?.itemView?.requestFocus()
-                ?: surfList.requestFocus()
-        }
+    /** RIGHT from the category picker — collapse it; channel list slides back. */
+    private fun closeCategories() {
+        if (panel != Panel.BOTH) return
+        panel = Panel.CHANNELS
+        val catW = catsDrawer.layoutParams.width.toFloat()
+        catsDrawer.animate().translationX(-catW).setDuration(260).setInterpolator(easeOutExpo)
+            .withEndAction { catsDrawer.isVisible = false }.start()
+        drawer.animate().translationX(0f).setDuration(260).setInterpolator(easeOutExpo).start()
+        focusSurfRow(previewIndex.coerceAtLeast(0))
     }
 
     /** BACK inside the drawer: categories → channels → close. Returns true if consumed. */
     fun handleDrawerBack(): Boolean {
-        if (!isDrawerOpen) return false
-        if (drawerMode == DrawerMode.CATEGORIES) {
-            switchDrawerToChannels()
+        if (panel == Panel.NONE) return false
+        if (panel == Panel.BOTH) {
+            closeCategories()
             return true
         }
         closeDrawer()
@@ -515,13 +645,17 @@ class LivePlayerOsdManager(
     }
 
     fun closeDrawer(refocusControls: Boolean = true) {
-        if (!isDrawerOpen) return
-        drawerMode = DrawerMode.CHANNELS
+        if (panel == Panel.NONE) return
+        panel = Panel.NONE
         pendingCategoryRefocus = false
-        surfList.adapter = surfAdapter
         drawerScrim.animate().alpha(0f).setDuration(200).withEndAction { drawerScrim.isVisible = false }.start()
+        val catW = catsDrawer.layoutParams.width.toFloat()
+        if (catsDrawer.isVisible) {
+            catsDrawer.animate().translationX(-catW).setDuration(250)
+                .withEndAction { catsDrawer.isVisible = false }.start()
+        }
         drawer.animate().translationX(-drawer.layoutParams.width.toFloat()).setDuration(250)
-            .withEndAction { drawer.isVisible = false }.start()
+            .withEndAction { drawer.isVisible = false; drawer.translationX = 0f }.start()
         if (bottomOsd.isVisible) {
             bottomOsd.animate().alpha(1f).setDuration(250).start()
             handler.postDelayed(hideOsdRunnable, OSD_TIMEOUT_MS)
@@ -530,6 +664,192 @@ class LivePlayerOsdManager(
             playerView.requestFocus()
         }
     }
+
+    // ── in-player TV Guide grid (v2) ───────────────────────────────────────
+    /** Open the full-screen EPG grid over the video (from the TV Guide button). */
+    fun openGuide() {
+        if (zapChannels.isEmpty()) {
+            showToast(root.context.getString(R.string.player_zap_loading))
+            return
+        }
+        guideOpen = true
+        // The guide is full-screen: retire the bottom OSD, chrome and any drawer.
+        handler.removeCallbacks(hideOsdRunnable)
+        if (panel != Panel.NONE) closeDrawer(refocusControls = false)
+        setChromeVisible(false)
+        setControlsFocusable(false)
+        if (bottomOsd.isVisible) {
+            bottomOsd.animate().alpha(0f).setDuration(180).withEndAction { bottomOsd.isVisible = false }.start()
+            scrimTop.animate().alpha(0f).setDuration(180).withEndAction { scrimTop.isVisible = false }.start()
+            scrimBottom.animate().alpha(0f).setDuration(180).withEndAction { scrimBottom.isVisible = false }.start()
+        }
+
+        guideWindowStartMs = System.currentTimeMillis() - GUIDE_BEFORE_MS
+        guideRow = zapIndex.coerceIn(0, (zapChannels.size - 1).coerceAtLeast(0))
+        guideShowIdx = 0
+        guideClock.text = clockFormat.format(Date())
+        // Ask the host to load windowed EPG for every channel in the zap list.
+        onRequestGuideData(guideWindowStartMs, guideWindowStartMs + GUIDE_WINDOW_MS)
+
+        guideOverlay.alpha = 0f
+        guideOverlay.isVisible = true
+        guideOverlay.animate().alpha(1f).setDuration(200).start()
+        guideList.post {
+            guideTimelineWidthPx = (guideList.width - dp(GUIDE_CH_COL_DP)).coerceAtLeast(0)
+            if (guideTimelineWidthPx == 0) {
+                guideTimelineWidthPx =
+                    (root.resources.displayMetrics.widthPixels - dp(GUIDE_CH_COL_DP)).coerceAtLeast(0)
+            }
+            rebuildGuide(initialFocus = true)
+        }
+    }
+
+    /** Windowed EPG for the guide, keyed by streamId, arriving async from the host. */
+    fun setGuideEpg(map: Map<String, List<EpgEntity>>) {
+        guideEpg = map
+        if (guideOpen) rebuildGuide(initialFocus = false)
+    }
+
+    private fun rebuildGuide(initialFocus: Boolean) {
+        if (!guideOpen) return
+        if (guideTimelineWidthPx <= 0) {
+            guideTimelineWidthPx = (guideList.width - dp(GUIDE_CH_COL_DP)).coerceAtLeast(0)
+        }
+        val rows = buildGuideRows()
+        guideRowsCache = rows
+        val showCount = rows.getOrNull(guideRow)?.shows?.size ?: 0
+        guideShowIdx = if (initialFocus) {
+            rows.getOrNull(guideRow)?.shows?.indexOfFirst { it.isCurrent }?.takeIf { it >= 0 } ?: 0
+        } else {
+            guideShowIdx.coerceIn(0, (showCount - 1).coerceAtLeast(0))
+        }
+        guideAdapter.submit(rows, guideTimelineWidthPx, guideRow, guideShowIdx)
+        renderGuideTimebar()
+        guideList.scrollToPosition(guideRow)
+    }
+
+    private fun buildGuideRows(): List<GuideRow> {
+        val startMs = guideWindowStartMs
+        val endMs = startMs + GUIDE_WINDOW_MS
+        val span = GUIDE_WINDOW_MS.toFloat()
+        val nowMs = System.currentTimeMillis()
+        val nowFrac = ((nowMs - startMs).toFloat() / span).coerceIn(0f, 1f)
+        return zapChannels.mapIndexed { idx, ch ->
+            val progs = guideEpg[ch.streamId].orEmpty()
+                .filter { it.stop > startMs && it.start < endMs && it.stop > it.start }
+                .sortedBy { it.start }
+            val shows = progs.map { p ->
+                val clipStart = p.start.coerceAtLeast(startMs)
+                val clipEnd = p.stop.coerceAtMost(endMs)
+                GuideShow(
+                    title = p.title ?: root.context.getString(R.string.epg_no_info),
+                    timeLabel = timeFormat.format(Date(p.start)) + " · " +
+                        ((p.stop - p.start) / 60_000L).coerceAtLeast(1) + "m",
+                    leftFrac = ((clipStart - startMs).toFloat() / span).coerceIn(0f, 1f),
+                    widthFrac = ((clipEnd - clipStart).toFloat() / span).coerceIn(0f, 1f),
+                    isCurrent = p.start <= nowMs && p.stop > nowMs
+                )
+            }
+            GuideRow(
+                name = ch.name,
+                num = String.format("%03d", idx + 1),
+                isActiveChannel = idx == zapIndex,
+                nowLineFrac = nowFrac,
+                shows = shows
+            )
+        }
+    }
+
+    private fun renderGuideTimebar() {
+        guideTimebar.removeAllViews()
+        val width = guideTimelineWidthPx
+        if (width <= 0) return
+        val startMs = guideWindowStartMs
+        val span = GUIDE_WINDOW_MS.toFloat()
+        val slotMs = 30 * 60_000L
+        var t = ((startMs + slotMs - 1) / slotMs) * slotMs
+        while (t <= startMs + GUIDE_WINDOW_MS) {
+            val frac = (t - startMs).toFloat() / span
+            val label = TextView(root.context).apply {
+                text = timeFormat.format(Date(t))
+                textSize = 5f
+                setTextColor(0xFF334155.toInt())
+                typeface = android.graphics.Typeface.MONOSPACE
+            }
+            val lp = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER_VERTICAL
+            )
+            lp.leftMargin = (frac * width).toInt() + dp(2f)
+            guideTimebar.addView(label, lp)
+            t += slotMs
+        }
+        val nowMs = System.currentTimeMillis()
+        val nowX = (((nowMs - startMs).toFloat() / span).coerceIn(0f, 1f) * width).toInt()
+        val line = View(root.context).apply { setBackgroundColor(0xFF00F0FF.toInt()) }
+        val lineLp = FrameLayout.LayoutParams(dp(2f), FrameLayout.LayoutParams.MATCH_PARENT)
+        lineLp.leftMargin = nowX
+        guideTimebar.addView(line, lineLp)
+        val pill = TextView(root.context).apply {
+            text = "NOW"
+            textSize = 4.5f
+            setTextColor(0xFF041014.toInt())
+            typeface = android.graphics.Typeface.MONOSPACE
+            setPadding(dp(4f), dp(1f), dp(4f), dp(1f))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(2.5f).toFloat()
+                setColor(0xFF00F0FF.toInt())
+            }
+        }
+        val pillLp = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            Gravity.CENTER_VERTICAL
+        )
+        pillLp.leftMargin = (nowX - dp(8f)).coerceAtLeast(0)
+        guideTimebar.addView(pill, pillLp)
+    }
+
+    private fun guideMove(dRow: Int, dShow: Int) {
+        if (guideRowsCache.isEmpty()) return
+        if (dRow != 0) {
+            guideRow = (guideRow + dRow).coerceIn(0, guideRowsCache.size - 1)
+            val cnt = guideRowsCache[guideRow].shows.size
+            guideShowIdx = guideShowIdx.coerceIn(0, (cnt - 1).coerceAtLeast(0))
+            guideList.smoothScrollToPosition(guideRow)
+        }
+        if (dShow != 0) {
+            val cnt = guideRowsCache[guideRow].shows.size
+            if (cnt > 0) guideShowIdx = (guideShowIdx + dShow).coerceIn(0, cnt - 1)
+        }
+        guideAdapter.submit(guideRowsCache, guideTimelineWidthPx, guideRow, guideShowIdx)
+    }
+
+    private fun tuneFromGuide() {
+        val idx = guideRow
+        closeGuide(returnToPlayer = false)
+        onTuneChannel(idx)
+    }
+
+    /** BACK inside the guide closes it. Returns true if consumed. */
+    fun handleGuideBack(): Boolean {
+        if (!guideOpen) return false
+        closeGuide(returnToPlayer = true)
+        return true
+    }
+
+    private fun closeGuide(returnToPlayer: Boolean) {
+        if (!guideOpen) return
+        guideOpen = false
+        guideOverlay.animate().alpha(0f).setDuration(180).withEndAction {
+            guideOverlay.isVisible = false
+            guideTimebar.removeAllViews()
+        }.start()
+        if (returnToPlayer) playerView.requestFocus()
+    }
+
+    private fun dp(v: Float): Int = (v * root.resources.displayMetrics.density).toInt()
 
     // ── toasts ─────────────────────────────────────────────────────────────
     fun showToast(message: String) {
@@ -633,21 +953,35 @@ class LivePlayerOsdManager(
             // Swallow key-ups for keys we consume on the way down.
             return false
         }
+        if (guideOpen) {
+            // The guide owns every D-pad key while open (BACK is routed separately).
+            return when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP -> { guideMove(-1, 0); true }
+                KeyEvent.KEYCODE_DPAD_DOWN -> { guideMove(1, 0); true }
+                KeyEvent.KEYCODE_DPAD_LEFT -> { guideMove(0, -1); true }
+                KeyEvent.KEYCODE_DPAD_RIGHT -> { guideMove(0, 1); true }
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                    tuneFromGuide(); true
+                }
+                else -> false
+            }
+        }
         if (isDrawerOpen) {
             // BACK is handled by PlayerActivity's back routing.
             return when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    // Channels → categories (second LEFT); categories → close (third LEFT).
-                    when (drawerMode) {
-                        DrawerMode.CHANNELS -> switchDrawerToCategories()
-                        DrawerMode.CATEGORIES -> closeDrawer()
+                    // Channels → open category picker (both); both → close everything.
+                    when (panel) {
+                        Panel.CHANNELS -> openCategories()
+                        Panel.BOTH -> closeDrawer()
+                        Panel.NONE -> {}
                     }
                     true
                 }
                 KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    // From the category picker, RIGHT returns to the channel list.
-                    if (drawerMode == DrawerMode.CATEGORIES) {
-                        switchDrawerToChannels(); true
+                    // From the category picker, RIGHT collapses back to the channel list.
+                    if (panel == Panel.BOTH) {
+                        closeCategories(); true
                     } else false
                 }
                 else -> false // list focus handles up/down/OK natively
@@ -692,6 +1026,11 @@ class LivePlayerOsdManager(
         private const val ZAP_OSD_TIMEOUT_MS = 2600L
         private const val TOAST_TIMEOUT_MS = 1800L
 
+        // in-player TV Guide grid window (v2): 1h back, 3h span.
+        private const val GUIDE_BEFORE_MS = 60 * 60_000L
+        private const val GUIDE_WINDOW_MS = 180 * 60_000L
+        private const val GUIDE_CH_COL_DP = 120f
+
         private val ASPECT_LABELS = listOf("Fit", "Fill", "16:9", "Zoom")
         private val ASPECT_MODES = listOf(
             AspectRatioFrameLayout.RESIZE_MODE_FIT,
@@ -710,6 +1049,10 @@ class LivePlayerOsdManager(
             intArrayOf(0xFFE11D74.toInt(), 0xFFFF6BA8.toInt()), // kids
             intArrayOf(0xFFE68A00.toInt(), 0xFFFFAA00.toInt())  // music
         )
+
+        /** Stable accent color for a category's color-bar (v2 rich surf rows). */
+        fun accentColor(name: String?): Int =
+            TILE_GRADIENTS[Math.abs(name?.hashCode() ?: 0) % TILE_GRADIENTS.size][1]
 
         fun channelInitials(name: String?): String {
             if (name.isNullOrBlank()) return "TV"
