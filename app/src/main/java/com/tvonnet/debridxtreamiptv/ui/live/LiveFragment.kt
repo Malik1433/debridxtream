@@ -84,7 +84,10 @@ class LiveFragment : Fragment() {
     @Inject
     lateinit var memoryManager: MemoryManager
 
+    // Playback-tuned client (longer read timeout); only used to build the preview
+    // player's DataSource below.
     @Inject
+    @javax.inject.Named("playback")
     lateinit var okHttpClient: OkHttpClient
 
     private val viewModel: LiveViewModel by viewModels()
@@ -1027,6 +1030,14 @@ class LiveFragment : Fragment() {
                 R.anim.fade_in,
                 R.anim.fade_out
             )
+            // Tear down the preview's live connection synchronously BEFORE PlayerActivity
+            // opens its own. The account is max_connections=1 — lifecycle pause only
+            // pauses the preview player, it does not close the socket, so without this
+            // the fullscreen session and the (still-connected) preview would be two
+            // simultaneous live connections and the server rejects the second. The
+            // classic screen's preview is muted/secondary, so a reconnect on return is
+            // acceptable (unlike the guide's shared-player hand-off).
+            previewPlayerPanel?.releasePlayer()
             livePlayerLauncher.launch(intent, options)
         }
     }

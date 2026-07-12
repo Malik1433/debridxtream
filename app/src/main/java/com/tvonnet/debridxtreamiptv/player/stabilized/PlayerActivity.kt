@@ -44,7 +44,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.ui.DefaultTrackNameProvider
@@ -99,6 +101,12 @@ class PlayerActivity : AppCompatActivity() {
     @Inject
     lateinit var okHttpClient: OkHttpClient
 
+    // Playback-tuned client (longer read timeout) for the video DataSource; the
+    // general okHttpClient above is still used for non-playback work (Glide, etc.).
+    @Inject
+    @javax.inject.Named("playback")
+    lateinit var playbackOkHttpClient: OkHttpClient
+
     @Inject
     lateinit var settingsPreferences: SettingsPreferences
 
@@ -146,6 +154,18 @@ class PlayerActivity : AppCompatActivity() {
             ) {
                 return C.TIME_UNSET
             }
+            // HTTP 429 (QA fix 4): the provider WAF is rate-limiting this IP. Standard
+            // fast backoff only deepens the ban, so cool off hard at the media3 level
+            // too — honor Retry-After if present, else a fixed 20s. The app-level
+            // handlePlaybackError applies the same policy + banner/budget accounting.
+            if (responseCode == 429) {
+                val headers =
+                    (loadErrorInfo.exception as? HttpDataSource.InvalidResponseCodeException)?.headerFields
+                val retryAfterSec = headers?.entries
+                    ?.firstOrNull { it.key?.equals("Retry-After", ignoreCase = true) == true }
+                    ?.value?.firstOrNull()?.trim()?.toLongOrNull()
+                return retryAfterSec?.let { (it * 1000L).coerceIn(1000L, 60_000L) } ?: HTTP_429_COOLOFF_MS
+            }
             val exponentialMs = 1000L shl (loadErrorInfo.errorCount - 1).coerceIn(0, 3)
             return exponentialMs + (0..400).random()
         }
@@ -153,6 +173,109 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun retryBackoffDelayMs(): Long =
         (1000L shl (retryCount - 1).coerceIn(0, 3)) + (0..400).random()
+
+    // ── unified reconnect budget helpers (QA fix 2 + banner from fix 3) ──────
+    /**
+     * Consult the aggregate reconnect budget BEFORE any recovery subsystem retries.
+     * Returns true and records the attempt (also refreshing the "Reconnecting…"
+     * banner) when we are still under [MAX_RECONNECTS_PER_WINDOW] within the rolling
+     * [RECONNECT_WINDOW_MS]; returns false when the budget is exhausted, in which
+     * case the caller must route to [handleTerminalPlaybackFailure]. The subsystem's
+     * own inner cap still applies on top of this.
+     */
+    private fun canAttemptReconnect(): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        while (reconnectAttemptTimestamps.isNotEmpty() &&
+            now - reconnectAttemptTimestamps.first() > RECONNECT_WINDOW_MS
+        ) {
+            reconnectAttemptTimestamps.removeFirst()
+        }
+        if (reconnectAttemptTimestamps.size >= MAX_RECONNECTS_PER_WINDOW) {
+            Log.i(
+                "PlayerActivity",
+                "Reconnect budget exhausted (${reconnectAttemptTimestamps.size}/$MAX_RECONNECTS_PER_WINDOW in ${RECONNECT_WINDOW_MS}ms) — giving up"
+            )
+            return false
+        }
+        reconnectAttemptTimestamps.addLast(now)
+        Log.i(
+            "PlayerActivity",
+            "Reconnect attempt ${reconnectAttemptTimestamps.size}/$MAX_RECONNECTS_PER_WINDOW"
+        )
+        showReconnectingBanner()
+        return true
+    }
+
+    /** Clear the budget on a genuinely-successful frame/READY or a user zap. */
+    private fun resetReconnectBudget() {
+        reconnectAttemptTimestamps.clear()
+    }
+
+    // ── session-adaptive network quality (QA fix 7) ─────────────────────────
+    /**
+     * Reclassify the saved network quality from ExoPlayer's passive bandwidth
+     * estimate on a rebuffer→READY transition, debounced to at most once per
+     * NETWORK_QUALITY_UPDATE_INTERVAL_MS. Thresholds mirror NetworkQualityManager
+     * (FAST >20Mbps, MODERATE 5-20Mbps, SLOW <5Mbps). The next player build/zap
+     * picks up the new sizing (initializePlayer reads getNetworkQuality()); no live
+     * re-config and — critically — no extra network requests (WAF-safe).
+     */
+    private fun maybeUpdateNetworkQuality() {
+        val estimateBps = bandwidthMeter?.bitrateEstimate ?: return
+        if (estimateBps <= 0L) return
+        val now = SystemClock.elapsedRealtime()
+        if (lastNetworkQualityUpdateMs != 0L &&
+            now - lastNetworkQualityUpdateMs < NETWORK_QUALITY_UPDATE_INTERVAL_MS
+        ) return
+        lastNetworkQualityUpdateMs = now
+        val mbps = estimateBps / 1_000_000.0
+        val quality = when {
+            mbps > 20.0 -> NetworkQuality.FAST
+            mbps > 5.0 -> NetworkQuality.MODERATE
+            else -> NetworkQuality.SLOW
+        }
+        if (quality.name != settingsPreferences.getNetworkQuality()) {
+            settingsPreferences.saveNetworkQuality(quality.name)
+            Log.i(
+                "PlayerActivity",
+                "Session network quality updated to ${quality.name} (~${String.format("%.1f", mbps)} Mbps)"
+            )
+        }
+    }
+
+    // ── "Reconnecting…" banner (QA fix 3) ───────────────────────────────────
+    /**
+     * Show/refresh the persistent reconnect pill with the current unified-budget
+     * count. Called from canAttemptReconnect() so every recovery subsystem shares
+     * one in-place banner (no toast spam). Hidden by hideReconnectingBanner() on the
+     * first rendered frame / READY.
+     */
+    private fun showReconnectingBanner() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            timeoutHandler.post { showReconnectingBanner() }
+            return
+        }
+        val banner = reconnectingBanner ?: return
+        val n = reconnectAttemptTimestamps.size.coerceAtLeast(1)
+        reconnectingBannerText?.text =
+            getString(R.string.player_reconnecting_banner, n, MAX_RECONNECTS_PER_WINDOW)
+        if (!banner.isVisible) {
+            banner.alpha = 0f
+            banner.isVisible = true
+            banner.animate().alpha(1f).setDuration(200).start()
+        }
+    }
+
+    private fun hideReconnectingBanner() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            timeoutHandler.post { hideReconnectingBanner() }
+            return
+        }
+        val banner = reconnectingBanner ?: return
+        if (!banner.isVisible) return
+        banner.animate().alpha(0f).setDuration(180).withEndAction { banner.isVisible = false }.start()
+    }
+
     private var lastDirectAddonProxyTimeoutContext: String? = null
     private var lastDirectAddonProxyServerErrorContext: String? = null
     private var hasRenderedFirstFrameForCurrentSource = false
@@ -240,6 +363,24 @@ class PlayerActivity : AppCompatActivity() {
     // it so an instantly-dropping stream degrades to the error path, not a loop.
     private var endedReconnects = 0
     private var lastEndedReconnectAtMs = 0L
+
+    // ── unified reconnect budget (QA fix 2) ─────────────────────────────────
+    // The three recovery subsystems (generic error retry, ENDED-reconnect, live
+    // freeze re-prepare) each keep their own inner cap, but they can fire
+    // sequentially and hammer a WAF-protected / max_connections=1 server on a
+    // single dead channel. This aggregate budget is the outer ceiling every path
+    // must clear: at most MAX_RECONNECTS_PER_WINDOW attempts inside a rolling
+    // RECONNECT_WINDOW_MS. Reset on a successful READY/first-frame and on a
+    // user-initiated zap. Timestamps are SystemClock.elapsedRealtime().
+    private val reconnectAttemptTimestamps: ArrayDeque<Long> = ArrayDeque()
+
+    // ── session-adaptive network quality (QA fix 7) ─────────────────────────
+    // ExoPlayer's passive bandwidth estimate (no extra network requests — the WAF
+    // blocks bursts) feeds SettingsPreferences.saveNetworkQuality() on each
+    // BUFFERING→READY transition, debounced to at most once per NETWORK_QUALITY_
+    // UPDATE_INTERVAL_MS. New sizing applies on the next player build / zap.
+    private var bandwidthMeter: DefaultBandwidthMeter? = null
+    private var lastNetworkQualityUpdateMs = 0L
     private val stallRunnable = object : Runnable {
         override fun run() {
             checkForStall()
@@ -298,6 +439,11 @@ class PlayerActivity : AppCompatActivity() {
     // Cinematic live OSD (design_handoff Live Player); non-null only for LIVE_TV.
     private var liveOsd: LivePlayerOsdManager? = null
 
+    // Persistent "Reconnecting… (n/N)" pill (QA fix 3). Shown whenever ANY recovery
+    // subsystem triggers a reconnect; hidden on the first rendered frame / READY.
+    private var reconnectingBanner: View? = null
+    private var reconnectingBannerText: TextView? = null
+
     companion object {
         const val EXTRA_STREAM_URL = "STREAM_URL"
         const val EXTRA_STREAM_HEADERS = "STREAM_HEADERS"
@@ -333,6 +479,15 @@ class PlayerActivity : AppCompatActivity() {
         // the server replays the same GOP on every connection, so retry #3+
         // can never succeed. Fail fast with a clear message instead.
         private const val LIVE_MAX_RETRIES = 2
+        // Unified reconnect budget (QA fix 2): aggregate ceiling across ALL recovery
+        // subsystems so a dead channel can't chain error-retry + ENDED-reconnect +
+        // freeze re-prepare into a burst against a WAF/max_connections=1 server.
+        private const val MAX_RECONNECTS_PER_WINDOW = 4
+        private const val RECONNECT_WINDOW_MS = 60_000L
+        // Fixed cool-off for HTTP 429 when the server sends no Retry-After (QA fix 4).
+        private const val HTTP_429_COOLOFF_MS = 20_000L
+        // Debounce for session-adaptive network-quality updates (QA fix 7).
+        private const val NETWORK_QUALITY_UPDATE_INTERVAL_MS = 60_000L
         private const val OVERLAY_TIMEOUT = 6000L
         private const val MIN_PROGRESS_TO_TRACK_MS = 15_000L
         private const val MIN_DURATION_TO_TRACK_MS = 60_000L
@@ -347,8 +502,6 @@ class PlayerActivity : AppCompatActivity() {
         private const val DIRECT_DEBRID_READY_STALL_STRIKES = 4
         private const val DIRECT_DEBRID_LOW_RAM_STALL_STRIKES = 3
         private const val NETWORK_RECOVERY_BUFFER_MS = 5000L
-        private const val LOW_RAM_MAX_BUFFER_MS = 30000
-        private const val LOW_RAM_TARGET_BUFFER_BYTES = 12 * 1024 * 1024
         const val EXTRA_SERIES_ID = "EXTRA_SERIES_ID"
         const val EXTRA_SEASON_NUM = "EXTRA_SEASON_NUM"
         const val EXTRA_EPISODE_NUM = "EXTRA_EPISODE_NUM"
@@ -473,6 +626,8 @@ class PlayerActivity : AppCompatActivity() {
         tvResolvingStatus = findViewById(R.id.tv_resolving_status)
         layoutDebugOverlay = findViewById(R.id.layout_debug_overlay)
         tvDebugInfo = findViewById(R.id.tv_debug_info)
+        reconnectingBanner = findViewById(R.id.reconnecting_banner)
+        reconnectingBannerText = findViewById(R.id.reconnecting_banner_text)
 
         val contentTypeString = intent.getStringExtra(EXTRA_CONTENT_TYPE)
         contentType = contentTypeString?.let { runCatching { ContentType.valueOf(it) }.getOrNull() }
@@ -829,6 +984,15 @@ class PlayerActivity : AppCompatActivity() {
         currentZapRequestId++
         val reqId = currentZapRequestId
 
+        // A user-initiated zap is a fresh recovery context — reset the unified
+        // reconnect budget (fix 2) and retire any leftover banner (fix 3) so the new
+        // channel starts with a full budget.
+        resetReconnectBudget()
+        hideReconnectingBanner()
+        retryCount = 0
+        endedReconnects = 0
+        liveFreezeReprepares = 0
+
         contentId = target.streamId
         currentUrl = target.streamUrl
         channelLogoUrl = target.logoUrl
@@ -912,40 +1076,6 @@ class PlayerActivity : AppCompatActivity() {
                 if (added) "★ ADDED TO FAVORITES · ${name.orEmpty()}"
                 else "REMOVED FROM FAVORITES"
             )
-        }
-    }
-
-    private fun playUrl(url: String) {
-        if (isFinishing || isDestroyed) return
-        if (isSwitching) return
-        isSwitching = true
-        try {
-            didPlaybackComplete = false
-            timeoutHandler.removeCallbacks(timeoutRunnable)
-            timeoutMs = resolveTimeoutMs(url)
-            timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
-
-            startStallMonitor()
-
-            val p = player
-            if (p != null) {
-                p.stop()
-                p.clearMediaItems()
-                val mediaItem = buildMediaItem(url)
-                p.setMediaItem(mediaItem)
-                p.prepare()
-                if (startPositionMs > 0L) {
-                    p.seekTo(startPositionMs)
-                }
-                p.playWhenReady = true
-            } else {
-                initializePlayer(url)
-            }
-            // Redundant binding removed to prevent Surface race conditions
-        } catch (e: Exception) {
-            isSwitching = false
-            timeoutHandler.removeCallbacks(timeoutRunnable)
-            handleInitializationError(e)
         }
     }
 
@@ -1991,7 +2121,7 @@ class PlayerActivity : AppCompatActivity() {
             timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
             hasRenderedFirstFrameForCurrentSource = false
 
-            val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+            val httpDataSourceFactory = OkHttpDataSource.Factory(playbackOkHttpClient)
             val requestHeaders = effectivePlaybackHeadersFor(streamUrl)
             PlaybackDiagnosticsRecorder.record(
                 this,
@@ -2081,10 +2211,26 @@ class PlayerActivity : AppCompatActivity() {
                 .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
                 .build()
 
+            // Passive bandwidth meter (QA fix 7): read its estimate on rebuffer
+            // transitions to adapt buffer/quality sizing session-to-session. No extra
+            // network requests — it only measures the segments we already fetch.
+            val meter = DefaultBandwidthMeter.Builder(this).build()
+            bandwidthMeter = meter
+
             player = ExoPlayer.Builder(this)
                 .setRenderersFactory(renderersFactory)
+                .setBandwidthMeter(meter)
                 .setMediaSourceFactory(mediaSourceFactory)
                 .setLoadControl(loadControl)
+                // Gentle live-latency catch-up (QA fix 8): only activates for sources
+                // that carry a LiveConfiguration (HLS/DASH). The raw-TS branch of
+                // buildMediaItem deliberately sets NO LiveConfiguration (documented TS
+                // flush-loop device bug), so TS playback is unaffected by this.
+                .setLivePlaybackSpeedControl(
+                    DefaultLivePlaybackSpeedControl.Builder()
+                        .setFallbackMaxPlaybackSpeed(1.03f)
+                        .build()
+                )
                 .setTrackSelector(trackSelector)
                 .setSeekForwardIncrementMs(15000)
                 .setSeekBackIncrementMs(15000)
@@ -2125,12 +2271,19 @@ class PlayerActivity : AppCompatActivity() {
                     )
                     if (playbackState == Player.STATE_READY) {
                          isSwitching = false
+                         // BUFFERING→READY: refresh the session network-quality estimate
+                         // (QA fix 7) using the passive bandwidth meter, debounced.
+                         if (lastBufferingStartMs != 0L) maybeUpdateNetworkQuality()
                          // Keep the resume target alive while a debrid re-resolve is in flight:
                          // clearing it here would make the upcoming seamless switch start from 0.
                          if (!isResolvingDebrid && player?.currentPosition ?: 0L > 1000) startPositionMs = 0L
                         maybeMatchDisplayFrameRate()
                         timeoutHandler.removeCallbacks(timeoutRunnable)
                         retryCount = 0
+                        // A clean READY means recovery succeeded — reset the unified
+                        // reconnect budget (fix 2) and retire the banner (fix 3).
+                        resetReconnectBudget()
+                        hideReconnectingBanner()
                         lastBufferingStartMs = 0L
                         lastDirectAddonProxyTimeoutContext = null
                         lastDirectAddonProxyServerErrorContext = null
@@ -2155,9 +2308,12 @@ class PlayerActivity : AppCompatActivity() {
                              // provider dropped the socket. Reconnect instead of
                              // silently finishing back to the channel list.
                              if (contentType == ContentType.LIVE_TV) {
-                                  if (canReconnect) {
+                                  // Inner cap (endedReconnects) AND the aggregate budget
+                                  // must both allow it; canAttemptReconnect() records the
+                                  // attempt + shows the banner only when it returns true.
+                                  if (canReconnect && canAttemptReconnect()) {
                                        endedReconnects++; lastEndedReconnectAtMs = nowMs
-                                       Log.w("PlayerActivity", "Live stream ended unexpectedly — reconnecting ($endedReconnects/3)")
+                                       Log.i("PlayerActivity", "Live stream ended unexpectedly — reconnecting ($endedReconnects/3)")
                                        currentUrl?.let { performSeamlessSwitch(it) }
                                   } else {
                                        handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
@@ -2170,9 +2326,9 @@ class PlayerActivity : AppCompatActivity() {
                              val durationMs = player?.duration ?: 0L
                              val positionMs = player?.currentPosition ?: 0L
                              val endedMidStream = durationMs > 0L && positionMs < durationMs - 15_000L
-                             if (endedMidStream && canReconnect) {
+                             if (endedMidStream && canReconnect && canAttemptReconnect()) {
                                   endedReconnects++; lastEndedReconnectAtMs = nowMs
-                                  Log.w(
+                                  Log.i(
                                       "PlayerActivity",
                                       "Stream ended ${durationMs - positionMs}ms before content end — resuming ($endedReconnects/3)"
                                   )
@@ -2202,6 +2358,10 @@ class PlayerActivity : AppCompatActivity() {
                 override fun onRenderedFirstFrame() {
                     hasRenderedFirstFrameForCurrentSource = true
                     liveOsd?.hideZapBackdrop()
+                    // First rendered frame = the source is genuinely playing; clear the
+                    // unified reconnect budget (fix 2) and hide the banner (fix 3).
+                    resetReconnectBudget()
+                    hideReconnectingBanner()
                     maybeRecordDirectAddonProxySuccess()
                     PlaybackDiagnosticsRecorder.record(
                         this@PlayerActivity,
@@ -2280,6 +2440,12 @@ class PlayerActivity : AppCompatActivity() {
         val now = SystemClock.elapsedRealtime()
         val bufferingMs = if (lastBufferingStartMs > 0L) now - lastBufferingStartMs else 0L
         if (playerSnapshot.playbackState == Player.STATE_IDLE || (playerSnapshot.playbackState == Player.STATE_BUFFERING && bufferingMs >= NETWORK_RECOVERY_BUFFER_MS)) {
+            // Consult the unified budget (fix 2) so a flapping network can't chain
+            // re-inits past the aggregate ceiling; shows the banner (fix 3) too.
+            if (!canAttemptReconnect()) {
+                handleTerminalPlaybackFailure("Network unstable")
+                return
+            }
             if (contentType != ContentType.LIVE_TV && playerSnapshot.currentPosition > 1000L) startPositionMs = playerSnapshot.currentPosition
             playerSnapshot.release()
             player = null
@@ -2352,7 +2518,45 @@ class PlayerActivity : AppCompatActivity() {
             handleTerminalPlaybackFailure(errorMessage, preferReturnToSources = true)
             return
         }
+        // HTTP 429 for plain IPTV/Xtream (QA fix 4): the provider WAF is rate-limiting
+        // this IP. Fast-backoff retries only deepen the ban, so cool off — honor a
+        // Retry-After header if the server sent one, else a fixed 20s. The direct-
+        // debrid path treats 429 as terminal separately (isTerminalDirectHttpPlaybackError).
+        val responseCode = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
+        if (responseCode == 429 && !directDebridPlayback) {
+            if (retryCount < (if (contentType == ContentType.LIVE_TV) LIVE_MAX_RETRIES else maxRetries) &&
+                canAttemptReconnect()
+            ) {
+                retryCount++
+                val coolOffMs = parseRetryAfterMs(error) ?: HTTP_429_COOLOFF_MS
+                Log.i("PlayerActivity", "HTTP 429 (rate limited) — cooling off ${coolOffMs}ms before reconnect")
+                PlaybackDiagnosticsRecorder.record(
+                    this,
+                    "retry_triggered",
+                    diagnosticsPlaybackFields(retry = retryCount) + mapOf(
+                        "reasonCode" to "HTTP_429",
+                        "retrySource" to "rate_limit_cooloff",
+                        "coolOffMs" to coolOffMs
+                    )
+                )
+                if (contentType != ContentType.LIVE_TV && player != null && player!!.currentPosition > 1000L) {
+                    startPositionMs = player!!.currentPosition
+                }
+                player?.release(); player = null
+                retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, coolOffMs)
+            } else {
+                handleTerminalPlaybackFailure(errorMessage)
+            }
+            return
+        }
         if (retryCount < (if (contentType == ContentType.LIVE_TV) LIVE_MAX_RETRIES else maxRetries)) {
+            // Aggregate budget gate (fix 2): even under the per-source retry cap, refuse
+            // to reconnect once the rolling window is spent. Records the attempt + shows
+            // the banner when allowed.
+            if (!canAttemptReconnect()) {
+                handleTerminalPlaybackFailure(errorMessage)
+                return
+            }
             retryCount++
             PlaybackDiagnosticsRecorder.record(
                 this,
@@ -2391,6 +2595,24 @@ class PlayerActivity : AppCompatActivity() {
         } else {
             handleTerminalPlaybackFailure(errorMessage)
         }
+    }
+
+    /**
+     * Parse a Retry-After header (QA fix 4) off a 429 response into a cool-off delay
+     * in ms. Supports the delta-seconds form (e.g. "Retry-After: 30"); the HTTP-date
+     * form is uncommon from IPTV panels and falls back to the fixed cool-off. Clamped
+     * so a hostile value can't park playback for minutes.
+     */
+    private fun parseRetryAfterMs(error: PlaybackException): Long? {
+        val headers = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.headerFields
+            ?: return null
+        val value = headers.entries
+            .firstOrNull { it.key?.equals("Retry-After", ignoreCase = true) == true }
+            ?.value?.firstOrNull()
+            ?.trim()
+            ?: return null
+        val seconds = value.toLongOrNull() ?: return null
+        return (seconds * 1000L).coerceIn(1000L, 60_000L)
     }
 
     private fun isAudioSinkInitFailure(error: PlaybackException): Boolean {
@@ -2500,10 +2722,13 @@ class PlayerActivity : AppCompatActivity() {
                 liveFreezeReprepares = 0
                 lastFreezeRecoveryUrl = currentUrl
             }
-            if (liveFreezeReprepares < MAX_LIVE_FREEZE_REPREPARES) {
+            // Inner cap (liveFreezeReprepares) AND the aggregate budget (fix 2) must
+            // both allow it; canAttemptReconnect() records the attempt + shows the
+            // banner (fix 3) only when it returns true.
+            if (liveFreezeReprepares < MAX_LIVE_FREEZE_REPREPARES && canAttemptReconnect()) {
                 liveFreezeReprepares++
                 lastFreezeRecoveryAtMs = now
-                Log.w(
+                Log.i(
                     "PlayerActivity",
                     "Live video frozen (rendered=$rendered) — re-preparing stream, attempt $liveFreezeReprepares/$MAX_LIVE_FREEZE_REPREPARES"
                 )
@@ -2575,6 +2800,12 @@ class PlayerActivity : AppCompatActivity() {
                 return
             }
             if (retryCount < (if (contentType == ContentType.LIVE_TV) LIVE_MAX_RETRIES else maxRetries)) {
+                // Aggregate budget gate (fix 2): a stuck first-connect timeout is part
+                // of the same reconnect family; refuse once the window is spent.
+                if (!canAttemptReconnect()) {
+                    handleTerminalPlaybackFailure("Connection timeout")
+                    return
+                }
                 retryCount++
                 PlaybackDiagnosticsRecorder.record(
                     this,

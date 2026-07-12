@@ -51,7 +51,10 @@ class LiveTvGuideFragment : Fragment() {
     private var _binding: FragmentLiveTvGuideBinding? = null
     private val binding get() = _binding!!
 
+    // Playback-tuned client (longer read timeout); only used to build the preview
+    // player's DataSource below.
     @Inject
+    @javax.inject.Named("playback")
     lateinit var okHttpClient: OkHttpClient
 
     private val viewModel: LiveTvGuideViewModel by viewModels()

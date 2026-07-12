@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/black">
@@ -33,6 +34,41 @@
         layout="@layout/view_live_player_osd"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
+    <!-- Reconnecting pill (QA fix 3): persistent while any recovery subsystem is
+         retrying; hidden on the first rendered frame / READY. Styled to match the
+         live OSD toast/conn-chip. -->
+    <LinearLayout
+        android:id="@+id/reconnecting_banner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal|top"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/bg_live_toast"
+        android:elevation="11dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="11dp"
+        android:paddingVertical="6.5dp"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            style="?android:attr/progressBarStyleSmall"
+            android:indeterminateTint="@color/neon_cyan" />
+
+        <TextView
+            android:id="@+id/reconnecting_banner_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.06"
+            android:textColor="@color/neon_cyan"
+            android:textSize="7.5sp"
+            tools:text="RECONNECTING… (1/4)" />
+    </LinearLayout>
 
     <include
         android:id="@+id/view_channel_browser"

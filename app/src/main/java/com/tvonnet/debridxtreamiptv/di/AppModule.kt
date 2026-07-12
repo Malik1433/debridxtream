@@ -26,6 +26,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
+import javax.inject.Named
 import javax.inject.Singleton
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -245,6 +246,24 @@ object AppModule {
             .retryOnConnectionFailure(true)
             .build()
     }
+
+    /**
+     * Provides a playback-tuned OkHttpClient for live/VOD video segment fetches.
+     * Shares the app client's dispatcher/connection-pool internals via newBuilder()
+     * but with a longer read timeout: on slow connections a live TS/HLS segment can
+     * take >15s to arrive, and the shared 15s read timeout would abort it mid-stream.
+     * The API/EPG/Glide client (provideOkHttpClient) is intentionally left untouched.
+     */
+    @Provides
+    @Singleton
+    @Named("playback")
+    fun providePlaybackOkHttpClient(apiClient: OkHttpClient): OkHttpClient {
+        return apiClient.newBuilder()
+            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .build()
+    }
+
     /**
      * Provides VodDao
      * Phase 1: Database Infrastructure
