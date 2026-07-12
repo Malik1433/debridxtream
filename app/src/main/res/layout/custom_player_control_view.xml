@@ -163,7 +163,6 @@
                     android:layout_width="match_parent"
                     android:layout_height="24dp"
                     android:focusable="true"
-                    android:nextFocusDown="@id/exo_play"
                     app:bar_height="5dp"
                     app:buffered_color="#00000000"
                     app:played_ad_marker_color="#00000000"

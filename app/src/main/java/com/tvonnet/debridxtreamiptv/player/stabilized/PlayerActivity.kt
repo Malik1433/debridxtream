@@ -792,8 +792,13 @@ class PlayerActivity : AppCompatActivity() {
                     return
                 }
                 if (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE) {
-                    if (playerView.isControllerFullyVisible) {
+                    // Standard TV BACK: 1st press hides the controller, 2nd exits. `backHideArmed`
+                    // (reset on any explicit show) keeps this reliable even if media3 re-shows the
+                    // controller while paused. Uses the tracked isControllerVisible, not the
+                    // sometimes-stale isControllerFullyVisible.
+                    if (isControllerVisible && !backHideArmed) {
                         playerView.hideController()
+                        backHideArmed = true
                         return
                     }
                 }
@@ -1319,6 +1324,9 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun setupSeekOverlay() {
         seekOverlay = playerView.findViewById(R.id.vod_seek_overlay)
+        // Install the DPAD-DOWN → play/pause seek-nav handler up front so the seek bar never
+        // dead-ends onto the GONE exo_play even before the first showControllerWithSmartFocus().
+        installControllerSeekNavigation()
         val timeBar = playerView.findViewById<androidx.media3.ui.DefaultTimeBar>(R.id.exo_progress)
         timeBar?.addListener(object : androidx.media3.ui.TimeBar.OnScrubListener {
             override fun onScrubStart(timeBar: androidx.media3.ui.TimeBar, position: Long) {
@@ -2134,6 +2142,7 @@ class PlayerActivity : AppCompatActivity() {
                         maybeRecordDirectAddonProxySuccess()
                         if (contentType != ContentType.LIVE_TV) {
                             updatePlayPauseVisibility(player?.playWhenReady == true)
+                            backHideArmed = false
                             playerView.showController()
                         }
                     } else if (playbackState == Player.STATE_BUFFERING) {
@@ -2695,7 +2704,7 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     override fun onResume() { super.onResume(); startDebugOverlay(); if (player == null) currentUrl?.let { initializePlayer(it) } else startStallMonitor() }
-    override fun onStart() { super.onStart(); registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() } }
+    override fun onStart() { super.onStart(); registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() }; if (seekOverlay != null) { seekOverlayHandler.removeCallbacks(seekOverlayRunnable); seekOverlayHandler.post(seekOverlayRunnable) } }
     override fun onPause() { super.onPause(); player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
     override fun onStop() { super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); seekOverlayHandler.removeCallbacks(seekOverlayRunnable); unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_stop") }
 
@@ -2980,23 +2989,12 @@ class PlayerActivity : AppCompatActivity() {
             val xray = findViewById<View>(R.id.view_xray_panel)
             val isXrayVisible = xray != null && xray.visibility == View.VISIBLE
             val isEpisodeBrowserVisible = ::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()
-            val isBrowserVisible = viewModel.browserState.value.isVisible
-            val isEpgVisible = contentType == ContentType.LIVE_TV && epgOverlayPinned && epgOverlayMode != EpgOverlayMode.HIDDEN
-            // Overlays (xray / episodes panel / channel browser / pinned EPG) get dismissed by BACK.
-            if (isXrayVisible || isEpisodeBrowserVisible || isBrowserVisible || isEpgVisible) {
+            // These two overlays aren't handled by onBackPressedDispatcher, so dismiss them here.
+            if (isXrayVisible || isEpisodeBrowserVisible) {
                 if (event.action == KeyEvent.ACTION_UP) {
-                    if (isEpisodeBrowserVisible) {
-                        episodeBrowserController.hide()
-                        playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false
-                        toggleXRayPanel(false)
-                    } else if (isXrayVisible) {
-                        playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false
-                        toggleXRayPanel(false)
-                    } else if (isBrowserVisible) {
-                        viewModel.toggleBrowser(false)
-                    } else if (isEpgVisible) {
-                        hideEpgOverlay()
-                    }
+                    if (isEpisodeBrowserVisible) episodeBrowserController.hide()
+                    playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false
+                    toggleXRayPanel(false)
                 }
                 return true
             }
@@ -3005,34 +3003,22 @@ class PlayerActivity : AppCompatActivity() {
                 enterPictureInPictureModeInternal()
                 return true
             }
-            // Standard TV BACK: 1st press hides a visible controller, 2nd press exits the player.
-            if (event.action == KeyEvent.ACTION_UP) {
-                if (isInPictureInPictureMode) return super.dispatchKeyEvent(event)
-                if (isControllerVisible && !backHideArmed) {
-                    playerView.hideController()
-                    backHideArmed = true
-                    return true
-                }
-                finish()
-                return true
-            }
-            if (event.action == KeyEvent.ACTION_DOWN) {
-                // Swallow DOWN so only our ACTION_UP path acts (unless long-press PiP fired above).
-                return true
-            }
+            // Otherwise fall through: BACK reaches onBackPressedDispatcher, which handles the channel
+            // browser, EPG, the VOD controller two-step (1st hide, 2nd exit), and the real exit —
+            // including the shared Live TV player hand-off + manualExit / history recording.
         }
 
         if (event.action == KeyEvent.ACTION_DOWN) {
             if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
-                // VOD Player redesign: right-side vertical panel. Delegate UP/DOWN to the list;
-                // LEFT/BACK close the panel — restore transport controls when it closes.
+                // VOD Player redesign: coverflow panel. Delegate UP/DOWN to the list; LEFT/BACK
+                // close it — restore transport controls when it closes. While it stays open, consume
+                // every key so an unhandled one can't fall through and flash the controller underneath.
                 playerView.hideController()
-                val handled = episodeBrowserController.handleKeyEvent(event)
-                Log.d("EP_BROWSER_FOCUS_FIX", "browser visible key=${event.keyCode} handled=$handled")
+                episodeBrowserController.handleKeyEvent(event)
                 if (!episodeBrowserController.isVisible()) {
                     showControllerWithSmartFocus()
                 }
-                if (handled) return true
+                return true
             }
 
             // VOD Player redesign: the episodes list opens ONLY via the EPISODES button now
@@ -3083,7 +3069,7 @@ class PlayerActivity : AppCompatActivity() {
                 KeyEvent.KEYCODE_INFO -> {
                     if (contentType == ContentType.LIVE_TV) {
                         liveOsd?.showOsd(focus = true) ?: toggleEpgOverlayPinned()
-                    } else { playerView.showController(); playerView.requestFocus() }
+                    } else { backHideArmed = false; playerView.showController(); playerView.requestFocus() }
                     return true
                 }
                 KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_GUIDE -> {
@@ -3174,7 +3160,7 @@ class PlayerActivity : AppCompatActivity() {
         } catch (e: Exception) { showToast("PiP failed") }
     }
 
-    private fun hideUiForPiP() { playerView.hideController(); epgOverlay?.isVisible = false; vodInfoOverlay?.isVisible = false; liveOsd?.hideForPip(); supportActionBar?.hide(); historyManager.recordPlaybackHistoryIfNeeded() }
+    private fun hideUiForPiP() { playerView.hideController(); if (::episodeBrowserController.isInitialized) episodeBrowserController.hide(); playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false; toggleXRayPanel(false); epgOverlay?.isVisible = false; vodInfoOverlay?.isVisible = false; liveOsd?.hideForPip(); supportActionBar?.hide(); historyManager.recordPlaybackHistoryIfNeeded() }
     private fun showUiForNormalMode() { if (!isInPictureInPictureMode) { supportActionBar?.show(); liveOsd?.show(); if (contentType == ContentType.LIVE_TV) updateOverlayVisibility() else updateVodOverlayVisibility() } }
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) { super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig); this.isInPictureInPictureMode = isInPictureInPictureMode; if (isInPictureInPictureMode) hideUiForPiP() else showUiForNormalMode() }
