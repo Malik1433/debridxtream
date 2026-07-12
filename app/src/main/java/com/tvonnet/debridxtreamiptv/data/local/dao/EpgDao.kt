@@ -140,6 +140,18 @@ interface EpgDao {
      */
     @Query("DELETE FROM epg")
     suspend fun clearAll()
+
+    /**
+     * Delete every programme from a previous sync generation.
+     *
+     * Used by the generational-replace sync: the new sync stamps all its rows
+     * with a single [cachedAt] value and, only after a fully successful parse,
+     * deletes everything older than that stamp. This keeps the old EPG readable
+     * throughout the parse and guarantees a failed/empty sync never wipes good
+     * data (the destructive delete simply doesn't run).
+     */
+    @Query("DELETE FROM epg WHERE cachedAt < :stamp")
+    suspend fun deletePreviousGenerations(stamp: Long)
     
     /**
      * Get count of EPG programs for a channel

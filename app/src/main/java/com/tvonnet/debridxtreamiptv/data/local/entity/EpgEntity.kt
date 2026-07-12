@@ -95,3 +95,34 @@ data class EpgEntity(
     }
 }
 
+/**
+ * Collapse a channel's EPG programmes into a strictly non-overlapping timeline.
+ *
+ * XMLTV feeds routinely contain overlapping programmes for a single channel:
+ * exact duplicate `<programme>` entries (re-listed or merged from two sources),
+ * or a coarse placeholder block layered under granular ones. The guide grids
+ * (EpgGridView and the in-player guide) position every block purely from its
+ * (start, stop), so any two overlapping programmes get painted on top of each
+ * other — the classic "two different titles ghosted in one cell" symptom.
+ *
+ * This applies classic interval-scheduling (earliest-stop-first greedy), which
+ * keeps the maximum number of programmes while guaranteeing that no two occupy
+ * the same instant. Zero-/negative-length intervals are dropped. The result is
+ * ordered by start time so callers can render it directly.
+ */
+fun List<EpgEntity>.deOverlap(): List<EpgEntity> {
+    if (size <= 1) return this.filter { it.stop > it.start }
+    val sorted = filter { it.stop > it.start }
+        .sortedWith(compareBy({ it.stop }, { it.start }))
+    val kept = ArrayList<EpgEntity>(sorted.size)
+    var lastStop = Long.MIN_VALUE
+    for (p in sorted) {
+        if (p.start >= lastStop) {
+            kept.add(p)
+            lastStop = p.stop
+        }
+    }
+    kept.sortBy { it.start }
+    return kept
+}
+

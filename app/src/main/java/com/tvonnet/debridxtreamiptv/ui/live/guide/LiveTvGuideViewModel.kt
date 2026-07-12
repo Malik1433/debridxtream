@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvonnet.debridxtreamiptv.data.local.dao.EpgDao
 import com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity
+import com.tvonnet.debridxtreamiptv.data.local.entity.deOverlap
 import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
@@ -255,7 +256,7 @@ class LiveTvGuideViewModel @Inject constructor(
     ): GuideChannel {
         val currentCategory = programs.firstOrNull { it.isPlaying() }?.category
         val genre = EpgGenre.from(currentCategory, stream.name)
-        val guidePrograms = programs.sortedBy { it.start }.map { p ->
+        val guidePrograms = programs.deOverlap().map { p ->
             GuideProgram(
                 title = p.title?.takeIf { it.isNotBlank() } ?: "No Information",
                 description = p.description,

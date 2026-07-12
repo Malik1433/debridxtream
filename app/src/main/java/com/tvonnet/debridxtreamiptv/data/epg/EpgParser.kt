@@ -26,8 +26,13 @@ object EpgParser {
         memoryManager = MemoryManager.getInstance(context)
         memoryManager.addMemoryPressureCallback(object : MemoryManager.MemoryPressureCallback {
             override suspend fun onMemoryPressure(level: MemoryManager.MemoryPressure) {
-                if (level == MemoryManager.MemoryPressure.CRITICAL) {
-                    Log.w(TAG, "Critical memory pressure detected, cancelling EPG parsing")
+                // Only cancel on genuine APP-HEAP exhaustion. The incoming [level] is
+                // system-memory pressure, which on Android TV is CRITICAL as a normal
+                // steady state — cancelling on it truncated EPG syncs mid-parse.
+                if (level == MemoryManager.MemoryPressure.CRITICAL &&
+                    memoryManager.appHeapPressure() == MemoryManager.MemoryPressure.CRITICAL
+                ) {
+                    Log.w(TAG, "App-heap critical, cancelling EPG parsing")
                     parsingJob?.cancel()
                 }
             }
@@ -151,12 +156,13 @@ object EpgParser {
                                             // Yield to avoid blocking and allow cancellation
                                             yield()
 
-                                            // Check memory pressure periodically
+                                            // Periodically relieve APP-HEAP pressure, but
+                                            // never abort on system-memory pressure (normal
+                                            // on TV) — aborting drops every remaining channel.
                                             if (programCount % 100 == 0) {
-                                                val pressure = memoryManager.checkMemoryPressure()
-                                                if (pressure == MemoryManager.MemoryPressure.CRITICAL) {
-                                                    Log.w(TAG, "Critical memory pressure, stopping EPG parsing")
-                                                    return@launch
+                                                if (memoryManager.appHeapPressure() == MemoryManager.MemoryPressure.CRITICAL) {
+                                                    Log.w(TAG, "App-heap critical during parse; requesting GC and continuing")
+                                                    memoryManager.requestGarbageCollection()
                                                 }
                                             }
                                         }

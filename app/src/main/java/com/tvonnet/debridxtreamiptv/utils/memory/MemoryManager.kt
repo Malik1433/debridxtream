@@ -151,6 +151,31 @@ class MemoryManager private constructor(private val context: Context) {
     }
 
     /**
+     * App-heap pressure — the ratio of the app's used Dalvik heap to its heap limit.
+     *
+     * This is the signal that actually predicts OutOfMemoryError, and it is
+     * deliberately separate from [checkMemoryPressure], which measures SYSTEM memory
+     * (availMem/totalMem). On Android TV the OS keeps system memory ~85-95% utilised
+     * as a normal steady state, so system pressure reads CRITICAL almost constantly.
+     * Using that to abort app work was truncating EPG syncs mid-parse (channels late
+     * in the feed ended up with no guide data). Gate abort/continue decisions on this
+     * app-heap signal instead; only genuine heap exhaustion should stop a parse.
+     */
+    fun appHeapPressure(): MemoryPressure {
+        val runtime = Runtime.getRuntime()
+        val maxHeap = runtime.maxMemory()
+        if (maxHeap <= 0L) return MemoryPressure.NONE
+        val usedHeap = runtime.totalMemory() - runtime.freeMemory()
+        val ratio = usedHeap.toFloat() / maxHeap
+        return when {
+            ratio >= MEMORY_PRESSURE_CRITICAL -> MemoryPressure.CRITICAL
+            ratio >= MEMORY_PRESSURE_WARNING -> MemoryPressure.WARNING
+            ratio >= MEMORY_PRESSURE_LOW -> MemoryPressure.LOW
+            else -> MemoryPressure.NONE
+        }
+    }
+
+    /**
      * Get current memory usage in MB
      */
     fun getCurrentMemoryUsage(): MemoryUsage {

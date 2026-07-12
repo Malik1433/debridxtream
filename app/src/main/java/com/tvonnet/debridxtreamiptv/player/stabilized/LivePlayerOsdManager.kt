@@ -23,7 +23,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity
+import com.tvonnet.debridxtreamiptv.data.local.entity.deOverlap
 import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
+import com.tvonnet.debridxtreamiptv.util.FAVORITES_CATEGORY_ID
 import com.tvonnet.debridxtreamiptv.util.GlideUtils
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -385,8 +387,12 @@ class LivePlayerOsdManager(
 
     private fun categoryColor(): Int = accentColor(currentCategoryName)
 
-    private fun categoryCounts(): Map<String, Int> =
-        currentCategoryId?.let { mapOf(it to zapChannels.size) } ?: emptyMap()
+    private fun categoryCounts(): Map<String, Int> {
+        val current = currentCategoryId?.let { mapOf(it to zapChannels.size) } ?: emptyMap()
+        // Favorites count is already tracked client-side (favoriteIds, kept live by
+        // PlayerViewModel.observeLiveFavorites) — free to show without a query.
+        return current + (FAVORITES_CATEGORY_ID to favoriteIds.size)
+    }
 
     /** ON AIR NOW mini-EPG: prev / current / next around the tuned channel. */
     private fun refreshOnAir() {
@@ -736,8 +742,8 @@ class LivePlayerOsdManager(
         val nowFrac = ((nowMs - startMs).toFloat() / span).coerceIn(0f, 1f)
         return zapChannels.mapIndexed { idx, ch ->
             val progs = guideEpg[ch.streamId].orEmpty()
-                .filter { it.stop > startMs && it.start < endMs && it.stop > it.start }
-                .sortedBy { it.start }
+                .filter { it.stop > startMs && it.start < endMs }
+                .deOverlap()
             val shows = progs.map { p ->
                 val clipStart = p.start.coerceAtLeast(startMs)
                 val clipEnd = p.stop.coerceAtMost(endMs)

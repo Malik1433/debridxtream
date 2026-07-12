@@ -1650,11 +1650,16 @@ class XtreamRepository @Inject constructor(
         return epgSyncMutex.withLock {
             withContext(Dispatchers.IO) {
             try {
-                // Check memory pressure before starting EPG fetch
+                // System memory pressure (checkMemoryPressure) reflects the DEVICE's
+                // memory, which on Android TV sits at ~90% as a normal steady state.
+                // It must NOT gate the EPG fetch — doing so silently skipped syncs and,
+                // mid-parse, truncated the guide so channels late in the feed had no EPG
+                // ("EPG sometimes doesn't show"). Only react to true APP-HEAP pressure,
+                // and even then just nudge GC and proceed rather than abandoning the sync.
                 val memoryPressure = memoryManager.checkMemoryPressure()
-                if (memoryPressure == MemoryManager.MemoryPressure.CRITICAL) {
-                    Log.w(TAG, "Critical memory pressure detected, skipping EPG fetch")
-                    return@withContext Result.Error(Exception("Memory pressure too high for EPG fetch"))
+                if (memoryManager.appHeapPressure() == MemoryManager.MemoryPressure.CRITICAL) {
+                    Log.w(TAG, "App-heap high before EPG fetch; requesting GC and continuing")
+                    memoryManager.requestGarbageCollection()
                 }
 
                 if (apiService == null) {
@@ -1695,18 +1700,26 @@ class XtreamRepository @Inject constructor(
                 var totalPrograms = 0
                 var lastMemoryCheck = System.currentTimeMillis()
 
-                epgDao.clearAll()
+                // Generational replace: DO NOT wipe the table up-front. Stamp every
+                // row of this sync with one timestamp, keep the previous generation
+                // readable while we stream in the new one, and delete the old
+                // generation only after a fully successful, non-empty parse (below).
+                // This is why "EPG sometimes doesn't show" — the old code cleared
+                // first, so any mid-parse failure or a guide opened mid-sync saw an
+                // empty table. See deletePreviousGenerations().
+                val syncStamp = System.currentTimeMillis()
 
                 response.body()!!.use { responseBody ->
                     responseBody.charStream().buffered(memoryManager.getOptimalBufferSize()).use { reader ->
                         totalPrograms = EpgParser.parseStream(reader) { program ->
-                            // Check memory pressure periodically during parsing
+                            // Periodic APP-HEAP check (not system memory — see note above).
+                            // On real heap pressure, nudge GC and keep going; never abort
+                            // the parse, or the guide loses every channel after this point.
                             val currentTime = System.currentTimeMillis()
                             if (currentTime - lastMemoryCheck > 2000) { // Check every 2 seconds
-                                val currentPressure = memoryManager.checkMemoryPressure()
-                                if (currentPressure == MemoryManager.MemoryPressure.CRITICAL) {
-                                    Log.w(TAG, "Critical memory pressure during EPG parsing, stopping")
-                                    throw CancellationException("EPG parsing stopped due to memory pressure")
+                                if (memoryManager.appHeapPressure() == MemoryManager.MemoryPressure.CRITICAL) {
+                                    Log.w(TAG, "App-heap high during EPG parse; requesting GC and continuing")
+                                    memoryManager.requestGarbageCollection()
                                 }
                                 lastMemoryCheck = currentTime
                             }
@@ -1718,7 +1731,8 @@ class XtreamRepository @Inject constructor(
                                     stop = program.stop,
                                     title = program.title,
                                     description = program.desc,
-                                    category = program.category
+                                    category = program.category,
+                                    cachedAt = syncStamp
                                 )
                             )
 
@@ -1726,12 +1740,13 @@ class XtreamRepository @Inject constructor(
                                 epgDao.insertAll(batch)
                                 batch.clear()
 
-                                // Check memory pressure after batch insert
-                                val batchPressure = memoryManager.checkMemoryPressure()
-                                if (batchPressure == MemoryManager.MemoryPressure.CRITICAL) {
-                                    Log.w(TAG, "Critical memory pressure after batch insert, stopping")
+                                // APP-HEAP check after batch insert. The batch is already
+                                // cleared, so heap should be low; on real pressure GC and
+                                // continue. This is the check that (on system memory) used
+                                // to abort at a batch boundary and truncate the guide.
+                                if (memoryManager.appHeapPressure() == MemoryManager.MemoryPressure.CRITICAL) {
+                                    Log.w(TAG, "App-heap high after EPG batch insert; requesting GC and continuing")
                                     memoryManager.requestGarbageCollection()
-                                    throw CancellationException("EPG parsing stopped due to memory pressure")
                                 }
                             }
 
@@ -1745,7 +1760,17 @@ class XtreamRepository @Inject constructor(
                     epgDao.insertAll(batch)
                 }
 
-                Log.d(TAG, "EPG saved to database in streaming mode: $totalPrograms programs")
+                // Atomic-from-a-reader's-view swap: the full new generation is now
+                // in place, so retire the previous one. Guarded on totalPrograms > 0
+                // so a provider returning "200 with an empty body" (or a parse that
+                // yielded nothing) never wipes the existing, still-valid EPG — better
+                // to keep slightly stale data than to show none.
+                if (totalPrograms > 0) {
+                    epgDao.deletePreviousGenerations(syncStamp)
+                    Log.i(TAG, "EPG sync complete (generational replace): parsed=$totalPrograms programs")
+                } else {
+                    Log.w(TAG, "EPG parse produced 0 programs; keeping previous generation")
+                }
 
                 // Clean up old expired programs (older than 24 hours)
                 val cutoffTime = System.currentTimeMillis() - (24 * 60 * 60 * 1000)
