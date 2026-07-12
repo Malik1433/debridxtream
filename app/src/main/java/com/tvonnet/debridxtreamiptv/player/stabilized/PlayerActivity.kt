@@ -143,6 +143,27 @@ class PlayerActivity : AppCompatActivity() {
     private val retryHandler = Handler(Looper.getMainLooper())
     private var frameRateMatchedForCurrentSource = false
 
+    // ── progress-aware buffering watchdog (live) ────────────────────────────
+    // Baseline bufferedPosition captured when the timeout watchdog is (re)armed;
+    // handleTimeout extends the window while the buffer keeps growing.
+    private var watchdogExtensions = 0
+    private var watchdogBufferedPosAtArm = -1L
+    private fun armWatchdogBaseline() {
+        watchdogBufferedPosAtArm = player?.bufferedPosition ?: -1L
+        watchdogExtensions = 0
+    }
+
+    // ── channel-zap debounce (LP-B-1) ───────────────────────────────────────
+    // The OSD/index advances on every keypress; the actual tune is coalesced to
+    // the LAST target after the user settles (ZAP_DEBOUNCE_MS of no new zap).
+    private val zapDebounceHandler = Handler(Looper.getMainLooper())
+    private var pendingZapTarget: ZapChannel? = null
+    private val zapCommitRunnable = Runnable {
+        val target = pendingZapTarget ?: return@Runnable
+        pendingZapTarget = null
+        tuneToZapChannel(target)
+    }
+
     // Fail fast on permanently broken sources so app-level fallback kicks in quickly;
     // transient errors back off exponentially with jitter to avoid retry storms.
     private val playbackLoadErrorPolicy = object : DefaultLoadErrorHandlingPolicy() {
@@ -250,11 +271,36 @@ class PlayerActivity : AppCompatActivity() {
      * one in-place banner (no toast spam). Hidden by hideReconnectingBanner() on the
      * first rendered frame / READY.
      */
+    // Delayed presentation: quick re-prepares recover behind the last rendered
+    // frame in well under a second — flashing the pill for those makes the app
+    // FEEL flakier than it is. Only surface the banner when the outage persists
+    // past RECONNECT_BANNER_DELAY_MS; hide cancels a still-pending show.
+    private var reconnectBannerPending = false
+    private val reconnectBannerShowRunnable = Runnable {
+        reconnectBannerPending = false
+        if (!isFinishing && !isDestroyed) showReconnectingBannerNow()
+    }
+
     private fun showReconnectingBanner() {
         if (Looper.myLooper() != Looper.getMainLooper()) {
             timeoutHandler.post { showReconnectingBanner() }
             return
         }
+        val banner = reconnectingBanner ?: return
+        if (banner.isVisible) {
+            // Already showing — just refresh the attempt count in place.
+            val n = reconnectAttemptTimestamps.size.coerceAtLeast(1)
+            reconnectingBannerText?.text =
+                getString(R.string.player_reconnecting_banner, n, MAX_RECONNECTS_PER_WINDOW)
+            return
+        }
+        if (!reconnectBannerPending) {
+            reconnectBannerPending = true
+            timeoutHandler.postDelayed(reconnectBannerShowRunnable, RECONNECT_BANNER_DELAY_MS)
+        }
+    }
+
+    private fun showReconnectingBannerNow() {
         val banner = reconnectingBanner ?: return
         val n = reconnectAttemptTimestamps.size.coerceAtLeast(1)
         reconnectingBannerText?.text =
@@ -271,6 +317,8 @@ class PlayerActivity : AppCompatActivity() {
             timeoutHandler.post { hideReconnectingBanner() }
             return
         }
+        timeoutHandler.removeCallbacks(reconnectBannerShowRunnable)
+        reconnectBannerPending = false
         val banner = reconnectingBanner ?: return
         if (!banner.isVisible) return
         banner.animate().alpha(0f).setDuration(180).withEndAction { banner.isVisible = false }.start()
@@ -484,6 +532,21 @@ class PlayerActivity : AppCompatActivity() {
         // freeze re-prepare into a burst against a WAF/max_connections=1 server.
         private const val MAX_RECONNECTS_PER_WINDOW = 4
         private const val RECONNECT_WINDOW_MS = 60_000L
+        // Debounce a channel-tune (LP-B-1): only commit to stop()/prepare()/connect
+        // ~350ms after the last zap keypress, so holding or spamming channel-up/down
+        // updates the OSD instantly but issues ONE provider connection when the user
+        // settles — instead of a storm of socket cycles that trips the WAF and
+        // (because each tune resets the reconnect budget) never trips our own throttle.
+        private const val ZAP_DEBOUNCE_MS = 350L
+        // Progress-aware watchdog: extra 12s windows granted while the buffer is
+        // still growing (slow-but-alive connection), before tearing the player down.
+        private const val MAX_WATCHDOG_EXTENSIONS = 2
+        // A just-dropped provider socket usually needs a moment before it accepts a
+        // new connection — an immediate retry mostly fails and burns a budget slot.
+        private const val LIVE_ENDED_RECONNECT_DELAY_MS = 1500L
+        // Show the "Reconnecting…" pill only when the outage persists — sub-second
+        // re-prepares recover behind the last rendered frame and shouldn't flash UI.
+        private const val RECONNECT_BANNER_DELAY_MS = 1200L
         // Fixed cool-off for HTTP 429 when the server sends no Retry-After (QA fix 4).
         private const val HTTP_429_COOLOFF_MS = 20_000L
         // Debounce for session-adaptive network-quality updates (QA fix 7).
@@ -970,7 +1033,23 @@ class PlayerActivity : AppCompatActivity() {
             liveOsd?.showToast(msg.uppercase(Locale.getDefault())) ?: showToast(msg)
             return
         }
-        tuneToZapChannel(target)
+        // LP-B-1: moveZap already advanced the in-memory index. Update the OSD
+        // immediately for every keypress (including auto-repeat) so surfing feels
+        // instant, but DEBOUNCE the real stream connect — only tuneToZapChannel
+        // (which resets the reconnect budget + calls performSeamlessSwitch) fires,
+        // once, ZAP_DEBOUNCE_MS after the user stops pressing.
+        pendingZapTarget = target
+        val osd = liveOsd
+        if (osd != null) {
+            osd.setChannelNumber((viewModel.zapState.value?.index ?: 0) + 1)
+            osd.setFavorites(viewModel.liveFavoriteIds.value, target.streamId)
+            osd.showZapOsd()
+        } else {
+            val keepPinned = epgOverlayPinned && epgOverlayMode != EpgOverlayMode.HIDDEN
+            showEpgOverlay(mode = EpgOverlayMode.COMPACT, pinned = keepPinned)
+        }
+        zapDebounceHandler.removeCallbacks(zapCommitRunnable)
+        zapDebounceHandler.postDelayed(zapCommitRunnable, ZAP_DEBOUNCE_MS)
     }
 
     /** OK-tune from the surf drawer (Live Player OSD spec §7). */
@@ -981,6 +1060,12 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun tuneToZapChannel(target: ZapChannel) {
+        // This is the single commit point for a tune (debounced zap, drawer OK-tune,
+        // resume). Cancel any still-pending debounced zap so a late commit can't
+        // fire on top of this one (LP-B-1).
+        zapDebounceHandler.removeCallbacks(zapCommitRunnable)
+        pendingZapTarget = null
+
         currentZapRequestId++
         val reqId = currentZapRequestId
 
@@ -1123,7 +1208,8 @@ class PlayerActivity : AppCompatActivity() {
         timeoutHandler.removeCallbacks(timeoutRunnable)
         timeoutMs = resolveTimeoutMs(newUrl)
         timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
-        
+        armWatchdogBaseline()
+
         startStallMonitor()
         
         // GOLD STANDARD SWITCH BLOCK (Atomic Reset)
@@ -2087,9 +2173,16 @@ class PlayerActivity : AppCompatActivity() {
 
             val isSoftwareAudioEnabled = com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(this).isSoftwareAudioEnabled()
 
-            // Shared hand-off from the Live TV EPG guide: adopt the already-running
-            // preview player (same stream) instead of building a new pipeline, so
-            // going fullscreen never reconnects or rebuffers.
+            // Warm hand-off from the Live TV EPG guide (LP-ADOPT). The guide's preview
+            // player is now built with the SAME tuned engine as a cold start (see
+            // PreviewPlayerPanel: ffmpeg SW-audio renderer, low-RAM LoadControl/OOM
+            // guard, 429 cool-off LoadErrorHandlingPolicy), so we ADOPT the
+            // already-running instance instead of reconnecting. That keeps the single
+            // provider connection (no release→reconnect → no 403 storm on
+            // max_connections=1 accounts) while fullscreen still runs a fully tuned
+            // player. We only take over audio focus (the muted preview deliberately
+            // never held it) and cover our surface with the guide's last frame until we
+            // render our own — the hand-off never reconnects or flashes black.
             val adoptedShared = if (sharedLiveSession && contentType == ContentType.LIVE_TV) {
                 LiveSharedPlayer.adopt(streamUrl)
             } else {
@@ -2104,14 +2197,24 @@ class PlayerActivity : AppCompatActivity() {
                 player = adoptedShared.also {
                     playerView.player = it
                     it.volume = 1f
+                    // The preview built the player muted with NO audio-focus handling
+                    // (browsing the guide must not duck other apps). Fullscreen owns
+                    // audio now — take over focus at runtime.
+                    it.setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(C.USAGE_MEDIA)
+                            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                            .build(),
+                        /* handleAudioFocus= */ true
+                    )
                 }
                 PlaybackDiagnosticsRecorder.record(
                     this,
-                    "player_adopted_shared",
+                    "player_adopted_shared_tuned",
                     diagnosticsPlaybackFields(streamUrl, null)
                 )
-                // Cover our surface with the guide's last rendered frame until we
-                // draw our own first frame — the hand-off never flashes black.
+                // Cover our surface with the guide's last rendered frame until we draw
+                // our own first frame — the hand-off never flashes black.
                 LiveSharedPlayer.takeFrame()?.let { showAdoptedCover(it) }
             } else {
             didPlaybackComplete = false
@@ -2119,6 +2222,7 @@ class PlayerActivity : AppCompatActivity() {
             timeoutHandler.removeCallbacks(timeoutRunnable)
             timeoutMs = resolveTimeoutMs(streamUrl)
             timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
+            armWatchdogBaseline()
             hasRenderedFirstFrameForCurrentSource = false
 
             val httpDataSourceFactory = OkHttpDataSource.Factory(playbackOkHttpClient)
@@ -2279,6 +2383,8 @@ class PlayerActivity : AppCompatActivity() {
                          if (!isResolvingDebrid && player?.currentPosition ?: 0L > 1000) startPositionMs = 0L
                         maybeMatchDisplayFrameRate()
                         timeoutHandler.removeCallbacks(timeoutRunnable)
+                        watchdogExtensions = 0
+                        watchdogBufferedPosAtArm = -1L
                         retryCount = 0
                         // A clean READY means recovery succeeded — reset the unified
                         // reconnect budget (fix 2) and retire the banner (fix 3).
@@ -2296,6 +2402,7 @@ class PlayerActivity : AppCompatActivity() {
                     } else if (playbackState == Player.STATE_BUFFERING) {
                         timeoutHandler.removeCallbacks(timeoutRunnable)
                         timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
+                        armWatchdogBaseline()
                         if (lastBufferingStartMs == 0L) lastBufferingStartMs = SystemClock.elapsedRealtime()
                     } else if (playbackState == Player.STATE_ENDED || playbackState == Player.STATE_IDLE) {
                         timeoutHandler.removeCallbacks(timeoutRunnable)
@@ -2314,7 +2421,17 @@ class PlayerActivity : AppCompatActivity() {
                                   if (canReconnect && canAttemptReconnect()) {
                                        endedReconnects++; lastEndedReconnectAtMs = nowMs
                                        Log.i("PlayerActivity", "Live stream ended unexpectedly — reconnecting ($endedReconnects/3)")
-                                       currentUrl?.let { performSeamlessSwitch(it) }
+                                       // A just-dropped socket usually refuses an immediate
+                                       // reconnect — give the provider a moment so the FIRST
+                                       // attempt succeeds instead of burning budget slots.
+                                       // Stale-guarded: a zap meanwhile changes currentUrl
+                                       // and this runnable no-ops.
+                                       val urlAtEnded = currentUrl
+                                       retryHandler.postDelayed({
+                                            if (!isFinishing && !isDestroyed && currentUrl == urlAtEnded) {
+                                                 urlAtEnded?.let { performSeamlessSwitch(it) }
+                                            }
+                                       }, LIVE_ENDED_RECONNECT_DELAY_MS)
                                   } else {
                                        handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
                                   }
@@ -2780,6 +2897,27 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun handleTimeout() {
         if (player?.playbackState == Player.STATE_BUFFERING) {
+            // Progress-aware watchdog (live): if the buffer has GROWN since the
+            // watchdog was armed, data is still flowing — the connection is slow,
+            // not dead. Tearing the whole player down here (release + 2s wait +
+            // full re-init) turns a recovering rebuffer into a much longer visible
+            // reconnect on weak channels. Extend the window instead (bounded), and
+            // only tear down when the buffer is genuinely not filling.
+            if (contentType == ContentType.LIVE_TV) {
+                val buffered = player?.bufferedPosition ?: 0L
+                if (buffered > watchdogBufferedPosAtArm + 500L &&
+                    watchdogExtensions < MAX_WATCHDOG_EXTENSIONS
+                ) {
+                    watchdogExtensions++
+                    watchdogBufferedPosAtArm = buffered
+                    Log.i(
+                        "PlayerActivity",
+                        "Buffering slow but progressing (buffered=${buffered}ms) — extending watchdog $watchdogExtensions/$MAX_WATCHDOG_EXTENSIONS"
+                    )
+                    timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
+                    return
+                }
+            }
             val timedOutUrl = currentUrl
             PlaybackDiagnosticsRecorder.record(
                 this,
@@ -2825,6 +2963,17 @@ class PlayerActivity : AppCompatActivity() {
                       return
                 }
                 showToast("Connection timeout, retrying...")
+                // Live first retry: light in-place re-prepare on the SAME engine
+                // (the proven ENDED/freeze recovery path) instead of the heavy
+                // release → 2s wait → full re-init. The player instance is healthy —
+                // only the source starved — so this cuts each visible reconnect by
+                // ~4-5s and avoids the audio-focus abandon/request churn. The full
+                // engine rebuild is kept as the SECOND retry for wedged pipelines.
+                if (contentType == ContentType.LIVE_TV && retryCount < LIVE_MAX_RETRIES && player != null) {
+                    Log.i("PlayerActivity", "Buffer timeout — in-place re-prepare (retry $retryCount)")
+                    currentUrl?.let { performSeamlessSwitch(it) }
+                    return
+                }
                 if (contentType != ContentType.LIVE_TV && player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
                 PlaybackDiagnosticsRecorder.record(
                     this,
@@ -3030,7 +3179,7 @@ class PlayerActivity : AppCompatActivity() {
             "release_player",
             diagnosticsPlaybackFields() + mapOf("releaseReason" to reason)
         )
-        updateLastPlaybackPosition(); timeoutHandler.removeCallbacks(timeoutRunnable); timeoutHandler.removeCallbacks(captureRunnable); retryHandler.removeCallbacksAndMessages(null); overlayHandler.removeCallbacks(overlayHideRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; stopStallMonitor()
+        updateLastPlaybackPosition(); timeoutHandler.removeCallbacks(timeoutRunnable); timeoutHandler.removeCallbacks(captureRunnable); timeoutHandler.removeCallbacks(reconnectBannerShowRunnable); reconnectBannerPending = false; retryHandler.removeCallbacksAndMessages(null); overlayHandler.removeCallbacks(overlayHideRunnable); zapDebounceHandler.removeCallbacks(zapCommitRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; stopStallMonitor()
         playerListener?.let { player?.removeListener(it) }; playerListener = null
         debugListener?.let { player?.removeListener(it) }; debugListener = null
         player?.stop(); player?.release(); player = null; playerView.player = null

@@ -9,7 +9,11 @@ import android.widget.Toast
 import androidx.core.view.isVisible
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -17,9 +21,14 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import okhttp3.OkHttpClient
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity
+import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
 import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
+import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
+import com.tvonnet.debridxtreamiptv.player.stabilized.LivePlaybackLoadErrorPolicy
+import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerBufferConfigFactory
+import com.tvonnet.debridxtreamiptv.util.DeviceProfile
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -108,17 +117,56 @@ class PreviewPlayerPanel(
         val password = credentialsPrefs.getPassword() ?: return
         val streamUrl = streamUrlOverride ?: stream.toLiveStreamUrl(serverUrl, username, password)
         
-        // Setup/reuse Player
+        // Setup/reuse Player. Built with the SAME tuned engine as the fullscreen
+        // PlayerActivity (LP-ADOPT): ffmpeg software-audio renderer (so EAC3/DTS/AC4
+        // channels have audio), low-RAM LoadControl (OOM byte-cap guard), and the 429
+        // cool-off load-error policy. This lets the guide→fullscreen hand-off ADOPT
+        // this already-running instance with ZERO reconnect (one provider connection,
+        // no 403 on max_connections=1 accounts) while still being fully tuned.
         val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
             .setUserAgent("IPTVSmartersPlayer")
-        val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
-        
-        val player = previewPlayer ?: ExoPlayer.Builder(context)
-            .setMediaSourceFactory(mediaSourceFactory)
-            .build().also { created ->
-            created.volume = 0f // Muted by default
-            previewPlayer = created
-            previewPlayerView?.player = created
+
+        val player = previewPlayer ?: run {
+            val settings = SettingsPreferences(context)
+            val renderersFactory = DefaultRenderersFactory(context)
+                .setExtensionRendererMode(
+                    if (settings.isSoftwareAudioEnabled())
+                        DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+                    else
+                        DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+                )
+                .setEnableDecoderFallback(true)
+            val bufferConfig = PlayerBufferConfigFactory.buildConfig(
+                context, settings, ContentType.LIVE_TV, streamUrl, isDebrid = false
+            )
+            val loadControl = DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    bufferConfig.minBufferMs, bufferConfig.maxBufferMs,
+                    bufferConfig.startPlaybackMs, bufferConfig.rebufferPlaybackMs
+                )
+                .setTargetBufferBytes(PlayerBufferConfigFactory.resolveTargetBufferBytes(context, false))
+                .setPrioritizeTimeOverSizeThresholds(!DeviceProfile.isLowRamDevice(context))
+                .setBackBuffer(0, /* retainBackBufferFromKeyframe= */ true)
+                .build()
+            val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+                .setLoadErrorHandlingPolicy(LivePlaybackLoadErrorPolicy())
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build()
+            ExoPlayer.Builder(context)
+                .setRenderersFactory(renderersFactory)
+                .setMediaSourceFactory(mediaSourceFactory)
+                .setLoadControl(loadControl)
+                // Muted preview: set attributes but DO NOT request audio focus while
+                // browsing the guide (must not duck other apps). PlayerActivity calls
+                // setAudioAttributes(handleAudioFocus=true) when it adopts for fullscreen.
+                .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ false)
+                .build().also { created ->
+                    created.volume = 0f // Muted by default
+                    previewPlayer = created
+                    previewPlayerView?.player = created
+                }
         }
         player.setMediaItem(MediaItem.fromUri(streamUrl))
         player.prepare()
