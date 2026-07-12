@@ -255,7 +255,7 @@ class LiveTvGuideViewModel @Inject constructor(
     ): GuideChannel {
         val currentCategory = programs.firstOrNull { it.isPlaying() }?.category
         val genre = EpgGenre.from(currentCategory, stream.name)
-        val guidePrograms = programs.sortedBy { it.start }.map { p ->
+        val guidePrograms = dedupeOverlappingPrograms(programs.sortedBy { it.start }).map { p ->
             GuideProgram(
                 title = p.title?.takeIf { it.isNotBlank() } ?: "No Information",
                 description = p.description,
@@ -275,6 +275,27 @@ class LiveTvGuideViewModel @Inject constructor(
             stream = stream,
             programs = guidePrograms
         )
+    }
+
+    // XMLTV feeds (especially merged/aggregator sources) sometimes contain duplicate or
+    // overlapping <programme> entries for the same channel. EpgGridView draws one title per
+    // entry positioned purely by its own time window, so overlapping entries paint their titles
+    // on top of each other. Collapse overlaps here, keeping the entry with real title info.
+    private fun dedupeOverlappingPrograms(sorted: List<EpgEntity>): List<EpgEntity> {
+        if (sorted.size <= 1) return sorted
+        val result = mutableListOf<EpgEntity>()
+        for (p in sorted) {
+            val prevIdx = result.lastIndex
+            val prev = result.getOrNull(prevIdx)
+            if (prev != null && p.start < prev.stop) {
+                if (prev.title.isNullOrBlank() && !p.title.isNullOrBlank()) {
+                    result[prevIdx] = p
+                }
+                continue
+            }
+            result += p
+        }
+        return result
     }
 
     /** Returns start..end (Unix ms) of the local day at [dayIndex] offset from today. */

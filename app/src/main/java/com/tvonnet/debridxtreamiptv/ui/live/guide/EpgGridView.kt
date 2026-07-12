@@ -314,13 +314,18 @@ class EpgGridView @JvmOverloads constructor(
                 canvas.drawText("No program information", channelColWidth + dp(16f), top + rowHeight / 2 + sp(4f), textMono)
                 continue
             }
+            var prevRight = Float.NEGATIVE_INFINITY
             for ((idx, p) in ch.programs.withIndex()) {
                 val startMin = (p.startMs - windowStartMs) / 60000f
                 val left = channelColWidth + startMin * ppm - scrollX
                 val w = p.durationMinutes() * ppm - dp(3f)
                 val right = left + w
                 if (right < channelColWidth || left > width) continue
+                // Defensive guard: never draw a block over one already drawn in this row,
+                // so overlapping program data can never render as ghosted/stacked titles.
+                if (left < prevRight) continue
                 drawProgram(canvas, p, left, top, right, bottom)
+                prevRight = right
             }
         }
         canvas.restoreToCount(save)
