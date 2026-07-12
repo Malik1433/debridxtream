@@ -64,7 +64,10 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
+        binding.tvSettingsVersion.text = "DEBRIDXTREAM · v${BuildConfig.VERSION_NAME}"
+        binding.tvSettingsBuild.text = "BUILD ${BuildConfig.VERSION_NAME}"
+
         setupAdapters()
         observeState()
     }
@@ -103,6 +106,16 @@ class SettingsFragment : Fragment() {
     }
 
     private fun updateDetails(state: SettingsUiState) {
+        // Panel header + accent follow the active category (design "Settings Screen.dc.html").
+        val meta = SettingsCategoryAdapter.metaFor(state.selectedCategory)
+        binding.tvPanelTitle.text = meta.title
+        binding.tvPanelDesc.text = SettingsCategoryAdapter.descFor(state.selectedCategory)
+        binding.vPanelDot.background = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.OVAL
+            setColor(meta.accent)
+        }
+        detailAdapter.accent = meta.accent
+
         val items = when (state.selectedCategory) {
             SettingCategory.GENERAL -> listOf(
                 SettingItem.Toggle(

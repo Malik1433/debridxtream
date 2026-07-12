@@ -6,15 +6,19 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tvonnet.debridxtreamiptv.R
 
 internal data class StremioSearchResult(
     val title: String,
-    val meta: String,
-    val type: String,
+    val sub: String,
+    val typeLabel: String,
+    val typeColor: Int,
     val typeBg: Int,
+    val typeBorder: Int,
+    val isLive: Boolean,
     val posterUrl: String?,
     val onClick: () -> Unit
 )
@@ -40,22 +44,46 @@ internal class StremioSearchResultAdapter : RecyclerView.Adapter<StremioSearchRe
         private val image: ImageView = itemView.findViewById(R.id.sr_image)
         private val overlay: View = itemView.findViewById(R.id.sr_overlay)
         private val type: TextView = itemView.findViewById(R.id.sr_type)
+        private val live: View = itemView.findViewById(R.id.sr_live)
         private val title: TextView = itemView.findViewById(R.id.sr_title)
         private val meta: TextView = itemView.findViewById(R.id.sr_meta)
-        private val density = itemView.resources.displayMetrics.density
+        private val d = itemView.resources.displayMetrics.density
 
         fun bind(r: StremioSearchResult, position: Int) {
-            card.background = StremioGradients.cardBg(StremioPalette.forIndex(position), 5f, density)
-            overlay.background = StremioGradients.topFade(0xF706090E.toInt(), 0x1A06090E, 0.5f, 5f, density)
-            title.text = r.title
-            meta.text = r.meta
-            type.text = r.type
-            type.background = GradientDrawable().apply { cornerRadius = 1.5f * density; setColor(r.typeBg) }
+            // rounded poster: placeholder gradient doubles as the clip outline
+            image.background = GradientDrawable().apply {
+                cornerRadius = 4 * d
+                colors = intArrayOf(StremioPalette.forIndex(position), 0xFF0B0F17.toInt())
+                orientation = GradientDrawable.Orientation.TL_BR
+            }
+            image.clipToOutline = true
+            image.setImageDrawable(null)
             Glide.with(image).load(r.posterUrl).into(image)
+
+            // bottom-up scrim so the type badge stays legible
+            overlay.background = GradientDrawable(
+                GradientDrawable.Orientation.BOTTOM_TOP,
+                intarr(0xE606090E.toInt(), 0x0006090E)
+            )
+
+            title.text = r.title
+            meta.text = r.sub
+            type.text = r.typeLabel
+            type.setTextColor(r.typeColor)
+            type.background = GradientDrawable().apply {
+                cornerRadius = 1.5f * d
+                setColor(r.typeBg)
+                setStroke((1 * d).toInt(), r.typeBorder)
+            }
+            live.isVisible = r.isLive
+
             card.setOnClickListener { r.onClick() }
             card.setOnFocusChangeListener { v, has ->
                 v.z = if (has) 8f else 0f
+                v.animate().translationY(if (has) -3 * d else 0f).setDuration(140).start()
             }
         }
+
+        private fun intarr(vararg c: Int) = c
     }
 }

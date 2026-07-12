@@ -1,14 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Settings toggle row — "Settings Screen.dc.html". 68px/2 = 34dp. Bg/focus set in adapter. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/row_root"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
-    android:background="@drawable/selector_card_background"
+    android:layout_height="34dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="10dp"
+    android:paddingEnd="12dp"
+    android:layout_marginBottom="2dp"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    android:orientation="horizontal"
-    android:padding="16dp"
-    android:gravity="center_vertical">
+    android:clickable="true">
+
+    <ImageView
+        android:id="@+id/iv_icon"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:padding="3dp"
+        android:scaleType="fitCenter"
+        android:layout_marginEnd="10dp" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -20,26 +31,35 @@
             android:id="@+id/tv_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-medium"
-            android:textColor="@color/white"
-            android:textSize="16sp"
-            android:text="Setting Title" />
+            android:fontFamily="@font/outfit_semibold"
+            android:textSize="8sp"
+            android:textColor="#F1F5F9"
+            android:maxLines="1"
+            android:ellipsize="end" />
 
         <TextView
             android:id="@+id/tv_description"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="#B3FFFFFF"
-            android:textSize="12sp"
-            android:text="Setting description goes here" />
+            android:layout_marginTop="1dp"
+            android:fontFamily="@font/inter_regular"
+            android:textSize="6.5sp"
+            android:textColor="#475569"
+            android:maxLines="1"
+            android:ellipsize="end" />
     </LinearLayout>
 
-    <Switch
-        android:id="@+id/switch_toggle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:focusable="false"
-        android:clickable="false" />
+    <!-- toggle pill (52x28 px / 2 = 26x14 dp) -->
+    <FrameLayout
+        android:id="@+id/v_toggle_pill"
+        android:layout_width="26dp"
+        android:layout_height="14dp"
+        android:layout_marginStart="12dp">
 
+        <View
+            android:id="@+id/v_toggle_dot"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:layout_gravity="center_vertical" />
+    </FrameLayout>
 </LinearLayout>
