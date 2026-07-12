@@ -802,25 +802,7 @@ class PlayerActivity : AppCompatActivity() {
                         return
                     }
                 }
-                manualExit = true
-                updateLastPlaybackPosition()
-                historyManager.recordPlaybackHistoryIfNeeded()
-                if (sharedLiveSession && contentType == ContentType.LIVE_TV && player != null) {
-                    if (sharedExitInProgress) return
-                    sharedExitInProgress = true
-                    // Snapshot the on-screen frame first (async for SurfaceView),
-                    // then hand the running player back and leave without animation.
-                    captureFrameForHandOff { frame ->
-                        if (isFinishing || isDestroyed) return@captureFrameForHandOff
-                        handBackSharedPlayerIfNeeded(frame)
-                        releasePlayer()
-                        finish()
-                        overridePendingTransition(0, 0)
-                    }
-                    return
-                }
-                releasePlayer()
-                finish()
+                performBackExit()
             }
         })
     }
@@ -906,6 +888,13 @@ class PlayerActivity : AppCompatActivity() {
             repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
                 viewModel.surfCategories.collect { cats ->
                     liveOsd?.setCategories(cats)
+                }
+            }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                viewModel.surfEpg.collect { map ->
+                    liveOsd?.setSurfEpg(map)
                 }
             }
         }
@@ -1288,7 +1277,10 @@ class PlayerActivity : AppCompatActivity() {
                     val number = state?.let { (it.index + 1).coerceAtLeast(1) } ?: 1
                     tvChannelNumber?.text = number.toString()
                     liveOsd?.setChannelNumber(state?.let { it.index + 1 })
-                    state?.let { liveOsd?.setZapState(it.categoryId, it.categoryName, it.channels, it.index) }
+                    state?.let {
+                        liveOsd?.setZapState(it.categoryId, it.categoryName, it.channels, it.index)
+                        viewModel.refreshSurfEpg()
+                    }
                 }
             }
         }
@@ -2891,6 +2883,34 @@ class PlayerActivity : AppCompatActivity() {
         super.finish()
     }
 
+    /**
+     * The real BACK exit: records history, flags manualExit (for return-to-sources), and — for a
+     * shared Live TV session — hands the running player back to the guide before finishing.
+     * Shared by the onBackPressedDispatcher callback (Live/EPG paths) and the VOD dispatchKeyEvent
+     * path (which must consume BACK so the media3 controller can't swallow it).
+     */
+    private fun performBackExit() {
+        manualExit = true
+        updateLastPlaybackPosition()
+        historyManager.recordPlaybackHistoryIfNeeded()
+        if (sharedLiveSession && contentType == ContentType.LIVE_TV && player != null) {
+            if (sharedExitInProgress) return
+            sharedExitInProgress = true
+            // Snapshot the on-screen frame first (async for SurfaceView),
+            // then hand the running player back and leave without animation.
+            captureFrameForHandOff { frame ->
+                if (isFinishing || isDestroyed) return@captureFrameForHandOff
+                handBackSharedPlayerIfNeeded(frame)
+                releasePlayer()
+                finish()
+                overridePendingTransition(0, 0)
+            }
+            return
+        }
+        releasePlayer()
+        finish()
+    }
+
     private lateinit var browserCategoryAdapter: BrowserCategoryAdapter
     private lateinit var browserChannelAdapter: BrowserChannelAdapter
 
@@ -3003,9 +3023,24 @@ class PlayerActivity : AppCompatActivity() {
                 enterPictureInPictureModeInternal()
                 return true
             }
-            // Otherwise fall through: BACK reaches onBackPressedDispatcher, which handles the channel
-            // browser, EPG, the VOD controller two-step (1st hide, 2nd exit), and the real exit —
-            // including the shared Live TV player hand-off + manualExit / history recording.
+            // VOD (movie/episode): consume BACK here — media3's controller would otherwise swallow it
+            // so onBackPressedDispatcher never runs (the "BACK doesn't exit" bug). 1st press hides the
+            // controls, 2nd runs the real exit (records history, sets manualExit).
+            if (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE) {
+                if (event.action == KeyEvent.ACTION_UP) {
+                    when {
+                        isInPictureInPictureMode -> return super.dispatchKeyEvent(event)
+                        isControllerVisible && !backHideArmed -> {
+                            playerView.hideController()
+                            backHideArmed = true
+                        }
+                        else -> performBackExit()
+                    }
+                }
+                return true
+            }
+            // LIVE_TV and anything else: fall through to onBackPressedDispatcher, which handles the
+            // channel browser, EPG, and the shared Live TV player hand-off + manualExit / history.
         }
 
         if (event.action == KeyEvent.ACTION_DOWN) {
