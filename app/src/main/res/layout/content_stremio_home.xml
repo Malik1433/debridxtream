@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stremio Home tab: vertical scrolling Debrid rows (top-aligns focused row under the hero) -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/home_content"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <com.tvonnet.debridxtreamiptv.ui.debrid.stremio.TopAlignRecyclerView
+        android:id="@+id/homeRows"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:clipChildren="false"
+        android:paddingTop="24dp"
+        android:paddingBottom="4dp" />
+</FrameLayout>

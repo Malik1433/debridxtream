@@ -47,7 +47,7 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
             }
             "movies" -> VodFragment()
             "series" -> SeriesFragment()
-            "debrid" -> com.tvonnet.debridxtreamiptv.ui.debrid.DebridFragment()
+            "debrid" -> com.tvonnet.debridxtreamiptv.ui.debrid.stremio.StremioHomeFragment()
             "search" -> SearchFragment()
             "settings" -> com.tvonnet.debridxtreamiptv.ui.settings.SettingsFragment()
             else -> return

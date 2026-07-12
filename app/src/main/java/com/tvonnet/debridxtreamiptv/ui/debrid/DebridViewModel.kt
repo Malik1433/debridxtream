@@ -507,7 +507,8 @@ data class DebridContentItem(
     val expiresAt: Long? = null,
     val overview: String? = null,
     val genreIds: List<Int>? = null,
-    val isSkeleton: Boolean = false
+    val isSkeleton: Boolean = false,
+    val releaseDate: String? = null
 ) {
     fun isExpired(): Boolean {
         return expiresAt == null || System.currentTimeMillis() > expiresAt
@@ -527,7 +528,8 @@ private fun CatalogItem.toDebridContentItem(): DebridContentItem {
         year = this.year,
         rating = this.rating,
         overview = this.overview,
-        genreIds = this.genreIds
+        genreIds = this.genreIds,
+        releaseDate = this.releaseDate
     )
 }
 

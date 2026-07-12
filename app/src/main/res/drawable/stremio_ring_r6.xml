@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Focus ring for popular poster: border 3px/2=1.5dp cyan, radius 12px/2=6dp -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="6dp" />
+    <solid android:color="#00000000" />
+    <stroke android:width="1.5dp" android:color="#00F0FF" />
+</shape>

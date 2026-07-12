@@ -22,6 +22,13 @@ object MediaTitleCleaner {
     // legitimate title words in pipes aren't nuked.
     private val PIPE_TAG_ANYWHERE = Regex("""\s*\|\s*[A-Za-z0-9]{1,6}\s*\|\s*""")
 
+    // Leading release-site domain, e.g. "www.1TamilBlasters.dad - Title" or (after dot→space
+    // normalisation) "www 1TamilBlasters dad - Title" → strip up to and including the first dash.
+    private val LEADING_SITE = Regex("""^\s*www[^\-–—]{0,60}[\-–—]\s*""", RegexOption.IGNORE_CASE)
+
+    // Leading bracketed site/release tag, e.g. "[Bolly4u.limo] Title", "(YTS) Title".
+    private val LEADING_BRACKET = Regex("""^\s*[\[(][^\])]{0,40}[\])]\s*""")
+
     // Leftover leading / trailing separators once tags are gone.
     private val LEADING_SEPARATORS = Regex("""^[\s\-–—·:|]+""")
     private val TRAILING_SEPARATORS = Regex("""[\s\-–—·:|]+$""")
@@ -39,7 +46,12 @@ object MediaTitleCleaner {
             .replace("\\\"", "\"")
             .replace("\\/", "/")
 
-        // 2) Strip leading pipe-tag blocks (|MULTI|, |EN|, |4K|, |🇬🇧|, ...)
+        // 2) Strip leading release-site prefixes ("www.site.tld - ", "[Bolly4u]", "(YTS)")
+        name = LEADING_SITE.replace(name, "")
+        var prev: String
+        do { prev = name; name = LEADING_BRACKET.replace(name, "").trim() } while (name != prev)
+
+        // 2b) Strip leading pipe-tag blocks (|MULTI|, |EN|, |4K|, |🇬🇧|, ...)
         name = LEADING_TAG_BLOCKS.replace(name, " ")
 
         // 3) Strip short pipe tags anywhere else (trailing/embedded), e.g. "… |AR|"

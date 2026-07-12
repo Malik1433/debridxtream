@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nav tab: height 56/2=28dp, padding 0 26/2=13dp, radius 6dp, gap 10/2=5dp -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="28dp"
+    android:layout_marginEnd="1dp"
+    android:background="@drawable/stremio_nav_tab_bg"
+    android:focusable="true"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="13dp"
+        android:paddingEnd="13dp">
+
+        <ImageView
+            android:id="@+id/nav_tab_icon"
+            android:layout_width="7.5dp"
+            android:layout_height="7.5dp"
+            android:layout_marginEnd="5dp" />
+
+        <TextView
+            android:id="@+id/nav_tab_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/outfit_medium"
+            android:textSize="9sp"
+            android:textColor="#64748B" />
+    </LinearLayout>
+
+    <!-- active bottom indicator: 20/2=10dp wide, 3/2=1.5dp tall, bottom 5/2=2.5dp -->
+    <View
+        android:id="@+id/nav_tab_indicator"
+        android:layout_width="0dp"
+        android:layout_height="1.5dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="2.5dp"
+        android:background="@drawable/stremio_nav_indicator" />
+</FrameLayout>

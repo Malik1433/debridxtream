@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DOLBY badge: solid #00f0ff, radius 3px/2=1.5dp -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="1.5dp" />
+    <solid android:color="#00F0FF" />
+</shape>

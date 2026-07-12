@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Play Now CTA: linear-gradient(135deg,#0077ff,#00f0ff), radius 14px/2 = 7dp -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="7dp" />
+    <gradient
+        android:angle="315"
+        android:startColor="#0077FF"
+        android:endColor="#00F0FF"
+        android:type="linear" />
+</shape>

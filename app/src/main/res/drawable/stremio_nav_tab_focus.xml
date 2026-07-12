@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Focused nav tab: bg rgba(0,240,255,0.1) + ring rgba(0,240,255,0.5) 2dp, radius 6dp -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="6dp" />
+    <solid android:color="#1A00F0FF" />
+    <stroke android:width="2dp" android:color="#8000F0FF" />
+</shape>

@@ -129,6 +129,9 @@ class DebridDiscoverViewModel @Inject constructor(
         loadContent(reset = true)
     }
 
+    /** Force a fresh reload with the current filters (e.g. after [setCustomFilters]). */
+    fun reload() = loadContent(reset = true)
+
     /** Loads the next page of results. No-op if already loading or no more pages. */
     fun loadNextPage() {
         if (!canLoadMore || loadJob?.isActive == true) return

@@ -299,6 +299,23 @@
     <color name="neon_green">#00FF88</color>
     <color name="neon_amber">#FFAA00</color>
     <color name="neon_gold">#D4AF37</color>
+
+    <!-- ══════ Stremio Home exact design tokens ══════ -->
+    <color name="stremio_bg">#06090E</color>
+    <color name="stremio_cyan">#00F0FF</color>
+    <color name="stremio_blue">#0077FF</color>
+    <color name="stremio_btn_text">#041014</color>
+    <color name="stremio_text_primary">#F1F5F9</color>
+    <color name="stremio_text_secondary">#94A3B8</color>
+    <color name="stremio_text_muted">#64748B</color>
+    <color name="stremio_text_faint">#475569</color>
+    <color name="stremio_text_darkest">#334155</color>
+    <color name="stremio_amber">#FFAA00</color>
+    <color name="stremio_green">#00FF88</color>
+    <color name="stremio_red">#FF3355</color>
+    <color name="stremio_purple">#7C3AED</color>
+    <color name="stremio_purple_light">#A78BFA</color>
+    <color name="stremio_bronze">#CD7F32</color>
     <color name="neon_red">#FF3366</color>
     <color name="source_text_primary">#F1F5F9</color>
     <color name="source_text_secondary">#94A3B8</color>

@@ -65,7 +65,7 @@ class AddonCatalogRepository @Inject constructor(
     suspend fun getTrendingMovies(): Result<List<CatalogItem>> {
         return when (val result = tmdbRemote.getTrendingMovies()) {
             is Success -> {
-                val items = result.data.results?.mapNotNull { movie ->
+                val items = result.data.results?.filter { it.adult != true }?.mapNotNull { movie ->
                     movie.title?.let {
                         CatalogItem(
                             id = movie.id?.toString() ?: return@mapNotNull null,
@@ -73,7 +73,7 @@ class AddonCatalogRepository @Inject constructor(
                             posterUrl = TmdbImageUrl.getPosterUrl(movie.posterPath),
                             backdropUrl = TmdbImageUrl.getBackdropUrl(movie.backdropPath),
                             type = "movie",
-                            year = movie.releaseDate?.take(4),
+                            year = movie.releaseDate?.take(4), releaseDate = movie.releaseDate,
                             rating = movie.voteAverage?.toString(),
                             overview = movie.overview,
                             genreIds = movie.genreIds
@@ -98,7 +98,7 @@ class AddonCatalogRepository @Inject constructor(
                             posterUrl = TmdbImageUrl.getPosterUrl(show.posterPath),
                             backdropUrl = TmdbImageUrl.getBackdropUrl(show.backdropPath),
                             type = "series",
-                            year = show.firstAirDate?.take(4),
+                            year = show.firstAirDate?.take(4), releaseDate = show.firstAirDate,
                             rating = show.voteAverage?.toString(),
                             overview = show.overview,
                             genreIds = show.genreIds
@@ -127,7 +127,7 @@ class AddonCatalogRepository @Inject constructor(
         
         // Process Movies
         if (moviesResult is Success) {
-            moviesResult.data.results?.mapNotNull { movie ->
+            moviesResult.data.results?.filter { it.adult != true }?.mapNotNull { movie ->
                 movie.title?.let {
                     CatalogItem(
                         id = movie.id?.toString() ?: return@mapNotNull null,
@@ -135,7 +135,7 @@ class AddonCatalogRepository @Inject constructor(
                         posterUrl = TmdbImageUrl.getPosterUrl(movie.posterPath),
                         backdropUrl = TmdbImageUrl.getBackdropUrl(movie.backdropPath),
                         type = "movie",
-                        year = movie.releaseDate?.take(4),
+                        year = movie.releaseDate?.take(4), releaseDate = movie.releaseDate,
                         rating = movie.voteAverage?.toString(),
                         overview = movie.overview,
                         genreIds = movie.genreIds
@@ -156,7 +156,7 @@ class AddonCatalogRepository @Inject constructor(
                         posterUrl = TmdbImageUrl.getPosterUrl(show.posterPath),
                         backdropUrl = TmdbImageUrl.getBackdropUrl(show.backdropPath),
                         type = "series",
-                        year = show.firstAirDate?.take(4),
+                        year = show.firstAirDate?.take(4), releaseDate = show.firstAirDate,
                         rating = show.voteAverage?.toString(),
                         overview = show.overview,
                         genreIds = show.genreIds
@@ -193,8 +193,16 @@ class AddonCatalogRepository @Inject constructor(
     ): Result<List<CatalogItem>> {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         val effectiveSortBy = sortBy ?: resolveDiscoverSort(type = type, catalogue = catalogue)
-        val voteCountGte = if (catalogue == CATALOGUE_TOP_RATED) TOP_RATED_MIN_VOTE_COUNT else null
         val yearDateGte = year?.let { "%04d-01-01".format(Locale.US, it) } ?: releaseDateGte
+        val voteCountGte = when {
+            catalogue == CATALOGUE_TOP_RATED -> TOP_RATED_MIN_VOTE_COUNT
+            // The all-years "Popular" grid (Discover "Trending Everywhere") has no date bound, so obscure
+            // old titles — e.g. softcore films TMDB doesn't flag `adult` — ride inflated popularity into it
+            // with almost no votes. Require a real vote count there. Date-scoped rows (regional/new, 2024+)
+            // keep no floor so genuinely new films still show.
+            catalogue == CATALOGUE_POPULAR && yearDateGte == null -> POPULAR_MIN_VOTE_COUNT
+            else -> null
+        }
         val yearDateLte = year?.let { "%04d-12-31".format(Locale.US, it) }
 
         return if (type == "movie") {
@@ -207,10 +215,11 @@ class AddonCatalogRepository @Inject constructor(
                 releaseDateLte = yearDateLte ?: today,
                 releaseDateGte = yearDateGte,
                 voteCountGte = voteCountGte,
-                withGenres = withGenres
+                withGenres = withGenres,
+                withoutKeywords = EXCLUDED_ADULT_KEYWORDS
             )) {
                 is Success -> {
-                     val items = result.data.results?.mapNotNull { movie ->
+                     val items = result.data.results?.filter { it.adult != true }?.mapNotNull { movie ->
                         movie.title?.let {
                             CatalogItem(
                                 id = movie.id?.toString() ?: return@mapNotNull null,
@@ -218,7 +227,7 @@ class AddonCatalogRepository @Inject constructor(
                                 posterUrl = TmdbImageUrl.getPosterUrl(movie.posterPath),
                                 backdropUrl = TmdbImageUrl.getBackdropUrl(movie.backdropPath),
                                 type = "movie",
-                                year = movie.releaseDate?.take(4),
+                                year = movie.releaseDate?.take(4), releaseDate = movie.releaseDate,
                                 rating = movie.voteAverage?.toString(),
                                 overview = movie.overview,
                                 genreIds = movie.genreIds
@@ -240,7 +249,8 @@ class AddonCatalogRepository @Inject constructor(
                 firstAirDateLte = yearDateLte ?: today,
                 firstAirDateGte = yearDateGte,
                 voteCountGte = voteCountGte,
-                withGenres = withGenres
+                withGenres = withGenres,
+                withoutKeywords = EXCLUDED_ADULT_KEYWORDS
             )) {
                 is Success -> {
                     val items = result.data.results?.mapNotNull { show ->
@@ -251,7 +261,7 @@ class AddonCatalogRepository @Inject constructor(
                                 posterUrl = TmdbImageUrl.getPosterUrl(show.posterPath),
                                 backdropUrl = TmdbImageUrl.getBackdropUrl(show.backdropPath),
                                 type = "series",
-                                year = show.firstAirDate?.take(4),
+                                year = show.firstAirDate?.take(4), releaseDate = show.firstAirDate,
                                 rating = show.voteAverage?.toString(),
                                 overview = show.overview,
                                 genreIds = show.genreIds
@@ -338,6 +348,10 @@ class AddonCatalogRepository @Inject constructor(
         const val CATALOGUE_TOP_RATED = "top_rated"
         const val CATALOGUE_NEWEST = "newest"
         private const val TOP_RATED_MIN_VOTE_COUNT = 200
+        private const val POPULAR_MIN_VOTE_COUNT = 200
+        // TMDB keyword ids for adult/erotica that aren't caught by `adult=true` (softcore, erotic movie,
+        // pornography, hardcore) — excluded from all discover queries via `without_keywords` (OR-joined).
+        private const val EXCLUDED_ADULT_KEYWORDS = "190370|155477|445|260863"
     }
 }
 
@@ -354,7 +368,8 @@ data class CatalogItem(
     val year: String?,
     val rating: String?,
     val overview: String? = null,
-    val genreIds: List<Int>? = null
+    val genreIds: List<Int>? = null,
+    val releaseDate: String? = null
 ) : android.os.Parcelable
 
 

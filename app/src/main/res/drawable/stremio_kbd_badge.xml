@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- '/' and ESC key badge: bg rgba(255,255,255,0.06), radius 4px/2=2dp -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="2dp" />
+    <solid android:color="#0FFFFFFF" />
+</shape>

@@ -179,7 +179,13 @@ class MainActivity : AppCompatActivity() {
     override fun onBackPressed() {
         val currentFragment = supportFragmentManager.findFragmentById(R.id.content_container)
         val fragmentName = currentFragment?.javaClass?.simpleName ?: "null"
-        
+
+        // Priority 0: Debrid Stremio home consumes BACK for its own overlays/tabs first
+        // (it is added with addToBackStack, so it must be handled before the pop below).
+        if (currentFragment is com.tvonnet.debridxtreamiptv.ui.debrid.stremio.StremioHomeFragment) {
+            if (currentFragment.handleBackPress()) return
+        }
+
         // Priority 1: If there is a back stack history, pop it
         if (supportFragmentManager.backStackEntryCount > 0) {
             super.onBackPressed()

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Discover Top 10 row: 52px/2=26dp tall, padding 0 14px/2=7dp -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/top10_row"
+    android:layout_width="match_parent"
+    android:layout_height="42dp"
+    android:layout_marginBottom="4dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/stremio_top10_row"
+    android:paddingStart="7dp"
+    android:paddingEnd="7dp"
+    android:focusable="true">
+
+    <TextView
+        android:id="@+id/top10_rank"
+        android:layout_width="18dp"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/outfit_extrabold"
+        android:textSize="13sp"
+        android:letterSpacing="-0.04"
+        android:includeFontPadding="false"
+        tools:text="01" />
+
+    <ImageView
+        android:id="@+id/top10_thumb"
+        android:layout_width="26dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="7dp"
+        android:layout_marginEnd="8dp"
+        android:scaleType="centerCrop" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/top10_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/outfit_semibold"
+            android:textSize="7.5sp"
+            android:textColor="#F1F5F9"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/top10_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/share_tech_mono"
+            android:textSize="5.5sp"
+            android:textColor="#475569"
+            android:layout_marginTop="1.5dp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/top10_trend"
+        android:layout_width="12dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:fontFamily="@font/share_tech_mono"
+        android:textStyle="bold"
+        android:textSize="5.5sp"
+        tools:text="↑3" />
+
+    <ImageView
+        android:layout_width="6.5dp"
+        android:layout_height="6.5dp"
+        android:layout_marginStart="4dp"
+        android:src="@drawable/ic_stremio_chevron_right"
+        app:tint="#334155" />
+</LinearLayout>

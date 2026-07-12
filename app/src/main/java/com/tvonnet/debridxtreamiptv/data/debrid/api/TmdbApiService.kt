@@ -42,14 +42,16 @@ interface TmdbApiService {
     suspend fun searchMovies(
         @Query("api_key") apiKey: String,
         @Query("query") query: String,
-        @Query("page") page: Int = 1
+        @Query("page") page: Int = 1,
+        @Query("include_adult") includeAdult: Boolean = false
     ): TmdbMovieResponse
-    
+
     @GET("search/tv")
     suspend fun searchTvShows(
         @Query("api_key") apiKey: String,
         @Query("query") query: String,
-        @Query("page") page: Int = 1
+        @Query("page") page: Int = 1,
+        @Query("include_adult") includeAdult: Boolean = false
     ): TmdbTvShowResponse
     
     @GET("movie/{movie_id}")
@@ -90,7 +92,9 @@ interface TmdbApiService {
         @Query("primary_release_date.lte") primaryReleaseDateLte: String? = null,
         @Query("primary_release_date.gte") primaryReleaseDateGte: String? = null,
         @Query("vote_count.gte") voteCountGte: Int? = null,
-        @Query("with_genres") withGenres: String? = null
+        @Query("with_genres") withGenres: String? = null,
+        @Query("without_keywords") withoutKeywords: String? = null,
+        @Query("include_adult") includeAdult: Boolean = false
     ): TmdbMovieResponse
 
     @GET("discover/tv")
@@ -104,7 +108,9 @@ interface TmdbApiService {
         @Query("first_air_date.lte") firstAirDateLte: String? = null,
         @Query("first_air_date.gte") firstAirDateGte: String? = null,
         @Query("vote_count.gte") voteCountGte: Int? = null,
-        @Query("with_genres") withGenres: String? = null
+        @Query("with_genres") withGenres: String? = null,
+        @Query("without_keywords") withoutKeywords: String? = null,
+        @Query("include_adult") includeAdult: Boolean = false
     ): TmdbTvShowResponse
 
     @GET("genre/movie/list")

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Focused glass control: border #00f0ff + ring (box-shadow 0 0 0 2px #00f0ff) approximated by 2dp stroke, radius 6dp -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="6dp" />
+    <solid android:color="#0FFFFFFF" />
+    <stroke android:width="2dp" android:color="#00F0FF" />
+</shape>

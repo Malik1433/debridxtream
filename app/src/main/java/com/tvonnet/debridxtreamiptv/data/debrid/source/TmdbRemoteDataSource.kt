@@ -74,7 +74,8 @@ class TmdbRemoteDataSource @Inject constructor(
         releaseDateLte: String? = null,
         releaseDateGte: String? = null,
         voteCountGte: Int? = null,
-        withGenres: String? = null
+        withGenres: String? = null,
+        withoutKeywords: String? = null
     ): Result<TmdbMovieResponse> = resultOf {
         tmdbService.discoverMovies(
             apiKey = requireApiKey(),
@@ -86,7 +87,8 @@ class TmdbRemoteDataSource @Inject constructor(
             primaryReleaseDateLte = releaseDateLte,
             primaryReleaseDateGte = releaseDateGte,
             voteCountGte = voteCountGte,
-            withGenres = withGenres
+            withGenres = withGenres,
+            withoutKeywords = withoutKeywords
         )
     }
 
@@ -99,7 +101,8 @@ class TmdbRemoteDataSource @Inject constructor(
         firstAirDateLte: String? = null,
         firstAirDateGte: String? = null,
         voteCountGte: Int? = null,
-        withGenres: String? = null
+        withGenres: String? = null,
+        withoutKeywords: String? = null
     ): Result<TmdbTvShowResponse> = resultOf {
         tmdbService.discoverTvShows(
             apiKey = requireApiKey(),
@@ -111,7 +114,8 @@ class TmdbRemoteDataSource @Inject constructor(
             firstAirDateLte = firstAirDateLte,
             firstAirDateGte = firstAirDateGte,
             voteCountGte = voteCountGte,
-            withGenres = withGenres
+            withGenres = withGenres,
+            withoutKeywords = withoutKeywords
         )
     }
 
