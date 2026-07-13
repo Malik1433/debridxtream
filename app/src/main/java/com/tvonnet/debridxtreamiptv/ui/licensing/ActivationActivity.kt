@@ -56,6 +56,10 @@ class ActivationActivity : AppCompatActivity() {
                             titleTv.text = "Share this code with your provider"
                             statusTv.text = "Waiting for activation…"
                         }
+                        LicenseState.Reason.TRIAL_ENDED -> {
+                            titleTv.text = "Your free trial has ended"
+                            statusTv.text = "Share this code with your provider to activate"
+                        }
                         LicenseState.Reason.DEACTIVATED -> {
                             titleTv.text = "This device is deactivated"
                             statusTv.text = "Contact your provider to reactivate"

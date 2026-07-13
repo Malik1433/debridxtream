@@ -73,15 +73,19 @@ class SettingsFragment : Fragment() {
     }
 
     private fun setupAdapters() {
-        // Categories (Left)
-        categoryAdapter = SettingsCategoryAdapter { category ->
-            if (category == SettingCategory.LOGOUT) {
-                showAccountLogoutConfirmation()
-            } else {
-                viewModel.selectCategory(category)
-                categoryAdapter.setSelectedCategory(category)
-            }
-        }
+        // Categories (Left) — NORMAL (IPTV-only) devices don't get the Stremio Addons category.
+        categoryAdapter = SettingsCategoryAdapter(
+            onCategorySelected = { category ->
+                if (category == SettingCategory.LOGOUT) {
+                    showAccountLogoutConfirmation()
+                } else {
+                    viewModel.selectCategory(category)
+                    categoryAdapter.setSelectedCategory(category)
+                }
+            },
+            showDebridCategory = com.tvonnet.debridxtreamiptv.data.licensing.Entitlements
+                .isDebridAllowed(requireContext())
+        )
         binding.rvSettingsCategories.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = categoryAdapter

@@ -10,8 +10,6 @@ import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.databinding.ActivityCompanionSetupBinding
-import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
-import java.util.*
 
 
 class CompanionSetupActivity : AppCompatActivity() {
@@ -31,15 +29,13 @@ class CompanionSetupActivity : AppCompatActivity() {
         startListening()
     }
 
-    private fun getPersistentCode(): String {
-        val prefs = CredentialsPreferences(applicationContext)
-        var code = prefs.getSyncCode()
-        if (code == null) {
-            code = generateRandomCode()
-            prefs.saveSyncCode(code)
-        }
-        return code
-    }
+    /**
+     * The permanent DEVICE KEY — the licensing activation code (same key as the
+     * activation screen / admin panel). One key identifies the device everywhere.
+     */
+    private fun getPersistentCode(): String =
+        com.tvonnet.debridxtreamiptv.data.licensing.LicenseManager
+            .getInstance(applicationContext).activationCode
 
     private fun setupUI() {
         binding.tvDeviceCode.text = deviceCode
@@ -52,13 +48,6 @@ class CompanionSetupActivity : AppCompatActivity() {
             "$baseUrl?code=$deviceCode"
         }
         generateQrCode(setupUrl)
-    }
-
-    private fun generateRandomCode(): String {
-        val chars = "0123456789"
-        return (1..6)
-            .map { chars[Random().nextInt(chars.length)] }
-            .joinToString("")
     }
 
     private fun generateQrCode(url: String) {
@@ -178,7 +167,7 @@ class CompanionSetupActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Optional: Cleanup the code from Firestore when leaving
-        db.collection("device_codes").document(deviceCode).delete()
+        // The device_codes doc is intentionally kept — the device key is permanent so
+        // the companion page can push updated config anytime (see CompanionConfigSync).
     }
 }

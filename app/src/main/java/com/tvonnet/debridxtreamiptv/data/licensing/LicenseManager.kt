@@ -17,9 +17,9 @@ import java.security.MessageDigest
 sealed class LicenseState {
     object Loading : LicenseState()
     data class Locked(val activationCode: String, val reason: Reason) : LicenseState()
-    data class Active(val tier: String) : LicenseState()
+    data class Active(val tier: String, val isTrial: Boolean = false) : LicenseState()
 
-    enum class Reason { PENDING, DEACTIVATED, EXPIRED }
+    enum class Reason { PENDING, DEACTIVATED, EXPIRED, TRIAL_ENDED }
 }
 
 /**
@@ -52,18 +52,45 @@ class LicenseManager private constructor(context: Context) {
     /**
      * Instant, cache-based decision for the launch gate. Fail-open: when global
      * enforcement is off (the default) every device is allowed, so shipping the gate
-     * cannot lock anyone out until the owner turns enforcement on.
+     * cannot lock anyone out until the owner turns enforcement on. A pending device
+     * inside its 7-day trial window also passes.
      */
-    fun isEntitledCached(): Boolean = !cache.enforce || cache.isCurrentlyEntitled()
+    fun isEntitledCached(): Boolean =
+        !cache.enforce || cache.isCurrentlyEntitled() || isTrialActive()
 
     /** Instant premium check (used by [Entitlements]). */
     fun isPremiumCached(): Boolean = cache.isPremium()
 
+    /** Whether global licensing enforcement is currently on (cached). */
+    fun isEnforced(): Boolean = cache.enforce
+
+    /**
+     * 7-day FULL-PREMIUM trial for freshly registered (still-pending) devices,
+     * anchored to the license doc's server-side createdAt. Only meaningful while
+     * enforcement is on — with enforcement off everything is open anyway.
+     */
+    fun isTrialActive(now: Long = System.currentTimeMillis()): Boolean {
+        if (cache.status != LicensePreferences.STATUS_PENDING) return false
+        val created = cache.createdAt
+        return created > 0L && now < created + TRIAL_DURATION_MS
+    }
+
+    /** Whole days of trial remaining (>= 1 while the trial is active). */
+    fun trialDaysLeft(now: Long = System.currentTimeMillis()): Int {
+        if (!isTrialActive(now)) return 0
+        val leftMs = (cache.createdAt + TRIAL_DURATION_MS) - now
+        return ((leftMs + DAY_MS - 1) / DAY_MS).toInt().coerceAtLeast(1)
+    }
+
     private fun cachedState(): LicenseState {
         if (!cache.enforce || cache.isCurrentlyEntitled()) return LicenseState.Active(cache.tier)
+        if (isTrialActive()) return LicenseState.Active(LicensePreferences.TIER_PREMIUM, isTrial = true)
         val reason = when {
             cache.status == LicensePreferences.STATUS_ACTIVE -> LicenseState.Reason.EXPIRED // active but past expiresAt
             cache.status == LicensePreferences.STATUS_INACTIVE -> LicenseState.Reason.DEACTIVATED
+            // Pending with a known registration time means the 7-day trial ran out.
+            cache.status == LicensePreferences.STATUS_PENDING && cache.createdAt > 0L ->
+                LicenseState.Reason.TRIAL_ENDED
             else -> LicenseState.Reason.PENDING
         }
         return LicenseState.Locked(activationCode, reason)
@@ -123,6 +150,7 @@ class LicenseManager private constructor(context: Context) {
                 cache.status = snapshot.getString("status") ?: cache.status
                 cache.tier = snapshot.getString("tier") ?: LicensePreferences.TIER_NORMAL
                 cache.expiresAt = snapshot.getLong("expiresAt") ?: 0L
+                cache.createdAt = snapshot.getLong("createdAt") ?: cache.createdAt
                 if (cache.isCurrentlyEntitled()) cache.lastActiveAt = System.currentTimeMillis()
             }
             _state.value = cachedState()
@@ -141,6 +169,8 @@ class LicenseManager private constructor(context: Context) {
         private const val COLLECTION = "licenses"
         private const val CONFIG_COLLECTION = "app_config"
         private const val CONFIG_LICENSING = "licensing"
+        private const val DAY_MS = 24 * 60 * 60 * 1000L
+        private const val TRIAL_DURATION_MS = 7 * DAY_MS
 
         @Volatile private var instance: LicenseManager? = null
 

@@ -27,6 +27,7 @@
   .chip { display:inline-block; padding:2px 10px; border-radius:99px; font-size:11px; font-weight:600; }
   .chip.active { background:#052e1a; color:var(--green); border:1px solid #14532D; }
   .chip.pending { background:#2b1d05; color:var(--amber); border:1px solid #78350F; }
+  .chip.trial { background:#052733; color:var(--cyan); border:1px solid #164E63; }
   .chip.inactive { background:#2b0707; color:var(--red); border:1px solid #7F1D1D; }
   .chip.premium { background:#1e1b4b; color:var(--purple); border:1px solid #4C1D95; }
   .chip.normal { background:#0E1524; color:var(--mut); border:1px solid var(--line); }
@@ -162,12 +163,18 @@ function renderDevices(){
   const rows=document.getElementById('devRows'); rows.innerHTML='';
   const list=devices.filter(d => !q || (d.activationCode||'').toLowerCase().includes(q) || (d.note||'').toLowerCase().includes(q) || d.id.toLowerCase().includes(q));
   document.getElementById('devCount').textContent = list.length + ' device(s)';
+  const TRIAL_MS = 7*24*60*60*1000;
   for (const d of list){
     const tr=document.createElement('tr');
     const status=d.status||'pending', tier=d.tier||'normal';
+    // Pending devices inside their 7-day window are on a full-premium TRIAL.
+    const trialLeft = (status==='pending' && d.createdAt) ? (d.createdAt + TRIAL_MS - Date.now()) : 0;
+    const statusChip = trialLeft > 0
+      ? `<span class="chip trial">TRIAL · ${Math.max(1, Math.ceil(trialLeft/86400000))}D LEFT</span>`
+      : `<span class="chip ${status}">${status.toUpperCase()}</span>`;
     tr.innerHTML = `
       <td class="code" title="${d.id}">${d.activationCode||d.id.slice(0,8)}</td>
-      <td><span class="chip ${status}">${status.toUpperCase()}</span></td>
+      <td>${statusChip}</td>
       <td><span class="chip ${tier}">${tier.toUpperCase()}</span></td>
       <td>${d.expiresAt ? new Date(d.expiresAt).toLocaleDateString() : '—'}</td>
       <td class="muted">${fmtTime(d.lastSeenAt)}</td>
@@ -189,9 +196,16 @@ function renderDevices(){
     const b3=document.createElement('button'); b3.className='ghost'; b3.textContent='Expiry';
     b3.onclick=()=>{ const v=prompt('Expiry date (YYYY-MM-DD), empty = no expiry', d.expiresAt?new Date(d.expiresAt).toISOString().slice(0,10):'');
       if (v===null) return; upd(d.id,{expiresAt: v.trim()? new Date(v.trim()+'T23:59:59').getTime() : 0},'Expiry saved'); };
+    // Permanent companion config link — the client can open this anytime on their
+    // phone to update the TV's Xtream/addon settings (same device key).
+    const b5=document.createElement('button'); b5.className='ghost'; b5.textContent='Link';
+    b5.title='Copy companion config link';
+    b5.onclick=()=>{ const key=d.activationCode||d.id;
+      navigator.clipboard.writeText('https://debxtrem-companion.vercel.app/?code='+encodeURIComponent(key))
+        .then(()=>toast('Config link copied')).catch(()=>toast('Copy failed')); };
     const b4=document.createElement('button'); b4.className='ghost'; b4.textContent='✕';
     b4.title='Delete device'; b4.onclick=()=>{ if(confirm('Delete this device license?')) db.collection('licenses').doc(d.id).delete().then(()=>toast('Deleted')).catch(e=>toast(e.message)); };
-    rowEl.append(b1,b2,b3,b4);
+    rowEl.append(b1,b2,b3,b5,b4);
     rows.appendChild(tr);
   }
 }

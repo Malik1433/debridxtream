@@ -39,6 +39,17 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
         val frag = fragment ?: return
         if (frag.isNavigatingFromHome || !frag.isAdded || frag.parentFragmentManager.isStateSaved) return
 
+        // Tier gating (defense-in-depth — the sidebar already hides the entry):
+        // NORMAL devices are IPTV-only; the Debrid section is premium.
+        if (section == "debrid" &&
+            !com.tvonnet.debridxtreamiptv.data.licensing.Entitlements.isDebridAllowed(frag.requireContext())
+        ) {
+            android.widget.Toast.makeText(
+                frag.requireContext(), "Premium feature — contact your provider", android.widget.Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
         val targetFragment = when (section) {
             "live" -> if (SettingsPreferences(frag.requireContext()).getLiveTvStyle() == SettingsPreferences.STYLE_CLASSIC) {
                 LiveFragment()

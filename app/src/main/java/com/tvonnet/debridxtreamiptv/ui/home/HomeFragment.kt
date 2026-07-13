@@ -206,12 +206,37 @@ class HomeFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshHomeData()
+        updateStatusBadge()
+    }
+
+    /**
+     * Header status chip reflects the device's tier: premium (or enforcement off)
+     * shows the full "DEBRID · IPTV", a trial device shows the days left, and a
+     * normal (IPTV-only) device never sees the word Debrid.
+     */
+    private fun updateStatusBadge() {
+        val badge = view?.findViewById<TextView>(R.id.tv_status_badge) ?: return
+        val lm = com.tvonnet.debridxtreamiptv.data.licensing.LicenseManager.getInstance(requireContext())
+        badge.text = when {
+            lm.isTrialActive() -> "TRIAL · ${lm.trialDaysLeft()}D LEFT"
+            com.tvonnet.debridxtreamiptv.data.licensing.Entitlements.isDebridAllowed(requireContext()) -> "DEBRID · IPTV"
+            else -> "IPTV"
+        }
     }
     
     private fun setupObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.uiState.collect { state ->
+                viewModel.uiState.collect { rawState ->
+                    // Tier gating: NORMAL devices are IPTV-only — debrid-sourced
+                    // Continue Watching entries must not appear anywhere (list, counts,
+                    // section visibility all read the same filtered state).
+                    val state = if (com.tvonnet.debridxtreamiptv.data.licensing.Entitlements
+                            .isDebridAllowed(requireContext())
+                    ) rawState
+                    else rawState.copy(
+                        continueWatching = rawState.continueWatching.filter { it.source != "debrid" }
+                    )
                     if (!state.isLoading) {
                         val focusSnapshot = focusManager.captureContentFocusSnapshot()
                         continueWatchingAdapter.updateItems(state.continueWatching)

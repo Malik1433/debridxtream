@@ -39,14 +39,18 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
     fun setupSidebar() {
         val frag = fragment ?: return
 
-        val menuItems = listOf(
-            SidebarItem(0, frag.getString(R.string.nav_search), R.drawable.ic_search),
-            SidebarItem(1, frag.getString(R.string.nav_home), R.drawable.ic_home),
-            SidebarItem(2, frag.getString(R.string.nav_live_tv), R.drawable.ic_live_tv),
-            SidebarItem(3, frag.getString(R.string.nav_movies), R.drawable.ic_movie),
-            SidebarItem(4, frag.getString(R.string.nav_series), R.drawable.ic_series),
-            SidebarItem(5, frag.getString(R.string.nav_debrid), R.drawable.ic_dns)
-        )
+        // Tier gating: NORMAL devices are IPTV-only — the Debrid entry must not exist
+        // for them at all (owner policy; see Entitlements.isDebridAllowed).
+        val debridAllowed = com.tvonnet.debridxtreamiptv.data.licensing.Entitlements
+            .isDebridAllowed(frag.requireContext())
+        val menuItems = buildList {
+            add(SidebarItem(0, frag.getString(R.string.nav_search), R.drawable.ic_search))
+            add(SidebarItem(1, frag.getString(R.string.nav_home), R.drawable.ic_home))
+            add(SidebarItem(2, frag.getString(R.string.nav_live_tv), R.drawable.ic_live_tv))
+            add(SidebarItem(3, frag.getString(R.string.nav_movies), R.drawable.ic_movie))
+            add(SidebarItem(4, frag.getString(R.string.nav_series), R.drawable.ic_series))
+            if (debridAllowed) add(SidebarItem(5, frag.getString(R.string.nav_debrid), R.drawable.ic_dns))
+        }
 
         frag.sidebarAdapter = SidebarAdapter(
             items = menuItems,

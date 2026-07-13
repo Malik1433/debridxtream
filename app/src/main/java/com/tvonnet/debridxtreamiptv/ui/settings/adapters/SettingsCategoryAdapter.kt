@@ -11,12 +11,15 @@ import com.tvonnet.debridxtreamiptv.ui.settings.SettingCategory
 
 /** Category rail — rebuilt to "Settings Screen.dc.html": accent icon tile, active bar, sub caption. */
 class SettingsCategoryAdapter(
-    private val onCategorySelected: (SettingCategory) -> Unit
+    private val onCategorySelected: (SettingCategory) -> Unit,
+    /** Tier gating: NORMAL (IPTV-only) devices must not see the Stremio Addons category. */
+    private val showDebridCategory: Boolean = true
 ) : RecyclerView.Adapter<SettingsCategoryAdapter.ViewHolder>() {
 
     data class CatMeta(val title: String, val sub: String, val accent: Int, val iconRes: Int)
 
     private val categories = SettingCategory.values()
+        .filter { showDebridCategory || it != SettingCategory.DEBRID }
     private var selectedCategory = SettingCategory.GENERAL
 
     init { setHasStableIds(true) }

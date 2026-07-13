@@ -62,6 +62,9 @@ class MainActivity : AppCompatActivity() {
         // ActivationActivity auto-advances the moment the admin activates.
         val license = com.tvonnet.debridxtreamiptv.data.licensing.LicenseManager.getInstance(this)
         license.start()
+        // Permanent companion channel: the phone/web config page can push updated
+        // settings anytime via the device key (see CompanionConfigSync).
+        com.tvonnet.debridxtreamiptv.ui.companion.CompanionConfigSync.start(this)
         if (!license.isEntitledCached()) {
             startActivity(Intent(this, com.tvonnet.debridxtreamiptv.ui.licensing.ActivationActivity::class.java))
             finish()

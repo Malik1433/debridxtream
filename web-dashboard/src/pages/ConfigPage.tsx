@@ -61,10 +61,20 @@ const hasCompleteIptvValue = (serverUrl: string, username: string, password: str
     return [serverUrl, username, password].every((value) => value.trim().length > 0);
 };
 
+// Device keys are XXXX-XXXX (the TV's permanent licensing/activation code). Accept
+// them typed with/without the dash or spaces; legacy 6-digit codes pass through.
+const normalizeDeviceKey = (raw: string): string => {
+    const compact = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return compact.length === 8 ? `${compact.slice(0, 4)}-${compact.slice(4)}` : raw.toUpperCase().trim();
+};
+
 const ConfigPage: React.FC = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const code = (searchParams.get('code') || '').toUpperCase();
+    // Seeded from the QR link (?code=), but the user can also type their permanent
+    // Device Key manually — it never changes, so this page works anytime.
+    const [code, setCode] = useState<string>(normalizeDeviceKey(searchParams.get('code') || ''));
+    const [keyInput, setKeyInput] = useState('');
 
     const [iptvConfig, setIptvConfig] = useState({
         url: '',
@@ -285,11 +295,38 @@ const ConfigPage: React.FC = () => {
                         <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur">
                             <div className="h-2 w-2 rounded-full bg-gold-500 animate-pulse" />
                             <span className="text-[10px] font-black uppercase tracking-[0.28em] text-gold-500">
-                                Session: {code || 'N/A'}
+                                Device Key: {code || 'N/A'}
                             </span>
                         </div>
                     </div>
                 </div>
+
+                {!code && (
+                    <div className="rounded-[2rem] border border-gold-500/20 bg-white/[0.03] p-5 sm:p-6">
+                        <p className="text-[10px] font-black uppercase tracking-[0.35em] text-neutral-500">
+                            Enter your Device Key
+                        </p>
+                        <p className="mt-2 text-sm text-neutral-400">
+                            The key is shown on your TV (activation screen or the QR pairing screen), e.g. <span className="font-mono text-gold-500">V7EF-B9V8</span>. It never changes — bookmark this page and come back anytime to update your TV.
+                        </p>
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                            <input
+                                value={keyInput}
+                                onChange={(e) => setKeyInput(e.target.value.toUpperCase())}
+                                placeholder="XXXX-XXXX"
+                                maxLength={10}
+                                className="w-full rounded-xl border border-white/10 bg-neutral-900 px-4 py-3 font-mono text-lg tracking-[0.2em] text-white placeholder-neutral-600 focus:border-gold-500 focus:outline-none sm:max-w-xs"
+                            />
+                            <button
+                                onClick={() => { const k = normalizeDeviceKey(keyInput); if (k) setCode(k); }}
+                                disabled={keyInput.replace(/[^A-Za-z0-9]/g, '').length < 6}
+                                className="rounded-xl bg-gold-500 px-6 py-3 text-sm font-black uppercase tracking-widest text-neutral-950 transition hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                Continue
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 <div className="rounded-[2rem] border border-white/5 bg-white/[0.03] p-5 sm:p-6">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

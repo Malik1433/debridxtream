@@ -15,8 +15,6 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import com.tvonnet.debridxtreamiptv.R
-import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
-import java.util.Random
 
 /**
  * Fullscreen "Connect via Phone / QR" pairing overlay on the login screen.
@@ -113,7 +111,9 @@ class LoginQrOverlayController(
     private fun stopPairing() {
         listener?.remove()
         listener = null
-        deviceCode?.let { db.collection("device_codes").document(it).delete() }
+        // NOTE: the device_codes doc is intentionally NOT deleted anymore — the device
+        // key is permanent, so the user can open the companion page anytime later and
+        // push updated config (a persistent listener applies it; see CompanionConfigSync).
         handler.removeCallbacks(statusCycler)
         scanAnimator.cancel()
         pulseAnimator.cancel()
@@ -127,21 +127,20 @@ class LoginQrOverlayController(
         }
     }
 
-    private fun persistentCode(): String {
-        val prefs = CredentialsPreferences(context.applicationContext)
-        var code = prefs.getSyncCode()
-        if (code == null) {
-            val chars = "0123456789"
-            code = (1..6).map { chars[Random().nextInt(chars.length)] }.joinToString("")
-            prefs.saveSyncCode(code)
-        }
-        return code
-    }
+    /**
+     * The permanent DEVICE KEY — the licensing activation code (stable per install,
+     * same key shown on the activation screen and in the admin panel). Replaces the
+     * old random 6-digit sync code so one key identifies the device everywhere.
+     */
+    private fun persistentCode(): String =
+        com.tvonnet.debridxtreamiptv.data.licensing.LicenseManager
+            .getInstance(context.applicationContext).activationCode
 
     private fun bindPairingCode(code: String) {
         val row = overlay.findViewById<LinearLayout>(R.id.ll_pairing_code)
+        val chars = code.replace("-", "") // tiles render the 8 key chars; the gap shows grouping
         for (i in 0 until row.childCount) {
-            (row.getChildAt(i) as? TextView)?.text = code.getOrNull(i)?.toString() ?: ""
+            (row.getChildAt(i) as? TextView)?.text = chars.getOrNull(i)?.toString() ?: ""
         }
     }
 

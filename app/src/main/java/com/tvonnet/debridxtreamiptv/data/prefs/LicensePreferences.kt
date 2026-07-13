@@ -31,6 +31,11 @@ class LicensePreferences(context: Context) {
         get() = prefs.getLong(KEY_EXPIRES_AT, 0L)
         set(value) = prefs.edit().putLong(KEY_EXPIRES_AT, value).apply()
 
+    /** Server-side registration time of the license doc (anchors the 7-day trial). */
+    var createdAt: Long
+        get() = prefs.getLong(KEY_CREATED_AT, 0L)
+        set(value) = prefs.edit().putLong(KEY_CREATED_AT, value).apply()
+
     /** When the doc was last confirmed active (for future offline-grace tightening). */
     var lastActiveAt: Long
         get() = prefs.getLong(KEY_LAST_ACTIVE_AT, 0L)
@@ -68,6 +73,7 @@ class LicensePreferences(context: Context) {
         private const val KEY_LAST_ACTIVE_AT = "last_active_at"
         private const val KEY_DOC_CREATED = "doc_created"
         private const val KEY_ENFORCE = "enforce"
+        private const val KEY_CREATED_AT = "created_at"
 
         const val STATUS_UNKNOWN = "unknown"
         const val STATUS_PENDING = "pending"

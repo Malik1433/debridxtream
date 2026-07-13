@@ -52,10 +52,13 @@ service cloud.firestore {
       allow write: if false;        // console-only
     }
 
-    // ── Companion pairing (existing feature — keep working) ─────────────
-    // Unauthenticated create/read/update/delete by design; short-lived docs.
+    // ── Companion config channel (permanent device-key docs) ────────────
+    // Unauthenticated by design: the TV and the phone page both address the doc
+    // by the device key (capability). Docs now carry pushed IPTV credentials, so
+    // LIST is denied — you must know the exact key; enumeration is blocked.
     match /device_codes/{code} {
-      allow read, write: if true;
+      allow get, create, update, delete: if true;
+      allow list: if false;
     }
 
     // Everything else: locked.
