@@ -26,6 +26,7 @@ import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.utils.updatePreservingFocus
 import com.tvonnet.debridxtreamiptv.data.Result
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.AddonProxyReadiness
 import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureType
@@ -858,7 +859,12 @@ class SeriesDetailActivity : AppCompatActivity() {
             episodeProgressMs.putAll(result.second)
             episodeWatched.clear()
             episodeWatched.addAll(result.third)
-            cinEpisodeAdapter.applyOverrides(episodeProgress, episodeWatched)
+            // CC-1: applyOverrides() does a blanket notifyDataSetChanged; on return from the
+            // player this fires and would drop focus off the just-watched episode. Preserve
+            // the user's focused card (restores to the same episode by stable id).
+            rvEpisodes.updatePreservingFocus {
+                cinEpisodeAdapter.applyOverrides(episodeProgress, episodeWatched)
+            }
             updateResumeSection(episodes)
             updateWatchNowState()
         }

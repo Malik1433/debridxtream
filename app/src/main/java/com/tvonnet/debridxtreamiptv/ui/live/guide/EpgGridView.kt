@@ -151,16 +151,42 @@ class EpgGridView @JvmOverloads constructor(
         invalidate()
     }
 
+    // Signature of the currently-shown view so a background EPG refresh (same channels,
+    // same day window) can be told apart from a real category/day change.
+    private var lastChannelSignature: List<String> = emptyList()
+    private var lastWindowStart: Long = Long.MIN_VALUE
+
     fun setData(data: List<GuideChannel>, windowStart: Long, span: Int, now: Long) {
+        val signature = data.map { it.streamId }
+        // Same channel set AND same day window => a periodic EPG refresh, not a navigation.
+        val sameView = signature.isNotEmpty() &&
+            signature == lastChannelSignature &&
+            windowStart == lastWindowStart
+        lastChannelSignature = signature
+        lastWindowStart = windowStart
+
         channels = data
         windowStartMs = windowStart
         spanMinutes = span
         nowMs = now
+
+        if (sameView) {
+            // CC-1: preserve the user's row / program / scroll across a refresh instead of
+            // snapping back to the top and re-selecting NOW. Just re-validate + repaint.
+            focusRow = focusRow.coerceIn(0, data.size - 1)
+            val progs = data[focusRow].programs
+            focusProg = if (focusProg >= 0 && progs.isNotEmpty()) focusProg.coerceIn(0, progs.size - 1) else focusProg
+            clampScroll()
+            if (hasFocus()) animateHighlight(snap = true)
+            invalidate()
+            return
+        }
+
+        // Real category/day change → reset to a sensible initial focus and reveal "now".
         focusRow = focusRow.coerceIn(0, max(0, data.size - 1))
         focusProg = -1
         scrollY = 0f
         hlValid = false
-        // Pick an initial focus/program and reveal "now"
         if (data.isNotEmpty()) {
             val ch = data[focusRow]
             val nowIdx = ch.programs.indexOfFirst { it.isNow(now) }

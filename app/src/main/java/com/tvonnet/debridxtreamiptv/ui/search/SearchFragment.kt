@@ -34,6 +34,8 @@ import com.tvonnet.debridxtreamiptv.ui.debrid.stremio.StremioFonts
 import com.tvonnet.debridxtreamiptv.ui.debrid.stremio.StremioSearchResult
 import com.tvonnet.debridxtreamiptv.ui.debrid.stremio.StremioSearchResultAdapter
 import com.tvonnet.debridxtreamiptv.util.GlobalConfig
+import com.tvonnet.debridxtreamiptv.utils.isFocusInsideThis
+import com.tvonnet.debridxtreamiptv.utils.updatePreservingFocus
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -70,6 +72,7 @@ class SearchFragment : Fragment() {
 
     private val adapter = StremioSearchResultAdapter()
     private var query = ""
+    private var lastRenderedQuery: String? = null
     private var scope = "all"
     private var firstKey: View? = null
     private val scopeChips = ArrayList<TextView>()
@@ -216,7 +219,8 @@ class SearchFragment : Fragment() {
         if (query.isBlank()) {
             trendingWrap.isVisible = true
             resultsHeader.isVisible = false
-            adapter.submit(emptyList())
+            resultsRv.updatePreservingFocus { adapter.submit(emptyList()) }
+            lastRenderedQuery = null
             noResults.isVisible = false
             countTv.text = ""
             return
@@ -224,10 +228,17 @@ class SearchFragment : Fragment() {
         state ?: return
         val items = scopedResults(state)
         countTv.text = "${items.size} RESULTS"
-        adapter.submit(items)
+        // The 3 result sources (VOD/series/live) stream in as separate emits for the SAME
+        // query. Only reset scroll-to-top on a genuinely NEW query, and never while the user
+        // is already browsing the results — updatePreservingFocus keeps their spot otherwise.
+        val queryChanged = query != lastRenderedQuery
+        lastRenderedQuery = query
+        resultsRv.updatePreservingFocus { adapter.submit(items) }
         noResults.isVisible = items.isEmpty() && !state.isSearching
         noResultsTitle.text = "No matches for \"${query.trim().uppercase()}\""
-        if (items.isNotEmpty()) resultsRv.scrollToPosition(0)
+        if (queryChanged && items.isNotEmpty() && !resultsRv.isFocusInsideThis()) {
+            resultsRv.scrollToPosition(0)
+        }
     }
 
     private fun scopedResults(state: SearchUiState): List<StremioSearchResult> = when (scope) {

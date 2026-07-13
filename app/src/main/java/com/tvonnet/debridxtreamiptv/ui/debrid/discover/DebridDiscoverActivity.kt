@@ -84,6 +84,15 @@ class DebridDiscoverActivity : AppCompatActivity() {
             viewModel.setCustomFilters(lang, region, releaseDateGte)
         }
 
+        // View wiring MUST run before observeViewModel()/setupInitialFocus(), both of
+        // which dereference the lateinit selector views (btnType et al.). Previously
+        // these three calls were missing here and had been nested inside setupGrid()
+        // (which also called itself → StackOverflow); onCreate reached setupInitialFocus()
+        // with uninitialized lateinits. Order restored: init views → grid → selectors.
+        initViews()
+        setupGrid()
+        setupSelectors()
+
         observeViewModel()
         setupInitialFocus()
     }
@@ -122,11 +131,7 @@ class DebridDiscoverActivity : AppCompatActivity() {
             },
             onLoadMore = { viewModel.loadNextPage() }
         )
-        // Initialize views and grid before setting up the data
-        initViews()
-        setupGrid()
-        setupSelectors()
-        
+
         rvGrid.apply {
             layoutManager = GridLayoutManager(this@DebridDiscoverActivity, 6)
             adapter = gridAdapter

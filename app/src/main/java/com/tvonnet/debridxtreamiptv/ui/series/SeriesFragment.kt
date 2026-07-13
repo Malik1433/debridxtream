@@ -976,6 +976,11 @@ class SeriesFragment : Fragment() {
     }
 
     private fun restoreFocus() {
+        // CC-1 (refresh-steals-focus): only re-assert grid focus when the user is ALREADY
+        // inside the grid (a paging append / cache refresh shifted positions). If focus is on
+        // the sidebar / genre pills / search, a background data change must NOT yank it into
+        // the grid. Return-to-fragment focus is handled by restoreFocusIfPossible().
+        if (!rvSeriesGrid.hasFocus()) return
         rvSeriesGrid.post {
             val positionToFocus = if (lastFocusedSeriesPosition != RecyclerView.NO_POSITION) lastFocusedSeriesPosition else 0
             val safePosition = minOf(positionToFocus, seriesPagingAdapter.itemCount - 1)

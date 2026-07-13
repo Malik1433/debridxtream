@@ -21,6 +21,7 @@ import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.tvonnet.debridxtreamiptv.databinding.FragmentSeriesDetailV2Binding
+import com.tvonnet.debridxtreamiptv.utils.updatePreservingFocus
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.SeriesDetailUiState
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.SeriesNavigationEvent
@@ -478,7 +479,13 @@ class SeriesDetailFragmentV2 : Fragment() {
             }
             else -> {
                 binding.tvNoStreams.visibility = View.GONE
-                streamAdapter?.submit(groups, state.resolvingStreamId)
+                // CC-1: a filter-chip toggle rebuilds the list via notifyDataSetChanged; if the
+                // user was inside the stream list, keep their row (or nearest surviving one)
+                // instead of dropping focus and forcing them to re-navigate. The initial
+                // panel-open focus is still handled explicitly via pendingStreamFocus below.
+                binding.rvStreams.updatePreservingFocus {
+                    streamAdapter?.submit(groups, state.resolvingStreamId)
+                }
                 if (pendingStreamFocus) {
                     pendingStreamFocus = false
                     binding.rvStreams.post {

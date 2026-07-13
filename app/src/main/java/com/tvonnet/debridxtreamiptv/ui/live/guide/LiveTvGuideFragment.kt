@@ -239,7 +239,14 @@ class LiveTvGuideFragment : Fragment() {
                                 else -> selectForPreview(state.channels.first(), persist = false)
                             }
                         }
-                        if (state.channels.isNotEmpty()) binding.epgGrid.requestFocus()
+                        // CC-1: this state block re-emits when the user selects a day tab or
+                        // category chip. Only pull focus into the grid on first populate
+                        // (nothing focused yet) or when the grid already holds focus — never
+                        // yank it away from the chips / day tabs the user is navigating.
+                        if (state.channels.isNotEmpty()) {
+                            val cf = binding.root.findFocus()
+                            if (cf == null || cf === binding.epgGrid) binding.epgGrid.requestFocus()
+                        }
                     }
                 }
             }

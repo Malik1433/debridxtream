@@ -24,6 +24,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity
 import com.tvonnet.debridxtreamiptv.data.local.entity.deOverlap
+import com.tvonnet.debridxtreamiptv.utils.updatePreservingFocus
 import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
 import com.tvonnet.debridxtreamiptv.util.FAVORITES_CATEGORY_ID
 import com.tvonnet.debridxtreamiptv.util.GlideUtils
@@ -367,7 +368,11 @@ class LivePlayerOsdManager(
         surfEpg = map
         refreshOnAir()
         if (panel != Panel.NONE) {
-            surfAdapter.submit(zapChannels, zapIndex, favoriteIds, rowEpgMap(), categoryColor())
+            // CC-1: this fires on the 30s minute tick while the drawer is open; keep the
+            // user's focused row instead of letting notifyDataSetChanged drop/flicker it.
+            surfList.updatePreservingFocus {
+                surfAdapter.submit(zapChannels, zapIndex, favoriteIds, rowEpgMap(), categoryColor())
+            }
         }
         if (previewIndex in zapChannels.indices) bindPreviewStrip(zapChannels[previewIndex])
     }
@@ -580,7 +585,10 @@ class LivePlayerOsdManager(
         isFavorite = currentStreamId != null && ids.contains(currentStreamId)
         favIcon.setImageResource(if (isFavorite) R.drawable.ic_live_star_filled else R.drawable.ic_live_star)
         if (panel != Panel.NONE) {
-            surfAdapter.submit(zapChannels, zapIndex, favoriteIds, rowEpgMap(), categoryColor())
+            // CC-1: favorites can update while the drawer is open — preserve the focused row.
+            surfList.updatePreservingFocus {
+                surfAdapter.submit(zapChannels, zapIndex, favoriteIds, rowEpgMap(), categoryColor())
+            }
         }
     }
 

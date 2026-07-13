@@ -27,9 +27,16 @@ internal class StremioSearchResultAdapter : RecyclerView.Adapter<StremioSearchRe
 
     private var items: List<StremioSearchResult> = emptyList()
 
+    init { setHasStableIds(true) }
+
     fun submit(list: List<StremioSearchResult>) { items = list; notifyDataSetChanged() }
 
     override fun getItemCount() = items.size
+
+    // Stable id lets updatePreservingFocus restore focus to the same result when more
+    // results stream in for the same query (title+type is unique enough for the guide).
+    override fun getItemId(position: Int): Long =
+        (items[position].title + "|" + items[position].typeLabel).hashCode().toLong()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val v = LayoutInflater.from(parent.context)

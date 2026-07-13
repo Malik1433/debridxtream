@@ -304,6 +304,16 @@ class VodFragment : Fragment() {
                     updateSortChipStyle(v as TextView, sortModes[index] == activeSortMode)
                 }
             }
+            // DOWN from a sort chip steps into the column-toggle row (LEFT/RIGHT keep the
+            // default horizontal traversal across chips). Ladder: chips → column toggle → grid.
+            chip.setOnKeyListener { _, keyCode, event ->
+                if (event.action == android.view.KeyEvent.ACTION_DOWN &&
+                    keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN
+                ) {
+                    focusColumnToggleRow()
+                    true
+                } else false
+            }
             llSortChips.addView(chip)
         }
     }
@@ -344,6 +354,17 @@ class VodFragment : Fragment() {
                         (v as TextView).setTextColor(Color.parseColor("#64748B"))
                     }
                 }
+            }
+            // Column-toggle row is the middle rung: UP → sort chips, DOWN → back into the grid.
+            // LEFT/RIGHT fall through to the default traversal across the 4/5/6 buttons.
+            btn.setOnKeyListener { _, keyCode, event ->
+                if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+                    when (keyCode) {
+                        android.view.KeyEvent.KEYCODE_DPAD_UP -> { focusSortChipsRow(); true }
+                        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> { focusGridTop(); true }
+                        else -> false
+                    }
+                } else false
             }
         }
         updateColToggleUI(gridColumnCount)
@@ -458,6 +479,37 @@ class VodFragment : Fragment() {
         rvMoviesGrid.post { if (isAdded) rvMoviesGrid.requestFocus() }
     }
 
+    // ── Vertical ladder above the grid: sort chips ↔ column toggle ↔ grid ──────
+    // Restores reachability of the two control rows that sat above the grid with no
+    // remote path into them (the top-row-UP no-op bug). Each hop moves exactly one row.
+
+    /** The currently-active column-toggle button (4/5/6) — the landing target when UP-ing out of the grid. */
+    private fun activeColButton(): TextView = when (gridColumnCount) {
+        4 -> btnCol4
+        6 -> btnCol6
+        else -> btnCol5
+    }
+
+    private fun focusColumnToggleRow() {
+        val btn = activeColButton()
+        btn.post { if (isAdded) btn.requestFocus() }
+    }
+
+    private fun focusSortChipsRow() {
+        val chip = llSortChips.getChildAt(0)
+        if (chip != null) chip.post { if (isAdded) chip.requestFocus() } else focusColumnToggleRow()
+    }
+
+    /** Return focus to the grid from a control row — the first on-screen card, else the grid itself. */
+    private fun focusGridTop() {
+        rvMoviesGrid.post {
+            if (!isAdded) return@post
+            val card = rvMoviesGrid.getChildAt(0)
+            if (card != null && card.requestFocus()) return@post
+            rvMoviesGrid.requestFocus()
+        }
+    }
+
     private fun setupDpadNavigation() {
         rvMoviesGrid.setOnKeyListener { _, keyCode, event ->
             if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
@@ -468,7 +520,14 @@ class VodFragment : Fragment() {
 
             when (keyCode) {
                 android.view.KeyEvent.KEYCODE_DPAD_UP -> {
-                    position < gridColumnCount
+                    // Top row → the control cluster above the grid. Previously this was a
+                    // no-op (returned true, moved nothing), leaving the sort chips AND the
+                    // column toggle unreachable by remote. Land on the column-toggle row
+                    // (directly above); UP again from there reaches the sort chips.
+                    if (position < gridColumnCount) {
+                        focusColumnToggleRow()
+                        true
+                    } else false
                 }
                 android.view.KeyEvent.KEYCODE_DPAD_LEFT -> {
                     if (position % gridColumnCount == 0) {
@@ -953,6 +1012,12 @@ class VodFragment : Fragment() {
     }
 
     private fun restoreFocus() {
+        // CC-1 (refresh-steals-focus): only re-assert grid focus when the user is ALREADY
+        // inside the grid — i.e. a paging append / watched-cache refresh shifted item
+        // positions under them. If focus is on the sidebar / sort chips / search, a
+        // background data change must NOT yank it into the grid. Return-to-fragment focus is
+        // handled separately by restoreFocusIfPossible()/pendingRestoreFocus.
+        if (!rvMoviesGrid.hasFocus()) return
         rvMoviesGrid.post {
             val positionToFocus = if (lastFocusedMoviePosition != RecyclerView.NO_POSITION) lastFocusedMoviePosition else 0
             val safePosition = minOf(positionToFocus, vodAdapter.itemCount - 1)
