@@ -46,6 +46,21 @@ export const FirestoreService = {
     },
 
     /**
+     * Loads the last-pushed configuration for a device key (used to prefill the
+     * form, and to copy the same settings to another device).
+     */
+    async loadConfig(code: string): Promise<Record<string, unknown> | null> {
+        try {
+            const docRef = doc(db, 'device_codes', code)
+            const snap = await withTimeout(getDoc(docRef), 10000)
+            return snap.exists() ? (snap.data() as Record<string, unknown>) : null
+        } catch (error) {
+            console.error('Error loading config:', error)
+            return null
+        }
+    },
+
+    /**
      * Pushes the configuration to Firestore for the given device code
      */
     async pushConfig(code: string, config: AppConfig): Promise<void> {

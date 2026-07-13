@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -85,6 +85,32 @@ const ConfigPage: React.FC = () => {
     const [saveState, setSaveState] = useState<SaveState>('idle');
     const [statusMessage, setStatusMessage] = useState('');
     const [errors, setErrors] = useState<FieldErrors>({});
+
+    // Prefill the form from the device's last-pushed config — but ONLY when the form
+    // is still untouched. This means: opening your own key shows your current setup,
+    // while "Change device" (which keeps the filled form) lets you push the SAME
+    // settings to a second TV without retyping anything.
+    useEffect(() => {
+        if (!code) return;
+        const formEmpty =
+            !hasAnyIptvValue(iptvConfig.url, iptvConfig.username, iptvConfig.password) &&
+            addonRows.every((row) => row.value.trim().length === 0);
+        if (!formEmpty) return;
+        FirestoreService.loadConfig(code).then((data) => {
+            if (!data) return;
+            const iptv = data.iptv as { url?: string; username?: string; password?: string } | undefined;
+            if (iptv?.url || iptv?.username || iptv?.password) {
+                setIptvConfig({ url: iptv.url || '', username: iptv.username || '', password: iptv.password || '' });
+            }
+            const debridConfig = data.debridConfig as { stremioAddonUrls?: string[] } | undefined;
+            const urls = (debridConfig?.stremioAddonUrls ?? (data.stremioAddonUrls as string[] | undefined) ?? [])
+                .filter((u) => typeof u === 'string' && u.trim().length > 0);
+            if (urls.length > 0) {
+                setAddonRows(urls.map((value) => ({ id: createRowId(), value })));
+            }
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [code]);
 
     const activeAddonUrls = useMemo(() => {
         const seen = new Set<string>();
@@ -265,7 +291,7 @@ const ConfigPage: React.FC = () => {
             ]);
 
             setSaveState('success');
-            setStatusMessage('Sync successful. Check your TV.');
+            setStatusMessage('Sync successful. Check your TV. Tip: use "Change device" to send these same settings to another TV.');
             window.setTimeout(() => {
                 setSaveState('idle');
                 setStatusMessage('');
@@ -291,13 +317,22 @@ const ConfigPage: React.FC = () => {
                         <ArrowLeft className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
                     </button>
 
-                    <div className="flex flex-1 justify-end">
+                    <div className="flex flex-1 items-center justify-end gap-2">
                         <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur">
                             <div className="h-2 w-2 rounded-full bg-gold-500 animate-pulse" />
                             <span className="text-[10px] font-black uppercase tracking-[0.28em] text-gold-500">
                                 Device Key: {code || 'N/A'}
                             </span>
                         </div>
+                        {code && (
+                            <button
+                                onClick={() => { setCode(''); setKeyInput(''); setSaveState('idle'); setStatusMessage(''); }}
+                                title="Keep these settings and send them to another device"
+                                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300 transition hover:border-gold-500/40 hover:text-gold-500"
+                            >
+                                Change device
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -309,6 +344,11 @@ const ConfigPage: React.FC = () => {
                         <p className="mt-2 text-sm text-neutral-400">
                             The key is shown on your TV (activation screen or the QR pairing screen), e.g. <span className="font-mono text-gold-500">V7EF-B9V8</span>. It never changes — bookmark this page and come back anytime to update your TV.
                         </p>
+                        {hasAnyIptvValue(iptvConfig.url, iptvConfig.username, iptvConfig.password) && (
+                            <p className="mt-2 text-sm font-semibold text-gold-500">
+                                Your filled settings are kept — enter the next device's key and press Save to send the same configuration.
+                            </p>
+                        )}
                         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                             <input
                                 value={keyInput}
