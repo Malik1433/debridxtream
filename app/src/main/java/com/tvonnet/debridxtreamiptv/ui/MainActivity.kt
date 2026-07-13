@@ -26,6 +26,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import com.tvonnet.debridxtreamiptv.data.network.NetworkQualityManager
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -84,6 +85,21 @@ class MainActivity : AppCompatActivity() {
             GlobalConfig.baseUrl = serverUrl
             GlobalConfig.username = username
             GlobalConfig.password = password
+
+            // Auto-refresh EPG on app launch so the guide is never empty on first open.
+            // ensureEpgData() is guarded (only syncs when the table is empty or the last
+            // sync is older than the refresh interval), so this does NOT re-download the
+            // full XMLTV on every launch. Also (re)register the periodic background sync
+            // here so EPG stays fresh even if the user never opens Settings.
+            lifecycleScope.launch(Dispatchers.IO) {
+                runCatching {
+                    com.tvonnet.debridxtreamiptv.worker.EpgSyncController()
+                        .syncFromPreferences(applicationContext)
+                }
+                runCatching { repository.ensureEpgData() }
+                    .onSuccess { synced -> Log.i("MainActivity", "EPG auto-check on launch: synced=$synced") }
+                    .onFailure { Log.w("MainActivity", "EPG auto-check on launch failed", it) }
+            }
         }
         
         // Load beautiful cinematic home screen by default
