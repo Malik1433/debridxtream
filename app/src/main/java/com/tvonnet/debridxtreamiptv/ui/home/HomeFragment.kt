@@ -404,8 +404,28 @@ class HomeFragment : Fragment() {
         val bg = chip?.background?.mutate() as? android.graphics.drawable.GradientDrawable
         bg?.setStroke((resources.displayMetrics.density).toInt().coerceAtLeast(1), borderColor)
 
+        // Final month: gently pulse the chip so the looming expiry is unmissable.
+        expiryPulseAnimator?.cancel()
+        expiryPulseAnimator = null
+        if (chip != null) {
+            if (daysLeft <= 30) {
+                expiryPulseAnimator = android.animation.ObjectAnimator
+                    .ofFloat(chip, View.ALPHA, 1f, 0.35f).apply {
+                        duration = 850
+                        repeatCount = android.animation.ValueAnimator.INFINITE
+                        repeatMode = android.animation.ValueAnimator.REVERSE
+                        interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                        start()
+                    }
+            } else {
+                chip.alpha = 1f
+            }
+        }
+
         maybeShowExpiryWarning(daysLeft, expiryDate)
     }
+
+    private var expiryPulseAnimator: android.animation.ObjectAnimator? = null
 
     /**
      * Big renewal reminder, once per app open (process): when the IPTV subscription
@@ -491,6 +511,8 @@ class HomeFragment : Fragment() {
     override fun onDestroyView() {
         clockHandler.removeCallbacks(clockRunnable)
         heroHandler.removeCallbacks(heroRunnable)
+        expiryPulseAnimator?.cancel()
+        expiryPulseAnimator = null
         if (::navigationRouter.isInitialized) navigationRouter.cleanup()
         if (::sidebarManager.isInitialized) sidebarManager.cleanup()
         if (::heroManager.isInitialized) heroManager.cleanup()

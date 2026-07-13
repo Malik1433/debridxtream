@@ -14,8 +14,8 @@
     <!-- Cyan bloom behind the card (visible on focus; drawable set in code) -->
     <View
         android:id="@+id/view_focus_glow"
-        android:layout_width="134dp"
-        android:layout_height="189dp"
+        android:layout_width="152dp"
+        android:layout_height="216dp"
         android:duplicateParentState="true"
         app:layout_constraintStart_toStartOf="@+id/card_poster"
         app:layout_constraintEnd_toEndOf="@+id/card_poster"
@@ -87,9 +87,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Title"
-            android:textSize="7sp"
+            android:textSize="9.5sp"
             android:textStyle="bold"
-            android:textColor="#E2E8F0"
+            android:textColor="#F1F5F9"
             android:fontFamily="@font/plus_jakarta_sans"
             android:maxLines="1"
             android:ellipsize="end" />
@@ -99,11 +99,12 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text=""
-            android:textSize="5.5sp"
-            android:textColor="#64748B"
+            android:textSize="7sp"
+            android:textStyle="bold"
+            android:textColor="#94A3B8"
             android:fontFamily="monospace"
             android:letterSpacing="0.04"
-            android:layout_marginTop="1.5dp"
+            android:layout_marginTop="2dp"
             android:maxLines="1"
             android:ellipsize="end" />
     </LinearLayout>

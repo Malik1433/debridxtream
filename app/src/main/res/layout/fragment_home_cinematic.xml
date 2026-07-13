@@ -641,7 +641,7 @@
             android:layout_height="wrap_content"
             android:text="12:00 PM"
             android:textColor="#94A3B8"
-            android:textSize="7sp"
+            android:textSize="10sp"
             android:fontFamily="monospace"
             android:letterSpacing="0.06"
             android:layout_marginEnd="8dp" />
@@ -651,11 +651,11 @@
         <LinearLayout
             android:id="@+id/ll_device_key"
             android:layout_width="wrap_content"
-            android:layout_height="18dp"
+            android:layout_height="26dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingStart="7dp"
-            android:paddingEnd="7dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
             android:background="@drawable/bg_status_badge"
             android:layout_marginEnd="8dp">
 
@@ -664,7 +664,7 @@
                 android:layout_height="wrap_content"
                 android:text="KEY"
                 android:textColor="#64748B"
-                android:textSize="5.5sp"
+                android:textSize="8sp"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.06"
                 android:layout_marginEnd="4dp" />
@@ -674,7 +674,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#00F0FF"
-                android:textSize="6.5sp"
+                android:textSize="10.5sp"
                 android:textStyle="bold"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.1"
@@ -683,17 +683,17 @@
 
         <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="18dp"
+            android:layout_height="26dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingStart="7dp"
-            android:paddingEnd="7dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
             android:background="@drawable/bg_status_badge"
             android:layout_marginEnd="8dp">
 
             <View
-                android:layout_width="3.5dp"
-                android:layout_height="3.5dp"
+                android:layout_width="5dp"
+                android:layout_height="5dp"
                 android:background="@drawable/cin_sidebar_live_dot"
                 android:layout_marginEnd="4dp" />
 
@@ -703,7 +703,7 @@
                 android:layout_height="wrap_content"
                 android:text="DEBRID · IPTV"
                 android:textColor="#CBD5E1"
-                android:textSize="6sp"
+                android:textSize="9sp"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.06" />
         </LinearLayout>
@@ -711,18 +711,18 @@
         <LinearLayout
             android:id="@+id/ll_iptv_expiry"
             android:layout_width="wrap_content"
-            android:layout_height="18dp"
+            android:layout_height="26dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingStart="7dp"
-            android:paddingEnd="7dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
             android:background="@drawable/bg_status_badge"
             android:layout_marginEnd="8dp">
 
             <ImageView
                 android:id="@+id/iv_iptv_icon"
-                android:layout_width="7dp"
-                android:layout_height="7dp"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
                 android:src="@drawable/ic_live_tv"
                 app:tint="#00FF88"
                 android:layout_marginEnd="4dp" />
@@ -732,7 +732,7 @@
                 android:layout_height="wrap_content"
                 android:text="IPTV"
                 android:textColor="#94A3B8"
-                android:textSize="5.5sp"
+                android:textSize="8sp"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.06"
                 android:layout_marginEnd="4dp" />
@@ -743,7 +743,7 @@
                 android:layout_height="wrap_content"
                 android:text="ACTIVE"
                 android:textColor="#00FF88"
-                android:textSize="6sp"
+                android:textSize="10.5sp"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.04"
                 android:textStyle="bold" />
