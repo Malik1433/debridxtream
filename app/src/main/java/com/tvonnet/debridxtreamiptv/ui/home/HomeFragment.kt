@@ -32,6 +32,9 @@ class HomeFragment : Fragment() {
     internal companion object {
         internal const val HOME_NAV_ITEM_ID = 1
         internal const val SETTINGS_NAV_ITEM_ID = -1
+
+        /** Once per app open (process): the big ≤30-days renewal reminder. */
+        private var expiryWarningShown = false
     }
     
     @Inject
@@ -222,6 +225,8 @@ class HomeFragment : Fragment() {
             com.tvonnet.debridxtreamiptv.data.licensing.Entitlements.isDebridAllowed(requireContext()) -> "DEBRID · IPTV"
             else -> "IPTV"
         }
+        // Permanent device key, always readable from the home screen.
+        view?.findViewById<TextView>(R.id.tv_device_key)?.text = lm.activationCode
     }
     
     private fun setupObservers() {
@@ -365,27 +370,26 @@ class HomeFragment : Fragment() {
         val nowSeconds = System.currentTimeMillis() / 1000L
         val daysLeft = kotlin.math.ceil((expEpochSeconds - nowSeconds) / 86_400.0).toInt()
 
+        // Owner requirement: show the actual EXPIRY DATE, not remaining time.
+        val dateFmt = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+        val expiryDate = dateFmt.format(java.util.Date(expEpochSeconds * 1000L)).uppercase()
+
         val label: String
         val color: Int
         val borderColor: Int
         when {
             daysLeft < 0 -> {
-                label = "EXPIRED"
+                label = "EXPIRED · $expiryDate"
                 color = 0xFFFF3355.toInt()
                 borderColor = 0x73FF3355
             }
-            daysLeft <= 7 -> {
-                label = "${daysLeft}D LEFT"
+            daysLeft <= 30 -> {
+                label = expiryDate
                 color = 0xFFFFAA00.toInt()
                 borderColor = 0x66FFAA00
             }
-            daysLeft <= 30 -> {
-                label = "${daysLeft}D LEFT"
-                color = 0xFFFFAA00.toInt()
-                borderColor = 0x38FFAA00
-            }
             else -> {
-                label = "${daysLeft / 30}M ${daysLeft % 30}D"
+                label = expiryDate
                 color = 0xFF00FF88.toInt()
                 borderColor = 0x3800FF88
             }
@@ -399,6 +403,38 @@ class HomeFragment : Fragment() {
         val chip = v.findViewById<View>(R.id.ll_iptv_expiry)
         val bg = chip?.background?.mutate() as? android.graphics.drawable.GradientDrawable
         bg?.setStroke((resources.displayMetrics.density).toInt().coerceAtLeast(1), borderColor)
+
+        maybeShowExpiryWarning(daysLeft, expiryDate)
+    }
+
+    /**
+     * Big renewal reminder, once per app open (process): when the IPTV subscription
+     * has ≤30 days left (or has expired), tell the user loudly to contact their
+     * provider.
+     */
+    private fun maybeShowExpiryWarning(daysLeft: Int, expiryDate: String) {
+        if (daysLeft > 30 || expiryWarningShown) return
+        expiryWarningShown = true
+        val ctx = context ?: return
+
+        val title = android.widget.TextView(ctx).apply {
+            text = if (daysLeft < 0) "⚠  SUBSCRIPTION EXPIRED" else "⚠  SUBSCRIPTION EXPIRING SOON"
+            setTextColor(if (daysLeft < 0) 0xFFFF3355.toInt() else 0xFFFFAA00.toInt())
+            textSize = 22f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(48, 40, 48, 8)
+        }
+        val message = if (daysLeft < 0) {
+            "Your IPTV subscription expired on $expiryDate.\n\nPlease contact your provider to renew and continue watching."
+        } else {
+            "Your IPTV subscription expires on $expiryDate — only $daysLeft day${if (daysLeft == 1) "" else "s"} left.\n\nPlease contact your provider to renew in time."
+        }
+        android.app.AlertDialog.Builder(ctx)
+            .setCustomTitle(title)
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .show()
+            .findViewById<android.widget.TextView>(android.R.id.message)?.textSize = 17f
     }
 
     private fun updateHeroNavigationTargets() {

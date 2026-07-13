@@ -646,6 +646,41 @@
             android:letterSpacing="0.06"
             android:layout_marginEnd="8dp" />
 
+        <!-- Permanent device key — always visible so the client can read it to the
+             provider (activation / companion config) without leaving the home screen. -->
+        <LinearLayout
+            android:id="@+id/ll_device_key"
+            android:layout_width="wrap_content"
+            android:layout_height="18dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="7dp"
+            android:paddingEnd="7dp"
+            android:background="@drawable/bg_status_badge"
+            android:layout_marginEnd="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="KEY"
+                android:textColor="#64748B"
+                android:textSize="5.5sp"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.06"
+                android:layout_marginEnd="4dp" />
+
+            <TextView
+                android:id="@+id/tv_device_key"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#00F0FF"
+                android:textSize="6.5sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.1"
+                tools:text="GVJR-QSKS" />
+        </LinearLayout>
+
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="18dp"
