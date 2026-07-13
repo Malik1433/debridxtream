@@ -55,7 +55,19 @@ class MainActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
+        // Licensing gate: this device must be activated (admin-controlled via Firestore).
+        // Decision is cache-first (instant, survives brief outages); the realtime listener
+        // is kept alive so a deactivation propagates to the cache for the next launch, and
+        // ActivationActivity auto-advances the moment the admin activates.
+        val license = com.tvonnet.debridxtreamiptv.data.licensing.LicenseManager.getInstance(this)
+        license.start()
+        if (!license.isEntitledCached()) {
+            startActivity(Intent(this, com.tvonnet.debridxtreamiptv.ui.licensing.ActivationActivity::class.java))
+            finish()
+            return
+        }
+
         // Check if already logged in
         val credentialsPrefs = CredentialsPreferences(this)
         
@@ -108,6 +120,10 @@ class MainActivity : AppCompatActivity() {
                 replace(R.id.content_container, com.tvonnet.debridxtreamiptv.ui.home.HomeFragment())
             }
         }
+
+        // Auto-update: offer (or force) an update when the admin publishes a newer
+        // versionCode in app_config/version. One check per process; no-op when current.
+        com.tvonnet.debridxtreamiptv.update.UpdateManager.checkOnLaunch(this)
 
         // Check if we need to open settings directly
         handleNavigationIntent(intent)

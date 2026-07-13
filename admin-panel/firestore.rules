@@ -1,0 +1,66 @@
+rules_version = '2';
+
+// DebridXtream Firestore rules — licensing + admin panel + companion pairing.
+// Deploy: Firebase console → Firestore → Rules → paste → Publish
+// (or `firebase deploy --only firestore:rules`).
+//
+// Admin = any signed-in user whose UID has a doc in the `admins` collection.
+// One-time setup: Firebase console → Firestore → create collection `admins` →
+// add a doc whose ID is your Auth UID (Authentication tab shows it) → {role:"owner"}.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // ── Device licenses ────────────────────────────────────────────────
+    // The TV app is UNAUTHENTICATED; its doc id is an unguessable install UUID
+    // which acts as the capability. Devices may register themselves as
+    // `pending` and update telemetry — but can NEVER grant themselves
+    // status/tier/expiry. Only admins can.
+    match /licenses/{installId} {
+      allow read: if true;
+
+      // Device self-registration: must be pending + normal, no expiry.
+      allow create: if isAdmin() || (
+        request.resource.data.status == 'pending' &&
+        request.resource.data.tier == 'normal' &&
+        !('expiresAt' in request.resource.data)
+      );
+
+      // Device may only touch telemetry fields; entitlement fields are admin-only.
+      allow update: if isAdmin() || (
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['lastSeenAt', 'appVersionCode', 'appVersionName', 'activationCode'])
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ── App config (licensing switch + update manifest) ────────────────
+    match /app_config/{doc} {
+      allow read: if true;          // devices must read enforce/version unauthenticated
+      allow write: if isAdmin();
+    }
+
+    // ── Admin registry ──────────────────────────────────────────────────
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;        // console-only
+    }
+
+    // ── Companion pairing (existing feature — keep working) ─────────────
+    // Unauthenticated create/read/update/delete by design; short-lived docs.
+    match /device_codes/{code} {
+      allow read, write: if true;
+    }
+
+    // Everything else: locked.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

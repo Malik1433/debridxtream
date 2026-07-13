@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0B0F17">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:paddingStart="48dp"
+        android:paddingEnd="48dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ACTIVATE THIS DEVICE"
+            android:textColor="#00E5FF"
+            android:textSize="14sp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.25"
+            android:layout_marginBottom="10dp" />
+
+        <TextView
+            android:id="@+id/tv_activation_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Share this code with your provider"
+            android:textColor="#FFFFFF"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-condensed"
+            android:layout_marginBottom="28dp" />
+
+        <!-- The activation code the user reads out -->
+        <TextView
+            android:id="@+id/tv_activation_code"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="----&#8211;----"
+            android:textColor="#FFFFFF"
+            android:textSize="56sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.12"
+            android:paddingStart="36dp"
+            android:paddingEnd="36dp"
+            android:paddingTop="18dp"
+            android:paddingBottom="18dp"
+            android:background="@drawable/bg_activation_code" />
+
+        <TextView
+            android:id="@+id/tv_activation_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Waiting for activation…"
+            android:textColor="#94A3B8"
+            android:textSize="16sp"
+            android:fontFamily="monospace"
+            android:gravity="center"
+            android:layout_marginTop="26dp"
+            android:layout_marginBottom="30dp" />
+
+        <Button
+            android:id="@+id/btn_activation_retry"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Check again"
+            android:textColor="@color/activation_btn_text"
+            android:textStyle="bold"
+            android:paddingStart="40dp"
+            android:paddingEnd="40dp"
+            android:background="@drawable/bg_activation_button"
+            android:focusable="true"
+            android:focusableInTouchMode="true" />
+
+        <TextView
+            android:id="@+id/tv_activation_device"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#475569"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:layout_marginTop="28dp" />
+    </LinearLayout>
+</FrameLayout>
