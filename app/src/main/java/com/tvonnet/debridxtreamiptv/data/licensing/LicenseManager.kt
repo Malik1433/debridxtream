@@ -37,8 +37,25 @@ class LicenseManager private constructor(context: Context) {
     private val cache = LicensePreferences(appContext)
     private val db by lazy { FirebaseFirestore.getInstance() }
 
-    /** Firestore document id for this install; also the license key. */
-    val installId: String = identity.getOrCreateInstallInstanceId()
+    /**
+     * Firestore document id for this DEVICE; also the license key.
+     *
+     * Hardware-anchored: derived from ANDROID_ID, which is stable across app
+     * restarts, app updates AND uninstall/reinstall (it only changes on a factory
+     * reset). So the device key is PERMANENT for the physical device — reinstalling
+     * cannot mint a fresh identity (which also closes the trial-reset loophole).
+     * Falls back to the per-install UUID only when ANDROID_ID is unavailable.
+     */
+    val installId: String = run {
+        val androidId = android.provider.Settings.Secure.getString(
+            appContext.contentResolver, android.provider.Settings.Secure.ANDROID_ID
+        )
+        if (androidId.isNullOrBlank() || androidId == LEGACY_EMULATOR_ANDROID_ID) {
+            identity.getOrCreateInstallInstanceId()
+        } else {
+            "hw-" + sha256("debridxtream-device-v1:$androidId").take(32)
+        }
+    }
 
     /** Human-readable code the user reads out to the admin (XXXX-XXXX). */
     val activationCode: String = deriveActivationCode(installId)
@@ -171,6 +188,13 @@ class LicenseManager private constructor(context: Context) {
         private const val CONFIG_LICENSING = "licensing"
         private const val DAY_MS = 24 * 60 * 60 * 1000L
         private const val TRIAL_DURATION_MS = 7 * DAY_MS
+        // The well-known constant ANDROID_ID some old emulators/ROMs report.
+        private const val LEGACY_EMULATOR_ANDROID_ID = "9774d56d682e549c"
+
+        private fun sha256(value: String): String =
+            MessageDigest.getInstance("SHA-256")
+                .digest(value.toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it) }
 
         @Volatile private var instance: LicenseManager? = null
 

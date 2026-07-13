@@ -52,7 +52,8 @@ class HomeViewModel @Inject constructor(
     private val credentialsPrefs: CredentialsPreferences,
     private val watchHistoryPrefs: WatchHistoryPreferences,
     private val seriesDaoV2: SeriesDaoV2,
-    private val episodeDaoV2: EpisodeDaoV2
+    private val episodeDaoV2: EpisodeDaoV2,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -120,34 +121,41 @@ class HomeViewModel @Inject constructor(
                 val serverUrl = credentialsPrefs.getServerUrl() ?: ""
                 val username = credentialsPrefs.getUsername() ?: ""
                 val password = credentialsPrefs.getPassword() ?: ""
+                // Tier gating: NORMAL devices are IPTV-only — the home rows (and hero,
+                // which derives from them) must come from the Xtream catalog, never TMDB
+                // (the debrid-side source). The IPTV path is the same proven fallback
+                // used when TMDB is unreachable.
+                val debridAllowed = com.tvonnet.debridxtreamiptv.data.licensing.Entitlements
+                    .isDebridAllowed(appContext)
+
                 val nextState = withTimeoutOrNull(12_000L) {
-                    // 1. Fetch TMDB Trending Movies
-                    val trendingMoviesResult = tmdbRemoteDataSource.getTrendingMovies()
-                    val top10MoviesList = if (trendingMoviesResult.isSuccess) {
+                    // 1. Trending Movies row — TMDB (premium/trial) or IPTV recently-added
+                    val trendingMoviesResult = if (debridAllowed) tmdbRemoteDataSource.getTrendingMovies() else null
+                    val top10MoviesList = if (trendingMoviesResult?.isSuccess == true) {
                         val list = trendingMoviesResult.getOrNull()?.results?.take(10)?.map { it.toFeaturedItem() } ?: emptyList()
                         android.util.Log.e("HISTORY_DEBUG", "Fetched ${list.size} TMDB Trending Movies")
                         list
                     } else {
-                        // Fallback to IPTV VOD sorted by added date
+                        // IPTV VOD sorted by added date (also the normal-tier primary source)
                         val vods = cache.vod?.streams ?: emptyList()
                         val list = vods.sortedByDescending { it.added }.take(10).map {
                             it.toFeaturedItem(serverUrl, username, password)
                         }
-                        android.util.Log.w("HISTORY_DEBUG", "TMDB Trending Movies failed, fallback to cache: ${list.size} items")
+                        android.util.Log.w("HISTORY_DEBUG", "Movies row from IPTV cache (debridAllowed=$debridAllowed): ${list.size} items")
                         list
                     }
 
-                    // 2. Fetch TMDB Trending Series
-                    val trendingSeriesResult = tmdbRemoteDataSource.getTrendingTvShows()
-                    val top10SeriesList = if (trendingSeriesResult.isSuccess) {
+                    // 2. Trending Series row — TMDB (premium/trial) or IPTV series
+                    val trendingSeriesResult = if (debridAllowed) tmdbRemoteDataSource.getTrendingTvShows() else null
+                    val top10SeriesList = if (trendingSeriesResult?.isSuccess == true) {
                         val list = trendingSeriesResult.getOrNull()?.results?.take(10)?.map { it.toFeaturedItem() } ?: emptyList()
                         android.util.Log.e("HISTORY_DEBUG", "Fetched ${list.size} TMDB Trending Series")
                         list
                     } else {
-                        // Fallback to IPTV Series
+                        // IPTV Series (also the normal-tier primary source)
                         val series = cache.series?.streams ?: emptyList()
                         val list = series.take(10).map { it.toFeaturedItem(serverUrl) }
-                        android.util.Log.w("HISTORY_DEBUG", "TMDB Trending Series failed, fallback to cache: ${list.size} items")
+                        android.util.Log.w("HISTORY_DEBUG", "Series row from IPTV cache (debridAllowed=$debridAllowed): ${list.size} items")
                         list
                     }
 

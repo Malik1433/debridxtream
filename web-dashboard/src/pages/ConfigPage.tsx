@@ -75,6 +75,30 @@ const ConfigPage: React.FC = () => {
     // Device Key manually — it never changes, so this page works anytime.
     const [code, setCode] = useState<string>(normalizeDeviceKey(searchParams.get('code') || ''));
     const [keyInput, setKeyInput] = useState('');
+    const [keyChecking, setKeyChecking] = useState(false);
+    const [keyError, setKeyError] = useState('');
+
+    // Every real device registers its key in Firestore on launch, so a key that has
+    // no document is simply wrong (typo / misread) — tell the user immediately
+    // instead of silently pushing config nowhere.
+    const submitDeviceKey = async () => {
+        const k = normalizeDeviceKey(keyInput);
+        if (!k) return;
+        setKeyError('');
+        setKeyChecking(true);
+        try {
+            const exists = await FirestoreService.verifyCode(k);
+            if (exists) {
+                setCode(k);
+            } else {
+                setKeyError(`"${k}" is not a valid device key. Check the key shown on your TV and try again.`);
+            }
+        } catch {
+            setKeyError('Could not verify the key. Check your internet connection and try again.');
+        } finally {
+            setKeyChecking(false);
+        }
+    };
 
     const [iptvConfig, setIptvConfig] = useState({
         url: '',
@@ -251,6 +275,25 @@ const ConfigPage: React.FC = () => {
         }
 
         setSaveState('verifying');
+        setStatusMessage('Verifying device key...');
+
+        // The key must belong to a registered device (every TV creates its doc on
+        // launch). Without this, a mistyped key silently pushed config nowhere.
+        try {
+            const keyExists = await FirestoreService.verifyCode(code);
+            if (!keyExists) {
+                const message = `"${code}" is not a valid device key. Check the key shown on your TV.`;
+                setSaveState('error');
+                setStatusMessage(message);
+                setErrors((current) => ({ ...current, general: message }));
+                return;
+            }
+        } catch {
+            setSaveState('error');
+            setStatusMessage('Could not verify the device key. Check your internet connection.');
+            return;
+        }
+
         setStatusMessage('Verifying IPTV credentials...');
 
         if (iptvComplete) {
@@ -352,19 +395,23 @@ const ConfigPage: React.FC = () => {
                         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                             <input
                                 value={keyInput}
-                                onChange={(e) => setKeyInput(e.target.value.toUpperCase())}
+                                onChange={(e) => { setKeyInput(e.target.value.toUpperCase()); setKeyError(''); }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') submitDeviceKey(); }}
                                 placeholder="XXXX-XXXX"
                                 maxLength={10}
                                 className="w-full rounded-xl border border-white/10 bg-neutral-900 px-4 py-3 font-mono text-lg tracking-[0.2em] text-white placeholder-neutral-600 focus:border-gold-500 focus:outline-none sm:max-w-xs"
                             />
                             <button
-                                onClick={() => { const k = normalizeDeviceKey(keyInput); if (k) setCode(k); }}
-                                disabled={keyInput.replace(/[^A-Za-z0-9]/g, '').length < 6}
+                                onClick={submitDeviceKey}
+                                disabled={keyChecking || keyInput.replace(/[^A-Za-z0-9]/g, '').length < 6}
                                 className="rounded-xl bg-gold-500 px-6 py-3 text-sm font-black uppercase tracking-widest text-neutral-950 transition hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-40"
                             >
-                                Continue
+                                {keyChecking ? 'Checking…' : 'Continue'}
                             </button>
                         </div>
+                        {keyError && (
+                            <p className="mt-3 text-sm font-semibold text-red-400">{keyError}</p>
+                        )}
                     </div>
                 )}
 
