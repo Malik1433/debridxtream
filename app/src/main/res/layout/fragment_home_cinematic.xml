@@ -61,7 +61,7 @@
                     android:layout_width="380dp"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:layout_marginStart="84dp"
+                    android:layout_marginStart="96dp"
                     android:layout_marginBottom="16dp"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintBottom_toBottomOf="parent">
@@ -371,7 +371,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:layout_marginStart="75dp"
+                    android:layout_marginStart="87dp"
                     android:layout_marginBottom="8dp">
                     <View
                         android:layout_width="2dp"
@@ -404,7 +404,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:paddingStart="75dp"
+                    android:paddingStart="87dp"
                     android:paddingEnd="40dp"
                     android:clipToPadding="false"
                     android:clipChildren="false"
@@ -419,7 +419,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginStart="75dp"
+                android:layout_marginStart="87dp"
                 android:layout_marginBottom="8dp">
                 <View
                     android:layout_width="2dp"
@@ -452,7 +452,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:paddingStart="75dp"
+                android:paddingStart="87dp"
                 android:paddingEnd="40dp"
                 android:clipToPadding="false"
                 android:clipChildren="false"
@@ -467,7 +467,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginStart="75dp"
+                android:layout_marginStart="87dp"
                 android:layout_marginBottom="8dp">
                 <View
                     android:layout_width="2dp"
@@ -500,7 +500,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:paddingStart="75dp"
+                android:paddingStart="87dp"
                 android:paddingEnd="40dp"
                 android:clipToPadding="false"
                 android:clipChildren="false"
@@ -524,7 +524,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:layout_marginStart="75dp"
+                    android:layout_marginStart="87dp"
                     android:layout_marginBottom="8dp">
                     <View
                         android:layout_width="2dp"
@@ -557,7 +557,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:paddingStart="75dp"
+                    android:paddingStart="87dp"
                     android:paddingEnd="40dp"
                     android:clipToPadding="false"
                     android:clipChildren="false"
@@ -573,7 +573,7 @@
     <include
         android:id="@+id/sidebar_panel"
         layout="@layout/view_home_sidebar"
-        android:layout_width="48dp"
+        android:layout_width="60dp"
         android:layout_height="match_parent"
         android:layout_marginStart="13dp"
         android:layout_marginTop="13dp"
@@ -749,22 +749,6 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <FrameLayout
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:background="@drawable/bg_avatar_purple">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="A"
-                android:textColor="@color/white"
-                android:textSize="8sp"
-                android:textStyle="bold"
-                android:fontFamily="@font/plus_jakarta_sans"
-                android:includeFontPadding="false" />
-        </FrameLayout>
     </LinearLayout>
 
     <!-- ══════ BOTTOM HINT BAR ══════ -->

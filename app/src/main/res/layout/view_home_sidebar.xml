@@ -3,7 +3,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/home_sidebar_container"
-    android:layout_width="48dp"
+    android:layout_width="60dp"
     android:layout_height="match_parent"
     android:background="@drawable/bg_nav_rail"
     android:paddingTop="11dp"
@@ -15,8 +15,8 @@
     <!-- Logo mark "DX" -->
     <FrameLayout
         android:id="@+id/sidebar_header"
-        android:layout_width="26dp"
-        android:layout_height="26dp"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
         android:background="@drawable/bg_logo_mark"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -28,7 +28,7 @@
             android:layout_gravity="center"
             android:text="DX"
             android:textColor="#041014"
-            android:textSize="10.5sp"
+            android:textSize="13sp"
             android:textStyle="bold"
             android:fontFamily="@font/plus_jakarta_sans"
             android:includeFontPadding="false"
@@ -38,8 +38,8 @@
     <!-- Magnetic sliding highlight capsule (behind nav icons) -->
     <View
         android:id="@+id/sidebar_capsule"
-        android:layout_width="28dp"
-        android:layout_height="28dp"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
         android:background="@drawable/bg_nav_item_focused"
         android:alpha="0"
         app:layout_constraintStart_toStartOf="parent"
@@ -51,12 +51,12 @@
         android:id="@+id/rv_sidebar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="15dp"
+        android:layout_marginTop="18dp"
         android:clipChildren="false"
         android:clipToPadding="false"
         android:overScrollMode="never"
-        android:paddingStart="10dp"
-        android:paddingEnd="10dp"
+        android:paddingStart="13dp"
+        android:paddingEnd="13dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/sidebar_header" />
@@ -64,7 +64,7 @@
     <!-- Divider before settings -->
     <View
         android:id="@+id/sidebar_settings_divider"
-        android:layout_width="22dp"
+        android:layout_width="28dp"
         android:layout_height="1dp"
         android:layout_marginBottom="8dp"
         android:background="#14FFFFFF"
@@ -77,9 +77,9 @@
         android:id="@+id/sidebar_settings_item"
         layout="@layout/item_sidebar_nav"
         android:layout_width="0dp"
-        android:layout_height="28dp"
-        android:layout_marginStart="10dp"
-        android:layout_marginEnd="10dp"
+        android:layout_height="34dp"
+        android:layout_marginStart="13dp"
+        android:layout_marginEnd="13dp"
         android:layout_marginBottom="6dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -88,8 +88,8 @@
     <!-- Profile mark -->
     <FrameLayout
         android:id="@+id/sidebar_profile_mark"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
         android:background="@drawable/bg_profile_mark"
         android:focusable="true"
         android:focusableInTouchMode="true"
@@ -103,7 +103,7 @@
             android:layout_gravity="center"
             android:text="A"
             android:textColor="@color/white"
-            android:textSize="9sp"
+            android:textSize="11sp"
             android:textStyle="bold"
             android:fontFamily="@font/plus_jakarta_sans"
             android:includeFontPadding="false" />
