@@ -137,11 +137,9 @@ class LoginQrOverlayController(
             .getInstance(context.applicationContext).activationCode
 
     private fun bindPairingCode(code: String) {
-        val row = overlay.findViewById<LinearLayout>(R.id.ll_pairing_code)
-        val chars = code.replace("-", "") // tiles render the 8 key chars; the gap shows grouping
-        for (i in 0 until row.childCount) {
-            (row.getChildAt(i) as? TextView)?.text = chars.getOrNull(i)?.toString() ?: ""
-        }
+        // Full key (dash included) in one view — per-char tiles used to clip on TV
+        // and users misread the cut-off key when pairing.
+        overlay.findViewById<TextView>(R.id.tv_pairing_code)?.text = code
     }
 
     private fun renderQr(code: String) {

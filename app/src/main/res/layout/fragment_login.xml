@@ -896,6 +896,9 @@
                         android:textColor="#475569"
                         android:textSize="6sp" />
 
+                    <!-- Single stretch-proof key display: per-char tiles clipped on TV
+                         (column is ~210dp; 8 tiles needed 258dp) and users misread the
+                         cut-off key. One TextView can never clip its characters. -->
                     <LinearLayout
                         android:id="@+id/ll_pairing_code"
                         android:layout_width="wrap_content"
@@ -904,100 +907,19 @@
                         android:orientation="horizontal">
 
                         <TextView
-                            android:layout_width="27dp"
+                            android:id="@+id/tv_pairing_code"
+                            android:layout_width="wrap_content"
                             android:layout_height="32dp"
                             android:background="@drawable/bg_login_pair_tile"
-                            android:fontFamily="@font/plus_jakarta_sans"
+                            android:fontFamily="monospace"
                             android:gravity="center"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:letterSpacing="0.18"
                             android:textColor="#00F0FF"
-                            android:textSize="14sp"
+                            android:textSize="15sp"
                             android:textStyle="bold"
-                            tools:text="4" />
-
-                        <TextView
-                            android:layout_width="27dp"
-                            android:layout_height="32dp"
-                            android:layout_marginStart="5dp"
-                            android:background="@drawable/bg_login_pair_tile"
-                            android:fontFamily="@font/plus_jakarta_sans"
-                            android:gravity="center"
-                            android:textColor="#00F0FF"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            tools:text="7" />
-
-                        <TextView
-                            android:layout_width="27dp"
-                            android:layout_height="32dp"
-                            android:layout_marginStart="5dp"
-                            android:background="@drawable/bg_login_pair_tile"
-                            android:fontFamily="@font/plus_jakarta_sans"
-                            android:gravity="center"
-                            android:textColor="#00F0FF"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            tools:text="2" />
-
-                        <!-- 5th tile starts the second XXXX group of the device key -->
-                        <TextView
-                            android:layout_width="27dp"
-                            android:layout_height="32dp"
-                            android:layout_marginStart="12dp"
-                            android:background="@drawable/bg_login_pair_tile"
-                            android:fontFamily="@font/plus_jakarta_sans"
-                            android:gravity="center"
-                            android:textColor="#00F0FF"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            tools:text="9" />
-
-                        <TextView
-                            android:layout_width="27dp"
-                            android:layout_height="32dp"
-                            android:layout_marginStart="5dp"
-                            android:background="@drawable/bg_login_pair_tile"
-                            android:fontFamily="@font/plus_jakarta_sans"
-                            android:gravity="center"
-                            android:textColor="#00F0FF"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            tools:text="1" />
-
-                        <TextView
-                            android:layout_width="27dp"
-                            android:layout_height="32dp"
-                            android:layout_marginStart="5dp"
-                            android:background="@drawable/bg_login_pair_tile"
-                            android:fontFamily="@font/plus_jakarta_sans"
-                            android:gravity="center"
-                            android:textColor="#00F0FF"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            tools:text="6" />
-
-                        <TextView
-                            android:layout_width="27dp"
-                            android:layout_height="32dp"
-                            android:layout_marginStart="5dp"
-                            android:background="@drawable/bg_login_pair_tile"
-                            android:fontFamily="@font/plus_jakarta_sans"
-                            android:gravity="center"
-                            android:textColor="#00F0FF"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            tools:text="B" />
-
-                        <TextView
-                            android:layout_width="27dp"
-                            android:layout_height="32dp"
-                            android:layout_marginStart="5dp"
-                            android:background="@drawable/bg_login_pair_tile"
-                            android:fontFamily="@font/plus_jakarta_sans"
-                            android:gravity="center"
-                            android:textColor="#00F0FF"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            tools:text="8" />
+                            tools:text="GVJR-QSKS" />
                     </LinearLayout>
 
                     <!-- Waiting status -->
