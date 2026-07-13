@@ -1453,6 +1453,10 @@ class SeriesDetailActivity : AppCompatActivity() {
                 iptvEpisodeId = resolved.third
             }
 
+            // Saved resume position for this episode (null when watched or never started).
+            val resumeMs = episodeProgressMs[episode.id]
+                ?.takeIf { it > 0 && !episodeWatched.contains(episode.id) }
+
             val intent = PlayerActivity.createIntent(
                 context = this@SeriesDetailActivity,
                 streamUrl = url!!,
@@ -1464,7 +1468,8 @@ class SeriesDetailActivity : AppCompatActivity() {
                 seriesTitle = seriesName,
                 episodeTitle = episode.title,
                 seasonNumber = seasonNumber,
-                episodeNumber = episodeNumber
+                episodeNumber = episodeNumber,
+                startPositionMs = resumeMs
             )
             iptvSeriesId?.let { intent.putExtra(PlayerActivity.EXTRA_SERIES_ID, it) }
             startActivity(intent)

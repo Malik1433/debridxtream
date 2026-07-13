@@ -147,6 +147,9 @@ class MovieDetailActivity : AppCompatActivity() {
     private val watchHistoryPrefs by lazy { WatchHistoryPreferences(this) }
     private var hasResumePosition: Boolean = false
     private var resumePositionMs: Long = 0L
+    // Info-hash of the last-played Debrid source for this movie, so pressing "Resume"
+    // can re-resolve that exact source and seek — instead of reopening the picker.
+    private var resumeDebridInfoHash: String? = null
 
     // Movie data
     private var movieId: String? = null
@@ -585,6 +588,7 @@ class MovieDetailActivity : AppCompatActivity() {
 
         hasResumePosition = resumeItem != null && position > 0L && progress in 1..99
         resumePositionMs = if (hasResumePosition) position else 0L
+        resumeDebridInfoHash = if (hasResumePosition) resumeItem?.debridInfoHash?.takeIf { it.isNotBlank() } else null
         if (hasResumePosition) {
             tvResumeElapsed.text = "RESUME FROM ${formatResumeTime(position)}"
             tvResumeRemaining.text = "${formatResumeTime(duration - position)} LEFT"
@@ -991,7 +995,15 @@ class MovieDetailActivity : AppCompatActivity() {
     private fun setupClickListeners() {
         btnPlay.setOnClickListener {
             if (movieCategoryId == "debrid") {
-                showDebridSourcePicker()
+                val infoHash = resumeDebridInfoHash
+                if (hasResumePosition && infoHash != null) {
+                    // One-tap resume: re-resolve the same Debrid source and seek to the
+                    // saved position, matching the home-screen Continue Watching behaviour
+                    // instead of reopening the source picker.
+                    handleDebridHistoryItem(infoHash)
+                } else {
+                    showDebridSourcePicker()
+                }
             } else {
                 playMovie()
             }
@@ -1538,7 +1550,9 @@ class MovieDetailActivity : AppCompatActivity() {
                     debridQuality = source?.quality,
                     debridStreamId = source?.stream?.stream_id,
                     debridBingeGroup = source?.bingeGroup,
-                    debridFileIdx = source?.fileIdx
+                    debridFileIdx = source?.fileIdx,
+                    // Resume from the saved position when the user pressed "Resume".
+                    startPositionMs = resumePositionMs
                 )
                 if (returnToSources) {
                     intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
@@ -1650,7 +1664,9 @@ class MovieDetailActivity : AppCompatActivity() {
                         debridQuality = source?.quality,
                         debridStreamId = source?.stream?.stream_id,
                         debridBingeGroup = source?.bingeGroup,
-                        debridFileIdx = source?.fileIdx
+                        debridFileIdx = source?.fileIdx,
+                        // Resume from the saved position when the user pressed "Resume".
+                        startPositionMs = resumePositionMs
                     )
                     if (returnToSources) {
                         intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
@@ -1726,7 +1742,9 @@ class MovieDetailActivity : AppCompatActivity() {
                         playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
                         tmdbId = tmdbId,
                         imdbId = currentImdbId,
-                        debridInfoHash = infoHash
+                        debridInfoHash = infoHash,
+                        // This is the "Resume from Debrid History" path — carry the saved position.
+                        startPositionMs = resumePositionMs
                     )
                     startActivity(intent)
                 }
