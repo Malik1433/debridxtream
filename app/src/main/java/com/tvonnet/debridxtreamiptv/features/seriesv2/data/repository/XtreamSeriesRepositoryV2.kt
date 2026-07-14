@@ -17,6 +17,7 @@ import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.StreamLanguage
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.StreamQuality
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -39,6 +40,15 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
     private val database: com.tvonnet.debridxtreamiptv.data.local.AppDatabase
 ) {
 
+    companion object {
+        // Per-attempt bounds for the episode-detail fetch so a slow/hung provider fails
+        // over to lighter endpoints fast instead of blocking the UI for the full 30s
+        // socket timeout. Primary get_series_info carries all episode metadata (bigger),
+        // so it gets a little more room than the lighter fallback endpoints.
+        private const val SERIES_INFO_TIMEOUT_MS = 15_000L
+        private const val FALLBACK_TIMEOUT_MS = 10_000L
+    }
+
     // Helper to get service safely from legacy repo
     private val apiService: XtreamApiService
         get() = legacyRepository.getApiService() ?: throw IllegalStateException("API Not Initialized. Please login first.")
@@ -52,15 +62,11 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
     }
 
     fun getSeriesById(seriesId: String): Flow<Result<SeriesEntityV2>> = flow {
-         // Warm the full series catalog (legacy series_v2 table) so cross-category
-         // stream aggregation can find sibling listings. Idempotent, 24h-gated.
-         try { legacyRepository.scheduleSearchIndexSyncIfStale() } catch (_: Exception) {}
-
          val username = legacyRepository.getUsername()
          val password = legacyRepository.getPassword()
-         
+
          android.util.Log.d("SeriesRepoV2", "getSeriesById: Fetching for ID: $seriesId")
-         
+
          // 1. Try Local Cache (Offline First)
          val localSeries = seriesDao.getSeriesById(seriesId)
          if (localSeries != null) {
@@ -70,20 +76,33 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
              android.util.Log.d("SeriesRepoV2", "getSeriesById: Cache MISS")
          }
 
-         // 2. Network Fetch Attempt
+         // 2. Network Fetch Attempt.
+         // The catalog-index warm is deferred to a `finally` below so this page's own
+         // episode fetch grabs the (often single) provider connection FIRST — otherwise
+         // a stale-index warm on open steals the connection and stalls episode loading.
         try {
             android.util.Log.d("SeriesRepoV2", "getSeriesById: Starting Network Request...")
-            val response = apiService.getSeriesInfo(username, password, seriesId = seriesId)
+            // Bound the call: a slow/hung provider must fail over to the lighter fallbacks
+            // fast instead of blocking the UI for the full 30s socket timeout.
+            val response = withTimeoutOrNull(SERIES_INFO_TIMEOUT_MS) {
+                apiService.getSeriesInfo(username, password, seriesId = seriesId)
+            }
+            if (response == null) {
+                android.util.Log.w("SeriesRepoV2", "getSeriesById: get_series_info timed out after ${SERIES_INFO_TIMEOUT_MS}ms — trying fallbacks")
+                fetchEpisodesFallback(seriesId, username, password)
+                val updatedSeries = seriesDao.getSeriesById(seriesId)
+                if (updatedSeries != null) { emit(Result.Success(updatedSeries)); return@flow }
+            } else {
             android.util.Log.d("SeriesRepoV2", "getSeriesById: Network Response Code: ${response.code()}")
-            
+
             if (response.isSuccessful) {
                 val body = response.body()
                 val info = body?.info
                 val episodesMap = body?.episodes
-                
+
                 android.util.Log.d("SeriesRepoV2", "getSeriesById: Body Info: ${if(info!=null) "Found" else "NULL"}")
                 android.util.Log.d("SeriesRepoV2", "getSeriesById: Episodes Map Size: ${episodesMap?.size ?: 0}")
-                
+
                 if (info != null) {
                     processSeriesInfoResponse(seriesId, info, episodesMap)
 
@@ -101,7 +120,7 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
                  android.util.Log.w("SeriesRepoV2", "getSeriesById: 404 on get_series_info. Attempting fallback to get_show_episodes...")
                  // Fallback: Fetch Episodes Only
                  fetchEpisodesFallback(seriesId, username, password)
-                 
+
                  // Return local data if we have it (now updated with episodes)
                  val updatedSeries = seriesDao.getSeriesById(seriesId)
                  if (updatedSeries != null) {
@@ -110,6 +129,7 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
                  }
             } else {
                  android.util.Log.e("SeriesRepoV2", "getSeriesById: Request Failed: ${response.message()}")
+            }
             }
         } catch (e: Exception) {
             android.util.Log.e("SeriesRepoV2", "getSeriesById: Exception: ${e.message}", e)
@@ -126,6 +146,12 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
                 emit(Result.Success(updatedSeries))
                 return@flow
             }
+        } finally {
+            // Warm the full series catalog (legacy series_v2 table) so cross-category
+            // stream aggregation can find sibling listings. Idempotent, 24h-gated.
+            // Runs AFTER the episode fetch so it never contends for the connection on
+            // the critical path. `return@flow` above still triggers this.
+            try { legacyRepository.scheduleSearchIndexSyncIfStale() } catch (_: Exception) {}
         }
 
         // 3. Final Fallback
@@ -219,8 +245,12 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
         // Strategy 1: Try get_series with series_id (Some providers return header + episodes here)
         try {
             android.util.Log.d("SeriesRepoV2", "fetchEpisodesFallback: Attempting Strategy 1 (get_series)...")
-            val response = apiService.getSeries(username, password, seriesId = seriesId)
-            if (response.isSuccessful && !response.body().isNullOrEmpty()) {
+            val response = withTimeoutOrNull(FALLBACK_TIMEOUT_MS) {
+                apiService.getSeries(username, password, seriesId = seriesId)
+            }
+            if (response == null) {
+                android.util.Log.w("SeriesRepoV2", "fetchEpisodesFallback: Strategy 1 timed out after ${FALLBACK_TIMEOUT_MS}ms")
+            } else if (response.isSuccessful && !response.body().isNullOrEmpty()) {
                 val seriesInfo = response.body()!!.first()
                 val episodesMap = seriesInfo.episodes
                 
@@ -242,8 +272,12 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
         // Strategy 2: Try get_show_episodes (Standard episode endpoint)
         try {
             android.util.Log.d("SeriesRepoV2", "fetchEpisodesFallback: Attempting Strategy 2 (get_show_episodes)...")
-            val response = apiService.getSeriesEpisodes(username, password, seriesId = seriesId)
-            if (response.isSuccessful) {
+            val response = withTimeoutOrNull(FALLBACK_TIMEOUT_MS) {
+                apiService.getSeriesEpisodes(username, password, seriesId = seriesId)
+            }
+            if (response == null) {
+                android.util.Log.w("SeriesRepoV2", "fetchEpisodesFallback: Strategy 2 timed out after ${FALLBACK_TIMEOUT_MS}ms")
+            } else if (response.isSuccessful) {
                 val episodesMap = XtreamResponseParser.parseEpisodes(response.body())
                 if (episodesMap.isNotEmpty()) {
                     val episodeEntities = mapEpisodes(seriesId, episodesMap)
