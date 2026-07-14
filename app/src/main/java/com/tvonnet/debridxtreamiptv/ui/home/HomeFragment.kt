@@ -474,7 +474,13 @@ class HomeFragment : Fragment() {
             onItemFocused = { index, _ ->
                 focusManager.rememberContentFocus(HomeContentFocusArea.CONTINUE_WATCHING, index)
             },
-            onItemLongPress = { item, view -> navigationRouter.showContinueWatchingActions(item, view) }
+            onOpenDetail = { item ->
+                viewLifecycleOwner.lifecycleScope.launch { navigationRouter.openContinueWatchingDetail(item) }
+            },
+            onRemoveItem = { item ->
+                viewModel.clearContinueWatchingItem(item)
+                android.widget.Toast.makeText(requireContext(), "Removed from Continue Watching", android.widget.Toast.LENGTH_SHORT).show()
+            }
         )
         rvContinueWatching.adapter = continueWatchingAdapter
 

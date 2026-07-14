@@ -19,7 +19,8 @@ class ContinueWatchingAdapter(
     private var items: List<ContinueWatchingItem>,
     private val onItemClick: (ContinueWatchingItem) -> Unit,
     private val onItemFocused: (Int, ContinueWatchingItem) -> Unit = { _, _ -> },
-    private val onItemLongPress: (ContinueWatchingItem, android.view.View) -> Unit = { _, _ -> }
+    private val onOpenDetail: (ContinueWatchingItem) -> Unit = { },
+    private val onRemoveItem: (ContinueWatchingItem) -> Unit = { }
 ) : RecyclerView.Adapter<ContinueWatchingAdapter.ContinueWatchingViewHolder>() {
 
     init {
@@ -54,7 +55,7 @@ class ContinueWatchingAdapter(
     
     override fun onBindViewHolder(holder: ContinueWatchingViewHolder, position: Int) {
         android.util.Log.e("HISTORY_DEBUG", "ContinueWatchingAdapter: onBindViewHolder position=$position")
-        holder.bind(items[position], onItemClick, onItemFocused, onItemLongPress)
+        holder.bind(items[position], onItemClick, onItemFocused, onOpenDetail, onRemoveItem)
     }
     
     override fun getItemCount() = items.size
@@ -97,7 +98,13 @@ class ContinueWatchingAdapter(
         private val tvContinueProgress: TextView = itemView.findViewById(R.id.tv_continue_progress)
         private val tvContinueTypeBadge: TextView = itemView.findViewById(R.id.tv_continue_type_badge)
         private val quickInfo: View? = itemView.findViewById(R.id.quick_info_bubble)
+        private val qiInfo: View? = quickInfo?.findViewById(R.id.qi_info)
+        private val qiActions: View? = quickInfo?.findViewById(R.id.qi_actions)
+        private val qiOpen: TextView? = quickInfo?.findViewById(R.id.qi_open)
+        private val qiRemove: TextView? = quickInfo?.findViewById(R.id.qi_remove)
         private var dwellRunnable: Runnable? = null
+        private var inActionsMode = false
+        private var swallowNextSelectUp = false
 
         init {
             com.tvonnet.debridxtreamiptv.util.FocusGlow.attachSelector(
@@ -109,10 +116,12 @@ class ContinueWatchingAdapter(
             item: ContinueWatchingItem,
             onClick: (ContinueWatchingItem) -> Unit,
             onFocused: (Int, ContinueWatchingItem) -> Unit,
-            onLongPress: (ContinueWatchingItem, android.view.View) -> Unit
+            onOpenDetail: (ContinueWatchingItem) -> Unit,
+            onRemoveItem: (ContinueWatchingItem) -> Unit
         ) {
             var suppressNextClick = false
             var longPressHandled = false
+            resetBubbleToInfo()
             tvContinueTitle.text = formatTitle(item)
             tvContinueProgress.text = item.formattedProgress
             tvContinueTypeBadge.text = formatTypeBadge(item)
@@ -134,10 +143,10 @@ class ContinueWatchingAdapter(
 
             itemView.isLongClickable = true
             itemView.setOnLongClickListener {
-                if (!longPressHandled) {
+                if (!longPressHandled && !inActionsMode) {
                     longPressHandled = true
                     suppressNextClick = true
-                    onLongPress(item, itemView)
+                    enterActionsMode(item, onOpenDetail, onRemoveItem, fromKey = false)
                 }
                 true
             }
@@ -150,10 +159,10 @@ class ContinueWatchingAdapter(
                 when {
                     event.action == KeyEvent.ACTION_DOWN &&
                     event.repeatCount > 0 &&
-                        isSelectKey && !longPressHandled -> {
+                        isSelectKey && !longPressHandled && !inActionsMode -> {
                         longPressHandled = true
                         suppressNextClick = true
-                        onLongPress(item, itemView)
+                        enterActionsMode(item, onOpenDetail, onRemoveItem, fromKey = true)
                         true
                     }
                     event.action == KeyEvent.ACTION_UP && isSelectKey -> {
@@ -164,10 +173,34 @@ class ContinueWatchingAdapter(
                 }
             }
 
-            quickInfo?.let { bubble ->
-                bubble.findViewById<TextView>(R.id.qi_title)?.text = formatTitle(item)
-                bubble.findViewById<TextView>(R.id.qi_tag)?.text = "RESUME"
-                bubble.findViewById<TextView>(R.id.qi_sub)?.text = item.formattedProgress
+            // Chip wiring (used in actions mode)
+            qiOpen?.setOnClickListener { onOpenDetail(item) }
+            qiRemove?.setOnClickListener {
+                exitActionsMode()
+                onRemoveItem(item)
+            }
+            val chipKeyListener = View.OnKeyListener { _, keyCode, event ->
+                val isSelectKey = keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+                    keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
+                when {
+                    keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP -> {
+                        exitActionsMode(); itemView.requestFocus(); true
+                    }
+                    // Swallow the key-up from the same long-press that opened the menu,
+                    // so it doesn't instantly "click" the focused option.
+                    isSelectKey && event.action == KeyEvent.ACTION_UP && swallowNextSelectUp -> {
+                        swallowNextSelectUp = false; true
+                    }
+                    else -> false
+                }
+            }
+            qiOpen?.setOnKeyListener(chipKeyListener)
+            qiRemove?.setOnKeyListener(chipKeyListener)
+
+            qiInfo?.let {
+                itemView.findViewById<TextView>(R.id.qi_title)?.text = formatTitle(item)
+                itemView.findViewById<TextView>(R.id.qi_tag)?.text = "RESUME"
+                itemView.findViewById<TextView>(R.id.qi_sub)?.text = item.formattedProgress
             }
 
             itemView.setOnFocusChangeListener { view, hasFocus ->
@@ -179,11 +212,20 @@ class ContinueWatchingAdapter(
                 view.elevation = if (hasFocus) 22f else 6f
                 tvContinueTitle.isActivated = hasFocus
                 if (!hasFocus) {
-                    suppressNextClick = false
-                    longPressHandled = false
-                    cancelDwellInfo()
+                    // Focus may have moved to a bubble chip (still inside this item) — only
+                    // tear the bubble down once focus has truly left the whole item.
+                    itemView.post {
+                        if (!itemView.hasFocus()) {
+                            suppressNextClick = false
+                            longPressHandled = false
+                            if (inActionsMode) exitActionsMode()
+                            cancelDwellInfo()
+                        }
+                    }
                     return@setOnFocusChangeListener
                 }
+                // Card regained focus — if we were showing quick actions, drop back to info.
+                if (inActionsMode) exitActionsMode()
                 scheduleDwellInfo()
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
@@ -197,7 +239,8 @@ class ContinueWatchingAdapter(
             val bubble = quickInfo ?: return
             cancelDwellInfo()
             val runnable = Runnable {
-                if (itemView.hasFocus()) {
+                if (itemView.hasFocus() && !inActionsMode) {
+                    resetBubbleToInfo()
                     bubble.visibility = View.VISIBLE
                     bubble.alpha = 0f
                     bubble.translationY = 8f
@@ -219,6 +262,41 @@ class ContinueWatchingAdapter(
                 bubble.animate().cancel()
                 bubble.visibility = View.GONE
             }
+        }
+
+        /** Long-press: swap the bubble from its resume-info content to quick actions. */
+        private fun enterActionsMode(
+            item: ContinueWatchingItem,
+            onOpenDetail: (ContinueWatchingItem) -> Unit,
+            onRemoveItem: (ContinueWatchingItem) -> Unit,
+            fromKey: Boolean
+        ) {
+            val bubble = quickInfo ?: return
+            dwellRunnable?.let { itemView.removeCallbacks(it) }
+            dwellRunnable = null
+            inActionsMode = true
+            swallowNextSelectUp = fromKey
+            qiInfo?.visibility = View.GONE
+            qiActions?.visibility = View.VISIBLE
+            bubble.animate().cancel()
+            bubble.visibility = View.VISIBLE
+            bubble.alpha = 1f
+            bubble.translationY = 0f
+            qiOpen?.requestFocus()
+        }
+
+        private fun exitActionsMode() {
+            inActionsMode = false
+            swallowNextSelectUp = false
+            resetBubbleToInfo()
+            quickInfo?.visibility = View.GONE
+        }
+
+        /** Restore the bubble's default (resume-info) content. */
+        private fun resetBubbleToInfo() {
+            inActionsMode = false
+            qiActions?.visibility = View.GONE
+            qiInfo?.visibility = View.VISIBLE
         }
 
         private fun formatTypeBadge(item: ContinueWatchingItem): String {

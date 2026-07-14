@@ -8,48 +8,106 @@
     android:paddingEnd="7dp"
     android:paddingTop="6dp"
     android:paddingBottom="6dp"
+    android:clipChildren="false"
+    android:clipToPadding="false"
     android:elevation="12dp"
     android:visibility="gone">
 
-    <TextView
-        android:id="@+id/qi_title"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Title"
-        android:textColor="#F1F5F9"
-        android:textSize="7.5sp"
-        android:textStyle="bold"
-        android:fontFamily="@font/plus_jakarta_sans"
-        android:singleLine="true"
-        android:ellipsize="end" />
-
+    <!-- Info mode: title + RESUME/time (dwell) -->
     <LinearLayout
+        android:id="@+id/qi_info"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="2.5dp">
+        android:orientation="vertical">
 
         <TextView
-            android:id="@+id/qi_tag"
-            android:layout_width="wrap_content"
+            android:id="@+id/qi_title"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="MOVIE"
-            android:textColor="#00F0FF"
-            android:textSize="5.5sp"
-            android:fontFamily="monospace"
-            android:letterSpacing="0.04" />
-
-        <TextView
-            android:id="@+id/qi_sub"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:text=""
-            android:textColor="#64748B"
-            android:textSize="5.5sp"
-            android:fontFamily="monospace"
+            android:text="Title"
+            android:textColor="#F1F5F9"
+            android:textSize="7.5sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/plus_jakarta_sans"
             android:singleLine="true"
             android:ellipsize="end" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="2.5dp">
+
+            <TextView
+                android:id="@+id/qi_tag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="MOVIE"
+                android:textColor="#00F0FF"
+                android:textSize="5.5sp"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.04" />
+
+            <TextView
+                android:id="@+id/qi_sub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text=""
+                android:textColor="#64748B"
+                android:textSize="5.5sp"
+                android:fontFamily="monospace"
+                android:singleLine="true"
+                android:ellipsize="end" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Actions mode: quick options (long-press) — replaces the info block -->
+    <LinearLayout
+        android:id="@+id/qi_actions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/qi_open"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_cw_chip_primary"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:gravity="center"
+            android:minHeight="21dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:stateListAnimator="@animator/cw_chip_focus"
+            android:text="Open Detail"
+            android:textAllCaps="false"
+            android:textColor="@color/cw_chip_primary_text"
+            android:textSize="7.5sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/qi_remove"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_cw_chip_secondary"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:gravity="center"
+            android:minHeight="21dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:stateListAnimator="@animator/cw_chip_focus"
+            android:text="Remove"
+            android:textAllCaps="false"
+            android:textColor="@color/cw_chip_secondary_text"
+            android:textSize="7.5sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
 </LinearLayout>
