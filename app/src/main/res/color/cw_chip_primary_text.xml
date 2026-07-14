@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Primary chip label/icon: dark ink on the cyan-filled focused state, bright cyan otherwise. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#04121A" />
+    <item android:state_selected="true" android:color="#04121A" />
+    <item android:color="#EAF9FF" />
+</selector>

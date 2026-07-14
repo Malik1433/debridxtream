@@ -154,6 +154,16 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
         val dialogView = frag.layoutInflater.inflate(R.layout.view_continue_watching_action_menu, null, false)
         dialogView.findViewById<TextView>(R.id.tv_cw_menu_title).text =
             item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title
+        run {
+            val row = dialogView.findViewById<android.view.View>(R.id.row_cw_progress)
+            if (item.totalDuration <= 0L) {
+                row.visibility = android.view.View.GONE
+            } else {
+                dialogView.findViewById<android.widget.ProgressBar>(R.id.pb_cw_menu_progress).progress =
+                    item.progressPercentage.coerceIn(0, 100)
+                dialogView.findViewById<TextView>(R.id.tv_cw_menu_progress).text = item.formattedProgress
+            }
+        }
         val openDetailChip = dialogView.findViewById<android.view.View>(R.id.chip_cw_open_detail)
         val clearStatusChip = dialogView.findViewById<android.view.View>(R.id.chip_cw_clear_status)
 
@@ -170,7 +180,7 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
         clearStatusChip.setOnClickListener {
             dialog.dismiss()
             frag.viewModel.clearContinueWatchingItem(item)
-            Toast.makeText(frag.requireContext(), "Continue Watching cleared", Toast.LENGTH_SHORT).show()
+            Toast.makeText(frag.requireContext(), "Removed from Continue Watching", Toast.LENGTH_SHORT).show()
         }
         dialog.show()
         openDetailChip.requestFocus()

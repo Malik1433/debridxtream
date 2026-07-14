@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Primary CW action chip (Open Detail) — cyan gradient like the Watch/Play button. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#0077FF"
+                android:endColor="#00F0FF"
+                android:angle="135" />
+            <stroke android:width="1dp" android:color="#B3FFFFFF" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#0077FF"
+                android:endColor="#00F0FF"
+                android:angle="135" />
+            <stroke android:width="1dp" android:color="#B3FFFFFF" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#2600F0FF" />
+            <stroke android:width="1dp" android:color="#6600F0FF" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+</selector>

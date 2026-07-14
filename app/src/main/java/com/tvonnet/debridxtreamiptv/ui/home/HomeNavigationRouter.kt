@@ -288,6 +288,7 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
         val dialogView = frag.layoutInflater.inflate(R.layout.view_continue_watching_action_menu, null, false)
         dialogView.findViewById<TextView>(R.id.tv_cw_menu_title).text =
             item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title
+        bindCwMenuProgress(dialogView, item)
         val openDetailChip = dialogView.findViewById<android.view.View>(R.id.chip_cw_open_detail)
         val clearStatusChip = dialogView.findViewById<android.view.View>(R.id.chip_cw_clear_status)
 
@@ -310,11 +311,23 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
         clearStatusChip.setOnClickListener {
             dialog.dismiss()
             frag.viewModel.clearContinueWatchingItem(item)
-            Toast.makeText(frag.requireContext(), "Continue Watching cleared", Toast.LENGTH_SHORT).show()
+            Toast.makeText(frag.requireContext(), "Removed from Continue Watching", Toast.LENGTH_SHORT).show()
         }
 
         dialog.show()
         openDetailChip.requestFocus()
+    }
+
+    /** Fills the resume progress bar + "elapsed / total" label; hides the row if unknown. */
+    private fun bindCwMenuProgress(dialogView: android.view.View, item: ContinueWatchingItem) {
+        val row = dialogView.findViewById<android.view.View>(R.id.row_cw_progress)
+        if (item.totalDuration <= 0L) {
+            row.visibility = android.view.View.GONE
+            return
+        }
+        dialogView.findViewById<android.widget.ProgressBar>(R.id.pb_cw_menu_progress).progress =
+            item.progressPercentage.coerceIn(0, 100)
+        dialogView.findViewById<TextView>(R.id.tv_cw_menu_progress).text = item.formattedProgress
     }
 
     suspend fun openContinueWatchingDetail(item: ContinueWatchingItem) {
