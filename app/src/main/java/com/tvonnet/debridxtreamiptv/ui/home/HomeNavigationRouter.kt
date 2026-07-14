@@ -282,7 +282,7 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
         }
     }
 
-    fun showContinueWatchingActions(item: ContinueWatchingItem) {
+    fun showContinueWatchingActions(item: ContinueWatchingItem, anchor: android.view.View? = null) {
         val frag = fragment ?: return
         if (!frag.isAdded) return
         val dialogView = frag.layoutInflater.inflate(R.layout.view_continue_watching_action_menu, null, false)
@@ -315,7 +315,34 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
         }
 
         dialog.show()
+        anchorDialogToView(dialog, dialogView, anchor)
         openDetailChip.requestFocus()
+    }
+
+    /**
+     * Centre the popup over the tile that opened it (instead of the screen middle), so the
+     * options appear right on the poster the user selected. Clamped to stay on-screen.
+     */
+    private fun anchorDialogToView(dialog: AlertDialog, content: android.view.View, anchor: android.view.View?) {
+        val win = dialog.window ?: return
+        if (anchor == null || anchor.width == 0 || anchor.height == 0) return
+        content.measure(
+            android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED),
+            android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+        )
+        val mw = content.measuredWidth
+        val mh = content.measuredHeight
+        val loc = IntArray(2)
+        anchor.getLocationOnScreen(loc)
+        val dm = anchor.resources.displayMetrics
+        val margin = (12 * dm.density).toInt()
+        val cx = loc[0] + anchor.width / 2
+        val cy = loc[1] + anchor.height / 2
+        win.setGravity(android.view.Gravity.TOP or android.view.Gravity.START)
+        val lp = win.attributes
+        lp.x = (cx - mw / 2).coerceIn(margin, (dm.widthPixels - mw - margin).coerceAtLeast(margin))
+        lp.y = (cy - mh / 2).coerceIn(margin, (dm.heightPixels - mh - margin).coerceAtLeast(margin))
+        win.attributes = lp
     }
 
     /** Fills the resume progress bar + "elapsed / total" label; hides the row if unknown. */

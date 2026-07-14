@@ -19,7 +19,7 @@ class ContinueWatchingAdapter(
     private var items: List<ContinueWatchingItem>,
     private val onItemClick: (ContinueWatchingItem) -> Unit,
     private val onItemFocused: (Int, ContinueWatchingItem) -> Unit = { _, _ -> },
-    private val onItemLongPress: (ContinueWatchingItem) -> Unit = {}
+    private val onItemLongPress: (ContinueWatchingItem, android.view.View) -> Unit = { _, _ -> }
 ) : RecyclerView.Adapter<ContinueWatchingAdapter.ContinueWatchingViewHolder>() {
 
     init {
@@ -109,7 +109,7 @@ class ContinueWatchingAdapter(
             item: ContinueWatchingItem,
             onClick: (ContinueWatchingItem) -> Unit,
             onFocused: (Int, ContinueWatchingItem) -> Unit,
-            onLongPress: (ContinueWatchingItem) -> Unit
+            onLongPress: (ContinueWatchingItem, android.view.View) -> Unit
         ) {
             var suppressNextClick = false
             var longPressHandled = false
@@ -137,7 +137,7 @@ class ContinueWatchingAdapter(
                 if (!longPressHandled) {
                     longPressHandled = true
                     suppressNextClick = true
-                    onLongPress(item)
+                    onLongPress(item, itemView)
                 }
                 true
             }
@@ -153,7 +153,7 @@ class ContinueWatchingAdapter(
                         isSelectKey && !longPressHandled -> {
                         longPressHandled = true
                         suppressNextClick = true
-                        onLongPress(item)
+                        onLongPress(item, itemView)
                         true
                     }
                     event.action == KeyEvent.ACTION_UP && isSelectKey -> {

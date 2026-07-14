@@ -474,7 +474,7 @@ class HomeFragment : Fragment() {
             onItemFocused = { index, _ ->
                 focusManager.rememberContentFocus(HomeContentFocusArea.CONTINUE_WATCHING, index)
             },
-            onItemLongPress = { item -> navigationRouter.showContinueWatchingActions(item) }
+            onItemLongPress = { item, view -> navigationRouter.showContinueWatchingActions(item, view) }
         )
         rvContinueWatching.adapter = continueWatchingAdapter
 
