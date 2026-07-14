@@ -455,21 +455,23 @@
                 android:textStyle="bold"
                 android:letterSpacing="0.16" />
 
+            <!-- Season selector — matched to the Debrid series page (fragment_series_detail.xml):
+                 30dp tall, Outfit 700 12sp, "SEASON n ▾" with dropdown caret. -->
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_season_selector"
                 android:layout_width="wrap_content"
-                android:layout_height="18dp"
-                android:layout_marginStart="10dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="12dp"
                 android:background="@drawable/cin_series_season_btn"
                 android:focusable="true"
                 android:gravity="center"
                 android:minWidth="0dp"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:text="SEASON 1"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:text="SEASON 1 ▾"
                 android:textAllCaps="false"
                 android:textColor="#00F0FF"
-                android:textSize="7sp"
+                android:textSize="12sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.06" />
 

@@ -356,7 +356,8 @@ class SeriesDetailFragmentV2 : Fragment() {
     // ── Season selector ────────────────────────────────────────────────────────
 
     private fun updateSeasonButton(selected: Int?) {
-        binding.btnSeasonSelector.text = "SEASON ${selected ?: currentSeasons.firstOrNull()?.seasonNum ?: 1}"
+        // Caret matches the Debrid series page (SeriesDetailActivity: "SEASON n ▾").
+        binding.btnSeasonSelector.text = "SEASON ${selected ?: currentSeasons.firstOrNull()?.seasonNum ?: 1} ▾"
     }
 
     private fun showSeasonPopup() {
