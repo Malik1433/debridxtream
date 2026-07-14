@@ -62,29 +62,36 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Actions mode: quick options (long-press) — replaces the info block -->
+    <!-- Actions mode: quick options (long-press) — replaces the info block.
+         Two compact chips side by side, split evenly to fit the bubble width. -->
     <LinearLayout
         android:id="@+id/qi_actions"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         android:clipChildren="false"
         android:clipToPadding="false"
         android:visibility="gone">
 
         <TextView
             android:id="@+id/qi_open"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
+            android:layout_weight="1"
             android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
             android:background="@drawable/bg_cw_chip_primary"
             android:focusable="true"
             android:focusableInTouchMode="true"
             android:gravity="center"
-            android:minHeight="21dp"
+            android:minHeight="20dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
             android:paddingTop="3dp"
             android:paddingBottom="3dp"
+            android:singleLine="true"
+            android:ellipsize="end"
             android:stateListAnimator="@animator/cw_chip_focus"
-            android:text="Open Detail"
+            android:text="Details"
             android:textAllCaps="false"
             android:textColor="@color/cw_chip_primary_text"
             android:textSize="7.5sp"
@@ -92,16 +99,20 @@
 
         <TextView
             android:id="@+id/qi_remove"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
+            android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
             android:background="@drawable/bg_cw_chip_secondary"
             android:focusable="true"
             android:focusableInTouchMode="true"
             android:gravity="center"
-            android:minHeight="21dp"
+            android:minHeight="20dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
             android:paddingTop="3dp"
             android:paddingBottom="3dp"
+            android:singleLine="true"
+            android:ellipsize="end"
             android:stateListAnimator="@animator/cw_chip_focus"
             android:text="Remove"
             android:textAllCaps="false"
