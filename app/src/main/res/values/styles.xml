@@ -51,4 +51,17 @@
         <item name="android:windowExitAnimation">@anim/panel_slide_out_right</item>
     </style>
 
+    <!-- Compact context-menu dialog: kills AlertDialog's default ~65%-of-screen minimum
+         width so the menu wraps tightly to its content instead of filling half the screen. -->
+    <style name="CwActionMenuDialog" parent="Theme.AppCompat.Dialog">
+        <item name="android:windowMinWidthMajor">0dp</item>
+        <item name="android:windowMinWidthMinor">0dp</item>
+        <item name="windowMinWidthMajor">0dp</item>
+        <item name="windowMinWidthMinor">0dp</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:backgroundDimAmount">0.45</item>
+    </style>
+
 </resources>

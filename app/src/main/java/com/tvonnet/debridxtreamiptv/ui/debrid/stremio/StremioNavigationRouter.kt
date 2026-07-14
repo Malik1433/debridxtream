@@ -167,7 +167,7 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
         val openDetailChip = dialogView.findViewById<android.view.View>(R.id.chip_cw_open_detail)
         val clearStatusChip = dialogView.findViewById<android.view.View>(R.id.chip_cw_clear_status)
 
-        val dialog = AlertDialog.Builder(frag.requireContext()).setView(dialogView).create()
+        val dialog = AlertDialog.Builder(frag.requireContext(), R.style.CwActionMenuDialog).setView(dialogView).create()
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         dialog.window?.setLayout(
             WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT

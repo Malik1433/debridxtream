@@ -292,7 +292,7 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
         val openDetailChip = dialogView.findViewById<android.view.View>(R.id.chip_cw_open_detail)
         val clearStatusChip = dialogView.findViewById<android.view.View>(R.id.chip_cw_clear_status)
 
-        val dialog = AlertDialog.Builder(frag.requireContext())
+        val dialog = AlertDialog.Builder(frag.requireContext(), R.style.CwActionMenuDialog)
             .setView(dialogView)
             .create()
 
