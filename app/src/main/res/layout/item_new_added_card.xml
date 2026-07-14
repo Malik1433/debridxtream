@@ -5,12 +5,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/card_container"
-    android:layout_width="110dp"
-    android:layout_height="160dp"
+    android:layout_width="@dimen/poster_top_10_width"
+    android:layout_height="@dimen/poster_top_10_height"
     android:layout_marginEnd="12dp"
     android:focusable="true"
     android:clickable="true"
     android:background="@drawable/glass_card_selector"
+    android:foreground="@drawable/card_focus_cinematic"
     android:elevation="8dp">
 
     <!-- Subtle Glass Overlay - MI IPTV Style (10% white) -->

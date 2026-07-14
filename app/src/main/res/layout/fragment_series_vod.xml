@@ -474,12 +474,13 @@
                         android:letterSpacing="0.05" />
                 </LinearLayout>
 
-                <!-- Right: column toggle -->
+                <!-- Right: column toggle (removed — posters now use one fixed home size) -->
                 <LinearLayout
                     android:id="@+id/ll_col_toggle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
+                    android:visibility="gone"
                     android:gravity="center_vertical">
 
                     <TextView

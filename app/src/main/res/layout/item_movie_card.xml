@@ -33,11 +33,11 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintDimensionRatio="2:3"
-        app:cardCornerRadius="8dp"
+        app:cardCornerRadius="4dp"
         app:cardElevation="0dp"
         android:duplicateParentState="true"
         android:foreground="@drawable/card_focus_cinematic"
-        app:cardBackgroundColor="#0C1119">
+        app:cardBackgroundColor="@color/card_background">
 
         <!-- Poster Image -->
         <ImageView

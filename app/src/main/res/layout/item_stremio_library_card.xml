@@ -2,13 +2,13 @@
 <!-- Library card: 150x224 px / 2 = 75 x 112 dp, radius 10px/2=5dp -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/lib_card"
-    android:layout_width="75dp"
-    android:layout_height="112dp"
+    android:layout_width="@dimen/poster_top_10_width"
+    android:layout_height="@dimen/poster_top_10_height"
     android:layout_marginEnd="6dp"
     android:layout_marginBottom="6dp"
     android:focusable="true"
     android:clipChildren="true"
-    android:foreground="@drawable/stremio_grid_focus_fg">
+    android:foreground="@drawable/card_focus_cinematic">
 
     <ImageView
         android:id="@+id/lib_image"

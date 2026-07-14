@@ -159,7 +159,6 @@ class SeriesFragment : Fragment() {
         setupRecyclerViews()
         setupGenrePills()
         setupSortChips()
-        setupColumnToggle()
         setupSearch()
         setupDpadNavigation()
         setupLoadStateListener()
@@ -245,6 +244,34 @@ class SeriesFragment : Fragment() {
 
         com.tvonnet.debridxtreamiptv.utils.FocusTrapHelper.attachFocusTrap(rvCategoriesSidebar, loopFocus = true)
         com.tvonnet.debridxtreamiptv.utils.SpatialNavigationEngine.enforceStrictOrthogonalNavigation(rvSeriesGrid)
+        applyAutoSpanCount()
+    }
+
+    /**
+     * Column count derived from the grid width so every poster renders at the shared home
+     * size (~128dp wide) — one consistent look instead of a user-selectable 4/5/6 grid.
+     */
+    private fun applyAutoSpanCount() {
+        rvSeriesGrid.post {
+            if (!isAdded) return@post
+            val w = rvSeriesGrid.width
+            if (w <= 0) return@post
+            val density = resources.displayMetrics.density
+            val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_medium)
+            val targetCell = (resources.getDimensionPixelSize(R.dimen.poster_top_10_width) + spacingPx)
+                .coerceAtLeast((100 * density).toInt())
+            val span = (w / targetCell).coerceIn(2, 8)
+            val lm = rvSeriesGrid.layoutManager as? GridLayoutManager ?: return@post
+            if (lm.spanCount != span) {
+                lm.spanCount = span
+                gridColumnCount = span
+                while (rvSeriesGrid.itemDecorationCount > 0) rvSeriesGrid.removeItemDecorationAt(0)
+                rvSeriesGrid.addItemDecoration(
+                    com.tvonnet.debridxtreamiptv.utils.GridSpacingItemDecoration(span, spacingPx, true)
+                )
+                rvSeriesGrid.adapter?.notifyItemRangeChanged(0, rvSeriesGrid.adapter?.itemCount ?: 0)
+            }
+        }
     }
 
     private fun setupGenrePills() {

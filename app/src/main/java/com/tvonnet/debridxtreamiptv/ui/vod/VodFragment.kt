@@ -190,7 +190,6 @@ class VodFragment : Fragment() {
         restoreSavedState(savedInstanceState)
         setupRecyclerViews()
         setupSortChips()
-        setupColumnToggle()
         setupSearch()
         setupDpadNavigation()
         setupLoadStateListener()
@@ -280,6 +279,35 @@ class VodFragment : Fragment() {
 
         com.tvonnet.debridxtreamiptv.utils.FocusTrapHelper.attachFocusTrap(rvCategoriesSidebar, loopFocus = true)
         com.tvonnet.debridxtreamiptv.utils.SpatialNavigationEngine.enforceStrictOrthogonalNavigation(rvMoviesGrid)
+        applyAutoSpanCount()
+    }
+
+    /**
+     * Column count is derived from the grid width so every poster renders at the shared
+     * home size (~128dp wide), giving one consistent look across the app instead of a
+     * user-selectable 4/5/6 grid.
+     */
+    private fun applyAutoSpanCount() {
+        rvMoviesGrid.post {
+            if (!isAdded) return@post
+            val w = rvMoviesGrid.width
+            if (w <= 0) return@post
+            val density = resources.displayMetrics.density
+            val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_medium)
+            val targetCell = (resources.getDimensionPixelSize(R.dimen.poster_top_10_width) + spacingPx)
+                .coerceAtLeast((100 * density).toInt())
+            val span = (w / targetCell).coerceIn(2, 8)
+            val lm = rvMoviesGrid.layoutManager as? GridLayoutManager ?: return@post
+            if (lm.spanCount != span) {
+                lm.spanCount = span
+                gridColumnCount = span
+                while (rvMoviesGrid.itemDecorationCount > 0) rvMoviesGrid.removeItemDecorationAt(0)
+                rvMoviesGrid.addItemDecoration(
+                    com.tvonnet.debridxtreamiptv.utils.GridSpacingItemDecoration(span, spacingPx, true)
+                )
+                rvMoviesGrid.adapter?.notifyItemRangeChanged(0, rvMoviesGrid.adapter?.itemCount ?: 0)
+            }
+        }
     }
 
     private fun setupSortChips() {
@@ -304,13 +332,13 @@ class VodFragment : Fragment() {
                     updateSortChipStyle(v as TextView, sortModes[index] == activeSortMode)
                 }
             }
-            // DOWN from a sort chip steps into the column-toggle row (LEFT/RIGHT keep the
-            // default horizontal traversal across chips). Ladder: chips → column toggle → grid.
+            // DOWN from a sort chip steps straight into the grid (the column toggle was
+            // removed; posters are a fixed home size now). LEFT/RIGHT traverse the chips.
             chip.setOnKeyListener { _, keyCode, event ->
                 if (event.action == android.view.KeyEvent.ACTION_DOWN &&
                     keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN
                 ) {
-                    focusColumnToggleRow()
+                    focusGridTop()
                     true
                 } else false
             }
@@ -497,7 +525,7 @@ class VodFragment : Fragment() {
 
     private fun focusSortChipsRow() {
         val chip = llSortChips.getChildAt(0)
-        if (chip != null) chip.post { if (isAdded) chip.requestFocus() } else focusColumnToggleRow()
+        if (chip != null) chip.post { if (isAdded) chip.requestFocus() } else focusGridTop()
     }
 
     /** Return focus to the grid from a control row — the first on-screen card, else the grid itself. */
@@ -520,12 +548,9 @@ class VodFragment : Fragment() {
 
             when (keyCode) {
                 android.view.KeyEvent.KEYCODE_DPAD_UP -> {
-                    // Top row → the control cluster above the grid. Previously this was a
-                    // no-op (returned true, moved nothing), leaving the sort chips AND the
-                    // column toggle unreachable by remote. Land on the column-toggle row
-                    // (directly above); UP again from there reaches the sort chips.
+                    // Top row → the sort chips above the grid (column toggle removed).
                     if (position < gridColumnCount) {
-                        focusColumnToggleRow()
+                        focusSortChipsRow()
                         true
                     } else false
                 }
