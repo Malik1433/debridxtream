@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cinematic loader scrim: darkens the top/bottom edges so the zooming title reads
+     clearly over the backdrop, keeping the centre a touch more visible. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:startColor="#D8050709"
+        android:centerColor="#66050709"
+        android:endColor="#D8050709"
+        android:angle="90" />
+</shape>

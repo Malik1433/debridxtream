@@ -314,6 +314,8 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun showReconnectingBannerNow() {
+        // While the cinematic loader is up, keep the screen clean (no reconnect noise).
+        if (layoutDebridResolving?.isVisible == true) return
         val banner = reconnectingBanner ?: return
         val n = reconnectAttemptTimestamps.size.coerceAtLeast(1)
         reconnectingBannerText?.text =
@@ -402,6 +404,8 @@ class PlayerActivity : AppCompatActivity() {
     private var layoutSupportQr: View? = null
     private var layoutDebridResolving: View? = null
     private var tvResolvingStatus: TextView? = null
+    private var ivResolvingBg: ImageView? = null
+    private var resolvingPulse: android.animation.ObjectAnimator? = null
     private var imgSupportQr: ImageView? = null
     private val stallHandler = Handler(Looper.getMainLooper())
     private var lastBoundPosition = 0L
@@ -701,6 +705,7 @@ class PlayerActivity : AppCompatActivity() {
         playerView = findViewById(R.id.player_view)
         layoutDebridResolving = findViewById(R.id.layout_debrid_resolving)
         tvResolvingStatus = findViewById(R.id.tv_resolving_status)
+        ivResolvingBg = findViewById(R.id.iv_resolving_bg)
         layoutDebugOverlay = findViewById(R.id.layout_debug_overlay)
         tvDebugInfo = findViewById(R.id.tv_debug_info)
         reconnectingBanner = findViewById(R.id.reconnecting_banner)
@@ -2404,6 +2409,8 @@ class PlayerActivity : AppCompatActivity() {
                         // reconnect budget (fix 2) and retire the banner (fix 3).
                         resetReconnectBudget()
                         hideReconnectingBanner()
+                        // First playable frame — dissolve the cinematic loader to reveal video.
+                        hideCinematicLoader()
                         lastBufferingStartMs = 0L
                         lastDirectAddonProxyTimeoutContext = null
                         lastDirectAddonProxyServerErrorContext = null
@@ -2714,7 +2721,7 @@ class PlayerActivity : AppCompatActivity() {
                   )
                   return
             }
-            showToast("Retrying... ($retryCount/$maxRetries)")
+            if (layoutDebridResolving?.isVisible != true) showToast("Retrying... ($retryCount/$maxRetries)")
             if (contentType != ContentType.LIVE_TV && player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
             PlaybackDiagnosticsRecorder.record(
                 this,
@@ -2976,7 +2983,7 @@ class PlayerActivity : AppCompatActivity() {
                       viewModel.reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
                       return
                 }
-                showToast("Connection timeout, retrying...")
+                if (layoutDebridResolving?.isVisible != true) showToast("Connection timeout, retrying...")
                 // Live first retry: light in-place re-prepare on the SAME engine
                 // (the proven ENDED/freeze recovery path) instead of the heavy
                 // release → 2s wait → full re-init. The player instance is healthy —
@@ -3266,7 +3273,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun stopStallMonitor() = stallHandler.removeCallbacks(stallRunnable)
 
-    override fun onDestroy() { super.onDestroy(); dismissActiveTrackDialog(); liveOsd?.release(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_destroy"); PlaybackDiagnosticsRecorder.finishSession(this, "activity_destroyed") }
+    override fun onDestroy() { super.onDestroy(); resolvingPulse?.cancel(); resolvingPulse = null; dismissActiveTrackDialog(); liveOsd?.release(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_destroy"); PlaybackDiagnosticsRecorder.finishSession(this, "activity_destroyed") }
 
     private fun resolveTimeoutMs(url: String): Long = when {
         url.lowercase().contains("mediafusion.elfhosted.com") -> MEDIAFUSION_TIMEOUT_MS
@@ -3721,13 +3728,73 @@ class PlayerActivity : AppCompatActivity() {
         pause?.isVisible = isPlaying
     }
 
+    /**
+     * Stremio-style cinematic loader: shows the backdrop/poster behind the zooming title
+     * with only a subtle progress hint, hiding the technical resolve/retry noise. Stays up
+     * until the first video frame renders (STATE_READY) or a terminal failure surfaces.
+     */
+    private fun showCinematicLoader() {
+        val overlay = layoutDebridResolving ?: return
+        val rawTitle = seriesTitleExtra?.takeIf { it.isNotBlank() } ?: originalTitle
+        tvResolvingStatus?.text = cleanLoaderTitle(rawTitle)
+        val bg = backdropUrlExtra?.takeIf { it.isNotBlank() } ?: posterUrlExtra?.takeIf { it.isNotBlank() }
+        ivResolvingBg?.let { iv ->
+            if (bg != null) Glide.with(iv).load(bg).centerCrop().into(iv) else iv.setImageDrawable(null)
+        }
+        overlay.isVisible = true
+        overlay.alpha = 1f
+        tvResolvingStatus?.let { t ->
+            resolvingPulse?.cancel()
+            t.scaleX = 1f; t.scaleY = 1f
+            resolvingPulse = android.animation.ObjectAnimator.ofPropertyValuesHolder(
+                t,
+                android.animation.PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.06f),
+                android.animation.PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.06f)
+            ).apply {
+                duration = 1300
+                repeatCount = android.animation.ValueAnimator.INFINITE
+                repeatMode = android.animation.ValueAnimator.REVERSE
+                interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                start()
+            }
+        }
+        hideReconnectingBanner()
+    }
+
+    /**
+     * A clean display title for the loader. Strips site/pipe tags (MediaTitleCleaner) then
+     * turns a scene release filename ("Backrooms.2026.MULTi.720p.HDTS...") into the plain
+     * movie/series name ("Backrooms") by cutting at the first year / quality / codec token.
+     */
+    private fun cleanLoaderTitle(raw: String?): String {
+        val base = com.tvonnet.debridxtreamiptv.util.MediaTitleCleaner.clean(raw).ifBlank { raw ?: "" }
+        if (base.isBlank()) return "Loading"
+        var t = base.replace('.', ' ').replace('_', ' ').trim()
+        val cut = Regex(
+            "(?i)[\\s(\\[]+((19|20)\\d{2}|720p|1080p|2160p|480p|4k|web[- ]?dl|webrip|web|bluray|blu-ray|brrip|hdrip|hdts|hdcam|cam|dvdrip|multi|dual|x264|x265|h264|h265|hevc|aac|ac3|dd5|dts|remux|s\\d{1,2}e\\d{1,2})\\b"
+        ).find(t)
+        if (cut != null && cut.range.first >= 2) t = t.substring(0, cut.range.first).trim()
+        return t.trim(' ', '-', '·', ':').ifBlank { base }
+    }
+
+    private fun hideCinematicLoader() {
+        resolvingPulse?.cancel(); resolvingPulse = null
+        val overlay = layoutDebridResolving ?: return
+        if (!overlay.isVisible) return
+        overlay.animate().alpha(0f).setDuration(220).withEndAction {
+            overlay.isVisible = false
+            overlay.alpha = 1f
+        }.start()
+    }
+
     private fun observeDebridResolutionState() {
         lifecycleScope.launch {
             viewModel.debridResolutionState.collect { state ->
                 when (state) {
-                    is DebridResolutionState.Loading -> { layoutDebridResolving?.isVisible = true; tvResolvingStatus?.text = "Resolving source via Debrid..." }
+                    is DebridResolutionState.Loading -> { isResolvingDebrid = true; showCinematicLoader() }
                     is DebridResolutionState.Success -> {
-                        layoutDebridResolving?.isVisible = false; isResolvingDebrid = false
+                        // Keep the loader up through buffering; STATE_READY hides it on first frame.
+                        isResolvingDebrid = false
                         directDebridPlayback = state.directDebridPlayback
                         streamHeaders = state.headers
                         applyDebridSourceProfile(state.sourceProfile)
@@ -3749,11 +3816,11 @@ class PlayerActivity : AppCompatActivity() {
                         }
                     }
                     is DebridResolutionState.Error -> {
-                        layoutDebridResolving?.isVisible = false
+                        hideCinematicLoader()
                         isResolvingDebrid = false
                         handleTerminalPlaybackFailure("Failed: ${state.message}")
                     }
-                    is DebridResolutionState.Idle -> { layoutDebridResolving?.isVisible = false; isResolvingDebrid = false }
+                    is DebridResolutionState.Idle -> { hideCinematicLoader(); isResolvingDebrid = false }
                 }
             }
         }

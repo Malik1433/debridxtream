@@ -140,31 +140,63 @@
             android:layout_marginTop="16dp" />
     </LinearLayout>
 
-    <!-- Debrid Resolving Overlay (Phase 2.1) -->
-    <LinearLayout
+    <!-- Cinematic loading overlay (Stremio-style): backdrop behind, zooming title,
+         a subtle progress hint. Technical resolve/retry noise is hidden. -->
+    <FrameLayout
         android:id="@+id/layout_debrid_resolving"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:background="@drawable/glass_card_focused"
-        android:padding="24dp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#050709"
         android:visibility="gone">
-        <ProgressBar
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:indeterminateTint="@color/gold_primary" />
-        <TextView
-            android:id="@+id/tv_resolving_status"
+
+        <ImageView
+            android:id="@+id/iv_resolving_bg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:alpha="0.42" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/cin_resolving_scrim" />
+
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="Resolving..."
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingStart="48dp"
+            android:paddingEnd="48dp">
+
+            <TextView
+                android:id="@+id/tv_resolving_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:text=""
+                android:textColor="#F4FBFF"
+                android:textSize="30sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:shadowColor="#8000F0FF"
+                android:shadowDx="0"
+                android:shadowDy="0"
+                android:shadowRadius="26" />
+
+            <ProgressBar
+                android:id="@+id/pb_resolving_hint"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="140dp"
+                android:layout_height="3dp"
+                android:layout_marginTop="22dp"
+                android:indeterminate="true"
+                android:indeterminateTint="#00F0FF" />
+        </LinearLayout>
+    </FrameLayout>
     <!-- Debug Overlay (Netflix Style) -->
     <include layout="@layout/debug_overlay" />
 
