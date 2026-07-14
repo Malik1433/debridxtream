@@ -152,8 +152,9 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
         val frag = fragment ?: return
         if (!frag.isAdded) return
         val dialogView = frag.layoutInflater.inflate(R.layout.view_continue_watching_action_menu, null, false)
+        val rawTitle = item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title
         dialogView.findViewById<TextView>(R.id.tv_cw_menu_title).text =
-            item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title
+            com.tvonnet.debridxtreamiptv.util.MediaTitleCleaner.clean(rawTitle).ifBlank { rawTitle }
         run {
             val row = dialogView.findViewById<android.view.View>(R.id.row_cw_progress)
             if (item.totalDuration <= 0L) {

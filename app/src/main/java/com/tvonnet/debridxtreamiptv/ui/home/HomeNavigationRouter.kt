@@ -286,8 +286,9 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
         val frag = fragment ?: return
         if (!frag.isAdded) return
         val dialogView = frag.layoutInflater.inflate(R.layout.view_continue_watching_action_menu, null, false)
+        val rawTitle = item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title
         dialogView.findViewById<TextView>(R.id.tv_cw_menu_title).text =
-            item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title
+            com.tvonnet.debridxtreamiptv.util.MediaTitleCleaner.clean(rawTitle).ifBlank { rawTitle }
         bindCwMenuProgress(dialogView, item)
         val openDetailChip = dialogView.findViewById<android.view.View>(R.id.chip_cw_open_detail)
         val clearStatusChip = dialogView.findViewById<android.view.View>(R.id.chip_cw_clear_status)
