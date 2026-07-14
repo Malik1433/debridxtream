@@ -147,9 +147,9 @@ class MovieDetailActivity : AppCompatActivity() {
     private val watchHistoryPrefs by lazy { WatchHistoryPreferences(this) }
     private var hasResumePosition: Boolean = false
     private var resumePositionMs: Long = 0L
-    // Info-hash of the last-played Debrid source for this movie, so pressing "Resume"
-    // can re-resolve that exact source and seek — instead of reopening the picker.
-    private var resumeDebridInfoHash: String? = null
+    // The saved Continue-Watching entry for this movie, so pressing "Resume" can relaunch
+    // the exact same (Debrid) source and seek — instead of reopening the source picker.
+    private var resumeCwItem: com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem? = null
 
     // Movie data
     private var movieId: String? = null
@@ -588,7 +588,7 @@ class MovieDetailActivity : AppCompatActivity() {
 
         hasResumePosition = resumeItem != null && position > 0L && progress in 1..99
         resumePositionMs = if (hasResumePosition) position else 0L
-        resumeDebridInfoHash = if (hasResumePosition) resumeItem?.debridInfoHash?.takeIf { it.isNotBlank() } else null
+        resumeCwItem = if (hasResumePosition) resumeItem else null
         if (hasResumePosition) {
             tvResumeElapsed.text = "RESUME FROM ${formatResumeTime(position)}"
             tvResumeRemaining.text = "${formatResumeTime(duration - position)} LEFT"
@@ -995,12 +995,12 @@ class MovieDetailActivity : AppCompatActivity() {
     private fun setupClickListeners() {
         btnPlay.setOnClickListener {
             if (movieCategoryId == "debrid") {
-                val infoHash = resumeDebridInfoHash
-                if (hasResumePosition && infoHash != null) {
-                    // One-tap resume: re-resolve the same Debrid source and seek to the
-                    // saved position, matching the home-screen Continue Watching behaviour
-                    // instead of reopening the source picker.
-                    handleDebridHistoryItem(infoHash)
+                val item = resumeCwItem
+                if (hasResumePosition && item != null && canResumeDebridDirectly(item)) {
+                    // One-tap resume: relaunch the exact source (stored URL / info-hash /
+                    // magnet) and seek to the saved position — matching the home-screen
+                    // Continue Watching behaviour instead of reopening the source picker.
+                    resumeDebridMovieDirectly(item)
                 } else {
                     showDebridSourcePicker()
                 }
@@ -1708,6 +1708,71 @@ class MovieDetailActivity : AppCompatActivity() {
             DebridFailureType.UNKNOWN,
             null -> false
         }
+    }
+
+    /**
+     * Whether a saved Debrid movie can be resumed straight into the player (mirrors the
+     * home-screen Continue-Watching decision). True when we have a still-valid stored URL,
+     * a resolvable info-hash/magnet, or a direct-Debrid item we can fresh-resolve by id.
+     */
+    private fun canResumeDebridDirectly(
+        item: com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem
+    ): Boolean {
+        // A stored URL is enough — the player replays it and refreshes from metadata if
+        // it turns out stale, so we don't gate on the coarse Debrid "expired" heuristic.
+        val hasStreamUrl = !item.streamUrl.isNullOrBlank()
+        val hasResolutionInfo = !item.debridInfoHash.isNullOrBlank() || !item.debridMagnet.isNullOrBlank()
+        val canFreshResolveDirect = item.directDebridPlayback &&
+            !item.contentId.isNullOrBlank() &&
+            !item.title.isNullOrBlank()
+        return hasStreamUrl || hasResolutionInfo || canFreshResolveDirect
+    }
+
+    /**
+     * Relaunch the exact source saved for this Debrid movie and seek to the saved
+     * position. Passes every stored Debrid field to the player (URL / info-hash / magnet /
+     * direct-playback), exactly like the home-screen resume path, so the player can replay
+     * or fresh-resolve as needed — no source picker.
+     */
+    private fun resumeDebridMovieDirectly(
+        item: com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem
+    ) {
+        val hasResolutionInfo = !item.debridInfoHash.isNullOrBlank() || !item.debridMagnet.isNullOrBlank()
+        // Prefer replaying the stored (re-resolvable) direct URL — most Debrid movie
+        // sources are proxy links the player can reopen and, if stale, refresh from
+        // metadata. Only hand the player an empty URL when we have an info-hash/magnet
+        // it can freshly resolve instead.
+        val resumeUrl = when {
+            !item.streamUrl.isNullOrBlank() -> item.streamUrl!!
+            hasResolutionInfo -> ""
+            else -> ""
+        }
+        val intent = PlayerActivity.createIntent(
+            context = this,
+            streamUrl = resumeUrl,
+            title = item.title,
+            startPositionMs = item.currentPosition,
+            contentId = item.tmdbId?.takeIf { it.isNotBlank() } ?: item.contentId,
+            contentType = ContentType.MOVIE,
+            playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
+            posterUrl = item.posterUrl,
+            backdropUrl = item.backdropUrl,
+            tmdbId = item.tmdbId,
+            imdbId = item.imdbId,
+            debridInfoHash = item.debridInfoHash,
+            debridMagnet = item.debridMagnet,
+            directDebridPlayback = item.directDebridPlayback,
+            debridProvider = item.debridProvider,
+            debridSourceType = item.debridSourceType,
+            debridSourceName = item.debridSourceName,
+            debridLanguages = item.debridLanguages,
+            debridQuality = item.debridQuality,
+            debridStreamId = item.debridStreamId,
+            debridBingeGroup = item.debridBingeGroup,
+            debridFileIdx = item.debridFileIdx,
+            expiresAt = item.expiresAt
+        )
+        startActivity(intent)
     }
 
     private fun handleDebridHistoryItem(infoHash: String) {
