@@ -10,10 +10,10 @@
     android:elevation="14dp"
     android:gravity="center_horizontal"
     android:orientation="vertical"
-    android:paddingStart="11dp"
-    android:paddingTop="9dp"
-    android:paddingEnd="11dp"
-    android:paddingBottom="10dp">
+    android:paddingStart="14dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="14dp"
+    android:paddingBottom="9dp">
 
     <!-- Title -->
     <TextView
@@ -23,9 +23,9 @@
         android:ellipsize="end"
         android:gravity="center"
         android:maxLines="1"
-        android:maxWidth="150dp"
+        android:maxWidth="132dp"
         android:textColor="#F2F9FF"
-        android:textSize="10sp"
+        android:textSize="9.5sp"
         android:textStyle="bold"
         tools:text="Ne Zha" />
 
@@ -64,21 +64,21 @@
             android:id="@+id/chip_cw_open_detail"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="7dp"
+            android:layout_marginEnd="6dp"
             android:background="@drawable/bg_cw_chip_primary"
             android:focusable="true"
             android:focusableInTouchMode="true"
             android:gravity="center"
-            android:minHeight="27dp"
-            android:paddingStart="11dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="11dp"
-            android:paddingBottom="4dp"
+            android:minHeight="23dp"
+            android:paddingStart="9dp"
+            android:paddingTop="3dp"
+            android:paddingEnd="9dp"
+            android:paddingBottom="3dp"
             android:stateListAnimator="@animator/cw_chip_focus"
             android:text="Open Detail"
             android:textAllCaps="false"
             android:textColor="@color/cw_chip_primary_text"
-            android:textSize="10sp"
+            android:textSize="9.5sp"
             android:textStyle="bold" />
 
         <TextView
@@ -89,16 +89,16 @@
             android:focusable="true"
             android:focusableInTouchMode="true"
             android:gravity="center"
-            android:minHeight="27dp"
-            android:paddingStart="11dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="11dp"
-            android:paddingBottom="4dp"
+            android:minHeight="23dp"
+            android:paddingStart="9dp"
+            android:paddingTop="3dp"
+            android:paddingEnd="9dp"
+            android:paddingBottom="3dp"
             android:stateListAnimator="@animator/cw_chip_focus"
             android:text="Remove"
             android:textAllCaps="false"
             android:textColor="@color/cw_chip_secondary_text"
-            android:textSize="10sp"
+            android:textSize="9.5sp"
             android:textStyle="bold" />
     </LinearLayout>
 
