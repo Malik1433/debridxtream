@@ -61,6 +61,37 @@ class PlayerHistoryManager(
         }
     }
 
+    /**
+     * Crash-safe periodic progress snapshot (world-standard behaviour: streaming apps
+     * persist position every few seconds so a crash/power-cut loses almost nothing).
+     *
+     * Unlike [recordPlaybackHistoryIfNeeded] this NEVER latches [PlayerActivity.hasRecordedHistory]
+     * and has no removal side effects — it only refreshes the Continue Watching entry and
+     * the watched-state progress row. Tiny progress and completed content are left for the
+     * exit-time decision logic.
+     */
+    fun saveProgressSnapshot() {
+        if (activity.hasRecordedHistory) return
+        val type = activity.contentType ?: return
+        if (type == ContentType.LIVE_TV) return
+        val id = activity.contentId ?: activity.currentUrl ?: return
+        val p = activity.player ?: return
+        val dur = p.duration
+        if (dur <= 0 || dur == C.TIME_UNSET || dur < MIN_DURATION_TO_TRACK_MS) return
+        val pos = p.currentPosition
+        if (shouldIgnoreTinyProgress(pos, dur)) return
+        val isWatched = when (type) {
+            ContentType.MOVIE -> isMovieWatchedThreshold(pos, dur)
+            ContentType.EPISODE, ContentType.SERIES -> isEpisodeWatchedThreshold(pos, dur)
+            else -> false
+        }
+        if (isWatched) return // completion handling belongs to the exit path
+        val now = System.currentTimeMillis()
+        val item = buildContinueWatchingItem(id, type, pos, dur, now)
+        watchHistoryPrefs.saveContinueWatchingItem(item)
+        recordAutomaticWatchedState(type, id, item, pos, dur, isWatched = false, timestamp = now)
+    }
+
     private fun recordLiveHistory(channelId: String) {
         val logoToSave = activity.channelLogoUrl ?: activity.posterUrlExtra
         val absoluteLogo = logoToSave.toAbsoluteUrl(ContentType.LIVE_TV, activity.baseServerUrl)

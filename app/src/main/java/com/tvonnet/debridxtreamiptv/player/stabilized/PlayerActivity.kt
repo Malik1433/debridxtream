@@ -143,6 +143,19 @@ class PlayerActivity : AppCompatActivity() {
     private val retryHandler = Handler(Looper.getMainLooper())
     private var frameRateMatchedForCurrentSource = false
 
+    // ── crash-safe progress heartbeat (VOD) ─────────────────────────────────
+    // Streaming-app standard: persist the playback position every ~30s while
+    // playing so a crash / power cut / system kill loses at most one interval.
+    private val progressSaveHandler = Handler(Looper.getMainLooper())
+    private val progressSaveRunnable = object : Runnable {
+        override fun run() {
+            if (player?.isPlaying == true && contentType != ContentType.LIVE_TV) {
+                historyManager.saveProgressSnapshot()
+            }
+            progressSaveHandler.postDelayed(this, PROGRESS_SAVE_INTERVAL_MS)
+        }
+    }
+
     // ── progress-aware buffering watchdog (live) ────────────────────────────
     // Baseline bufferedPosition captured when the timeout watchdog is (re)armed;
     // handleTimeout extends the window while the buffer keeps growing.
@@ -516,6 +529,7 @@ class PlayerActivity : AppCompatActivity() {
         const val EXTRA_LIVE_RETURN_STREAM_URL = "LIVE_RETURN_STREAM_URL"
         const val EXTRA_LIVE_RETURN_CATEGORY_ID = "LIVE_RETURN_CATEGORY_ID"
         private const val TIMEOUT_MS = 25000L
+        private const val PROGRESS_SAVE_INTERVAL_MS = 30_000L
         private const val MEDIAFUSION_TIMEOUT_MS = 35000L
         // Live viewers zap away from dead streams fast — detect failure fast too.
         private const val LIVE_TIMEOUT_MS = 12000L
@@ -3079,9 +3093,9 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     override fun onResume() { super.onResume(); startDebugOverlay(); if (player == null) currentUrl?.let { initializePlayer(it) } else startStallMonitor() }
-    override fun onStart() { super.onStart(); registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() }; if (seekOverlay != null) { seekOverlayHandler.removeCallbacks(seekOverlayRunnable); seekOverlayHandler.post(seekOverlayRunnable) } }
-    override fun onPause() { super.onPause(); player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
-    override fun onStop() { super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); seekOverlayHandler.removeCallbacks(seekOverlayRunnable); unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_stop") }
+    override fun onStart() { super.onStart(); registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() }; if (seekOverlay != null) { seekOverlayHandler.removeCallbacks(seekOverlayRunnable); seekOverlayHandler.post(seekOverlayRunnable) }; progressSaveHandler.removeCallbacks(progressSaveRunnable); progressSaveHandler.postDelayed(progressSaveRunnable, PROGRESS_SAVE_INTERVAL_MS) }
+    override fun onPause() { super.onPause(); if (::historyManager.isInitialized) historyManager.saveProgressSnapshot(); player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
+    override fun onStop() { super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); seekOverlayHandler.removeCallbacks(seekOverlayRunnable); progressSaveHandler.removeCallbacks(progressSaveRunnable); unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_stop") }
 
     /**
      * Live TV sessions launched from the EPG guide share one ExoPlayer with the
@@ -3585,7 +3599,10 @@ class PlayerActivity : AppCompatActivity() {
         } catch (e: Exception) { showToast("PiP failed") }
     }
 
-    private fun hideUiForPiP() { playerView.hideController(); if (::episodeBrowserController.isInitialized) episodeBrowserController.hide(); playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false; toggleXRayPanel(false); epgOverlay?.isVisible = false; vodInfoOverlay?.isVisible = false; liveOsd?.hideForPip(); supportActionBar?.hide(); historyManager.recordPlaybackHistoryIfNeeded() }
+    // NOTE: snapshot (non-latching) — the old recordPlaybackHistoryIfNeeded() here latched
+    // hasRecordedHistory on PiP entry, so everything watched IN PiP was never saved and
+    // resume went back to the PiP-entry position.
+    private fun hideUiForPiP() { playerView.hideController(); if (::episodeBrowserController.isInitialized) episodeBrowserController.hide(); playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false; toggleXRayPanel(false); epgOverlay?.isVisible = false; vodInfoOverlay?.isVisible = false; liveOsd?.hideForPip(); supportActionBar?.hide(); historyManager.saveProgressSnapshot() }
     private fun showUiForNormalMode() { if (!isInPictureInPictureMode) { supportActionBar?.show(); liveOsd?.show(); if (contentType == ContentType.LIVE_TV) updateOverlayVisibility() else updateVodOverlayVisibility() } }
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) { super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig); this.isInPictureInPictureMode = isInPictureInPictureMode; if (isInPictureInPictureMode) hideUiForPiP() else showUiForNormalMode() }
