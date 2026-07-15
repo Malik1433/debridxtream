@@ -162,40 +162,54 @@
             android:background="@drawable/cin_resolving_scrim" />
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:orientation="vertical"
             android:gravity="center"
-            android:paddingStart="48dp"
-            android:paddingEnd="48dp">
+            android:paddingStart="72dp"
+            android:paddingEnd="72dp">
 
+            <!-- Auto-sizing so long titles shrink to fit two lines instead of being cut,
+                 and stay within bounds even while the breathing scale is applied. -->
             <TextView
                 android:id="@+id/tv_resolving_status"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
                 android:maxLines="2"
                 android:ellipsize="end"
                 android:text=""
                 android:textColor="#FFFFFF"
-                android:textSize="32sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.01"
                 android:fontFamily="@font/plus_jakarta_sans"
                 android:shadowColor="#CC000000"
                 android:shadowDx="0"
                 android:shadowDy="2"
-                android:shadowRadius="8" />
+                android:shadowRadius="8"
+                android:autoSizeTextType="uniform"
+                android:autoSizeMinTextSize="17sp"
+                android:autoSizeMaxTextSize="30sp"
+                android:autoSizeStepGranularity="1sp" />
 
-            <ProgressBar
-                android:id="@+id/pb_resolving_hint"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="140dp"
+            <!-- Clean indeterminate loader: a small cyan segment glides across a thin
+                 rounded track and loops (professional, doesn't sprawl). -->
+            <FrameLayout
+                android:id="@+id/loader_bar_track"
+                android:layout_width="128dp"
                 android:layout_height="3dp"
-                android:layout_marginTop="22dp"
-                android:indeterminate="true"
-                android:indeterminateTint="#00F0FF" />
+                android:layout_marginTop="24dp"
+                android:background="@drawable/cin_loader_track"
+                android:clipChildren="true"
+                android:clipToPadding="true">
+
+                <View
+                    android:id="@+id/loader_bar_seg"
+                    android:layout_width="44dp"
+                    android:layout_height="3dp"
+                    android:background="@drawable/cin_loader_segment" />
+            </FrameLayout>
         </LinearLayout>
     </FrameLayout>
     <!-- Debug Overlay (Netflix Style) -->

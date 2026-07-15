@@ -406,6 +406,8 @@ class PlayerActivity : AppCompatActivity() {
     private var tvResolvingStatus: TextView? = null
     private var ivResolvingBg: ImageView? = null
     private var resolvingPulse: android.animation.ObjectAnimator? = null
+    private var loaderBarSeg: View? = null
+    private var loaderGlide: android.animation.ObjectAnimator? = null
     private var imgSupportQr: ImageView? = null
     private val stallHandler = Handler(Looper.getMainLooper())
     private var lastBoundPosition = 0L
@@ -706,6 +708,7 @@ class PlayerActivity : AppCompatActivity() {
         layoutDebridResolving = findViewById(R.id.layout_debrid_resolving)
         tvResolvingStatus = findViewById(R.id.tv_resolving_status)
         ivResolvingBg = findViewById(R.id.iv_resolving_bg)
+        loaderBarSeg = findViewById(R.id.loader_bar_seg)
         layoutDebugOverlay = findViewById(R.id.layout_debug_overlay)
         tvDebugInfo = findViewById(R.id.tv_debug_info)
         reconnectingBanner = findViewById(R.id.reconnecting_banner)
@@ -992,6 +995,12 @@ class PlayerActivity : AppCompatActivity() {
             Log.w("PlayerActivity", "Direct Debrid resume is expired and cannot be refreshed; blocking stale passthrough playback.")
             handleTerminalPlaybackFailure("Expired direct source could not be refreshed")
         } else {
+            // A ready Debrid source (e.g. the user just picked one from the source list):
+            // show the cinematic loader while it buffers; STATE_READY dissolves it on the
+            // first frame. Keeps the "loading" experience identical to resume.
+            if (isDebrid && (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE)) {
+                showCinematicLoader()
+            }
             initializePlayer(streamUrl ?: "")
         }
         supportActionBar?.title = streamTitle ?: "Playing"
@@ -3273,7 +3282,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun stopStallMonitor() = stallHandler.removeCallbacks(stallRunnable)
 
-    override fun onDestroy() { super.onDestroy(); resolvingPulse?.cancel(); resolvingPulse = null; dismissActiveTrackDialog(); liveOsd?.release(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_destroy"); PlaybackDiagnosticsRecorder.finishSession(this, "activity_destroyed") }
+    override fun onDestroy() { super.onDestroy(); resolvingPulse?.cancel(); resolvingPulse = null; loaderGlide?.cancel(); loaderGlide = null; dismissActiveTrackDialog(); liveOsd?.release(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_destroy"); PlaybackDiagnosticsRecorder.finishSession(this, "activity_destroyed") }
 
     private fun resolveTimeoutMs(url: String): Long = when {
         url.lowercase().contains("mediafusion.elfhosted.com") -> MEDIAFUSION_TIMEOUT_MS
@@ -3760,8 +3769,8 @@ class PlayerActivity : AppCompatActivity() {
                     t.setLayerType(View.LAYER_TYPE_HARDWARE, null)
                     resolvingPulse = android.animation.ObjectAnimator.ofPropertyValuesHolder(
                         t,
-                        android.animation.PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.07f),
-                        android.animation.PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.07f),
+                        android.animation.PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.05f),
+                        android.animation.PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.05f),
                         android.animation.PropertyValuesHolder.ofFloat(View.ALPHA, 1f, 0.86f)
                     ).apply {
                         duration = 1700
@@ -3772,6 +3781,22 @@ class PlayerActivity : AppCompatActivity() {
                     }
                 }
                 .start()
+        }
+        // Clean indeterminate glide: a soft cyan segment slides across the track and loops.
+        loaderBarSeg?.let { seg ->
+            loaderGlide?.cancel()
+            seg.post {
+                val density = seg.resources.displayMetrics.density
+                loaderGlide = android.animation.ObjectAnimator.ofFloat(
+                    seg, View.TRANSLATION_X, -(44f * density), (128f * density)
+                ).apply {
+                    duration = 1150
+                    repeatCount = android.animation.ValueAnimator.INFINITE
+                    repeatMode = android.animation.ValueAnimator.RESTART
+                    interpolator = android.view.animation.LinearInterpolator()
+                    start()
+                }
+            }
         }
         hideReconnectingBanner()
     }
@@ -3794,6 +3819,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun hideCinematicLoader() {
         resolvingPulse?.cancel(); resolvingPulse = null
+        loaderGlide?.cancel(); loaderGlide = null
         tvResolvingStatus?.let {
             it.animate().cancel()
             it.setLayerType(View.LAYER_TYPE_NONE, null)
