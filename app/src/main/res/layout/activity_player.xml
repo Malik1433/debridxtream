@@ -189,8 +189,8 @@
                 android:shadowDy="2"
                 android:shadowRadius="8"
                 android:autoSizeTextType="uniform"
-                android:autoSizeMinTextSize="20sp"
-                android:autoSizeMaxTextSize="40sp"
+                android:autoSizeMinTextSize="22sp"
+                android:autoSizeMaxTextSize="52sp"
                 android:autoSizeStepGranularity="1sp" />
 
             <!-- Clean indeterminate loader: a small cyan segment glides across a thin
