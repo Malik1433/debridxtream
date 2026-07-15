@@ -3754,16 +3754,22 @@ class PlayerActivity : AppCompatActivity() {
                 .setInterpolator(android.view.animation.DecelerateInterpolator(1.4f))
                 .withEndAction {
                     if (layoutDebridResolving?.isVisible != true) return@withEndAction
-                    // Gentle opacity breathing only — a soft glow in/out. Scaling made the
-                    // glyphs look like they floated independently; alpha stays rock-steady.
-                    resolvingPulse = android.animation.ObjectAnimator
-                        .ofFloat(t, View.ALPHA, 1f, 0.7f).apply {
-                            duration = 1500
-                            repeatCount = android.animation.ValueAnimator.INFINITE
-                            repeatMode = android.animation.ValueAnimator.REVERSE
-                            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-                            start()
-                        }
+                    // Clearly-felt yet smooth "breath": the whole word scales + dims as one
+                    // unit. A hardware layer rasterises the text once so scaling is a bitmap
+                    // transform — buttery smooth, and the glyphs never re-blur/float apart.
+                    t.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                    resolvingPulse = android.animation.ObjectAnimator.ofPropertyValuesHolder(
+                        t,
+                        android.animation.PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.07f),
+                        android.animation.PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.07f),
+                        android.animation.PropertyValuesHolder.ofFloat(View.ALPHA, 1f, 0.86f)
+                    ).apply {
+                        duration = 1700
+                        repeatCount = android.animation.ValueAnimator.INFINITE
+                        repeatMode = android.animation.ValueAnimator.REVERSE
+                        interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                        start()
+                    }
                 }
                 .start()
         }
@@ -3788,7 +3794,11 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun hideCinematicLoader() {
         resolvingPulse?.cancel(); resolvingPulse = null
-        tvResolvingStatus?.animate()?.cancel()
+        tvResolvingStatus?.let {
+            it.animate().cancel()
+            it.setLayerType(View.LAYER_TYPE_NONE, null)
+            it.scaleX = 1f; it.scaleY = 1f; it.alpha = 1f
+        }
         val overlay = layoutDebridResolving ?: return
         if (!overlay.isVisible) return
         overlay.animate().alpha(0f).setDuration(220).withEndAction {
