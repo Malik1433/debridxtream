@@ -167,8 +167,8 @@
             android:layout_gravity="center"
             android:orientation="vertical"
             android:gravity="center"
-            android:paddingStart="72dp"
-            android:paddingEnd="72dp">
+            android:paddingStart="48dp"
+            android:paddingEnd="48dp">
 
             <!-- Auto-sizing so long titles shrink to fit two lines instead of being cut,
                  and stay within bounds even while the breathing scale is applied. -->
@@ -189,8 +189,8 @@
                 android:shadowDy="2"
                 android:shadowRadius="8"
                 android:autoSizeTextType="uniform"
-                android:autoSizeMinTextSize="17sp"
-                android:autoSizeMaxTextSize="30sp"
+                android:autoSizeMinTextSize="20sp"
+                android:autoSizeMaxTextSize="40sp"
                 android:autoSizeStepGranularity="1sp" />
 
             <!-- Clean indeterminate loader: a small cyan segment glides across a thin
