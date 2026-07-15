@@ -3754,18 +3754,16 @@ class PlayerActivity : AppCompatActivity() {
                 .setInterpolator(android.view.animation.DecelerateInterpolator(1.4f))
                 .withEndAction {
                     if (layoutDebridResolving?.isVisible != true) return@withEndAction
-                    // Very subtle, slow breathing — premium and calm, not a pulse-zoom.
-                    resolvingPulse = android.animation.ObjectAnimator.ofPropertyValuesHolder(
-                        t,
-                        android.animation.PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.025f),
-                        android.animation.PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.025f)
-                    ).apply {
-                        duration = 2300
-                        repeatCount = android.animation.ValueAnimator.INFINITE
-                        repeatMode = android.animation.ValueAnimator.REVERSE
-                        interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-                        start()
-                    }
+                    // Gentle opacity breathing only — a soft glow in/out. Scaling made the
+                    // glyphs look like they floated independently; alpha stays rock-steady.
+                    resolvingPulse = android.animation.ObjectAnimator
+                        .ofFloat(t, View.ALPHA, 1f, 0.7f).apply {
+                            duration = 1500
+                            repeatCount = android.animation.ValueAnimator.INFINITE
+                            repeatMode = android.animation.ValueAnimator.REVERSE
+                            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                            start()
+                        }
                 }
                 .start()
         }

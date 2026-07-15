@@ -178,14 +178,15 @@
                 android:maxLines="2"
                 android:ellipsize="end"
                 android:text=""
-                android:textColor="#F4FBFF"
-                android:textSize="30sp"
+                android:textColor="#FFFFFF"
+                android:textSize="32sp"
                 android:textStyle="bold"
+                android:letterSpacing="0.01"
                 android:fontFamily="@font/plus_jakarta_sans"
-                android:shadowColor="#8000F0FF"
+                android:shadowColor="#CC000000"
                 android:shadowDx="0"
-                android:shadowDy="0"
-                android:shadowRadius="26" />
+                android:shadowDy="2"
+                android:shadowRadius="8" />
 
             <ProgressBar
                 android:id="@+id/pb_resolving_hint"
