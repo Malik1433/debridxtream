@@ -3745,18 +3745,29 @@ class PlayerActivity : AppCompatActivity() {
         overlay.alpha = 1f
         tvResolvingStatus?.let { t ->
             resolvingPulse?.cancel()
-            t.scaleX = 1f; t.scaleY = 1f
-            resolvingPulse = android.animation.ObjectAnimator.ofPropertyValuesHolder(
-                t,
-                android.animation.PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.06f),
-                android.animation.PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.06f)
-            ).apply {
-                duration = 1300
-                repeatCount = android.animation.ValueAnimator.INFINITE
-                repeatMode = android.animation.ValueAnimator.REVERSE
-                interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-                start()
-            }
+            t.animate().cancel()
+            // Smooth cinematic entrance: fade + gentle settle-in (no jarring zoom).
+            t.alpha = 0f; t.scaleX = 0.95f; t.scaleY = 0.95f
+            t.animate()
+                .alpha(1f).scaleX(1f).scaleY(1f)
+                .setDuration(620)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.4f))
+                .withEndAction {
+                    if (layoutDebridResolving?.isVisible != true) return@withEndAction
+                    // Very subtle, slow breathing — premium and calm, not a pulse-zoom.
+                    resolvingPulse = android.animation.ObjectAnimator.ofPropertyValuesHolder(
+                        t,
+                        android.animation.PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.025f),
+                        android.animation.PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.025f)
+                    ).apply {
+                        duration = 2300
+                        repeatCount = android.animation.ValueAnimator.INFINITE
+                        repeatMode = android.animation.ValueAnimator.REVERSE
+                        interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                        start()
+                    }
+                }
+                .start()
         }
         hideReconnectingBanner()
     }
@@ -3779,6 +3790,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun hideCinematicLoader() {
         resolvingPulse?.cancel(); resolvingPulse = null
+        tvResolvingStatus?.animate()?.cancel()
         val overlay = layoutDebridResolving ?: return
         if (!overlay.isVisible) return
         overlay.animate().alpha(0f).setDuration(220).withEndAction {
