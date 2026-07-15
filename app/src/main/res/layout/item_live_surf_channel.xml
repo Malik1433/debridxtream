@@ -2,8 +2,8 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="46dp"
-    android:layout_marginBottom="2.5dp"
+    android:layout_height="56dp"
+    android:layout_marginBottom="3dp"
     android:background="@drawable/bg_live_surf_row"
     android:focusable="true"
     android:gravity="center_vertical"
@@ -28,11 +28,16 @@
         android:textSize="6.5sp"
         tools:text="003" />
 
-    <!-- logo badge -->
+    <!-- logo badge: neutral tile (FIX 3 — no per-channel colored border), sized up
+         for at-a-glance recognition. Rounded corners clip the real logo image. -->
     <FrameLayout
         android:id="@+id/surf_logo"
-        android:layout_width="31dp"
-        android:layout_height="31dp">
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:layout_marginStart="2dp"
+        android:background="@drawable/bg_live_channel_logo_tile"
+        android:clipToOutline="true"
+        android:outlineProvider="background">
 
         <TextView
             android:id="@+id/surf_logo_text"
@@ -41,7 +46,7 @@
             android:layout_gravity="center"
             android:fontFamily="@font/plus_jakarta_sans"
             android:textColor="@android:color/white"
-            android:textSize="7sp"
+            android:textSize="9sp"
             android:textStyle="bold"
             tools:text="SKY" />
 
@@ -50,7 +55,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:contentDescription="@null"
-            android:padding="3.5dp"
+            android:padding="4dp"
             android:scaleType="fitCenter"
             android:visibility="gone" />
     </FrameLayout>
