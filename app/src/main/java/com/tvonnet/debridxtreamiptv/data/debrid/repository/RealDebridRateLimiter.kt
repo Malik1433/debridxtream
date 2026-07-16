@@ -54,15 +54,12 @@ class RealDebridRateLimiter @Inject constructor() {
 
     fun recordFailure(key: String?, error: DebridResolutionException) {
         if (error.type == DebridFailureType.RATE_LIMITED) {
-            val seconds = error.retryAfterSeconds?.coerceAtLeast(DEFAULT_RATE_LIMIT_SECONDS)
-                ?: DEFAULT_RATE_LIMIT_SECONDS
-            globalCooldownUntilMillis = System.currentTimeMillis() + seconds * 1000L
+            globalCooldownUntilMillis = System.currentTimeMillis() + rateLimitSeconds(error) * 1000L
         }
 
         val normalized = key?.takeIf { it.isNotBlank() } ?: return
         val ttlMs = when (error.type) {
-            DebridFailureType.RATE_LIMITED -> (error.retryAfterSeconds?.coerceAtLeast(DEFAULT_RATE_LIMIT_SECONDS)
-                ?: DEFAULT_RATE_LIMIT_SECONDS) * 1000L
+            DebridFailureType.RATE_LIMITED -> rateLimitSeconds(error) * 1000L
             DebridFailureType.LEGAL_RESTRICTION,
             DebridFailureType.COPYRIGHT_BLOCKED -> BLOCKED_SOURCE_TTL_MS
             DebridFailureType.NOT_CACHED,
@@ -73,6 +70,13 @@ class RealDebridRateLimiter @Inject constructor() {
         }
         sourceCooldowns[normalized] = Cooldown(System.currentTimeMillis() + ttlMs, error)
     }
+
+    // Honor the server's Retry-After when present (clamped to a sane window) instead
+    // of the old coerceAtLeast(120s), which turned a 5s throttle into a 2-minute
+    // dead zone across EVERY source.
+    private fun rateLimitSeconds(error: DebridResolutionException): Long =
+        error.retryAfterSeconds?.coerceIn(MIN_RATE_LIMIT_SECONDS, MAX_RATE_LIMIT_SECONDS)
+            ?: DEFAULT_RATE_LIMIT_SECONDS
 
     private data class Cooldown(
         val untilMillis: Long,
@@ -85,7 +89,9 @@ class RealDebridRateLimiter @Inject constructor() {
         // chain vs the old 1200ms spacing. 429 responses still trigger the global
         // cooldown below, so the account stays protected if RD tightens the limit.
         private const val MIN_REQUEST_INTERVAL_MS = 400L
-        private const val DEFAULT_RATE_LIMIT_SECONDS = 120L
+        private const val MIN_RATE_LIMIT_SECONDS = 5L
+        private const val MAX_RATE_LIMIT_SECONDS = 180L
+        private const val DEFAULT_RATE_LIMIT_SECONDS = 30L
         private const val BLOCKED_SOURCE_TTL_MS = 30L * 60L * 1000L
         private const val UNAVAILABLE_SOURCE_TTL_MS = 5L * 60L * 1000L
     }

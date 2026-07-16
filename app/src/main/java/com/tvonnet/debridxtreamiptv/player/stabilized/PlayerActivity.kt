@@ -3712,6 +3712,7 @@ class PlayerActivity : AppCompatActivity() {
 
         detailIntent.putExtra(EXTRA_OPENED_FROM_PLAYBACK_FAILURE, true)
         detailIntent.putExtra(EXTRA_FAIL_REASON, reason)
+        detailIntent.putExtra(EXTRA_FAILED_STREAM_ID, debridStreamIdExtra)
         releasePlayer("failure_detail_redirect")
         PlaybackDiagnosticsRecorder.finishSession(this, "failure_detail_redirect")
         startActivity(detailIntent)

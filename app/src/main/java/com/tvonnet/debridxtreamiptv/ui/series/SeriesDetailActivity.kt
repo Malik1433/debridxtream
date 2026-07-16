@@ -224,6 +224,15 @@ class SeriesDetailActivity : AppCompatActivity() {
         setupAdapters()
         getSeriesDataFromIntent()
         openedFromPlaybackFailure = intent.getBooleanExtra(PlayerActivity.EXTRA_OPENED_FROM_PLAYBACK_FAILURE, false)
+        if (openedFromPlaybackFailure) {
+            // The player redirected here after a terminal failure (fresh startActivity,
+            // so the playerLauncher callback never runs). Surface the reason instead of
+            // silently showing the detail page again.
+            notifyDebridFailure(
+                intent.getStringExtra(PlayerActivity.EXTRA_FAIL_REASON),
+                autoPlayNext = false
+            )
+        }
         updateTrailerButtonState()
         
         displaySeriesInfo()
@@ -1761,11 +1770,14 @@ class SeriesDetailActivity : AppCompatActivity() {
     }
 
     private fun notifyDebridFailure(reason: String?, autoPlayNext: Boolean) {
-        if (reason.isNullOrBlank()) return
-        val message = if (autoPlayNext) {
-            "Playback failed, trying next source: $reason"
-        } else {
-            "Playback failed: $reason"
+        // A blank reason must still produce feedback — silently returning here left
+        // failures with empty messages looking like the app did nothing.
+        val detail = reason?.takeIf { it.isNotBlank() }
+        val message = when {
+            autoPlayNext && detail != null -> "Playback failed, trying next source: $detail"
+            autoPlayNext -> "Playback failed, trying next source…"
+            detail != null -> "Playback failed: $detail"
+            else -> "Playback failed. Pick another source."
         }
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
