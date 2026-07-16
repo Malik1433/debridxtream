@@ -147,6 +147,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#050709"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:visibility="gone">
 
         <ImageView
@@ -167,11 +169,16 @@
             android:layout_gravity="center"
             android:orientation="vertical"
             android:gravity="center"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             android:paddingStart="48dp"
             android:paddingEnd="48dp">
 
             <!-- Auto-sizing so long titles shrink to fit two lines instead of being cut,
-                 and stay within bounds even while the breathing scale is applied. -->
+                 and stay within bounds even while the breathing scale is applied.
+                 Vertical padding + clipChildren=false give the drop shadow, font
+                 descenders and the 1.05x breathing scale room so the last line is not
+                 clipped from the bottom. -->
             <TextView
                 android:id="@+id/tv_resolving_status"
                 android:layout_width="match_parent"
@@ -179,6 +186,8 @@
                 android:gravity="center"
                 android:maxLines="2"
                 android:ellipsize="end"
+                android:paddingTop="14dp"
+                android:paddingBottom="14dp"
                 android:text=""
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
