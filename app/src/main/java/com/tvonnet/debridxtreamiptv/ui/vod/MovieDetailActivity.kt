@@ -980,15 +980,7 @@ class MovieDetailActivity : AppCompatActivity() {
         val targetYear = movieYear?.trim()?.take(4)?.toIntOrNull()
 
         val matches = repository.searchVod(coreTitle)
-            .filter { vod ->
-                val normName = normalizeForIptvMatch(vod.name)
-                val nameOk = vod.stream_id != null && normName != null && normName.contains(normTitle)
-                if (!nameOk) return@filter false
-                if (targetYear == null) return@filter true
-                val listingYear = iptvListingYear(vod)
-                // Keep only same-year listings; keep year-less ones rather than over-filter.
-                listingYear == null || listingYear == targetYear
-            }
+            .filter { vod -> iptvListingMatches(vod, normTitle, targetYear) }
             .distinctBy { it.stream_id }
             .take(30)
 
@@ -1023,6 +1015,40 @@ class MovieDetailActivity : AppCompatActivity() {
         val fromName = Regex("\\((19|20)\\d{2}\\)").find(vod.name.orEmpty())
             ?.value?.filter { it.isDigit() }?.toIntOrNull()
         return fromName ?: vod.releaseDate?.take(4)?.toIntOrNull()
+    }
+
+    // Strips a leading language/category prefix ("EN - ", "|EN| ", "SD/CAM - ") and cuts
+    // at the first year/quality/codec token, leaving the bare movie title.
+    private val iptvPrefixRegex = Regex("^\\s*(?:\\|[^|]{1,12}\\|\\s*|[A-Za-z0-9/]{1,8}\\s*-\\s*)")
+    private val iptvTagCutRegex = Regex(
+        "(?i)[\\s(\\[]+((19|20)\\d{2}|4k|hdcam|hdts|cam|web[- ]?dl|1080p|720p|2160p|480p|multi|x264|x265|hevc)\\b"
+    )
+
+    /** The bare movie title of an IPTV listing (prefix + year/quality tags removed). */
+    private fun coreIptvTitle(name: String?): String? {
+        if (name.isNullOrBlank()) return null
+        var t = iptvPrefixRegex.replaceFirst(name.trim(), "")
+        iptvTagCutRegex.find(t)?.let { t = t.substring(0, it.range.first) }
+        return t.trim(' ', '-', '|', ':', '·').takeIf { it.isNotBlank() }
+    }
+
+    /**
+     * Does an IPTV listing actually correspond to THIS movie? The Xtream index is searched
+     * with a loose `name LIKE %title%`, which pulls in unrelated films that merely contain
+     * the word ("Secret Obsession", "A Fatal Obsession" for "Obsession"). We match the CORE
+     * title (prefix/tags stripped) start-anchored — not a substring — and require the year
+     * when both sides carry one; a year-less listing must match the core title exactly.
+     */
+    private fun iptvListingMatches(vod: XtreamVodInfo, normTarget: String, targetYear: Int?): Boolean {
+        if (vod.stream_id == null) return false
+        val coreNorm = normalizeForIptvMatch(coreIptvTitle(vod.name)) ?: return false
+        val listingYear = iptvListingYear(vod)
+        return when {
+            listingYear != null && targetYear != null ->
+                coreNorm.startsWith(normTarget) && listingYear == targetYear
+            listingYear == null -> coreNorm == normTarget
+            else -> coreNorm.startsWith(normTarget)
+        }
     }
 
     /**
