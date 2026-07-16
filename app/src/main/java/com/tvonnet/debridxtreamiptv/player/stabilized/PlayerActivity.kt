@@ -343,6 +343,11 @@ class PlayerActivity : AppCompatActivity() {
     private var lastDirectAddonProxyTimeoutContext: String? = null
     private var lastDirectAddonProxyServerErrorContext: String? = null
     private var hasRenderedFirstFrameForCurrentSource = false
+    // Black-video fallback: some HW decoders (e.g. MTK on high-bitrate/4K HEVC) play audio
+    // but never render video under tunneling. If no frame arrives while audio is playing,
+    // reinit once without tunneling.
+    private var blackVideoFallbackTried = false
+    private val blackVideoCheckRunnable = Runnable { checkBlackVideoFallback() }
     private var lastSuccessfulDirectAddonProxyPreferenceContext: String? = null
     private var isControllerVisible = false
 
@@ -548,6 +553,9 @@ class PlayerActivity : AppCompatActivity() {
         // the server replays the same GOP on every connection, so retry #3+
         // can never succeed. Fail fast with a clear message instead.
         private const val LIVE_MAX_RETRIES = 2
+        // How long audio may play with no video frame before the black-video fallback
+        // (reinit without tunneling) kicks in.
+        private const val BLACK_VIDEO_CHECK_MS = 5_000L
         // Unified reconnect budget (QA fix 2): aggregate ceiling across ALL recovery
         // subsystems so a dead channel can't chain error-retry + ENDED-reconnect +
         // freeze re-prepare into a burst against a WAF/max_connections=1 server.
@@ -2425,6 +2433,14 @@ class PlayerActivity : AppCompatActivity() {
                          // clearing it here would make the upcoming seamless switch start from 0.
                          if (!isResolvingDebrid && player?.currentPosition ?: 0L > 1000) startPositionMs = 0L
                         maybeMatchDisplayFrameRate()
+                        // Black-video watchdog (VOD): audio can play while the HW decoder
+                        // renders no frames under tunneling — reinit without tunneling if so.
+                        if (contentType != ContentType.LIVE_TV &&
+                            !hasRenderedFirstFrameForCurrentSource && !blackVideoFallbackTried
+                        ) {
+                            timeoutHandler.removeCallbacks(blackVideoCheckRunnable)
+                            timeoutHandler.postDelayed(blackVideoCheckRunnable, BLACK_VIDEO_CHECK_MS)
+                        }
                         timeoutHandler.removeCallbacks(timeoutRunnable)
                         watchdogExtensions = 0
                         watchdogBufferedPosAtArm = -1L
@@ -2519,6 +2535,7 @@ class PlayerActivity : AppCompatActivity() {
                 }
                 override fun onRenderedFirstFrame() {
                     hasRenderedFirstFrameForCurrentSource = true
+                    timeoutHandler.removeCallbacks(blackVideoCheckRunnable)
                     liveOsd?.hideZapBackdrop()
                     // First rendered frame = the source is genuinely playing; clear the
                     // unified reconnect budget (fix 2) and hide the banner (fix 3).
@@ -3853,6 +3870,31 @@ class PlayerActivity : AppCompatActivity() {
                 viewModel.reResolveDebridUrl(infoHash, magnet, null, null, originalTitle)
             }
         }
+    }
+
+    /**
+     * If audio is playing (STATE_READY) but no video frame has rendered, the HW decoder is
+     * decoding audio while producing no visible video — a known tunneling black-screen on
+     * some SoCs (e.g. MTK) for high-bitrate/4K HEVC. Reinit once without tunneling at the
+     * current position. If it's still black afterwards, the video is genuinely undecodable.
+     */
+    private fun checkBlackVideoFallback() {
+        if (isFinishing || isDestroyed) return
+        val p = player ?: return
+        if (hasRenderedFirstFrameForCurrentSource || blackVideoFallbackTried) return
+        if (contentType == ContentType.LIVE_TV || disableTunnelingForSession) return
+        if (!p.isPlaying) return // still buffering — the buffer watchdog handles that
+        blackVideoFallbackTried = true
+        disableTunnelingForSession = true
+        Log.w("PlayerActivity", "Audio playing but no video frame — reinitializing without tunneling (black-video fallback)")
+        PlaybackDiagnosticsRecorder.record(
+            this,
+            "black_video_tunneling_retry",
+            diagnosticsPlaybackFields() + mapOf("positionMs" to p.currentPosition)
+        )
+        if (p.currentPosition > 1000L) startPositionMs = p.currentPosition
+        player?.release(); player = null
+        retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, 250L)
     }
 
     private fun updatePlayPauseVisibility(isPlaying: Boolean) {
