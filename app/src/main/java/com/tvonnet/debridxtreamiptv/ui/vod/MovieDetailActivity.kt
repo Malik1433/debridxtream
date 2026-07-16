@@ -245,6 +245,17 @@ class MovieDetailActivity : AppCompatActivity() {
         initViews()
         getMovieDataFromIntent()
         openedFromPlaybackFailure = intent.getBooleanExtra(PlayerActivity.EXTRA_OPENED_FROM_PLAYBACK_FAILURE, false)
+        if (openedFromPlaybackFailure) {
+            // The player redirected here after a terminal failure (fresh startActivity, so
+            // the playerLauncher callback never runs). Without this the bounce is silent.
+            val reason = intent.getStringExtra(PlayerActivity.EXTRA_FAIL_REASON)
+            Toast.makeText(
+                this,
+                if (reason.isNullOrBlank()) "Playback failed. Pick another source."
+                else "Playback failed: $reason",
+                Toast.LENGTH_LONG
+            ).show()
+        }
         updateTrailerButtonState()
         displayMovieDetails()
         configureTabs()
@@ -979,9 +990,7 @@ class MovieDetailActivity : AppCompatActivity() {
                 category = null,
                 label = vod.name ?: coreTitle,
                 isPrimary = false,
-                languages = com.tvonnet.debridxtreamiptv.data.debrid.util.LanguageParser
-                    .extractLanguages(vod.name)
-                    .takeIf { it.isNotEmpty() },
+                languages = iptvLanguagesFromName(vod.name),
                 quality = com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.StreamQuality
                     .fromName(vod.name).label,
                 // Xtream streams play instantly from the provider — honest DIRECT_STREAM.
@@ -1000,6 +1009,33 @@ class MovieDetailActivity : AppCompatActivity() {
             .replace(Regex("[^a-z0-9]+"), "")
             .takeIf { it.isNotBlank() }
     }
+
+    /**
+     * IPTV listing names carry their language as a category prefix ("FR - Obsession",
+     * "DE - …", "NL|…"). Read that prefix instead of LanguageParser, whose release-tag
+     * heuristics default to English and mislabeled every non-EN listing.
+     */
+    private fun iptvLanguagesFromName(name: String?): List<String>? {
+        if (name.isNullOrBlank()) return null
+        val prefix = name.substringBefore("-").trim()
+            .trim('|', '[', ']')
+            .uppercase(java.util.Locale.US)
+        IPTV_PREFIX_LANGUAGES[prefix]?.let { return listOf(it) }
+        // Compound prefixes like "SD/CAM" or "NF": no language info — fall back to the
+        // release-tag parser but discard its English default (chip shows Unknown).
+        val parsed = com.tvonnet.debridxtreamiptv.data.debrid.util.LanguageParser
+            .extractLanguages(name)
+        return parsed.takeIf { it.isNotEmpty() && it != listOf("en") }
+    }
+
+    private val IPTV_PREFIX_LANGUAGES = mapOf(
+        "EN" to "en", "FR" to "fr", "DE" to "de", "NL" to "nl", "ES" to "es",
+        "IT" to "it", "PT" to "pt", "BR" to "pt", "PL" to "pl", "TR" to "tr",
+        "RU" to "ru", "AR" to "ar", "HI" to "hi", "UR" to "ur", "PA" to "pa",
+        "IN" to "hi", "SE" to "sv", "NO" to "no", "DK" to "da", "FI" to "fi",
+        "GR" to "el", "RO" to "ro", "HU" to "hu", "CZ" to "cs", "AL" to "sq",
+        "EX-YU" to "sr", "BG" to "bg"
+    )
 
     private fun consumeDebridReturnFocusStreamIds(): List<String> {
         val streamIds = pendingDebridReturnFocusStreamIds
