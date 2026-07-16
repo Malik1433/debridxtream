@@ -2669,18 +2669,22 @@ class PlayerActivity : AppCompatActivity() {
         // Definitive client errors (removed/nonexistent listing, wrong method) never
         // recover by retrying. Plain IPTV/Xtream playback had NO terminal-HTTP path —
         // isTerminalDirectHttpPlaybackError only fires for directDebridPlayback — so a
-        // dead listing (e.g. a provider that answers 405 for an unavailable movie id)
+        // dead listing (e.g. a provider that answers 405/500 for an unavailable movie id)
         // looped the "Reconnecting…" banner until the whole retry budget drained.
-        // Fail fast for any non-live source instead. 429 (rate-limit) is intentionally
-        // excluded — it is handled below with a cool-off.
+        // Fail fast for non-live sources instead. 429 (rate-limit) is excluded — handled
+        // below with a cool-off.
         val terminalClientCode =
             (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
-        if (contentType != ContentType.LIVE_TV &&
-            terminalClientCode != null &&
-            terminalClientCode in setOf(400, 401, 403, 404, 405, 410, 451)
-        ) {
-            handleTerminalPlaybackFailure(errorMessage, preferReturnToSources = true)
-            return
+        if (contentType != ContentType.LIVE_TV && terminalClientCode != null) {
+            val terminal4xx = terminalClientCode in setOf(400, 401, 403, 404, 405, 410, 451)
+            // Plain IPTV/Xtream VOD: a 5xx is a dead listing on the panel, not a transient
+            // blip (unlike live TV or debrid CDNs, which keep retrying) — fail fast too.
+            val terminalIptv5xx =
+                playbackSource == PlaybackSource.IPTV && terminalClientCode in 500..599
+            if (terminal4xx || terminalIptv5xx) {
+                handleTerminalPlaybackFailure(errorMessage, preferReturnToSources = true)
+                return
+            }
         }
         // HTTP 429 for plain IPTV/Xtream (QA fix 4): the provider WAF is rate-limiting
         // this IP. Fast-backoff retries only deepen the ban, so cool off — honor a

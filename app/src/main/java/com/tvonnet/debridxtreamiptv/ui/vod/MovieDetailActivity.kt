@@ -25,6 +25,7 @@ import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.Result
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.AddonProxyReadiness
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
+import com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo
 import com.tvonnet.debridxtreamiptv.data.onSuccess
 import com.tvonnet.debridxtreamiptv.data.onFailure
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
@@ -964,9 +965,10 @@ class MovieDetailActivity : AppCompatActivity() {
 
     /**
      * IPTV (Xtream) listings of this movie for the source picker — the movie-side
-     * equivalent of the series stream panel's multi-category aggregation. Matching is
-     * by movie NAME only (owner's choice): the local VOD index is searched with the
-     * cleaned title and results are kept when their normalized name contains it.
+     * equivalent of the series stream panel's multi-category aggregation. Matches on the
+     * cleaned title AND the year: many different movies share a name across years
+     * ("Obsession" 2026 vs "Secret Obsession" 2019), so a name-only match surfaced wrong
+     * films. Listings with no detectable year are kept (lenient); wrong-year ones are dropped.
      */
     private suspend fun fetchIptvMovieSources(title: String?): List<MovieSource> {
         val coreTitle = title
@@ -975,11 +977,17 @@ class MovieDetailActivity : AppCompatActivity() {
             ?.takeIf { it.length >= 2 }
             ?: return emptyList()
         val normTitle = normalizeForIptvMatch(coreTitle) ?: return emptyList()
+        val targetYear = movieYear?.trim()?.take(4)?.toIntOrNull()
 
         val matches = repository.searchVod(coreTitle)
             .filter { vod ->
                 val normName = normalizeForIptvMatch(vod.name)
-                vod.stream_id != null && normName != null && normName.contains(normTitle)
+                val nameOk = vod.stream_id != null && normName != null && normName.contains(normTitle)
+                if (!nameOk) return@filter false
+                if (targetYear == null) return@filter true
+                val listingYear = iptvListingYear(vod)
+                // Keep only same-year listings; keep year-less ones rather than over-filter.
+                listingYear == null || listingYear == targetYear
             }
             .distinctBy { it.stream_id }
             .take(30)
@@ -1008,6 +1016,13 @@ class MovieDetailActivity : AppCompatActivity() {
         return value.lowercase(java.util.Locale.US)
             .replace(Regex("[^a-z0-9]+"), "")
             .takeIf { it.isNotBlank() }
+    }
+
+    /** Year of an IPTV listing — a "(YYYY)" tag in the name first, else its release date. */
+    private fun iptvListingYear(vod: XtreamVodInfo): Int? {
+        val fromName = Regex("\\((19|20)\\d{2}\\)").find(vod.name.orEmpty())
+            ?.value?.filter { it.isDigit() }?.toIntOrNull()
+        return fromName ?: vod.releaseDate?.take(4)?.toIntOrNull()
     }
 
     /**
