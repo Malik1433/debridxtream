@@ -3076,6 +3076,15 @@ class PlayerActivity : AppCompatActivity() {
             link(R.id.exo_ffwd, R.id.btn_next_episode, R.id.btn_episodes)
             link(R.id.btn_episodes, R.id.exo_ffwd, R.id.btn_player_audio)
             link(R.id.btn_player_audio, R.id.btn_episodes, R.id.btn_player_subtitles)
+        } else if (contentType == ContentType.MOVIE) {
+            // Movies: the Sources button sits between fast-forward and the audio button,
+            // so the focus chain must route through it (it was being skipped).
+            link(R.id.exo_rew, R.id.exo_rew, R.id.exo_play)
+            link(R.id.exo_play, R.id.exo_rew, R.id.exo_ffwd)
+            link(R.id.exo_pause, R.id.exo_rew, R.id.exo_ffwd)
+            link(R.id.exo_ffwd, R.id.exo_play, R.id.btn_player_sources)
+            link(R.id.btn_player_sources, R.id.exo_ffwd, R.id.btn_player_audio)
+            link(R.id.btn_player_audio, R.id.btn_player_sources, R.id.btn_player_subtitles)
         } else {
             link(R.id.exo_rew, R.id.exo_rew, R.id.exo_play)
             link(R.id.exo_play, R.id.exo_rew, R.id.exo_ffwd)
