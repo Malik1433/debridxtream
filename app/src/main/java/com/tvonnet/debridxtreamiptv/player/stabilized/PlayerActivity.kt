@@ -3793,12 +3793,14 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     /**
-     * Relaunch the player on the picked source at the current position. Resolver-backed
-     * (magnet) sources pass a blank URL + info-hash/magnet so the player's own resolution
-     * runs (with the cinematic loader); direct-http and IPTV sources pass a ready URL.
+     * Switch the movie to the picked source IN-PLACE (no activity relaunch — relaunching
+     * collapsed the back stack to home). Saves the current position, updates the source
+     * identity, and re-inits: resolver-backed magnet sources go through the debrid
+     * resolution (cinematic loader), direct-http/IPTV sources re-init on the ready URL.
+     * The saved position is restored on the first frame (initializePlayer seeks to it).
      */
     private fun switchToMovieSource(source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource) {
-        val pos = (player?.currentPosition ?: startPositionMs).coerceAtLeast(0L)
+        if (contentType != ContentType.MOVIE || isFinishing) return
         val stream = source.stream
         val magnet = stream.direct_source
         val infoHash = stream.stream_id
@@ -3806,8 +3808,17 @@ class PlayerActivity : AppCompatActivity() {
         val isDirectHttp = !isIptv && magnet?.startsWith("http", ignoreCase = true) == true &&
             !magnet.endsWith(".torrent", ignoreCase = true)
         val resolverBacked = !isIptv && !isDirectHttp
+        if (resolverBacked && magnet.isNullOrBlank() && infoHash.isNullOrBlank()) {
+            showToast("Invalid source"); return
+        }
 
-        val streamUrl: String = when {
+        // Resume the new source from where we are now.
+        startPositionMs = (player?.currentPosition ?: startPositionMs).coerceAtLeast(0L)
+        playbackSource = if (isIptv) PlaybackSource.IPTV else PlaybackSource.DEBRID
+        debridStreamIdExtra = stream.stream_id
+        stream.name?.let { originalTitle = it }
+
+        when {
             isIptv -> {
                 val prefs = CredentialsPreferences(this)
                 val server = prefs.getServerUrl()?.trimEnd('/')
@@ -3816,44 +3827,28 @@ class PlayerActivity : AppCompatActivity() {
                 if (server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank() || stream.stream_id.isNullOrBlank()) {
                     showToast("Missing credentials"); return
                 }
+                directDebridPlayback = false
+                debridInfoHashExtra = null; debridMagnetExtra = null
                 val ext = stream.container_extension?.takeIf { it.isNotBlank() } ?: "mp4"
-                "$server/movie/$user/$pass/${stream.stream_id}.$ext"
+                showCinematicLoader()
+                initializePlayer("$server/movie/$user/$pass/${stream.stream_id}.$ext")
             }
-            isDirectHttp -> magnet!!
-            else -> "" // resolver-backed magnet → resolved by the player
+            isDirectHttp -> {
+                directDebridPlayback = true
+                debridInfoHashExtra = null; debridMagnetExtra = null
+                showCinematicLoader()
+                initializePlayer(magnet!!)
+            }
+            else -> {
+                // Resolver-backed magnet: set the new identity and let the player resolve it.
+                directDebridPlayback = false
+                debridInfoHashExtra = infoHash
+                debridMagnetExtra = magnet
+                isResolvingDebrid = true
+                showCinematicLoader()
+                viewModel.reResolveDebridUrl(infoHash, magnet, null, null, originalTitle)
+            }
         }
-        if (resolverBacked && magnet.isNullOrBlank() && infoHash.isNullOrBlank()) {
-            showToast("Invalid source"); return
-        }
-
-        val intent = PlayerActivity.createIntent(
-            context = this,
-            streamUrl = streamUrl,
-            title = stream.name ?: originalTitle ?: "",
-            contentId = infoHash ?: contentId ?: "",
-            contentType = ContentType.MOVIE,
-            posterUrl = posterUrlExtra,
-            backdropUrl = backdropUrlExtra,
-            headers = source.headers,
-            tmdbId = tmdbIdExtra,
-            imdbId = imdbIdExtra,
-            debridInfoHash = if (resolverBacked) infoHash else null,
-            debridMagnet = if (resolverBacked) magnet else null,
-            directDebridPlayback = isDirectHttp,
-            debridProvider = source.provider,
-            debridSourceType = source.sourceType,
-            debridSourceName = source.sourceName,
-            debridLanguages = source.languages,
-            debridQuality = source.quality,
-            debridStreamId = stream.stream_id,
-            debridBingeGroup = source.bingeGroup,
-            debridFileIdx = source.fileIdx,
-            playbackSource = if (isIptv) PlaybackSource.IPTV else PlaybackSource.DEBRID,
-            startPositionMs = pos
-        )
-        releasePlayer("switch_movie_source")
-        startActivity(intent)
-        finish()
     }
 
     private fun updatePlayPauseVisibility(isPlaying: Boolean) {
