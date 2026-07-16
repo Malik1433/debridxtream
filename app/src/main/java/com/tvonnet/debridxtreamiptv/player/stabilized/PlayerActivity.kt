@@ -3700,12 +3700,17 @@ class PlayerActivity : AppCompatActivity() {
             return
         }
         if (!finishWithReturnToSources(autoPlayNext = true, reason = reason)) {
+            val isHttpError = reason.contains("HTTP", ignoreCase = true)
             showError(
                 when {
                     contentType == ContentType.LIVE_TV ->
                         "Channel stream is broken at the provider\n\nTry another channel or source"
                     reason.contains("timeout", ignoreCase = true) ->
                         "Connection timeout\n\nStream is too slow or unavailable"
+                    // Plain IPTV/Xtream dead listing (405/404/5xx): the provider simply
+                    // doesn't have this file — steer the user to a debrid source.
+                    playbackSource == PlaybackSource.IPTV && isHttpError ->
+                        "This IPTV listing isn't available from your provider\n\nTry a debrid source or another listing"
                     else -> "Playback failed\n\n$reason"
                 }
             )
