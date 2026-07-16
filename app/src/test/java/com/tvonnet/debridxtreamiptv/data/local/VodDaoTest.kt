@@ -51,7 +51,7 @@ class VodDaoTest {
         vodDao.insertMovies(movies)
 
         // searchMovies returns List<VodEntity>
-        val result = vodDao.searchMovies("Movie", null)
+        val result = vodDao.searchMovies("Movie")
         assertEquals(2, result.size)
     }
 
@@ -65,8 +65,8 @@ class VodDaoTest {
 
         vodDao.deleteMoviesByCategory("cat1")
 
-        val result1 = vodDao.searchMovies("Movie 1", null)
-        val result2 = vodDao.searchMovies("Movie 2", null)
+        val result1 = vodDao.searchMovies("Movie 1")
+        val result2 = vodDao.searchMovies("Movie 2")
 
         assertEquals(0, result1.size)
         assertEquals(1, result2.size)
@@ -81,8 +81,8 @@ class VodDaoTest {
         )
         vodDao.insertMovies(movies)
 
-        val spiderResult = vodDao.searchMovies("Spider", null)
-        val manResult = vodDao.searchMovies("Man", null)
+        val spiderResult = vodDao.searchMovies("Spider")
+        val manResult = vodDao.searchMovies("Man")
 
         assertEquals(1, spiderResult.size)
         assertEquals("Spider-Man", spiderResult[0].name)

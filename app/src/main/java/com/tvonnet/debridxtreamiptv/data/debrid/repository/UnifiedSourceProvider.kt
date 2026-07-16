@@ -86,36 +86,21 @@ class UnifiedSourceProvider @Inject constructor(
             val targetYear = extractMovieYear(requestedYear)
             if (targetTitle.isNullOrBlank() && targetYear == null) return streams
 
-            // Year tokens that are part of the movie's own title ("Blade Runner 2049",
-            // "1917", "2012") must not be read as the release year.
-            val titleYearTokens = MOVIE_YEAR_REGEX.findAll(requestedTitle.orEmpty())
-                .map { it.value }
-                .toSet()
-
             return streams.filterNot { stream ->
                 val candidateTitle = stream.title?.trim().orEmpty()
-                val yearMatches = MOVIE_YEAR_REGEX.findAll(candidateTitle).toList()
-                val relevantYearMatches = yearMatches.filter { it.value !in titleYearTokens }
+                val candidateYearMatch = MOVIE_YEAR_REGEX.find(candidateTitle)
+                val candidateYear = candidateYearMatch?.value?.toIntOrNull()
+                val candidateTitleBeforeYear = candidateYearMatch
+                    ?.range
+                    ?.first
+                    ?.let { candidateTitle.substring(0, it) }
+                val candidateTitleKey = normalizeMovieTitle(candidateTitleBeforeYear)
 
-                // Wrong year only when the release has year tokens (beyond the title's
-                // own) and NONE of them is the requested year — never on the first
-                // token alone, which used to misread "Blade Runner 2049" as year 2049.
                 val hasWrongYear = targetYear != null &&
-                    relevantYearMatches.isNotEmpty() &&
-                    relevantYearMatches.none { it.value.toIntOrNull() == targetYear }
-
-                // For the title check, cut at the release-year token: the one equal to
-                // the target year when present, else the last year token (scene naming
-                // puts the release year after the title).
-                val cutMatch = relevantYearMatches.lastOrNull { it.value.toIntOrNull() == targetYear }
-                    ?: relevantYearMatches.lastOrNull()
-                    ?: yearMatches.lastOrNull()
-                val candidateTitleKey = normalizeMovieTitle(
-                    cutMatch?.range?.first?.let { candidateTitle.substring(0, it) }
-                )
-
+                    candidateYear != null &&
+                    targetYear != candidateYear
                 val hasClearlyWrongTitle = !targetTitle.isNullOrBlank() &&
-                    cutMatch != null &&
+                    candidateYear != null &&
                     !candidateTitleKey.isNullOrBlank() &&
                     !candidateTitleKey.contains(targetTitle) &&
                     !targetTitle.contains(candidateTitleKey)

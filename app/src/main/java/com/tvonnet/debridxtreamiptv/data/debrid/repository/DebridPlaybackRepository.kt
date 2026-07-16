@@ -5,8 +5,6 @@ import com.tvonnet.debridxtreamiptv.data.Result
 import com.tvonnet.debridxtreamiptv.data.Result.Error
 import com.tvonnet.debridxtreamiptv.data.Result.Success
 import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureClassifier
-import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureType
-import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridResolutionException
 import com.tvonnet.debridxtreamiptv.data.debrid.source.RealDebridRemoteDataSource
 import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
@@ -221,21 +219,6 @@ class DebridPlaybackRepository @Inject constructor(
             return AddonProxyReadiness.TERMINAL
         }
 
-        // Placeholder-video detection: resolver proxies (StremThru etc.) answer
-        // failures with a tiny static "No Matching File" video — HTTP 200, video/mp4 —
-        // that ExoPlayer happily plays. No real movie/episode is under a few MB, so a
-        // tiny total size with a video content-type is a terminal failure, not media.
-        val totalBytes = response.header("Content-Range")
-            ?.substringAfter('/', "")
-            ?.toLongOrNull()
-            ?: response.header("Content-Length")?.toLongOrNull()?.takeIf { response.code != 206 }
-        if (totalBytes != null &&
-            totalBytes in 1 until MIN_REAL_VIDEO_BYTES &&
-            contentType?.contains("video") == true
-        ) {
-            return AddonProxyReadiness.TERMINAL
-        }
-
         val contentLength = response.header("Content-Length")?.toLongOrNull()
         if (contentLength != null && contentLength in 1..4096 && contentType?.contains("video") != true) {
             return AddonProxyReadiness.UNCERTAIN
@@ -310,14 +293,7 @@ class DebridPlaybackRepository @Inject constructor(
             value.contains("invalid token") ||
             value.contains("error=") ||
             value.contains("error.mp4") ||
-            value.contains("/error") ||
-            value.contains("no-matching-file") ||
-            value.contains("no_matching_file") ||
-            value.contains("nomatchingfile") ||
-            value.contains("no-video") ||
-            value.contains("no_video") ||
-            value.contains("file-not-found") ||
-            value.contains("file_not_found")
+            value.contains("/error")
     }
 
     private fun isAddonProxyErrorContentType(contentType: String): Boolean {
@@ -331,11 +307,7 @@ class DebridPlaybackRepository @Inject constructor(
         return value.contains("mediafusion", ignoreCase = true) ||
             value.contains("aio streams", ignoreCase = true) ||
             value.contains("aiostreams", ignoreCase = true) ||
-            value.equals("aio", ignoreCase = true) ||
-            // StremThru-style resolver proxies answer failures with a tiny static
-            // "No Matching File" video (HTTP 200), so they need the readiness probe.
-            value.contains("stremthru", ignoreCase = true) ||
-            value.contains("torz", ignoreCase = true)
+            value.equals("aio", ignoreCase = true)
     }
 
     private data class CachedResolution(val url: String, val expiresAtMs: Long)
@@ -344,13 +316,6 @@ class DebridPlaybackRepository @Inject constructor(
 
     private companion object {
         const val RESOLVED_LINK_TTL_MS = 15 * 60 * 1000L
-        // Consecutive queued/downloading polls tolerated before declaring the torrent
-        // uncached (~3.5s grace: 0.5s+1s+2s). Cached torrents report "downloaded"
-        // within the first poll or two after file selection.
-        const val MAX_UNCACHED_POLLS = 3
-        // Anything smaller than this with a video content-type is a proxy's static
-        // error/placeholder clip, not real media.
-        const val MIN_REAL_VIDEO_BYTES = 5L * 1024L * 1024L
     }
 
     /**
@@ -470,11 +435,6 @@ class DebridPlaybackRepository @Inject constructor(
         var torrentInfo: com.tvonnet.debridxtreamiptv.data.debrid.model.RealDebridTorrentInfoResponse? = null
         var hasReAddedTorrent = false
         var finalVideoLink: String? = null
-        // Cached torrents flip to "downloaded" within a poll or two of file selection.
-        // A torrent that sits in queued/downloading is NOT cached on RD — fail fast
-        // (typed NOT_CACHED so the UI auto-advances) instead of burning the full ~63s
-        // budget and then retrying it a second time.
-        var uncachedPolls = 0
 
         pollLoop@ while (attempts < maxAttempts) {
             realDebridRateLimiter.awaitPermit()
@@ -486,7 +446,7 @@ class DebridPlaybackRepository @Inject constructor(
                     
                     when (status) {
                         "downloaded", "ready" -> {
-                            finalVideoLink = pickVideoLink(torrentInfo, episodeHint, allowFallback = hasReAddedTorrent)
+                            finalVideoLink = pickVideoLink(torrentInfo, episodeHint)
                             if (finalVideoLink != null) {
                                 break@pollLoop // Ready to unrestrict
                             } else if (!hasReAddedTorrent) {
@@ -518,36 +478,6 @@ class DebridPlaybackRepository @Inject constructor(
                                     if (selectResult is Error) {
                                         return handleDebridFailure("select files", sourceKey, selectResult.exception)
                                     }
-                                } else if (!torrentInfo.files.isNullOrEmpty()) {
-                                    // Torrent has files but none is a playable video: selecting
-                                    // nothing would stall in waiting_files_selection until the
-                                    // poll budget dies. Fail fast with a typed error instead,
-                                    // and delete the torrent to free the RD slot.
-                                    realDebridRateLimiter.awaitPermit()
-                                    realDebridRemote.deleteTorrent(torrentId)
-                                    val failure = DebridResolutionException(
-                                        type = DebridFailureType.UNAVAILABLE,
-                                        message = "No playable video file in this source. Try another source."
-                                    )
-                                    realDebridRateLimiter.recordFailure(sourceKey, failure)
-                                    return Error(failure)
-                                }
-                            } else {
-                                uncachedPolls++
-                                if (uncachedPolls >= MAX_UNCACHED_POLLS) {
-                                    android.util.Log.w(
-                                        "DebridPlayback",
-                                        "Torrent stuck in $status after $uncachedPolls polls — not cached, failing fast"
-                                    )
-                                    // Free the RD active-torrent slot we just consumed.
-                                    realDebridRateLimiter.awaitPermit()
-                                    realDebridRemote.deleteTorrent(torrentId)
-                                    val failure = DebridResolutionException(
-                                        type = DebridFailureType.NOT_CACHED,
-                                        message = "This source is not cached on Real-Debrid. Try another source."
-                                    )
-                                    realDebridRateLimiter.recordFailure(sourceKey, failure)
-                                    return Error(failure)
                                 }
                             }
                             delay(pollDelayMs(attempts))
@@ -567,23 +497,16 @@ class DebridPlaybackRepository @Inject constructor(
         }
 
         if (torrentInfo == null || torrentInfo.status?.lowercase() !in listOf("downloaded", "ready")) {
-            // Typed NOT_CACHED (terminal): PlaybackResolver must not re-run the whole
-            // ~63s poll cycle, and the detail screens auto-advance to the next source.
-            val failure = DebridResolutionException(
-                type = DebridFailureType.NOT_CACHED,
-                message = "This source is not ready on Real-Debrid. Try another source."
-            )
-            realDebridRateLimiter.recordFailure(sourceKey, failure)
-            return Error(failure)
+            return Error(Exception("Torrent not ready after $maxAttempts attempts"))
         }
 
         // Step 3: Get video link
-        val videoLink = finalVideoLink ?: pickVideoLink(torrentInfo, episodeHint, allowFallback = true)
+        val videoLink = finalVideoLink ?: pickVideoLink(torrentInfo, episodeHint)
             ?: return Error(Exception("No links available in torrent for requested episode"))
 
         // Step 4: Unrestrict the link with retry
         val result = unrestrictLinkWithRetry(videoLink, 3, sourceKey)
-        if (result is Success && result.data.isNotBlank()) {
+        if (result is Success) {
             resolvedLinkCache[resolutionCacheKey] =
                 CachedResolution(result.data, System.currentTimeMillis() + RESOLVED_LINK_TTL_MS)
         }
@@ -602,10 +525,7 @@ class DebridPlaybackRepository @Inject constructor(
             val unrestrictResult = realDebridRemote.unrestrictLink(link)
             when (unrestrictResult) {
                 is Success -> {
-                    // Blank counts as missing: RD can return download:"" for some hoster
-                    // edge cases; treating it as Success would poison the resolution cache.
-                    val streamUrl = unrestrictResult.data.downloadUrl?.takeIf { it.isNotBlank() }
-                        ?: unrestrictResult.data.streamingUrl?.takeIf { it.isNotBlank() }
+                    val streamUrl = unrestrictResult.data.downloadUrl ?: unrestrictResult.data.streamingUrl
                         ?: return Error(Exception("No download URL in unrestrict response"))
                     return Success(streamUrl)
                 }
@@ -700,8 +620,7 @@ class DebridPlaybackRepository @Inject constructor(
 
     private fun pickVideoLink(
         torrentInfo: com.tvonnet.debridxtreamiptv.data.debrid.model.RealDebridTorrentInfoResponse,
-        hint: EpisodeHint?,
-        allowFallback: Boolean = false
+        hint: EpisodeHint?
     ): String? {
         val links = torrentInfo.links ?: return null
         if (hint == null || torrentInfo.files.isNullOrEmpty()) {
@@ -712,13 +631,6 @@ class DebridPlaybackRepository @Inject constructor(
             .filter { it.selected == 1 && it.id != null }
 
         if (selectedFiles.isEmpty()) {
-            return links.firstOrNull()
-        }
-
-        // Only one file was selected: it IS what selectFileIds picked for this
-        // episode — use it even when the file name doesn't score (odd naming,
-        // absolute numbering, non-SxxEyy formats).
-        if (selectedFiles.size == 1) {
             return links.firstOrNull()
         }
 
@@ -734,20 +646,10 @@ class DebridPlaybackRepository @Inject constructor(
             compareBy<LinkScore> { it.score }.thenBy { it.sizeBytes }
         )
 
-        return when {
-            best != null && best.score > 0 -> links.getOrNull(best.index) ?: links.firstOrNull()
-            // Last resort (after the delete/re-add pass also failed to match):
-            // play the largest selected video instead of erroring out with a
-            // playable file sitting right there.
-            allowFallback -> {
-                val largest = scoredLinks.maxByOrNull { it.sizeBytes }
-                android.util.Log.w(
-                    "DebridPlayback",
-                    "Episode hint matched nothing; falling back to largest selected video"
-                )
-                largest?.let { links.getOrNull(it.index) } ?: links.firstOrNull()
-            }
-            else -> null
+        return if (best != null && best.score > 0) {
+            links.getOrNull(best.index) ?: links.firstOrNull()
+        } else {
+            null
         }
     }
 
@@ -823,16 +725,13 @@ class DebridPlaybackRepository @Inject constructor(
         val lower = path.lowercase()
         return lower.endsWith(".mkv") ||
             lower.endsWith(".mp4") ||
-            lower.endsWith(".m4v") ||
             lower.endsWith(".avi") ||
             lower.endsWith(".mov") ||
             lower.endsWith(".ts") ||
             lower.endsWith(".m2ts") ||
             lower.endsWith(".wmv") ||
             lower.endsWith(".flv") ||
-            lower.endsWith(".webm") ||
-            lower.endsWith(".mpg") ||
-            lower.endsWith(".mpeg")
+            lower.endsWith(".webm")
     }
 
     private fun shouldForceReauth(error: Exception?): Boolean {

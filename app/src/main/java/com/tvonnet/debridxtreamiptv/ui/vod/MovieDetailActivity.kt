@@ -245,16 +245,6 @@ class MovieDetailActivity : AppCompatActivity() {
         initViews()
         getMovieDataFromIntent()
         openedFromPlaybackFailure = intent.getBooleanExtra(PlayerActivity.EXTRA_OPENED_FROM_PLAYBACK_FAILURE, false)
-        if (openedFromPlaybackFailure) {
-            // The player redirected here after a terminal failure (fresh startActivity,
-            // so the playerLauncher callback never runs). Without this the redirect is
-            // completely silent — the user just sees the detail page reappear.
-            intent.getStringExtra(PlayerActivity.EXTRA_FAILED_STREAM_ID)
-                ?.takeIf { it.isNotBlank() }
-                ?.let { failedDebridStreamIds.add(it) }
-            val failReason = intent.getStringExtra(PlayerActivity.EXTRA_FAIL_REASON)
-            notifyDebridFailure(failReason, autoPlayNext = false)
-        }
         updateTrailerButtonState()
         displayMovieDetails()
         configureTabs()
@@ -1313,13 +1303,7 @@ class MovieDetailActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        if (debridPlaybackRepository.requiresDirectProxyReadinessCheck(
-                streamUrl,
-                sourceOverride?.provider,
-                sourceOverride?.sourceName,
-                sourceOverride?.sourceType
-            )
-        ) {
+        if (isAddonProxyPlaybackUrl(streamUrl)) {
             lifecycleScope.launch {
                 val readyResult = withContext(Dispatchers.IO) {
                     debridPlaybackRepository.getAddonProxyPlaybackReadiness(
@@ -1409,14 +1393,11 @@ class MovieDetailActivity : AppCompatActivity() {
     }
 
     private fun notifyDebridFailure(reason: String?, autoPlayNext: Boolean) {
-        // A blank reason must still produce feedback — silently returning here left
-        // failures with empty messages looking like the app did nothing.
-        val detail = reason?.takeIf { it.isNotBlank() }
-        val message = when {
-            autoPlayNext && detail != null -> "Playback failed, trying next source: $detail"
-            autoPlayNext -> "Playback failed, trying next source…"
-            detail != null -> "Playback failed: $detail"
-            else -> "Playback failed. Pick another source."
+        if (reason.isNullOrBlank()) return
+        val message = if (autoPlayNext) {
+            "Playback failed, trying next source: $reason"
+        } else {
+            "Playback failed: $reason"
         }
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
