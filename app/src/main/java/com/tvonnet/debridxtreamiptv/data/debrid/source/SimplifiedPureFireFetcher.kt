@@ -32,6 +32,10 @@ class SimplifiedPureFireFetcher @Inject constructor(
 
     companion object {
         private const val TAG = "SimplifiedPureFire"
+        // Torrentio is disabled: its public API returns raw magnets that require a
+        // Real-Debrid config the owner's account (TorBox-based) doesn't use, so every
+        // Torrentio row prompts for RD setup and can't play. Flip to true to re-enable.
+        private const val TORRENTIO_ENABLED = false
         private const val TORRENTIO_BASE_URL = "https://torrentio.strem.fun"
         private const val TORRENTIO_PROVIDERS =
             "yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentgalaxy,magnetdl," +
@@ -51,6 +55,7 @@ class SimplifiedPureFireFetcher @Inject constructor(
         year: Int?,
         contentType: ContentType
     ): List<AddonStream> {
+        if (!TORRENTIO_ENABLED) return emptyList()
         return withContext(Dispatchers.IO) {
             Log.d(TAG, "🎬 Real Torrentio fetch for: $title ($year) [$imdbId]")
 
@@ -125,6 +130,7 @@ class SimplifiedPureFireFetcher @Inject constructor(
         episode: Int,
         title: String?
     ): List<AddonStream> {
+        if (!TORRENTIO_ENABLED) return emptyList()
         return withContext(Dispatchers.IO) {
             Log.d(TAG, "🎬 Real Torrentio fetch for Episode: $title S$season:E$episode [$imdbId]")
 

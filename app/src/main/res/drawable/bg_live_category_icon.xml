@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FIX 2: neutral circular badge behind category flags/emoji — replaces the old
+     per-category hashed-color tile so every row uses one consistent container. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="#1AFFFFFF" />
+    <stroke android:width="1dp" android:color="#14FFFFFF" />
+</shape>

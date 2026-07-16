@@ -73,7 +73,6 @@ class LiveSurfChannelAdapter(
 
         fun bind(channel: ZapChannel, position: Int) {
             val ctx = itemView.context
-            val density = ctx.resources.displayMetrics.density
             val isPlaying = position == playingIndex
 
             catBar.setBackgroundColor(categoryColor)
@@ -89,10 +88,14 @@ class LiveSurfChannelAdapter(
             itemView.isActivated = isPlaying
 
             logoText.text = LivePlayerOsdManager.channelInitials(channel.name)
-            logo.background = LivePlayerOsdManager.channelTileGradient(channel.name, 7f * density)
+            // FIX 3: the logo tile's neutral background is now static (set once in
+            // the layout XML) — no per-channel hashed-color gradient here anymore.
             if (!channel.logoUrl.isNullOrBlank()) {
                 logoImg.isVisible = true
-                GlideUtils.loadChannelLogo(logoImg, channel.logoUrl)
+                // Explicit null placeholder/error: on a broken/missing logo URL, fall
+                // back to the initials text underneath instead of a generic poster
+                // placeholder icon sitting inside the tile.
+                GlideUtils.loadChannelLogo(logoImg, channel.logoUrl, null, null)
             } else {
                 logoImg.isVisible = false
             }

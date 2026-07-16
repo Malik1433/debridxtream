@@ -183,8 +183,9 @@ class PlayerActivity : AppCompatActivity() {
         override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
             val responseCode =
                 (loadErrorInfo.exception as? HttpDataSource.InvalidResponseCodeException)?.responseCode
-            if (responseCode == 401 || responseCode == 403 || responseCode == 404 ||
-                responseCode == 410 || responseCode == 416 || responseCode == 451
+            if (responseCode == 400 || responseCode == 401 || responseCode == 403 ||
+                responseCode == 404 || responseCode == 405 || responseCode == 410 ||
+                responseCode == 416 || responseCode == 451
             ) {
                 return C.TIME_UNSET
             }
@@ -342,6 +343,11 @@ class PlayerActivity : AppCompatActivity() {
     private var lastDirectAddonProxyTimeoutContext: String? = null
     private var lastDirectAddonProxyServerErrorContext: String? = null
     private var hasRenderedFirstFrameForCurrentSource = false
+    // Black-video fallback: some HW decoders (e.g. MTK on high-bitrate/4K HEVC) play audio
+    // but never render video under tunneling. If no frame arrives while audio is playing,
+    // reinit once without tunneling.
+    private var blackVideoFallbackTried = false
+    private val blackVideoCheckRunnable = Runnable { checkBlackVideoFallback() }
     private var lastSuccessfulDirectAddonProxyPreferenceContext: String? = null
     private var isControllerVisible = false
 
@@ -547,6 +553,9 @@ class PlayerActivity : AppCompatActivity() {
         // the server replays the same GOP on every connection, so retry #3+
         // can never succeed. Fail fast with a clear message instead.
         private const val LIVE_MAX_RETRIES = 2
+        // How long audio may play with no video frame before the black-video fallback
+        // (reinit without tunneling) kicks in.
+        private const val BLACK_VIDEO_CHECK_MS = 5_000L
         // Unified reconnect budget (QA fix 2): aggregate ceiling across ALL recovery
         // subsystems so a dead channel can't chain error-retry + ENDED-reconnect +
         // freeze re-prepare into a burst against a WAF/max_connections=1 server.
@@ -878,6 +887,18 @@ class PlayerActivity : AppCompatActivity() {
                 btnPrev?.isVisible = false
                 btnEpisodes?.isVisible = false
             }
+            // Movies: an in-player "Sources" button to switch source/language mid-playback
+            // (e.g. Hindi → German) without going back to the detail screen.
+            val btnSources = playerView.findViewById<View>(R.id.btn_player_sources)
+            if (contentType == ContentType.MOVIE) {
+                btnSources?.isVisible = true
+                btnSources?.setOnClickListener {
+                    playerView.hideController()
+                    openMovieSourcePanel()
+                }
+            } else {
+                btnSources?.isVisible = false
+            }
             // VOD Player redesign: explicit horizontal focus chain so play/pause visibility
             // swaps never trap focus (both exo_play & exo_pause share the same L/R links).
             wireControlFocus(isSeriesControls)
@@ -995,10 +1016,12 @@ class PlayerActivity : AppCompatActivity() {
             Log.w("PlayerActivity", "Direct Debrid resume is expired and cannot be refreshed; blocking stale passthrough playback.")
             handleTerminalPlaybackFailure("Expired direct source could not be refreshed")
         } else {
-            // A ready Debrid source (e.g. the user just picked one from the source list):
-            // show the cinematic loader while it buffers; STATE_READY dissolves it on the
-            // first frame. Keeps the "loading" experience identical to resume.
-            if (isDebrid && (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE)) {
+            // A ready movie/episode source (debrid pick OR an IPTV/Continue-Watching
+            // resume): show the cinematic loader while it buffers instead of the bare
+            // player spinner; STATE_READY dissolves it on the first frame. IPTV resumes
+            // previously fell through to the spinner — this keeps the loading experience
+            // identical (cinematic) for every movie/episode, debrid or IPTV.
+            if (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE) {
                 showCinematicLoader()
             }
             initializePlayer(streamUrl ?: "")
@@ -2337,6 +2360,10 @@ class PlayerActivity : AppCompatActivity() {
                 // If the primary hardware decoder fails to initialize (e.g. HEVC on a busy
                 // or incapable SoC), fall back to a lower-priority decoder instead of erroring.
                 .setEnableDecoderFallback(true)
+                // Dolby Vision on a non-DV display renders to a black screen (audio plays).
+                // When the display can't do DV, hide the DV decoder so media3 falls back to
+                // its HEVC base layer (the HDR10/SDR image of DV profile 7/8), which plays.
+                .setMediaCodecSelector(dolbyVisionAwareCodecSelector())
 
             val audioAttributes = AudioAttributes.Builder()
                 .setUsage(C.USAGE_MEDIA)
@@ -2410,6 +2437,14 @@ class PlayerActivity : AppCompatActivity() {
                          // clearing it here would make the upcoming seamless switch start from 0.
                          if (!isResolvingDebrid && player?.currentPosition ?: 0L > 1000) startPositionMs = 0L
                         maybeMatchDisplayFrameRate()
+                        // Black-video watchdog (VOD): audio can play while the HW decoder
+                        // renders no frames under tunneling — reinit without tunneling if so.
+                        if (contentType != ContentType.LIVE_TV &&
+                            !hasRenderedFirstFrameForCurrentSource && !blackVideoFallbackTried
+                        ) {
+                            timeoutHandler.removeCallbacks(blackVideoCheckRunnable)
+                            timeoutHandler.postDelayed(blackVideoCheckRunnable, BLACK_VIDEO_CHECK_MS)
+                        }
                         timeoutHandler.removeCallbacks(timeoutRunnable)
                         watchdogExtensions = 0
                         watchdogBufferedPosAtArm = -1L
@@ -2504,6 +2539,7 @@ class PlayerActivity : AppCompatActivity() {
                 }
                 override fun onRenderedFirstFrame() {
                     hasRenderedFirstFrameForCurrentSource = true
+                    timeoutHandler.removeCallbacks(blackVideoCheckRunnable)
                     liveOsd?.hideZapBackdrop()
                     // First rendered frame = the source is genuinely playing; clear the
                     // unified reconnect budget (fix 2) and hide the banner (fix 3).
@@ -2664,6 +2700,26 @@ class PlayerActivity : AppCompatActivity() {
             recordDirectAddonProxyFailure()
             handleTerminalPlaybackFailure(errorMessage, preferReturnToSources = true)
             return
+        }
+        // Definitive client errors (removed/nonexistent listing, wrong method) never
+        // recover by retrying. Plain IPTV/Xtream playback had NO terminal-HTTP path —
+        // isTerminalDirectHttpPlaybackError only fires for directDebridPlayback — so a
+        // dead listing (e.g. a provider that answers 405/500 for an unavailable movie id)
+        // looped the "Reconnecting…" banner until the whole retry budget drained.
+        // Fail fast for non-live sources instead. 429 (rate-limit) is excluded — handled
+        // below with a cool-off.
+        val terminalClientCode =
+            (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
+        if (contentType != ContentType.LIVE_TV && terminalClientCode != null) {
+            val terminal4xx = terminalClientCode in setOf(400, 401, 403, 404, 405, 410, 451)
+            // Plain IPTV/Xtream VOD: a 5xx is a dead listing on the panel, not a transient
+            // blip (unlike live TV or debrid CDNs, which keep retrying) — fail fast too.
+            val terminalIptv5xx =
+                playbackSource == PlaybackSource.IPTV && terminalClientCode in 500..599
+            if (terminal4xx || terminalIptv5xx) {
+                handleTerminalPlaybackFailure(errorMessage, preferReturnToSources = true)
+                return
+            }
         }
         // HTTP 429 for plain IPTV/Xtream (QA fix 4): the provider WAF is rate-limiting
         // this IP. Fast-backoff retries only deepen the ban, so cool off — honor a
@@ -3041,6 +3097,15 @@ class PlayerActivity : AppCompatActivity() {
             link(R.id.exo_ffwd, R.id.btn_next_episode, R.id.btn_episodes)
             link(R.id.btn_episodes, R.id.exo_ffwd, R.id.btn_player_audio)
             link(R.id.btn_player_audio, R.id.btn_episodes, R.id.btn_player_subtitles)
+        } else if (contentType == ContentType.MOVIE) {
+            // Movies: the Sources button sits between fast-forward and the audio button,
+            // so the focus chain must route through it (it was being skipped).
+            link(R.id.exo_rew, R.id.exo_rew, R.id.exo_play)
+            link(R.id.exo_play, R.id.exo_rew, R.id.exo_ffwd)
+            link(R.id.exo_pause, R.id.exo_rew, R.id.exo_ffwd)
+            link(R.id.exo_ffwd, R.id.exo_play, R.id.btn_player_sources)
+            link(R.id.btn_player_sources, R.id.exo_ffwd, R.id.btn_player_audio)
+            link(R.id.btn_player_audio, R.id.btn_player_sources, R.id.btn_player_subtitles)
         } else {
             link(R.id.exo_rew, R.id.exo_rew, R.id.exo_play)
             link(R.id.exo_play, R.id.exo_rew, R.id.exo_ffwd)
@@ -3679,12 +3744,17 @@ class PlayerActivity : AppCompatActivity() {
             return
         }
         if (!finishWithReturnToSources(autoPlayNext = true, reason = reason)) {
+            val isHttpError = reason.contains("HTTP", ignoreCase = true)
             showError(
                 when {
                     contentType == ContentType.LIVE_TV ->
                         "Channel stream is broken at the provider\n\nTry another channel or source"
                     reason.contains("timeout", ignoreCase = true) ->
                         "Connection timeout\n\nStream is too slow or unavailable"
+                    // Plain IPTV/Xtream dead listing (405/404/5xx): the provider simply
+                    // doesn't have this file — steer the user to a debrid source.
+                    playbackSource == PlaybackSource.IPTV && isHttpError ->
+                        "This IPTV listing isn't available from your provider\n\nTry a debrid source or another listing"
                     else -> "Playback failed\n\n$reason"
                 }
             )
@@ -3718,6 +3788,147 @@ class PlayerActivity : AppCompatActivity() {
         finish()
         return true
     }
+
+    /**
+     * In-player movie "Sources" panel: fetch the movie's sources and show the same picker
+     * as the detail screen so the user can switch source/language (e.g. Hindi → German)
+     * mid-playback. Picking one relaunches the player on that source at the current position.
+     */
+    private fun openMovieSourcePanel() {
+        if (isFinishing || contentType != ContentType.MOVIE) return
+        val sheet = com.tvonnet.debridxtreamiptv.ui.series.SourceSelectionBottomSheet(
+            onSourceSelected = { source, _ -> switchToMovieSource(source) },
+            contentTitle = originalTitle,
+            backdropUrl = backdropUrlExtra
+        )
+        sheet.show(supportFragmentManager, "player_movie_sources")
+        lifecycleScope.launch {
+            val sources = viewModel.fetchMovieSourcesForPanel(
+                streamId = debridStreamIdExtra ?: contentId,
+                title = originalTitle,
+                imdbId = imdbIdExtra,
+                cleanTitle = cleanLoaderTitle(originalTitle)
+            )
+            if (!sheet.isAdded) return@launch
+            if (sources.isEmpty()) sheet.showError("No other sources found") else sheet.showSources(sources)
+        }
+    }
+
+    /**
+     * Switch the movie to the picked source IN-PLACE (no activity relaunch — relaunching
+     * collapsed the back stack to home). Saves the current position, updates the source
+     * identity, and re-inits: resolver-backed magnet sources go through the debrid
+     * resolution (cinematic loader), direct-http/IPTV sources re-init on the ready URL.
+     * The saved position is restored on the first frame (initializePlayer seeks to it).
+     */
+    private fun switchToMovieSource(source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource) {
+        if (contentType != ContentType.MOVIE || isFinishing) return
+        val stream = source.stream
+        val magnet = stream.direct_source
+        val infoHash = stream.stream_id
+        val isIptv = source.sourceType == "IPTV"
+        val isDirectHttp = !isIptv && magnet?.startsWith("http", ignoreCase = true) == true &&
+            !magnet.endsWith(".torrent", ignoreCase = true)
+        val resolverBacked = !isIptv && !isDirectHttp
+        if (resolverBacked && magnet.isNullOrBlank() && infoHash.isNullOrBlank()) {
+            showToast("Invalid source"); return
+        }
+
+        // Resume the new source from where we are now.
+        startPositionMs = (player?.currentPosition ?: startPositionMs).coerceAtLeast(0L)
+        playbackSource = if (isIptv) PlaybackSource.IPTV else PlaybackSource.DEBRID
+        debridStreamIdExtra = stream.stream_id
+        stream.name?.let { originalTitle = it }
+        // Refresh the on-screen title so the controller shows the source we just switched to,
+        // not the previous one.
+        bindModernMetadata(stream.name ?: originalTitle)
+
+        when {
+            isIptv -> {
+                val prefs = CredentialsPreferences(this)
+                val server = prefs.getServerUrl()?.trimEnd('/')
+                val user = prefs.getUsername()
+                val pass = prefs.getPassword()
+                if (server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank() || stream.stream_id.isNullOrBlank()) {
+                    showToast("Missing credentials"); return
+                }
+                directDebridPlayback = false
+                debridInfoHashExtra = null; debridMagnetExtra = null
+                val ext = stream.container_extension?.takeIf { it.isNotBlank() } ?: "mp4"
+                showCinematicLoader()
+                initializePlayer("$server/movie/$user/$pass/${stream.stream_id}.$ext")
+            }
+            isDirectHttp -> {
+                directDebridPlayback = true
+                debridInfoHashExtra = null; debridMagnetExtra = null
+                showCinematicLoader()
+                initializePlayer(magnet!!)
+            }
+            else -> {
+                // Resolver-backed magnet: set the new identity and let the player resolve it.
+                directDebridPlayback = false
+                debridInfoHashExtra = infoHash
+                debridMagnetExtra = magnet
+                isResolvingDebrid = true
+                showCinematicLoader()
+                viewModel.reResolveDebridUrl(infoHash, magnet, null, null, originalTitle)
+            }
+        }
+    }
+
+    /**
+     * If audio is playing (STATE_READY) but no video frame has rendered, the HW decoder is
+     * decoding audio while producing no visible video — a known tunneling black-screen on
+     * some SoCs (e.g. MTK) for high-bitrate/4K HEVC. Reinit once without tunneling at the
+     * current position. If it's still black afterwards, the video is genuinely undecodable.
+     */
+    private fun checkBlackVideoFallback() {
+        if (isFinishing || isDestroyed) return
+        val p = player ?: return
+        if (hasRenderedFirstFrameForCurrentSource || blackVideoFallbackTried) return
+        if (contentType == ContentType.LIVE_TV || disableTunnelingForSession) return
+        if (!p.isPlaying) return // still buffering — the buffer watchdog handles that
+        blackVideoFallbackTried = true
+        disableTunnelingForSession = true
+        Log.w("PlayerActivity", "Audio playing but no video frame — reinitializing without tunneling (black-video fallback)")
+        PlaybackDiagnosticsRecorder.record(
+            this,
+            "black_video_tunneling_retry",
+            diagnosticsPlaybackFields() + mapOf("positionMs" to p.currentPosition)
+        )
+        if (p.currentPosition > 1000L) startPositionMs = p.currentPosition
+        player?.release(); player = null
+        retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, 250L)
+    }
+
+    /**
+     * A [MediaCodecSelector] that, when the display cannot present Dolby Vision, returns NO
+     * DV decoder for a `video/dolby-vision` stream. media3 then uses the HEVC decoders it
+     * already gathers for the alternative mime type, i.e. it decodes the DV base layer
+     * (HDR10/SDR for DV profile 7/8) — playable instead of a black screen. DV-capable
+     * displays keep true Dolby Vision.
+     */
+    private fun dolbyVisionAwareCodecSelector(): androidx.media3.exoplayer.mediacodec.MediaCodecSelector {
+        val dvSupported = isDolbyVisionDisplaySupported()
+        return androidx.media3.exoplayer.mediacodec.MediaCodecSelector { mimeType, secure, tunneling ->
+            if (mimeType == MimeTypes.VIDEO_DOLBY_VISION && !dvSupported) {
+                emptyList()
+            } else {
+                androidx.media3.exoplayer.mediacodec.MediaCodecSelector.DEFAULT
+                    .getDecoderInfos(mimeType, secure, tunneling)
+            }
+        }
+    }
+
+    private fun isDolbyVisionDisplaySupported(): Boolean = try {
+        val disp = if (Build.VERSION.SDK_INT >= 30) display else @Suppress("DEPRECATION") windowManager.defaultDisplay
+        @Suppress("DEPRECATION")
+        (disp?.hdrCapabilities?.supportedHdrTypes ?: IntArray(0))
+            .any { it == android.view.Display.HdrCapabilities.HDR_TYPE_DOLBY_VISION }
+    } catch (e: Exception) {
+        false
+    }
+
     private fun updatePlayPauseVisibility(isPlaying: Boolean) {
         val play = playerView.findViewById<View>(R.id.exo_play)
         val pause = playerView.findViewById<View>(R.id.exo_pause)
@@ -3782,18 +3993,22 @@ class PlayerActivity : AppCompatActivity() {
                 }
                 .start()
         }
-        // Clean indeterminate glide: a soft cyan segment slides across the track and loops.
+        // Clean indeterminate loader: a soft cyan segment sweeps smoothly back and forth
+        // WITHIN the track (never off the edges, no jump-back) for a polished, contained look.
         loaderBarSeg?.let { seg ->
             loaderGlide?.cancel()
+            seg.translationX = 0f
             seg.post {
-                val density = seg.resources.displayMetrics.density
+                // Travel = track width - segment width, so the segment stays fully inside.
+                val track = (seg.parent as? View)?.width ?: return@post
+                val travel = (track - seg.width).coerceAtLeast(0).toFloat()
                 loaderGlide = android.animation.ObjectAnimator.ofFloat(
-                    seg, View.TRANSLATION_X, -(44f * density), (128f * density)
+                    seg, View.TRANSLATION_X, 0f, travel
                 ).apply {
-                    duration = 1150
+                    duration = 1050
                     repeatCount = android.animation.ValueAnimator.INFINITE
-                    repeatMode = android.animation.ValueAnimator.RESTART
-                    interpolator = android.view.animation.LinearInterpolator()
+                    repeatMode = android.animation.ValueAnimator.REVERSE
+                    interpolator = android.view.animation.AccelerateDecelerateInterpolator()
                     start()
                 }
             }

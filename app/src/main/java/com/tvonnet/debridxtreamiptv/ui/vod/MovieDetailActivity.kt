@@ -25,6 +25,7 @@ import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.Result
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.AddonProxyReadiness
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
+import com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo
 import com.tvonnet.debridxtreamiptv.data.onSuccess
 import com.tvonnet.debridxtreamiptv.data.onFailure
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
@@ -245,6 +246,17 @@ class MovieDetailActivity : AppCompatActivity() {
         initViews()
         getMovieDataFromIntent()
         openedFromPlaybackFailure = intent.getBooleanExtra(PlayerActivity.EXTRA_OPENED_FROM_PLAYBACK_FAILURE, false)
+        if (openedFromPlaybackFailure) {
+            // The player redirected here after a terminal failure (fresh startActivity, so
+            // the playerLauncher callback never runs). Without this the bounce is silent.
+            val reason = intent.getStringExtra(PlayerActivity.EXTRA_FAIL_REASON)
+            Toast.makeText(
+                this,
+                if (reason.isNullOrBlank()) "Playback failed. Pick another source."
+                else "Playback failed: $reason",
+                Toast.LENGTH_LONG
+            ).show()
+        }
         updateTrailerButtonState()
         displayMovieDetails()
         configureTabs()
@@ -858,7 +870,12 @@ class MovieDetailActivity : AppCompatActivity() {
                         imdbId = currentImdbId
                     ) + PlaybackDiagnosticsRecorder.sourceFields(this, source)
                 )
-                playDebridMovie(source.stream, source, returnToSources = true)
+                if (source.sourceType == "IPTV") {
+                    // Xtream listing: play the provider URL directly, no debrid resolve.
+                    playMovie(source)
+                } else {
+                    playDebridMovie(source.stream, source, returnToSources = true)
+                }
             },
             onStateChanged = { state ->
                 debridFilterState = state
@@ -897,13 +914,22 @@ class MovieDetailActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val sources = withContext(Dispatchers.IO) {
-                    unifiedSourceProvider.getMovieSources(
+                    val debrid = unifiedSourceProvider.getMovieSources(
                         streamId = movieId,
                         title = movieName,
                         primaryCategoryId = movieCategoryId,
                         yearHint = movieYear,
                         imdbId = currentImdbId
                     )
+                    // Like the series stream panel: surface the same movie's IPTV (Xtream)
+                    // listings alongside the debrid sources, badged "IPTV".
+                    val iptv = try {
+                        fetchIptvMovieSources(movieName)
+                    } catch (e: Exception) {
+                        android.util.Log.w("MovieDetailActivity", "IPTV source lookup failed: ${e.message}")
+                        emptyList()
+                    }
+                    debrid + iptv
                 }
                 debridSources = sources
                 PlaybackDiagnosticsRecorder.record(
@@ -935,6 +961,18 @@ class MovieDetailActivity : AppCompatActivity() {
                 bottomSheet.showError(e.message ?: getString(R.string.movie_detail_sources_empty))
             }
         }
+    }
+
+    /**
+     * IPTV (Xtream) listings of this movie for the source picker. Delegates to the shared
+     * [com.tvonnet.debridxtreamiptv.data.debrid.repository.IptvMovieMatcher] (also used by
+     * the in-player Sources panel) so both surfaces match identically.
+     */
+    private suspend fun fetchIptvMovieSources(title: String?): List<MovieSource> {
+        val query = com.tvonnet.debridxtreamiptv.data.debrid.repository.IptvMovieMatcher
+            .searchQuery(title) ?: return emptyList()
+        return com.tvonnet.debridxtreamiptv.data.debrid.repository.IptvMovieMatcher
+            .buildSources(repository.searchVod(query), title, movieYear)
     }
 
     private fun consumeDebridReturnFocusStreamIds(): List<String> {
@@ -1249,13 +1287,16 @@ class MovieDetailActivity : AppCompatActivity() {
         )
 
         val tmdbId = movieId?.takeIf { it.toIntOrNull() != null }
+        // An IPTV row picked from the debrid source sheet is plain Xtream playback:
+        // never route it through the debrid resolver machinery.
+        val isIptvSource = sourceOverride?.sourceType == "IPTV"
         val playbackSource =
-            if (movieCategoryId == "debrid") {
+            if (movieCategoryId == "debrid" && !isIptvSource) {
                 com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID
             } else {
                 null
             }
-        val directDebridPlayback = isDirectHttp && movieCategoryId == "debrid"
+        val directDebridPlayback = isDirectHttp && movieCategoryId == "debrid" && !isIptvSource
         val resolverBackedDebridPlayback = playbackSource != null && !directDebridPlayback
 
         val launchPlayer = {

@@ -27,6 +27,12 @@ class StremioAddonFetcher @Inject constructor(
         private const val TAG = "StremioAddonFetcher"
         private const val TIMEOUT_SECONDS = 20L
 
+        // Debrid proxy (StremThru/Debridio "Torz") playback URLs are ".../<hash>/<fileIdx>/".
+        // A file index of -1 means the proxy matched NO file → it will only serve a static
+        // "No Matching File" placeholder. Matches the -1 segment (optionally trailing slash
+        // or query), not a "-1" appearing inside a real filename.
+        private val NO_FILE_INDEX_REGEX = Regex("/-1(?:/|\\?|$)")
+
         fun normalizeManifestUrl(url: String): String {
             return url.trim()
                 .replaceFirst("stremio://", "https://", ignoreCase = true)
@@ -165,6 +171,19 @@ class StremioAddonFetcher @Inject constructor(
         }
 
         if (infoHash == null && normalizedUrl.isNullOrBlank() && magnet == null) {
+            return null
+        }
+
+        // Drop unresolved proxy entries (StremThru/Debridio "Torz"): when the debrid
+        // proxy couldn't match a file it returns a playback URL with file index -1
+        // (".../<hash>/-1/") and no behaviorHints.filename. Selecting one only ever
+        // plays the proxy's static "No Matching File" placeholder. Device-verified:
+        // every such entry has BOTH markers, and no real (filename-bearing) entry does.
+        val hasNoFilename = stream.behaviorHints?.filename.isNullOrBlank()
+        val isNoFileIndexUrl = normalizedUrl != null &&
+            !normalizedUrl.startsWith("magnet:", ignoreCase = true) &&
+            NO_FILE_INDEX_REGEX.containsMatchIn(normalizedUrl)
+        if (infoHash == null && hasNoFilename && isNoFileIndexUrl) {
             return null
         }
 

@@ -30,7 +30,9 @@ import java.util.*
 import javax.inject.Inject
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridPlaybackRepository
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider
+import com.tvonnet.debridxtreamiptv.data.local.entity.FavoriteEntity
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
+import com.tvonnet.debridxtreamiptv.util.FAVORITES_CATEGORY_ID
 import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 
 sealed class DebridResolutionState {
@@ -554,6 +556,41 @@ class PlayerViewModel @Inject constructor(
                 // Pre-warm only — the confirm path will resolve for real.
             }
         }
+    }
+
+    /**
+     * Fetch the full movie source list for the in-player "Sources" panel (language/quality
+     * switch mid-playback). Unlike [refreshDebridMovieSource] this does NOT auto-pick or play
+     * — it just returns the list for the picker to display.
+     */
+    suspend fun fetchMovieSourcesForPanel(
+        streamId: String?,
+        title: String?,
+        imdbId: String?,
+        cleanTitle: String?
+    ): List<MovieSource> = withContext(Dispatchers.IO) {
+        if (streamId.isNullOrBlank() && imdbId.isNullOrBlank() && title.isNullOrBlank()) {
+            return@withContext emptyList()
+        }
+        val debrid = runCatching {
+            unifiedSourceProvider.getMovieSources(
+                streamId = streamId,
+                title = title,
+                primaryCategoryId = "debrid",
+                yearHint = null,
+                imdbId = imdbId
+            )
+        }.getOrDefault(emptyList())
+        // Also surface the movie's IPTV (Xtream) listings, like the detail picker does.
+        val iptv = runCatching {
+            val q = com.tvonnet.debridxtreamiptv.data.debrid.repository.IptvMovieMatcher
+                .searchQuery(cleanTitle ?: title)
+            if (q != null) {
+                com.tvonnet.debridxtreamiptv.data.debrid.repository.IptvMovieMatcher
+                    .buildSources(repository.searchVod(q), cleanTitle ?: title, null)
+            } else emptyList()
+        }.getOrDefault(emptyList())
+        debrid + iptv
     }
 
     fun refreshDebridMovieSource(
@@ -1219,7 +1256,53 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             val cats = cacheManager.getCategories("live")
                 ?: runCatching { repository.ensureLiveCategories() }.getOrNull()
-            if (!cats.isNullOrEmpty()) _surfCategories.value = cats
+            if (!cats.isNullOrEmpty()) {
+                // Prepend the synthetic Favorites category, same convention as the
+                // non-fullscreen Live TV screen (LiveFragment.buildDisplayCategories):
+                // same FAVORITES_CATEGORY_ID, same repository.getFavoritesByType("live")
+                // source of truth — no separate favorites data source.
+                val favorites = XtreamCategory(
+                    category_id = FAVORITES_CATEGORY_ID,
+                    category_name = context.getString(R.string.favorites),
+                    parent_id = null
+                )
+                _surfCategories.value = listOf(favorites) + cats.filterNot { it.category_id == FAVORITES_CATEGORY_ID }
+            }
+        }
+    }
+
+    /** Same fallback shape as LiveViewModel.favoriteFallbackChannel — used only when
+     *  a favorited stream_id is no longer resolvable via the cache/API (e.g. removed
+     *  from the provider's playlist since it was favorited). */
+    private fun favoriteFallbackStream(favorite: FavoriteEntity): XtreamStream = XtreamStream(
+        num = null,
+        name = favorite.name,
+        stream_type = "live",
+        stream_id = favorite.streamId,
+        stream_icon = favorite.iconUrl,
+        epg_channel_id = null,
+        added = null,
+        category_id = FAVORITES_CATEGORY_ID,
+        category_ids = null,
+        container_extension = null,
+        custom_sid = null,
+        direct_source = null,
+        tv_archive = null,
+        tv_archive_duration = null
+    )
+
+    private suspend fun buildFavoriteZapChannels(baseServerUrl: String): List<ZapChannel> {
+        val favorites = repository.getFavoritesByType("live").firstOrNull().orEmpty()
+        return favorites.mapNotNull { favorite ->
+            val stream = repository.getLiveStreamById(favorite.streamId) ?: favoriteFallbackStream(favorite)
+            val streamId = stream.stream_id ?: return@mapNotNull null
+            ZapChannel(
+                streamId = streamId,
+                name = stream.name ?: favorite.name,
+                logoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon ?: favorite.iconUrl),
+                epgChannelId = stream.epg_channel_id,
+                streamUrl = repository.buildLiveStreamUrl(stream, baseServerUrl)
+            )
         }
     }
 
@@ -1233,29 +1316,36 @@ class PlayerViewModel @Inject constructor(
             val prefs = CredentialsPreferences(context)
             repository.ensureInitialized(baseServerUrl, prefs.getUsername(), prefs.getPassword())
 
-            var streams = cacheManager.getChannels(categoryId, streamType = "live")
-            if (streams.isNullOrEmpty()) {
-                val result = repository.fetchLiveStreamsForCategory(categoryId)
-                if (result is Result.Success) streams = result.data
-            }
-            val safeStreams = streams.orEmpty()
-            if (safeStreams.isEmpty()) return@launch
-
-            val categoryName = cacheManager.getCategories("live")
-                ?.firstOrNull { it.category_id == categoryId }
-                ?.category_name
-
-            val list = safeStreams
-                .filter { !it.stream_id.isNullOrBlank() }
-                .map { stream ->
-                    ZapChannel(
-                        streamId = stream.stream_id!!,
-                        name = stream.name ?: context.getString(R.string.player_epg_channel_unknown),
-                        logoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
-                        epgChannelId = stream.epg_channel_id,
-                        streamUrl = repository.buildLiveStreamUrl(stream, baseServerUrl)
-                    )
+            val categoryName: String?
+            val list: List<ZapChannel>
+            if (categoryId == FAVORITES_CATEGORY_ID) {
+                categoryName = context.getString(R.string.favorites)
+                list = buildFavoriteZapChannels(baseServerUrl)
+            } else {
+                var streams = cacheManager.getChannels(categoryId, streamType = "live")
+                if (streams.isNullOrEmpty()) {
+                    val result = repository.fetchLiveStreamsForCategory(categoryId)
+                    if (result is Result.Success) streams = result.data
                 }
+                val safeStreams = streams.orEmpty()
+                if (safeStreams.isEmpty()) return@launch
+
+                categoryName = cacheManager.getCategories("live")
+                    ?.firstOrNull { it.category_id == categoryId }
+                    ?.category_name
+
+                list = safeStreams
+                    .filter { !it.stream_id.isNullOrBlank() }
+                    .map { stream ->
+                        ZapChannel(
+                            streamId = stream.stream_id!!,
+                            name = stream.name ?: context.getString(R.string.player_epg_channel_unknown),
+                            logoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
+                            epgChannelId = stream.epg_channel_id,
+                            streamUrl = repository.buildLiveStreamUrl(stream, baseServerUrl)
+                        )
+                    }
+            }
             if (list.isEmpty()) return@launch
 
             // Keep the currently-playing channel selected if it lives in this category.
