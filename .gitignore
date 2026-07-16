@@ -100,3 +100,6 @@ app/build/
 .env
 .env.local
 .env.*.local
+
+# Firebase deploy cache
+.firebase/
