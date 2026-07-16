@@ -858,7 +858,12 @@ class MovieDetailActivity : AppCompatActivity() {
                         imdbId = currentImdbId
                     ) + PlaybackDiagnosticsRecorder.sourceFields(this, source)
                 )
-                playDebridMovie(source.stream, source, returnToSources = true)
+                if (source.sourceType == "IPTV") {
+                    // Xtream listing: play the provider URL directly, no debrid resolve.
+                    playMovie(source)
+                } else {
+                    playDebridMovie(source.stream, source, returnToSources = true)
+                }
             },
             onStateChanged = { state ->
                 debridFilterState = state
@@ -897,13 +902,22 @@ class MovieDetailActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val sources = withContext(Dispatchers.IO) {
-                    unifiedSourceProvider.getMovieSources(
+                    val debrid = unifiedSourceProvider.getMovieSources(
                         streamId = movieId,
                         title = movieName,
                         primaryCategoryId = movieCategoryId,
                         yearHint = movieYear,
                         imdbId = currentImdbId
                     )
+                    // Like the series stream panel: surface the same movie's IPTV (Xtream)
+                    // listings alongside the debrid sources, badged "IPTV".
+                    val iptv = try {
+                        fetchIptvMovieSources(movieName)
+                    } catch (e: Exception) {
+                        android.util.Log.w("MovieDetailActivity", "IPTV source lookup failed: ${e.message}")
+                        emptyList()
+                    }
+                    debrid + iptv
                 }
                 debridSources = sources
                 PlaybackDiagnosticsRecorder.record(
@@ -935,6 +949,56 @@ class MovieDetailActivity : AppCompatActivity() {
                 bottomSheet.showError(e.message ?: getString(R.string.movie_detail_sources_empty))
             }
         }
+    }
+
+    /**
+     * IPTV (Xtream) listings of this movie for the source picker — the movie-side
+     * equivalent of the series stream panel's multi-category aggregation. Matching is
+     * by movie NAME only (owner's choice): the local VOD index is searched with the
+     * cleaned title and results are kept when their normalized name contains it.
+     */
+    private suspend fun fetchIptvMovieSources(title: String?): List<MovieSource> {
+        val coreTitle = title
+            ?.replace(Regex("\\((?:19|20)\\d{2}\\)"), " ") // drop a "(2026)" year tag
+            ?.trim()
+            ?.takeIf { it.length >= 2 }
+            ?: return emptyList()
+        val normTitle = normalizeForIptvMatch(coreTitle) ?: return emptyList()
+
+        val matches = repository.searchVod(coreTitle)
+            .filter { vod ->
+                val normName = normalizeForIptvMatch(vod.name)
+                vod.stream_id != null && normName != null && normName.contains(normTitle)
+            }
+            .distinctBy { it.stream_id }
+            .take(30)
+
+        return matches.map { vod ->
+            MovieSource(
+                stream = vod,
+                category = null,
+                label = vod.name ?: coreTitle,
+                isPrimary = false,
+                languages = com.tvonnet.debridxtreamiptv.data.debrid.util.LanguageParser
+                    .extractLanguages(vod.name)
+                    .takeIf { it.isNotEmpty() },
+                quality = com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.StreamQuality
+                    .fromName(vod.name).label,
+                // Xtream streams play instantly from the provider — honest DIRECT_STREAM.
+                cacheStatus = DebridCacheStatus.DIRECT_STREAM,
+                isCached = true,
+                provider = "IPTV",
+                sourceType = "IPTV",
+                sourceName = vod.name
+            )
+        }
+    }
+
+    private fun normalizeForIptvMatch(value: String?): String? {
+        if (value.isNullOrBlank()) return null
+        return value.lowercase(java.util.Locale.US)
+            .replace(Regex("[^a-z0-9]+"), "")
+            .takeIf { it.isNotBlank() }
     }
 
     private fun consumeDebridReturnFocusStreamIds(): List<String> {
@@ -1249,13 +1313,16 @@ class MovieDetailActivity : AppCompatActivity() {
         )
 
         val tmdbId = movieId?.takeIf { it.toIntOrNull() != null }
+        // An IPTV row picked from the debrid source sheet is plain Xtream playback:
+        // never route it through the debrid resolver machinery.
+        val isIptvSource = sourceOverride?.sourceType == "IPTV"
         val playbackSource =
-            if (movieCategoryId == "debrid") {
+            if (movieCategoryId == "debrid" && !isIptvSource) {
                 com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID
             } else {
                 null
             }
-        val directDebridPlayback = isDirectHttp && movieCategoryId == "debrid"
+        val directDebridPlayback = isDirectHttp && movieCategoryId == "debrid" && !isIptvSource
         val resolverBackedDebridPlayback = playbackSource != null && !directDebridPlayback
 
         val launchPlayer = {

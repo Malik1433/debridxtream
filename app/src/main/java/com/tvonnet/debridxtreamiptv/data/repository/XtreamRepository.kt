@@ -2019,8 +2019,11 @@ class XtreamRepository @Inject constructor(
      */
     fun buildVodStreamUrl(vod: XtreamVodInfo, baseServerUrl: String): String {
         // Format: http://server:port/movie/username/password/streamId.ext
+        // Blank-safe like buildSeriesEpisodeStreamUrl: a "" extension used to build
+        // ".../<id>." which Xtream servers reject (405).
         val url = baseServerUrl.trimEnd('/')
-        return "$url/movie/$username/$password/${vod.stream_id}.${vod.container_extension ?: "mp4"}"
+        val ext = vod.container_extension?.takeIf { it.isNotBlank() } ?: "mp4"
+        return "$url/movie/$username/$password/${vod.stream_id}.$ext"
     }
     
     fun buildSeriesEpisodeStreamUrl(episodeId: String, containerExtension: String?, baseServerUrl: String): String {
