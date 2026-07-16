@@ -100,27 +100,34 @@ class SeriesViewModelTest {
         viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, context, savedStateHandle)
         advanceUntilIdle()
         
-        // Then
+        // Then — two virtual categories (All Series / Recently Added) are prepended to the
+        // real ones, so the real categories follow the two virtuals.
         val state = viewModel.uiState.value
-        assertEquals(2, state.categories.size)
-        assertEquals("Drama", state.categories[0].category_name)
+        assertEquals(4, state.categories.size)
+        assertEquals(SeriesViewModel.ALL_SERIES_CATEGORY_ID, state.categories[0].category_id)
+        assertEquals(SeriesViewModel.RECENTLY_ADDED_CATEGORY_ID, state.categories[1].category_id)
+        assertTrue(state.categories.any { it.category_name == "Drama" })
+        assertTrue(state.categories.any { it.category_name == "Sci-Fi" })
         assertFalse(state.isLoadingCategories)
         assertNull(state.error)
     }
-    
+
     @Test
-    fun `loadCategories with empty cache shows error`() = runTest {
+    fun `empty real categories still shows the virtual categories`() = runTest {
         // Given
         coEvery { repository.ensureSeriesCategories() } returns emptyList()
-        
+
         // When
         viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, context, savedStateHandle)
         advanceUntilIdle()
-        
-        // Then
+
+        // Then — the two virtual categories are always shown; no error, All Series selected.
         val state = viewModel.uiState.value
-        assertTrue(state.categories.isEmpty())
-        assertTrue(state.error?.contains("No series categories found") == true)
+        assertEquals(2, state.categories.size)
+        assertEquals(SeriesViewModel.ALL_SERIES_CATEGORY_ID, state.categories[0].category_id)
+        assertEquals(SeriesViewModel.RECENTLY_ADDED_CATEGORY_ID, state.categories[1].category_id)
+        assertEquals(SeriesViewModel.ALL_SERIES_CATEGORY_ID, state.selectedCategoryId)
+        assertNull(state.error)
     }
     
     @Test
@@ -173,38 +180,46 @@ class SeriesViewModelTest {
     }
     
     @Test
-    fun `retry loads categories when empty`() = runTest {
-        // Given
+    fun `retry with empty real categories keeps virtual categories`() = runTest {
+        // Given — no real categories, so only the two virtual categories exist.
         coEvery { repository.ensureSeriesCategories() } returns emptyList()
         viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, context, savedStateHandle)
         advanceUntilIdle()
-        
+
         // When
         viewModel.onEvent(SeriesEvent.Retry)
         advanceUntilIdle()
-        
-        // Then
-        coVerify(atLeast = 2) { repository.ensureSeriesCategories() } // Initial load + retry
+
+        // Then — retry re-selects All Series and the virtual categories remain, no error.
+        val state = viewModel.uiState.value
+        assertEquals(2, state.categories.size)
+        assertEquals(SeriesViewModel.ALL_SERIES_CATEGORY_ID, state.selectedCategoryId)
+        assertNull(state.error)
     }
-    
+
     @Test
-    fun `retry reloads current category when categories exist`() = runTest {
+    fun `retry reloads current real category once one is selected`() = runTest {
         // Given
         val mockCategories = listOf(
             XtreamCategory(category_id = "1", category_name = "Drama", parent_id = null)
         )
         coEvery { repository.ensureSeriesCategories() } returns mockCategories
         coEvery { repository.fetchSeriesForCategory(any()) } returns Result.Success(emptyList())
-        
+
         viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, context, savedStateHandle)
         advanceUntilIdle()
-        
+
+        // Select the real category first (init auto-selects the All Series virtual, which
+        // reads the local DB and does not call fetchSeriesForCategory).
+        viewModel.onEvent(SeriesEvent.SelectCategory("1"))
+        advanceUntilIdle()
+
         // When
         viewModel.onEvent(SeriesEvent.Retry)
         advanceUntilIdle()
-        
-        // Then
-        coVerify(atLeast = 2) { repository.fetchSeriesForCategory("1") } // Initial + retry
+
+        // Then — the real category is fetched on select + again on retry.
+        coVerify(atLeast = 2) { repository.fetchSeriesForCategory("1") }
     }
     
     @Test
@@ -227,7 +242,7 @@ class SeriesViewModelTest {
     }
     
     @Test
-    fun `auto-loads first category on initialization`() = runTest {
+    fun `auto-selects the All Series virtual category on initialization`() = runTest {
         // Given
         val mockCategories = listOf(
             XtreamCategory(category_id = "1", category_name = "Drama", parent_id = null),
@@ -235,15 +250,16 @@ class SeriesViewModelTest {
         )
         coEvery { repository.ensureSeriesCategories() } returns mockCategories
         coEvery { repository.fetchSeriesForCategory(any()) } returns Result.Success(emptyList())
-        
+
         // When
         viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, context, savedStateHandle)
         advanceUntilIdle()
-        
-        // Then
+
+        // Then — the first virtual category (All Series) is auto-selected, and categories
+        // were loaded from the repository.
         val state = viewModel.uiState.value
-        assertEquals("1", state.selectedCategoryId) // First category should be selected
-        coVerify { repository.fetchSeriesForCategory("1") } // First category should be loaded
+        assertEquals(SeriesViewModel.ALL_SERIES_CATEGORY_ID, state.selectedCategoryId)
+        coVerify { repository.ensureSeriesCategories() }
     }
     
     // Helper function to create mock series info

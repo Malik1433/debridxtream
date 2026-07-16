@@ -90,27 +90,34 @@ class VodViewModelTest {
         viewModel = VodViewModel(repository, vodDao, favoritesCache, savedStateHandle)
         testScheduler.advanceUntilIdle()
         
-        // Then
+        // Then — two virtual categories (All Movies / Recently Added) are prepended to the
+        // real ones.
         val state = viewModel.uiState.value
-        assertEquals(2, state.categories.size)
-        assertEquals("Action", state.categories[0].category_name)
+        assertEquals(4, state.categories.size)
+        assertEquals(VodViewModel.ALL_MOVIES_CATEGORY_ID, state.categories[0].category_id)
+        assertEquals(VodViewModel.RECENTLY_ADDED_VOD_CATEGORY_ID, state.categories[1].category_id)
+        assertTrue(state.categories.any { it.category_name == "Action" })
+        assertTrue(state.categories.any { it.category_name == "Comedy" })
         assertFalse(state.isLoadingCategories)
         assertNull(state.error)
     }
-    
+
     @Test
-    fun `loadCategories with empty cache shows error`() = runTest {
+    fun `empty real categories still shows the virtual categories`() = runTest {
         // Given
         coEvery { repository.ensureVodCategories() } returns emptyList()
-        
+
         // When
         viewModel = VodViewModel(repository, vodDao, favoritesCache, savedStateHandle)
         testScheduler.advanceUntilIdle()
-        
-        // Then
+
+        // Then — the two virtual categories are always shown; no error, All Movies selected.
         val state = viewModel.uiState.value
-        assertTrue(state.categories.isEmpty())
-        assertTrue(state.error?.contains("No movie categories found") == true)
+        assertEquals(2, state.categories.size)
+        assertEquals(VodViewModel.ALL_MOVIES_CATEGORY_ID, state.categories[0].category_id)
+        assertEquals(VodViewModel.RECENTLY_ADDED_VOD_CATEGORY_ID, state.categories[1].category_id)
+        assertEquals(VodViewModel.ALL_MOVIES_CATEGORY_ID, state.selectedCategoryId)
+        assertNull(state.error)
     }
     
     @Test
@@ -165,38 +172,46 @@ class VodViewModelTest {
     // This test is skipped as it would require data model refactoring
     
     @Test
-    fun `retry loads categories when empty`() = runTest {
-        // Given
+    fun `retry with empty real categories keeps virtual categories`() = runTest {
+        // Given — no real categories, so only the two virtual categories exist.
         coEvery { repository.ensureVodCategories() } returns emptyList()
         viewModel = VodViewModel(repository, vodDao, favoritesCache, savedStateHandle)
         testScheduler.advanceUntilIdle()
-        
+
         // When
         viewModel.onEvent(VodEvent.Retry)
         testScheduler.advanceUntilIdle()
-        
-        // Then
-        coVerify(atLeast = 2) { repository.ensureVodCategories() } // Initial load + retry
+
+        // Then — retry re-selects All Movies and the virtual categories remain, no error.
+        val state = viewModel.uiState.value
+        assertEquals(2, state.categories.size)
+        assertEquals(VodViewModel.ALL_MOVIES_CATEGORY_ID, state.selectedCategoryId)
+        assertNull(state.error)
     }
-    
+
     @Test
-    fun `retry reloads current category when categories exist`() = runTest {
+    fun `retry reloads current real category once one is selected`() = runTest {
         // Given
         val mockCategories = listOf(
             XtreamCategory(category_id = "1", category_name = "Action", parent_id = null)
         )
         coEvery { repository.ensureVodCategories() } returns mockCategories
         coEvery { repository.fetchVodStreamsForCategory(any()) } returns Result.Success(emptyList())
-        
+
         viewModel = VodViewModel(repository, vodDao, favoritesCache, savedStateHandle)
         testScheduler.advanceUntilIdle()
-        
+
+        // Select the real category first (init auto-selects the All Movies virtual, which
+        // reads the local DB and does not call fetchVodStreamsForCategory).
+        viewModel.onEvent(VodEvent.SelectCategory("1"))
+        testScheduler.advanceUntilIdle()
+
         // When
         viewModel.onEvent(VodEvent.Retry)
         testScheduler.advanceUntilIdle()
-        
-        // Then
-        coVerify(atLeast = 2) { repository.fetchVodStreamsForCategory("1") } // Initial + retry
+
+        // Then — the real category is fetched on select + again on retry.
+        coVerify(atLeast = 2) { repository.fetchVodStreamsForCategory("1") }
     }
     
     @Test
@@ -224,7 +239,7 @@ class VodViewModelTest {
     }
     
     @Test
-    fun `auto-loads first category on initialization`() = runTest {
+    fun `auto-selects the All Movies virtual category on initialization`() = runTest {
         // Given
         val mockCategories = listOf(
             XtreamCategory(category_id = "1", category_name = "Action", parent_id = null),
@@ -232,15 +247,16 @@ class VodViewModelTest {
         )
         coEvery { repository.ensureVodCategories() } returns mockCategories
         coEvery { repository.fetchVodStreamsForCategory(any()) } returns Result.Success(emptyList())
-        
+
         // When
         viewModel = VodViewModel(repository, vodDao, favoritesCache, savedStateHandle)
         testScheduler.advanceUntilIdle()
-        
-        // Then
+
+        // Then — the first virtual category (All Movies) is auto-selected, and categories
+        // were loaded from the repository.
         val state = viewModel.uiState.value
-        assertEquals("1", state.selectedCategoryId) // First category should be selected
-        coVerify { repository.fetchVodStreamsForCategory("1") } // First category should be loaded
+        assertEquals(VodViewModel.ALL_MOVIES_CATEGORY_ID, state.selectedCategoryId)
+        coVerify { repository.ensureVodCategories() }
     }
     
     // Helper function to create mock VOD info
