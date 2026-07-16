@@ -964,119 +964,16 @@ class MovieDetailActivity : AppCompatActivity() {
     }
 
     /**
-     * IPTV (Xtream) listings of this movie for the source picker — the movie-side
-     * equivalent of the series stream panel's multi-category aggregation. Matches on the
-     * cleaned title AND the year: many different movies share a name across years
-     * ("Obsession" 2026 vs "Secret Obsession" 2019), so a name-only match surfaced wrong
-     * films. Listings with no detectable year are kept (lenient); wrong-year ones are dropped.
+     * IPTV (Xtream) listings of this movie for the source picker. Delegates to the shared
+     * [com.tvonnet.debridxtreamiptv.data.debrid.repository.IptvMovieMatcher] (also used by
+     * the in-player Sources panel) so both surfaces match identically.
      */
     private suspend fun fetchIptvMovieSources(title: String?): List<MovieSource> {
-        val coreTitle = title
-            ?.replace(Regex("\\((?:19|20)\\d{2}\\)"), " ") // drop a "(2026)" year tag
-            ?.trim()
-            ?.takeIf { it.length >= 2 }
-            ?: return emptyList()
-        val normTitle = normalizeForIptvMatch(coreTitle) ?: return emptyList()
-        val targetYear = movieYear?.trim()?.take(4)?.toIntOrNull()
-
-        val matches = repository.searchVod(coreTitle)
-            .filter { vod -> iptvListingMatches(vod, normTitle, targetYear) }
-            .distinctBy { it.stream_id }
-            .take(30)
-
-        return matches.map { vod ->
-            MovieSource(
-                stream = vod,
-                category = null,
-                label = vod.name ?: coreTitle,
-                isPrimary = false,
-                languages = iptvLanguagesFromName(vod.name),
-                quality = com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.StreamQuality
-                    .fromName(vod.name).label,
-                // Xtream streams play instantly from the provider — honest DIRECT_STREAM.
-                cacheStatus = DebridCacheStatus.DIRECT_STREAM,
-                isCached = true,
-                provider = "IPTV",
-                sourceType = "IPTV",
-                sourceName = vod.name
-            )
-        }
+        val query = com.tvonnet.debridxtreamiptv.data.debrid.repository.IptvMovieMatcher
+            .searchQuery(title) ?: return emptyList()
+        return com.tvonnet.debridxtreamiptv.data.debrid.repository.IptvMovieMatcher
+            .buildSources(repository.searchVod(query), title, movieYear)
     }
-
-    private fun normalizeForIptvMatch(value: String?): String? {
-        if (value.isNullOrBlank()) return null
-        return value.lowercase(java.util.Locale.US)
-            .replace(Regex("[^a-z0-9]+"), "")
-            .takeIf { it.isNotBlank() }
-    }
-
-    /** Year of an IPTV listing — a "(YYYY)" tag in the name first, else its release date. */
-    private fun iptvListingYear(vod: XtreamVodInfo): Int? {
-        val fromName = Regex("\\((19|20)\\d{2}\\)").find(vod.name.orEmpty())
-            ?.value?.filter { it.isDigit() }?.toIntOrNull()
-        return fromName ?: vod.releaseDate?.take(4)?.toIntOrNull()
-    }
-
-    // Strips a leading language/category prefix ("EN - ", "|EN| ", "SD/CAM - ") and cuts
-    // at the first year/quality/codec token, leaving the bare movie title.
-    private val iptvPrefixRegex = Regex("^\\s*(?:\\|[^|]{1,12}\\|\\s*|[A-Za-z0-9/]{1,8}\\s*-\\s*)")
-    private val iptvTagCutRegex = Regex(
-        "(?i)[\\s(\\[]+((19|20)\\d{2}|4k|hdcam|hdts|cam|web[- ]?dl|1080p|720p|2160p|480p|multi|x264|x265|hevc)\\b"
-    )
-
-    /** The bare movie title of an IPTV listing (prefix + year/quality tags removed). */
-    private fun coreIptvTitle(name: String?): String? {
-        if (name.isNullOrBlank()) return null
-        var t = iptvPrefixRegex.replaceFirst(name.trim(), "")
-        iptvTagCutRegex.find(t)?.let { t = t.substring(0, it.range.first) }
-        return t.trim(' ', '-', '|', ':', '·').takeIf { it.isNotBlank() }
-    }
-
-    /**
-     * Does an IPTV listing actually correspond to THIS movie? The Xtream index is searched
-     * with a loose `name LIKE %title%`, which pulls in unrelated films that merely contain
-     * the word ("Secret Obsession", "A Fatal Obsession" for "Obsession"). We match the CORE
-     * title (prefix/tags stripped) start-anchored — not a substring — and require the year
-     * when both sides carry one; a year-less listing must match the core title exactly.
-     */
-    private fun iptvListingMatches(vod: XtreamVodInfo, normTarget: String, targetYear: Int?): Boolean {
-        if (vod.stream_id == null) return false
-        val coreNorm = normalizeForIptvMatch(coreIptvTitle(vod.name)) ?: return false
-        val listingYear = iptvListingYear(vod)
-        return when {
-            listingYear != null && targetYear != null ->
-                coreNorm.startsWith(normTarget) && listingYear == targetYear
-            listingYear == null -> coreNorm == normTarget
-            else -> coreNorm.startsWith(normTarget)
-        }
-    }
-
-    /**
-     * IPTV listing names carry their language as a category prefix ("FR - Obsession",
-     * "DE - …", "NL|…"). Read that prefix instead of LanguageParser, whose release-tag
-     * heuristics default to English and mislabeled every non-EN listing.
-     */
-    private fun iptvLanguagesFromName(name: String?): List<String>? {
-        if (name.isNullOrBlank()) return null
-        val prefix = name.substringBefore("-").trim()
-            .trim('|', '[', ']')
-            .uppercase(java.util.Locale.US)
-        IPTV_PREFIX_LANGUAGES[prefix]?.let { return listOf(it) }
-        // Compound prefixes like "SD/CAM" or "NF": no language info — fall back to the
-        // release-tag parser but discard its English default (chip shows Unknown).
-        val parsed = com.tvonnet.debridxtreamiptv.data.debrid.util.LanguageParser
-            .extractLanguages(name)
-        return parsed.takeIf { it.isNotEmpty() && it != listOf("en") }
-    }
-
-    private val IPTV_PREFIX_LANGUAGES = mapOf(
-        "EN" to "en", "FR" to "fr", "DE" to "de", "NL" to "nl", "ES" to "es",
-        "IT" to "it", "PT" to "pt", "BR" to "pt", "PL" to "pl", "TR" to "tr",
-        "RU" to "ru", "AR" to "ar", "HI" to "hi", "UR" to "ur", "PA" to "pa",
-        "IN" to "hi", "SE" to "sv", "NO" to "no", "DK" to "da", "FI" to "fi",
-        "GR" to "el", "RO" to "ro", "HU" to "hu", "CZ" to "cs", "AL" to "sq",
-        "EX-YU" to "sr", "BG" to "bg"
-    )
 
     private fun consumeDebridReturnFocusStreamIds(): List<String> {
         val streamIds = pendingDebridReturnFocusStreamIds

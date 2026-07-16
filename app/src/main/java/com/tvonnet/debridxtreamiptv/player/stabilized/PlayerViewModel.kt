@@ -566,12 +566,13 @@ class PlayerViewModel @Inject constructor(
     suspend fun fetchMovieSourcesForPanel(
         streamId: String?,
         title: String?,
-        imdbId: String?
+        imdbId: String?,
+        cleanTitle: String?
     ): List<MovieSource> = withContext(Dispatchers.IO) {
         if (streamId.isNullOrBlank() && imdbId.isNullOrBlank() && title.isNullOrBlank()) {
             return@withContext emptyList()
         }
-        runCatching {
+        val debrid = runCatching {
             unifiedSourceProvider.getMovieSources(
                 streamId = streamId,
                 title = title,
@@ -580,6 +581,16 @@ class PlayerViewModel @Inject constructor(
                 imdbId = imdbId
             )
         }.getOrDefault(emptyList())
+        // Also surface the movie's IPTV (Xtream) listings, like the detail picker does.
+        val iptv = runCatching {
+            val q = com.tvonnet.debridxtreamiptv.data.debrid.repository.IptvMovieMatcher
+                .searchQuery(cleanTitle ?: title)
+            if (q != null) {
+                com.tvonnet.debridxtreamiptv.data.debrid.repository.IptvMovieMatcher
+                    .buildSources(repository.searchVod(q), cleanTitle ?: title, null)
+            } else emptyList()
+        }.getOrDefault(emptyList())
+        debrid + iptv
     }
 
     fun refreshDebridMovieSource(

@@ -3785,7 +3785,8 @@ class PlayerActivity : AppCompatActivity() {
             val sources = viewModel.fetchMovieSourcesForPanel(
                 streamId = debridStreamIdExtra ?: contentId,
                 title = originalTitle,
-                imdbId = imdbIdExtra
+                imdbId = imdbIdExtra,
+                cleanTitle = cleanLoaderTitle(originalTitle)
             )
             if (!sheet.isAdded) return@launch
             if (sources.isEmpty()) sheet.showError("No other sources found") else sheet.showSources(sources)
@@ -3817,6 +3818,9 @@ class PlayerActivity : AppCompatActivity() {
         playbackSource = if (isIptv) PlaybackSource.IPTV else PlaybackSource.DEBRID
         debridStreamIdExtra = stream.stream_id
         stream.name?.let { originalTitle = it }
+        // Refresh the on-screen title so the controller shows the source we just switched to,
+        // not the previous one.
+        bindModernMetadata(stream.name ?: originalTitle)
 
         when {
             isIptv -> {
