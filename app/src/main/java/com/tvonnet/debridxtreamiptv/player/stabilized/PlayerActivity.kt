@@ -2360,6 +2360,10 @@ class PlayerActivity : AppCompatActivity() {
                 // If the primary hardware decoder fails to initialize (e.g. HEVC on a busy
                 // or incapable SoC), fall back to a lower-priority decoder instead of erroring.
                 .setEnableDecoderFallback(true)
+                // Dolby Vision on a non-DV display renders to a black screen (audio plays).
+                // When the display can't do DV, hide the DV decoder so media3 falls back to
+                // its HEVC base layer (the HDR10/SDR image of DV profile 7/8), which plays.
+                .setMediaCodecSelector(dolbyVisionAwareCodecSelector())
 
             val audioAttributes = AudioAttributes.Builder()
                 .setUsage(C.USAGE_MEDIA)
@@ -3895,6 +3899,34 @@ class PlayerActivity : AppCompatActivity() {
         if (p.currentPosition > 1000L) startPositionMs = p.currentPosition
         player?.release(); player = null
         retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, 250L)
+    }
+
+    /**
+     * A [MediaCodecSelector] that, when the display cannot present Dolby Vision, returns NO
+     * DV decoder for a `video/dolby-vision` stream. media3 then uses the HEVC decoders it
+     * already gathers for the alternative mime type, i.e. it decodes the DV base layer
+     * (HDR10/SDR for DV profile 7/8) — playable instead of a black screen. DV-capable
+     * displays keep true Dolby Vision.
+     */
+    private fun dolbyVisionAwareCodecSelector(): androidx.media3.exoplayer.mediacodec.MediaCodecSelector {
+        val dvSupported = isDolbyVisionDisplaySupported()
+        return androidx.media3.exoplayer.mediacodec.MediaCodecSelector { mimeType, secure, tunneling ->
+            if (mimeType == MimeTypes.VIDEO_DOLBY_VISION && !dvSupported) {
+                emptyList()
+            } else {
+                androidx.media3.exoplayer.mediacodec.MediaCodecSelector.DEFAULT
+                    .getDecoderInfos(mimeType, secure, tunneling)
+            }
+        }
+    }
+
+    private fun isDolbyVisionDisplaySupported(): Boolean = try {
+        val disp = if (Build.VERSION.SDK_INT >= 30) display else @Suppress("DEPRECATION") windowManager.defaultDisplay
+        @Suppress("DEPRECATION")
+        (disp?.hdrCapabilities?.supportedHdrTypes ?: IntArray(0))
+            .any { it == android.view.Display.HdrCapabilities.HDR_TYPE_DOLBY_VISION }
+    } catch (e: Exception) {
+        false
     }
 
     private fun updatePlayPauseVisibility(isPlaying: Boolean) {
