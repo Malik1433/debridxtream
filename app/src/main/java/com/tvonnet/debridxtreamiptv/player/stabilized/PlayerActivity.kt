@@ -183,8 +183,9 @@ class PlayerActivity : AppCompatActivity() {
         override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
             val responseCode =
                 (loadErrorInfo.exception as? HttpDataSource.InvalidResponseCodeException)?.responseCode
-            if (responseCode == 401 || responseCode == 403 || responseCode == 404 ||
-                responseCode == 410 || responseCode == 416 || responseCode == 451
+            if (responseCode == 400 || responseCode == 401 || responseCode == 403 ||
+                responseCode == 404 || responseCode == 405 || responseCode == 410 ||
+                responseCode == 416 || responseCode == 451
             ) {
                 return C.TIME_UNSET
             }
@@ -2662,6 +2663,22 @@ class PlayerActivity : AppCompatActivity() {
         }
         if (hasRepeatedDirectAddonProxyServerError(error)) {
             recordDirectAddonProxyFailure()
+            handleTerminalPlaybackFailure(errorMessage, preferReturnToSources = true)
+            return
+        }
+        // Definitive client errors (removed/nonexistent listing, wrong method) never
+        // recover by retrying. Plain IPTV/Xtream playback had NO terminal-HTTP path —
+        // isTerminalDirectHttpPlaybackError only fires for directDebridPlayback — so a
+        // dead listing (e.g. a provider that answers 405 for an unavailable movie id)
+        // looped the "Reconnecting…" banner until the whole retry budget drained.
+        // Fail fast for any non-live source instead. 429 (rate-limit) is intentionally
+        // excluded — it is handled below with a cool-off.
+        val terminalClientCode =
+            (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
+        if (contentType != ContentType.LIVE_TV &&
+            terminalClientCode != null &&
+            terminalClientCode in setOf(400, 401, 403, 404, 405, 410, 451)
+        ) {
             handleTerminalPlaybackFailure(errorMessage, preferReturnToSources = true)
             return
         }
