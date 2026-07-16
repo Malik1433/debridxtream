@@ -558,6 +558,30 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Fetch the full movie source list for the in-player "Sources" panel (language/quality
+     * switch mid-playback). Unlike [refreshDebridMovieSource] this does NOT auto-pick or play
+     * — it just returns the list for the picker to display.
+     */
+    suspend fun fetchMovieSourcesForPanel(
+        streamId: String?,
+        title: String?,
+        imdbId: String?
+    ): List<MovieSource> = withContext(Dispatchers.IO) {
+        if (streamId.isNullOrBlank() && imdbId.isNullOrBlank() && title.isNullOrBlank()) {
+            return@withContext emptyList()
+        }
+        runCatching {
+            unifiedSourceProvider.getMovieSources(
+                streamId = streamId,
+                title = title,
+                primaryCategoryId = "debrid",
+                yearHint = null,
+                imdbId = imdbId
+            )
+        }.getOrDefault(emptyList())
+    }
+
     fun refreshDebridMovieSource(
         streamId: String?,
         title: String?,

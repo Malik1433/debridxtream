@@ -879,6 +879,18 @@ class PlayerActivity : AppCompatActivity() {
                 btnPrev?.isVisible = false
                 btnEpisodes?.isVisible = false
             }
+            // Movies: an in-player "Sources" button to switch source/language mid-playback
+            // (e.g. Hindi → German) without going back to the detail screen.
+            val btnSources = playerView.findViewById<View>(R.id.btn_player_sources)
+            if (contentType == ContentType.MOVIE) {
+                btnSources?.isVisible = true
+                btnSources?.setOnClickListener {
+                    playerView.hideController()
+                    openMovieSourcePanel()
+                }
+            } else {
+                btnSources?.isVisible = false
+            }
             // VOD Player redesign: explicit horizontal focus chain so play/pause visibility
             // swaps never trap focus (both exo_play & exo_pause share the same L/R links).
             wireControlFocus(isSeriesControls)
@@ -3746,6 +3758,95 @@ class PlayerActivity : AppCompatActivity() {
         finish()
         return true
     }
+
+    /**
+     * In-player movie "Sources" panel: fetch the movie's sources and show the same picker
+     * as the detail screen so the user can switch source/language (e.g. Hindi → German)
+     * mid-playback. Picking one relaunches the player on that source at the current position.
+     */
+    private fun openMovieSourcePanel() {
+        if (isFinishing || contentType != ContentType.MOVIE) return
+        val sheet = com.tvonnet.debridxtreamiptv.ui.series.SourceSelectionBottomSheet(
+            onSourceSelected = { source, _ -> switchToMovieSource(source) },
+            contentTitle = originalTitle,
+            backdropUrl = backdropUrlExtra
+        )
+        sheet.show(supportFragmentManager, "player_movie_sources")
+        lifecycleScope.launch {
+            val sources = viewModel.fetchMovieSourcesForPanel(
+                streamId = debridStreamIdExtra ?: contentId,
+                title = originalTitle,
+                imdbId = imdbIdExtra
+            )
+            if (!sheet.isAdded) return@launch
+            if (sources.isEmpty()) sheet.showError("No other sources found") else sheet.showSources(sources)
+        }
+    }
+
+    /**
+     * Relaunch the player on the picked source at the current position. Resolver-backed
+     * (magnet) sources pass a blank URL + info-hash/magnet so the player's own resolution
+     * runs (with the cinematic loader); direct-http and IPTV sources pass a ready URL.
+     */
+    private fun switchToMovieSource(source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource) {
+        val pos = (player?.currentPosition ?: startPositionMs).coerceAtLeast(0L)
+        val stream = source.stream
+        val magnet = stream.direct_source
+        val infoHash = stream.stream_id
+        val isIptv = source.sourceType == "IPTV"
+        val isDirectHttp = !isIptv && magnet?.startsWith("http", ignoreCase = true) == true &&
+            !magnet.endsWith(".torrent", ignoreCase = true)
+        val resolverBacked = !isIptv && !isDirectHttp
+
+        val streamUrl: String = when {
+            isIptv -> {
+                val prefs = CredentialsPreferences(this)
+                val server = prefs.getServerUrl()?.trimEnd('/')
+                val user = prefs.getUsername()
+                val pass = prefs.getPassword()
+                if (server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank() || stream.stream_id.isNullOrBlank()) {
+                    showToast("Missing credentials"); return
+                }
+                val ext = stream.container_extension?.takeIf { it.isNotBlank() } ?: "mp4"
+                "$server/movie/$user/$pass/${stream.stream_id}.$ext"
+            }
+            isDirectHttp -> magnet!!
+            else -> "" // resolver-backed magnet → resolved by the player
+        }
+        if (resolverBacked && magnet.isNullOrBlank() && infoHash.isNullOrBlank()) {
+            showToast("Invalid source"); return
+        }
+
+        val intent = PlayerActivity.createIntent(
+            context = this,
+            streamUrl = streamUrl,
+            title = stream.name ?: originalTitle ?: "",
+            contentId = infoHash ?: contentId ?: "",
+            contentType = ContentType.MOVIE,
+            posterUrl = posterUrlExtra,
+            backdropUrl = backdropUrlExtra,
+            headers = source.headers,
+            tmdbId = tmdbIdExtra,
+            imdbId = imdbIdExtra,
+            debridInfoHash = if (resolverBacked) infoHash else null,
+            debridMagnet = if (resolverBacked) magnet else null,
+            directDebridPlayback = isDirectHttp,
+            debridProvider = source.provider,
+            debridSourceType = source.sourceType,
+            debridSourceName = source.sourceName,
+            debridLanguages = source.languages,
+            debridQuality = source.quality,
+            debridStreamId = stream.stream_id,
+            debridBingeGroup = source.bingeGroup,
+            debridFileIdx = source.fileIdx,
+            playbackSource = if (isIptv) PlaybackSource.IPTV else PlaybackSource.DEBRID,
+            startPositionMs = pos
+        )
+        releasePlayer("switch_movie_source")
+        startActivity(intent)
+        finish()
+    }
+
     private fun updatePlayPauseVisibility(isPlaying: Boolean) {
         val play = playerView.findViewById<View>(R.id.exo_play)
         val pause = playerView.findViewById<View>(R.id.exo_pause)
