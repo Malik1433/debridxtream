@@ -996,10 +996,12 @@ class PlayerActivity : AppCompatActivity() {
             Log.w("PlayerActivity", "Direct Debrid resume is expired and cannot be refreshed; blocking stale passthrough playback.")
             handleTerminalPlaybackFailure("Expired direct source could not be refreshed")
         } else {
-            // A ready Debrid source (e.g. the user just picked one from the source list):
-            // show the cinematic loader while it buffers; STATE_READY dissolves it on the
-            // first frame. Keeps the "loading" experience identical to resume.
-            if (isDebrid && (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE)) {
+            // A ready movie/episode source (debrid pick OR an IPTV/Continue-Watching
+            // resume): show the cinematic loader while it buffers instead of the bare
+            // player spinner; STATE_READY dissolves it on the first frame. IPTV resumes
+            // previously fell through to the spinner — this keeps the loading experience
+            // identical (cinematic) for every movie/episode, debrid or IPTV.
+            if (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE) {
                 showCinematicLoader()
             }
             initializePlayer(streamUrl ?: "")
@@ -3808,18 +3810,22 @@ class PlayerActivity : AppCompatActivity() {
                 }
                 .start()
         }
-        // Clean indeterminate glide: a soft cyan segment slides across the track and loops.
+        // Clean indeterminate loader: a soft cyan segment sweeps smoothly back and forth
+        // WITHIN the track (never off the edges, no jump-back) for a polished, contained look.
         loaderBarSeg?.let { seg ->
             loaderGlide?.cancel()
+            seg.translationX = 0f
             seg.post {
-                val density = seg.resources.displayMetrics.density
+                // Travel = track width - segment width, so the segment stays fully inside.
+                val track = (seg.parent as? View)?.width ?: return@post
+                val travel = (track - seg.width).coerceAtLeast(0).toFloat()
                 loaderGlide = android.animation.ObjectAnimator.ofFloat(
-                    seg, View.TRANSLATION_X, -(44f * density), (128f * density)
+                    seg, View.TRANSLATION_X, 0f, travel
                 ).apply {
-                    duration = 1150
+                    duration = 1050
                     repeatCount = android.animation.ValueAnimator.INFINITE
-                    repeatMode = android.animation.ValueAnimator.RESTART
-                    interpolator = android.view.animation.LinearInterpolator()
+                    repeatMode = android.animation.ValueAnimator.REVERSE
+                    interpolator = android.view.animation.AccelerateDecelerateInterpolator()
                     start()
                 }
             }

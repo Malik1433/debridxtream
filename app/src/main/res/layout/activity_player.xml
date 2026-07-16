@@ -202,21 +202,21 @@
                 android:autoSizeMaxTextSize="52sp"
                 android:autoSizeStepGranularity="1sp" />
 
-            <!-- Clean indeterminate loader: a small cyan segment glides across a thin
-                 rounded track and loops (professional, doesn't sprawl). -->
+            <!-- Clean indeterminate loader: a cyan segment sweeps smoothly back and forth
+                 WITHIN a wider rounded track (stays contained, never slides off the edges). -->
             <FrameLayout
                 android:id="@+id/loader_bar_track"
-                android:layout_width="128dp"
-                android:layout_height="3dp"
-                android:layout_marginTop="24dp"
+                android:layout_width="240dp"
+                android:layout_height="4dp"
+                android:layout_marginTop="26dp"
                 android:background="@drawable/cin_loader_track"
                 android:clipChildren="true"
                 android:clipToPadding="true">
 
                 <View
                     android:id="@+id/loader_bar_seg"
-                    android:layout_width="44dp"
-                    android:layout_height="3dp"
+                    android:layout_width="82dp"
+                    android:layout_height="4dp"
                     android:background="@drawable/cin_loader_segment" />
             </FrameLayout>
         </LinearLayout>
