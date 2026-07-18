@@ -5,165 +5,229 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DebridXtream Admin</title>
 <style>
-  :root { --bg:#0B0F17; --card:#121A2B; --line:#1E293B; --txt:#E2E8F0; --mut:#94A3B8; --cyan:#00E5FF; --green:#22C55E; --red:#EF4444; --amber:#F59E0B; --purple:#A78BFA; }
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap');
+  :root {
+    --bg:#f3f2f2; --text:#201e1d; --divider:#e5e3e2; --accent:#FFAA00;
+    --accent-100:#FFFBEB; --accent-300:#FDE68A; --accent-600:#D97706; --accent-700:#B45309; --accent-800:#92400E;
+    --success:#22C55E; --danger:#FF3355; --amber:#F59E0B;
+    --neutral-100:#f0efee; --neutral-200:#e5e3e2; --neutral-600:#57534e; --neutral-700:#44403c;
+  }
   * { box-sizing:border-box; margin:0; }
-  body { background:var(--bg); color:var(--txt); font:14px/1.5 system-ui,Segoe UI,sans-serif; min-height:100vh; }
-  .wrap { max-width:1180px; margin:0 auto; padding:24px; }
-  h1 { font-size:20px; letter-spacing:.02em; }
-  h1 span { color:var(--cyan); }
-  .muted { color:var(--mut); font-size:12px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin-top:16px; }
-  input,select,textarea { background:#0E1524; border:1px solid var(--line); color:var(--txt); border-radius:8px; padding:8px 10px; font:inherit; }
-  input:focus,select:focus,textarea:focus { outline:1px solid var(--cyan); }
-  button { background:var(--line); color:var(--txt); border:0; border-radius:8px; padding:8px 14px; font:inherit; cursor:pointer; }
-  button:hover { filter:brightness(1.25); }
-  button.primary { background:var(--cyan); color:#06121a; font-weight:600; }
-  button.good { background:#14532D; color:#BBF7D0; }
-  button.bad { background:#450A0A; color:#FECACA; }
-  button.ghost { background:transparent; border:1px solid var(--line); }
+  body { background:var(--bg); color:var(--text); font-family:'Archivo',system-ui,sans-serif; font-size:14px; min-height:100vh; -webkit-font-smoothing:antialiased; }
+  h1,h2,h3 { font-weight:800; letter-spacing:-0.02em; }
+  h3 { font-size:15px; }
+  .muted { color:var(--text); opacity:.5; font-size:12px; }
+  .code, .mono { font-family:'Share Tech Mono',ui-monospace,monospace; letter-spacing:.06em; }
+  a { color:var(--accent); }
+
+  /* Header */
+  .hdr { height:52px; border-bottom:2px solid var(--divider); position:sticky; top:0; background:var(--bg); z-index:100; display:flex; align-items:center; gap:12px; padding:0 28px; }
+  .dx { width:28px; height:28px; background:var(--text); color:var(--accent); font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; }
+  .brand { font-weight:800; font-size:16px; }
+  .badge { font-size:10px; text-transform:uppercase; letter-spacing:.06em; background:var(--neutral-200); padding:2px 7px; font-weight:700; }
+
+  /* Tabs */
+  .tabs { display:flex; border-bottom:2px solid var(--divider); padding:0 28px; overflow-x:auto; }
+  .tabs button { background:none; border:0; border-bottom:2px solid transparent; margin-bottom:-2px; padding:12px 16px; font-size:13px; font-weight:500; color:var(--text); cursor:pointer; font-family:'Archivo'; white-space:nowrap; border-radius:0; }
+  .tabs button:hover { color:var(--accent-700); }
+  .tabs button.on { font-weight:700; border-bottom-color:var(--accent); }
+
+  .content { padding:28px 32px; max-width:1200px; }
+
+  /* Cards, inputs, buttons */
+  .card { border:2px solid var(--divider); background:var(--bg); padding:20px; }
+  input,select,textarea { border:2px solid var(--divider); background:var(--bg); color:var(--text); padding:8px 10px; font:inherit; font-family:'Archivo'; border-radius:0; }
+  input:focus,select:focus,textarea:focus { outline:none; border-color:var(--accent); }
+  button { background:none; border:2px solid var(--divider); color:var(--text); padding:8px 14px; font:inherit; font-family:'Archivo'; font-weight:700; cursor:pointer; border-radius:0; }
+  button:hover { border-color:var(--accent); color:var(--accent-700); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#201e1d; }
+  button.primary:hover { background:var(--accent-600); border-color:var(--accent-600); color:#201e1d; }
+  button.good:hover { border-color:#065f46; color:#065f46; }
+  button.bad { color:#991b1b; }
+  button.bad:hover { border-color:#991b1b; color:#991b1b; }
+  button.ghost { border-color:var(--divider); }
+  /* Compact action buttons inside table rows */
+  td .row button { padding:4px 9px; font-size:11px; }
+
   table { width:100%; border-collapse:collapse; margin-top:12px; }
-  th,td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); font-size:13px; vertical-align:middle; }
-  th { color:var(--mut); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
-  .chip { display:inline-block; padding:2px 10px; border-radius:99px; font-size:11px; font-weight:600; }
-  .chip.active { background:#052e1a; color:var(--green); border:1px solid #14532D; }
-  .chip.pending { background:#2b1d05; color:var(--amber); border:1px solid #78350F; }
-  .chip.trial { background:#052733; color:var(--cyan); border:1px solid #164E63; }
-  .chip.inactive { background:#2b0707; color:var(--red); border:1px solid #7F1D1D; }
-  .chip.premium { background:#1e1b4b; color:var(--purple); border:1px solid #4C1D95; }
-  .chip.normal { background:#0E1524; color:var(--mut); border:1px solid var(--line); }
-  .code { font-family:ui-monospace,Consolas,monospace; letter-spacing:.06em; }
+  th,td { text-align:left; padding:11px 12px; border-bottom:1px solid var(--divider); font-size:13px; vertical-align:middle; }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; opacity:.55; border-bottom:2px solid var(--divider); }
+
+  .chip { display:inline-block; padding:2px 8px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+  .chip.active { background:#d1fae5; color:#065f46; }
+  .chip.pending { background:#fef3c7; color:#92400e; }
+  .chip.trial { background:#dbeafe; color:#1e40af; }
+  .chip.inactive { background:var(--neutral-200); color:var(--neutral-600); }
+  .chip.premium { background:#ede9fe; color:#5b21b6; }
+  .chip.normal { background:var(--neutral-100); color:var(--neutral-700); }
+
   .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  .tabs { display:flex; gap:8px; margin-top:18px; }
-  .tabs button.on { background:var(--cyan); color:#06121a; font-weight:600; }
   .hidden { display:none; }
-  #toast { position:fixed; bottom:20px; right:20px; background:var(--card); border:1px solid var(--cyan); padding:10px 16px; border-radius:10px; opacity:0; transition:opacity .3s; }
+  #toast { position:fixed; bottom:24px; right:24px; background:#201e1d; color:#f3f2f2; border-left:3px solid var(--accent); padding:11px 17px; font-size:13px; font-weight:500; opacity:0; transition:opacity .3s; z-index:200; }
   label.field { display:block; margin-top:12px; }
-  label.field span { display:block; color:var(--mut); font-size:12px; margin-bottom:4px; }
+  label.field span { display:block; font-size:12px; margin-bottom:4px; opacity:.7; }
   label.field input[type=text], label.field textarea { width:100%; }
   .switch { display:inline-flex; align-items:center; gap:10px; cursor:pointer; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="row" style="justify-content:space-between">
-    <h1>DebridXtream <span>ADMIN</span></h1>
-    <div id="who" class="row hidden"><span class="muted" id="whoEmail"></span><button class="ghost" onclick="logout()">Sign out</button></div>
-  </div>
 
-  <!-- LOGIN -->
-  <div id="login" class="card" style="max-width:380px">
-    <h3>Admin sign in</h3>
-    <label class="field"><span>Email</span><input type="text" id="email" autocomplete="username"></label>
-    <label class="field"><span>Password</span><input type="password" id="pass" autocomplete="current-password"></label>
-    <div class="row" style="margin-top:16px"><button class="primary" onclick="login()">Sign in</button><span id="loginErr" class="muted" style="color:var(--red)"></span></div>
+<!-- HEADER -->
+<header class="hdr">
+  <div class="dx">DX</div><span class="brand">DebridXtream</span><span class="badge">Admin</span>
+  <div id="who" class="row hidden" style="margin-left:auto"><span class="muted" id="whoEmail"></span><button class="ghost" onclick="logout()">Sign out</button></div>
+</header>
+
+<!-- LOGIN -->
+<div id="login" class="content" style="max-width:400px; margin:48px auto;">
+  <div class="card" style="padding:32px;">
+    <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:8px">Admin Access</div>
+    <h2 style="font-size:24px;margin-bottom:4px">Owner Admin Panel</h2>
+    <p class="muted" style="margin-bottom:20px">Authorised personnel only.</p>
+    <label class="field" style="margin-top:0"><span>Email</span><input type="text" id="email" autocomplete="username" style="width:100%"></label>
+    <label class="field"><span>Password</span><input type="password" id="pass" autocomplete="current-password" style="width:100%"></label>
+    <div style="margin-top:20px"><button class="primary" onclick="login()" style="width:100%;justify-content:flex-start;font-size:15px;padding:11px 16px">Sign In to Admin Panel &rarr;</button></div>
+    <p id="loginErr" class="muted" style="color:var(--danger);margin-top:10px"></p>
     <p class="muted" style="margin-top:14px">Account must be listed in the <span class="code">admins</span> collection (doc id = your Auth UID).</p>
   </div>
+</div>
 
-  <!-- APP -->
-  <div id="app" class="hidden">
-    <div class="tabs">
-      <button id="tabDevices" class="on" onclick="showTab('devices')">Devices</button>
-      <button id="tabResellers" onclick="showTab('resellers')">Resellers</button>
-      <button id="tabPlans" onclick="showTab('plans')">Plans</button>
-      <button id="tabPackages" onclick="showTab('packages')">Packages</button>
-      <button id="tabOrders" onclick="showTab('orders')">Orders</button>
-      <button id="tabUpdates" onclick="showTab('updates')">App Update</button>
-      <button id="tabSettings" onclick="showTab('settings')">Licensing</button>
-    </div>
+<!-- APP -->
+<div id="app" class="hidden">
+  <div class="tabs">
+    <button id="tabDevices" class="on" onclick="showTab('devices')">Devices</button>
+    <button id="tabResellers" onclick="showTab('resellers')">Resellers</button>
+    <button id="tabPlans" onclick="showTab('plans')">Plans</button>
+    <button id="tabPackages" onclick="showTab('packages')">Packages</button>
+    <button id="tabOrders" onclick="showTab('orders')">Orders</button>
+    <button id="tabUpdates" onclick="showTab('updates')">App Update</button>
+    <button id="tabSettings" onclick="showTab('settings')">Licensing</button>
+  </div>
 
+  <div class="content">
     <!-- DEVICES -->
-    <div id="devices" class="card">
-      <div class="row" style="justify-content:space-between">
+    <div id="devices">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
         <input type="text" id="search" placeholder="Search code / note / id…" style="width:280px" oninput="renderDevices()">
         <span class="muted" id="devCount"></span>
       </div>
-      <table>
-        <thead><tr><th>Code</th><th>Status</th><th>Tier</th><th>Expiry</th><th>Last seen</th><th>App</th><th>Note</th><th style="width:270px">Actions</th></tr></thead>
-        <tbody id="devRows"></tbody>
-      </table>
+      <div class="card" style="padding:0;overflow-x:auto">
+        <table>
+          <thead><tr><th>Code</th><th>Status</th><th>Tier</th><th>Expiry</th><th>Last seen</th><th>App</th><th>Note</th><th style="width:280px">Actions</th></tr></thead>
+          <tbody id="devRows"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- UPDATES -->
     <div id="updates" class="card hidden" style="max-width:640px">
       <h3>App update (<span class="code">app_config/version</span>)</h3>
-      <label class="field"><span>Latest versionCode (integer — app updates when this is greater than its own)</span><input type="text" id="uVersionCode"></label>
-      <label class="field"><span>Latest versionName (display, e.g. 2.1.0)</span><input type="text" id="uVersionName"></label>
+      <label class="field"><span>Latest versionCode (integer — app updates when this is greater than its own)</span><input type="text" id="uVersionCode" class="code"></label>
+      <label class="field"><span>Latest versionName (display, e.g. 2.1.0)</span><input type="text" id="uVersionName" class="code"></label>
       <label class="field"><span>APK URL (Firebase Storage download URL)</span><input type="text" id="uApkUrl" class="code"></label>
       <label class="field"><span>Changelog (shown to the user)</span><textarea id="uChangelog" rows="4"></textarea></label>
-      <label class="field"><span>Min supported versionCode (older versions are BLOCKED until they update; 0 = off)</span><input type="text" id="uMinCode"></label>
+      <label class="field"><span>Min supported versionCode (older versions are BLOCKED until they update; 0 = off)</span><input type="text" id="uMinCode" class="code"></label>
       <label class="switch" style="margin-top:14px"><input type="checkbox" id="uForce"><span>Force update (block app until updated)</span></label>
-      <div class="row" style="margin-top:18px"><button class="primary" onclick="saveVersion()">Save update config</button><span class="muted">Upload the APK to Firebase Storage first, paste its download URL here.</span></div>
+      <div class="row" style="margin-top:18px"><button class="primary" onclick="saveVersion()">Publish Update</button><span class="muted">Upload the APK to Firebase Storage first, paste its download URL here.</span></div>
     </div>
 
     <!-- SETTINGS -->
-    <div id="settings" class="card hidden" style="max-width:640px">
-      <h3>Licensing enforcement (<span class="code">app_config/licensing</span>)</h3>
-      <p class="muted" style="margin-top:8px">OFF = every device works (safe rollout default). ON = only devices you activated can use the app. Activate your real clients below before switching ON.</p>
-      <label class="switch" style="margin-top:16px"><input type="checkbox" id="sEnforce"><span id="sEnforceLbl">Enforcement is OFF</span></label>
-      <div class="row" style="margin-top:18px"><button class="primary" onclick="saveEnforce()">Save</button></div>
+    <div id="settings" class="hidden" style="max-width:640px">
+      <div class="card" style="text-align:center;padding:36px;margin-bottom:16px">
+        <div id="licCircle" style="width:72px;height:72px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;background:#fee2e2">
+          <svg id="licShield" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#991b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div id="licStatus" style="font-weight:800;font-size:22px;color:#991b1b">Enforcement OFF</div>
+        <p class="muted" id="licSub" style="margin-top:6px">Every device works while enforcement is off (safe rollout default).</p>
+      </div>
+      <div class="card">
+        <h3>Licensing enforcement (<span class="code">app_config/licensing</span>)</h3>
+        <p class="muted" style="margin-top:8px;line-height:1.6">OFF = every device works. ON = only devices you activated (or in trial) can use the app. Activate your real clients in the Devices tab before switching ON.</p>
+        <div class="row" style="margin-top:16px;justify-content:space-between">
+          <span id="sEnforceLbl" style="font-weight:600">Enforcement is OFF</span>
+          <button id="licToggle" class="ghost" onclick="toggleEnforce()">Turn ON</button>
+        </div>
+        <div class="row" style="margin-top:14px"><button class="primary" onclick="saveEnforce()">Save</button></div>
+      </div>
+      <div id="licWarn" class="card hidden" style="border-color:#f59e0b;background:#fef3c7;color:#92400e;padding:14px 18px;margin-top:16px;display:flex;gap:10px;align-items:center">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Enforcement is OFF — no device is gated yet.
+      </div>
     </div>
 
     <!-- RESELLERS -->
-    <div id="resellers" class="card hidden">
-      <div class="row" style="justify-content:space-between">
+    <div id="resellers" class="hidden">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
         <input type="text" id="rSearch" placeholder="Search email / name…" style="width:280px" oninput="renderResellers()">
         <span class="muted" id="rCount"></span>
       </div>
-      <table>
-        <thead><tr><th>Reseller</th><th>Status</th><th>Credits</th><th>Clients</th><th style="width:320px">Actions</th></tr></thead>
-        <tbody id="resRows"></tbody>
-      </table>
+      <div class="card" style="padding:0;overflow-x:auto">
+        <table>
+          <thead><tr><th>Reseller</th><th>Status</th><th>Credits</th><th>Clients</th><th style="width:320px">Actions</th></tr></thead>
+          <tbody id="resRows"></tbody>
+        </table>
+      </div>
       <p class="muted" style="margin-top:12px">Resellers self-register at <span class="code">/reseller/signup</span>. They start with 0 credits — top them up here. Activating/renewing a client spends credits (see Plans).</p>
     </div>
 
     <!-- PLANS -->
-    <div id="plans" class="card hidden" style="max-width:720px">
-      <h3>Plans (<span class="code">plans</span>) — what a reseller can sell</h3>
-      <p class="muted" style="margin-top:8px">Each plan sets the tier, duration, and its credit cost. Resellers pick a plan when activating a device.</p>
-      <table>
-        <thead><tr><th>Name</th><th>Tier</th><th>Months</th><th>Cost (credits)</th><th style="width:90px"></th></tr></thead>
-        <tbody id="planRows"></tbody>
-      </table>
-      <div class="card" style="margin-top:16px;background:#0E1524">
+    <div id="plans" class="hidden" style="max-width:760px">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <div><h2 style="font-size:20px">Plans</h2><p class="muted">What a reseller can sell — tier, duration, credit cost.</p></div>
+        <button class="primary" onclick="togglePlanForm()">Add Plan</button>
+      </div>
+      <div class="card" style="padding:0;overflow-x:auto">
+        <table>
+          <thead><tr><th>Name</th><th>Tier</th><th>Months</th><th>Cost (credits)</th><th style="width:90px"></th></tr></thead>
+          <tbody id="planRows"></tbody>
+        </table>
+      </div>
+      <div id="planForm" class="card hidden" style="margin-top:16px;background:var(--accent-100);border-color:var(--accent-300)">
         <div class="row">
           <label class="field" style="margin-top:0"><span>Name</span><input type="text" id="pName" placeholder="1 Month Premium" style="width:180px"></label>
           <label class="field" style="margin-top:0"><span>Tier</span><select id="pTier"><option value="premium">premium (IPTV+Debrid)</option><option value="normal">normal (IPTV)</option></select></label>
           <label class="field" style="margin-top:0"><span>Months</span><input type="text" id="pMonths" value="1" style="width:70px"></label>
           <label class="field" style="margin-top:0"><span>Cost</span><input type="text" id="pCost" value="1" style="width:70px"></label>
-          <button class="primary" style="margin-top:20px" onclick="addPlan()">Add plan</button>
+          <button class="primary" style="margin-top:20px" onclick="addPlan()">Add</button>
         </div>
       </div>
     </div>
 
     <!-- PACKAGES -->
-    <div id="packages" class="card hidden" style="max-width:720px">
-      <h3>Credit packages (<span class="code">credit_packages</span>) — what a reseller can BUY</h3>
-      <p class="muted" style="margin-top:8px">Each package sells a number of credits for a USD price. Resellers see these on the Buy Credits page.</p>
-      <table>
-        <thead><tr><th>Name</th><th>Credits</th><th>Bonus</th><th>Price (USD)</th><th style="width:90px"></th></tr></thead>
-        <tbody id="pkgRows"></tbody>
-      </table>
-      <div class="card" style="margin-top:16px;background:#0E1524">
+    <div id="packages" class="hidden" style="max-width:760px">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <div><h2 style="font-size:20px">Credit packages</h2><p class="muted">What a reseller can BUY — credits for a USD price.</p></div>
+        <button class="primary" onclick="togglePkgForm()">Add Package</button>
+      </div>
+      <div class="card" style="padding:0;overflow-x:auto">
+        <table>
+          <thead><tr><th>Name</th><th>Credits</th><th>Bonus</th><th>Price (USD)</th><th style="width:90px"></th></tr></thead>
+          <tbody id="pkgRows"></tbody>
+        </table>
+      </div>
+      <div id="pkgForm" class="card hidden" style="margin-top:16px;background:var(--accent-100);border-color:var(--accent-300)">
         <div class="row">
           <label class="field" style="margin-top:0"><span>Name</span><input type="text" id="kName" placeholder="Starter" style="width:150px"></label>
           <label class="field" style="margin-top:0"><span>Credits</span><input type="text" id="kCredits" value="50" style="width:80px"></label>
           <label class="field" style="margin-top:0"><span>Bonus</span><input type="text" id="kBonus" value="0" style="width:70px"></label>
           <label class="field" style="margin-top:0"><span>Price USD</span><input type="text" id="kPrice" value="25" style="width:80px"></label>
-          <button class="primary" style="margin-top:20px" onclick="addPackage()">Add package</button>
+          <button class="primary" style="margin-top:20px" onclick="addPackage()">Add</button>
         </div>
       </div>
     </div>
 
     <!-- ORDERS -->
-    <div id="orders" class="card hidden">
-      <div class="row" style="justify-content:space-between">
+    <div id="orders" class="hidden">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
         <input type="text" id="oSearch" placeholder="Search reseller / provider ref…" style="width:280px" oninput="renderOrders()">
         <span class="muted" id="oCount"></span>
       </div>
-      <table>
-        <thead><tr><th>When</th><th>Reseller</th><th>Package</th><th>Credits</th><th>Amount</th><th>Status</th><th>Provider</th></tr></thead>
-        <tbody id="orderRows"></tbody>
-      </table>
+      <div class="card" style="padding:0;overflow-x:auto">
+        <table>
+          <thead><tr><th>When</th><th>Reseller</th><th>Package</th><th>Credits</th><th>Amount</th><th>Status</th><th>Provider</th></tr></thead>
+          <tbody id="orderRows"></tbody>
+        </table>
+      </div>
       <p class="muted" style="margin-top:12px">Orders are created + marked paid by the payment functions (Phase 3). Read-only here.</p>
     </div>
   </div>
@@ -275,7 +339,7 @@ function renderDevices(){
     b5.onclick=()=>{ const key=d.activationCode||d.id;
       navigator.clipboard.writeText('https://debxtrem-companion.vercel.app/?code='+encodeURIComponent(key))
         .then(()=>toast('Config link copied')).catch(()=>toast('Copy failed')); };
-    const b4=document.createElement('button'); b4.className='ghost'; b4.textContent='✕';
+    const b4=document.createElement('button'); b4.className='bad'; b4.textContent='✕';
     b4.title='Delete device'; b4.onclick=()=>{ if(confirm('Delete this device license?')) db.collection('licenses').doc(d.id).delete().then(()=>toast('Deleted')).catch(e=>toast(e.message)); };
     rowEl.append(b1,b2,b3,b5,b4);
     rows.appendChild(tr);
@@ -298,14 +362,25 @@ function saveVersion(){
 }
 
 // ---- Licensing enforce ----
+let enforceState = false;
+function paintEnforce(on){
+  enforceState = on;
+  document.getElementById('licCircle').style.background = on ? '#d1fae5' : '#fee2e2';
+  document.getElementById('licShield').setAttribute('stroke', on ? '#065f46' : '#991b1b');
+  const st=document.getElementById('licStatus'); st.textContent = on ? 'Enforcement ON' : 'Enforcement OFF'; st.style.color = on ? '#065f46' : '#991b1b';
+  document.getElementById('licSub').textContent = on ? 'Only activated (or in-trial) devices can use the app.' : 'Every device works while enforcement is off (safe rollout default).';
+  document.getElementById('sEnforceLbl').textContent = 'Enforcement is '+(on?'ON':'OFF');
+  document.getElementById('licToggle').textContent = on ? 'Turn OFF' : 'Turn ON';
+  document.getElementById('licWarn').classList.toggle('hidden', on);
+}
 async function loadEnforce(){
   const s=await db.collection('app_config').doc('licensing').get();
-  const on=s.exists&&!!s.data().enforce; sEnforce.checked=on; sEnforceLbl.textContent='Enforcement is '+(on?'ON':'OFF');
-  sEnforce.onchange=()=>sEnforceLbl.textContent='Enforcement will be '+(sEnforce.checked?'ON':'OFF')+' after Save';
+  paintEnforce(s.exists && !!s.data().enforce);
 }
+function toggleEnforce(){ paintEnforce(!enforceState); document.getElementById('sEnforceLbl').textContent='Enforcement will be '+(enforceState?'ON':'OFF')+' after Save'; }
 function saveEnforce(){
-  db.collection('app_config').doc('licensing').set({enforce:sEnforce.checked},{merge:true})
-    .then(()=>{ toast('Saved'); sEnforceLbl.textContent='Enforcement is '+(sEnforce.checked?'ON':'OFF'); })
+  db.collection('app_config').doc('licensing').set({enforce:enforceState},{merge:true})
+    .then(()=>{ toast('Saved'); paintEnforce(enforceState); })
     .catch(e=>toast('Failed: '+e.message));
 }
 
@@ -330,14 +405,14 @@ function renderResellers(){
     tr.innerHTML = `
       <td>${r.displayName||'—'}<div class="muted code">${r.email||r.id}</div></td>
       <td><span class="chip ${status==='active'?'active':'inactive'}">${status.toUpperCase()}</span></td>
-      <td style="font-weight:600">${r.credits||0}</td>
+      <td style="font-weight:700;color:var(--accent-700)">${r.credits||0}</td>
       <td class="muted">${r.clientCount||0}</td>
       <td></td>`;
     const act=tr.children[4]; const rowEl=document.createElement('div'); rowEl.className='row'; act.appendChild(rowEl);
     const bAdd=document.createElement('button'); bAdd.className='good'; bAdd.textContent='+ Credits';
     bAdd.onclick=()=>{ const v=prompt('Add how many credits to '+(r.email||r.id)+'? (negative to deduct)','10');
       if(v===null) return; const n=parseInt(v); if(!Number.isFinite(n)||n===0){ toast('Enter a non-zero number'); return; } addCredits(r, n); };
-    const bTog=document.createElement('button'); bTog.className='ghost';
+    const bTog=document.createElement('button'); bTog.className=status==='active'?'bad':'ghost';
     bTog.textContent = status==='active' ? 'Suspend' : 'Reactivate';
     bTog.onclick=()=>db.collection('resellers').doc(r.id).set({status: status==='active'?'suspended':'active'},{merge:true})
       .then(()=>toast('Status updated')).catch(e=>toast('Failed: '+e.message));
@@ -355,6 +430,7 @@ function addCredits(r, amount){
 
 // ---- Plans ----
 let plans = [], unsubPlans = null;
+function togglePlanForm(){ document.getElementById('planForm').classList.toggle('hidden'); }
 function attachPlans(){
   if (unsubPlans) unsubPlans();
   unsubPlans = db.collection('plans').onSnapshot(s => {
@@ -365,14 +441,14 @@ function attachPlans(){
 }
 function renderPlans(){
   const rows=document.getElementById('planRows'); rows.innerHTML='';
-  if (!plans.length){ rows.innerHTML='<tr><td colspan="5" class="muted">No plans yet — add one below.</td></tr>'; return; }
+  if (!plans.length){ rows.innerHTML='<tr><td colspan="5" class="muted">No plans yet — add one above.</td></tr>'; return; }
   for (const p of plans){
     const tr=document.createElement('tr');
     tr.innerHTML = `
       <td>${p.name||p.id}</td>
       <td><span class="chip ${p.tier==='premium'?'premium':'normal'}">${(p.tier||'normal').toUpperCase()}</span></td>
       <td>${p.months||0}</td>
-      <td style="font-weight:600">${p.cost||0}</td>
+      <td style="font-weight:700;color:var(--accent-700)">${p.cost||0}</td>
       <td></td>`;
     const del=document.createElement('button'); del.className='bad'; del.textContent='✕';
     del.onclick=()=>{ if(confirm('Delete plan "'+(p.name||p.id)+'"?')) db.collection('plans').doc(p.id).delete().then(()=>toast('Deleted')).catch(e=>toast(e.message)); };
@@ -393,6 +469,7 @@ function addPlan(){
 
 // ---- Credit packages ----
 let packages = [], unsubPkgs = null;
+function togglePkgForm(){ document.getElementById('pkgForm').classList.toggle('hidden'); }
 function attachPackages(){
   if (unsubPkgs) unsubPkgs();
   unsubPkgs = db.collection('credit_packages').onSnapshot(s => {
@@ -403,14 +480,14 @@ function attachPackages(){
 }
 function renderPackages(){
   const rows=document.getElementById('pkgRows'); rows.innerHTML='';
-  if (!packages.length){ rows.innerHTML='<tr><td colspan="5" class="muted">No packages yet — add one below.</td></tr>'; return; }
+  if (!packages.length){ rows.innerHTML='<tr><td colspan="5" class="muted">No packages yet — add one above.</td></tr>'; return; }
   for (const p of packages){
     const tr=document.createElement('tr');
     tr.innerHTML = `
       <td>${p.name||p.id}</td>
       <td style="font-weight:600">${p.credits||0}</td>
-      <td class="muted">${p.bonus||0}</td>
-      <td>$${(p.priceUsd||0).toFixed(2)}</td>
+      <td class="muted">${p.bonus?('+'+p.bonus):'0'}</td>
+      <td style="font-weight:700">$${(p.priceUsd||0).toFixed(2)}</td>
       <td></td>`;
     const del=document.createElement('button'); del.className='bad'; del.textContent='✕';
     del.onclick=()=>{ if(confirm('Delete package "'+(p.name||p.id)+'"?')) db.collection('credit_packages').doc(p.id).delete().then(()=>toast('Deleted')).catch(e=>toast(e.message)); };
@@ -452,8 +529,8 @@ function renderOrders(){
       <td class="muted">${fmtTime(o.createdAt)}</td>
       <td>${o.resellerEmail||o.resellerId||'—'}</td>
       <td>${o.packageName||o.packageId||'—'}</td>
-      <td style="font-weight:600">${o.credits||0}</td>
-      <td>${o.currency||'USD'} ${(o.amount||0).toFixed ? (o.amount).toFixed(2) : o.amount}</td>
+      <td style="font-weight:700;color:var(--accent-700)">${o.credits||0}</td>
+      <td style="font-weight:700">${o.currency||'USD'} ${(o.amount||0).toFixed ? (o.amount).toFixed(2) : o.amount}</td>
       <td><span class="chip ${st==='paid'?'active':st==='failed'?'inactive':'pending'}">${st.toUpperCase()}</span></td>
       <td class="muted code">${o.provider||'—'}</td>`;
     rows.appendChild(tr);
