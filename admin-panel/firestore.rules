@@ -16,13 +16,25 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     // ── Device licenses ────────────────────────────────────────────────
     // The TV app is UNAUTHENTICATED; its doc id is an unguessable install UUID
     // which acts as the capability. Devices may register themselves as
     // `pending` and update telemetry — but can NEVER grant themselves
-    // status/tier/expiry. Only admins can.
+    // status/tier/expiry. Only admins can. Resellers (see below) never write
+    // entitlement fields directly — that goes through the activateClient Cloud
+    // Function (admin SDK) so credits are spent atomically.
     match /licenses/{installId} {
-      allow read: if true;
+      // GET stays open: the unauthenticated TV reads its OWN doc by id (capability).
+      allow get: if true;
+      // LIST is scoped: the admin panel sees all; a reseller may only enumerate the
+      // clients they own (query must filter resellerId == their uid). This also closes
+      // the prior "anyone can enumerate every license" exposure.
+      allow list: if isAdmin() ||
+        (isSignedIn() && resource.data.resellerId == request.auth.uid);
 
       // Device self-registration: must be pending + normal, no expiry, and the
       // trial anchor MUST be the server clock — a crafted client can no longer seed a
@@ -71,6 +83,43 @@ service cloud.firestore {
       allow get, create, update: if true;
       allow delete: if isAdmin();
       allow list: if false;
+    }
+
+    // ── Resellers (multi-tenant reseller dashboard) ─────────────────────
+    // A reseller signs up with email (Firebase Auth). They own their own doc but can
+    // NEVER change their own credit balance or status — only an admin (owner top-up)
+    // or the Cloud Functions (admin SDK, which bypasses rules) may. Activating/renewing
+    // a client is done via the activateClient/renewClient Functions, which spend credits
+    // atomically; resellers never write licence entitlement fields directly.
+    match /resellers/{uid} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      // Self-signup: create own doc, starting at zero credits, active.
+      allow create: if isSignedIn() && request.auth.uid == uid &&
+        request.resource.data.credits == 0 &&
+        request.resource.data.status == 'active';
+      // Self-update: profile fields ONLY — credits/status are admin/function-only.
+      allow update: if isAdmin() || (
+        isSignedIn() && request.auth.uid == uid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['displayName'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ── Plans (server-defined credit cost per tier/duration) ────────────
+    // Read-all so the reseller UI can list them; only the owner defines cost.
+    match /plans/{planId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── Credit ledger (audit trail of top-ups + activation spends) ───────
+    // Read your own entries (or admin reads all); writes come only from the Functions
+    // (admin SDK) or admin — never from a reseller client directly.
+    match /credit_ledger/{entryId} {
+      allow read: if isAdmin() ||
+        (isSignedIn() && resource.data.resellerId == request.auth.uid);
+      allow write: if isAdmin();
     }
 
     // Everything else: locked.

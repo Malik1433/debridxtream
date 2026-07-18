@@ -1,5 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import ConfigPage from './pages/ConfigPage'
+import SignupPage from './pages/reseller/SignupPage'
+import LoginPage from './pages/reseller/LoginPage'
+import DashboardPage from './pages/reseller/DashboardPage'
 import './index.css'
 
 const RedirectToRoot = () => {
@@ -15,6 +18,10 @@ function App() {
                     <Route path="/" element={<ConfigPage />} />
                     <Route path="/config" element={<RedirectToRoot />} />
                     <Route path="/setup" element={<RedirectToRoot />} />
+                    {/* Reseller dashboard */}
+                    <Route path="/reseller" element={<DashboardPage />} />
+                    <Route path="/reseller/login" element={<LoginPage />} />
+                    <Route path="/reseller/signup" element={<SignupPage />} />
                 </Routes>
             </div>
         </Router>

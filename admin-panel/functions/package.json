@@ -1,0 +1,13 @@
+{
+  "name": "debridxtream-functions",
+  "description": "Reseller credit engine — atomic activate/renew for the DebridXtream licensing system",
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^5.1.1"
+  },
+  "private": true
+}

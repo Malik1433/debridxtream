@@ -1,5 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { initializeFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { getFunctions } from 'firebase/functions';
 
 const firebaseConfig = {
     apiKey: "AIzaSyDpBUBq_GowUtJVEsV61lX60804DBt7V4A",
@@ -18,4 +20,8 @@ const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
 });
+
+// Reseller dashboard: email/password auth + callable credit-engine functions.
+export const auth = getAuth(app);
+export const functions = getFunctions(app);
 
