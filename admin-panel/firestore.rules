@@ -24,11 +24,16 @@ service cloud.firestore {
     match /licenses/{installId} {
       allow read: if true;
 
-      // Device self-registration: must be pending + normal, no expiry.
+      // Device self-registration: must be pending + normal, no expiry, and the
+      // trial anchor MUST be the server clock — a crafted client can no longer seed a
+      // far-future createdAt to mint an unlimited "trial" (createdAt drives the 7-day
+      // trial window). The app writes FieldValue.serverTimestamp(), which resolves to
+      // request.time.
       allow create: if isAdmin() || (
         request.resource.data.status == 'pending' &&
         request.resource.data.tier == 'normal' &&
-        !('expiresAt' in request.resource.data)
+        !('expiresAt' in request.resource.data) &&
+        request.resource.data.createdAt == request.time
       );
 
       // Device may only touch telemetry fields; entitlement fields are admin-only.
@@ -54,10 +59,17 @@ service cloud.firestore {
 
     // ── Companion config channel (permanent device-key docs) ────────────
     // Unauthenticated by design: the TV and the phone page both address the doc
-    // by the device key (capability). Docs now carry pushed IPTV credentials, so
+    // by the device key (capability). Docs carry pushed IPTV credentials, so
     // LIST is denied — you must know the exact key; enumeration is blocked.
+    // DELETE is admin-only: nobody who merely knows a key should be able to wipe
+    // another device's config (griefing). get/create/update stay open because the
+    // unauthenticated phone page legitimately writes config by key.
+    // RESIDUAL RISK (needs a bigger change, tracked separately): anyone who learns a
+    // device's key can still READ its pushed IPTV credentials. Proper fix = short-lived
+    // pairing tokens + not storing raw credentials at rest (encrypt with a device-held key).
     match /device_codes/{code} {
-      allow get, create, update, delete: if true;
+      allow get, create, update: if true;
+      allow delete: if isAdmin();
       allow list: if false;
     }
 

@@ -2,6 +2,7 @@ package com.tvonnet.debridxtreamiptv.data.licensing
 
 import android.content.Context
 import android.util.Log
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
@@ -129,7 +130,6 @@ class LicenseManager private constructor(context: Context) {
             }
 
         val docRef = db.collection(COLLECTION).document(installId)
-        val now = System.currentTimeMillis()
 
         // Create the doc as `pending` ONLY if it doesn't exist yet — never overwrite an
         // admin-set status. If it exists, only touch telemetry fields (merge).
@@ -142,14 +142,17 @@ class LicenseManager private constructor(context: Context) {
                         "activationCode" to activationCode,
                         "appVersionCode" to BuildConfig.VERSION_CODE,
                         "appVersionName" to BuildConfig.VERSION_NAME,
-                        "createdAt" to now,
-                        "lastSeenAt" to now
+                        // Server clock, NOT client millis: the trial window is anchored to
+                        // createdAt and the rules now require createdAt == request.time, so a
+                        // crafted client can't seed a far-future createdAt for an endless trial.
+                        "createdAt" to FieldValue.serverTimestamp(),
+                        "lastSeenAt" to FieldValue.serverTimestamp()
                     )
                 ).addOnFailureListener { Log.w(TAG, "license doc create failed", it) }
             } else {
                 docRef.set(
                     mapOf(
-                        "lastSeenAt" to now,
+                        "lastSeenAt" to FieldValue.serverTimestamp(),
                         "appVersionCode" to BuildConfig.VERSION_CODE,
                         "appVersionName" to BuildConfig.VERSION_NAME,
                         "activationCode" to activationCode
@@ -167,7 +170,13 @@ class LicenseManager private constructor(context: Context) {
                 cache.status = snapshot.getString("status") ?: cache.status
                 cache.tier = snapshot.getString("tier") ?: LicensePreferences.TIER_NORMAL
                 cache.expiresAt = snapshot.getLong("expiresAt") ?: 0L
-                cache.createdAt = snapshot.getLong("createdAt") ?: cache.createdAt
+                // createdAt is now a server Timestamp (older docs may still hold a Long).
+                // A brand-new doc's serverTimestamp is null in the local echo until the
+                // server resolves it — keep the previous value until then.
+                cache.createdAt =
+                    snapshot.getTimestamp("createdAt")?.toDate()?.time
+                        ?: snapshot.getLong("createdAt")
+                        ?: cache.createdAt
                 if (cache.isCurrentlyEntitled()) cache.lastActiveAt = System.currentTimeMillis()
             }
             _state.value = cachedState()
