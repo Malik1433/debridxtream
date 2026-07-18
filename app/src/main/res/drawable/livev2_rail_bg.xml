@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v2 nav rail: linear-gradient(180deg, rgba(14,20,32,0.94), rgba(8,12,20,0.96)), radius 24px/2 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:startColor="#F00E1420"
+        android:endColor="#F5080C14" />
+    <corners android:radius="12dp" />
+    <stroke android:width="1dp" android:color="#0FFFFFFF" />
+</shape>

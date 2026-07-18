@@ -26,7 +26,6 @@ import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
 import com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
-import com.tvonnet.debridxtreamiptv.utils.RecyclerViewAnimations
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
 import com.tvonnet.debridxtreamiptv.util.FAVORITES_CATEGORY_ID
 import kotlinx.coroutines.launch
@@ -194,9 +193,6 @@ class VodFragment : Fragment() {
         setupDpadNavigation()
         setupLoadStateListener()
         setupAdapterObserver()
-
-        RecyclerViewAnimations.applyAnimations(rvCategoriesSidebar)
-        RecyclerViewAnimations.applyAnimations(rvMoviesGrid)
 
         loadFavoritesCache()
         loadWatchedMovieKeysCache()
@@ -802,16 +798,14 @@ class VodFragment : Fragment() {
 
     private fun showLoadingState(show: Boolean, keepContent: Boolean = false) {
         val container = llLoadingState ?: return
-        if (show) {
+        // Full-screen skeleton ONLY when the grid has nothing to show. When content is
+        // already on screen (category switch / background sync), never blank or dim it —
+        // the sync finishes silently and Paging swaps the rows in place.
+        if (show && !keepContent) {
             container.visibility = View.VISIBLE
-            if (keepContent) {
-                container.alpha = 0.5f
-                rvMoviesGrid.alpha = 0.6f
-            } else {
-                container.alpha = 1.0f
-                rvMoviesGrid.alpha = 0f
-                rvMoviesGrid.visibility = View.GONE
-            }
+            container.alpha = 1.0f
+            rvMoviesGrid.alpha = 0f
+            rvMoviesGrid.visibility = View.GONE
             startShimmerAnimations(container)
         } else {
             stopShimmerAnimations(container)
@@ -821,7 +815,11 @@ class VodFragment : Fragment() {
         }
     }
 
+    private var shimmerRunning = false
+
     private fun startShimmerAnimations(container: ViewGroup) {
+        if (shimmerRunning) return
+        shimmerRunning = true
         for (i in 0 until container.childCount) {
             val shimmer = container.getChildAt(i)?.findViewById<View>(R.id.v_shimmer) ?: continue
             val anim = TranslateAnimation(
@@ -840,6 +838,8 @@ class VodFragment : Fragment() {
     }
 
     private fun stopShimmerAnimations(container: ViewGroup) {
+        if (!shimmerRunning) return
+        shimmerRunning = false
         for (i in 0 until container.childCount) {
             container.getChildAt(i)?.findViewById<View>(R.id.v_shimmer)?.clearAnimation()
         }

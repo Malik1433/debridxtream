@@ -169,4 +169,8 @@
     <dimen name="col_type">110dp</dimen>
     <dimen name="col_filesize">140dp</dimen>
     <dimen name="col_play">46dp</dimen>
+
+    <!-- Live TV v2 nav rail (design 88px / 280px, halved for this 1920x1080 @2.0 stage) -->
+    <dimen name="livev2_rail_width_collapsed">44dp</dimen>
+    <dimen name="livev2_rail_width_expanded">140dp</dimen>
 </resources>

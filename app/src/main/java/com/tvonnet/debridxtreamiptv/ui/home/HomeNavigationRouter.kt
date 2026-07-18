@@ -37,36 +37,12 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
 
     fun navigateToSection(section: String) {
         val frag = fragment ?: return
-        if (frag.isNavigatingFromHome || !frag.isAdded || frag.parentFragmentManager.isStateSaved) return
+        if (frag.isNavigatingFromHome) return
 
-        // Tier gating (defense-in-depth — the sidebar already hides the entry):
-        // NORMAL devices are IPTV-only; the Debrid section is premium.
-        if (section == "debrid" &&
-            !com.tvonnet.debridxtreamiptv.data.licensing.Entitlements.isDebridAllowed(frag.requireContext())
-        ) {
-            android.widget.Toast.makeText(
-                frag.requireContext(), "Premium feature — contact your provider", android.widget.Toast.LENGTH_SHORT
-            ).show()
-            return
-        }
-
-        val targetFragment = when (section) {
-            "live" -> if (SettingsPreferences(frag.requireContext()).getLiveTvStyle() == SettingsPreferences.STYLE_CLASSIC) {
-                LiveFragment()
-            } else {
-                LiveTvGuideFragment()
-            }
-            "movies" -> VodFragment()
-            "series" -> SeriesFragment()
-            "debrid" -> com.tvonnet.debridxtreamiptv.ui.debrid.stremio.StremioHomeFragment()
-            "search" -> SearchFragment()
-            "settings" -> com.tvonnet.debridxtreamiptv.ui.settings.SettingsFragment()
-            else -> return
-        }
-        frag.isNavigatingFromHome = true
-        frag.parentFragmentManager.commit {
-            replace(R.id.content_container, targetFragment)
-            addToBackStack(null)
+        // Routing, the Debrid tier gate and the Live classic/guide split are shared with the
+        // Live TV v2 rail — see SectionNavigator.
+        com.tvonnet.debridxtreamiptv.ui.nav.SectionNavigator.navigate(frag, section) {
+            frag.isNavigatingFromHome = true
         }
     }
 

@@ -4,24 +4,24 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="34dp"
+    android:layout_height="46dp"
     android:orientation="horizontal">
 
     <!-- channel column -->
     <LinearLayout
         android:id="@+id/guide_ch_col"
-        android:layout_width="120dp"
+        android:layout_width="140dp"
         android:layout_height="match_parent"
         android:background="@drawable/bg_live_guide_ch_col"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="10dp"
-        android:paddingEnd="8dp">
+        android:paddingStart="11dp"
+        android:paddingEnd="9dp">
 
         <FrameLayout
             android:id="@+id/guide_ch_logo"
-            android:layout_width="22dp"
-            android:layout_height="22dp">
+            android:layout_width="30dp"
+            android:layout_height="30dp">
 
             <TextView
                 android:id="@+id/guide_ch_logo_text"
@@ -30,15 +30,24 @@
                 android:layout_gravity="center"
                 android:fontFamily="@font/plus_jakarta_sans"
                 android:textColor="@android:color/white"
-                android:textSize="5.5sp"
+                android:textSize="7sp"
                 android:textStyle="bold"
                 tools:text="ARD" />
+
+            <ImageView
+                android:id="@+id/guide_ch_logo_img"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="2dp"
+                android:scaleType="fitCenter"
+                android:visibility="gone"
+                tools:ignore="ContentDescription" />
         </FrameLayout>
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -50,7 +59,7 @@
                 android:fontFamily="@font/plus_jakarta_sans"
                 android:maxLines="1"
                 android:textColor="@color/live_osd_text_soft"
-                android:textSize="6.5sp"
+                android:textSize="9sp"
                 android:textStyle="bold"
                 tools:text="SKY SPORT 1" />
 
@@ -58,9 +67,10 @@
                 android:id="@+id/guide_ch_num"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
                 android:fontFamily="monospace"
                 android:textColor="@color/live_osd_text_faint"
-                android:textSize="4.5sp"
+                android:textSize="6.5sp"
                 tools:text="003" />
         </LinearLayout>
     </LinearLayout>

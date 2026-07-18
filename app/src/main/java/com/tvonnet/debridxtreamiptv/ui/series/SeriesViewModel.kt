@@ -338,8 +338,6 @@ class SeriesViewModel @Inject constructor(
                     }
 
                     result.onSuccess {
-                        // Week 14: Clear transition flag after sync + propagation delay
-                        kotlinx.coroutines.delay(1000) // Increased delay for stability
                         _uiState.update {
                             it.copy(
                                 isLoadingSeries = false,

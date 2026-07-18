@@ -12,6 +12,7 @@ import com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity
 import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
 import com.tvonnet.debridxtreamiptv.util.GlideUtils
 import com.tvonnet.debridxtreamiptv.utils.MagneticFocusHelper
+import java.util.Locale
 
 /**
  * Paging3 adapter for Live TV channels
@@ -141,6 +142,13 @@ class ChannelPagingViewHolder(
     private val favoriteIndicator = if (useHorizontalCard) {
         itemView.findViewById<android.widget.ImageView>(R.id.iv_favorite_indicator)
     } else null
+    // v2 row: one quality chip instead of the old separate HD/4K badges, plus the channel number.
+    private val tvChannelNumber = if (useHorizontalCard) {
+        itemView.findViewById<android.widget.TextView>(R.id.tv_channel_number)
+    } else null
+    private val badgeQuality = if (useHorizontalCard) {
+        itemView.findViewById<android.widget.TextView>(R.id.badge_quality)
+    } else null
 
     // New card fields
     private val tvChannelNumberBadge = if (useNewCard && !useHorizontalCard) {
@@ -190,9 +198,12 @@ class ChannelPagingViewHolder(
         epgData: Pair<EpgEntity?, EpgEntity?>? = null,
         isFavorite: Boolean = false
     ) {
-        // Attach the LUMINA 2026 focus animation (scale + glint) to horizontal cards.
-        // This was previously missing, causing the card to have no focus animation.
-        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attach(itemView)
+        // NOTE: deliberately NOT using FocusGlintHelper here. Its applyFocus3D walks every
+        // ancestor and sets clipChildren=false up to the root so a scaled card's glow isn't
+        // cut — but that let channel rows scrolling off the top paint over the header chips.
+        // v2 rows don't scale (PREMIUM_SCALE=1.0) and their focus treatment is the cyan border
+        // drawn inside the row (livev2_row_bg selector) + glow, exactly as the design shows, so
+        // the glint isn't needed and clipping stays on.
 
         val channelName = channel.name ?: "Unknown Channel"
 
@@ -230,6 +241,29 @@ class ChannelPagingViewHolder(
         badgeEpg?.visibility = if (hasEpg) android.view.View.VISIBLE else android.view.View.GONE
         badgePay?.visibility = if (isPay) android.view.View.VISIBLE else android.view.View.GONE
         favoriteIndicator?.visibility = if (isFavorite) android.view.View.VISIBLE else android.view.View.GONE
+
+        // v2: channel number + a single quality chip (gold 4K / grey HD, hidden when neither).
+        // Many providers send num=0 for every channel, so fall back to the row's position.
+        val channelNumber = channel.num?.takeIf { it > 0 }
+            ?: bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }?.plus(1)
+        tvChannelNumber?.text = channelNumber
+            ?.let { String.format(Locale.US, "%03d", it) }
+            .orEmpty()
+        badgeQuality?.apply {
+            when {
+                is4k -> {
+                    text = "4K"
+                    setBackgroundResource(R.drawable.bg_live_badge_quality_4k)
+                    visibility = android.view.View.VISIBLE
+                }
+                isHd -> {
+                    text = "HD"
+                    setBackgroundResource(R.drawable.bg_live_badge_quality_hd)
+                    visibility = android.view.View.VISIBLE
+                }
+                else -> visibility = android.view.View.GONE
+            }
+        }
 
         // Load channel logo
         loadChannelImage(channel.stream_icon)

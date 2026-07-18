@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icon slot behind each rail glyph. Active section = the brand blue->cyan gradient (the glyph
+     itself flips to dark #041014); otherwise rgba(255,255,255,0.05). Radius 10px/2. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="315"
+                android:startColor="@color/stremio_blue"
+                android:endColor="@color/stremio_cyan" />
+            <corners android:radius="5dp" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#0DFFFFFF" />
+            <corners android:radius="5dp" />
+        </shape>
+    </item>
+
+</selector>

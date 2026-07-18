@@ -291,8 +291,6 @@ class VodViewModel @Inject constructor(
                     val result = repository.fetchVodStreamsForCategory(categoryId)
 
                     result.onSuccess {
-                        // Week 14: Clear transition flag after sync + propagation delay
-                        kotlinx.coroutines.delay(500)
                         _uiState.update {
                             it.copy(
                                 isLoadingMovies = false,

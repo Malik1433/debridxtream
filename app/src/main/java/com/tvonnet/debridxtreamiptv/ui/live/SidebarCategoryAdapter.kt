@@ -1,21 +1,18 @@
 package com.tvonnet.debridxtreamiptv.ui.live
 
-import android.graphics.Typeface
-import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
-import com.tvonnet.debridxtreamiptv.util.CategoryFlagResolver
 
 /**
- * Adapter for the vertical sidebar in the Live TV 3-column layout.
- * Shows category icon/flags, titles, and live channel counts.
+ * Categories for the Live TV v2 header strip: a horizontal row of chips, each a label plus a
+ * channel-count badge. (This replaced the old vertical sidebar rows with flags/icons; the
+ * adapter API is unchanged so LiveFragment's selection and focus-memory keep working.)
  */
 class SidebarCategoryAdapter(
     categories: List<XtreamCategory>,
@@ -40,7 +37,7 @@ class SidebarCategoryAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SidebarCategoryViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_sidebar_category, parent, false)
+            .inflate(R.layout.item_livev2_category_chip, parent, false)
         return SidebarCategoryViewHolder(view)
     }
 
@@ -116,11 +113,9 @@ class SidebarCategoryAdapter(
 }
 
 class SidebarCategoryViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-    private val iconContainer = itemView.findViewById<View>(R.id.category_icon_container)
-    private val ivCategoryFlag = itemView.findViewById<ImageView>(R.id.iv_category_flag)
-    private val tvCategoryIcon = itemView.findViewById<TextView>(R.id.tv_category_icon)
-    private val tvCategoryName = itemView.findViewById<TextView>(R.id.tv_category_name_sidebar)
-    private val tvChannelCount = itemView.findViewById<TextView>(R.id.tv_channel_count_sidebar)
+    private val tvCategoryName = itemView.findViewById<TextView>(R.id.tv_chip_label)
+    private val tvChannelCount = itemView.findViewById<TextView>(R.id.tv_chip_count)
+    private val accentDot = itemView.findViewById<View>(R.id.view_chip_accent)
 
     fun bind(
         category: XtreamCategory,
@@ -131,84 +126,42 @@ class SidebarCategoryViewHolder(itemView: View) : RecyclerView.ViewHolder(itemVi
         val context = itemView.context
         val categoryName = category.category_name?.takeIf { it.isNotBlank() }
             ?: context.getString(R.string.live_category_placeholder)
-        val countLabel = when {
-            channelCount == null -> context.getString(R.string.live_channel_count_placeholder)
-            else -> context.getString(R.string.live_channel_count_format, channelCount)
-        }
 
-        val flagRes = CategoryFlagResolver.resolveFlagRes(categoryName)
-        if (flagRes != null) {
-            ivCategoryFlag.setImageResource(flagRes)
-            ivCategoryFlag.visibility = View.VISIBLE
-            tvCategoryIcon.visibility = View.GONE
-        } else {
-            ivCategoryFlag.visibility = View.GONE
-            tvCategoryIcon.visibility = View.VISIBLE
-            tvCategoryIcon.text = CategoryFlagResolver.resolveCategoryIcon(categoryName)
-        }
         tvCategoryName.text = categoryName
-        tvChannelCount.text = countLabel
+        // Chips show the bare count; a dash until the count for this category is known.
+        tvChannelCount.text = channelCount?.toString() ?: context.getString(R.string.livev2_no_guide_dash)
 
-        val selectedTextColor = ContextCompat.getColor(context, R.color.tv_sidebar_text_selected)
-        val normalTextColor = ContextCompat.getColor(context, R.color.tv_sidebar_text_normal)
-        val iconNormalColor = ContextCompat.getColor(context, R.color.tv_sidebar_text_normal)
-        val nameColor = if (isSelected) selectedTextColor else ContextCompat.getColor(context, R.color.tv_text_primary)
-        val countColor = if (isSelected) selectedTextColor else normalTextColor
-
-        tvCategoryName.setTextColor(nameColor)
-        tvChannelCount.setTextColor(countColor)
-        tvCategoryIcon.setTextColor(if (isSelected) selectedTextColor else iconNormalColor)
-        tvCategoryName.setTypeface(tvCategoryName.typeface, if (isSelected) Typeface.BOLD else Typeface.NORMAL)
-        itemView.isSelected = isSelected
-
-        val resources = context.resources
-        val iconSize = resources.getDimensionPixelSize(
-            if (isSelected) R.dimen.live_sidebar_icon_size_selected
-            else R.dimen.live_sidebar_icon_size
-        )
-        val iconParams = iconContainer.layoutParams
-        if (iconParams.width != iconSize || iconParams.height != iconSize) {
-            iconParams.width = iconSize
-            iconParams.height = iconSize
-            iconContainer.layoutParams = iconParams
+        // Per-category accent dot for fast visual scanning. Selected chips go full cyan (matches
+        // the label/count colour), so the dot doesn't fight the selected treatment.
+        val accent = if (isSelected) {
+            ContextCompat.getColor(context, R.color.stremio_cyan)
+        } else {
+            CategoryAccents.colorFor(categoryName)
         }
-        val iconTextSize = if (isSelected) 20f else 18f
-        tvCategoryIcon.setTextSize(TypedValue.COMPLEX_UNIT_SP, iconTextSize)
+        accentDot.backgroundTintList = android.content.res.ColorStateList.valueOf(accent)
 
-        val nameSize = if (isSelected) 17f else 15f
-        val countSize = if (isSelected) 12f else 11f
-        tvCategoryName.setTextSize(TypedValue.COMPLEX_UNIT_SP, nameSize)
-        tvChannelCount.setTextSize(TypedValue.COMPLEX_UNIT_SP, countSize)
+        // The chip background selector carries the selected/focused states; the label and count
+        // only need their colours flipped.
+        itemView.isSelected = isSelected
+        tvCategoryName.setTextColor(
+            ContextCompat.getColor(
+                context,
+                if (isSelected) R.color.stremio_cyan else R.color.stremio_text_secondary
+            )
+        )
+        tvChannelCount.setTextColor(
+            ContextCompat.getColor(
+                context,
+                if (isSelected) R.color.stremio_cyan else R.color.stremio_text_muted
+            )
+        )
 
         itemView.contentDescription = context.getString(
             R.string.live_sidebar_item_description,
             categoryName,
-            countLabel
+            channelCount?.toString().orEmpty()
         )
         itemView.setOnClickListener { onClick(category.category_id) }
-
-        itemView.isFocusable = true
-        itemView.isFocusableInTouchMode = true
-
-        // Premium 1.1x focus scaling with no-clipping
-        itemView.setOnFocusChangeListener { v, hasFocus ->
-            if (hasFocus) {
-                v.animate()
-                    .scaleX(1.1f)
-                    .scaleY(1.1f)
-                    .setDuration(200)
-                    .setInterpolator(android.view.animation.OvershootInterpolator())
-                    .start()
-                v.z = 10f // Bring to front
-            } else {
-                v.animate()
-                    .scaleX(1.0f)
-                    .scaleY(1.0f)
-                    .setDuration(200)
-                    .start()
-                v.z = 0f
-            }
-        }
     }
 
 }

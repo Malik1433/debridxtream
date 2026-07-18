@@ -271,4 +271,27 @@
     <string name="login_username_hint">Username</string>
     <string name="login_password_hint">Password</string>
     <string name="login_card_heading">Sign in to your account</string>
+
+    <!-- Live TV v2 -->
+    <string name="premium_feature_locked">Premium feature — contact your provider</string>
+    <string name="livev2_browse_label">BROWSE</string>
+    <string name="livev2_brand_name">DebridXtream</string>
+    <string name="livev2_brand_mark">DX</string>
+    <string name="livev2_brand_tag">v2.4 · 4K</string>
+    <string name="livev2_title">Live TV</string>
+    <string name="livev2_search_label">Search</string>
+    <string name="livev2_search_hint">Search channels…</string>
+    <string name="livev2_channel_count_format">%1$d LIVE</string>
+    <string name="livev2_category_channels_format">%1$s CHANNELS</string>
+    <string name="livev2_live_badge">LIVE</string>
+    <string name="livev2_next_up">NEXT UP</string>
+    <string name="livev2_watch">Watch</string>
+    <string name="livev2_program_guide">Program Guide</string>
+    <string name="livev2_guide_subtitle_format">%1$s · TODAY</string>
+    <string name="livev2_on_air">ON AIR</string>
+    <string name="livev2_time_range_separator">–</string>
+    <string name="livev2_epg_time_range">%1$s–%2$s</string>
+    <string name="livev2_no_guide_dash">—</string>
+    <string name="livev2_rail_expand_description">Main navigation</string>
+    <string name="livev2_favorite_toggle_description">Toggle favourite</string>
 </resources>

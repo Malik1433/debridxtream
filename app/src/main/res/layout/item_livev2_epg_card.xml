@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Program Guide card. Width is set at bind time from the programme's duration
+     (design gives each card its own p.width). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/livev2_epg_root"
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    android:layout_marginEnd="5dp"
+    android:background="@drawable/livev2_epg_card_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:orientation="vertical"
+    android:paddingStart="9dp"
+    android:paddingTop="7dp"
+    android:paddingEnd="9dp"
+    android:paddingBottom="7dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tv_epg_card_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/share_tech_mono"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.04"
+            android:textColor="@color/stremio_text_muted"
+            android:textSize="5.5sp"
+            tools:text="20:00" />
+
+        <TextView
+            android:id="@+id/tv_epg_card_onair"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/livev2_onair_pill"
+            android:fontFamily="@font/share_tech_mono"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.08"
+            android:paddingStart="3.5dp"
+            android:paddingTop="1dp"
+            android:paddingEnd="3.5dp"
+            android:paddingBottom="1dp"
+            android:text="@string/livev2_on_air"
+            android:textColor="#04101A"
+            android:textSize="5sp"
+            android:visibility="gone"
+            tools:visibility="visible" />
+    </LinearLayout>
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/tv_epg_card_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:fontFamily="@font/outfit_semibold"
+        android:includeFontPadding="false"
+        android:lineSpacingMultiplier="1.25"
+        android:maxLines="2"
+        android:textColor="@color/stremio_text_secondary"
+        android:textSize="7sp"
+        tools:text="Brennpunkt Spezial" />
+
+    <ProgressBar
+        android:id="@+id/pb_epg_card_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="3dp"
+        android:max="100"
+        android:progressDrawable="@drawable/livev2_progress_cyan"
+        android:visibility="gone"
+        tools:progress="60"
+        tools:visibility="visible" />
+
+</LinearLayout>

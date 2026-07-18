@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Watch: linear-gradient(135deg, #0077ff, #00f0ff), radius 14px/2.
+     Focused adds the design's white 50% rim. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="315"
+                android:startColor="@color/stremio_blue"
+                android:endColor="@color/stremio_cyan" />
+            <corners android:radius="7dp" />
+            <stroke android:width="1dp" android:color="#80FFFFFF" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="315"
+                android:startColor="@color/stremio_blue"
+                android:endColor="@color/stremio_cyan" />
+            <corners android:radius="7dp" />
+            <stroke android:width="1dp" android:color="@android:color/transparent" />
+        </shape>
+    </item>
+
+</selector>

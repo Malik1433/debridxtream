@@ -345,6 +345,7 @@
             android:orientation="horizontal">
 
             <LinearLayout
+                android:id="@+id/live_now_info"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -1197,16 +1198,16 @@
             android:orientation="horizontal">
 
             <TextView
-                android:layout_width="120dp"
+                android:layout_width="140dp"
                 android:layout_height="match_parent"
                 android:background="@drawable/bg_live_guide_ch_col"
                 android:fontFamily="monospace"
                 android:gravity="center_vertical"
                 android:letterSpacing="0.16"
-                android:paddingStart="10dp"
+                android:paddingStart="11dp"
                 android:text="CH · PROGRAM"
                 android:textColor="@color/live_osd_text_faint"
-                android:textSize="5sp" />
+                android:textSize="6sp" />
 
             <FrameLayout
                 android:id="@+id/live_guide_timebar"

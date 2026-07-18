@@ -48,6 +48,7 @@ import com.tvonnet.debridxtreamiptv.util.FAVORITES_CATEGORY_ID
 import com.tvonnet.debridxtreamiptv.util.GlideUtils
 import com.tvonnet.debridxtreamiptv.utils.RecyclerViewAnimations
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
+import com.tvonnet.debridxtreamiptv.utils.updatePreservingFocus
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
@@ -76,6 +77,15 @@ class LiveFragment : Fragment() {
         // Enforced 3-column layout
         private const val CHANNEL_FOCUS_RETRY_COUNT = 3
         private const val CHANNEL_FOCUS_RETRY_DELAY_MS = 50L
+        // Quick-jump timings: commit a typed number after a pause; flash the type-ahead letter.
+        private const val QUICK_JUMP_COMMIT_MS = 900L
+        private const val QUICK_JUMP_LETTER_MS = 700L
+        // EPG batch-warm window: rows above/below the viewport to prefetch, and the count to
+        // warm before the list has been laid out (initial load).
+        private const val EPG_WARM_BUFFER = 6
+        private const val EPG_WARM_INITIAL_COUNT = 15
+        /** Keystrokes on a TV remote arrive slowly; don't re-query the pager on every one. */
+        private const val SEARCH_DEBOUNCE_MS = 300L
     }
 
     @Inject
@@ -102,14 +112,27 @@ class LiveFragment : Fragment() {
     
     private val previewTimeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
     private val topBarTimeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
-    private val topBarDateFormatter = SimpleDateFormat("EEE, MMM d", Locale.getDefault())
     private var tvHeaderCategory: TextView? = null
     private var tvHeaderChannelCount: TextView? = null
-    private var etCategorySearch: EditText? = null
-    private var tvTopBarTime: TextView? = null
-    private var tvTopBarWeather: TextView? = null
+    private var tvHeaderClock: TextView? = null
     private var clockJob: Job? = null
     private var sidebarCategoryAdapter: SidebarCategoryAdapter? = null
+
+    // v2: nav rail, the inline channel-search pill, and the Program Guide strip.
+    private var navRail: LiveNavRail? = null
+    private var chipSearch: View? = null
+    private var etChannelSearch: EditText? = null
+    private var tvSearchLabel: TextView? = null
+    private var searchDebounceJob: Job? = null
+    private var rvEpgStrip: RecyclerView? = null
+    private var tvEpgStripSubtitle: TextView? = null
+    private var guideEpgJob: Job? = null
+    private var epgStripAdapter: LiveEpgStripAdapter? = null
+    // Quick-jump: number-zap (type a channel number) + A–Z type-ahead (press a letter).
+    private var tvQuickJump: TextView? = null
+    private val quickJumpBuffer = StringBuilder()
+    private var quickJumpJob: Job? = null
+    private var btnWatch: View? = null
     private var didRestoreFocusForThisView = false
     private var didRestorePreviewForThisView = false
     private var categoriesFocusBlockedForRestore = false
@@ -130,9 +153,12 @@ class LiveFragment : Fragment() {
 
     private val favoriteStreamIds = ConcurrentHashMap.newKeySet<String>()
     private var favoritesCount: Int = 0
-    private var categorySearchQuery: String = ""
     private var displayCategories: List<XtreamCategory> = emptyList()
     private var lastUiState: LiveUiState? = null
+    // v2 search: while a query is active the top category chip strip filters to matching
+    // categories (channels already search globally), so search surfaces both — like the
+    // other Live theme.
+    private var categoryChipQuery: String = ""
     private var pendingChannelFocusPosition: Int? = null
     private var lastEpgWarmupSignature: String? = null
 
@@ -203,22 +229,31 @@ class LiveFragment : Fragment() {
         didRestoreFocusForThisView = false
         didRestorePreviewForThisView = false
         
-        // Setup UI for 3-Column Layout
-        rvCategories = view.findViewById<RecyclerView>(R.id.rv_sidebar_categories)
-            ?: error("Missing rv_sidebar_categories in fragment_live_3column")
+        // Setup UI for the v2 3-column layout (rail | channels | preview + guide)
+        rvCategories = view.findViewById<RecyclerView>(R.id.rv_category_chips)
+            ?: error("Missing rv_category_chips in fragment_live_3column")
         rvChannels = view.findViewById<RecyclerView>(R.id.rv_channels_horizontal)
             ?: error("Missing rv_channels_horizontal in fragment_live_3column")
         tvEmptyState = view.findViewById(R.id.tv_empty_state)
         tvHeaderCategory = view.findViewById(R.id.tv_category_name)
         tvHeaderChannelCount = view.findViewById(R.id.tv_channel_count)
-        etCategorySearch = view.findViewById(R.id.et_category_search)
+        tvHeaderClock = view.findViewById(R.id.tv_header_clock)
+        chipSearch = view.findViewById(R.id.chip_search)
+        etChannelSearch = view.findViewById(R.id.et_channel_search)
+        tvSearchLabel = view.findViewById(R.id.tv_search_label)
+        rvEpgStrip = view.findViewById(R.id.rv_epg_strip)
+        tvEpgStripSubtitle = view.findViewById(R.id.tv_epg_strip_subtitle)
+        tvQuickJump = view.findViewById(R.id.tv_quick_jump)
+        btnWatch = view.findViewById(R.id.btn_fullscreen)
 
         // Loading/empty overlays for channels list
         llLoadingState = view.findViewById(R.id.ll_loading_state)
         tvLoadingMessage = view.findViewById(R.id.tv_loading_message)
-        
-        // Setup preview panel
-        setupPreviewTopBar(view)
+
+        startHeaderClock()
+        setupNavRail(view)
+        setupSearchPill()
+        setupEpgStrip()
         
         // Initialize PreviewPlayerPanel
         previewPlayerPanel = PreviewPlayerPanel(
@@ -244,22 +279,14 @@ class LiveFragment : Fragment() {
         )
         viewLifecycleOwner.lifecycle.addObserver(previewPlayerPanel!!)
         
-        // Setup categories RecyclerView (Vertical Sidebar)
+        // v2: categories are a horizontal chip strip in the header, not a vertical sidebar.
         rvCategories.apply {
-            layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
+            layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
             setHasFixedSize(true)
             isFocusable = false
             isFocusableInTouchMode = false
         }
 
-        etCategorySearch?.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(s: Editable?) {
-                updateCategorySearch(s?.toString().orEmpty())
-            }
-        })
-        
         // Setup channels RecyclerView (Vertical List for 3-column)
         rvChannels.apply {
             layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
@@ -275,42 +302,40 @@ class LiveFragment : Fragment() {
         // We DO NOT use FocusTrapHelper here because it breaks RecyclerView scrolling!
         // When you press DOWN on the last visible item, focusSearch() returns null (because the next item isn't laid out yet).
         // FocusTrapHelper would intercept that null and kill the event, preventing the RV from scrolling.
+        // v2 chip strip: DOWN drops into the channel list; LEFT off the first chip enters the
+        // rail (RIGHT/LEFT between chips is left to the RV so it can scroll).
         rvCategories.setOnKeyListener { _, keyCode, event ->
             if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
             when (keyCode) {
-                KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                KeyEvent.KEYCODE_DPAD_DOWN -> {
                     focusChannelItem(viewModel.uiState.value.lastFocusedChannelPosition ?: 0)
-                    return@setOnKeyListener true
+                    true
                 }
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    return@setOnKeyListener true // Block escaping to the left
+                    if (isFirstCategoryFocused()) focusNavRail() else false
                 }
-                else -> return@setOnKeyListener false // Let RV natively handle UP/DOWN scrolling
+                KeyEvent.KEYCODE_DPAD_UP -> true // nothing above the strip
+                else -> false
             }
         }
 
         com.tvonnet.debridxtreamiptv.utils.SpatialNavigationEngine.enforceStrictOrthogonalNavigation(rvChannels)
 
-        // TV Focus Guard:
-        // 1. Prevent DPAD_UP from the first channel jumping to the sidebar Back button.
-        // 2. Harden DPAD_LEFT to always enter the Sidebar.
+        // TV Focus Guard. v2 topology: LEFT enters the rail, UP off the top row reaches the
+        // chip strip, RIGHT crosses to the Watch button.
         rvChannels.setOnKeyListener { _, keyCode, event ->
             if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-            
+
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> {
-                    moveChannelFocusBy(delta = -1)
+                    if (isFirstChannelFocused()) focusCategoryStrip() else moveChannelFocusBy(delta = -1)
                 }
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
                     moveChannelFocusBy(delta = 1)
                 }
-                KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    rvCategories.post {
-                        rvCategories.post {
-                            focusSelectedCategoryItem()
-                        }
-                    }
-                    true
+                KeyEvent.KEYCODE_DPAD_LEFT -> focusNavRail()
+                KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    btnWatch?.requestFocus() == true
                 }
                 else -> false
             }
@@ -324,6 +349,14 @@ class LiveFragment : Fragment() {
 
         // Prevent directional focus-glint leaks when user scrolls the channel list quickly.
         com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attachScrollReset(rvChannels)
+
+        // Batch-warm now/next EPG for whatever window the list settles on (world-standard:
+        // one DB query per visible window rather than a get_short_epg call per row).
+        rvChannels.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) warmVisibleEpgCache()
+            }
+        })
 
         // Preserve scroll position across temporary detach/reattach.
         with(com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager) {
@@ -398,7 +431,10 @@ class LiveFragment : Fragment() {
             epgUpdatesJob?.cancel()
             previewEpgRetryJob?.cancel()
             clockJob?.cancel()
-            
+            guideEpgJob?.cancel()
+            searchDebounceJob?.cancel()
+            quickJumpJob?.cancel()
+
             // Clear job references
             uiStateJob = null
             pagedChannelsJob = null
@@ -409,6 +445,11 @@ class LiveFragment : Fragment() {
             epgUpdatesJob = null
             previewEpgRetryJob = null
             clockJob = null
+            guideEpgJob = null
+            searchDebounceJob = null
+            quickJumpJob = null
+            quickJumpBuffer.setLength(0)
+            tvQuickJump = null
         } catch (e: Exception) {
             android.util.Log.e("LiveFragment", "Error cancelling coroutines", e)
         }
@@ -436,20 +477,31 @@ class LiveFragment : Fragment() {
         // Null out view references removed from variables list
         tvHeaderCategory = null
         tvHeaderChannelCount = null
-        etCategorySearch = null
-        tvTopBarTime = null
-        tvTopBarWeather = null
-        tvTopBarWeather = null
+        tvHeaderClock = null
+        chipSearch = null
+        etChannelSearch = null
+        tvSearchLabel = null
+        tvEpgStripSubtitle = null
+        btnWatch = null
+
+        try {
+            navRail?.cleanup()
+        } catch (e: Exception) {
+            android.util.Log.e("LiveFragment", "Error cleaning up nav rail", e)
+        }
+        navRail = null
 
         // Clear adapters to prevent memory leaks
         try {
             rvChannels.adapter = null
             rvCategories.adapter = null
+            rvEpgStrip?.adapter = null
+            rvEpgStrip = null
+            epgStripAdapter = null
             sidebarCategoryAdapter = null
             categoryAdapterSet = false
             favoriteStreamIds.clear()
             displayCategories = emptyList()
-            categorySearchQuery = ""
             favoritesCount = 0
             lastUiState = null
         } catch (e: Exception) {
@@ -510,6 +562,10 @@ class LiveFragment : Fragment() {
         currentPreviewEpgKey = epgKey
         currentPreviewStreamId = streamId
         previewEpgRetryJob?.cancel()
+
+        // v2: the Program Guide strip follows whichever channel is previewing.
+        updateGuideStripHeader(stream)
+        viewModel.loadGuideEpg(epgKey)
 
         if (epgKey.isNullOrBlank()) {
             previewPlayerPanel?.updateEpg(null, null)
@@ -667,13 +723,10 @@ class LiveFragment : Fragment() {
         }
     }
 
-    private fun updateCategorySearch(query: String) {
-        val trimmed = query.trim()
-        if (categorySearchQuery == trimmed) return
-        categorySearchQuery = trimmed
-        lastUiState?.let { updateCategoryList(it) }
-    }
-
+    /**
+     * Favourites first, then every provider category. v2 shows them all in the chip strip — the
+     * search pill filters channels now, not this list.
+     */
     private fun buildDisplayCategories(state: LiveUiState): List<XtreamCategory> {
         val favorites = XtreamCategory(
             category_id = FAVORITES_CATEGORY_ID,
@@ -681,16 +734,32 @@ class LiveFragment : Fragment() {
             parent_id = null
         )
         val filtered = state.categories.filterNot { it.category_id == FAVORITES_CATEGORY_ID }
-        val combined = listOf(favorites) + filtered
-        if (categorySearchQuery.isBlank()) return combined
-        val query = categorySearchQuery.trim()
-        return combined.filter { category ->
-            category.category_name?.contains(query, ignoreCase = true) == true
+        return listOf(favorites) + filtered
+    }
+
+    /**
+     * While the search pill has a query, keep only categories whose name matches it so the
+     * chip strip becomes a category-search result. Favorites is dropped from the filtered
+     * view (it isn't a real category to jump into by name). Empty query → the full list.
+     */
+    private fun applyCategoryChipFilter(all: List<XtreamCategory>): List<XtreamCategory> {
+        val q = categoryChipQuery.trim()
+        if (q.isEmpty()) return all
+        return all.filter { cat ->
+            cat.category_id != FAVORITES_CATEGORY_ID &&
+                cat.category_name?.contains(q, ignoreCase = true) == true
+        }
+    }
+
+    /** Re-filter the chip strip when the search query changes (channels are handled separately). */
+    private fun refreshCategoryChips() {
+        if (categoryAdapterSet) {
+            updateCategoryList(lastUiState ?: viewModel.uiState.value)
         }
     }
 
     private fun updateCategoryList(state: LiveUiState) {
-        val categories = buildDisplayCategories(state)
+        val categories = applyCategoryChipFilter(buildDisplayCategories(state))
         val listChanged = categories != displayCategories
         if (listChanged) {
             displayCategories = categories
@@ -735,9 +804,8 @@ class LiveFragment : Fragment() {
     }
 
     private fun handleCategoryClick(categoryId: String) {
-        if (categorySearchQuery.isNotBlank()) {
-            etCategorySearch?.setText("")
-        }
+        // Switching category clears any active channel search, as in the design.
+        if (etChannelSearch?.text?.isNotEmpty() == true) toggleSearchPill(open = false)
         viewModel.onEvent(LiveEvent.SelectCategory(categoryId))
     }
     
@@ -858,25 +926,37 @@ class LiveFragment : Fragment() {
         }
     }
 
+    /**
+     * Batch-warm now/next EPG for the currently visible window (+buffer) in one shot. Replaces
+     * the old per-row fetch that fired a get_short_epg HTTP call per channel and only ever
+     * covered the first 12. Re-runs as the list settles on a new window (see the scroll listener).
+     */
     private fun warmVisibleEpgCache() {
         if (!isAdded) return
         val items = channelPagingAdapter.snapshot().items
         if (items.isEmpty()) return
 
-        val ids = items.asSequence()
-            .take(12)
-            .mapNotNull { stream ->
-                stream.epg_channel_id?.takeIf { it.isNotBlank() } ?: stream.stream_id
-            }
-            .distinct()
-            .toList()
+        val lm = rvChannels.layoutManager as? LinearLayoutManager
+        val firstVisible = lm?.findFirstVisibleItemPosition() ?: 0
+        val lastVisible = lm?.findLastVisibleItemPosition() ?: -1
+        val start = (firstVisible - EPG_WARM_BUFFER).coerceAtLeast(0)
+        val end = (if (lastVisible >= 0) lastVisible + EPG_WARM_BUFFER else EPG_WARM_INITIAL_COUNT)
+            .coerceAtMost(items.size - 1)
+        if (end < start) return
 
-        if (ids.isEmpty()) return
+        val entries = (start..end).mapNotNull { i ->
+            val stream = items.getOrNull(i) ?: return@mapNotNull null
+            val epgId = stream.epg_channel_id?.takeIf { it.isNotBlank() }
+            val streamId = stream.stream_id
+            val cacheKey = epgId ?: streamId ?: return@mapNotNull null
+            EpgCache.WarmEntry(cacheKey = cacheKey, epgChannelId = epgId, streamId = streamId)
+        }
+        if (entries.isEmpty()) return
 
-        val signature = "${viewModel.uiState.value.selectedCategoryId.orEmpty()}:${ids.joinToString(",")}"
+        val signature = "${viewModel.uiState.value.selectedCategoryId.orEmpty()}:$start-$end"
         if (signature == lastEpgWarmupSignature) return
         lastEpgWarmupSignature = signature
-        EpgCache.preloadEpgData(ids)
+        EpgCache.warmNowNext(entries)
     }
 
     private fun moveChannelFocusBy(delta: Int): Boolean {
@@ -901,15 +981,99 @@ class LiveFragment : Fragment() {
     private fun handleChannelItemKey(position: Int, keyCode: Int, event: KeyEvent): Boolean {
         if (event.action != KeyEvent.ACTION_DOWN) return false
         return when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP -> moveChannelFocusFrom(position, delta = -1)
+            KeyEvent.KEYCODE_DPAD_UP -> {
+                if (position == 0) {
+                    pendingChannelFocusPosition = null
+                    focusCategoryStrip()
+                } else {
+                    moveChannelFocusFrom(position, delta = -1)
+                }
+            }
             KeyEvent.KEYCODE_DPAD_DOWN -> moveChannelFocusFrom(position, delta = 1)
             KeyEvent.KEYCODE_DPAD_LEFT -> {
                 pendingChannelFocusPosition = null
-                rvCategories.post { focusSelectedCategoryItem() }
-                true
+                focusNavRail()
             }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> btnWatch?.requestFocus() == true
+            in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 ->
+                onQuickJumpDigit(position, keyCode - KeyEvent.KEYCODE_0)
+            in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z ->
+                onQuickJumpLetter(position, ('a' + (keyCode - KeyEvent.KEYCODE_A)))
             else -> false
         }
+    }
+
+    // ── Quick-jump: number-zap + A–Z type-ahead ──────────────────────────────
+    // Both need a remote/keyboard with number or letter keys; on a plain D-pad they're inert.
+
+    /** Digits accumulate into a channel number; after a short pause we jump to that row. */
+    private fun onQuickJumpDigit(fromPosition: Int, digit: Int): Boolean {
+        val itemCount = channelPagingAdapter.itemCount
+        if (itemCount <= 0) return true
+        if (quickJumpBuffer.isEmpty() && digit == 0) return true // ignore leading zeros
+        if (quickJumpBuffer.length >= 4) quickJumpBuffer.setLength(0)
+        quickJumpBuffer.append(digit)
+        showQuickJumpHud(quickJumpBuffer.toString())
+        quickJumpJob?.cancel()
+        quickJumpJob = viewLifecycleOwner.lifecycleScope.launch {
+            delay(QUICK_JUMP_COMMIT_MS)
+            commitNumberJump()
+        }
+        return true
+    }
+
+    private fun commitNumberJump() {
+        val number = quickJumpBuffer.toString().toIntOrNull()
+        quickJumpBuffer.setLength(0)
+        hideQuickJumpHud()
+        if (number == null) return
+        val target = (number - 1).coerceIn(0, channelPagingAdapter.itemCount - 1)
+        pendingChannelFocusPosition = target
+        focusChannelItem(target)
+    }
+
+    /** Type-ahead: jump to the next channel whose cleaned name starts with [letter], wrapping. */
+    private fun onQuickJumpLetter(fromPosition: Int, letter: Char): Boolean {
+        // A letter ends any pending number entry.
+        quickJumpJob?.cancel()
+        quickJumpBuffer.setLength(0)
+
+        val items = channelPagingAdapter.snapshot().items
+        if (items.isEmpty()) return true
+        val size = items.size
+        // Scan forward from the row after the current one, wrapping around.
+        for (offset in 1..size) {
+            val idx = (fromPosition + offset) % size
+            if (channelFirstLetter(items[idx].name) == letter) {
+                showQuickJumpHud(letter.uppercase())
+                quickJumpJob?.cancel()
+                quickJumpJob = viewLifecycleOwner.lifecycleScope.launch {
+                    delay(QUICK_JUMP_LETTER_MS)
+                    hideQuickJumpHud()
+                }
+                pendingChannelFocusPosition = idx
+                focusChannelItem(idx)
+                return true
+            }
+        }
+        return true
+    }
+
+    /** First alphabetic character of a channel name, provider tags (e.g. "|UK|") stripped. */
+    private fun channelFirstLetter(name: String?): Char? =
+        com.tvonnet.debridxtreamiptv.util.MediaTitleCleaner.clean(name)
+            .firstOrNull { it.isLetter() }
+            ?.lowercaseChar()
+
+    private fun showQuickJumpHud(text: String) {
+        tvQuickJump?.apply {
+            this.text = text
+            isVisible = true
+        }
+    }
+
+    private fun hideQuickJumpHud() {
+        tvQuickJump?.isVisible = false
     }
 
     private fun moveChannelFocusFrom(position: Int, delta: Int): Boolean {
@@ -1247,61 +1411,6 @@ class LiveFragment : Fragment() {
     }
     
     /**
-     * Show search dialog for filtering channels
-     */
-    private fun showSearchDialog() {
-        val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_search_channels, null)
-        
-        val dialog = android.app.AlertDialog.Builder(requireContext())
-            .setView(dialogView)
-            .create()
-        
-        // Make dialog background transparent for custom styling
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        
-        val etSearch = dialogView.findViewById<android.widget.EditText>(R.id.et_search)
-        val btnClear = dialogView.findViewById<android.widget.Button>(R.id.btn_clear)
-        val btnClose = dialogView.findViewById<android.widget.Button>(R.id.btn_close)
-        
-        // Set current search query if any
-        etSearch.setText(viewModel.uiState.value.searchQuery)
-        
-        // Real-time search as user types
-        etSearch.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                val query = s?.toString() ?: ""
-                viewModel.onEvent(LiveEvent.SearchChannels(query))
-            }
-        })
-        
-        // Clear button
-        btnClear.setOnClickListener {
-            etSearch.setText("")
-            viewModel.onEvent(LiveEvent.ClearSearch)
-        }
-        
-        // Close button
-        btnClose.setOnClickListener {
-            dialog.dismiss()
-        }
-        
-        // Auto-focus on search field
-        etSearch.requestFocus()
-        
-        // Show keyboard
-        etSearch.postDelayed({
-            val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) 
-                as? android.view.inputmethod.InputMethodManager
-            imm?.showSoftInput(etSearch, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-        }, 100)
-        
-        dialog.show()
-    }
-    
-    /**
      * Handle long press on channel for favorites
      * Week 10: Add/Remove favorites functionality
      */
@@ -1353,46 +1462,12 @@ class LiveFragment : Fragment() {
         }
     }
 
-    private fun setupPreviewTopBar(view: View) {
-        tvTopBarTime = view.findViewById(R.id.tv_current_time)
-        tvTopBarWeather = view.findViewById(R.id.tv_weather)
-        view.findViewById<android.widget.ImageView>(R.id.btn_preview_search)?.apply {
-            setOnClickListener { openSearchScreen() }
-            contentDescription = getString(R.string.search_content_description)
-        }
-        view.findViewById<android.widget.ImageView>(R.id.btn_profile)?.apply {
-            setOnClickListener { openSettingsScreen() }
-            contentDescription = getString(R.string.settings_content_description)
-        }
-        view.findViewById<android.widget.ImageView>(R.id.btn_back)?.setOnClickListener {
-            requireActivity().onBackPressedDispatcher.onBackPressed()
-        }
-        view.findViewById<android.widget.ImageView>(R.id.icon_favorites)?.apply {
-            isFocusable = true
-            isClickable = true
-            setOnClickListener { openFavoritesScreen() }
-        }
-        view.findViewById<android.widget.ImageView>(R.id.icon_live_tv)?.apply {
-            isFocusable = true
-            isClickable = true
-            setOnClickListener { focusSelectedCategoryItem() }
-        }
-        // Favorites logic moved to PreviewPlayerPanel
-        // btnPreviewFavorite initialization removed from here as it creates conflict / duplication
-        // if setupPreviewPanel is removed, we must ensure PreviewPlayerPanel handles it.
-        // PreviewPlayerPanel finds the view by ID R.id.btn_favorite.
-        // So we just leave this method for other top bar items.
-        startTopBarTicker()
-        // updateFavoriteButtonState(null) - Removed
-    }
-
-    private fun startTopBarTicker() {
+    /** v2's header is just a clock — the old top bar's weather/profile/search chrome is gone. */
+    private fun startHeaderClock() {
         clockJob?.cancel()
         clockJob = viewLifecycleOwner.lifecycleScope.launch {
             while (isActive) {
-                val now = Date()
-                tvTopBarTime?.text = topBarTimeFormatter.format(now)
-                tvTopBarWeather?.text = formatWeatherSummary(now)
+                tvHeaderClock?.text = topBarTimeFormatter.format(Date())
                 delay(millisUntilNextMinute())
             }
         }
@@ -1404,58 +1479,165 @@ class LiveFragment : Fragment() {
         return if (remainder == 0L) 60_000L else 60_000L - remainder
     }
 
-    private fun formatWeatherSummary(now: Date): String {
-        val locale = resources.configuration.locales[0]
-        val country = locale.displayCountry.takeIf { it.isNotBlank() }
-        val fallbackLocation = TimeZone.getDefault().id.substringAfterLast('/').replace('_', ' ')
-        val location = country?.takeIf { it.isNotBlank() }
-            ?: fallbackLocation.takeIf { it.isNotBlank() }
-            ?: getString(R.string.live_preview_weather_unknown_location)
-        val daySummary = topBarDateFormatter.format(now)
-        return getString(R.string.live_preview_weather_format, location, daySummary)
+    private fun setupNavRail(view: View) {
+        navRail = LiveNavRail(
+            host = this,
+            root = view,
+            onDpadRight = {
+                focusChannelItem(viewModel.uiState.value.lastFocusedChannelPosition ?: 0)
+                true
+            }
+        ).also { it.setup() }
     }
 
-    private fun openSearchScreen() {
-        if (!isAdded) return
-        navigateToFragment(SearchFragment())
+    private fun focusNavRail(): Boolean = navRail?.focusActiveItem() == true
+
+    private fun focusCategoryStrip(): Boolean {
+        rvCategories.post { focusSelectedCategoryItem() }
+        return true
     }
 
-    private fun openSettingsScreen() {
-        if (!isAdded) return
-        navigateToFragment(SettingsFragment())
+    private fun isFirstChannelFocused(): Boolean = currentFocusedChannelPosition() == 0
+
+    private fun isFirstCategoryFocused(): Boolean {
+        val focused = rvCategories.findFocus() ?: return false
+        val holder = rvCategories.findContainingViewHolder(focused) ?: return false
+        return holder.bindingAdapterPosition == 0
     }
 
-    private fun openFavoritesScreen() {
-        if (!isAdded) return
-        navigateToFragment(FavoritesFragment())
-    }
+    /**
+     * The design's pill expands in place into a channel-name field. It drives the ViewModel's
+     * existing SearchChannels path, which re-queries the paging source for the current category.
+     */
+    private fun setupSearchPill() {
+        chipSearch?.setOnClickListener { toggleSearchPill(open = etChannelSearch?.isVisible != true) }
 
-    private fun navigateToFragment(fragment: Fragment) {
-        parentFragmentManager.commit {
-            replace(R.id.content_container, fragment)
-            addToBackStack(null)
+        etChannelSearch?.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                val query = s?.toString().orEmpty()
+                // Filter the category chip strip immediately (cheap, local), and debounce the
+                // channel query (hits the paging source + global index).
+                categoryChipQuery = query
+                refreshCategoryChips()
+                searchDebounceJob?.cancel()
+                searchDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
+                    delay(SEARCH_DEBOUNCE_MS)
+                    viewModel.onEvent(LiveEvent.SearchChannels(query))
+                }
+            }
+        })
+
+        // BACK closes the field rather than leaving the screen while typing.
+        etChannelSearch?.setOnKeyListener { _, keyCode, event ->
+            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            when (keyCode) {
+                KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
+                    toggleSearchPill(open = false)
+                    true
+                }
+                KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    focusChannelItem(0)
+                    true
+                }
+                else -> false
+            }
         }
     }
 
+    private fun toggleSearchPill(open: Boolean) {
+        val field = etChannelSearch ?: return
+        chipSearch?.isActivated = open
+        tvSearchLabel?.isVisible = !open
+        field.isVisible = open
+
+        if (open) {
+            field.requestFocus()
+            val imm = requireContext()
+                .getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+                    as? android.view.inputmethod.InputMethodManager
+            imm?.showSoftInput(field, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        } else {
+            searchDebounceJob?.cancel()
+            if (field.text.isNotEmpty()) {
+                field.setText("")
+                viewModel.onEvent(LiveEvent.ClearSearch)
+            }
+            // Restore the full category chip strip when search closes.
+            if (categoryChipQuery.isNotEmpty()) {
+                categoryChipQuery = ""
+                refreshCategoryChips()
+            }
+            chipSearch?.requestFocus()
+        }
+    }
+
+    private fun setupEpgStrip() {
+        epgStripAdapter = LiveEpgStripAdapter(
+            onProgramClick = { program ->
+                // Tapping a guide card just surfaces its synopsis — the strip is informational.
+                val details = listOfNotNull(
+                    program.title?.takeIf { it.isNotBlank() },
+                    program.description?.takeIf { it.isNotBlank() }
+                ).joinToString("\n").ifBlank { getString(R.string.player_epg_no_guide) }
+                Toast.makeText(requireContext(), details, Toast.LENGTH_LONG).show()
+            },
+            onKey = { position, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN &&
+                    keyCode == KeyEvent.KEYCODE_DPAD_LEFT &&
+                    position == 0
+                ) {
+                    focusChannelItem(viewModel.uiState.value.lastFocusedChannelPosition ?: 0)
+                    true
+                } else {
+                    false
+                }
+            }
+        )
+        rvEpgStrip?.apply {
+            layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+            itemAnimator = null
+            adapter = epgStripAdapter
+            isFocusable = false
+        }
+
+        guideEpgJob = viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.guideEpg.collect { programs ->
+                    // Refreshing a list under the D-pad is this app's classic focus thief.
+                    rvEpgStrip?.updatePreservingFocus { epgStripAdapter?.submitList(programs) }
+                }
+            }
+        }
+    }
+
+    /** v2 list header: "<CATEGORY> CHANNELS" plus an "N LIVE" pill. */
     private fun updateHeaderInfo(state: LiveUiState) {
         if (state.selectedCategoryId == FAVORITES_CATEGORY_ID) {
-            tvHeaderCategory?.text = getString(R.string.favorites)
-            tvHeaderChannelCount?.text = getString(R.string.live_channel_count_format, favoritesCount)
+            tvHeaderCategory?.text =
+                getString(R.string.livev2_category_channels_format, getString(R.string.favorites))
+            tvHeaderChannelCount?.text = getString(R.string.livev2_channel_count_format, favoritesCount)
             return
         }
 
         val selectedCategory = state.categories.firstOrNull { it.category_id == state.selectedCategoryId }
-        tvHeaderCategory?.text = selectedCategory?.category_name?.takeIf { it.isNotBlank() }
+        val categoryName = selectedCategory?.category_name?.takeIf { it.isNotBlank() }
             ?: getString(R.string.live_category_placeholder)
+        tvHeaderCategory?.text = getString(R.string.livev2_category_channels_format, categoryName)
 
         val selectedId = state.selectedCategoryId
         val knownCount = selectedId?.let { id -> state.categoryChannelCounts[id] }
-        val channelCountText = when {
-            knownCount != null -> getString(R.string.live_channel_count_format, knownCount)
-            state.isLoadingChannels -> getString(R.string.live_channel_count_placeholder)
+        tvHeaderChannelCount?.text = when {
+            knownCount != null -> getString(R.string.livev2_channel_count_format, knownCount)
             else -> getString(R.string.live_channel_count_placeholder)
         }
-        tvHeaderChannelCount?.text = channelCountText
+    }
+
+    private fun updateGuideStripHeader(stream: XtreamStream?) {
+        val name = stream?.name?.takeIf { it.isNotBlank() }
+            ?: getString(R.string.player_epg_channel_unknown)
+        tvEpgStripSubtitle?.text = getString(R.string.livev2_guide_subtitle_format, name)
     }
 
     

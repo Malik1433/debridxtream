@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Live TV v2 category chip (design: 38px tall, 19px radius, label + count badge).
+     Replaces the old vertical sidebar row. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/livev2_chip_root"
+    android:layout_width="wrap_content"
+    android:layout_height="30dp"
+    android:layout_marginEnd="6dp"
+    android:background="@drawable/livev2_chip_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="13dp"
+    android:paddingEnd="13dp">
+
+    <!-- Per-category accent dot; colour set at bind time (CategoryAccents). -->
+    <View
+        android:id="@+id/view_chip_accent"
+        android:layout_width="7dp"
+        android:layout_height="7dp"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/livev2_badge_dot_white"
+        android:backgroundTint="@color/stremio_cyan" />
+
+    <TextView
+        android:id="@+id/tv_chip_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:fontFamily="@font/outfit_semibold"
+        android:includeFontPadding="false"
+        android:letterSpacing="0.01"
+        android:maxLines="1"
+        android:maxWidth="150dp"
+        android:textColor="@color/stremio_text_secondary"
+        android:textSize="12sp"
+        tools:text="Entertainment" />
+
+    <TextView
+        android:id="@+id/tv_chip_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/livev2_chip_count_pill"
+        android:fontFamily="@font/share_tech_mono"
+        android:includeFontPadding="false"
+        android:letterSpacing="0.04"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:paddingTop="1dp"
+        android:paddingBottom="1dp"
+        android:textColor="@color/stremio_text_muted"
+        android:textSize="9sp"
+        tools:text="12" />
+
+</LinearLayout>

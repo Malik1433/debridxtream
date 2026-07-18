@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Program Guide card. Focused = cyan; activated (= ON AIR) = cyan-tinted resting state;
+     default = rgba(12,17,27,0.7). Radius 14px/2. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#1A00F0FF" />
+            <corners android:radius="7dp" />
+            <stroke android:width="1.5dp" android:color="@color/stremio_cyan" />
+        </shape>
+    </item>
+
+    <!-- ON AIR at rest: rgba(0,240,255,0.08) on a 1.5px rgba(0,240,255,0.45) edge. -->
+    <item android:state_activated="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#1400F0FF" />
+            <corners android:radius="7dp" />
+            <stroke android:width="1.5dp" android:color="#7300F0FF" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#990C111B" />
+            <corners android:radius="7dp" />
+            <stroke android:width="1dp" android:color="#0FFFFFFF" />
+        </shape>
+    </item>
+
+</selector>

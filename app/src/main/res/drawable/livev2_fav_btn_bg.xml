@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fav square: rgba(12,17,27,0.7); focused = amber border (design uses #ffaa00 + glow);
+     activated (= is favourite) keeps the amber 40% border. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#B30C111B" />
+            <corners android:radius="7dp" />
+            <stroke android:width="1dp" android:color="@color/stremio_amber" />
+        </shape>
+    </item>
+
+    <item android:state_activated="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#B30C111B" />
+            <corners android:radius="7dp" />
+            <stroke android:width="1dp" android:color="#66FFAA00" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#B30C111B" />
+            <corners android:radius="7dp" />
+            <stroke android:width="1dp" android:color="#14FFFFFF" />
+        </shape>
+    </item>
+
+</selector>

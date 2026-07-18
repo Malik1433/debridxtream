@@ -28,7 +28,6 @@ import com.tvonnet.debridxtreamiptv.data.model.XtreamSeriesInfo
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.SeriesDetailFragmentV2
 import com.tvonnet.debridxtreamiptv.ui.vod.CategorySidebarAdapter
 import com.tvonnet.debridxtreamiptv.util.FAVORITES_CATEGORY_ID
-import com.tvonnet.debridxtreamiptv.utils.RecyclerViewAnimations
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -163,9 +162,6 @@ class SeriesFragment : Fragment() {
         setupDpadNavigation()
         setupLoadStateListener()
         setupAdapterObserver()
-
-        RecyclerViewAnimations.applyAnimations(rvCategoriesSidebar)
-        RecyclerViewAnimations.applyAnimations(rvSeriesGrid)
 
         loadEpisodeCounts()
         setupObservers()
@@ -804,16 +800,14 @@ class SeriesFragment : Fragment() {
 
     private fun showLoadingState(show: Boolean, keepContent: Boolean = false) {
         val container = llLoadingState ?: return
-        if (show) {
+        // Full-screen skeleton ONLY when the grid has nothing to show. When content is
+        // already on screen (category switch / background sync), never blank or dim it —
+        // the sync finishes silently and Paging swaps the rows in place.
+        if (show && !keepContent) {
             container.visibility = View.VISIBLE
-            if (keepContent) {
-                container.alpha = 0.5f
-                rvSeriesGrid.alpha = 0.6f
-            } else {
-                container.alpha = 1.0f
-                rvSeriesGrid.alpha = 0f
-                rvSeriesGrid.visibility = View.GONE
-            }
+            container.alpha = 1.0f
+            rvSeriesGrid.alpha = 0f
+            rvSeriesGrid.visibility = View.GONE
             startShimmerAnimations(container)
         } else {
             stopShimmerAnimations(container)
@@ -823,7 +817,11 @@ class SeriesFragment : Fragment() {
         }
     }
 
+    private var shimmerRunning = false
+
     private fun startShimmerAnimations(container: ViewGroup) {
+        if (shimmerRunning) return
+        shimmerRunning = true
         for (i in 0 until container.childCount) {
             val shimmer = container.getChildAt(i)?.findViewById<View>(R.id.v_shimmer) ?: continue
             val anim = TranslateAnimation(
@@ -842,6 +840,8 @@ class SeriesFragment : Fragment() {
     }
 
     private fun stopShimmerAnimations(container: ViewGroup) {
+        if (!shimmerRunning) return
+        shimmerRunning = false
         for (i in 0 until container.childCount) {
             container.getChildAt(i)?.findViewById<View>(R.id.v_shimmer)?.clearAnimation()
         }

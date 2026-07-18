@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Live TV v2 stage background: flat #06090E plus the design's two ambient glows
+     (blue at 70%/15%, violet at 15%/85%). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/stremio_bg" />
+        </shape>
+    </item>
+
+    <!-- radial-gradient(ellipse at 70% 15%, rgba(0,119,255,0.06), transparent 50%) -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:centerX="0.7"
+                android:centerY="0.15"
+                android:gradientRadius="420dp"
+                android:startColor="#0F0077FF"
+                android:endColor="#000077FF" />
+        </shape>
+    </item>
+
+    <!-- radial-gradient(ellipse at 15% 85%, rgba(124,58,237,0.05), transparent 45%) -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:centerX="0.15"
+                android:centerY="0.85"
+                android:gradientRadius="380dp"
+                android:startColor="#0D7C3AED"
+                android:endColor="#007C3AED" />
+        </shape>
+    </item>
+
+</layer-list>

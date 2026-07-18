@@ -25,6 +25,11 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
@@ -1229,20 +1234,57 @@ class PlayerViewModel @Inject constructor(
     private val _guideEpg = MutableStateFlow<Map<String, List<EpgEntity>>>(emptyMap())
     val guideEpg: StateFlow<Map<String, List<EpgEntity>>> = _guideEpg.asStateFlow()
 
-    /** Batch-load windowed EPG for every channel in the active zap list. */
+    /**
+     * Batch-load windowed EPG for every channel in the active zap list, keyed by streamId.
+     *
+     * Two sources, same as the browse list: (1) one DB read for channels with synced XMLTV,
+     * then (2) a bounded per-stream `get_short_epg` fallback for the rest — without which
+     * channels that only expose provider short-EPG (e.g. many UK sports feeds) render as empty
+     * lanes. DB results emit first; short-EPG results merge in as they arrive.
+     */
     fun loadGuideEpg(windowStart: Long, windowEnd: Long) {
         val state = _zapState.value ?: return
+        val channels = state.channels
         viewModelScope.launch(Dispatchers.IO) {
-            val epgIds = state.channels.mapNotNull { it.epgChannelId?.takeIf { id -> id.isNotBlank() } }
-            val byEpgId = repository.getProgramsByEpgIdInRange(epgIds, windowStart, windowEnd)
-            if (byEpgId.isEmpty()) {
-                _guideEpg.value = emptyMap()
-                return@launch
+            // 1) Batched DB read for everything that has a real XMLTV channel id.
+            val epgIds = channels.mapNotNull { it.epgChannelId?.takeIf { id -> id.isNotBlank() } }.distinct()
+            val byEpgId = if (epgIds.isNotEmpty()) {
+                runCatching { repository.getProgramsByEpgIdInRange(epgIds, windowStart, windowEnd) }
+                    .getOrNull().orEmpty()
+            } else {
+                emptyMap()
             }
-            _guideEpg.value = state.channels.mapNotNull { ch ->
-                val progs = ch.epgChannelId?.let { byEpgId[it] } ?: return@mapNotNull null
-                ch.streamId to progs
-            }.toMap()
+
+            val result = java.util.concurrent.ConcurrentHashMap<String, List<EpgEntity>>()
+            val needShortEpg = mutableListOf<ZapChannel>()
+            for (ch in channels) {
+                val dbProgs = ch.epgChannelId?.let { byEpgId[it] }
+                if (!dbProgs.isNullOrEmpty()) result[ch.streamId] = dbProgs else needShortEpg.add(ch)
+            }
+            if (result.isNotEmpty()) _guideEpg.value = HashMap(result)
+
+            // 2) Provider short-EPG for the leftovers, capped concurrency so a full channel
+            //    list can't storm the provider.
+            if (needShortEpg.isNotEmpty()) {
+                val gate = Semaphore(4)
+                coroutineScope {
+                    needShortEpg.map { ch ->
+                        async {
+                            gate.withPermit {
+                                val key = ch.epgChannelId?.takeIf { it.isNotBlank() } ?: ch.streamId
+                                val r = runCatching {
+                                    repository.fetchShortEpgPrograms(ch.streamId, key, limit = 24)
+                                }.getOrNull()
+                                if (r is Result.Success) {
+                                    val inWindow = r.data.filter { it.stop > windowStart && it.start < windowEnd }
+                                    if (inWindow.isNotEmpty()) result[ch.streamId] = inWindow
+                                }
+                            }
+                        }
+                    }.awaitAll()
+                }
+                _guideEpg.value = HashMap(result)
+            }
         }
     }
 

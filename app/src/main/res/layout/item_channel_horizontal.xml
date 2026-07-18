@@ -1,184 +1,175 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Compact Live TV Row with EPG Info -->
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  Live TV v2 channel row (design: 90px tall, 16px radius, 64px logo).
+  num | logo | name + quality | now playing | progress | favourite star.
+
+  Sizes are the design's px halved (1920x1080 stage -> 960x540dp screen).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="96dp"
-    android:layout_marginBottom="12dp"
-    android:layout_marginStart="8dp"
-    android:layout_marginEnd="8dp"
-    android:background="@drawable/selector_browser_item_modern"
+    android:layout_height="64dp"
+    android:layout_marginBottom="5dp"
+    android:background="@drawable/livev2_row_bg"
+    android:clickable="true"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    android:clickable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
     android:stateListAnimator="@null">
 
-    <View
-        android:id="@+id/view_focus_bar"
-        android:layout_width="3dp"
-        android:layout_height="match_parent"
-        android:layout_gravity="start"
-        android:layout_marginStart="2dp"
-        android:layout_marginTop="6dp"
-        android:layout_marginBottom="6dp"
-        android:background="@drawable/channel_focus_bar_bg"
-        android:duplicateParentState="true" />
+    <!-- Channel number -->
+    <TextView
+        android:id="@+id/tv_channel_number"
+        android:layout_width="22dp"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/share_tech_mono"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:letterSpacing="0.02"
+        android:maxLines="1"
+        android:textColor="@color/stremio_text_faint"
+        android:textSize="9sp"
+        tools:text="001" />
 
+    <!-- Logo -->
+    <FrameLayout
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="10dp"
+        android:background="@drawable/bg_live_channel_logo_tile"
+        android:padding="5dp">
+
+        <ImageView
+            android:id="@+id/iv_channel_logo_horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@string/live_channel_logo_content_description"
+            android:scaleType="fitCenter"
+            tools:src="@android:drawable/ic_menu_gallery" />
+    </FrameLayout>
+
+    <!-- Name / now / progress -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp">
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
 
-        <!-- Channel Logo (Left) -->
-        <FrameLayout
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:background="@drawable/channel_logo_bg_dark"
-            android:padding="4dp"
-            android:layout_marginEnd="14dp">
-
-            <ImageView
-                android:id="@+id/iv_channel_logo_horizontal"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="fitCenter"
-                android:contentDescription="@string/live_channel_logo_content_description"
-                tools:src="@android:drawable/ic_menu_gallery" />
-        </FrameLayout>
-
-        <!-- Channel & EPG Info (Center) -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-            <!-- Row 1: Channel Name + Badges -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="4dp">
-
-                <TextView
-                    android:id="@+id/tv_channel_name_horizontal"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    tools:text="CNN International"
-                    android:textSize="17sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/tv_text_primary"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:ellipsize="end" />
-            </LinearLayout>
-
-            <!-- Row 2: Current Program (EPG) + Badges -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:id="@+id/tv_epg_now"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    tools:text="Newsroom with Jim Acosta"
-                    android:textSize="12sp"
-                    android:textColor="@color/tv_text_tertiary"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:ellipsize="end"
-                    android:visibility="visible" />
-
-                <!-- Badges -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginStart="8dp">
-
-                    <TextView
-                        android:id="@+id/badge_hd"
-                        style="@style/ChannelBadgeText"
-                        android:text="HD"
-                        android:background="@drawable/badge_background"
-                        android:visibility="gone"
-                        tools:visibility="visible" />
-
-                    <TextView
-                        android:id="@+id/badge_4k"
-                        style="@style/ChannelBadgeText"
-                        android:text="4K"
-                        android:background="@drawable/badge_background"
-                        android:visibility="gone" />
-
-                    <TextView
-                        android:id="@+id/badge_epg"
-                        style="@style/ChannelBadgeText"
-                        android:text="EPG"
-                        android:background="@drawable/badge_background"
-                        android:visibility="gone" />
-
-                    <TextView
-                        android:id="@+id/badge_pay"
-                        style="@style/ChannelBadgeText"
-                        android:text="$"
-                        android:background="@drawable/badge_background"
-                        android:visibility="gone" />
-                </LinearLayout>
-            </LinearLayout>
-            
-            <!-- Row 2b: Next Program (Hidden by default, used if needed) -->
             <TextView
-                android:id="@+id/tv_epg_next"
-                android:layout_width="match_parent"
+                android:id="@+id/tv_channel_name_horizontal"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:visibility="gone" />
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="@font/outfit_bold"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/stremio_text_primary"
+                android:textSize="11.5sp"
+                tools:text="DAS ERSTE 4K" />
 
-            <!-- Row 4: Progress Bar -->
-            <ProgressBar
-                android:id="@+id/pb_epg_progress"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="6dp"
-                android:progressDrawable="@drawable/epg_progress_bar_mini"
-                android:max="100"
-                android:progress="0"
-                android:visibility="invisible"
-                tools:progress="40"
-                tools:visibility="visible" />
-
-        </LinearLayout>
-
-        <!-- Right Side Actions/Status -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:layout_marginStart="12dp">
-
-            <ImageView
-                android:id="@+id/iv_favorite_indicator"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@drawable/ic_favorite"
-                android:tint="@color/tv_accent_yellow"
+            <!-- Single v2 quality chip. badge_hd / badge_4k below stay hidden: the existing
+                 ChannelPagingAdapter bind still writes to them. -->
+            <TextView
+                android:id="@+id/badge_quality"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_live_badge_quality_hd"
+                android:fontFamily="@font/share_tech_mono"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.05"
+                android:paddingStart="5dp"
+                android:paddingTop="1.5dp"
+                android:paddingEnd="5dp"
+                android:paddingBottom="1.5dp"
+                android:textColor="#041014"
+                android:textSize="7sp"
                 android:visibility="gone"
-                tools:visibility="visible"
-                android:contentDescription="@string/favorite_added" />
+                tools:text="4K"
+                tools:visibility="visible" />
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/tv_epg_now"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/inter"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:textColor="@color/stremio_text_muted"
+            android:textSize="8.5sp"
+            tools:text="Tagesschau" />
+
+        <ProgressBar
+            android:id="@+id/pb_epg_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:layout_marginTop="4dp"
+            android:max="100"
+            android:progress="0"
+            android:progressDrawable="@drawable/livev2_progress_cyan"
+            android:visibility="invisible"
+            tools:progress="40"
+            tools:visibility="visible" />
     </LinearLayout>
-</FrameLayout>
+
+    <!-- Favourite star -->
+    <ImageView
+        android:id="@+id/iv_favorite_indicator"
+        android:layout_width="11dp"
+        android:layout_height="11dp"
+        android:layout_marginStart="8dp"
+        android:alpha="0.9"
+        android:contentDescription="@string/favorite_added"
+        android:src="@drawable/ic_live_star_filled"
+        android:visibility="gone"
+        app:tint="@color/stremio_amber"
+        tools:visibility="visible" />
+
+    <!-- Retained, never shown: the shared bind path still sets these. -->
+    <TextView
+        android:id="@+id/badge_hd"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/badge_4k"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/badge_epg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/badge_pay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/tv_epg_next"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+
+</LinearLayout>

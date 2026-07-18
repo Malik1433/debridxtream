@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cyan marker: the "Program Guide" heading rule and the rail's active-item indicator. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/stremio_cyan" />
+    <corners android:radius="1dp" />
+</shape>

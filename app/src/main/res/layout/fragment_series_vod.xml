@@ -564,30 +564,59 @@
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Loading State (Shimmer) -->
+    <!-- Loading State (Shimmer) — fixed-width cards: GridLayout can't grid
+         match_parent children (they collapse into one flat box). -->
     <GridLayout
         android:id="@+id/ll_loading_state"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_gravity="center"
         android:layout_marginStart="210dp"
         android:layout_marginTop="238dp"
         android:paddingStart="44dp"
         android:paddingEnd="52dp"
         android:columnCount="5"
-        android:rowCount="3"
         android:visibility="gone">
 
-        <include layout="@layout/item_movie_loading" />
-        <include layout="@layout/item_movie_loading" />
-        <include layout="@layout/item_movie_loading" />
-        <include layout="@layout/item_movie_loading" />
-        <include layout="@layout/item_movie_loading" />
-        <include layout="@layout/item_movie_loading" />
-        <include layout="@layout/item_movie_loading" />
-        <include layout="@layout/item_movie_loading" />
-        <include layout="@layout/item_movie_loading" />
-        <include layout="@layout/item_movie_loading" />
+        <include layout="@layout/item_movie_loading"
+            android:layout_width="118dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="6dp" />
+        <include layout="@layout/item_movie_loading"
+            android:layout_width="118dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="6dp" />
+        <include layout="@layout/item_movie_loading"
+            android:layout_width="118dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="6dp" />
+        <include layout="@layout/item_movie_loading"
+            android:layout_width="118dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="6dp" />
+        <include layout="@layout/item_movie_loading"
+            android:layout_width="118dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="6dp" />
+        <include layout="@layout/item_movie_loading"
+            android:layout_width="118dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="6dp" />
+        <include layout="@layout/item_movie_loading"
+            android:layout_width="118dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="6dp" />
+        <include layout="@layout/item_movie_loading"
+            android:layout_width="118dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="6dp" />
+        <include layout="@layout/item_movie_loading"
+            android:layout_width="118dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="6dp" />
+        <include layout="@layout/item_movie_loading"
+            android:layout_width="118dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="6dp" />
     </GridLayout>
 
     <!-- Empty State -->

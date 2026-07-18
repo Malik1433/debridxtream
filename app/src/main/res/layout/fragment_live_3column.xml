@@ -1,474 +1,729 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modern 3-Column TV Layout with Preview Panel -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  Live TV v2 ("Live TV v2.dc.html").
+
+  Still three columns, but the v2 ones: nav rail | channel list | preview + guide.
+  Categories moved out of the old vertical sidebar into the header chip strip.
+
+  Scale: the design stage is 1920x1080 and this app runs at 960x540dp (density 2.0),
+  so every design px is halved — including text. 5-9sp values are correct here.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="horizontal"
-    android:clipChildren="false"
-    android:background="@drawable/live_tv_background">
+    android:background="@drawable/livev2_screen_bg"
+    android:clipChildren="false">
 
-    <!-- ==================== LEFT SIDEBAR ==================== -->
+    <!-- ==================== BODY (left offset clears the collapsed rail) ==================== -->
     <LinearLayout
-        android:id="@+id/sidebar_container"
-        android:layout_width="240dp"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_marginStart="74dp"
         android:orientation="vertical"
         android:clipChildren="false"
-        android:background="@drawable/live_tv_sidebar_bg"
-        android:paddingTop="22dp"
-        android:paddingBottom="24dp">
+        android:paddingTop="20dp"
+        android:paddingStart="22dp"
+        android:paddingEnd="26dp">
 
-        <!-- Section Title -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/live_sidebar_section_title"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="@color/tv_text_primary"
-            android:layout_marginStart="24dp"
-            android:layout_marginBottom="12dp" />
-
+        <!-- ──────────── HEADER ──────────── -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="16dp"
-            android:background="@drawable/search_bar_background"
+            android:layout_marginBottom="11dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:padding="8dp">
+            android:clipChildren="false">
 
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_marginStart="6dp"
-                android:layout_marginEnd="8dp"
-                android:contentDescription="@string/search"
-                android:src="@drawable/ic_search"
-                android:tint="@color/tv_text_secondary" />
+            <!-- pulsing live dot -->
+            <View
+                android:id="@+id/livev2_live_dot"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/livev2_live_dot" />
 
-            <EditText
-                android:id="@+id/et_category_search"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="14dp"
+                android:fontFamily="@font/outfit_extrabold"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.025"
+                android:text="@string/livev2_title"
+                android:textColor="@color/stremio_text_primary"
+                android:textSize="15sp" />
+
+            <!-- search pill + category chips -->
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:background="@android:color/transparent"
-                android:hint="@string/live_category_search_hint"
-                android:imeOptions="actionSearch"
-                android:inputType="text"
-                android:maxLines="1"
-                android:nextFocusDown="@id/rv_sidebar_categories"
-                android:textColor="@color/tv_text_primary"
-                android:textColorHint="@color/tv_text_secondary"
-                android:textSize="14sp" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp">
+
+                <LinearLayout
+                    android:id="@+id/chip_search"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/livev2_search_pill_bg"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp">
+
+                    <ImageView
+                        android:id="@+id/iv_search_icon"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:layout_marginEnd="7dp"
+                        android:contentDescription="@string/livev2_search_label"
+                        android:src="@drawable/ic_search"
+                        app:tint="@color/stremio_text_secondary" />
+
+                    <TextView
+                        android:id="@+id/tv_search_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/outfit_semibold"
+                        android:includeFontPadding="false"
+                        android:text="@string/livev2_search_label"
+                        android:textColor="@color/stremio_text_secondary"
+                        android:textSize="12sp" />
+
+                    <!-- Revealed in place when the pill opens (design expands the pill inline). -->
+                    <EditText
+                        android:id="@+id/et_channel_search"
+                        android:layout_width="140dp"
+                        android:layout_height="wrap_content"
+                        android:background="@android:color/transparent"
+                        android:fontFamily="@font/outfit_semibold"
+                        android:hint="@string/livev2_search_hint"
+                        android:imeOptions="actionSearch|flagNoExtractUi"
+                        android:importantForAutofill="no"
+                        android:includeFontPadding="false"
+                        android:inputType="text"
+                        android:maxLines="1"
+                        android:minHeight="0dp"
+                        android:padding="0dp"
+                        android:textColor="@color/stremio_cyan"
+                        android:textColorHint="@color/stremio_text_faint"
+                        android:textCursorDrawable="@null"
+                        android:textSize="12sp"
+                        android:visibility="gone"
+                        tools:visibility="visible" />
+                </LinearLayout>
+
+                <!-- clip the strip so chips scrolling off the left don't paint over the
+                     "Live TV" title / search pill (chip focus is a border drawn inside the
+                     chip, nothing to overflow). -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_category_chips"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:clipChildren="true"
+                    android:clipToPadding="true"
+                    android:overScrollMode="never"
+                    tools:itemCount="6"
+                    tools:listitem="@layout/item_livev2_category_chip" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_header_clock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:fontFamily="@font/share_tech_mono"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.08"
+                android:textColor="@color/stremio_text_secondary"
+                android:textSize="7.5sp"
+                tools:text="21:04" />
         </LinearLayout>
 
-        <!-- Country/Category List -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_sidebar_categories"
+        <!-- ──────────── MAIN SPLIT ──────────── -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:nextFocusRight="@id/rv_channels_horizontal"
-            android:nextFocusUp="@id/et_category_search" />
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <ImageView
-                android:id="@+id/icon_live_tv"
-                android:layout_width="0dp"
-                android:layout_height="0dp" />
-
-            <ImageView
-                android:id="@+id/icon_favorites"
-                android:layout_width="0dp"
-                android:layout_height="0dp" />
-        </LinearLayout>
-
-    </LinearLayout>
-
-    <!-- ==================== CENTER: CHANNEL LIST ==================== -->
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:orientation="vertical"
-        android:clipChildren="false"
-        android:paddingTop="28dp"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp">
-
-        <!-- Channel List Header -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="20dp">
-
-            <TextView
-                android:id="@+id/tv_category_name"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/live_category_placeholder"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:includeFontPadding="false"
-                android:textColor="@color/tv_text_primary" />
-
-            <TextView
-                android:id="@+id/tv_channel_count"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/live_channel_count_placeholder"
-                android:textSize="13sp"
-                android:includeFontPadding="false"
-                android:textColor="@color/tv_text_secondary" />
-        </LinearLayout>
-
-        <!-- Channels content container (list + loading/empty overlays) -->
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
             android:clipChildren="false">
 
-            <!-- Horizontal Channel Cards RecyclerView -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rv_channels_horizontal"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:clipToPadding="false"
-                android:clipChildren="false"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:focusable="true"
-                android:nextFocusRight="@id/preview_panel_container" />
-
-            <!-- Loading state -->
+            <!-- ── CHANNEL LIST (520px/2) ── -->
             <LinearLayout
-                android:id="@+id/ll_loading_state"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:visibility="gone">
-
-                <ProgressBar
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:indeterminate="true"
-                    android:indeterminateTint="@color/tv_accent_cyan" />
-
-                <TextView
-                    android:id="@+id/tv_loading_message"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="@string/live_loading_channels"
-                    android:textSize="16sp"
-                    android:textColor="@color/tv_text_secondary" />
-            </LinearLayout>
-
-            <!-- Empty state -->
-            <TextView
-                android:id="@+id/tv_empty_state"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:gravity="center"
-                android:text="@string/live_no_channels"
-                android:textSize="18sp"
-                android:textColor="@color/tv_text_secondary"
-                android:visibility="gone" />
-        </FrameLayout>
-
-    </LinearLayout>
-
-    <!-- ==================== RIGHT: PREVIEW PANEL ==================== -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/preview_panel_container"
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1.15"
-        android:background="@android:color/transparent"
-        android:clipChildren="false"
-        android:paddingTop="16dp"
-        android:paddingStart="12dp"
-        android:paddingEnd="24dp"
-        android:paddingBottom="20dp">
-
-        <!-- Top Bar (Time, Weather, Search, Profile) -->
-        <LinearLayout
-            android:id="@+id/preview_top_bar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingBottom="10dp"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <!-- Time -->
-            <TextView
-                android:id="@+id/tv_current_time"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/live_time_placeholder"
-                android:textSize="14sp"
-                android:textStyle="normal"
-                android:textColor="@color/tv_text_primary"
-                android:layout_marginEnd="12dp" />
-
-            <ImageView
-                android:id="@+id/iv_weather_icon"
-                android:layout_width="12dp"
-                android:layout_height="12dp"
-                android:src="@drawable/ic_weather_cloud"
-                android:tint="@color/tv_text_secondary"
-                android:layout_marginEnd="6dp"
-                android:contentDescription="@string/live_preview_weather_icon" />
-
-            <!-- Weather (Optional) -->
-            <TextView
-                android:id="@+id/tv_weather"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/live_preview_weather_placeholder"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textSize="11sp"
-                android:textColor="@color/tv_text_tertiary" />
-
-            <!-- Search Icon -->
-            <ImageView
-                android:id="@+id/btn_preview_search"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:src="@drawable/ic_search"
-                android:tint="@color/tv_text_primary"
-                android:padding="8dp"
-                android:layout_marginEnd="10dp"
-                android:background="@drawable/topbar_icon_bg"
-                android:scaleType="center"
-                android:contentDescription="@string/search_content_description"
-                android:focusable="true" />
-
-            <!-- Profile Icon -->
-            <ImageView
-                android:id="@+id/btn_profile"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:src="@android:drawable/ic_menu_myplaces"
-                android:tint="@color/tv_text_primary"
-                android:background="@drawable/avatar_circle_bg"
-                android:padding="8dp"
-                android:scaleType="center"
-                android:contentDescription="@string/settings_content_description"
-                android:focusable="true" />
-        </LinearLayout>
-
-        <!-- Preview Video Container -->
-        <FrameLayout
-            android:id="@+id/preview_video_container"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_marginTop="4dp"
-            android:background="@drawable/preview_frame_bg"
-            android:clipToOutline="true"
-            app:layout_constraintTop_toBottomOf="@id/preview_top_bar"
-            app:layout_constraintBottom_toBottomOf="parent">
-
-            <!-- ExoPlayer Preview -->
-            <androidx.media3.ui.PlayerView
-                android:id="@+id/preview_player_view"
-                android:layout_width="match_parent"
+                android:layout_width="260dp"
                 android:layout_height="match_parent"
-                android:background="@drawable/preview_placeholder_bg"
-                app:resize_mode="zoom"
-                app:use_controller="false"
-                app:show_buffering="when_playing"
-                app:surface_type="texture_view" />
-
-            <!-- Loading State -->
-            <FrameLayout
-                android:id="@+id/preview_loading_container"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/preview_placeholder_bg"
-                android:visibility="gone">
-
-                <ProgressBar
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_gravity="center"
-                    android:indeterminateTint="@color/tv_accent_cyan" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:layout_marginTop="80dp"
-                    android:text="@string/live_preview_loading_state"
-                    android:textSize="14sp"
-                    android:textColor="@color/tv_text_secondary" />
-            </FrameLayout>
-
-            <!-- Fullscreen Button Overlay -->
-            <ImageView
-                android:id="@+id/btn_fullscreen"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_gravity="bottom|end"
-                android:layout_margin="12dp"
-                android:src="@android:drawable/ic_menu_crop"
-                android:tint="@color/tv_text_primary"
-                android:background="@drawable/topbar_icon_bg"
-                android:padding="9dp"
-                android:contentDescription="@string/live_preview_fullscreen"
-                android:focusable="true"
-                android:clickable="true" />
-
-            <!-- Preview Info Container -->
-            <LinearLayout
-                android:id="@+id/preview_info_container"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
                 android:orientation="vertical"
-                android:paddingTop="16dp"
-                android:paddingStart="18dp"
-                android:paddingEnd="18dp"
-                android:paddingBottom="14dp"
-                android:background="@drawable/hero_info_scrim">
+                android:clipChildren="true">
 
-                <!-- Now Playing Label -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/live_preview_label_now"
-                    android:textSize="10sp"
-                    android:textColor="@color/tv_text_tertiary"
-                    android:layout_marginBottom="6dp" />
-
-                <!-- Program Title -->
-                <TextView
-                    android:id="@+id/tv_preview_title"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/live_preview_title_placeholder"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/tv_text_primary"
-                    android:maxLines="2"
-                    android:ellipsize="end"
-                    android:layout_marginBottom="8dp" />
-
-                <!-- Program Description -->
-                <TextView
-                    android:id="@+id/tv_preview_description"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/live_preview_description_placeholder"
-                    android:textSize="12sp"
-                    android:textColor="@color/tv_text_secondary"
-                    android:maxLines="3"
-                    android:ellipsize="end"
-                    android:lineSpacingMultiplier="1.2"
-                    android:layout_marginBottom="10dp" />
-
-                <!-- Progress Bar -->
-                <ProgressBar
-                    android:id="@+id/preview_progress_bar"
-                    style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="2dp"
-                    android:progressTint="@color/tv_progress_fill"
-                    android:progressBackgroundTint="@color/tv_progress_bg"
-                    android:layout_marginBottom="4dp" />
-
-                <!-- Time Stamps -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal">
+                    android:layout_marginBottom="6dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="3dp"
+                    android:paddingEnd="3dp">
 
                     <TextView
-                        android:id="@+id/tv_current_time_preview"
+                        android:id="@+id/tv_category_name"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/outfit_bold"
+                        android:includeFontPadding="false"
+                        android:letterSpacing="0.08"
+                        android:maxLines="1"
+                        android:textAllCaps="true"
+                        android:textColor="@color/stremio_text_muted"
+                        android:textSize="9sp"
+                        tools:text="NEWS CHANNELS" />
+
+                    <TextView
+                        android:id="@+id/tv_channel_count"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/live_time_placeholder"
-                        android:textSize="11sp"
-                        android:textColor="@color/tv_text_tertiary" />
+                        android:background="@drawable/livev2_count_pill"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:includeFontPadding="false"
+                        android:paddingStart="6dp"
+                        android:paddingTop="2dp"
+                        android:paddingEnd="6dp"
+                        android:paddingBottom="2dp"
+                        android:textColor="@color/stremio_cyan"
+                        android:textSize="8sp"
+                        tools:text="12 LIVE" />
+                </LinearLayout>
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipChildren="true"
+                    android:clipToPadding="true">
+
+                    <!-- clipChildren=true keeps rows scrolling off the top from painting over the
+                         category chips. Safe here: FocusGlintHelper PREMIUM_SCALE is 1.0 and the
+                         focus border is drawn inside each row, so nothing to clip. clipToPadding
+                         keeps a clean top edge; paddingBottom is scroll runway for the last row. -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_channels_horizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:clipChildren="true"
+                        android:clipToPadding="false"
+                        android:focusable="true"
+                        android:overScrollMode="never"
+                        android:paddingStart="2dp"
+                        android:paddingTop="2dp"
+                        android:paddingEnd="2dp"
+                        android:paddingBottom="22dp"
+                        tools:itemCount="5"
+                        tools:listitem="@layout/item_channel_horizontal" />
+
+                    <LinearLayout
+                        android:id="@+id/ll_loading_state"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <ProgressBar
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:indeterminate="true"
+                            android:indeterminateTint="@color/stremio_cyan" />
+
+                        <TextView
+                            android:id="@+id/tv_loading_message"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:fontFamily="@font/inter"
+                            android:text="@string/live_loading_channels"
+                            android:textColor="@color/stremio_text_secondary"
+                            android:textSize="8sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_empty_state"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:fontFamily="@font/inter"
+                        android:gravity="center"
+                        android:text="@string/live_no_channels"
+                        android:textColor="@color/stremio_text_secondary"
+                        android:textSize="9sp"
+                        android:visibility="gone" />
+
+                    <!-- Quick-jump HUD: shows the typed channel number (number-zap) or the
+                         letter being jumped to (A–Z type-ahead). -->
+                    <TextView
+                        android:id="@+id/tv_quick_jump"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:background="@drawable/livev2_search_pill_bg"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:letterSpacing="0.08"
+                        android:minWidth="64dp"
+                        android:paddingStart="18dp"
+                        android:paddingEnd="18dp"
+                        android:paddingTop="10dp"
+                        android:paddingBottom="10dp"
+                        android:textColor="@color/stremio_cyan"
+                        android:textSize="26sp"
+                        android:textStyle="bold"
+                        android:visibility="gone"
+                        tools:text="18"
+                        tools:visibility="visible" />
+                </FrameLayout>
+            </LinearLayout>
+
+            <!-- ── RIGHT PANEL ── -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/preview_panel_container"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="14dp"
+                android:layout_weight="1"
+                android:clipChildren="false">
+
+                <!-- PREVIEW (16:9) -->
+                <FrameLayout
+                    android:id="@+id/preview_video_container"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:background="@drawable/livev2_preview_frame"
+                    android:clipToOutline="true"
+                    app:layout_constraintDimensionRatio="H,16:9"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent">
+
+                    <androidx.media3.ui.PlayerView
+                        android:id="@+id/preview_player_view"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        app:resize_mode="zoom"
+                        app:show_buffering="when_playing"
+                        app:surface_type="texture_view"
+                        app:use_controller="false" />
+
+                    <FrameLayout
+                        android:id="@+id/preview_loading_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@color/stremio_bg"
+                        android:visibility="gone">
+
+                        <ProgressBar
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_gravity="center"
+                            android:indeterminateTint="@color/stremio_cyan" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:layout_marginTop="40dp"
+                            android:fontFamily="@font/inter"
+                            android:text="@string/live_preview_loading_state"
+                            android:textColor="@color/stremio_text_secondary"
+                            android:textSize="7sp" />
+                    </FrameLayout>
+
+                    <!-- LIVE badge -->
+                    <LinearLayout
+                        android:id="@+id/badge_live"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="top|start"
+                        android:layout_margin="9dp"
+                        android:background="@drawable/bg_live_badge_live"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="6dp"
+                        android:paddingTop="3dp"
+                        android:paddingEnd="6dp"
+                        android:paddingBottom="3dp">
+
+                        <View
+                            android:id="@+id/livev2_badge_dot"
+                            android:layout_width="2.5dp"
+                            android:layout_height="2.5dp"
+                            android:layout_marginEnd="3.5dp"
+                            android:background="@drawable/livev2_badge_dot_white" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/share_tech_mono"
+                            android:includeFontPadding="false"
+                            android:letterSpacing="0.1"
+                            android:text="@string/livev2_live_badge"
+                            android:textColor="@color/white"
+                            android:textSize="5.5sp" />
+                    </LinearLayout>
+
+                    <!-- quality badge -->
+                    <TextView
+                        android:id="@+id/badge_quality"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="top|end"
+                        android:layout_margin="9dp"
+                        android:background="@drawable/bg_live_badge_quality_hd"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:includeFontPadding="false"
+                        android:letterSpacing="0.06"
+                        android:paddingStart="6dp"
+                        android:paddingTop="3dp"
+                        android:paddingEnd="6dp"
+                        android:paddingBottom="3dp"
+                        android:textColor="#041014"
+                        android:textSize="5.5sp"
+                        tools:text="4K" />
+
+                    <!-- lower third -->
+                    <LinearLayout
+                        android:id="@+id/preview_info_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom"
+                        android:background="@drawable/livev2_lower_third_scrim"
+                        android:orientation="vertical"
+                        android:paddingStart="13dp"
+                        android:paddingTop="24dp"
+                        android:paddingEnd="13dp"
+                        android:paddingBottom="11dp">
+
+                        <TextView
+                            android:id="@+id/tv_preview_now_label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/share_tech_mono"
+                            android:includeFontPadding="false"
+                            android:letterSpacing="0.16"
+                            android:text="@string/live_preview_label_now"
+                            android:textAllCaps="true"
+                            android:textColor="@color/stremio_cyan"
+                            android:textSize="5.5sp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2.5dp"
+                            android:gravity="bottom"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/tv_preview_title"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:ellipsize="end"
+                                android:fontFamily="@font/outfit_extrabold"
+                                android:includeFontPadding="false"
+                                android:letterSpacing="-0.02"
+                                android:maxLines="1"
+                                android:textColor="@color/stremio_text_primary"
+                                android:textSize="14sp"
+                                tools:text="Tagesschau" />
+
+                            <!-- Design's lower third shows a single "start – end" range, so the
+                                 two time views sit side by side; PreviewPlayerPanel fills both. -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:layout_marginBottom="1dp"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/tv_current_time_preview"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/share_tech_mono"
+                                    android:includeFontPadding="false"
+                                    android:textColor="@color/stremio_text_secondary"
+                                    android:textSize="6.5sp"
+                                    tools:text="20:00" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/share_tech_mono"
+                                    android:includeFontPadding="false"
+                                    android:paddingStart="2dp"
+                                    android:paddingEnd="2dp"
+                                    android:text="@string/livev2_time_range_separator"
+                                    android:textColor="@color/stremio_text_secondary"
+                                    android:textSize="6.5sp" />
+
+                                <TextView
+                                    android:id="@+id/tv_total_time_preview"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/share_tech_mono"
+                                    android:includeFontPadding="false"
+                                    android:textColor="@color/stremio_text_secondary"
+                                    android:textSize="6.5sp"
+                                    tools:text="20:45" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <ProgressBar
+                            android:id="@+id/preview_progress_bar"
+                            style="?android:attr/progressBarStyleHorizontal"
+                            android:layout_width="match_parent"
+                            android:layout_height="1.5dp"
+                            android:layout_marginTop="5dp"
+                            android:max="100"
+                            android:progressDrawable="@drawable/livev2_progress_cyan"
+                            tools:progress="60" />
+
+                        <!-- v2's lower third has no synopsis line, but PreviewPlayerPanel still
+                             binds this view — keep it, hidden. -->
+                        <TextView
+                            android:id="@+id/tv_preview_description"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:visibility="gone" />
+                    </LinearLayout>
+                </FrameLayout>
+
+                <!-- NEXT UP + actions -->
+                <LinearLayout
+                    android:id="@+id/livev2_actions"
+                    android:layout_width="0dp"
+                    android:layout_height="31dp"
+                    android:layout_marginTop="9dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:clipChildren="false"
+                    app:layout_constraintTop_toBottomOf="@id/preview_video_container"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent">
+
+                    <!-- Info bar, not focusable per design. -->
+                    <LinearLayout
+                        android:id="@+id/livev2_next_bar"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/livev2_next_bar_bg"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/share_tech_mono"
+                                android:includeFontPadding="false"
+                                android:letterSpacing="0.12"
+                                android:text="@string/livev2_next_up"
+                                android:textColor="#7C3AED"
+                                android:textSize="5sp" />
+
+                            <TextView
+                                android:id="@+id/tv_next_time"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/share_tech_mono"
+                                android:includeFontPadding="false"
+                                android:letterSpacing="0.06"
+                                android:textColor="@color/stremio_text_faint"
+                                android:textSize="5sp"
+                                tools:text="20:45" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="1dp"
+                            android:layout_height="16dp"
+                            android:layout_marginStart="7dp"
+                            android:layout_marginEnd="7dp"
+                            android:background="#14FFFFFF" />
+
+                        <TextView
+                            android:id="@+id/btn_epg_next"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:ellipsize="end"
+                            android:fontFamily="@font/outfit_semibold"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:textColor="#CBD5E1"
+                            android:textSize="8sp"
+                            tools:text="Brennpunkt Spezial" />
+                    </LinearLayout>
+
+                    <!-- Watch (fullscreen) -->
+                    <LinearLayout
+                        android:id="@+id/btn_fullscreen"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/livev2_watch_btn_bg"
+                        android:clickable="true"
+                        android:contentDescription="@string/live_preview_fullscreen"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:gravity="center"
+                        android:orientation="horizontal"
+                        android:paddingStart="15dp"
+                        android:paddingEnd="15dp">
+
+                        <ImageView
+                            android:layout_width="9dp"
+                            android:layout_height="9dp"
+                            android:layout_marginEnd="5dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_play"
+                            app:tint="#041014" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/outfit_extrabold"
+                            android:includeFontPadding="false"
+                            android:text="@string/livev2_watch"
+                            android:textColor="#041014"
+                            android:textSize="8.5sp" />
+                    </LinearLayout>
+
+                    <!-- Favourite -->
+                    <FrameLayout
+                        android:id="@+id/btn_favorite"
+                        android:layout_width="31dp"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/livev2_fav_btn_bg"
+                        android:clickable="true"
+                        android:contentDescription="@string/livev2_favorite_toggle_description"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true">
+
+                        <ImageView
+                            android:id="@+id/iv_favorite_icon"
+                            android:layout_width="11dp"
+                            android:layout_height="11dp"
+                            android:layout_gravity="center"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_live_star"
+                            app:tint="@color/stremio_text_secondary" />
+                    </FrameLayout>
+                </LinearLayout>
+
+                <!-- PROGRAM GUIDE -->
+                <LinearLayout
+                    android:id="@+id/livev2_guide_header"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="9dp"
+                    android:layout_marginBottom="6dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    app:layout_constraintTop_toBottomOf="@id/livev2_actions"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent">
 
                     <View
+                        android:layout_width="1.5dp"
+                        android:layout_height="9dp"
+                        android:layout_marginEnd="5dp"
+                        android:background="@drawable/livev2_accent_bar" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="5dp"
+                        android:fontFamily="@font/outfit_bold"
+                        android:includeFontPadding="false"
+                        android:text="@string/livev2_program_guide"
+                        android:textColor="@color/stremio_text_primary"
+                        android:textSize="8sp" />
+
+                    <TextView
+                        android:id="@+id/tv_epg_strip_subtitle"
                         android:layout_width="0dp"
-                        android:layout_height="1dp"
-                        android:layout_weight="1" />
-
-                    <TextView
-                        android:id="@+id/tv_total_time_preview"
-                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/live_time_placeholder"
-                        android:textSize="11sp"
-                        android:textColor="@color/tv_text_tertiary" />
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:includeFontPadding="false"
+                        android:letterSpacing="0.04"
+                        android:maxLines="1"
+                        android:textColor="@color/stremio_text_faint"
+                        android:textSize="5.5sp"
+                        tools:text="ARD · TODAY" />
                 </LinearLayout>
 
-                <!-- Quick Actions (EPG Next, Favorite, etc.) -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="10dp">
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_epg_strip"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:overScrollMode="never"
+                    android:paddingStart="2dp"
+                    android:paddingTop="3dp"
+                    android:paddingEnd="2dp"
+                    android:paddingBottom="10dp"
+                    app:layout_constraintTop_toBottomOf="@id/livev2_guide_header"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    tools:itemCount="4"
+                    tools:listitem="@layout/item_livev2_epg_card" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </LinearLayout>
+    </LinearLayout>
 
-                    <TextView
-                        android:id="@+id/btn_favorite"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/live_favorite_action_add"
-                        android:textSize="11sp"
-                        android:textColor="@color/tv_text_secondary"
-                        android:padding="5dp"
-                        android:layout_marginEnd="10dp"
-                        android:background="@drawable/btn_secondary_outline"
-                        android:focusable="true"
-                        android:clickable="true"
-                        android:contentDescription="@string/live_favorite_action_add" />
+    <!-- ==================== RAIL SCRIM (above body, below rail) ==================== -->
+    <View
+        android:id="@+id/livev2_rail_scrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0"
+        android:background="#A604070C"
+        android:visibility="gone" />
 
-                    <TextView
-                        android:id="@+id/btn_epg_next"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/live_preview_next_button"
-                        android:textSize="11sp"
-                        android:textColor="@color/tv_text_secondary"
-                        android:padding="5dp"
-                        android:background="@drawable/btn_secondary_outline"
-                        android:focusable="true"
-                        android:clickable="true"
-                        android:contentDescription="@string/live_preview_next_button" />
-                </LinearLayout>
+    <!-- ==================== NAV RAIL (floats over everything) ====================
+         No android:id here on purpose: an id on <include> replaces the included root's own id,
+         which would hide @id/livev2_rail from findViewById and leave the expand animation
+         silently no-oping. -->
+    <include
+        layout="@layout/view_livev2_nav_rail"
+        android:layout_width="44dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:layout_marginTop="10dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginBottom="10dp" />
 
-            </LinearLayout>
-        </FrameLayout>
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-</LinearLayout>
-
-
-
-
+</FrameLayout>

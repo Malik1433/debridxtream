@@ -76,6 +76,9 @@ class LivePlayerOsdManager(
     private val zapName: TextView = root.findViewById(R.id.live_zap_name)
     private val zapNow: TextView = root.findViewById(R.id.live_zap_now)
     private val bottomOsd: View = root.findViewById(R.id.live_bottom_osd)
+    // Bottom-OSD "controller" clusters we hide for the zap-only ON AIR NOW flash.
+    private val nowInfoCluster: View = root.findViewById(R.id.live_now_info)
+    private val controlsRow: View = root.findViewById(R.id.live_controls_row)
     private val nowTitle: TextView = root.findViewById(R.id.live_now_title)
     private val nowDesc: TextView = root.findViewById(R.id.live_now_desc)
     private val timeStart: TextView = root.findViewById(R.id.live_time_start)
@@ -296,6 +299,15 @@ class LivePlayerOsdManager(
         // Flash the channel bug + status alongside the zap card so the user sees
         // the new channel/quality even when the full OSD is hidden.
         setChromeVisible(true)
+        // Also flash JUST the ON AIR NOW neighbour list on every channel change (no full
+        // controller). If the OSD is already open (possibly the interactive controller), leave
+        // it alone and just keep it up; otherwise reveal the on-air-only card non-interactively
+        // so zapping (D-pad UP/DOWN) keeps working.
+        if (isOsdVisible) {
+            resetOsdTimer()
+        } else {
+            showOsd(focus = false, autoHide = true, interactive = false, onAirOnly = true)
+        }
         handler.removeCallbacks(hideZapRunnable)
         handler.postDelayed(hideZapRunnable, ZAP_OSD_TIMEOUT_MS)
     }
@@ -498,21 +510,38 @@ class LivePlayerOsdManager(
     }
 
     // ── bottom OSD show / hide ─────────────────────────────────────────────
-    fun showOsd(focus: Boolean = false, autoHide: Boolean = true) {
+    // interactive=false reveals the bar purely as info — controls stay non-focusable and the
+    // player keeps focus, so D-pad UP/DOWN keeps zapping. onAirOnly hides the now-playing info
+    // + control buttons, leaving just the ON AIR NOW neighbour list — used to flash the list on
+    // every channel change without bringing up the full controller.
+    fun showOsd(
+        focus: Boolean = false,
+        autoHide: Boolean = true,
+        interactive: Boolean = true,
+        onAirOnly: Boolean = false
+    ) {
         handler.removeCallbacks(hideOsdRunnable)
         if (!isOsdVisible) {
             bottomOsd.isVisible = true
-            scrimTop.isVisible = true
-            scrimBottom.isVisible = true
             bottomOsd.translationY = 15f * root.resources.displayMetrics.density
             bottomOsd.alpha = 0f
             bottomOsd.animate().translationY(0f).alpha(1f).setDuration(300).setInterpolator(easeOutExpo).start()
+        }
+        // The controller parts (now-playing + buttons) and the darkening scrims only show for
+        // the full OSD; the zap-only flash keeps just the ON AIR NOW card floating. Use
+        // INVISIBLE (not GONE) so the hidden clusters still reserve their space and the card
+        // stays in the exact right-side position it has with the full controller.
+        nowInfoCluster.visibility = if (onAirOnly) View.INVISIBLE else View.VISIBLE
+        controlsRow.visibility = if (onAirOnly) View.INVISIBLE else View.VISIBLE
+        scrimTop.isVisible = !onAirOnly
+        scrimBottom.isVisible = !onAirOnly
+        if (!onAirOnly) {
             scrimTop.animate().alpha(1f).setDuration(300).start()
             scrimBottom.animate().alpha(1f).setDuration(300).start()
         }
         setChromeVisible(true)
-        setControlsFocusable(true)
-        if (focus) btnChannels.requestFocus()
+        setControlsFocusable(interactive && !onAirOnly)
+        if (focus && interactive && !onAirOnly) btnChannels.requestFocus()
         if (autoHide) handler.postDelayed(hideOsdRunnable, OSD_TIMEOUT_MS)
     }
 
@@ -733,7 +762,7 @@ class LivePlayerOsdManager(
         guideRowsCache = rows
         val showCount = rows.getOrNull(guideRow)?.shows?.size ?: 0
         guideShowIdx = if (initialFocus) {
-            rows.getOrNull(guideRow)?.shows?.indexOfFirst { it.isCurrent }?.takeIf { it >= 0 } ?: 0
+            focusableShowIndex(rows.getOrNull(guideRow)?.shows)
         } else {
             guideShowIdx.coerceIn(0, (showCount - 1).coerceAtLeast(0))
         }
@@ -748,25 +777,48 @@ class LivePlayerOsdManager(
         val span = GUIDE_WINDOW_MS.toFloat()
         val nowMs = System.currentTimeMillis()
         val nowFrac = ((nowMs - startMs).toFloat() / span).coerceIn(0f, 1f)
+        val noInfo = root.context.getString(R.string.epg_no_info)
+        fun filler(from: Long, to: Long) = GuideShow(
+            title = noInfo,
+            timeLabel = "",
+            leftFrac = ((from - startMs).toFloat() / span).coerceIn(0f, 1f),
+            widthFrac = ((to - from).toFloat() / span).coerceIn(0f, 1f),
+            isCurrent = from <= nowMs && to > nowMs,
+            isFiller = true
+        )
         return zapChannels.mapIndexed { idx, ch ->
             val progs = guideEpg[ch.streamId].orEmpty()
                 .filter { it.stop > startMs && it.start < endMs }
                 .deOverlap()
-            val shows = progs.map { p ->
+            // Build a CONTINUOUS lane: gaps between (and around) known programmes are
+            // filled with "No information" blocks so the grid never shows floating bars.
+            val shows = mutableListOf<GuideShow>()
+            var cursor = startMs
+            for (p in progs) {
                 val clipStart = p.start.coerceAtLeast(startMs)
                 val clipEnd = p.stop.coerceAtMost(endMs)
-                GuideShow(
-                    title = p.title ?: root.context.getString(R.string.epg_no_info),
-                    timeLabel = timeFormat.format(Date(p.start)) + " · " +
-                        ((p.stop - p.start) / 60_000L).coerceAtLeast(1) + "m",
-                    leftFrac = ((clipStart - startMs).toFloat() / span).coerceIn(0f, 1f),
-                    widthFrac = ((clipEnd - clipStart).toFloat() / span).coerceIn(0f, 1f),
-                    isCurrent = p.start <= nowMs && p.stop > nowMs
+                if (clipStart <= cursor) {
+                    // overlap/adjacent — nothing to fill
+                } else if (clipStart - cursor >= GUIDE_MIN_FILLER_MS) {
+                    shows.add(filler(cursor, clipStart))
+                }
+                shows.add(
+                    GuideShow(
+                        title = p.title ?: noInfo,
+                        timeLabel = timeFormat.format(Date(p.start)) + " · " +
+                            ((p.stop - p.start) / 60_000L).coerceAtLeast(1) + "m",
+                        leftFrac = ((clipStart - startMs).toFloat() / span).coerceIn(0f, 1f),
+                        widthFrac = ((clipEnd - clipStart).toFloat() / span).coerceIn(0f, 1f),
+                        isCurrent = p.start <= nowMs && p.stop > nowMs
+                    )
                 )
+                cursor = maxOf(cursor, clipEnd)
             }
+            if (endMs - cursor >= GUIDE_MIN_FILLER_MS) shows.add(filler(cursor, endMs))
             GuideRow(
                 name = ch.name,
                 num = String.format("%03d", idx + 1),
+                logoUrl = ch.logoUrl,
                 isActiveChannel = idx == zapIndex,
                 nowLineFrac = nowFrac,
                 shows = shows
@@ -786,8 +838,8 @@ class LivePlayerOsdManager(
             val frac = (t - startMs).toFloat() / span
             val label = TextView(root.context).apply {
                 text = timeFormat.format(Date(t))
-                textSize = 5f
-                setTextColor(0xFF334155.toInt())
+                textSize = 6f
+                setTextColor(0xFF475569.toInt())
                 typeface = android.graphics.Typeface.MONOSPACE
             }
             val lp = FrameLayout.LayoutParams(
@@ -807,7 +859,7 @@ class LivePlayerOsdManager(
         guideTimebar.addView(line, lineLp)
         val pill = TextView(root.context).apply {
             text = "NOW"
-            textSize = 4.5f
+            textSize = 5.5f
             setTextColor(0xFF041014.toInt())
             typeface = android.graphics.Typeface.MONOSPACE
             setPadding(dp(4f), dp(1f), dp(4f), dp(1f))
@@ -829,15 +881,25 @@ class LivePlayerOsdManager(
         if (guideRowsCache.isEmpty()) return
         if (dRow != 0) {
             guideRow = (guideRow + dRow).coerceIn(0, guideRowsCache.size - 1)
-            val cnt = guideRowsCache[guideRow].shows.size
-            guideShowIdx = guideShowIdx.coerceIn(0, (cnt - 1).coerceAtLeast(0))
+            // Keep focus on a real programme near the same time when changing channel.
+            guideShowIdx = focusableShowIndex(guideRowsCache[guideRow].shows)
             guideList.smoothScrollToPosition(guideRow)
         }
         if (dShow != 0) {
-            val cnt = guideRowsCache[guideRow].shows.size
-            if (cnt > 0) guideShowIdx = (guideShowIdx + dShow).coerceIn(0, cnt - 1)
+            val shows = guideRowsCache[guideRow].shows
+            var j = guideShowIdx + dShow
+            while (j in shows.indices && shows[j].isFiller) j += dShow  // step over "No information"
+            if (j in shows.indices) guideShowIdx = j
         }
         guideAdapter.submit(guideRowsCache, guideTimelineWidthPx, guideRow, guideShowIdx)
+    }
+
+    /** First real (non-filler) programme covering now, else first real programme, else 0. */
+    private fun focusableShowIndex(shows: List<GuideShow>?): Int {
+        if (shows.isNullOrEmpty()) return 0
+        shows.indexOfFirst { it.isCurrent && !it.isFiller }.takeIf { it >= 0 }?.let { return it }
+        shows.indexOfFirst { !it.isFiller }.takeIf { it >= 0 }?.let { return it }
+        return 0
     }
 
     private fun tuneFromGuide() {
@@ -1043,7 +1105,9 @@ class LivePlayerOsdManager(
         // in-player TV Guide grid window (v2): 1h back, 3h span.
         private const val GUIDE_BEFORE_MS = 60 * 60_000L
         private const val GUIDE_WINDOW_MS = 180 * 60_000L
-        private const val GUIDE_CH_COL_DP = 120f
+        private const val GUIDE_CH_COL_DP = 140f
+        // Don't draw a "No information" filler for sub-2min seams between programmes.
+        private const val GUIDE_MIN_FILLER_MS = 2 * 60_000L
 
         private val ASPECT_LABELS = listOf("Fit", "Fill", "16:9", "Zoom")
         private val ASPECT_MODES = listOf(

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Live TV v2 nav-rail item. Unlike Home's icon-only rail (which renders labels in an external
+     flyout), v2 keeps the label inline and reveals it as the rail expands. All sizes are the
+     design's px halved: 54px row, 34px slot, 20px glyph, 15px label. -->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/livev2_nav_container"
+    android:layout_width="match_parent"
+    android:layout_height="27dp"
+    android:layout_marginBottom="2dp"
+    android:background="@drawable/livev2_rail_item_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:paddingStart="5dp"
+    android:paddingEnd="5dp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- Active indicator: flush to the rail edge, 3px wide, rounded on the inner side only. -->
+    <View
+        android:id="@+id/livev2_nav_indicator"
+        android:layout_width="1.5dp"
+        android:layout_height="14dp"
+        android:translationX="-5dp"
+        android:background="@drawable/livev2_accent_bar"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <FrameLayout
+        android:id="@+id/livev2_nav_slot"
+        android:layout_width="17dp"
+        android:layout_height="17dp"
+        android:background="@drawable/livev2_rail_icon_slot"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/livev2_nav_icon"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            tools:src="@drawable/ic_search" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/livev2_nav_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="7dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/outfit_semibold"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:textColor="@color/stremio_text_muted"
+        android:textSize="7.5sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/livev2_nav_slot"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="Live TV" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

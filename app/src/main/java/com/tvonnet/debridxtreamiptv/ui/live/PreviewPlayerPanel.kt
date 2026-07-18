@@ -6,6 +6,7 @@ import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -48,15 +49,22 @@ class PreviewPlayerPanel(
     private var previewPlayer: ExoPlayer? = null
     private var previewPlayerView: PlayerView? = view.findViewById(R.id.preview_player_view)
     
-    // UI Elements
+    // UI Elements.
+    // NOTE: in the v2 layout "Watch" and the favourite button are containers (not an ImageView /
+    // TextView), so these are typed as View — findViewById casts, so a narrower type here throws
+    // ClassCastException at construction.
     private val tvPreviewTitle: TextView? = view.findViewById(R.id.tv_preview_title)
     private val tvPreviewDescription: TextView? = view.findViewById(R.id.tv_preview_description)
     private val previewProgressBar: ProgressBar? = view.findViewById(R.id.preview_progress_bar)
     private val tvPreviewStartTime: TextView? = view.findViewById(R.id.tv_current_time_preview)
     private val tvPreviewEndTime: TextView? = view.findViewById(R.id.tv_total_time_preview)
     private val btnPreviewNext: TextView? = view.findViewById(R.id.btn_epg_next)
-    private val btnFullscreen: ImageView? = view.findViewById(R.id.btn_fullscreen)
-    private val btnPreviewFavorite: TextView? = view.findViewById(R.id.btn_favorite)
+    private val tvNextTime: TextView? = view.findViewById(R.id.tv_next_time)
+    private val nextBar: View? = view.findViewById(R.id.livev2_next_bar)
+    private val btnFullscreen: View? = view.findViewById(R.id.btn_fullscreen)
+    private val btnPreviewFavorite: View? = view.findViewById(R.id.btn_favorite)
+    private val ivFavoriteIcon: ImageView? = view.findViewById(R.id.iv_favorite_icon)
+    private val badgeQuality: TextView? = view.findViewById(R.id.badge_quality)
 
     // State
     private var currentStream: XtreamStream? = null
@@ -92,9 +100,20 @@ class PreviewPlayerPanel(
         }
     }
 
+    /** v2's favourite control is an icon: a filled amber star when on, an outline when off. */
     fun setFavoriteState(isFavorite: Boolean) {
-        btnPreviewFavorite?.text = context.getString(
+        btnPreviewFavorite?.isActivated = isFavorite
+        btnPreviewFavorite?.contentDescription = context.getString(
             if (isFavorite) R.string.live_favorite_action_remove else R.string.live_favorite_action_add
+        )
+        ivFavoriteIcon?.setImageResource(
+            if (isFavorite) R.drawable.ic_live_star_filled else R.drawable.ic_live_star
+        )
+        ivFavoriteIcon?.setColorFilter(
+            ContextCompat.getColor(
+                context,
+                if (isFavorite) R.color.stremio_amber else R.color.stremio_text_secondary
+            )
         )
         // Enable button now that state is known
         btnPreviewFavorite?.isEnabled = true
@@ -158,12 +177,12 @@ class PreviewPlayerPanel(
                 .setRenderersFactory(renderersFactory)
                 .setMediaSourceFactory(mediaSourceFactory)
                 .setLoadControl(loadControl)
-                // Muted preview: set attributes but DO NOT request audio focus while
-                // browsing the guide (must not duck other apps). PlayerActivity calls
-                // setAudioAttributes(handleAudioFocus=true) when it adopts for fullscreen.
-                .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ false)
+                // Audible preview: the mini/preview player plays with sound, so request
+                // audio focus (ducks other apps) just like fullscreen. PlayerActivity also
+                // calls setAudioAttributes(handleAudioFocus=true) when it adopts for fullscreen.
+                .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ true)
                 .build().also { created ->
-                    created.volume = 0f // Muted by default
+                    created.volume = 1f // Preview plays with sound
                     previewPlayer = created
                     previewPlayerView?.player = created
                 }
@@ -215,23 +234,48 @@ class PreviewPlayerPanel(
         updateNextProgramButton()
     }
     
+    /**
+     * v2's NEXT UP bar carries the start time and the title in separate views (rather than the
+     * old single "Next: title (time)" label). The bar itself stays put; without a next programme
+     * it just reads as a dash.
+     */
     private fun updateNextProgramButton() {
         val next = nextProgram
+        nextBar?.visibility = View.VISIBLE
         if (next == null) {
-            btnPreviewNext?.visibility = View.GONE
+            btnPreviewNext?.text = context.getString(R.string.livev2_no_guide_dash)
+            tvNextTime?.text = context.getString(R.string.live_time_placeholder)
             return
         }
-        btnPreviewNext?.visibility = View.VISIBLE
-        val label = context.getString(
-            R.string.live_preview_next_program,
-            next.title ?: context.getString(R.string.epg_no_info),
-            "${formatTime(next.start)} - ${formatTime(next.stop)}"
-        )
-        btnPreviewNext?.text = label
+        btnPreviewNext?.text = next.title?.takeIf { it.isNotBlank() }
+            ?: context.getString(R.string.epg_no_info)
+        tvNextTime?.text = formatTime(next.start)
+    }
+
+    /** v2's preview carries a 4K/HD chip, derived from the channel name like the list rows do. */
+    private fun updateQualityBadge(stream: XtreamStream) {
+        val badge = badgeQuality ?: return
+        val name = stream.name.orEmpty()
+        val is4k = name.contains("4k", ignoreCase = true) || name.contains("uhd", ignoreCase = true)
+        val isHd = !is4k && name.contains("hd", ignoreCase = true)
+        when {
+            is4k -> {
+                badge.text = "4K"
+                badge.setBackgroundResource(R.drawable.bg_live_badge_quality_4k)
+                badge.isVisible = true
+            }
+            isHd -> {
+                badge.text = "HD"
+                badge.setBackgroundResource(R.drawable.bg_live_badge_quality_hd)
+                badge.isVisible = true
+            }
+            else -> badge.isVisible = false
+        }
     }
 
     private fun updateStreamInfo(stream: XtreamStream) {
         tvPreviewTitle?.text = stream.name ?: context.getString(R.string.player_epg_channel_unknown)
+        updateQualityBadge(stream)
         tvPreviewDescription?.text = context.getString(
             R.string.live_preview_now_playing,
             stream.name ?: context.getString(R.string.player_epg_channel_unknown)
@@ -239,7 +283,6 @@ class PreviewPlayerPanel(
         
         // Disable favorite button until state is known (caller should set it)
         btnPreviewFavorite?.isEnabled = false
-        btnPreviewFavorite?.text = context.getString(R.string.live_favorite_action_add)
     }
 
     private fun updatePlaceholder(message: String) {
@@ -252,14 +295,15 @@ class PreviewPlayerPanel(
     }
 
     private fun resetState() {
+        badgeQuality?.isVisible = false
         tvPreviewTitle?.text = context.getString(R.string.live_preview_title_placeholder)
         tvPreviewDescription?.text = context.getString(R.string.live_preview_description_placeholder)
         previewProgressBar?.isVisible = false
         val placeholderTime = context.getString(R.string.live_time_placeholder)
         tvPreviewStartTime?.text = placeholderTime
         tvPreviewEndTime?.text = placeholderTime
-        btnPreviewNext?.visibility = View.GONE
         nextProgram = null
+        updateNextProgramButton()
     }
     
     private fun formatTime(timestamp: Long): String = previewTimeFormatter.format(Date(timestamp))
@@ -274,7 +318,7 @@ class PreviewPlayerPanel(
     
     fun isPlaying(): Boolean = previewPlayer?.isPlaying == true
 
-    /** Preview is created muted by default; callers (e.g. the EPG guide) may want audio. */
+    /** Preview plays with sound by default; callers can mute (0f) or adjust volume here. */
     fun setVolume(volume: Float) {
         previewPlayer?.volume = volume.coerceIn(0f, 1f)
     }

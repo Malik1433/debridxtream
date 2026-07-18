@@ -7,11 +7,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.util.GlideUtils
 
 /** One programme block on a guide row, positioned as fractions of the window. */
 data class GuideShow(
@@ -19,13 +21,16 @@ data class GuideShow(
     val timeLabel: String,
     val leftFrac: Float,
     val widthFrac: Float,
-    val isCurrent: Boolean
+    val isCurrent: Boolean,
+    /** Filler covering a gap with no EPG data — dimmed, non-navigable. */
+    val isFiller: Boolean = false
 )
 
 /** One channel row of the in-player TV Guide grid. */
 data class GuideRow(
     val name: String,
     val num: String,
+    val logoUrl: String?,
     val isActiveChannel: Boolean,
     val nowLineFrac: Float,
     val shows: List<GuideShow>
@@ -66,6 +71,7 @@ class LiveGuideAdapter : RecyclerView.Adapter<LiveGuideAdapter.Holder>() {
         private val col: View = itemView.findViewById(R.id.guide_ch_col)
         private val logo: FrameLayout = itemView.findViewById(R.id.guide_ch_logo)
         private val logoText: TextView = itemView.findViewById(R.id.guide_ch_logo_text)
+        private val logoImg: ImageView = itemView.findViewById(R.id.guide_ch_logo_img)
         private val name: TextView = itemView.findViewById(R.id.guide_ch_name)
         private val num: TextView = itemView.findViewById(R.id.guide_ch_num)
         private val timeline: FrameLayout = itemView.findViewById(R.id.guide_row_timeline)
@@ -76,7 +82,15 @@ class LiveGuideAdapter : RecyclerView.Adapter<LiveGuideAdapter.Holder>() {
             val isFocusedRow = position == focusedRow
 
             logoText.text = LivePlayerOsdManager.channelInitials(row.name)
-            logo.background = LivePlayerOsdManager.channelTileGradient(row.name, 5f * density)
+            logo.background = LivePlayerOsdManager.channelTileGradient(row.name, 6f * density)
+            if (!row.logoUrl.isNullOrBlank()) {
+                logoImg.isVisible = true
+                logoText.isVisible = false
+                GlideUtils.loadChannelLogo(logoImg, row.logoUrl)
+            } else {
+                logoImg.isVisible = false
+                logoText.isVisible = true
+            }
             name.text = row.name
             num.text = row.num
             name.setTextColor(
@@ -108,12 +122,15 @@ class LiveGuideAdapter : RecyclerView.Adapter<LiveGuideAdapter.Holder>() {
                 val title = block.findViewById<TextView>(R.id.guide_show_title)
                 val time = block.findViewById<TextView>(R.id.guide_show_time)
                 title.text = show.title
+                time.isVisible = show.timeLabel.isNotEmpty()
                 time.text = show.timeLabel
-                if (focused || show.isCurrent) {
+                if (show.isFiller) {
+                    title.setTextColor(ContextCompat.getColor(ctx, R.color.live_osd_text_faint))
+                } else if (focused || show.isCurrent) {
                     title.setTextColor(ContextCompat.getColor(ctx, R.color.live_osd_text_primary))
                     time.setTextColor(ContextCompat.getColor(ctx, R.color.neon_cyan))
                 }
-                block.background = blockBackground(density, show.isCurrent, focused)
+                block.background = blockBackground(density, show.isCurrent, focused, show.isFiller)
 
                 val lp = FrameLayout.LayoutParams(wPx, FrameLayout.LayoutParams.MATCH_PARENT)
                 lp.leftMargin = leftPx
@@ -132,13 +149,15 @@ class LiveGuideAdapter : RecyclerView.Adapter<LiveGuideAdapter.Holder>() {
             }
         }
 
-        private fun blockBackground(density: Float, isCurrent: Boolean, focused: Boolean): GradientDrawable {
+        private fun blockBackground(density: Float, isCurrent: Boolean, focused: Boolean, isFiller: Boolean): GradientDrawable {
             val fill = when {
+                isFiller -> 0x03FFFFFF
                 focused -> 0x2400F0FF
                 isCurrent -> 0x1400F0FF
                 else -> 0x06FFFFFF
             }
             val strokeColor = when {
+                isFiller -> 0x0AFFFFFF
                 focused -> 0xFF00F0FF.toInt()
                 isCurrent -> 0x4000F0FF
                 else -> 0x12FFFFFF

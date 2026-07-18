@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Live TV v2 nav rail. Collapsed 88px/2 = 44dp, expands to 280px/2 = 140dp while it holds
+     focus; the label column fades in with the width. Width is animated by LiveNavRail. -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/livev2_rail"
+    android:layout_width="44dp"
+    android:layout_height="match_parent"
+    android:background="@drawable/livev2_rail_bg"
+    android:contentDescription="@string/livev2_rail_expand_description"
+    android:orientation="vertical"
+    android:paddingTop="14dp"
+    android:paddingBottom="14dp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- Brand -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="24dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="11dp"
+        android:paddingEnd="11dp">
+
+        <FrameLayout
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:background="@drawable/bg_logo_mark">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:fontFamily="@font/outfit_extrabold"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.04"
+                android:text="@string/livev2_brand_mark"
+                android:textColor="#041014"
+                android:textSize="9sp" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:id="@+id/livev2_rail_brand_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="7dp"
+            android:alpha="0"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/outfit_bold"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="@string/livev2_brand_name"
+                android:textColor="@color/stremio_text_primary"
+                android:textSize="9sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/share_tech_mono"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.14"
+                android:maxLines="1"
+                android:text="@string/livev2_brand_tag"
+                android:textColor="@color/stremio_cyan"
+                android:textSize="5sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="16dp" />
+
+    <!-- BROWSE -->
+    <TextView
+        android:id="@+id/livev2_rail_section_label"
+        android:layout_width="match_parent"
+        android:layout_height="13dp"
+        android:alpha="0"
+        android:fontFamily="@font/share_tech_mono"
+        android:includeFontPadding="false"
+        android:letterSpacing="0.2"
+        android:maxLines="1"
+        android:paddingStart="14dp"
+        android:paddingEnd="4dp"
+        android:text="@string/livev2_browse_label"
+        android:textColor="@color/stremio_text_faint"
+        android:textSize="5sp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/livev2_rail_items"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:overScrollMode="never"
+        android:paddingStart="7dp"
+        android:paddingEnd="7dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        tools:itemCount="6"
+        tools:listitem="@layout/item_livev2_nav" />
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="7dp"
+        android:background="#0FFFFFFF" />
+
+    <!-- Settings sits below the divider, outside the list, per design. -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="7dp"
+        android:paddingEnd="7dp">
+
+        <include
+            android:id="@+id/livev2_rail_settings"
+            layout="@layout/item_livev2_nav" />
+    </FrameLayout>
+
+</LinearLayout>

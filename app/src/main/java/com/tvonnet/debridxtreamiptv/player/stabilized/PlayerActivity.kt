@@ -426,6 +426,9 @@ class PlayerActivity : AppCompatActivity() {
     private var lastRenderedFrameCount = -1
     private var lastVideoRenderProgressMs = 0L
     private var disableTunnelingForSession = false
+    // How many times we've recovered from an AudioTrack-allocation failure this
+    // source (reset on a clean READY / new source). Bounds the audio-device retry.
+    private var audioSinkRecoveryCount = 0
     // Some providers' live TS streams carry backward PTS jumps right after start;
     // the decoder renders the first frame and then drops everything as "late".
     // Re-preparing the same URL resets the timestamp adjuster past the bad region.
@@ -576,6 +579,20 @@ class PlayerActivity : AppCompatActivity() {
         // Show the "Reconnecting…" pill only when the outage persists — sub-second
         // re-prepares recover behind the last rendered frame and shouldn't flash UI.
         private const val RECONNECT_BANNER_DELAY_MS = 1200L
+        // AudioTrack-allocation recovery (device-verified 2026-07-18, dumpsys
+        // media.audio_flinger). Two distinct failures share the "AudioTrack init failed /
+        // Cannot create AudioTrack" symptom:
+        //   (a) tunneled HW-AV-sync slot briefly held by a prior session — ONE re-init
+        //       without tunneling recovers it (the rare, genuinely transient case);
+        //   (b) AudioFlinger output SATURATED ("no more tracks available", errno -12) —
+        //       ~80 leaked tracks accumulated across app restarts because this Amlogic
+        //       firmware never reclaims released/dead-process AudioTracks. NOTHING an
+        //       in-app re-init can do here; each attempt only LEAKS ~5 more tracks (media3
+        //       retries the AudioTrack build 5× per init). Needs a device reboot.
+        // So: exactly ONE recovery attempt (covers case a), then fail fast with an
+        // actionable message (case b) instead of a leak-amplifying retry spiral.
+        private const val AUDIO_SINK_MAX_RECOVERIES = 1
+        private const val AUDIO_SINK_COOLOFF_MS = 900L
         // Fixed cool-off for HTTP 429 when the server sends no Retry-After (QA fix 4).
         private const val HTTP_429_COOLOFF_MS = 20_000L
         // Debounce for session-adaptive network-quality updates (QA fix 7).
@@ -1126,6 +1143,7 @@ class PlayerActivity : AppCompatActivity() {
         resetReconnectBudget()
         hideReconnectingBanner()
         retryCount = 0
+        audioSinkRecoveryCount = 0
         endedReconnects = 0
         liveFreezeReprepares = 0
 
@@ -2449,6 +2467,7 @@ class PlayerActivity : AppCompatActivity() {
                         watchdogExtensions = 0
                         watchdogBufferedPosAtArm = -1L
                         retryCount = 0
+                        audioSinkRecoveryCount = 0
                         // A clean READY means recovery succeeded — reset the unified
                         // reconnect budget (fix 2) and retire the banner (fix 3).
                         resetReconnectBudget()
@@ -2656,23 +2675,57 @@ class PlayerActivity : AppCompatActivity() {
         if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
             player?.seekToDefaultPosition(); player?.prepare(); player?.playWhenReady = true; return
         }
-        // Tunneled playback forces a HW_AV_SYNC AudioTrack, which Fire TV cannot open
-        // for software-decoded multichannel PCM (e.g. FFmpeg 5.1 audio on 4K HEVC
-        // torrents). The stream URL is fine — re-resolving loops forever. Re-init
-        // locally without tunneling instead.
-        if (isAudioSinkInitFailure(error) && !disableTunnelingForSession) {
-            disableTunnelingForSession = true
-            Log.w("PlayerActivity", "Audio sink init failed under tunneling — reinitializing without tunneling")
+        // ROOT CAUSE (device-verified via logcat 2026-07-18, both .35/.64 Amlogic):
+        // the OS refuses to allocate even a plain 48kHz/stereo/16-bit AudioTrack
+        // ("AudioTrack init failed 0 Config(48000,12,2)" → UnsupportedOperationException
+        // "Cannot create AudioTrack"). The format is fully decoded (FFmpeg → raw PCM,
+        // format_supported), so this is NOT a codec/format problem — the audio HAL's
+        // output slot is still held by a prior session (tunneled AV-sync AudioTrack from
+        // zap/retry churn). The FfmpegAudioRenderer then throws a FATAL renderer error
+        // right AFTER the video's first frame renders → the picture freezes on frame 1.
+        //
+        // Recovery: (1) drop tunneling for the session — it removes the HW-AV-sync
+        // AudioTrack requirement that most often wedges the slot; (2) fully release the
+        // player so its AudioTrack is freed; (3) wait AUDIO_SINK_COOLOFF_MS (the old
+        // 250ms was too soon — the HAL hadn't reclaimed the handle) before re-init.
+        // Bounded by AUDIO_SINK_MAX_RECOVERIES so a genuinely dead audio device fails
+        // cleanly instead of looping a frozen frame.
+        if (isAudioSinkInitFailure(error)) {
+            if (audioSinkRecoveryCount < AUDIO_SINK_MAX_RECOVERIES && canAttemptReconnect()) {
+                audioSinkRecoveryCount++
+                val tunnelingWasOn = !disableTunnelingForSession
+                disableTunnelingForSession = true
+                Log.w(
+                    "PlayerActivity",
+                    "AudioTrack init failed — audio-device recovery $audioSinkRecoveryCount/$AUDIO_SINK_MAX_RECOVERIES (tunnelingWasOn=$tunnelingWasOn), cool-off ${AUDIO_SINK_COOLOFF_MS}ms"
+                )
+                PlaybackDiagnosticsRecorder.record(
+                    this,
+                    "audio_sink_recovery",
+                    diagnosticsPlaybackFields() + mapOf(
+                        "errorCode" to error.errorCode,
+                        "recovery" to audioSinkRecoveryCount,
+                        "tunnelingWasOn" to tunnelingWasOn
+                    )
+                )
+                if (contentType != ContentType.LIVE_TV && (player?.currentPosition ?: 0L) > 1000L) {
+                    startPositionMs = player!!.currentPosition
+                }
+                player?.release(); player = null
+                retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, AUDIO_SINK_COOLOFF_MS)
+                return
+            }
+            // The single recovery didn't help → the audio output is saturated (leaked
+            // AudioTracks the firmware won't reclaim). Release OUR track so we stop
+            // holding a slot, and stop retrying — more re-inits only leak more. Tell the
+            // user the one thing that actually clears it.
+            player?.release(); player = null
             PlaybackDiagnosticsRecorder.record(
                 this,
-                "audio_sink_tunneling_retry",
+                "audio_sink_exhausted",
                 diagnosticsPlaybackFields() + mapOf("errorCode" to error.errorCode)
             )
-            if (contentType != ContentType.LIVE_TV && (player?.currentPosition ?: 0L) > 1000L) {
-                startPositionMs = player!!.currentPosition
-            }
-            player?.release(); player = null
-            retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, 250L)
+            handleTerminalPlaybackFailure("Audio unavailable — please restart your Fire TV (the device ran out of audio channels)")
             return
         }
         val cause = error.cause
@@ -2786,7 +2839,10 @@ class PlayerActivity : AppCompatActivity() {
                   )
                   return
             }
-            if (layoutDebridResolving?.isVisible != true) showToast("Retrying... ($retryCount/$maxRetries)")
+            // No "Retrying…" toast here: canAttemptReconnect() already drives the single
+            // unified "RECONNECTING… (n/N)" banner. A second toast with a DIFFERENT counter
+            // (retryCount/maxRetries) rendered two overlapping indicators — the bug in the
+            // user's photo (top "RECONNECTING… 1/4" + centre "Retrying… 2/5").
             if (contentType != ContentType.LIVE_TV && player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
             PlaybackDiagnosticsRecorder.record(
                 this,
@@ -3048,7 +3104,8 @@ class PlayerActivity : AppCompatActivity() {
                       viewModel.reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
                       return
                 }
-                if (layoutDebridResolving?.isVisible != true) showToast("Connection timeout, retrying...")
+                // No toast here either — the unified "RECONNECTING…" banner (shown by
+                // canAttemptReconnect() above) is the single reconnect indicator.
                 // Live first retry: light in-place re-prepare on the SAME engine
                 // (the proven ENDED/freeze recovery path) instead of the heavy
                 // release → 2s wait → full re-init. The player instance is healthy —

@@ -17,7 +17,7 @@
         android:fontFamily="@font/plus_jakarta_sans"
         android:maxLines="1"
         android:textColor="@color/live_osd_text_soft"
-        android:textSize="6.5sp"
+        android:textSize="8.5sp"
         android:textStyle="bold"
         tools:text="Bundesliga Recap" />
 
@@ -30,6 +30,6 @@
         android:fontFamily="monospace"
         android:maxLines="1"
         android:textColor="@color/live_osd_text_faint"
-        android:textSize="5sp"
+        android:textSize="6.5sp"
         tools:text="20:15 · 60m" />
 </LinearLayout>

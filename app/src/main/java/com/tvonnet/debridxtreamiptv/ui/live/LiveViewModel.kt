@@ -7,7 +7,9 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity
 import com.tvonnet.debridxtreamiptv.data.local.entity.FavoriteEntity
+import com.tvonnet.debridxtreamiptv.data.local.entity.deOverlap
 import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
 import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
 import com.tvonnet.debridxtreamiptv.data.paging.ChannelPagingSource
@@ -19,9 +21,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Calendar
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import com.tvonnet.debridxtreamiptv.util.FAVORITES_CATEGORY_ID
 
@@ -105,6 +111,9 @@ class LiveViewModel @Inject constructor(
         private const val KEY_LAST_PLAYED_EPG_CHANNEL_ID = "live.lastPlayedEpgChannelId"
         private const val KEY_LAST_FOCUS_AREA = "live.lastFocusArea"
         private const val KEY_RESTORE_FROM_FULLSCREEN_PENDING = "live.restoreFromFullscreenPending"
+
+        /** Long enough that scrolling the channel list doesn't fire a query per row. */
+        private const val GUIDE_EPG_DEBOUNCE_MS = 250L
     }
 
     override fun getInitialState() = LiveUiState()
@@ -151,7 +160,56 @@ class LiveViewModel @Inject constructor(
                 ).flow
             }
     }.cachedIn(viewModelScope)
-    
+
+    // ── Program Guide strip (Live TV v2) ─────────────────────────────────────
+    // Today's programmes for the channel currently being previewed. Mirrors
+    // PlayerViewModel.loadGuideEpg, but for a single channel.
+    private val _guideEpg = MutableStateFlow<List<EpgEntity>>(emptyList())
+    val guideEpg: StateFlow<List<EpgEntity>> = _guideEpg.asStateFlow()
+
+    private var guideEpgJob: Job? = null
+    private var guideEpgKey: String? = null
+
+    /**
+     * Loads the guide strip for [epgId], from an hour ago to end of day.
+     *
+     * Providers ship overlapping XMLTV programmes, so entries are de-overlapped before they
+     * reach the strip — without it the cards ghost/stack (see EpgEntity.deOverlap).
+     */
+    fun loadGuideEpg(epgId: String?) {
+        if (epgId.isNullOrBlank()) {
+            guideEpgKey = null
+            guideEpgJob?.cancel()
+            _guideEpg.value = emptyList()
+            return
+        }
+        if (epgId == guideEpgKey) return
+        guideEpgKey = epgId
+
+        guideEpgJob?.cancel()
+        guideEpgJob = viewModelScope.launch(Dispatchers.IO) {
+            // Debounce: channel focus moves fast while scrolling the list.
+            delay(GUIDE_EPG_DEBOUNCE_MS)
+            val now = System.currentTimeMillis()
+            val windowStart = now - TimeUnit.HOURS.toMillis(1)
+            val windowEnd = endOfToday(now)
+            val programs = runCatching {
+                repository.getProgramsByEpgIdInRange(listOf(epgId), windowStart, windowEnd)[epgId]
+            }.getOrNull().orEmpty()
+            // A later channel may have won the race while we were on IO.
+            if (guideEpgKey != epgId) return@launch
+            _guideEpg.value = programs.deOverlap()
+        }
+    }
+
+    private fun endOfToday(now: Long): Long = Calendar.getInstance().apply {
+        timeInMillis = now
+        set(Calendar.HOUR_OF_DAY, 23)
+        set(Calendar.MINUTE, 59)
+        set(Calendar.SECOND, 59)
+        set(Calendar.MILLISECOND, 999)
+    }.timeInMillis
+
     init {
         android.util.Log.d("LiveViewModel", "Initializing LiveViewModel")
         restoreStateFromSavedStateHandle()
