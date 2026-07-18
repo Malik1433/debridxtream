@@ -85,7 +85,7 @@ export default function DashboardPage() {
                         <span style={{ fontFamily: 'Archivo', fontWeight: 800, fontSize: 14, marginRight: 'auto', textTransform: 'capitalize' }}>{view === 'buy' ? 'Buy Credits' : view}</span>
                         <span className="chip" style={{ background: 'var(--color-accent-100)', color: 'var(--color-accent-800)', fontSize: 12, padding: '4px 10px' }}>{reseller?.credits ?? 0} credits</span>
                         <button className="btn btn-primary" style={{ fontSize: 12, padding: '7px 14px' }} onClick={() => setView('buy')}>Buy Credits</button>
-                        <div style={{ width: 30, height: 30, background: '#201e1d', color: '#FFAA00', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Archivo', fontWeight: 800, fontSize: 12 }}>{(reseller?.displayName || user.email || 'R').slice(0, 1).toUpperCase()}</div>
+                        <div style={{ width: 30, height: 30, background: '#201e1d', color: '#ec3013', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Archivo', fontWeight: 800, fontSize: 12 }}>{(reseller?.displayName || user.email || 'R').slice(0, 1).toUpperCase()}</div>
                     </div>
 
                     <div style={{ padding: '28px 32px' }}>

@@ -6,15 +6,16 @@
 
 .mod {
     --color-bg: #f3f2f2;
+    --color-surface: #eae9e9;
     --color-text: #201e1d;
-    --color-divider: #e5e3e2;
-    --color-accent: #FFAA00;
-    --color-accent-100: #FFFBEB;
-    --color-accent-200: #FEF3C7;
-    --color-accent-300: #FDE68A;
-    --color-accent-600: #D97706;
-    --color-accent-700: #B45309;
-    --color-accent-800: #92400E;
+    --color-divider: #d7d3d3;
+    --color-accent: #ec3013;
+    --color-accent-100: #fff2ef;
+    --color-accent-200: #ffe0d9;
+    --color-accent-300: #ffc4b8;
+    --color-accent-600: #dd2b0f;
+    --color-accent-700: #ae1800;
+    --color-accent-800: #7c1405;
     --dx-success: #22C55E;
     --dx-danger: #FF3355;
     --dx-amber: #F59E0B;
@@ -53,7 +54,7 @@
     transition: background .15s, color .15s, border-color .15s; text-decoration: none;
 }
 .mod .btn:disabled { opacity: 0.5; cursor: default; }
-.mod .btn-primary { background: var(--color-accent); color: #201e1d; }
+.mod .btn-primary { background: var(--color-accent); color: var(--color-bg); }
 .mod .btn-primary:hover:not(:disabled) { background: var(--color-accent-600); }
 .mod .btn-secondary { border-color: var(--color-divider); color: var(--color-text); }
 .mod .btn-secondary:hover:not(:disabled) { border-color: var(--color-accent); color: var(--color-accent-700); }
@@ -115,7 +116,7 @@
 .mod .toggle.on::after { left: 25px; }
 
 /* Toast */
-.mod-toast { position: fixed; bottom: 24px; right: 24px; z-index: 200; background: #201e1d; color: #f3f2f2; border-left: 3px solid #FFAA00; padding: 11px 17px; font-size: 13px; font-weight: 500; font-family: 'Archivo', sans-serif; }
+.mod-toast { position: fixed; bottom: 24px; right: 24px; z-index: 200; background: #201e1d; color: #f3f2f2; border-left: 3px solid #ec3013; padding: 11px 17px; font-size: 13px; font-weight: 500; font-family: 'Archivo', sans-serif; }
 
 @keyframes modFadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 .mod .animate-in { animation: modFadeUp 0.5s ease both; }

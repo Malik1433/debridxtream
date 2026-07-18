@@ -4,7 +4,7 @@ import { Check } from 'lucide-react'
 export function DxLogo({ onDark = false }: { onDark?: boolean }) {
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 30, height: 30, background: onDark ? '#FFAA00' : '#201e1d', color: onDark ? '#201e1d' : '#FFAA00', fontFamily: 'Archivo', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>DX</div>
+            <div style={{ width: 30, height: 30, background: onDark ? '#ec3013' : '#201e1d', color: onDark ? '#f3f2f2' : '#ec3013', fontFamily: 'Archivo', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>DX</div>
             <span style={{ fontFamily: 'Archivo', fontWeight: 800, fontSize: 17, color: onDark ? '#f3f2f2' : 'inherit' }}>DebridXtream</span>
         </div>
     )
@@ -25,7 +25,7 @@ export function SplitShell({ title, subtitle, children }: { title: string; subti
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
                         {['Buy credits wholesale', 'Activate any device by its TV code', 'Renew & track expiry in one place', 'Set your own prices'].map((b) => (
                             <li key={b} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 14, opacity: 0.9 }}>
-                                <span style={{ width: 18, height: 18, background: '#FFAA00', color: '#201e1d', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}><Check size={12} strokeWidth={3} /></span>{b}
+                                <span style={{ width: 18, height: 18, background: '#ec3013', color: '#f3f2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}><Check size={12} strokeWidth={3} /></span>{b}
                             </li>
                         ))}
                     </ul>
