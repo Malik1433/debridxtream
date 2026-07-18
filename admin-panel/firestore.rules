@@ -101,7 +101,7 @@ service cloud.firestore {
       allow update: if isAdmin() || (
         isSignedIn() && request.auth.uid == uid &&
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['displayName'])
+          .hasOnly(['displayName', 'phone', 'country', 'contact'])
       );
       allow delete: if isAdmin();
     }

@@ -1,193 +1,222 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signOut } from 'firebase/auth'
-import { collection, onSnapshot, query, where } from 'firebase/firestore'
+import { EmailAuthProvider, reauthenticateWithCredential, signOut, updatePassword } from 'firebase/auth'
+import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
-import { LogOut, Plus, RefreshCw, Ticket } from 'lucide-react'
+import {
+    CreditCard, LayoutDashboard, LogOut, Plus, ReceiptText, RefreshCw, Ticket, Users, UserRound, Wallet,
+} from 'lucide-react'
 import { auth, db, functions } from '../../firebase'
 import { useAuth } from '../../reseller/useAuth'
-import { errText } from './authUi'
+import { COUNTRIES, errText } from './authUi'
 
 interface Plan { id: string; name: string; tier: string; months: number; cost: number }
-interface Client {
-    id: string
-    activationCode?: string
-    tier?: string
-    status?: string
-    expiresAt?: number
-    planId?: string
-}
+interface Pkg { id: string; name: string; credits: number; priceUsd: number; bonus?: number }
+interface Client { id: string; activationCode?: string; tier?: string; status?: string; expiresAt?: number }
+interface Ledger { id: string; delta: number; reason: string; at: number; balanceAfter?: number }
+
+type View = 'overview' | 'clients' | 'buy' | 'billing' | 'profile'
 
 export default function DashboardPage() {
     const nav = useNavigate()
     const { user, reseller, loading } = useAuth()
+    const [view, setView] = useState<View>('overview')
     const [plans, setPlans] = useState<Plan[]>([])
+    const [packages, setPackages] = useState<Pkg[]>([])
     const [clients, setClients] = useState<Client[]>([])
-    const [busy, setBusy] = useState(false)
-    const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
-    const [code, setCode] = useState('')
-    const [planId, setPlanId] = useState('')
+    const [ledger, setLedger] = useState<Ledger[]>([])
+    const [toast, setToast] = useState('')
 
     useEffect(() => {
         if (loading) return
         if (!user) { nav('/reseller/login', { replace: true }); return }
-        // Hard gate: no dashboard access until the email is verified.
         if (!user.emailVerified) nav('/reseller/verify', { replace: true })
     }, [loading, user, nav])
 
-    // Plans catalogue (owner-defined).
-    useEffect(() => {
-        return onSnapshot(collection(db, 'plans'), (snap) => {
-            const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Plan, 'id'>) }))
-            list.sort((a, b) => a.cost - b.cost)
-            setPlans(list)
-            setPlanId((cur) => cur || list[0]?.id || '')
-        })
-    }, [])
-
-    // This reseller's clients.
+    useEffect(() => onSnapshot(collection(db, 'plans'), (s) => {
+        const l = s.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Plan, 'id'>) })); l.sort((a, b) => a.cost - b.cost); setPlans(l)
+    }), [])
+    useEffect(() => onSnapshot(collection(db, 'credit_packages'), (s) => {
+        const l = s.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Pkg, 'id'>) })); l.sort((a, b) => a.priceUsd - b.priceUsd); setPackages(l)
+    }, () => {/* none yet */}), [])
     useEffect(() => {
         if (!user) return
-        const q = query(collection(db, 'licenses'), where('resellerId', '==', user.uid))
-        return onSnapshot(q, (snap) => {
-            const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Client, 'id'>) }))
-            list.sort((a, b) => (b.expiresAt || 0) - (a.expiresAt || 0))
-            setClients(list)
-        }, () => {/* permission errors surface elsewhere */})
+        return onSnapshot(query(collection(db, 'licenses'), where('resellerId', '==', user.uid)), (s) => {
+            const l = s.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Client, 'id'>) })); l.sort((a, b) => (b.expiresAt || 0) - (a.expiresAt || 0)); setClients(l)
+        }, () => {})
+    }, [user])
+    useEffect(() => {
+        if (!user) return
+        return onSnapshot(query(collection(db, 'credit_ledger'), where('resellerId', '==', user.uid)), (s) => {
+            const l = s.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Ledger, 'id'>) })); l.sort((a, b) => (b.at || 0) - (a.at || 0)); setLedger(l)
+        }, () => {})
     }, [user])
 
-    async function activate(e: React.FormEvent) {
-        e.preventDefault()
-        setMsg(null)
-        if (!code.trim() || !planId) return
-        setBusy(true)
-        try {
-            const fn = httpsCallable(functions, 'activateClient')
-            const res = await fn({ activationCode: code.trim(), planId })
-            const data = res.data as { creditsLeft?: number }
-            setMsg({ kind: 'ok', text: `Activated. Credits left: ${data?.creditsLeft ?? '—'}.` })
-            setCode('')
-        } catch (err) {
-            setMsg({ kind: 'err', text: errText(err) })
-        } finally {
-            setBusy(false)
-        }
-    }
+    const showToast = (t: string) => { setToast(t); setTimeout(() => setToast(''), 2600) }
 
-    async function renew(installId: string) {
-        if (!planId) { setMsg({ kind: 'err', text: 'Pick a plan first.' }); return }
-        setBusy(true)
-        setMsg(null)
-        try {
-            const fn = httpsCallable(functions, 'renewClient')
-            const res = await fn({ installId, planId })
-            const data = res.data as { creditsLeft?: number }
-            setMsg({ kind: 'ok', text: `Renewed. Credits left: ${data?.creditsLeft ?? '—'}.` })
-        } catch (err) {
-            setMsg({ kind: 'err', text: errText(err) })
-        } finally {
-            setBusy(false)
-        }
-    }
+    const stats = useMemo(() => {
+        const now = Date.now()
+        const active = clients.filter((c) => c.status === 'active' && (!c.expiresAt || c.expiresAt > now)).length
+        const soon = clients.filter((c) => c.status === 'active' && c.expiresAt && c.expiresAt > now && c.expiresAt < now + 7 * 864e5).length
+        return { total: clients.length, active, soon }
+    }, [clients])
 
-    const selectedPlan = useMemo(() => plans.find((p) => p.id === planId), [plans, planId])
+    if (loading || !user) return <div className="grid min-h-screen place-items-center text-neutral-400">Loading…</div>
 
-    if (loading) return <div className="grid min-h-screen place-items-center text-neutral-400">Loading…</div>
+    const navItems: { id: View; label: string; icon: React.ReactNode }[] = [
+        { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={17} /> },
+        { id: 'clients', label: 'Clients', icon: <Users size={17} /> },
+        { id: 'buy', label: 'Buy Credits', icon: <Wallet size={17} /> },
+        { id: 'billing', label: 'Billing', icon: <ReceiptText size={17} /> },
+        { id: 'profile', label: 'Profile', icon: <UserRound size={17} /> },
+    ]
 
     return (
-        <div className="mx-auto max-w-4xl px-5 py-8">
-            {/* header */}
-            <div className="mb-8 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500 font-black text-black">DX</div>
-                    <div>
-                        <p className="text-sm font-semibold">{reseller?.displayName || user?.email}</p>
-                        <p className="text-xs text-neutral-400">Reseller dashboard</p>
+        <div className="flex min-h-screen">
+            {/* sidebar */}
+            <aside className="hidden w-60 shrink-0 flex-col border-r border-white/10 bg-neutral-900/50 p-4 sm:flex">
+                <div className="mb-8 flex items-center gap-2.5 px-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gold-500 font-black text-black">DX</div>
+                    <span className="text-sm font-bold">Reseller</span>
+                </div>
+                <nav className="space-y-1">
+                    {navItems.map((n) => (
+                        <button key={n.id} onClick={() => setView(n.id)}
+                            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${view === n.id ? 'bg-gold-500/15 text-gold-300' : 'text-neutral-400 hover:bg-white/5 hover:text-white'}`}>
+                            {n.icon} {n.label}
+                        </button>
+                    ))}
+                </nav>
+                <button onClick={() => signOut(auth)} className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-neutral-400 hover:bg-white/5 hover:text-white">
+                    <LogOut size={17} /> Sign out
+                </button>
+            </aside>
+
+            {/* main */}
+            <main className="flex-1">
+                {/* topbar */}
+                <div className="flex items-center justify-between border-b border-white/10 px-5 py-3.5">
+                    <div className="flex items-center gap-2 sm:hidden">
+                        <select value={view} onChange={(e) => setView(e.target.value as View)} className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm">
+                            {navItems.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
+                        </select>
+                    </div>
+                    <h1 className="hidden text-lg font-semibold capitalize sm:block">{view === 'buy' ? 'Buy Credits' : view}</h1>
+                    <div className="flex items-center gap-3">
+                        <div className="rounded-xl border border-gold-500/30 bg-gold-500/10 px-3.5 py-1.5">
+                            <span className="text-[10px] uppercase tracking-wide text-gold-300/80">Credits </span>
+                            <span className="font-bold text-gold-300">{reseller?.credits ?? 0}</span>
+                        </div>
+                        <button onClick={() => setView('buy')} className="rounded-lg bg-gold-500 px-3 py-1.5 text-sm font-semibold text-black hover:bg-gold-400">Buy</button>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="rounded-xl border border-gold-500/30 bg-gold-500/10 px-4 py-2 text-right">
-                        <p className="text-[10px] uppercase tracking-wide text-gold-300/80">Credits</p>
-                        <p className="text-lg font-bold text-gold-300">{reseller?.credits ?? 0}</p>
-                    </div>
-                    <button onClick={() => signOut(auth)} className="rounded-lg border border-white/10 p-2.5 text-neutral-300 hover:bg-white/5" title="Sign out">
-                        <LogOut size={16} />
-                    </button>
+
+                <div className="p-5">
+                    {view === 'overview' && <Overview stats={stats} ledger={ledger} name={reseller?.displayName || user.email || ''} onBuy={() => setView('buy')} />}
+                    {view === 'clients' && <Clients plans={plans} clients={clients} showToast={showToast} />}
+                    {view === 'buy' && <BuyCredits packages={packages} showToast={showToast} />}
+                    {view === 'billing' && <Billing ledger={ledger} />}
+                    {view === 'profile' && <Profile uid={user.uid} reseller={reseller} showToast={showToast} />}
                 </div>
+            </main>
+
+            {toast && <div className="fixed bottom-5 right-5 rounded-lg border border-gold-500/40 bg-neutral-900 px-4 py-2.5 text-sm shadow-lg">{toast}</div>}
+        </div>
+    )
+}
+
+// ── Overview ────────────────────────────────────────────────────────────
+function Overview({ stats, ledger, name, onBuy }: { stats: { total: number; active: number; soon: number }; ledger: Ledger[]; name: string; onBuy: () => void }) {
+    return (
+        <div className="space-y-6">
+            <p className="text-sm text-neutral-400">Welcome back, <span className="text-white">{name}</span>.</p>
+            <div className="grid gap-4 sm:grid-cols-3">
+                <StatCard label="Active clients" value={stats.active} icon={<Users size={18} />} />
+                <StatCard label="Expiring in 7 days" value={stats.soon} icon={<RefreshCw size={18} />} accent={stats.soon > 0} />
+                <StatCard label="Total clients" value={stats.total} icon={<Ticket size={18} />} />
             </div>
-
-            {user && !user.emailVerified && (
-                <div className="mb-5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-200">
-                    Please verify your email — we sent you a link.
+            <div className="rounded-2xl border border-white/10 bg-neutral-900/60">
+                <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
+                    <span className="text-sm font-semibold">Recent activity</span>
+                    <button onClick={onBuy} className="text-xs text-gold-400 hover:underline">Buy credits</button>
                 </div>
-            )}
+                {ledger.length === 0 ? (
+                    <p className="px-5 py-8 text-center text-sm text-neutral-500">No activity yet.</p>
+                ) : (
+                    <ul className="divide-y divide-white/5">
+                        {ledger.slice(0, 8).map((l) => (
+                            <li key={l.id} className="flex items-center justify-between px-5 py-3 text-sm">
+                                <span className="capitalize text-neutral-300">{l.reason}</span>
+                                <span className={l.delta >= 0 ? 'text-emerald-400' : 'text-neutral-400'}>{l.delta >= 0 ? '+' : ''}{l.delta} cr</span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+        </div>
+    )
+}
+function StatCard({ label, value, icon, accent }: { label: string; value: number; icon: React.ReactNode; accent?: boolean }) {
+    return (
+        <div className={`rounded-2xl border p-5 ${accent ? 'border-amber-500/30 bg-amber-500/5' : 'border-white/10 bg-neutral-900/60'}`}>
+            <div className="mb-2 flex items-center gap-2 text-neutral-400">{icon}<span className="text-xs uppercase tracking-wide">{label}</span></div>
+            <p className="text-2xl font-bold">{value}</p>
+        </div>
+    )
+}
 
-            {/* activate a client */}
-            <div className="mb-6 rounded-2xl border border-white/10 bg-neutral-900/60 p-5">
+// ── Clients ─────────────────────────────────────────────────────────────
+function Clients({ plans, clients, showToast }: { plans: Plan[]; clients: Client[]; showToast: (t: string) => void }) {
+    const [code, setCode] = useState('')
+    const [planId, setPlanId] = useState('')
+    const [busy, setBusy] = useState(false)
+    useEffect(() => { setPlanId((cur) => cur || plans[0]?.id || '') }, [plans])
+
+    async function call(name: 'activateClient' | 'renewClient', payload: object) {
+        setBusy(true)
+        try {
+            const res = await httpsCallable(functions, name)(payload)
+            const d = res.data as { creditsLeft?: number }
+            showToast(`Done. Credits left: ${d?.creditsLeft ?? '—'}.`)
+            if (name === 'activateClient') setCode('')
+        } catch (e) { showToast(errText(e)) } finally { setBusy(false) }
+    }
+
+    return (
+        <div className="space-y-5">
+            <div className="rounded-2xl border border-white/10 bg-neutral-900/60 p-5">
                 <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Ticket size={16} /> Add a client</h2>
-                <form onSubmit={activate} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <form onSubmit={(e) => { e.preventDefault(); if (code.trim() && planId) call('activateClient', { activationCode: code.trim(), planId }) }} className="flex flex-col gap-3 sm:flex-row sm:items-end">
                     <label className="flex-1">
                         <span className="mb-1.5 block text-xs uppercase tracking-wide text-neutral-400">Activation code (from the TV)</span>
-                        <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="XXXX-XXXX"
-                            className="w-full rounded-lg border border-white/10 bg-white/5 px-3.5 py-2.5 font-mono text-sm text-white placeholder:text-neutral-500 outline-none focus:border-gold-500/60" />
+                        <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="XXXX-XXXX" className="w-full rounded-lg border border-white/10 bg-white/5 px-3.5 py-2.5 font-mono text-sm outline-none focus:border-gold-500/60" />
                     </label>
                     <label className="sm:w-56">
                         <span className="mb-1.5 block text-xs uppercase tracking-wide text-neutral-400">Plan</span>
-                        <select value={planId} onChange={(e) => setPlanId(e.target.value)}
-                            className="w-full rounded-lg border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white outline-none focus:border-gold-500/60">
+                        <select value={planId} onChange={(e) => setPlanId(e.target.value)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm outline-none focus:border-gold-500/60">
                             {plans.length === 0 && <option value="">No plans yet</option>}
-                            {plans.map((p) => (
-                                <option key={p.id} value={p.id}>{p.name} · {p.cost} cr</option>
-                            ))}
+                            {plans.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.cost} cr</option>)}
                         </select>
                     </label>
-                    <button disabled={busy || !code.trim() || !planId}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-gold-500 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-gold-400 disabled:opacity-50">
-                        <Plus size={16} /> Activate
-                    </button>
+                    <button disabled={busy || !code.trim() || !planId} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-gold-500 px-4 py-2.5 text-sm font-semibold text-black hover:bg-gold-400 disabled:opacity-50"><Plus size={16} /> Activate</button>
                 </form>
-                {selectedPlan && (
-                    <p className="mt-2 text-xs text-neutral-400">
-                        {selectedPlan.tier === 'premium' ? 'Premium (IPTV + Debrid)' : 'Normal (IPTV)'} · {selectedPlan.months} month(s) · costs {selectedPlan.cost} credits
-                    </p>
-                )}
-                {msg && (
-                    <p className={`mt-3 text-sm ${msg.kind === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{msg.text}</p>
-                )}
             </div>
-
-            {/* client list */}
             <div className="rounded-2xl border border-white/10 bg-neutral-900/60">
                 <div className="border-b border-white/10 px-5 py-3 text-sm font-semibold">Your clients ({clients.length})</div>
-                {clients.length === 0 ? (
-                    <p className="px-5 py-8 text-center text-sm text-neutral-500">No clients yet. Enter a device's activation code above.</p>
-                ) : (
+                {clients.length === 0 ? <p className="px-5 py-8 text-center text-sm text-neutral-500">No clients yet. Enter a device's activation code above.</p> : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
-                            <thead className="text-left text-xs uppercase tracking-wide text-neutral-500">
-                                <tr className="border-b border-white/5">
-                                    <th className="px-5 py-2.5 font-medium">Code</th>
-                                    <th className="px-3 py-2.5 font-medium">Tier</th>
-                                    <th className="px-3 py-2.5 font-medium">Status</th>
-                                    <th className="px-3 py-2.5 font-medium">Expires</th>
-                                    <th className="px-5 py-2.5" />
-                                </tr>
-                            </thead>
+                            <thead className="text-left text-xs uppercase tracking-wide text-neutral-500"><tr className="border-b border-white/5">
+                                <th className="px-5 py-2.5 font-medium">Code</th><th className="px-3 py-2.5 font-medium">Tier</th><th className="px-3 py-2.5 font-medium">Status</th><th className="px-3 py-2.5 font-medium">Expires</th><th className="px-5 py-2.5" />
+                            </tr></thead>
                             <tbody>
                                 {clients.map((c) => (
                                     <tr key={c.id} className="border-b border-white/5 last:border-0">
                                         <td className="px-5 py-3 font-mono">{c.activationCode || c.id.slice(0, 8)}</td>
-                                        <td className="px-3 py-3">
-                                            <span className={c.tier === 'premium' ? 'text-gold-300' : 'text-neutral-300'}>{c.tier || '—'}</span>
-                                        </td>
+                                        <td className="px-3 py-3"><span className={c.tier === 'premium' ? 'text-gold-300' : 'text-neutral-300'}>{c.tier || '—'}</span></td>
                                         <td className="px-3 py-3"><StatusPill status={c.status} expiresAt={c.expiresAt} /></td>
                                         <td className="px-3 py-3 text-neutral-300">{fmtDate(c.expiresAt)}</td>
-                                        <td className="px-5 py-3 text-right">
-                                            <button onClick={() => renew(c.id)} disabled={busy || !planId}
-                                                className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2.5 py-1.5 text-xs text-neutral-200 hover:bg-white/5 disabled:opacity-50">
-                                                <RefreshCw size={13} /> Renew
-                                            </button>
-                                        </td>
+                                        <td className="px-5 py-3 text-right"><button onClick={() => planId && call('renewClient', { installId: c.id, planId })} disabled={busy || !planId} className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2.5 py-1.5 text-xs hover:bg-white/5 disabled:opacity-50"><RefreshCw size={13} /> Renew</button></td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -199,20 +228,115 @@ export default function DashboardPage() {
     )
 }
 
+// ── Buy Credits ─────────────────────────────────────────────────────────
+function BuyCredits({ packages, showToast }: { packages: Pkg[]; showToast: (t: string) => void }) {
+    return (
+        <div className="space-y-5">
+            <p className="text-sm text-neutral-400">Buy credits, then use them to activate and renew your clients.</p>
+            {packages.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-neutral-900/60 p-8 text-center text-sm text-neutral-500">
+                    No credit packages available yet. Please check back soon.
+                </div>
+            ) : (
+                <div className="grid gap-4 sm:grid-cols-3">
+                    {packages.map((p) => (
+                        <div key={p.id} className="rounded-2xl border border-white/10 bg-neutral-900/60 p-5">
+                            <p className="text-sm text-neutral-400">{p.name}</p>
+                            <p className="mt-2 text-3xl font-bold text-gold-300">{p.credits}<span className="text-base font-normal text-neutral-400"> cr</span></p>
+                            {p.bonus ? <p className="text-xs text-emerald-400">+{p.bonus} bonus</p> : null}
+                            <p className="mt-1 text-sm text-neutral-300">${p.priceUsd.toFixed(2)}</p>
+                            <button onClick={() => showToast('Checkout coming soon (PayPal).')} className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gold-500 px-4 py-2.5 text-sm font-semibold text-black hover:bg-gold-400">
+                                <CreditCard size={16} /> Buy
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+            <p className="text-xs text-neutral-500">Payments are processed securely. Credits are added automatically once your payment is confirmed.</p>
+        </div>
+    )
+}
+
+// ── Billing ─────────────────────────────────────────────────────────────
+function Billing({ ledger }: { ledger: Ledger[] }) {
+    return (
+        <div className="rounded-2xl border border-white/10 bg-neutral-900/60">
+            <div className="border-b border-white/10 px-5 py-3 text-sm font-semibold">Credit history</div>
+            {ledger.length === 0 ? <p className="px-5 py-8 text-center text-sm text-neutral-500">No transactions yet.</p> : (
+                <table className="w-full text-sm">
+                    <thead className="text-left text-xs uppercase tracking-wide text-neutral-500"><tr className="border-b border-white/5"><th className="px-5 py-2.5 font-medium">When</th><th className="px-3 py-2.5 font-medium">Type</th><th className="px-3 py-2.5 font-medium">Change</th><th className="px-5 py-2.5 font-medium">Balance</th></tr></thead>
+                    <tbody>
+                        {ledger.map((l) => (
+                            <tr key={l.id} className="border-b border-white/5 last:border-0">
+                                <td className="px-5 py-3 text-neutral-400">{fmtDateTime(l.at)}</td>
+                                <td className="px-3 py-3 capitalize">{l.reason}</td>
+                                <td className={`px-3 py-3 ${l.delta >= 0 ? 'text-emerald-400' : 'text-neutral-300'}`}>{l.delta >= 0 ? '+' : ''}{l.delta}</td>
+                                <td className="px-5 py-3 text-neutral-300">{l.balanceAfter ?? '—'}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+        </div>
+    )
+}
+
+// ── Profile ─────────────────────────────────────────────────────────────
+function Profile({ uid, reseller, showToast }: { uid: string; reseller: ReturnType<typeof useAuth>['reseller']; showToast: (t: string) => void }) {
+    const [form, setForm] = useState({ displayName: '', phone: '', country: '', contact: '' })
+    const [pw, setPw] = useState({ current: '', next: '' })
+    const [busy, setBusy] = useState(false)
+    useEffect(() => {
+        if (reseller) setForm({ displayName: reseller.displayName || '', phone: (reseller as { phone?: string }).phone || '', country: (reseller as { country?: string }).country || '', contact: (reseller as { contact?: string }).contact || '' })
+    }, [reseller])
+
+    async function saveProfile() {
+        setBusy(true)
+        try { await setDoc(doc(db, 'resellers', uid), form, { merge: true }); showToast('Profile saved.') }
+        catch (e) { showToast(errText(e)) } finally { setBusy(false) }
+    }
+    async function changePassword() {
+        const u = auth.currentUser
+        if (!u || !u.email) return
+        if (pw.next.length < 6) { showToast('New password must be at least 6 characters.'); return }
+        setBusy(true)
+        try {
+            await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, pw.current))
+            await updatePassword(u, pw.next)
+            setPw({ current: '', next: '' }); showToast('Password changed.')
+        } catch (e) { showToast(errText(e)) } finally { setBusy(false) }
+    }
+    const inp = 'w-full rounded-lg border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm outline-none focus:border-gold-500/60'
+    return (
+        <div className="grid max-w-3xl gap-5 md:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-neutral-900/60 p-5">
+                <h2 className="mb-4 text-sm font-semibold">Your details</h2>
+                <div className="space-y-3">
+                    <div><span className="mb-1 block text-xs uppercase tracking-wide text-neutral-400">Business name</span><input className={inp} value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} /></div>
+                    <div><span className="mb-1 block text-xs uppercase tracking-wide text-neutral-400">Phone</span><input className={inp} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+                    <div><span className="mb-1 block text-xs uppercase tracking-wide text-neutral-400">Country</span><select className={inp} value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })}><option value="">Select…</option>{COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+                    <div><span className="mb-1 block text-xs uppercase tracking-wide text-neutral-400">WhatsApp / Telegram</span><input className={inp} value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} /></div>
+                    <button onClick={saveProfile} disabled={busy} className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-black hover:bg-gold-400 disabled:opacity-50">Save profile</button>
+                </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-neutral-900/60 p-5">
+                <h2 className="mb-4 text-sm font-semibold">Change password</h2>
+                <div className="space-y-3">
+                    <div><span className="mb-1 block text-xs uppercase tracking-wide text-neutral-400">Current password</span><input type="password" className={inp} value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} /></div>
+                    <div><span className="mb-1 block text-xs uppercase tracking-wide text-neutral-400">New password</span><input type="password" className={inp} value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} /></div>
+                    <button onClick={changePassword} disabled={busy} className="rounded-lg border border-white/10 px-4 py-2 text-sm hover:bg-white/5 disabled:opacity-50">Update password</button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+// ── shared bits ─────────────────────────────────────────────────────────
 function StatusPill({ status, expiresAt }: { status?: string; expiresAt?: number }) {
     const expired = status === 'active' && expiresAt && expiresAt > 0 && expiresAt < Date.now()
     const label = expired ? 'expired' : status || 'unknown'
-    const cls = expired
-        ? 'bg-red-500/15 text-red-300'
-        : status === 'active'
-            ? 'bg-emerald-500/15 text-emerald-300'
-            : status === 'pending'
-                ? 'bg-amber-500/15 text-amber-300'
-                : 'bg-white/10 text-neutral-300'
+    const cls = expired ? 'bg-red-500/15 text-red-300' : status === 'active' ? 'bg-emerald-500/15 text-emerald-300' : status === 'pending' ? 'bg-amber-500/15 text-amber-300' : 'bg-white/10 text-neutral-300'
     return <span className={`rounded-full px-2 py-0.5 text-xs ${cls}`}>{label}</span>
 }
-
-function fmtDate(ms?: number): string {
-    if (!ms || ms <= 0) return '—'
-    return new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-}
+function fmtDate(ms?: number): string { return !ms || ms <= 0 ? '—' : new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) }
+function fmtDateTime(ms?: number): string { return !ms || ms <= 0 ? '—' : new Date(ms).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }

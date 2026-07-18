@@ -6,6 +6,9 @@ import { auth, db } from '../firebase'
 export interface Reseller {
     email: string
     displayName?: string
+    phone?: string
+    country?: string
+    contact?: string
     credits: number
     status: string
     clientCount?: number
