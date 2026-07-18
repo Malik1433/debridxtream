@@ -119,3 +119,36 @@
 
 @keyframes modFadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 .mod .animate-in { animation: modFadeUp 0.5s ease both; }
+
+/* Dashboard shell */
+.mod .dash { display: flex; min-height: 100vh; }
+.mod .dash-sidebar { width: 240px; flex: none; border-right: 2px solid var(--color-divider); position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; }
+.mod .dash-main { flex: 1; min-width: 0; }
+.mod .dash-mobilenav { display: none; }
+.mod .navitem { padding: 10px 20px; font-size: 13px; border-left: 2px solid transparent; background: none; text-align: left; cursor: pointer; color: var(--color-text); display: flex; align-items: center; gap: 10px; font-family: var(--font-heading); }
+.mod .navitem:hover { background: var(--color-neutral-100); }
+.mod .navitem.active { border-left-color: var(--color-accent); background: var(--color-accent-100); font-weight: 700; }
+
+/* Grids (2px divider gaps) */
+.mod .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--color-divider); border: 2px solid var(--color-divider); }
+.mod .grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 2px; background: var(--color-divider); border: 2px solid var(--color-divider); }
+.mod .grid4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 2px; background: var(--color-divider); border: 2px solid var(--color-divider); }
+.mod .cell { background: var(--color-bg); padding: 22px 20px; }
+
+@media (max-width: 960px) { .mod .grid4 { grid-template-columns: 1fr 1fr; } .mod .grid3 { grid-template-columns: 1fr; } }
+@media (max-width: 768px) {
+    .mod .dash-sidebar { display: none; }
+    .mod .dash-mobilenav { display: block; }
+    .mod .split-panel { display: none; }
+}
+@media (max-width: 480px) { .mod .grid4, .mod .grid2 { grid-template-columns: 1fr; } }
+
+/* Responsive form grids (columns live here so media queries can override) */
+.mod .add-client-grid { display: grid; grid-template-columns: 1fr 220px auto; gap: 12px; align-items: end; }
+.mod .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; max-width: 900px; }
+.mod .mod-split { display: grid; grid-template-columns: 380px 1fr; min-height: 100vh; }
+@media (max-width: 768px) {
+    .mod .add-client-grid { grid-template-columns: 1fr; }
+    .mod .profile-grid { grid-template-columns: 1fr; }
+    .mod .mod-split { grid-template-columns: 1fr; }
+}

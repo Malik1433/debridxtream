@@ -17,8 +17,8 @@ export function Field({ label, children }: { label: React.ReactNode; children: R
 /** Split layout used by Sign Up: dark benefits panel (left) + form (right). */
 export function SplitShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
     return (
-        <div className="mod" style={{ display: 'grid', gridTemplateColumns: '380px 1fr', minHeight: '100vh' }}>
-            <div style={{ background: '#201e1d', color: '#f3f2f2', padding: '40px 36px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }} className="mod-authpanel">
+        <div className="mod mod-split">
+            <div style={{ background: '#201e1d', color: '#f3f2f2', padding: '40px 36px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }} className="split-panel">
                 <DxLogo onDark />
                 <div>
                     <h2 style={{ color: '#f3f2f2', fontSize: 26, marginBottom: 24 }}>Sell streams.<br />Keep the profit.</h2>
