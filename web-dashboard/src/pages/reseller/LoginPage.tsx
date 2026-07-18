@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../../firebase'
-import { AuthShell, Field, btnCls, errText, inputCls } from './SignupPage'
+import { AuthShell, Field, btnCls, errText, inputCls } from './authUi'
 
 export default function LoginPage() {
     const nav = useNavigate()

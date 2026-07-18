@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import ConfigPage from './pages/ConfigPage'
 import SignupPage from './pages/reseller/SignupPage'
 import LoginPage from './pages/reseller/LoginPage'
+import VerifyEmailPage from './pages/reseller/VerifyEmailPage'
 import DashboardPage from './pages/reseller/DashboardPage'
 import './index.css'
 
@@ -22,6 +23,7 @@ function App() {
                     <Route path="/reseller" element={<DashboardPage />} />
                     <Route path="/reseller/login" element={<LoginPage />} />
                     <Route path="/reseller/signup" element={<SignupPage />} />
+                    <Route path="/reseller/verify" element={<VerifyEmailPage />} />
                 </Routes>
             </div>
         </Router>

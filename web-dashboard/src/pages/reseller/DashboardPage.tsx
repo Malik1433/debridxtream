@@ -6,7 +6,7 @@ import { httpsCallable } from 'firebase/functions'
 import { LogOut, Plus, RefreshCw, Ticket } from 'lucide-react'
 import { auth, db, functions } from '../../firebase'
 import { useAuth } from '../../reseller/useAuth'
-import { errText } from './SignupPage'
+import { errText } from './authUi'
 
 interface Plan { id: string; name: string; tier: string; months: number; cost: number }
 interface Client {
@@ -29,7 +29,10 @@ export default function DashboardPage() {
     const [planId, setPlanId] = useState('')
 
     useEffect(() => {
-        if (!loading && !user) nav('/reseller/login', { replace: true })
+        if (loading) return
+        if (!user) { nav('/reseller/login', { replace: true }); return }
+        // Hard gate: no dashboard access until the email is verified.
+        if (!user.emailVerified) nav('/reseller/verify', { replace: true })
     }, [loading, user, nav])
 
     // Plans catalogue (owner-defined).
