@@ -65,6 +65,8 @@
       <button id="tabDevices" class="on" onclick="showTab('devices')">Devices</button>
       <button id="tabResellers" onclick="showTab('resellers')">Resellers</button>
       <button id="tabPlans" onclick="showTab('plans')">Plans</button>
+      <button id="tabPackages" onclick="showTab('packages')">Packages</button>
+      <button id="tabOrders" onclick="showTab('orders')">Orders</button>
       <button id="tabUpdates" onclick="showTab('updates')">App Update</button>
       <button id="tabSettings" onclick="showTab('settings')">Licensing</button>
     </div>
@@ -132,6 +134,38 @@
         </div>
       </div>
     </div>
+
+    <!-- PACKAGES -->
+    <div id="packages" class="card hidden" style="max-width:720px">
+      <h3>Credit packages (<span class="code">credit_packages</span>) — what a reseller can BUY</h3>
+      <p class="muted" style="margin-top:8px">Each package sells a number of credits for a USD price. Resellers see these on the Buy Credits page.</p>
+      <table>
+        <thead><tr><th>Name</th><th>Credits</th><th>Bonus</th><th>Price (USD)</th><th style="width:90px"></th></tr></thead>
+        <tbody id="pkgRows"></tbody>
+      </table>
+      <div class="card" style="margin-top:16px;background:#0E1524">
+        <div class="row">
+          <label class="field" style="margin-top:0"><span>Name</span><input type="text" id="kName" placeholder="Starter" style="width:150px"></label>
+          <label class="field" style="margin-top:0"><span>Credits</span><input type="text" id="kCredits" value="50" style="width:80px"></label>
+          <label class="field" style="margin-top:0"><span>Bonus</span><input type="text" id="kBonus" value="0" style="width:70px"></label>
+          <label class="field" style="margin-top:0"><span>Price USD</span><input type="text" id="kPrice" value="25" style="width:80px"></label>
+          <button class="primary" style="margin-top:20px" onclick="addPackage()">Add package</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ORDERS -->
+    <div id="orders" class="card hidden">
+      <div class="row" style="justify-content:space-between">
+        <input type="text" id="oSearch" placeholder="Search reseller / provider ref…" style="width:280px" oninput="renderOrders()">
+        <span class="muted" id="oCount"></span>
+      </div>
+      <table>
+        <thead><tr><th>When</th><th>Reseller</th><th>Package</th><th>Credits</th><th>Amount</th><th>Status</th><th>Provider</th></tr></thead>
+        <tbody id="orderRows"></tbody>
+      </table>
+      <p class="muted" style="margin-top:12px">Orders are created + marked paid by the payment functions (Phase 3). Read-only here.</p>
+    </div>
   </div>
 </div>
 <div id="toast"></div>
@@ -168,17 +202,19 @@ auth.onAuthStateChanged(async user => {
   if (user) {
     login.classList.add('hidden'); app.classList.remove('hidden'); who.classList.remove('hidden');
     document.getElementById('whoEmail').textContent = user.email;
-    attachDevices(); attachResellers(); attachPlans(); loadVersion(); loadEnforce();
+    attachDevices(); attachResellers(); attachPlans(); attachPackages(); attachOrders(); loadVersion(); loadEnforce();
   } else {
     login.classList.remove('hidden'); app.classList.add('hidden'); who.classList.add('hidden');
     if (unsub) { unsub(); unsub=null; }
     if (unsubRes) { unsubRes(); unsubRes=null; }
     if (unsubPlans) { unsubPlans(); unsubPlans=null; }
+    if (unsubPkgs) { unsubPkgs(); unsubPkgs=null; }
+    if (unsubOrders) { unsubOrders(); unsubOrders=null; }
   }
 });
 
 function showTab(name){
-  ['devices','resellers','plans','updates','settings'].forEach(t=>{
+  ['devices','resellers','plans','packages','orders','updates','settings'].forEach(t=>{
     document.getElementById(t).classList.toggle('hidden', t!==name);
     document.getElementById('tab'+t[0].toUpperCase()+t.slice(1)).classList.toggle('on', t===name);
   });
@@ -353,6 +389,75 @@ function addPlan(){
   if(months<=0){ toast('Months must be > 0'); return; }
   if(!Number.isFinite(cost)||cost<0){ toast('Cost must be 0 or more'); return; }
   db.collection('plans').add({name, tier, months, cost}).then(()=>{ toast('Plan added'); document.getElementById('pName').value=''; }).catch(e=>toast('Failed: '+e.message));
+}
+
+// ---- Credit packages ----
+let packages = [], unsubPkgs = null;
+function attachPackages(){
+  if (unsubPkgs) unsubPkgs();
+  unsubPkgs = db.collection('credit_packages').onSnapshot(s => {
+    packages = s.docs.map(d => ({ id:d.id, ...d.data() }));
+    packages.sort((a,b) => (a.priceUsd||0)-(b.priceUsd||0));
+    renderPackages();
+  }, e => toast('Packages load failed: '+e.message));
+}
+function renderPackages(){
+  const rows=document.getElementById('pkgRows'); rows.innerHTML='';
+  if (!packages.length){ rows.innerHTML='<tr><td colspan="5" class="muted">No packages yet — add one below.</td></tr>'; return; }
+  for (const p of packages){
+    const tr=document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.name||p.id}</td>
+      <td style="font-weight:600">${p.credits||0}</td>
+      <td class="muted">${p.bonus||0}</td>
+      <td>$${(p.priceUsd||0).toFixed(2)}</td>
+      <td></td>`;
+    const del=document.createElement('button'); del.className='bad'; del.textContent='✕';
+    del.onclick=()=>{ if(confirm('Delete package "'+(p.name||p.id)+'"?')) db.collection('credit_packages').doc(p.id).delete().then(()=>toast('Deleted')).catch(e=>toast(e.message)); };
+    tr.children[4].appendChild(del);
+    rows.appendChild(tr);
+  }
+}
+function addPackage(){
+  const name=document.getElementById('kName').value.trim();
+  const credits=parseInt(document.getElementById('kCredits').value);
+  const bonus=parseInt(document.getElementById('kBonus').value)||0;
+  const priceUsd=parseFloat(document.getElementById('kPrice').value);
+  if(!name){ toast('Enter a package name'); return; }
+  if(!Number.isFinite(credits)||credits<=0){ toast('Credits must be > 0'); return; }
+  if(!Number.isFinite(priceUsd)||priceUsd<=0){ toast('Price must be > 0'); return; }
+  db.collection('credit_packages').add({name, credits, bonus, priceUsd}).then(()=>{ toast('Package added'); document.getElementById('kName').value=''; }).catch(e=>toast('Failed: '+e.message));
+}
+
+// ---- Orders (read-only) ----
+let orders = [], unsubOrders = null;
+function attachOrders(){
+  if (unsubOrders) unsubOrders();
+  unsubOrders = db.collection('orders').onSnapshot(s => {
+    orders = s.docs.map(d => ({ id:d.id, ...d.data() }));
+    orders.sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+    renderOrders();
+  }, e => toast('Orders load failed: '+e.message));
+}
+function renderOrders(){
+  const q=(document.getElementById('oSearch').value||'').toLowerCase();
+  const rows=document.getElementById('orderRows'); rows.innerHTML='';
+  const list=orders.filter(o => !q || (o.resellerEmail||'').toLowerCase().includes(q) || (o.providerRef||'').toLowerCase().includes(q));
+  document.getElementById('oCount').textContent = list.length + ' order(s)';
+  if (!list.length){ rows.innerHTML='<tr><td colspan="7" class="muted">No orders yet.</td></tr>'; return; }
+  for (const o of list){
+    const tr=document.createElement('tr');
+    const st=o.status||'pending';
+    tr.innerHTML = `
+      <td class="muted">${fmtTime(o.createdAt)}</td>
+      <td>${o.resellerEmail||o.resellerId||'—'}</td>
+      <td>${o.packageName||o.packageId||'—'}</td>
+      <td style="font-weight:600">${o.credits||0}</td>
+      <td>${o.currency||'USD'} ${(o.amount||0).toFixed ? (o.amount).toFixed(2) : o.amount}</td>
+      <td><span class="chip ${st==='paid'?'active':st==='failed'?'inactive':'pending'}">${st.toUpperCase()}</span></td>
+      <td class="muted code">${o.provider||'—'}</td>`;
+    rows.appendChild(tr);
+  }
 }
 </script>
 </body>

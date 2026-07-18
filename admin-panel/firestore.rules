@@ -122,6 +122,23 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── Credit packages (what a reseller can BUY) ───────────────────────
+    // Read-all so the Buy Credits page lists them; only the owner sets price/credits.
+    match /credit_packages/{pkgId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── Orders (credit purchases) ───────────────────────────────────────
+    // A reseller reads their own orders. Orders are CREATED and marked paid only by
+    // the checkout/webhook Cloud Functions (admin SDK) so the amount + credit grant
+    // are server-validated — a client can never self-create a paid order.
+    match /orders/{orderId} {
+      allow read: if isAdmin() ||
+        (isSignedIn() && resource.data.resellerId == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
     // Everything else: locked.
     match /{document=**} {
       allow read, write: if false;
