@@ -17,6 +17,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.paging.CombinedLoadStates
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
@@ -46,6 +47,12 @@ class SeriesDetailFragmentV2 : Fragment() {
     @javax.inject.Inject
     lateinit var watchedStateRepository: com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
 
+    // Used to resolve a YouTube trailer from TMDB when the Xtream series has none
+    // (parity with the movie detail page, which enriches via TMDB).
+    @javax.inject.Inject
+    lateinit var tmdbRemoteDataSource: com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
+    private var trailerLookupStarted = false
+
     private val viewModel: SeriesDetailViewModelV2 by viewModels()
     private var adapter: EpisodesAdapterV2? = null
     private var streamAdapter: StreamPanelAdapter? = null
@@ -60,6 +67,9 @@ class SeriesDetailFragmentV2 : Fragment() {
     private var pendingStreamFocus = false
 
     companion object {
+        /** Empty strip within this window after open = still loading, not "No episodes". */
+        private const val EPISODES_GRACE_MS = 12_000L
+
         const val ARG_SERIES_ID = "series_id"
         const val ARG_TITLE = "title"
         const val ARG_BACKDROP_URL = "backdrop_url"
@@ -94,8 +104,30 @@ class SeriesDetailFragmentV2 : Fragment() {
         setupEpisodes()
         setupStreamPanel()
         setupListeners()
+        setupFocusAnimations()
         setupObservers()
         setupBackHandling()
+    }
+
+    /**
+     * Clear D-pad focus feedback on the top action row — the series page had none, so the
+     * Play button barely showed focus (the movie page, which has this, felt "perfect").
+     * Scale only (no alpha) so it never fights the Trailer button's enabled/disabled alpha.
+     */
+    private fun setupFocusAnimations() {
+        listOf(binding.btnPlay, binding.btnTrailer, binding.btnFavorite, binding.btnSeasonSelector).forEach { v ->
+            v.setOnFocusChangeListener { view, hasFocus ->
+                view.animate().cancel()
+                if (hasFocus) {
+                    view.elevation = 8f // draw above neighbours without reordering the row
+                    view.animate().scaleX(1.08f).scaleY(1.08f).setDuration(180)
+                        .setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+                } else {
+                    view.animate().scaleX(1f).scaleY(1f).setDuration(140)
+                        .withEndAction { view.elevation = 0f }.start()
+                }
+            }
+        }
     }
 
     private fun setupOptimisticUI() {
@@ -125,17 +157,79 @@ class SeriesDetailFragmentV2 : Fragment() {
         binding.rvEpisodes.adapter = adapter
         binding.rvEpisodes.itemAnimator = null
 
+        pageOpenedAt = android.os.SystemClock.elapsedRealtime()
+        // Re-evaluate once the grace window lapses so a genuinely-dead listing flips
+        // from the skeleton to "No episodes" even without a new LoadState emission.
+        binding.root.postDelayed({
+            if (_binding != null) evaluateEpisodesLoadingUi()
+        }, EPISODES_GRACE_MS + 250)
+
         lifecycleScope.launch {
             adapter?.loadStateFlow?.collect { states ->
-                val empty = states.refresh is LoadState.NotLoading && (adapter?.itemCount ?: 0) == 0
-                val loading = states.refresh is LoadState.Loading ||
-                    states.mediator?.refresh is LoadState.Loading
-                binding.pbLoadingCentral.visibility =
-                    if ((loading || (adapter?.itemCount ?: 0) == 0) && states.refresh !is LoadState.Error && !empty)
-                        View.VISIBLE else View.GONE
-                binding.tvEmptyEpisodes.visibility = if (empty) View.VISIBLE else View.GONE
-                if (empty) binding.tvEmptyEpisodes.text = "No episodes"
+                lastEpisodeLoadStates = states
+                evaluateEpisodesLoadingUi()
             }
+        }
+    }
+
+    /**
+     * Episodes strip loading/empty UI. Room paging reports "empty" instantly on a
+     * cold open while get_series_info is still on the wire — so an empty strip only
+     * counts as truly empty AFTER the grace window; until then the shimmer skeleton
+     * shows so the user can see something is loading.
+     */
+    private fun evaluateEpisodesLoadingUi() {
+        val b = _binding ?: return
+        val states = lastEpisodeLoadStates ?: return
+        val count = adapter?.itemCount ?: 0
+        val loading = states.refresh is LoadState.Loading ||
+            states.mediator?.refresh is LoadState.Loading
+        val error = states.refresh is LoadState.Error
+        val withinGrace =
+            android.os.SystemClock.elapsedRealtime() - pageOpenedAt < EPISODES_GRACE_MS
+        val emptySettled =
+            states.refresh is LoadState.NotLoading && count == 0 && !loading && !withinGrace
+        val showSkeleton = count == 0 && !error && !emptySettled
+        b.pbLoadingCentral.visibility = View.GONE
+        b.llEpisodesLoading.visibility = if (showSkeleton) View.VISIBLE else View.GONE
+        if (showSkeleton) startEpisodeShimmer() else stopEpisodeShimmer()
+        b.tvEmptyEpisodes.visibility = if (emptySettled) View.VISIBLE else View.GONE
+        if (emptySettled) b.tvEmptyEpisodes.text = "No episodes"
+    }
+
+    private var episodeShimmerRunning = false
+    private var pageOpenedAt = 0L
+    private var lastEpisodeLoadStates: CombinedLoadStates? = null
+
+    private fun startEpisodeShimmer() {
+        if (episodeShimmerRunning) return
+        episodeShimmerRunning = true
+        val container = binding.llEpisodesLoading
+        for (i in 0 until container.childCount) {
+            val shimmer = container.getChildAt(i)
+                ?.findViewById<View>(com.tvonnet.debridxtreamiptv.R.id.v_shimmer) ?: continue
+            val anim = android.view.animation.TranslateAnimation(
+                android.view.animation.Animation.RELATIVE_TO_PARENT, -1.0f,
+                android.view.animation.Animation.RELATIVE_TO_PARENT, 1.0f,
+                android.view.animation.Animation.RELATIVE_TO_PARENT, 0f,
+                android.view.animation.Animation.RELATIVE_TO_PARENT, 0f
+            ).apply {
+                duration = 1200L + (i * 80L)
+                repeatCount = android.view.animation.Animation.INFINITE
+                repeatMode = android.view.animation.Animation.RESTART
+                interpolator = android.view.animation.LinearInterpolator()
+            }
+            shimmer.startAnimation(anim)
+        }
+    }
+
+    private fun stopEpisodeShimmer() {
+        if (!episodeShimmerRunning) return
+        episodeShimmerRunning = false
+        val container = binding.llEpisodesLoading
+        for (i in 0 until container.childCount) {
+            container.getChildAt(i)
+                ?.findViewById<View>(com.tvonnet.debridxtreamiptv.R.id.v_shimmer)?.clearAnimation()
         }
     }
 
@@ -299,6 +393,49 @@ class SeriesDetailFragmentV2 : Fragment() {
             adapter?.notifyItemRangeChanged(0, adapter?.itemCount ?: 0, Any())
         }
         updateTrailerButtonState()
+        maybeResolveTrailer(s.title ?: s.name, year)
+    }
+
+    /**
+     * If the Xtream series carried no trailer, look one up on TMDB (search TV by title,
+     * then read the trailer from the appended `videos`). Runs at most once; the Trailer
+     * button enables the moment a key is found.
+     */
+    private fun maybeResolveTrailer(title: String?, year: String?) {
+        if (trailerLookupStarted) return
+        if (TrailerValueParser.parse(resolvedTrailer) != null) return
+        val cleanTitle = title?.trim().orEmpty()
+        if (cleanTitle.isEmpty()) return
+        trailerLookupStarted = true
+        viewLifecycleOwner.lifecycleScope.launch {
+            val key = runCatching { fetchTmdbTrailerKey(cleanTitle, year) }.getOrNull()
+            if (_binding == null || key.isNullOrBlank()) return@launch
+            resolvedTrailer = key
+            updateTrailerButtonState()
+        }
+    }
+
+    private suspend fun fetchTmdbTrailerKey(title: String, year: String?): String? {
+        val search = tmdbRemoteDataSource.searchTvShows(query = title)
+        val results = (search as? com.tvonnet.debridxtreamiptv.data.Result.Success)?.data?.results ?: return null
+        if (results.isEmpty()) return null
+        // Prefer an exact title match, then one whose first-air year matches the hint.
+        val best = results.firstOrNull { it.name.equals(title, true) && (year == null || it.firstAirDate?.take(4) == year) }
+            ?: results.firstOrNull { it.name.equals(title, true) }
+            ?: results.firstOrNull { year != null && it.firstAirDate?.take(4) == year }
+            ?: results.first()
+        val tvId = best.id ?: return null
+        val details = tmdbRemoteDataSource.getSeriesDetails(tvId)
+        val videos = (details as? com.tvonnet.debridxtreamiptv.data.Result.Success)?.data?.videos?.results ?: return null
+        return videos
+            .asSequence()
+            .filter { it.site.equals("YouTube", true) && !it.key.isNullOrBlank() }
+            .sortedWith(
+                compareByDescending<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbVideo> { it.type.equals("Trailer", true) }
+                    .thenByDescending { it.official == true }
+            )
+            .firstOrNull()
+            ?.key
     }
 
     private fun bindSeriesTotals(seasons: Int, episodes: Int) {
