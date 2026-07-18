@@ -56,6 +56,17 @@ class LicensePreferences(context: Context) {
         get() = prefs.getBoolean(KEY_ENFORCE, false)
         set(value) = prefs.edit().putBoolean(KEY_ENFORCE, value).apply()
 
+    /**
+     * HMAC tamper-evidence tag over the entitlement fields (see LicenseIntegrity).
+     * Empty until first sealed.
+     */
+    var integrityTag: String
+        get() = prefs.getString(KEY_INTEGRITY_TAG, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_INTEGRITY_TAG, value).apply()
+
+    /** Canonical serialization of the fields covered by the integrity tag. */
+    fun canonicalForSigning(): String = "v1|$status|$tier|$expiresAt|$createdAt|$enforce"
+
     /** True when the last known state grants access (active + not expired). */
     fun isCurrentlyEntitled(now: Long = System.currentTimeMillis()): Boolean {
         if (status != STATUS_ACTIVE) return false
@@ -74,6 +85,7 @@ class LicensePreferences(context: Context) {
         private const val KEY_DOC_CREATED = "doc_created"
         private const val KEY_ENFORCE = "enforce"
         private const val KEY_CREATED_AT = "created_at"
+        private const val KEY_INTEGRITY_TAG = "integrity_tag"
 
         const val STATUS_UNKNOWN = "unknown"
         const val STATUS_PENDING = "pending"

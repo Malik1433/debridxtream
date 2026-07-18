@@ -9,6 +9,7 @@ import com.google.firebase.firestore.SetOptions
 import com.tvonnet.debridxtreamiptv.BuildConfig
 import com.tvonnet.debridxtreamiptv.data.prefs.IdentityPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.LicensePreferences
+import com.tvonnet.debridxtreamiptv.util.AppIntegrity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -76,8 +77,24 @@ class LicenseManager private constructor(context: Context) {
     fun isEntitledCached(): Boolean =
         !cache.enforce || cache.isCurrentlyEntitled() || isTrialActive()
 
-    /** Instant premium check (used by [Entitlements]). */
-    fun isPremiumCached(): Boolean = cache.isPremium()
+    /** True when the app is running under the expected release certificate (see [AppIntegrity]). */
+    fun appIntegrityOk(): Boolean = AppIntegrity.isTrustedSignature(appContext)
+
+    /** The cached entitlement fields still match their tamper-evidence tag. */
+    private fun cacheTrusted(): Boolean = LicenseIntegrity.verify(cache, installId)
+
+    /**
+     * Instant premium check (used by [Entitlements]). Premium (the paid Debrid tier) is
+     * granted only when BOTH the app signature is trusted (not repacked/re-signed) AND
+     * the cached state is untampered — a rooted prefs edit to tier=premium breaks the
+     * tag and is rejected. Basic access stays fail-open elsewhere so this never bricks IPTV.
+     */
+    fun isPremiumCached(): Boolean =
+        appIntegrityOk() && cacheTrusted() && cache.isPremium()
+
+    /** Trial premium, gated by the same integrity checks (createdAt is covered by the tag). */
+    fun isTrialActiveTrusted(now: Long = System.currentTimeMillis()): Boolean =
+        appIntegrityOk() && cacheTrusted() && isTrialActive(now)
 
     /** Whether global licensing enforcement is currently on (cached). */
     fun isEnforced(): Boolean = cache.enforce
@@ -125,6 +142,7 @@ class LicenseManager private constructor(context: Context) {
             .addSnapshotListener { snap, e ->
                 if (e == null && snap != null && snap.exists()) {
                     cache.enforce = snap.getBoolean("enforce") ?: false
+                    LicenseIntegrity.seal(cache, installId) // re-seal: enforce is covered by the tag
                     _state.value = cachedState()
                 }
             }
@@ -169,15 +187,25 @@ class LicenseManager private constructor(context: Context) {
                 cache.docCreated = true
                 cache.status = snapshot.getString("status") ?: cache.status
                 cache.tier = snapshot.getString("tier") ?: LicensePreferences.TIER_NORMAL
-                cache.expiresAt = snapshot.getLong("expiresAt") ?: 0L
-                // createdAt is now a server Timestamp (older docs may still hold a Long).
-                // A brand-new doc's serverTimestamp is null in the local echo until the
-                // server resolves it — keep the previous value until then.
-                cache.createdAt =
-                    snapshot.getTimestamp("createdAt")?.toDate()?.time
-                        ?: snapshot.getLong("createdAt")
-                        ?: cache.createdAt
+                // Robust to either a Long (millis) or a Firestore Timestamp (both throw via
+                // the typed getters if the stored type differs).
+                cache.expiresAt = when (val raw = snapshot.get("expiresAt")) {
+                    is com.google.firebase.Timestamp -> raw.toDate().time
+                    is Number -> raw.toLong()
+                    else -> 0L
+                }
+                // createdAt is now a server Timestamp (older docs may still hold a Long, and
+                // a brand-new doc's serverTimestamp is null in the local echo until the server
+                // resolves it). getTimestamp()/getLong() THROW on the wrong type, so branch on
+                // the raw value instead and keep the previous value when it's absent/pending.
+                cache.createdAt = when (val raw = snapshot.get("createdAt")) {
+                    is com.google.firebase.Timestamp -> raw.toDate().time
+                    is Number -> raw.toLong()
+                    else -> cache.createdAt
+                }
                 if (cache.isCurrentlyEntitled()) cache.lastActiveAt = System.currentTimeMillis()
+                // Seal the freshly-synced entitlement so a later rooted prefs edit is detected.
+                LicenseIntegrity.seal(cache, installId)
             }
             _state.value = cachedState()
         }

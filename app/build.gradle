@@ -7,6 +7,15 @@ plugins {
     id 'com.google.gms.google-services'
 }
 
+// Release signing + anti-repack config, kept OUT of git (keystore.properties is
+// .gitignored). Absent on dev/CI → every lookup returns "", so signing falls back to
+// debug and the signature self-check is a no-op. See keystore.properties.example.
+def keystoreProps = new Properties()
+def keystorePropsFile = rootProject.file('keystore.properties')
+if (keystorePropsFile.exists()) {
+    keystoreProps.load(keystorePropsFile.newDataInputStream())
+}
+
 android {
     namespace 'com.tvonnet.debridxtreamiptv'
     compileSdk 35  // Updated to latest API level for better TV support
@@ -30,6 +39,29 @@ android {
         }
         def tmdbKey = properties.getProperty("TMDB_API_KEY") ?: ""
         buildConfigField "String", "TMDB_API_KEY", "\"${tmdbKey}\""
+
+        // Anti-repack signature self-check. Owner puts the RELEASE signing cert's
+        // SHA-256 (uppercase hex, no colons) in keystore.properties; the app then
+        // refuses premium if it's running under a different (re-signed / repacked)
+        // certificate. Empty by default → the check is a NO-OP (debug/dev unaffected),
+        // so this is safe to ship before release signing is set up. See AppIntegrity.
+        def expectedSig = keystoreProps.getProperty("EXPECTED_SIGNING_SHA256", "")
+        buildConfigField "String", "EXPECTED_SIGNING_SHA256", "\"${expectedSig}\""
+    }
+
+    // Release signing (SCAFFOLD, inert until keystore.properties exists). Create it from
+    // keystore.properties.example with a private release key you generate + BACK UP
+    // (lose it → the app can never ship an in-place update again). Switching an already
+    // installed debug-signed build to release signing needs a one-time uninstall+reinstall.
+    signingConfigs {
+        release {
+            if (keystoreProps.containsKey('storeFile')) {
+                storeFile file(keystoreProps.getProperty('storeFile'))
+                storePassword keystoreProps.getProperty('storePassword')
+                keyAlias keystoreProps.getProperty('keyAlias')
+                keyPassword keystoreProps.getProperty('keyPassword')
+            }
+        }
     }
 
     buildTypes {
@@ -37,6 +69,11 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Use the release key only when configured; otherwise Gradle falls back to
+            // the default (debug) signing so dev/CI builds keep working.
+            if (keystoreProps.containsKey('storeFile')) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 

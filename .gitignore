@@ -103,3 +103,6 @@ app/build/
 
 # Firebase deploy cache
 .firebase/
+
+# Release signing + anti-repack (never commit the real one)
+keystore.properties

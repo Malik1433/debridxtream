@@ -20,6 +20,8 @@ object Entitlements {
     /** Whether Debrid surfaces should exist at all for this device right now. */
     fun isDebridAllowed(context: Context): Boolean {
         val lm = LicenseManager.getInstance(context)
-        return !lm.isEnforced() || lm.isPremiumCached() || lm.isTrialActive()
+        // Fail-open only while enforcement is off. Once enforced, the paid tier requires a
+        // trusted signature + untampered cache (isPremiumCached / isTrialActiveTrusted).
+        return !lm.isEnforced() || lm.isPremiumCached() || lm.isTrialActiveTrusted()
     }
 }
