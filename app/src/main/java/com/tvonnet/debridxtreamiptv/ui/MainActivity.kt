@@ -9,7 +9,9 @@ import android.view.KeyEvent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.commit
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
@@ -69,6 +71,18 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, com.tvonnet.debridxtreamiptv.ui.licensing.ActivationActivity::class.java))
             finish()
             return
+        }
+        // Lock promptly if the admin revokes this device WHILE the app is running
+        // (deactivate or delete) — don't wait for the next cold launch.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                license.state.collect { st ->
+                    if (st is com.tvonnet.debridxtreamiptv.data.licensing.LicenseState.Locked && !isFinishing) {
+                        startActivity(Intent(this@MainActivity, com.tvonnet.debridxtreamiptv.ui.licensing.ActivationActivity::class.java))
+                        finish()
+                    }
+                }
+            }
         }
 
         // Check if already logged in

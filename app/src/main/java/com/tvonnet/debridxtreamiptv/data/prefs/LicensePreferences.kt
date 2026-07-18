@@ -47,6 +47,15 @@ class LicensePreferences(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_DOC_CREATED, value).apply()
 
     /**
+     * True once this device has ever been genuinely entitled (admin-activated). A device
+     * that was activated and then removed must NOT get a fresh 7-day trial when it
+     * re-registers as pending — otherwise deleting a client just resets it to trial.
+     */
+    var everEntitled: Boolean
+        get() = prefs.getBoolean(KEY_EVER_ENTITLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_EVER_ENTITLED, value).apply()
+
+    /**
      * Global enforcement switch, mirrored from `app_config/licensing.enforce`.
      * Defaults to FALSE (fail-open) so shipping the gate never locks anyone out until
      * the owner explicitly turns enforcement on — and a Firestore outage can never brick
@@ -83,6 +92,7 @@ class LicensePreferences(context: Context) {
         private const val KEY_EXPIRES_AT = "expires_at"
         private const val KEY_LAST_ACTIVE_AT = "last_active_at"
         private const val KEY_DOC_CREATED = "doc_created"
+        private const val KEY_EVER_ENTITLED = "ever_entitled"
         private const val KEY_ENFORCE = "enforce"
         private const val KEY_CREATED_AT = "created_at"
         private const val KEY_INTEGRITY_TAG = "integrity_tag"

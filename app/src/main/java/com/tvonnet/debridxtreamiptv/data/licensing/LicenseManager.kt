@@ -106,6 +106,10 @@ class LicenseManager private constructor(context: Context) {
      */
     fun isTrialActive(now: Long = System.currentTimeMillis()): Boolean {
         if (cache.status != LicensePreferences.STATUS_PENDING) return false
+        // A device that was previously activated does NOT get a fresh trial when it
+        // re-registers as pending (e.g. after an admin deletes it) — otherwise "remove
+        // client" would just reset it to a 7-day trial.
+        if (cache.everEntitled) return false
         val created = cache.createdAt
         return created > 0L && now < created + TRIAL_DURATION_MS
     }
@@ -135,6 +139,12 @@ class LicenseManager private constructor(context: Context) {
     fun start() {
         if (listener != null) return
         try { FirebaseFirestore.setLoggingEnabled(false) } catch (_: Exception) {}
+
+        // Migration/backfill: a device that is entitled right now counts as
+        // ever-entitled, so if the admin later removes it, re-registering as pending
+        // can't hand it a fresh 7-day trial. (Captures devices that were active before
+        // the everEntitled flag existed.)
+        if (cache.isCurrentlyEntitled()) cache.everEntitled = true
 
         // Global enforcement switch (fail-open default). Kept separate so the owner can
         // roll the gate out safely: ship code with enforce=false, flip to true when ready.
@@ -183,6 +193,17 @@ class LicenseManager private constructor(context: Context) {
 
         listener = docRef.addSnapshotListener { snapshot, e ->
             if (e != null) { Log.w(TAG, "license listen error", e); return@addSnapshotListener }
+            if (snapshot != null && !snapshot.exists()) {
+                // The admin DELETED this device's license. Under enforcement that is a
+                // revocation — drop entitlement so the gate locks (a fresh pending doc
+                // re-created on next launch won't grant a trial either, see everEntitled).
+                if (cache.enforce && cache.status != LicensePreferences.STATUS_INACTIVE) {
+                    cache.status = LicensePreferences.STATUS_INACTIVE
+                    LicenseIntegrity.seal(cache, installId)
+                }
+                _state.value = cachedState()
+                return@addSnapshotListener
+            }
             if (snapshot != null && snapshot.exists()) {
                 cache.docCreated = true
                 cache.status = snapshot.getString("status") ?: cache.status
@@ -203,7 +224,10 @@ class LicenseManager private constructor(context: Context) {
                     is Number -> raw.toLong()
                     else -> cache.createdAt
                 }
-                if (cache.isCurrentlyEntitled()) cache.lastActiveAt = System.currentTimeMillis()
+                if (cache.isCurrentlyEntitled()) {
+                    cache.lastActiveAt = System.currentTimeMillis()
+                    cache.everEntitled = true // remember activation → no fresh trial after removal
+                }
                 // Seal the freshly-synced entitlement so a later rooted prefs edit is detected.
                 LicenseIntegrity.seal(cache, installId)
             }
