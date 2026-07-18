@@ -1,0 +1,121 @@
+/* ── Modernist Gold design system (Reseller Portal + Admin) ─────────────────
+   Light, flat, editorial. Scoped under .mod so it never touches the existing
+   dark ConfigPage. Tokens + component classes from the design handoff spec. */
+
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap');
+
+.mod {
+    --color-bg: #f3f2f2;
+    --color-text: #201e1d;
+    --color-divider: #e5e3e2;
+    --color-accent: #FFAA00;
+    --color-accent-100: #FFFBEB;
+    --color-accent-200: #FEF3C7;
+    --color-accent-300: #FDE68A;
+    --color-accent-600: #D97706;
+    --color-accent-700: #B45309;
+    --color-accent-800: #92400E;
+    --dx-success: #22C55E;
+    --dx-danger: #FF3355;
+    --dx-amber: #F59E0B;
+    --color-neutral-100: #f0efee;
+    --color-neutral-200: #e5e3e2;
+    --color-neutral-300: #d6d3d1;
+    --color-neutral-600: #57534e;
+    --color-neutral-700: #44403c;
+    --font-heading: 'Archivo', system-ui, sans-serif;
+    --font-mono: 'Share Tech Mono', ui-monospace, monospace;
+
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-heading);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+}
+
+.mod h1, .mod h2, .mod h3, .mod h4, .mod h5 { font-family: var(--font-heading); font-weight: 800; letter-spacing: -0.03em; margin: 0; }
+.mod h1 { font-size: 52px; line-height: 1.05; }
+.mod h2 { font-size: 30px; }
+.mod a { color: var(--color-accent); text-decoration: none; }
+.mod a:hover { color: var(--color-accent-600); }
+.mod .mono { font-family: var(--font-mono); letter-spacing: 0.06em; }
+.mod .text-muted { opacity: 0.5; }
+
+/* Layout */
+.mod .page-wrap { max-width: 1200px; margin: 0 auto; padding: 0 32px; }
+
+/* Buttons — labels flush left, never rounded */
+.mod .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--font-heading); font-weight: 700; font-size: 13px;
+    padding: 9px 16px; border: 2px solid transparent; border-radius: 0;
+    background: transparent; color: var(--color-text); cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s; text-decoration: none;
+}
+.mod .btn:disabled { opacity: 0.5; cursor: default; }
+.mod .btn-primary { background: var(--color-accent); color: #201e1d; }
+.mod .btn-primary:hover:not(:disabled) { background: var(--color-accent-600); }
+.mod .btn-secondary { border-color: var(--color-divider); color: var(--color-text); }
+.mod .btn-secondary:hover:not(:disabled) { border-color: var(--color-accent); color: var(--color-accent-700); }
+.mod .btn-ghost { color: var(--color-text); }
+.mod .btn-ghost:hover:not(:disabled) { color: var(--color-accent-700); }
+.mod .btn-block { display: flex; width: 100%; justify-content: flex-start; }
+.mod .btn-danger { background: #991b1b; color: #fff; }
+
+/* Form fields */
+.mod .field { display: flex; flex-direction: column; gap: 6px; }
+.mod .field label { font-size: 13px; font-weight: 600; }
+.mod .input {
+    width: 100%; border: 2px solid var(--color-divider); border-radius: 0;
+    background: var(--color-bg); color: var(--color-text);
+    padding: 8px 10px; font-size: 14px; font-family: var(--font-heading); outline: none;
+}
+.mod textarea.input { resize: vertical; }
+.mod .input:focus { border-color: var(--color-accent); }
+.mod .input::placeholder { color: var(--color-text); opacity: 0.35; }
+
+/* Tables */
+.mod .table { width: 100%; border-collapse: collapse; }
+.mod .table th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    font-weight: 700; opacity: 0.55; padding: 12px 14px; border-bottom: 2px solid var(--color-divider);
+}
+.mod .table td { padding: 13px 14px; border-bottom: 1px solid var(--color-divider); font-size: 13px; }
+.mod .table tr:last-child td { border-bottom: 0; }
+
+/* Chips */
+.mod .chip { display: inline-block; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; padding: 2px 8px; }
+.mod .chip-active { background: #d1fae5; color: #065f46; }
+.mod .chip-expiring { background: #fef3c7; color: #92400e; }
+.mod .chip-expired { background: #fee2e2; color: #991b1b; }
+.mod .chip-pending { background: var(--color-neutral-200); color: var(--color-neutral-600); }
+.mod .chip-trial { background: #dbeafe; color: #1e40af; }
+.mod .chip-inactive { background: var(--color-neutral-200); color: var(--color-neutral-600); }
+.mod .chip-suspended { background: #fee2e2; color: #991b1b; }
+.mod .chip-paid { background: #d1fae5; color: #065f46; }
+.mod .chip-failed { background: #fee2e2; color: #991b1b; }
+.mod .chip-premium { background: #ede9fe; color: #5b21b6; }
+.mod .chip-normal { background: var(--color-neutral-100); color: var(--color-neutral-700); }
+
+/* Card / section primitives */
+.mod .card { border: 2px solid var(--color-divider); background: var(--color-bg); }
+.mod .hr { border: 0; border-top: 2px solid var(--color-divider); margin: 20px 0; }
+.mod .kicker { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-accent); font-weight: 700; }
+
+/* Small table action button (admin) */
+.mod .tbl-btn { border: 1px solid var(--color-divider); border-radius: 0; padding: 3px 8px; font-size: 11px; font-weight: 700; background: none; color: var(--color-text); cursor: pointer; }
+.mod .tbl-btn:hover { border-color: var(--color-accent); color: var(--color-accent-700); }
+.mod .tbl-btn.danger:hover { border-color: #991b1b; color: #991b1b; }
+.mod .tbl-btn.green:hover { border-color: #065f46; color: #065f46; }
+
+/* Toggle */
+.mod .toggle { width: 48px; height: 26px; border-radius: 13px; border: none; position: relative; cursor: pointer; background: var(--color-neutral-300); transition: background .2s; }
+.mod .toggle::after { content: ''; position: absolute; width: 20px; height: 20px; border-radius: 50%; background: #fff; top: 3px; left: 3px; box-shadow: 0 1px 4px rgba(0,0,0,0.25); transition: left .2s; }
+.mod .toggle.on { background: var(--dx-success); }
+.mod .toggle.on::after { left: 25px; }
+
+/* Toast */
+.mod-toast { position: fixed; bottom: 24px; right: 24px; z-index: 200; background: #201e1d; color: #f3f2f2; border-left: 3px solid #FFAA00; padding: 11px 17px; font-size: 13px; font-weight: 500; font-family: 'Archivo', sans-serif; }
+
+@keyframes modFadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+.mod .animate-in { animation: modFadeUp 0.5s ease both; }

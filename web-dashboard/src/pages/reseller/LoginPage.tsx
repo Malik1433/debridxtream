@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../../firebase'
-import { AuthShell, Field, btnCls, errText, inputCls } from './authUi'
+import { CardShell, Field, errText } from './authUi'
 
 export default function LoginPage() {
     const nav = useNavigate()
@@ -15,32 +15,19 @@ export default function LoginPage() {
         e.preventDefault()
         setError('')
         setBusy(true)
-        try {
-            await signInWithEmailAndPassword(auth, email.trim(), password)
-            nav('/reseller')
-        } catch (err: unknown) {
-            setError(errText(err))
-        } finally {
-            setBusy(false)
-        }
+        try { await signInWithEmailAndPassword(auth, email.trim(), password); nav('/reseller') }
+        catch (err: unknown) { setError(errText(err)) } finally { setBusy(false) }
     }
 
     return (
-        <AuthShell title="Reseller sign in" subtitle="Manage your clients and credits.">
-            <form onSubmit={submit} className="space-y-4">
-                <Field label="Email">
-                    <input className={inputCls} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-                </Field>
-                <Field label="Password">
-                    <input className={inputCls} type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" />
-                </Field>
-                {error && <p className="text-sm text-red-400">{error}</p>}
-                <button disabled={busy} className={btnCls}>{busy ? 'Signing in…' : 'Sign in'}</button>
+        <CardShell title="Reseller sign in" subtitle="Manage your clients and credits.">
+            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <Field label="Email"><input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" /></Field>
+                <Field label="Password"><input className="input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" /></Field>
+                {error && <p style={{ color: 'var(--dx-danger)', fontSize: 13, margin: 0 }}>{error}</p>}
+                <button disabled={busy} className="btn btn-primary btn-block" style={{ padding: '11px 16px', fontSize: 14 }}>{busy ? 'Signing in…' : 'Sign in'}</button>
             </form>
-            <p className="mt-6 text-center text-sm text-neutral-400">
-                New here?{' '}
-                <Link to="/reseller/signup" className="text-gold-400 hover:underline">Create an account</Link>
-            </p>
-        </AuthShell>
+            <p style={{ marginTop: 24, fontSize: 14, opacity: 0.7 }}>New here? <Link to="/reseller/signup">Create an account</Link></p>
+        </CardShell>
     )
 }

@@ -1,49 +1,42 @@
-import { Check, CreditCard, Users } from 'lucide-react'
+import { Check } from 'lucide-react'
 
-export const inputCls =
-    'w-full rounded-lg border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-gold-500/60'
-export const btnCls =
-    'w-full rounded-lg bg-gold-500 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-gold-400 disabled:opacity-50'
-
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** DX logomark: dark square, gold "DX", + wordmark. */
+export function DxLogo({ onDark = false }: { onDark?: boolean }) {
     return (
-        <label className="block">
-            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-neutral-400">{label}</span>
-            {children}
-        </label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 30, height: 30, background: onDark ? '#FFAA00' : '#201e1d', color: onDark ? '#201e1d' : '#FFAA00', fontFamily: 'Archivo', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>DX</div>
+            <span style={{ fontFamily: 'Archivo', fontWeight: 800, fontSize: 17, color: onDark ? '#f3f2f2' : 'inherit' }}>DebridXtream</span>
+        </div>
     )
 }
 
-/** Two-column auth layout: brand/benefits panel + the form card. Single column on mobile. */
-export function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+export function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
+    return <label className="field">{label && <span>{label}</span>}{children}</label>
+}
+
+/** Split layout used by Sign Up: dark benefits panel (left) + form (right). */
+export function SplitShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
     return (
-        <div className="grid min-h-screen lg:grid-cols-2">
-            {/* brand panel */}
-            <div className="relative hidden overflow-hidden bg-gradient-to-br from-neutral-900 to-black lg:flex lg:flex-col lg:justify-between lg:p-12">
-                <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold-500 font-black text-black">DX</div>
-                    <span className="text-lg font-bold">DebridXtream · Reseller</span>
-                </div>
+        <div className="mod" style={{ display: 'grid', gridTemplateColumns: '380px 1fr', minHeight: '100vh' }}>
+            <div style={{ background: '#201e1d', color: '#f3f2f2', padding: '40px 36px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }} className="mod-authpanel">
+                <DxLogo onDark />
                 <div>
-                    <h2 className="max-w-sm text-3xl font-bold leading-tight">Sell and manage your clients, your way.</h2>
-                    <ul className="mt-8 space-y-4 text-sm text-neutral-300">
-                        <Benefit icon={<CreditCard size={16} />} text="Buy credits and activate devices instantly" />
-                        <Benefit icon={<Users size={16} />} text="One dashboard for every client you manage" />
-                        <Benefit icon={<Check size={16} />} text="Renew, track expiry, and stay in control" />
+                    <h2 style={{ color: '#f3f2f2', fontSize: 26, marginBottom: 24 }}>Sell streams.<br />Keep the profit.</h2>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {['Buy credits wholesale', 'Activate any device by its TV code', 'Renew & track expiry in one place', 'Set your own prices'].map((b) => (
+                            <li key={b} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 14, opacity: 0.9 }}>
+                                <span style={{ width: 18, height: 18, background: '#FFAA00', color: '#201e1d', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}><Check size={12} strokeWidth={3} /></span>{b}
+                            </li>
+                        ))}
                     </ul>
                 </div>
-                <p className="text-xs text-neutral-500">© DebridXtream — reseller portal</p>
-                <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-gold-500/10 blur-3xl" />
+                <p style={{ fontSize: 12, opacity: 0.4, margin: 0 }}>© 2026 DebridXtream — reseller portal</p>
             </div>
-
-            {/* form side */}
-            <div className="flex flex-col justify-center px-5 py-10 sm:px-10">
-                <div className="mx-auto w-full max-w-md">
-                    <div className="mb-8">
-                        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500 font-black text-black lg:hidden">DX</div>
-                        <h1 className="text-2xl font-bold">{title}</h1>
-                        <p className="mt-1 text-sm text-neutral-400">{subtitle}</p>
-                    </div>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px' }}>
+                <div style={{ width: '100%', maxWidth: 460, margin: '0 auto' }}>
+                    <div className="kicker" style={{ marginBottom: 10 }}>Reseller Program</div>
+                    <h2 style={{ marginBottom: 6 }}>{title}</h2>
+                    <p style={{ opacity: 0.6, fontSize: 15, marginTop: 0, marginBottom: 28 }}>{subtitle}</p>
                     {children}
                 </div>
             </div>
@@ -51,12 +44,17 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
     )
 }
 
-function Benefit({ icon, text }: { icon: React.ReactNode; text: string }) {
+/** Centered card used by Sign In / Verify. */
+export function CardShell({ title, subtitle, children, maxWidth = 440 }: { title: string; subtitle: string; children: React.ReactNode; maxWidth?: number }) {
     return (
-        <li className="flex items-center gap-3">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-500/15 text-gold-300">{icon}</span>
-            {text}
-        </li>
+        <div className="mod" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div style={{ width: '100%', maxWidth }}>
+                <div style={{ marginBottom: 24 }}><DxLogo /></div>
+                <h2 style={{ marginBottom: 6 }}>{title}</h2>
+                <p style={{ opacity: 0.6, fontSize: 15, marginTop: 0, marginBottom: 28 }}>{subtitle}</p>
+                {children}
+            </div>
+        </div>
     )
 }
 
@@ -72,7 +70,6 @@ export function errText(err: unknown): string {
     return (err as { message?: string })?.message || 'Something went wrong.'
 }
 
-// A compact country list (extend as needed).
 export const COUNTRIES = [
     'United States', 'United Kingdom', 'Canada', 'Germany', 'France', 'Netherlands',
     'Spain', 'Italy', 'Pakistan', 'India', 'United Arab Emirates', 'Saudi Arabia',
