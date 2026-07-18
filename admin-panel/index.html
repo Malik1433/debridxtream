@@ -63,6 +63,8 @@
   <div id="app" class="hidden">
     <div class="tabs">
       <button id="tabDevices" class="on" onclick="showTab('devices')">Devices</button>
+      <button id="tabResellers" onclick="showTab('resellers')">Resellers</button>
+      <button id="tabPlans" onclick="showTab('plans')">Plans</button>
       <button id="tabUpdates" onclick="showTab('updates')">App Update</button>
       <button id="tabSettings" onclick="showTab('settings')">Licensing</button>
     </div>
@@ -97,6 +99,38 @@
       <p class="muted" style="margin-top:8px">OFF = every device works (safe rollout default). ON = only devices you activated can use the app. Activate your real clients below before switching ON.</p>
       <label class="switch" style="margin-top:16px"><input type="checkbox" id="sEnforce"><span id="sEnforceLbl">Enforcement is OFF</span></label>
       <div class="row" style="margin-top:18px"><button class="primary" onclick="saveEnforce()">Save</button></div>
+    </div>
+
+    <!-- RESELLERS -->
+    <div id="resellers" class="card hidden">
+      <div class="row" style="justify-content:space-between">
+        <input type="text" id="rSearch" placeholder="Search email / name…" style="width:280px" oninput="renderResellers()">
+        <span class="muted" id="rCount"></span>
+      </div>
+      <table>
+        <thead><tr><th>Reseller</th><th>Status</th><th>Credits</th><th>Clients</th><th style="width:320px">Actions</th></tr></thead>
+        <tbody id="resRows"></tbody>
+      </table>
+      <p class="muted" style="margin-top:12px">Resellers self-register at <span class="code">/reseller/signup</span>. They start with 0 credits — top them up here. Activating/renewing a client spends credits (see Plans).</p>
+    </div>
+
+    <!-- PLANS -->
+    <div id="plans" class="card hidden" style="max-width:720px">
+      <h3>Plans (<span class="code">plans</span>) — what a reseller can sell</h3>
+      <p class="muted" style="margin-top:8px">Each plan sets the tier, duration, and its credit cost. Resellers pick a plan when activating a device.</p>
+      <table>
+        <thead><tr><th>Name</th><th>Tier</th><th>Months</th><th>Cost (credits)</th><th style="width:90px"></th></tr></thead>
+        <tbody id="planRows"></tbody>
+      </table>
+      <div class="card" style="margin-top:16px;background:#0E1524">
+        <div class="row">
+          <label class="field" style="margin-top:0"><span>Name</span><input type="text" id="pName" placeholder="1 Month Premium" style="width:180px"></label>
+          <label class="field" style="margin-top:0"><span>Tier</span><select id="pTier"><option value="premium">premium (IPTV+Debrid)</option><option value="normal">normal (IPTV)</option></select></label>
+          <label class="field" style="margin-top:0"><span>Months</span><input type="text" id="pMonths" value="1" style="width:70px"></label>
+          <label class="field" style="margin-top:0"><span>Cost</span><input type="text" id="pCost" value="1" style="width:70px"></label>
+          <button class="primary" style="margin-top:20px" onclick="addPlan()">Add plan</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -134,15 +168,17 @@ auth.onAuthStateChanged(async user => {
   if (user) {
     login.classList.add('hidden'); app.classList.remove('hidden'); who.classList.remove('hidden');
     document.getElementById('whoEmail').textContent = user.email;
-    attachDevices(); loadVersion(); loadEnforce();
+    attachDevices(); attachResellers(); attachPlans(); loadVersion(); loadEnforce();
   } else {
     login.classList.remove('hidden'); app.classList.add('hidden'); who.classList.add('hidden');
     if (unsub) { unsub(); unsub=null; }
+    if (unsubRes) { unsubRes(); unsubRes=null; }
+    if (unsubPlans) { unsubPlans(); unsubPlans=null; }
   }
 });
 
 function showTab(name){
-  ['devices','updates','settings'].forEach(t=>{
+  ['devices','resellers','plans','updates','settings'].forEach(t=>{
     document.getElementById(t).classList.toggle('hidden', t!==name);
     document.getElementById('tab'+t[0].toUpperCase()+t.slice(1)).classList.toggle('on', t===name);
   });
@@ -235,6 +271,88 @@ function saveEnforce(){
   db.collection('app_config').doc('licensing').set({enforce:sEnforce.checked},{merge:true})
     .then(()=>{ toast('Saved'); sEnforceLbl.textContent='Enforcement is '+(sEnforce.checked?'ON':'OFF'); })
     .catch(e=>toast('Failed: '+e.message));
+}
+
+// ---- Resellers ----
+let resellers = [], unsubRes = null;
+function attachResellers(){
+  if (unsubRes) unsubRes();
+  unsubRes = db.collection('resellers').onSnapshot(s => {
+    resellers = s.docs.map(d => ({ id:d.id, ...d.data() }));
+    resellers.sort((a,b) => (a.email||'').localeCompare(b.email||''));
+    renderResellers();
+  }, e => toast('Resellers load failed: '+e.message));
+}
+function renderResellers(){
+  const q=(document.getElementById('rSearch').value||'').toLowerCase();
+  const rows=document.getElementById('resRows'); rows.innerHTML='';
+  const list=resellers.filter(r => !q || (r.email||'').toLowerCase().includes(q) || (r.displayName||'').toLowerCase().includes(q));
+  document.getElementById('rCount').textContent = list.length + ' reseller(s)';
+  for (const r of list){
+    const tr=document.createElement('tr');
+    const status=r.status||'active';
+    tr.innerHTML = `
+      <td>${r.displayName||'—'}<div class="muted code">${r.email||r.id}</div></td>
+      <td><span class="chip ${status==='active'?'active':'inactive'}">${status.toUpperCase()}</span></td>
+      <td style="font-weight:600">${r.credits||0}</td>
+      <td class="muted">${r.clientCount||0}</td>
+      <td></td>`;
+    const act=tr.children[4]; const rowEl=document.createElement('div'); rowEl.className='row'; act.appendChild(rowEl);
+    const bAdd=document.createElement('button'); bAdd.className='good'; bAdd.textContent='+ Credits';
+    bAdd.onclick=()=>{ const v=prompt('Add how many credits to '+(r.email||r.id)+'? (negative to deduct)','10');
+      if(v===null) return; const n=parseInt(v); if(!Number.isFinite(n)||n===0){ toast('Enter a non-zero number'); return; } addCredits(r, n); };
+    const bTog=document.createElement('button'); bTog.className='ghost';
+    bTog.textContent = status==='active' ? 'Suspend' : 'Reactivate';
+    bTog.onclick=()=>db.collection('resellers').doc(r.id).set({status: status==='active'?'suspended':'active'},{merge:true})
+      .then(()=>toast('Status updated')).catch(e=>toast('Failed: '+e.message));
+    rowEl.append(bAdd,bTog);
+    rows.appendChild(tr);
+  }
+}
+function addCredits(r, amount){
+  const balanceAfter=(r.credits||0)+amount;
+  const batch=db.batch();
+  batch.set(db.collection('resellers').doc(r.id), {credits: firebase.firestore.FieldValue.increment(amount)}, {merge:true});
+  batch.set(db.collection('credit_ledger').doc(), {resellerId:r.id, delta:amount, reason:'topup', licenseId:null, balanceAfter, at:Date.now(), by:auth.currentUser.email});
+  batch.commit().then(()=>toast((amount>0?'Added ':'Deducted ')+Math.abs(amount)+' credits')).catch(e=>toast('Failed: '+e.message));
+}
+
+// ---- Plans ----
+let plans = [], unsubPlans = null;
+function attachPlans(){
+  if (unsubPlans) unsubPlans();
+  unsubPlans = db.collection('plans').onSnapshot(s => {
+    plans = s.docs.map(d => ({ id:d.id, ...d.data() }));
+    plans.sort((a,b) => (a.cost||0)-(b.cost||0));
+    renderPlans();
+  }, e => toast('Plans load failed: '+e.message));
+}
+function renderPlans(){
+  const rows=document.getElementById('planRows'); rows.innerHTML='';
+  if (!plans.length){ rows.innerHTML='<tr><td colspan="5" class="muted">No plans yet — add one below.</td></tr>'; return; }
+  for (const p of plans){
+    const tr=document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.name||p.id}</td>
+      <td><span class="chip ${p.tier==='premium'?'premium':'normal'}">${(p.tier||'normal').toUpperCase()}</span></td>
+      <td>${p.months||0}</td>
+      <td style="font-weight:600">${p.cost||0}</td>
+      <td></td>`;
+    const del=document.createElement('button'); del.className='bad'; del.textContent='✕';
+    del.onclick=()=>{ if(confirm('Delete plan "'+(p.name||p.id)+'"?')) db.collection('plans').doc(p.id).delete().then(()=>toast('Deleted')).catch(e=>toast(e.message)); };
+    tr.children[4].appendChild(del);
+    rows.appendChild(tr);
+  }
+}
+function addPlan(){
+  const name=document.getElementById('pName').value.trim();
+  const tier=document.getElementById('pTier').value;
+  const months=parseInt(document.getElementById('pMonths').value)||0;
+  const cost=parseInt(document.getElementById('pCost').value);
+  if(!name){ toast('Enter a plan name'); return; }
+  if(months<=0){ toast('Months must be > 0'); return; }
+  if(!Number.isFinite(cost)||cost<0){ toast('Cost must be 0 or more'); return; }
+  db.collection('plans').add({name, tier, months, cost}).then(()=>{ toast('Plan added'); document.getElementById('pName').value=''; }).catch(e=>toast('Failed: '+e.message));
 }
 </script>
 </body>
