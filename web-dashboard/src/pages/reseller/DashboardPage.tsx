@@ -170,17 +170,32 @@ function Clients({ plans, clients, showToast }: { plans: Plan[]; clients: Client
     const [code, setCode] = useState('')
     const [planId, setPlanId] = useState('')
     const [busy, setBusy] = useState(false)
+    // Renew confirmation: which client + which plan is being renewed.
+    const [renewFor, setRenewFor] = useState<Client | null>(null)
+    const [renewPlanId, setRenewPlanId] = useState('')
     useEffect(() => { setPlanId((cur) => cur || plans[0]?.id || '') }, [plans])
 
-    async function call(name: 'activateClient' | 'renewClient', payload: object) {
+    async function call(name: 'activateClient' | 'renewClient', payload: object): Promise<boolean> {
         setBusy(true)
         try {
             const res = await httpsCallable(functions, name)(payload)
             const d = res.data as { creditsLeft?: number }
             showToast(`Done. Credits left: ${d?.creditsLeft ?? '—'}.`)
             if (name === 'activateClient') setCode('')
-        } catch (e) { showToast(errText(e)) } finally { setBusy(false) }
+            return true
+        } catch (e) { showToast(errText(e)); return false } finally { setBusy(false) }
     }
+
+    function openRenew(c: Client) {
+        setRenewPlanId(plans[0]?.id || '')
+        setRenewFor(c)
+    }
+    async function confirmRenew() {
+        if (!renewFor || !renewPlanId) return
+        const ok = await call('renewClient', { installId: renewFor.id, planId: renewPlanId })
+        if (ok) setRenewFor(null)
+    }
+    const renewPlan = plans.find((p) => p.id === renewPlanId)
 
     return (
         <div className="space-y-5">
@@ -216,7 +231,7 @@ function Clients({ plans, clients, showToast }: { plans: Plan[]; clients: Client
                                         <td className="px-3 py-3"><span className={c.tier === 'premium' ? 'text-gold-300' : 'text-neutral-300'}>{c.tier || '—'}</span></td>
                                         <td className="px-3 py-3"><StatusPill status={c.status} expiresAt={c.expiresAt} /></td>
                                         <td className="px-3 py-3 text-neutral-300">{fmtDate(c.expiresAt)}</td>
-                                        <td className="px-5 py-3 text-right"><button onClick={() => planId && call('renewClient', { installId: c.id, planId })} disabled={busy || !planId} className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2.5 py-1.5 text-xs hover:bg-white/5 disabled:opacity-50"><RefreshCw size={13} /> Renew</button></td>
+                                        <td className="px-5 py-3 text-right"><button onClick={() => openRenew(c)} disabled={busy || plans.length === 0} className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2.5 py-1.5 text-xs hover:bg-white/5 disabled:opacity-50"><RefreshCw size={13} /> Renew</button></td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -224,6 +239,34 @@ function Clients({ plans, clients, showToast }: { plans: Plan[]; clients: Client
                     </div>
                 )}
             </div>
+
+            {/* Renew confirmation — spending credits should never be a silent one-click. */}
+            {renewFor && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !busy && setRenewFor(null)}>
+                    <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-neutral-900 p-6" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-base font-semibold">Renew client</h3>
+                        <p className="mt-1 text-sm text-neutral-400">
+                            Device <span className="font-mono text-neutral-200">{renewFor.activationCode || renewFor.id.slice(0, 8)}</span>
+                        </p>
+                        <label className="mt-4 block">
+                            <span className="mb-1.5 block text-xs uppercase tracking-wide text-neutral-400">Plan</span>
+                            <select value={renewPlanId} onChange={(e) => setRenewPlanId(e.target.value)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm outline-none focus:border-gold-500/60">
+                                {plans.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.cost} cr · {p.months}mo</option>)}
+                            </select>
+                        </label>
+                        {renewPlan && (
+                            <div className="mt-3 rounded-lg bg-white/5 px-3.5 py-2.5 text-sm text-neutral-300">
+                                Extends by <span className="text-white">{renewPlan.months} month(s)</span> · costs <span className="font-semibold text-gold-300">{renewPlan.cost} credits</span>
+                                <div className="mt-1 text-xs text-neutral-500">New expiry: {fmtDate(Math.max(Date.now(), renewFor.expiresAt || 0) + renewPlan.months * 30 * 864e5)}</div>
+                            </div>
+                        )}
+                        <div className="mt-5 flex gap-3">
+                            <button onClick={() => setRenewFor(null)} disabled={busy} className="flex-1 rounded-lg border border-white/10 px-4 py-2.5 text-sm hover:bg-white/5 disabled:opacity-50">Cancel</button>
+                            <button onClick={confirmRenew} disabled={busy || !renewPlanId} className="flex-1 rounded-lg bg-gold-500 px-4 py-2.5 text-sm font-semibold text-black hover:bg-gold-400 disabled:opacity-50">{busy ? 'Renewing…' : 'Confirm renew'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
