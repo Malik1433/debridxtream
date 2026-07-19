@@ -1019,12 +1019,12 @@ class SeriesFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val counts = viewModel.getEpisodeCounts()
-                if (counts != episodeCountsCache) {
-                    episodeCountsCache = counts
-                    if (seriesPagingAdapter.itemCount > 0) {
-                        seriesPagingAdapter.notifyDataSetChanged()
-                    }
-                }
+                // B-5: only refresh the cache. The old notifyDataSetChanged() here
+                // rebound EVERY visible card (restarting each Glide poster load = a
+                // poster-reload flash on view-create and every onResume) purely to
+                // update episode counts that the series card does NOT display
+                // (SeriesPagingViewHolder.bind never renders `counts`). No rebind needed.
+                episodeCountsCache = counts
             } catch (_: Exception) {}
         }
     }

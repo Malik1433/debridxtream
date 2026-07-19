@@ -14,17 +14,30 @@ class CacheHelper(private val context: Context) {
     private val cacheFileName = "iptv_cache.json"
     
     fun writeCache(cache: IptvCache) {
+        // SY-8: write to a temp file then atomically rename over the real one. The old
+        // direct FileWriter left a half-written iptv_cache.json if the process died
+        // mid-write (multi-MB catalog) — a later read then failed and wiped the cache.
+        val file = File(context.filesDir, cacheFileName)
+        val tmp = File(context.filesDir, "$cacheFileName.tmp")
         var writer: BufferedWriter? = null
         try {
-            val gson = Gson()
-            val file = File(context.filesDir, cacheFileName)
-            writer = BufferedWriter(FileWriter(file))
-            gson.toJson(cache, writer)
+            writer = BufferedWriter(FileWriter(tmp))
+            Gson().toJson(cache, writer)
             writer.flush()
-            inMemoryCache = cache
-            Log.d(TAG, "Cache written successfully (size: ${file.length() / 1024} KB)")
+            writer.close()
+            writer = null
+            if (tmp.renameTo(file)) {
+                inMemoryCache = cache
+                Log.d(TAG, "Cache written successfully (size: ${file.length() / 1024} KB)")
+            } else {
+                // Fallback: copy tmp over file if rename failed (rare cross-fs case).
+                tmp.copyTo(file, overwrite = true)
+                inMemoryCache = cache
+                tmp.delete()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to write cache", e)
+            runCatching { tmp.delete() }
         } finally {
             try {
                 writer?.close()

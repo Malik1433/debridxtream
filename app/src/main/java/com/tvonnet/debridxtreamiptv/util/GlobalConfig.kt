@@ -9,6 +9,10 @@ object GlobalConfig {
     var username: String = ""
     var password: String = ""
 
+    // IMG-7: hoist the regex — was `"\\s+".toRegex()` compiled on EVERY poster bind.
+    private val WHITESPACE = Regex("\\s+")
+    private val DEBUG = com.tvonnet.debridxtreamiptv.BuildConfig.DEBUG
+
     fun isInitialized(): Boolean {
         return baseUrl.isNotEmpty() && username.isNotEmpty() && password.isNotEmpty()
     }
@@ -19,35 +23,29 @@ object GlobalConfig {
      */
     fun resolveIconUrl(path: String?): String? {
         // Strip out any potentially embedded newlines or spaces (e.g. "path \n.png")
-        val trimmedPath = path?.replace("\\s+".toRegex(), "")
+        val trimmedPath = path?.replace(WHITESPACE, "")
         if (trimmedPath.isNullOrBlank()) {
-            android.util.Log.w("IPTV_POSTER", "resolveIconUrl received NULL or BLANK path - returning null")
+            if (DEBUG) android.util.Log.w("IPTV_POSTER", "resolveIconUrl received NULL or BLANK path - returning null")
             return null
         }
-        
-        android.util.Log.d("IPTV_POSTER", "Resolving path: '$trimmedPath' (baseUrl: '$baseUrl')")
-        
+
         // If it's already an absolute URL, return as is
         if (trimmedPath.startsWith("http")) {
-            android.util.Log.d("IPTV_POSTER", "Resolved as Absolute: $trimmedPath")
             return trimmedPath
         }
 
         // Relative path resolution
         val base = baseUrl
         if (base.isNullOrBlank()) {
-            android.util.Log.w("IPTV_POSTER", "WARNING: Returning raw path '$trimmedPath' - cannot resolve yet (baseUrl is EMPTY)")
+            if (DEBUG) android.util.Log.w("IPTV_POSTER", "Returning raw path - cannot resolve yet (baseUrl is EMPTY)")
             return trimmedPath // Return raw instead of null so it can be resolved later
         }
 
-        val resolved = if (trimmedPath.startsWith("/")) {
+        return if (trimmedPath.startsWith("/")) {
             "${base.trimEnd('/')}$trimmedPath"
         } else {
             "${base.trimEnd('/')}/$trimmedPath"
         }
-        
-        android.util.Log.d("IPTV_POSTER", "Resolved Relative: $trimmedPath -> $resolved")
-        return resolved
     }
 
     /**
