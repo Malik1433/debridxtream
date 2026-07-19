@@ -2577,7 +2577,7 @@ class PlayerActivity : AppCompatActivity() {
                              }
                              if (contentType == ContentType.SERIES || contentType == ContentType.EPISODE) {
                                   val state = viewModel.seriesPlaylistState.value
-                                  if (canUseDebridResolver() || state?.hasNext == true) {
+                                  if (state?.hasNext == true) {
                                        playNextEpisode()
                                        return
                                   }
@@ -3268,7 +3268,7 @@ class PlayerActivity : AppCompatActivity() {
         }}")
     }
 
-    override fun onResume() { super.onResume(); startDebugOverlay(); if (player == null) currentUrl?.let { initializePlayer(it) } else startStallMonitor() }
+    override fun onResume() { super.onResume(); startDebugOverlay(); if (player == null && !isResolvingDebrid) currentUrl?.let { initializePlayer(it) } else startStallMonitor() }
     override fun onStart() { super.onStart(); registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() }; if (seekOverlay != null) { seekOverlayHandler.removeCallbacks(seekOverlayRunnable); seekOverlayHandler.post(seekOverlayRunnable) }; progressSaveHandler.removeCallbacks(progressSaveRunnable); progressSaveHandler.postDelayed(progressSaveRunnable, PROGRESS_SAVE_INTERVAL_MS) }
     override fun onPause() { super.onPause(); if (::historyManager.isInitialized) historyManager.saveProgressSnapshot(); player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
     override fun onStop() { super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); seekOverlayHandler.removeCallbacks(seekOverlayRunnable); progressSaveHandler.removeCallbacks(progressSaveRunnable); unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_stop") }
