@@ -134,7 +134,12 @@ class LiveViewModel @Inject constructor(
     
     val pagedChannels: Flow<PagingData<XtreamStream>> = combine(
         _selectedCategoryFlow.filterNotNull(),
+        // B-9: debounce typed search so rapid keystrokes don't rebuild the PagingSource
+        // (category refetch + LIKE scan) on every letter. Empty query (initial load +
+        // clearing search) emits instantly; typed input waits 250ms of quiet.
         _searchQueryFlow
+            .debounce { q -> if (q.isEmpty()) 0L else 250L }
+            .distinctUntilChanged()
     ) { categoryId, searchQuery ->
         Pair(categoryId, searchQuery)
     }.flatMapLatest { (categoryId, searchQuery) ->
