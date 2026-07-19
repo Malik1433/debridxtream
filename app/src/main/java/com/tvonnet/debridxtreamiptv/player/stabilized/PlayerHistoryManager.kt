@@ -3,7 +3,6 @@ package com.tvonnet.debridxtreamiptv.player.stabilized
 import android.content.Intent
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.C
 import com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder
 import com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity
@@ -17,7 +16,9 @@ import com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerViewModel
 import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class PlayerHistoryManager(
@@ -35,7 +36,17 @@ class PlayerHistoryManager(
         private const val MOVIE_REMAINING_COMPLETION_MS = 5 * 60 * 1000L
         private const val EPISODE_REMAINING_COMPLETION_MS = 3 * 60 * 1000L
         private val RELEASE_YEAR_PATTERN = Regex("\\b(19\\d{2}|20\\d{2})\\b")
+        // M5: teardown-time watched-state writes must survive activity-scope
+        // cancellation — a launch on lifecycleScope from onDestroy is cancelled
+        // mid-write and the upsert is silently lost. Fire-and-forget IO scope.
+        private val persistScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
+
+    // LP-C-2: onStop + onDestroy + back-press each call recordPlaybackHistoryIfNeeded;
+    // for LIVE_TV that meant 3-4 redundant Gson encode/decode prefs writes on the main
+    // thread per exit. Dedupe same-channel saves within a short teardown window.
+    private var lastLiveHistoryChannelId: String? = null
+    private var lastLiveHistorySavedAtMs = 0L
 
     override fun onDestroy(owner: LifecycleOwner) {
         recordPlaybackHistoryIfNeeded()
@@ -93,6 +104,10 @@ class PlayerHistoryManager(
     }
 
     private fun recordLiveHistory(channelId: String) {
+        val nowMs = System.currentTimeMillis()
+        if (channelId == lastLiveHistoryChannelId && nowMs - lastLiveHistorySavedAtMs < 5_000L) return
+        lastLiveHistoryChannelId = channelId
+        lastLiveHistorySavedAtMs = nowMs
         val logoToSave = activity.channelLogoUrl ?: activity.posterUrlExtra
         val absoluteLogo = logoToSave.toAbsoluteUrl(ContentType.LIVE_TV, activity.baseServerUrl)
 
@@ -249,7 +264,9 @@ class PlayerHistoryManager(
         timestamp: Long
     ) {
         val identityKey = watchedIdentityKey(type, contentId) ?: return
-        activity.lifecycleScope.launch(Dispatchers.IO) {
+        // M5: persistScope (not lifecycleScope) — the onDestroy-time write must
+        // outlive the activity's cancelling scope.
+        persistScope.launch {
             val existing = watchedStateRepository.getState(identityKey)
             if (existing?.manualState == WatchedStateEntity.MANUAL_WATCHED ||
                 existing?.manualState == WatchedStateEntity.MANUAL_UNWATCHED

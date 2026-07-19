@@ -18,7 +18,23 @@ class GlobalCrashHandler(private val context: Context) : Thread.UncaughtExceptio
     }
 
     override fun uncaughtException(thread: Thread, throwable: Throwable) {
-        Log.e("GlobalCrashHandler", "CRASH DETECTED: ${throwable.message}", throwable)
+        // LP-D-5: never log the raw message/trace — media3 HTTP exceptions embed the
+        // credentialed stream URL. Class name + crash site only.
+        Log.e(
+            "GlobalCrashHandler",
+            "CRASH DETECTED: ${throwable::class.java.name} @ ${throwable.stackTrace.firstOrNull()}"
+        )
+
+        // LP-D-1: this handler restarts the app instead of chaining to the system
+        // handler, so Crashlytics' own fatal pipeline never runs. Persist the crash
+        // explicitly (uploaded on next launch) so field crashes are visible remotely.
+        try {
+            val crashlytics = com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
+            crashlytics.setCustomKey("fatal_restart", true)
+            crashlytics.recordException(throwable)
+        } catch (_: Exception) {
+            // Crashlytics unavailable (e.g. not initialized) — never block the restart.
+        }
 
         try {
             val prefs = context.getSharedPreferences("app_stability", Context.MODE_PRIVATE)

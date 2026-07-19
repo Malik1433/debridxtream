@@ -457,6 +457,15 @@ class PlayerActivity : AppCompatActivity() {
     // UPDATE_INTERVAL_MS. New sizing applies on the next player build / zap.
     private var bandwidthMeter: DefaultBandwidthMeter? = null
     private var lastNetworkQualityUpdateMs = 0L
+
+    // LP-D-2: per-player QoE analytics listener (TTFF, rebuffers, errors).
+    private var qoeTracker: PlaybackQoeTracker? = null
+
+    private fun qoeMode(): String = when {
+        contentType == ContentType.LIVE_TV -> "live"
+        playbackSource == PlaybackSource.DEBRID -> "debrid"
+        else -> "vod"
+    }
     private val stallRunnable = object : Runnable {
         override fun run() {
             checkForStall()
@@ -607,6 +616,12 @@ class PlayerActivity : AppCompatActivity() {
         private const val STALL_THRESHOLD_MS = 12000L
         private const val LOW_RAM_STALL_THRESHOLD_MS = 15000L
         private const val LOW_RAM_STALL_STRIKES = 2
+        // M3 parity: IPTV VOD gets the same multi-strike tolerance as Debrid so a
+        // single transiently-slow 12s window no longer forces a full teardown.
+        private const val NON_DEBRID_READY_STALL_STRIKES = 3
+        // Live recovers faster than VOD (frozen live edge), but no single-strike
+        // hair-trigger either.
+        private const val LIVE_READY_STALL_STRIKES = 2
         private const val DEBRID_READY_STALL_STRIKES = 3
         private const val DIRECT_DEBRID_READY_STALL_STRIKES = 4
         private const val DIRECT_DEBRID_LOW_RAM_STALL_STRIKES = 3
@@ -1274,6 +1289,7 @@ class PlayerActivity : AppCompatActivity() {
         switchCount++
         frameRateMatchedForCurrentSource = false
         liveOsd?.showZapBackdrop()
+        qoeTracker?.markPrepareStart() // LP-D-2: TTFF measures this switch (zap latency)
         Log.i("PlayerActivity", "Performing seamless switch to: ${SensitiveLogRedactor.describeUrl(newUrl)}")
         
         timeoutHandler.removeCallbacks(timeoutRunnable)
@@ -2429,7 +2445,9 @@ class PlayerActivity : AppCompatActivity() {
             // Passive bandwidth meter (QA fix 7): read its estimate on rebuffer
             // transitions to adapt buffer/quality sizing session-to-session. No extra
             // network requests — it only measures the segments we already fetch.
-            val meter = DefaultBandwidthMeter.Builder(this).build()
+            // LP-A-2: singleton, not per-init — ABR carries the estimate across
+            // zaps/reconnects instead of cold-starting on every channel.
+            val meter = DefaultBandwidthMeter.getSingletonInstance(this)
             bandwidthMeter = meter
 
             player = ExoPlayer.Builder(this)
@@ -2456,6 +2474,13 @@ class PlayerActivity : AppCompatActivity() {
                 .build()
                 .also { playerView.player = it }
             frameRateMatchedForCurrentSource = false
+
+            // LP-D-2: QoE analytics (TTFF / rebuffers / dropped frames / errors).
+            // One tracker per player instance; summary flushed in releasePlayer.
+            qoeTracker = PlaybackQoeTracker(this) { qoeMode() }.also { tracker ->
+                player?.addAnalyticsListener(tracker)
+                tracker.markPrepareStart()
+            }
 
             val mediaItem = buildMediaItem(streamUrl)
             player?.setMediaItem(mediaItem, /* resetPosition = */ true)
@@ -3053,7 +3078,11 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun readyStallRequiredStrikes(isLowRamDevice: Boolean): Int {
         if (playbackSource != PlaybackSource.DEBRID) {
-            return if (isLowRamDevice) LOW_RAM_STALL_STRIKES else 1
+            return when {
+                contentType == ContentType.LIVE_TV -> LIVE_READY_STALL_STRIKES
+                isLowRamDevice -> LOW_RAM_STALL_STRIKES
+                else -> NON_DEBRID_READY_STALL_STRIKES
+            }
         }
         if (directDebridPlayback) {
             return if (isLowRamDevice) DIRECT_DEBRID_LOW_RAM_STALL_STRIKES else DIRECT_DEBRID_READY_STALL_STRIKES
@@ -3271,10 +3300,36 @@ class PlayerActivity : AppCompatActivity() {
         }}")
     }
 
-    override fun onResume() { super.onResume(); startDebugOverlay(); if (player == null && !isResolvingDebrid) currentUrl?.let { initializePlayer(it) } else startStallMonitor() }
-    override fun onStart() { super.onStart(); registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() }; if (seekOverlay != null) { seekOverlayHandler.removeCallbacks(seekOverlayRunnable); seekOverlayHandler.post(seekOverlayRunnable) }; progressSaveHandler.removeCallbacks(progressSaveRunnable); progressSaveHandler.postDelayed(progressSaveRunnable, PROGRESS_SAVE_INTERVAL_MS) }
-    override fun onPause() { super.onPause(); if (::historyManager.isInitialized) historyManager.saveProgressSnapshot(); player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
-    override fun onStop() { super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); seekOverlayHandler.removeCallbacks(seekOverlayRunnable); progressSaveHandler.removeCallbacks(progressSaveRunnable); unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_stop") }
+    // T2.1/M7: restore playback for the retained-player path (pause-without-release
+    // cycles: Home→return on VOD/Debrid, system dialogs, multi-window transitions).
+    private var wasPlayingBeforePause = false
+
+    override fun onResume() {
+        super.onResume(); startDebugOverlay()
+        val p = player
+        if (p == null) {
+            if (!isResolvingDebrid) currentUrl?.let { initializePlayer(it) }
+        } else {
+            startStallMonitor()
+            if (wasPlayingBeforePause) { p.play(); wasPlayingBeforePause = false }
+        }
+    }
+    // Re-arm history for the new foreground segment: onStop's exit-save latches
+    // hasRecordedHistory=true, and without this reset a Home→return session would
+    // silently skip both the 30s progress heartbeat and the final exit save.
+    override fun onStart() { super.onStart(); hasRecordedHistory = false; registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() }; if (seekOverlay != null) { seekOverlayHandler.removeCallbacks(seekOverlayRunnable); seekOverlayHandler.post(seekOverlayRunnable) }; progressSaveHandler.removeCallbacks(progressSaveRunnable); progressSaveHandler.postDelayed(progressSaveRunnable, PROGRESS_SAVE_INTERVAL_MS) }
+    override fun onPause() { super.onPause(); if (::historyManager.isInitialized) historyManager.saveProgressSnapshot(); wasPlayingBeforePause = player?.isPlaying == true; player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
+    override fun onStop() {
+        super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); seekOverlayHandler.removeCallbacks(seekOverlayRunnable); progressSaveHandler.removeCallbacks(progressSaveRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded()
+        // T2.1 (H1): retain the paused player across short stops for VOD/Debrid so
+        // Home→return resumes instantly instead of a 1-3s cold reconnect. LIVE still
+        // releases: on max_connections=1 Xtream servers a retained live connection
+        // would hold the account's only slot while backgrounded (and a live stream
+        // has no resume value anyway — it re-tunes to the live edge).
+        if (contentType == ContentType.LIVE_TV || isFinishing) {
+            releasePlayer("on_stop")
+        }
+    }
 
     /**
      * Live TV sessions launched from the EPG guide share one ExoPlayer with the
@@ -3375,6 +3430,7 @@ class PlayerActivity : AppCompatActivity() {
         updateLastPlaybackPosition(); timeoutHandler.removeCallbacks(timeoutRunnable); timeoutHandler.removeCallbacks(captureRunnable); timeoutHandler.removeCallbacks(reconnectBannerShowRunnable); reconnectBannerPending = false; retryHandler.removeCallbacksAndMessages(null); overlayHandler.removeCallbacks(overlayHideRunnable); zapDebounceHandler.removeCallbacks(zapCommitRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; stopStallMonitor()
         playerListener?.let { player?.removeListener(it) }; playerListener = null
         debugListener?.let { player?.removeListener(it) }; debugListener = null
+        qoeTracker?.flushSessionSummary(); qoeTracker = null // LP-D-2: emit session QoE
         player?.stop(); player?.release(); player = null; playerView.player = null
     }
 

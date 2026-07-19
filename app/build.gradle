@@ -5,6 +5,7 @@ plugins {
     id 'kotlin-kapt'
     id 'kotlin-parcelize'
     id 'com.google.gms.google-services'
+    id 'com.google.firebase.crashlytics'
 }
 
 // Release signing + anti-repack config, kept OUT of git (keystore.properties is
@@ -223,6 +224,8 @@ dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.1.2')
     implementation 'com.google.firebase:firebase-firestore-ktx'
     implementation 'com.google.firebase:firebase-analytics-ktx'
+    // LP-D-1: remote crash reporting (works without Play services on Fire OS)
+    implementation 'com.google.firebase:firebase-crashlytics-ktx'
 
     // Ktor Server (Companion Config Server)
     def ktor_version = '2.3.7'
