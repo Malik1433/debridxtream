@@ -16,6 +16,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.paging.CombinedLoadStates
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.GridLayoutManager
@@ -903,28 +905,36 @@ class VodFragment : Fragment() {
     }
 
     private fun loadWatchedMovieKeysCache() {
-        lifecycleScope.launch {
-            try {
-                watchedStateRepository.observeAllWatchedMovieKeys().collect { keys ->
-                    watchedMovieKeysCache = keys.toSet()
-                    refreshCardOverlays()
-                }
-            } catch (_: Exception) {}
+        // B-12: bind to viewLifecycleOwner + repeatOnLifecycle(STARTED) so these
+        // table-wide watched-state observers STOP collecting while the grid is
+        // backgrounded behind the player — otherwise every progress write (every few
+        // seconds during playback) re-ran the query + refreshCardOverlays off-screen.
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                try {
+                    watchedStateRepository.observeAllWatchedMovieKeys().collect { keys ->
+                        watchedMovieKeysCache = keys.toSet()
+                        refreshCardOverlays()
+                    }
+                } catch (_: Exception) {}
+            }
         }
         // In-progress movie positions → card progress strip.
-        lifecycleScope.launch {
-            try {
-                watchedStateRepository.observeInProgressMovieProgress().collect { rows ->
-                    movieProgressByStreamId = rows.mapNotNull { row ->
-                        val sid = row.iptvStreamId ?: return@mapNotNull null
-                        val frac = if (row.durationMs > 0L) {
-                            (row.progressMs.toFloat() / row.durationMs.toFloat()).coerceIn(0.02f, 1f)
-                        } else 0.35f
-                        sid to frac
-                    }.toMap()
-                    refreshCardOverlays()
-                }
-            } catch (_: Exception) {}
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                try {
+                    watchedStateRepository.observeInProgressMovieProgress().collect { rows ->
+                        movieProgressByStreamId = rows.mapNotNull { row ->
+                            val sid = row.iptvStreamId ?: return@mapNotNull null
+                            val frac = if (row.durationMs > 0L) {
+                                (row.progressMs.toFloat() / row.durationMs.toFloat()).coerceIn(0.02f, 1f)
+                            } else 0.35f
+                            sid to frac
+                        }.toMap()
+                        refreshCardOverlays()
+                    }
+                } catch (_: Exception) {}
+            }
         }
     }
 

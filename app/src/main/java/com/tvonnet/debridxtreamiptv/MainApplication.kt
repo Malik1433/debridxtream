@@ -28,6 +28,16 @@ class MainApplication : Application(), Configuration.Provider {
         kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             com.tvonnet.debridxtreamiptv.util.PlayerCacheManager.getCache(this@MainApplication)
         }
+        // SY-6: schedule the series cache-pruning janitor. Its schedule() had ZERO
+        // callers, so series_v2_core/episodes_v2_core grew unbounded forever. KEEP
+        // policy + charging/idle constraints make this a safe fire-and-forget; the
+        // worker's deletion is id-scoped and favorites-protected.
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                com.tvonnet.debridxtreamiptv.features.seriesv2.worker.SeriesCachePruningWorker
+                    .schedule(this@MainApplication)
+            }
+        }
     }
 
     override val workManagerConfiguration: Configuration
