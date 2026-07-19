@@ -60,7 +60,7 @@ import com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.SeriesDaoV2
         com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2::class,
         WatchedStateEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)

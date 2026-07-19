@@ -1,14 +1,16 @@
 package com.tvonnet.debridxtreamiptv.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.tvonnet.debridxtreamiptv.data.model.XtreamSeriesInfo
 
 /**
  * Room Entity for Series
  * Phase 1: Database Infrastructure
+ * B-1: categoryId index — the per-category browse filter was a full table scan.
  */
-@Entity(tableName = "series_v2")
+@Entity(tableName = "series_v2", indices = [Index(value = ["categoryId"])])
 data class SeriesEntity(
     @PrimaryKey val seriesId: String,
     val name: String?,

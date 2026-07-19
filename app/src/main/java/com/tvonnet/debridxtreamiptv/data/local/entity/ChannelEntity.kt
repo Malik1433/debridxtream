@@ -1,6 +1,7 @@
 package com.tvonnet.debridxtreamiptv.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
 
@@ -8,8 +9,10 @@ import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
  * Room Entity for caching channel/stream data locally
  * Week 6: Room Database Integration
  * Week 8: Added cachedAt timestamp for TTL support (QA Recommendation #2)
+ * B-1: composite (categoryId, streamType) index — serves both the per-category
+ * browse query (leftmost prefix) and the count-by-category-and-type queries.
  */
-@Entity(tableName = "channels")
+@Entity(tableName = "channels", indices = [Index(value = ["categoryId", "streamType"])])
 data class ChannelEntity(
     @PrimaryKey val streamId: String,
     val name: String,

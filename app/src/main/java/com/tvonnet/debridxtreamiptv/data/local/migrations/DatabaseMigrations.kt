@@ -175,8 +175,26 @@ object DatabaseMigrations {
             MIGRATION_8_9,
             MIGRATION_9_10,
             MIGRATION_10_11,
-            MIGRATION_11_12
+            MIGRATION_11_12,
+            MIGRATION_12_13
         )
+    }
+
+    /**
+     * Migration 12 -> 13 (B-1): browse-catalog indices.
+     *
+     * Every category open filtered `WHERE categoryId = ?` as a FULL TABLE SCAN of
+     * channels / vod_v2 / series_v2 (10k-50k+ rows after a full sync). Purely additive
+     * — CREATE INDEX only, no data touched. Index names match Room's auto-generated
+     * `index_<table>_<cols>` scheme so the entity `indices` annotations validate.
+     */
+    val MIGRATION_12_13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_channels_categoryId_streamType` ON `channels` (`categoryId`, `streamType`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_vod_v2_categoryId` ON `vod_v2` (`categoryId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_series_v2_categoryId` ON `series_v2` (`categoryId`)")
+            android.util.Log.d("DatabaseMigration", "Successfully migrated database from version 12 to 13 (browse indices)")
+        }
     }
 
     /**
