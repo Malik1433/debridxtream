@@ -98,15 +98,14 @@ object PlayerBufferConfigFactory {
         val cappedForDevice = debridAdjusted.copy(
             maxBufferMs = capMaxBufferForDevice(context, debridAdjusted.maxBufferMs)
         )
-        return if (isHls) {
-            cappedForDevice.copy(
-                maxBufferMs = cappedForDevice.maxBufferMs.coerceAtMost(
-                    if (DeviceProfile.isLowRamDevice(context)) 25000 else 30000
-                )
+        // LP-A-3: cap applies to raw TS too (the majority IPTV case), not just HLS —
+        // an endless live stream gains nothing from a 60s window; it only adds drift
+        // from the live edge and memory pressure on low-RAM boxes.
+        return cappedForDevice.copy(
+            maxBufferMs = cappedForDevice.maxBufferMs.coerceAtMost(
+                if (DeviceProfile.isLowRamDevice(context)) 25000 else 30000
             )
-        } else {
-            cappedForDevice
-        }
+        )
     }
 
     private fun buildVodBufferConfig(

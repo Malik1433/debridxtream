@@ -70,6 +70,10 @@ object LiveSharedPlayer {
         player = null
         streamUrl = null
         streamId = null
+        // NOTE (LP-C-4 rejected): do NOT clear `frame` here — PlayerActivity adopts
+        // FIRST and calls takeFrame() right after (:2270); clearing on adopt would
+        // black-flash the hand-off. The bitmap is bounded (≤1) and cleared on
+        // take/release.
         Log.i(TAG, "adopt: handed over")
         return p
     }

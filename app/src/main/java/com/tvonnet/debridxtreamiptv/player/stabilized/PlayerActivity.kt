@@ -49,9 +49,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
-import androidx.media3.ui.DefaultTrackNameProvider
 import androidx.media3.ui.PlayerView
-import androidx.media3.ui.TrackSelectionDialogBuilder
 import com.tvonnet.debridxtreamiptv.BuildConfig
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
@@ -74,8 +72,6 @@ import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.common.TrackSelectionOverride
-import androidx.media3.extractor.DefaultExtractorsFactory
-import androidx.media3.extractor.ts.TsExtractor
 import java.text.SimpleDateFormat
 import java.util.*
 import android.os.CountDownTimer
@@ -407,14 +403,12 @@ class PlayerActivity : AppCompatActivity() {
     private var tvVodTitle: TextView? = null
     private var tvVodSubtitle: TextView? = null
 
-    private var layoutSupportQr: View? = null
     private var layoutDebridResolving: View? = null
     private var tvResolvingStatus: TextView? = null
     private var ivResolvingBg: ImageView? = null
     private var resolvingPulse: android.animation.ObjectAnimator? = null
     private var loaderBarSeg: View? = null
     private var loaderGlide: android.animation.ObjectAnimator? = null
-    private var imgSupportQr: ImageView? = null
     private val stallHandler = Handler(Looper.getMainLooper())
     private var lastBoundPosition = 0L
     private var lastProgressCheckMs = 0L
@@ -746,6 +740,7 @@ class PlayerActivity : AppCompatActivity() {
         lifecycle.addObserver(historyManager)
 
         playerView = findViewById(R.id.player_view)
+        applySystemCaptionStyle()
         layoutDebridResolving = findViewById(R.id.layout_debrid_resolving)
         tvResolvingStatus = findViewById(R.id.tv_resolving_status)
         ivResolvingBg = findViewById(R.id.iv_resolving_bg)
@@ -1426,93 +1421,26 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun showLanguageSelection() {
-        if (isInPictureInPictureMode) return
-        lifecycleScope.launch {
-            val options = if (playbackSource == PlaybackSource.DEBRID && contentType == ContentType.MOVIE) {
-                runCatching {
-                    viewModel.getDebridLanguageOptions(
-                        streamId = tmdbIdExtra ?: contentId,
-                        title = originalTitle,
-                        imdbId = imdbIdExtra,
-                        sourceProfile = currentDebridSourceProfile()
-                    )
-                }.getOrElse { emptyList() }
-            } else {
-                debridLanguagesExtra.orEmpty()
-            }
+    // Mi1 dead-code sweep (T3.1): showLanguageSelection / applyDebridLanguagePreference /
+    // showVideoSelection removed — no callers (btn_player_language routes to
+    // showAudioSelection; video quality is ABR-managed).
 
-            val distinctOptions = options
-                .map { it.trim() }
-                .filter { it.isNotBlank() }
-                .distinct()
-
-            if (distinctOptions.isEmpty()) {
-                Toast.makeText(this@PlayerActivity, "No language options available", Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-
-            lateinit var dialog: androidx.appcompat.app.AlertDialog
-            val adapter = TrackSelectionAdapter(distinctOptions, -1) { which ->
-                val selected = distinctOptions[which]
-                player?.let { p ->
-                    p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
-                        .setPreferredTextLanguage(selected)
-                        .setPreferredAudioLanguage(selected)
-                        .build()
-                }
-                applyDebridLanguagePreference(selected)
-                dialog.dismiss()
-            }
-            dialog = androidx.appcompat.app.AlertDialog.Builder(this@PlayerActivity, R.style.Theme_DebridXtream_CinematicDialog)
-                .setTitle(R.string.player_language_title)
-                .setAdapter(adapter, adapter.asDialogClickListener())
-                .create()
-            showManagedTrackDialog(dialog, R.id.btn_player_language)
-        }
-    }
-
-    private fun applyDebridLanguagePreference(language: String) {
-        trackManager.applyDebridLanguagePreference(language)
-
-        if (playbackSource == PlaybackSource.DEBRID && contentType == ContentType.MOVIE) {
-            isResolvingDebrid = true
-            val profile = currentDebridSourceProfile()?.copy(languages = listOf(language))
-            debridLanguagesExtra = profile?.languages
-            viewModel.refreshDebridMovieSource(
-                streamId = tmdbIdExtra ?: contentId,
-                title = originalTitle,
-                imdbId = imdbIdExtra,
-                sourceProfile = profile
+    /**
+     * LP-D-7 (accessibility): honor the system caption preferences — hearing-impaired
+     * users set font size/color/edge/background in Android Settings > Captions, and
+     * every polished TV player applies them. No-op when captions are system-disabled
+     * (media3's default style stays).
+     */
+    private fun applySystemCaptionStyle() {
+        val cm = getSystemService(Context.CAPTIONING_SERVICE)
+            as? android.view.accessibility.CaptioningManager ?: return
+        if (!cm.isEnabled) return
+        playerView.subtitleView?.let { sv ->
+            sv.setStyle(androidx.media3.ui.CaptionStyleCompat.createFromCaptionStyle(cm.userStyle))
+            sv.setFractionalTextSize(
+                androidx.media3.ui.SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * cm.fontScale
             )
-        } else {
-            Toast.makeText(this, "Language preference saved", Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun showVideoSelection() {
-        if (isInPictureInPictureMode) return
-        val playerSnapshot = player ?: return
-        val hasVideoTracks = playerSnapshot.currentTracks.groups.any { group ->
-            group.type == C.TRACK_TYPE_VIDEO && group.isSupported
-        }
-        if (!hasVideoTracks) {
-            Toast.makeText(this, "No video tracks available", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val dialog = TrackSelectionDialogBuilder(
-            this,
-            getString(R.string.player_video_title),
-            playerSnapshot,
-            C.TRACK_TYPE_VIDEO
-        )
-            .setTheme(R.style.Theme_DebridXtream_CinematicDialog)
-            .setAllowAdaptiveSelections(true)
-            .setAllowMultipleOverrides(false)
-            .setTrackNameProvider(DefaultTrackNameProvider(resources))
-            .build()
-        showManagedTrackDialog(dialog, R.id.btn_aspect_ratio)
     }
 
     private fun showManagedTrackDialog(dialog: Dialog, anchorViewId: Int? = null) {
@@ -1557,9 +1485,6 @@ class PlayerActivity : AppCompatActivity() {
         tvNext3Time = findViewById(R.id.tv_next_3_time)
         tvNext3Title = findViewById(R.id.tv_next_3_title)
         
-        layoutSupportQr = findViewById(R.id.layout_support_qr)
-        imgSupportQr = findViewById(R.id.img_support_qr)
-
         pendingChannelName?.let { bindChannelMeta(it) }
         lastOverlayState?.let { renderOverlay(it) }
     }
@@ -2294,7 +2219,9 @@ class PlayerActivity : AppCompatActivity() {
                 releasePlayer("reinitialize")
             }
 
-            val isSoftwareAudioEnabled = com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(this).isSoftwareAudioEnabled()
+            // Mi3: use the injected instance — re-constructing SettingsPreferences here
+            // re-read prefs from disk on the UI thread on every player init.
+            val isSoftwareAudioEnabled = settingsPreferences.isSoftwareAudioEnabled()
 
             // Warm hand-off from the Live TV EPG guide (LP-ADOPT). The guide's preview
             // player is now built with the SAME tuned engine as a cold start (see
@@ -2671,7 +2598,13 @@ class PlayerActivity : AppCompatActivity() {
                             }
                         }
                         if (!hasSupportedAudioSelected && firstSupportedGroup != null && audioGroups.size > 1 && !hasAudioOverride) {
-                             player?.trackSelectionParameters = player?.trackSelectionParameters?.buildUpon()?.setOverrideForType(TrackSelectionOverride(firstSupportedGroup.mediaTrackGroup, 0))?.build() ?: player?.trackSelectionParameters!!
+                             // LP-B-6: guard the snapshot — the old `?: player?.trackSelectionParameters!!`
+                             // fallback NPE'd if the player was released while this callback was in flight.
+                             player?.let { p ->
+                                 p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
+                                     .setOverrideForType(TrackSelectionOverride(firstSupportedGroup.mediaTrackGroup, 0))
+                                     .build()
+                             }
                         }
                     }
                 }
@@ -3092,16 +3025,8 @@ class PlayerActivity : AppCompatActivity() {
 
 
 
-    private fun showSupportQr() {
-        releasePlayer("support_qr"); layoutSupportQr?.isVisible = true
-        val supportUrl = settingsPreferences.getSupportUrl()
-        try {
-            val barcodeEncoder = com.journeyapps.barcodescanner.BarcodeEncoder()
-            val bitmap = barcodeEncoder.encodeBitmap(supportUrl, com.google.zxing.BarcodeFormat.QR_CODE, 400, 400)
-            imgSupportQr?.setImageBitmap(bitmap)
-            showToast("Playback Failed. Scan to contact support.")
-        } catch (e: Exception) { }
-    }
+    // Mi1: showSupportQr removed — never called (terminal failures route through
+    // handleTerminalPlaybackFailure).
 
     private fun handleInitializationError(error: Exception) {
         handleTerminalPlaybackFailure("Init failed: ${error.message}")
@@ -3624,9 +3549,11 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        // LOG EVERY KEY FOR PROOF
-        Log.d("PlayerActivity", "dispatchKeyEvent: code=${event.keyCode}, action=${event.action}")
-        
+        // LP-D-6: per-key logging only in debug builds (was unconditional).
+        if (BuildConfig.DEBUG) {
+            Log.d("PlayerActivity", "dispatchKeyEvent: code=${event.keyCode}, action=${event.action}")
+        }
+
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
             // In-player TV Guide: BACK closes the grid instead of exiting.
             if (liveOsd?.isGuideOpen == true) {

@@ -271,10 +271,18 @@ object PlaybackDiagnosticsRecorder {
                     .takeIf { it.length in 2..5 }
                     ?.let { "{file}.$it" }
                     ?: "{file}"
-                else -> segment
+                // LP-D-4: short opaque segments in Xtream URLs are /user/pass/ —
+                // only echo known structural path words, redact everything else.
+                segment.lowercase(Locale.US) in SAFE_PATH_SEGMENTS -> segment
+                else -> "{seg}"
             }
         }
     }
+
+    private val SAFE_PATH_SEGMENTS = setOf(
+        "live", "movie", "movies", "series", "vod", "stream", "streams", "hls",
+        "dash", "playlist", "resolve", "proxy", "api", "watch", "play", "video"
+    )
 
     private fun userAgentProfile(userAgent: String?): String {
         val normalized = userAgent?.lowercase(Locale.US) ?: return "absent"
