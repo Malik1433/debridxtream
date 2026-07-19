@@ -46,8 +46,7 @@ object GlideUtils {
             Glide.with(imageView.context)
                 .load(glideUrl)
                 .addErrorListener(imageView.context)
-                .apply(getChannelLogoOptions(placeholder, error))
-                .thumbnail(0.25f)
+                .apply(getChannelLogoOptions(placeholder, error))
                 .dontAnimate()
                 .into(imageView)
         } else {
@@ -69,8 +68,7 @@ object GlideUtils {
             Glide.with(imageView.context)
                 .load(glideUrl)
                 .addErrorListener(imageView.context)
-                .apply(getChannelLogoOptions(placeholder, error))
-                .thumbnail(0.25f)
+                .apply(getChannelLogoOptions(placeholder, error))
                 .dontAnimate()
                 .into(imageView)
         } else {
@@ -97,8 +95,7 @@ object GlideUtils {
             Glide.with(imageView.context)
                 .load(glideUrl)
                 .addErrorListener(imageView.context)
-                .apply(options)
-                .thumbnail(0.25f)
+                .apply(options)
                 .dontAnimate()
                 .into(imageView)
         } else {
@@ -153,8 +150,7 @@ object GlideUtils {
             Glide.with(imageView.context)
                 .load(glideUrl)
                 .addErrorListener(imageView.context)
-                .apply(getThumbnailOptions(placeholder, error))
-                .thumbnail(0.25f)
+                .apply(getThumbnailOptions(placeholder, error))
                 .dontAnimate()
                 .into(imageView)
         } else {
@@ -280,14 +276,17 @@ object GlideUtils {
             // IMG-1: posters have no alpha — RGB_565 halves their heap footprint vs the
             // global ARGB_8888 default (logos keep 8888 via getChannelLogoOptions).
             .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565)
-            .transform(CenterCrop())
             .diskCacheStrategy(DiskCacheStrategy.ALL)
             .skipMemoryCache(false)
 
+        // IMG-4: chain BOTH transforms in ONE .transform() call. A second .transform()
+        // REPLACES the first in Glide, so the old code shipped rounded corners with NO
+        // CenterCrop — posters were fit by the ImageView instead of cropped to the
+        // 400x600 override.
         return if (useRoundedCorners) {
-            options.transform(RoundedCorners(16))
+            options.transform(CenterCrop(), RoundedCorners(16))
         } else {
-            options
+            options.transform(CenterCrop())
         }
     }
 

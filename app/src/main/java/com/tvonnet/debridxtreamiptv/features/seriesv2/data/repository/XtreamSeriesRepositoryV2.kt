@@ -403,31 +403,22 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
 
 
     fun getPagedEpisodes(seriesId: String): Flow<PagingData<EpisodeEntityV2>> {
-        // #region agent log
-        android.util.Log.d("SeriesRepoV2", "getPagedEpisodes: Called for seriesId=$seriesId")
-        val episodeCount = kotlinx.coroutines.runBlocking { episodeDao.getCountForSeries(seriesId) }
-        android.util.Log.d("SeriesRepoV2", "getPagedEpisodes: Database count=$episodeCount for seriesId=$seriesId")
-        // #endregion
+        // B-4: removed a runBlocking { episodeDao.getCountForSeries } that ran a
+        // synchronous SQLite query on the UI thread on every detail open — it only
+        // fed a debug Log.d. The Pager below reads the DB off-main anyway.
         return Pager(
             config = PagingConfig(
                 pageSize = 20,
                 enablePlaceholders = true
             ),
-            pagingSourceFactory = { 
-                // #region agent log
-                android.util.Log.d("SeriesRepoV2", "getPagedEpisodes: Creating PagingSource for seriesId=$seriesId")
-                // #endregion
-                episodeDao.pagingSource(seriesId) 
+            pagingSourceFactory = {
+                episodeDao.pagingSource(seriesId)
             }
         ).flow
     }
 
     fun getPagedEpisodesForSeason(seriesId: String, seasonNum: Int): Flow<PagingData<EpisodeEntityV2>> {
-        // #region agent log
-        android.util.Log.d("SeriesRepoV2", "getPagedEpisodesForSeason: Called for seriesId=$seriesId, seasonNum=$seasonNum")
-        val episodeCount = kotlinx.coroutines.runBlocking { episodeDao.getCountForSeries(seriesId) }
-        android.util.Log.d("SeriesRepoV2", "getPagedEpisodesForSeason: Database count=$episodeCount for seriesId=$seriesId")
-        // #endregion
+        // B-4: same main-thread runBlocking DB count removed (was debug-log only).
         return Pager(
             config = PagingConfig(
                 pageSize = 20,

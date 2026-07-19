@@ -293,7 +293,7 @@ class DebridItemViewHolder(
             .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565) // IMG-1: posters no alpha
             .diskCacheStrategy(DiskCacheStrategy.ALL)
             .override(overrideWidth, overrideHeight)
-            .thumbnail(0.1f)
+            // IMG-5: dropped .thumbnail(0.1f) — doubled the decode on disk-cache hits.
             .dontAnimate()
             .placeholder(R.drawable.placeholder_poster)
             .error(R.drawable.placeholder_poster)
