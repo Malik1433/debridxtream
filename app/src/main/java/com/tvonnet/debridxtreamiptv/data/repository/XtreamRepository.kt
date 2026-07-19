@@ -45,6 +45,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import retrofit2.HttpException
 import java.util.LinkedHashMap
 import java.util.LinkedHashSet
@@ -313,8 +314,11 @@ class XtreamRepository @Inject constructor(
 
                     Log.d(TAG, "Sync started (type=$syncType, includeLatest=$includeLatest)")
 
-                    val liveResult = fetchLiveCategoriesAndStreams()
-                    val liveData = liveResult.getOrNull() ?: LiveCacheData(emptyList(), emptyList())
+                    // SY-2: bound each stage so one hung provider stage can't stall the
+                    // whole sync. A timeout falls to empty for that stage; if ALL stages
+                    // come back empty, the SY-1 all-empty guard below reports it honestly.
+                    val liveResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { fetchLiveCategoriesAndStreams() }
+                    val liveData = liveResult?.getOrNull() ?: LiveCacheData(emptyList(), emptyList())
                     val liveCount = liveData.streams.size
                     updateSyncProgress(
                         type = syncType,
@@ -326,8 +330,8 @@ class XtreamRepository @Inject constructor(
                         stage = "Downloading live channels"
                     )
 
-                    val vodResult = fetchVodCategoriesAndStreams()
-                    val vodData = vodResult.getOrNull() ?: VodCacheData(emptyList(), emptyList())
+                    val vodResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { fetchVodCategoriesAndStreams() }
+                    val vodData = vodResult?.getOrNull() ?: VodCacheData(emptyList(), emptyList())
                     val vodStreams = if (includeLatest) {
                         fetchLatestVodStreams(vodData.categories)
                     } else {
@@ -344,8 +348,8 @@ class XtreamRepository @Inject constructor(
                         stage = "Downloading movies"
                     )
 
-                    val seriesResult = fetchSeriesCategoriesAndStreams()
-                    val seriesData = seriesResult.getOrNull() ?: SeriesCacheData(emptyList(), emptyList())
+                    val seriesResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { fetchSeriesCategoriesAndStreams() }
+                    val seriesData = seriesResult?.getOrNull() ?: SeriesCacheData(emptyList(), emptyList())
                     val seriesStreams = if (includeLatest) {
                         fetchLatestSeriesStreams(seriesData.categories)
                     } else {
@@ -2408,6 +2412,9 @@ class XtreamRepository @Inject constructor(
         private const val KEY_LAST_SYNC_TIME = "last_sync_time"
         private const val KEY_LAST_SYNC_TYPE = "last_sync_type"
         private const val BACKGROUND_SYNC_SKIP_AFTER_INITIAL_MS = 2 * 60 * 1000L
+        // SY-2: per-stage bound for the initial sync — a hung provider on one stage no
+        // longer parks the user for the raw ~30s socket timeout ×3 (up to ~90-180s).
+        private const val SYNC_STAGE_TIMEOUT_MS = 25_000L
         private const val SEARCH_INDEX_CHUNK = 2000
         private const val KEY_SEARCH_INDEX_VOD_TIME = "search_index_vod_time"
         private const val KEY_SEARCH_INDEX_SERIES_TIME = "search_index_series_time"
