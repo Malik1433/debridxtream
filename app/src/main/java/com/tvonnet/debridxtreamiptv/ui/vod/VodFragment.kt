@@ -895,12 +895,18 @@ class VodFragment : Fragment() {
     }
 
     private fun loadFavoritesCache() {
-        lifecycleScope.launch {
-            try {
-                repository.getAllFavorites().collect { favorites ->
-                    favoritesCache.updateCache(favorites)
-                }
-            } catch (_: Exception) {}
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                try {
+                    repository.getAllFavorites().collect { favorites ->
+                        favoritesCache.updateCache(favorites)
+                        // B-7: repaint only the favorite badge (payload rebind) when the
+                        // favorites Flow changes — the toggle no longer re-runs the whole
+                        // category pipeline (network fetch + delete/insert + paging invalidate).
+                        refreshCardOverlays()
+                    }
+                } catch (_: Exception) {}
+            }
         }
     }
 
@@ -975,7 +981,8 @@ class VodFragment : Fragment() {
                                 )
                                 Toast.makeText(requireContext(), "Added to favorites", Toast.LENGTH_SHORT).show()
                             }
-                            viewModel.onEvent(VodEvent.SelectCategory(selectedCategoryId))
+                            // B-7: no SelectCategory reload — the favorites Flow collector
+                            // (loadFavoritesCache) repaints the badge via refreshCardOverlays().
                         } catch (e: Exception) {
                             Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                         }

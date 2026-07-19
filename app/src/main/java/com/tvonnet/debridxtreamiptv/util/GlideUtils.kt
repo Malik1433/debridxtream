@@ -46,7 +46,7 @@ object GlideUtils {
             Glide.with(imageView.context)
                 .load(glideUrl)
                 .addErrorListener(imageView.context)
-                .apply(getChannelLogoOptions(placeholder, error))
+                .apply(getChannelLogoOptions(placeholder, error))
                 .dontAnimate()
                 .into(imageView)
         } else {
@@ -68,7 +68,7 @@ object GlideUtils {
             Glide.with(imageView.context)
                 .load(glideUrl)
                 .addErrorListener(imageView.context)
-                .apply(getChannelLogoOptions(placeholder, error))
+                .apply(getChannelLogoOptions(placeholder, error))
                 .dontAnimate()
                 .into(imageView)
         } else {
@@ -95,7 +95,7 @@ object GlideUtils {
             Glide.with(imageView.context)
                 .load(glideUrl)
                 .addErrorListener(imageView.context)
-                .apply(options)
+                .apply(options)
                 .dontAnimate()
                 .into(imageView)
         } else {
@@ -150,7 +150,7 @@ object GlideUtils {
             Glide.with(imageView.context)
                 .load(glideUrl)
                 .addErrorListener(imageView.context)
-                .apply(getThumbnailOptions(placeholder, error))
+                .apply(getThumbnailOptions(placeholder, error))
                 .dontAnimate()
                 .into(imageView)
         } else {
@@ -197,44 +197,62 @@ object GlideUtils {
 
     // Private helper methods for request options
     
-    private fun <T : Any> RequestBuilder<T>.addErrorListener(context: Context): RequestBuilder<T> {
-        return this.listener(object : com.bumptech.glide.request.RequestListener<T> {
-            override fun onLoadFailed(
-                e: com.bumptech.glide.load.engine.GlideException?,
-                model: Any?,
-                target: com.bumptech.glide.request.target.Target<T>,
-                isFirstResource: Boolean
-            ): Boolean {
-                val errorMsg = "Glide Error: ${e?.message?.take(80)}"
-                android.util.Log.e("GLIDE_DEBUG", "FAILED loading IPTV Picture: $model | Error: ${e?.message}")
-                e?.logRootCauses("GLIDE_DEBUG")
-                return false
-            }
+    // IMG-9: negative cache of recently-failed image URLs. 403/404 catalogs are common
+    // (the app already spoofs a UA to work around them), and Glide does NOT cache load
+    // failures — so a dead URL re-issued a full 15s HTTP attempt on every scroll-past.
+    // Short-circuit to the placeholder for URLs that failed in the last few minutes.
+    private const val FAILED_URL_TTL_MS = 5L * 60 * 1000
+    private val failedUrls = java.util.Collections.synchronizedMap(
+        object : LinkedHashMap<String, Long>(64, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?) = size > 500
+        }
+    )
 
-            override fun onResourceReady(
-                resource: T,
-                model: Any,
-                target: com.bumptech.glide.request.target.Target<T>?,
-                dataSource: com.bumptech.glide.load.DataSource,
-                isFirstResource: Boolean
-            ): Boolean {
-                var width = -1
-                var height = -1
-                if (resource is android.graphics.drawable.Drawable) {
-                    width = resource.intrinsicWidth
-                    height = resource.intrinsicHeight
-                }
-                val msg = "Glide Success! ${width}x${height}"
-                android.util.Log.d("GLIDE_DEBUG", "SUCCESS loading IPTV Picture: $model | Size: ${width}x${height} | Type: ${resource.javaClass.simpleName}")
-                return false
-            }
-        })
+    private fun isRecentlyFailed(url: String): Boolean {
+        val at = failedUrls[url] ?: return false
+        if (System.currentTimeMillis() - at > FAILED_URL_TTL_MS) { failedUrls.remove(url); return false }
+        return true
     }
-    
+
+    private fun markFailed(url: String?) {
+        if (!url.isNullOrBlank()) failedUrls[url] = System.currentTimeMillis()
+    }
+
+    // IMG-10: one shared listener instead of a new object + log strings per request.
+    private val sharedErrorListener = object : com.bumptech.glide.request.RequestListener<Any> {
+        override fun onLoadFailed(
+            e: com.bumptech.glide.load.engine.GlideException?,
+            model: Any?,
+            target: com.bumptech.glide.request.target.Target<Any>,
+            isFirstResource: Boolean
+        ): Boolean {
+            markFailed(model?.toString())
+            if (com.tvonnet.debridxtreamiptv.BuildConfig.DEBUG) {
+                android.util.Log.e("GLIDE_DEBUG", "FAILED loading IPTV Picture: $model | Error: ${e?.message}")
+            }
+            return false
+        }
+
+        override fun onResourceReady(
+            resource: Any,
+            model: Any,
+            target: com.bumptech.glide.request.target.Target<Any>?,
+            dataSource: com.bumptech.glide.load.DataSource,
+            isFirstResource: Boolean
+        ): Boolean = false
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T : Any> RequestBuilder<T>.addErrorListener(context: Context): RequestBuilder<T> {
+        return this.listener(sharedErrorListener as com.bumptech.glide.request.RequestListener<T>)
+    }
+
     private fun getGlideUrl(url: String?): com.bumptech.glide.load.model.GlideUrl? {
         val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(url)
         if (resolved.isNullOrBlank()) return null
-        
+        // IMG-9: skip URLs that failed recently — caller shows the placeholder.
+        if (isRecentlyFailed(resolved)) return null
+
         return com.bumptech.glide.load.model.GlideUrl(
             resolved,
             com.bumptech.glide.load.model.LazyHeaders.Builder()

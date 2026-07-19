@@ -49,6 +49,7 @@ class SeriesPagingAdapter(
     override fun onViewRecycled(holder: SeriesPagingViewHolder) {
         super.onViewRecycled(holder)
         holder.clearAnimations()
+        holder.clearPoster() // IMG-14: cancel the in-flight Glide load for a recycled card
     }
 
     companion object {
@@ -138,6 +139,10 @@ class SeriesPagingViewHolder(itemView: android.view.View) : RecyclerView.ViewHol
         itemView.scaleX = 1.0f
         itemView.scaleY = 1.0f
         itemView.z = 0f
+    }
+
+    fun clearPoster() {
+        runCatching { com.bumptech.glide.Glide.with(itemView).clear(ivPoster) }
     }
 
     private companion object {
