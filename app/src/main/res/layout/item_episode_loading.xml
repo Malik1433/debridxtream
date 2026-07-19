@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Skeleton for one episode card while get_series_info runs (mirrors item_episode_cin
+     sizes: 192dp card, 184x100 thumb). Shimmer sweep = v_shimmer, driven from code. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="192dp"
+    android:layout_height="wrap_content"
+    android:padding="4dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="184dp"
+            android:layout_height="100dp"
+            app:cardCornerRadius="6dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="#0C1119"
+            xmlns:app="http://schemas.android.com/apk/res-auto">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_movie_skeleton_border" />
+
+                <View
+                    android:id="@+id/v_shimmer"
+                    android:layout_width="220dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="-110dp"
+                    android:background="@drawable/bg_shimmer_gradient" />
+
+                <!-- E-tag placeholder -->
+                <View
+                    android:layout_width="24dp"
+                    android:layout_height="10dp"
+                    android:layout_gravity="top|start"
+                    android:layout_margin="5dp"
+                    android:background="@drawable/bg_skeleton_pill" />
+            </FrameLayout>
+        </androidx.cardview.widget.CardView>
+
+        <View
+            android:layout_width="120dp"
+            android:layout_height="9dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_skeleton_pill" />
+
+        <View
+            android:layout_width="70dp"
+            android:layout_height="7dp"
+            android:layout_marginTop="5dp"
+            android:background="@drawable/bg_skeleton_pill" />
+    </LinearLayout>
+</FrameLayout>

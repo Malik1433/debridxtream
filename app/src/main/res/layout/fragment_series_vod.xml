@@ -19,7 +19,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
-        android:alpha="0.25"
+        android:alpha="0.12"
         android:contentDescription="Background Backdrop" />
 
     <!-- Gradient Overlay -->
@@ -152,17 +152,16 @@
                 android:layout_marginBottom="10dp"
                 android:background="#0FFFFFFF" />
 
-            <!-- CATEGORIES label -->
+            <!-- Categories label -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingStart="20dp"
                 android:paddingBottom="8dp"
-                android:text="CATEGORIES"
+                android:text="Categories"
                 android:textColor="@color/vod_text_ghost"
                 android:textSize="10sp"
-                android:fontFamily="monospace"
-                android:letterSpacing="0.16" />
+                android:fontFamily="sans-serif-medium" />
 
             <!-- Categories RecyclerView -->
             <androidx.recyclerview.widget.RecyclerView
@@ -199,46 +198,6 @@
                     android:fontFamily="monospace" />
             </LinearLayout>
 
-            <!-- Divider above the status pill -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="12dp"
-                android:background="#0DFFFFFF" />
-
-            <!-- XTREAM ACTIVE status pill (pinned at sidebar bottom) -->
-            <LinearLayout
-                android:id="@+id/ll_xtream_status"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="12dp"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="14dp"
-                android:background="@drawable/bg_series_status_pill"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp">
-
-                <View
-                    android:layout_width="6dp"
-                    android:layout_height="6dp"
-                    android:background="@drawable/bg_circle_green_dot" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="XTREAM ACTIVE"
-                    android:textColor="#00FF88"
-                    android:textSize="11sp"
-                    android:fontFamily="monospace"
-                    android:letterSpacing="0.08" />
-            </LinearLayout>
         </LinearLayout>
 
         <!-- ═══ MAIN CONTENT AREA ═══ -->
@@ -253,202 +212,24 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent">
 
-            <!-- ─── TOP BAR (66dp) ─── -->
+            <!-- ─── HEADER (single row): title + meta left, sort chips right ─── -->
             <LinearLayout
-                android:id="@+id/series_top_bar"
-                android:layout_width="match_parent"
-                android:layout_height="66dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingStart="44dp"
-                android:paddingEnd="52dp">
-
-                <!-- Breadcrumb left -->
-                <View
-                    android:layout_width="8dp"
-                    android:layout_height="8dp"
-                    android:background="@drawable/bg_circle_purple_dot" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:text="IPTV"
-                    android:textColor="@color/vod_text_secondary"
-                    android:textSize="16sp"
-                    android:fontFamily="sans-serif-medium"
-                    android:letterSpacing="0.08" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="8dp"
-                    android:text="›"
-                    android:textColor="@color/vod_text_ghost"
-                    android:textSize="16sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="SERIES"
-                    android:textColor="@color/vod_text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:fontFamily="sans-serif-condensed"
-                    android:letterSpacing="0.08" />
-
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
-
-                <!-- Filter button -->
-                <FrameLayout
-                    android:id="@+id/btn_filter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="34dp"
-                    android:background="@drawable/bg_vod_filter_btn"
-                    android:paddingHorizontal="14dp"
-                    android:focusable="true"
-                    android:focusableInTouchMode="true">
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:orientation="horizontal">
-
-                        <ImageView
-                            android:layout_width="14dp"
-                            android:layout_height="14dp"
-                            android:src="@drawable/ic_filter"
-                            app:tint="#64748B" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="6dp"
-                            android:text="FILTER"
-                            android:textColor="@color/vod_text_muted"
-                            android:textSize="12sp"
-                            android:fontFamily="monospace"
-                            android:letterSpacing="0.06" />
-                    </LinearLayout>
-                </FrameLayout>
-
-                <!-- Count badge -->
-                <TextView
-                    android:id="@+id/tv_title_count"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:background="@drawable/bg_vod_count_badge"
-                    android:paddingHorizontal="12dp"
-                    android:paddingVertical="6dp"
-                    android:text="0 TITLES"
-                    android:textColor="@color/vod_text_ghost"
-                    android:textSize="12sp"
-                    android:fontFamily="monospace" />
-            </LinearLayout>
-
-            <!-- Top bar bottom border -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#0AFFFFFF" />
-
-            <!-- ─── GENRE + SORT ROW ─── -->
-            <LinearLayout
-                android:id="@+id/series_genre_sort_row"
+                android:id="@+id/series_section_header"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:paddingStart="44dp"
                 android:paddingEnd="52dp"
-                android:paddingTop="14dp"
-                android:paddingBottom="10dp"
-                android:clipChildren="false"
-                android:clipToPadding="false">
-
-                <!-- Genre pills (horizontal, scrollable, vertically centered).
-                     Clips its own children so a partially-visible pill never draws over
-                     the divider / SORT area; scroll to reveal the rest. -->
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_genre_pills"
-                    android:layout_width="0dp"
-                    android:layout_height="28dp"
-                    android:layout_weight="1"
-                    android:layout_gravity="center_vertical"
-                    android:paddingEnd="4dp"
-                    android:clipToPadding="true"
-                    android:clipChildren="true"
-                    android:scrollbars="none"
-                    android:focusable="true"
-                    android:focusableInTouchMode="true"
-                    android:descendantFocusability="afterDescendants" />
-
-                <!-- Divider between pills and sort chips -->
-                <View
-                    android:layout_width="1dp"
-                    android:layout_height="22dp"
-                    android:layout_marginStart="10dp"
-                    android:layout_marginEnd="10dp"
-                    android:layout_gravity="center_vertical"
-                    android:background="#12FFFFFF" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
-                    android:layout_gravity="center_vertical"
-                    android:text="SORT"
-                    android:textColor="@color/vod_text_ghost"
-                    android:textSize="10sp"
-                    android:fontFamily="monospace"
-                    android:letterSpacing="0.16" />
-
-                <!-- Sort chips (horizontally scrollable so they never clip at the end) -->
-                <HorizontalScrollView
-                    android:layout_width="wrap_content"
-                    android:layout_height="28dp"
-                    android:layout_gravity="center_vertical"
-                    android:scrollbars="none"
-                    android:clipToPadding="false"
-                    android:overScrollMode="never">
-
-                    <LinearLayout
-                        android:id="@+id/ll_sort_chips"
-                        android:layout_width="wrap_content"
-                        android:layout_height="28dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical" />
-                </HorizontalScrollView>
-            </LinearLayout>
-
-            <!-- Genre row bottom border -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#0AFFFFFF" />
-
-            <!-- ─── SECTION HEADER (52dp) ─── -->
-            <LinearLayout
-                android:id="@+id/series_section_header"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingStart="44dp"
-                android:paddingEnd="52dp"
-                android:paddingTop="12dp"
-                android:paddingBottom="10dp">
+                android:paddingTop="26dp"
+                android:paddingBottom="14dp">
 
                 <!-- Left: title + meta -->
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:layout_marginEnd="16dp"
                     android:orientation="vertical">
 
                     <TextView
@@ -467,83 +248,29 @@
                         android:id="@+id/tv_section_meta"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
                         android:text="0 titles"
                         android:textColor="@color/vod_text_faint"
                         android:textSize="12sp"
-                        android:fontFamily="monospace"
-                        android:letterSpacing="0.05" />
+                        android:fontFamily="sans-serif" />
                 </LinearLayout>
 
-                <!-- Right: column toggle (removed — posters now use one fixed home size) -->
-                <LinearLayout
-                    android:id="@+id/ll_col_toggle"
+                <!-- Right: sort chips (scrollable so they never clip) -->
+                <HorizontalScrollView
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:visibility="gone"
-                    android:gravity="center_vertical">
+                    android:layout_height="28dp"
+                    android:scrollbars="none"
+                    android:clipToPadding="false"
+                    android:overScrollMode="never">
 
-                    <TextView
+                    <LinearLayout
+                        android:id="@+id/ll_sort_chips"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="8dp"
-                        android:text="COLS"
-                        android:textColor="@color/vod_text_ghost"
-                        android:textSize="10sp"
-                        android:fontFamily="monospace"
-                        android:letterSpacing="0.12" />
-
-                    <TextView
-                        android:id="@+id/btn_col_4"
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
-                        android:gravity="center"
-                        android:background="@drawable/bg_vod_col_toggle_default"
-                        android:text="4"
-                        android:textColor="@color/vod_text_muted"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:fontFamily="monospace"
-                        android:focusable="true"
-                        android:focusableInTouchMode="true" />
-
-                    <TextView
-                        android:id="@+id/btn_col_5"
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
-                        android:gravity="center"
-                        android:layout_marginStart="4dp"
-                        android:background="@drawable/bg_series_col_toggle_active"
-                        android:text="5"
-                        android:textColor="@color/series_accent_purple"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:fontFamily="monospace"
-                        android:focusable="true"
-                        android:focusableInTouchMode="true" />
-
-                    <TextView
-                        android:id="@+id/btn_col_6"
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
-                        android:gravity="center"
-                        android:layout_marginStart="4dp"
-                        android:background="@drawable/bg_vod_col_toggle_default"
-                        android:text="6"
-                        android:textColor="@color/vod_text_muted"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:fontFamily="monospace"
-                        android:focusable="true"
-                        android:focusableInTouchMode="true" />
-                </LinearLayout>
+                        android:layout_height="28dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical" />
+                </HorizontalScrollView>
             </LinearLayout>
-
-            <!-- Section header bottom border -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#08FFFFFF" />
 
             <!-- ─── SERIES GRID (fills from directly under the section-header border) ─── -->
             <androidx.recyclerview.widget.RecyclerView
@@ -555,7 +282,7 @@
                 android:clipChildren="false"
                 android:paddingStart="44dp"
                 android:paddingEnd="52dp"
-                android:paddingTop="8dp"
+                android:paddingTop="16dp"
                 android:paddingBottom="48dp"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
@@ -571,7 +298,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_marginStart="210dp"
-        android:layout_marginTop="238dp"
+        android:layout_marginTop="124dp"
         android:paddingStart="44dp"
         android:paddingEnd="52dp"
         android:columnCount="5"
@@ -640,6 +367,7 @@
             android:gravity="center" />
 
         <TextView
+            android:id="@+id/tv_empty_hint"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
@@ -647,6 +375,24 @@
             android:textSize="16sp"
             android:textColor="@color/vod_text_muted"
             android:gravity="center" />
+
+        <TextView
+            android:id="@+id/btn_retry"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:paddingHorizontal="28dp"
+            android:paddingVertical="12dp"
+            android:text="RETRY"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="0.08"
+            android:textColor="@color/series_accent_purple"
+            android:background="@drawable/bg_series_sort_chip_active"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:visibility="gone" />
     </LinearLayout>
 
 </FrameLayout>

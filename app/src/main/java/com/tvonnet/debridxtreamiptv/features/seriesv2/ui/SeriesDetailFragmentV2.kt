@@ -21,6 +21,7 @@ import androidx.paging.CombinedLoadStates
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
+import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.databinding.FragmentSeriesDetailV2Binding
 import com.tvonnet.debridxtreamiptv.utils.updatePreservingFocus
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2
@@ -47,11 +48,16 @@ class SeriesDetailFragmentV2 : Fragment() {
     @javax.inject.Inject
     lateinit var watchedStateRepository: com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
 
+    @javax.inject.Inject
+    lateinit var repository: com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
+
     // Used to resolve a YouTube trailer from TMDB when the Xtream series has none
     // (parity with the movie detail page, which enriches via TMDB).
     @javax.inject.Inject
     lateinit var tmdbRemoteDataSource: com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
     private var trailerLookupStarted = false
+    private var enrichStarted = false
+    private val castAdapter by lazy { com.tvonnet.debridxtreamiptv.ui.vod.CastAdapter() }
 
     private val viewModel: SeriesDetailViewModelV2 by viewModels()
     private var adapter: EpisodesAdapterV2? = null
@@ -102,6 +108,7 @@ class SeriesDetailFragmentV2 : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupOptimisticUI()
         setupEpisodes()
+        setupCredits()
         setupStreamPanel()
         setupListeners()
         setupFocusAnimations()
@@ -138,6 +145,9 @@ class SeriesDetailFragmentV2 : Fragment() {
             Glide.with(this).load(it).dontAnimate().into(binding.ivBackdrop)
         }
         updateTrailerButtonState()
+        // Enrich from the arg title on open — independent of get_series_info, so even
+        // dead listings (no episodes) get cast/creator/runtime/ratings.
+        enrichFromTmdb(args.getString(ARG_TITLE), null)
     }
 
     // ── Episodes strip ─────────────────────────────────────────────────────────
@@ -263,7 +273,7 @@ class SeriesDetailFragmentV2 : Fragment() {
             if (ep != null) viewModel.onEpisodeClicked(ep)
             else Toast.makeText(context, "No episodes available", Toast.LENGTH_SHORT).show()
         }
-        binding.btnFavorite.setOnClickListener { showToast("ADDED TO FAVORITES") }
+        setupFavoriteButton()
         binding.btnTrailer.setOnClickListener {
             val trailerValue = resolvedTrailer
             if (trailerValue.isNullOrBlank() || TrailerValueParser.parse(trailerValue) == null) {
@@ -273,6 +283,48 @@ class SeriesDetailFragmentV2 : Fragment() {
             }
         }
         binding.btnSeasonSelector.setOnClickListener { showSeasonPopup() }
+    }
+
+    /** Real favorite toggle for the series (reuses XtreamRepository favorites, type "series"). */
+    private fun setupFavoriteButton() {
+        val id = arguments?.getString(ARG_SERIES_ID) ?: run {
+            binding.btnFavorite.visibility = View.GONE
+            return
+        }
+        var isFav = false
+        binding.btnFavorite.setImageResource(R.drawable.ic_favorite_border)
+        binding.btnFavorite.setOnClickListener {
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    if (isFav) {
+                        repository.removeFavorite(id)
+                        showToast("REMOVED FROM FAVORITES")
+                    } else {
+                        repository.addFavorite(
+                            streamId = id,
+                            type = "series",
+                            name = binding.tvTitle.text?.toString() ?: "Series",
+                            iconUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(
+                                arguments?.getString(ARG_POSTER_URL) ?: arguments?.getString(ARG_BACKDROP_URL)
+                            )
+                        )
+                        showToast("ADDED TO FAVORITES")
+                    }
+                } catch (e: Exception) {
+                    showToast("ERROR: ${e.message}")
+                }
+            }
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                repository.getFavoritesByType("series").collect { favorites ->
+                    isFav = favorites.any { it.streamId == id }
+                    binding.btnFavorite.setImageResource(
+                        if (isFav) R.drawable.ic_favorite else R.drawable.ic_favorite_border
+                    )
+                }
+            }
+        }
     }
 
     private fun setupBackHandling() {
@@ -300,6 +352,18 @@ class SeriesDetailFragmentV2 : Fragment() {
                     val set = keys.toSet()
                     if (adapter?.watchedKeys != set) {
                         adapter?.watchedKeys = set
+                        adapter?.notifyItemRangeChanged(0, adapter?.itemCount ?: 0, Any())
+                    }
+                }
+            }
+        }
+
+        // In-progress positions → episode-strip resume bars.
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.episodeProgress.collectLatest { progress ->
+                    if (adapter?.progressByKey != progress) {
+                        adapter?.progressByKey = progress
                         adapter?.notifyItemRangeChanged(0, adapter?.itemCount ?: 0, Any())
                     }
                 }
@@ -393,49 +457,125 @@ class SeriesDetailFragmentV2 : Fragment() {
             adapter?.notifyItemRangeChanged(0, adapter?.itemCount ?: 0, Any())
         }
         updateTrailerButtonState()
-        maybeResolveTrailer(s.title ?: s.name, year)
+        enrichFromTmdb(s.title ?: s.name, year)
+    }
+
+    private fun setupCredits() {
+        binding.rvCast.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+        binding.rvCast.adapter = castAdapter
     }
 
     /**
-     * If the Xtream series carried no trailer, look one up on TMDB (search TV by title,
-     * then read the trailer from the appended `videos`). Runs at most once; the Trailer
-     * button enables the moment a key is found.
+     * Full TMDB TV enrichment (parity with the movie page): trailer + cast + creator +
+     * runtime + age rating, plus IMDb/RottenTomatoes via OMDb. Runs at most once.
      */
-    private fun maybeResolveTrailer(title: String?, year: String?) {
-        if (trailerLookupStarted) return
-        if (TrailerValueParser.parse(resolvedTrailer) != null) return
-        val cleanTitle = title?.trim().orEmpty()
-        if (cleanTitle.isEmpty()) return
-        trailerLookupStarted = true
+    private fun enrichFromTmdb(title: String?, year: String?) {
+        if (enrichStarted) return
+        val raw = title?.trim().orEmpty()
+        if (raw.isEmpty()) return
+        enrichStarted = true
+        // Strip |...| tags, then a leading short-code prefix like "PH - ", "SOM - ",
+        // "EN | " which the pipe-cleaner leaves behind and which breaks TMDB search.
+        val base = com.tvonnet.debridxtreamiptv.util.MediaTitleCleaner.clean(raw).ifBlank { raw }
+        val cleanTitle = base
+            .replace(Regex("^[A-Za-z]{2,4}\\s*[-–—|:]\\s*"), "")
+            .trim()
+            .ifBlank { base }
         viewLifecycleOwner.lifecycleScope.launch {
-            val key = runCatching { fetchTmdbTrailerKey(cleanTitle, year) }.getOrNull()
-            if (_binding == null || key.isNullOrBlank()) return@launch
-            resolvedTrailer = key
-            updateTrailerButtonState()
+            val details = runCatching { fetchTmdbTvDetails(cleanTitle, year) }.getOrNull() ?: return@launch
+            if (_binding == null) return@launch
+            bindTmdbEnrichment(details)
         }
     }
 
-    private suspend fun fetchTmdbTrailerKey(title: String, year: String?): String? {
+    private suspend fun fetchTmdbTvDetails(
+        title: String,
+        year: String?
+    ): com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbTvShowDetails? {
         val search = tmdbRemoteDataSource.searchTvShows(query = title)
         val results = (search as? com.tvonnet.debridxtreamiptv.data.Result.Success)?.data?.results ?: return null
         if (results.isEmpty()) return null
-        // Prefer an exact title match, then one whose first-air year matches the hint.
         val best = results.firstOrNull { it.name.equals(title, true) && (year == null || it.firstAirDate?.take(4) == year) }
             ?: results.firstOrNull { it.name.equals(title, true) }
             ?: results.firstOrNull { year != null && it.firstAirDate?.take(4) == year }
             ?: results.first()
         val tvId = best.id ?: return null
-        val details = tmdbRemoteDataSource.getSeriesDetails(tvId)
-        val videos = (details as? com.tvonnet.debridxtreamiptv.data.Result.Success)?.data?.videos?.results ?: return null
-        return videos
-            .asSequence()
-            .filter { it.site.equals("YouTube", true) && !it.key.isNullOrBlank() }
-            .sortedWith(
-                compareByDescending<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbVideo> { it.type.equals("Trailer", true) }
-                    .thenByDescending { it.official == true }
-            )
-            .firstOrNull()
-            ?.key
+        return (tmdbRemoteDataSource.getSeriesDetails(tvId) as? com.tvonnet.debridxtreamiptv.data.Result.Success)?.data
+    }
+
+    private fun bindTmdbEnrichment(d: com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbTvShowDetails) {
+        // Trailer (only if the provider didn't supply one).
+        if (TrailerValueParser.parse(resolvedTrailer) == null) {
+            val key = d.videos?.results
+                ?.asSequence()
+                ?.filter { it.site.equals("YouTube", true) && !it.key.isNullOrBlank() }
+                ?.sortedWith(
+                    compareByDescending<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbVideo> { it.type.equals("Trailer", true) }
+                        .thenByDescending { it.official == true }
+                )
+                ?.firstOrNull()?.key
+            if (!key.isNullOrBlank()) {
+                resolvedTrailer = key
+                updateTrailerButtonState()
+            }
+        }
+
+        // Cast (top-billed 5, with photos).
+        val cast = d.credits?.cast?.sortedBy { it.order ?: 99 }?.take(5).orEmpty()
+        if (cast.isNotEmpty()) {
+            castAdapter.submitList(cast)
+            binding.layoutCast.visibility = View.VISIBLE
+            binding.layoutCredits.visibility = View.VISIBLE
+        }
+
+        // Creator / Director.
+        val creator = d.createdBy?.firstOrNull { !it.name.isNullOrBlank() }?.name
+            ?: d.credits?.crew?.firstOrNull { it.job.equals("Director", true) }?.name
+        if (!creator.isNullOrBlank()) {
+            binding.tvDirector.text = creator
+            binding.layoutDirector.visibility = View.VISIBLE
+            binding.layoutCredits.visibility = View.VISIBLE
+        }
+
+        // Episode runtime.
+        val runtime = d.episodeRunTime?.firstOrNull { it > 0 }
+        if (runtime != null) {
+            binding.tvRuntime.text = "${runtime}M"
+            binding.tvRuntime.visibility = View.VISIBLE
+        }
+
+        // Age / content rating (US → GB → any).
+        val cert = d.contentRatings?.results?.let { r ->
+            r.firstOrNull { it.countryCode.equals("US", true) }?.rating
+                ?: r.firstOrNull { it.countryCode.equals("GB", true) }?.rating
+                ?: r.firstOrNull { !it.rating.isNullOrBlank() }?.rating
+        }?.takeIf { it.isNotBlank() }
+        if (cert != null) {
+            binding.tvAgeRating.text = cert
+            binding.tvAgeRating.visibility = View.VISIBLE
+        }
+
+        // IMDb / Rotten Tomatoes via OMDb.
+        d.externalIds?.imdbId?.takeIf { it.isNotBlank() }?.let { loadExternalRatings(it) }
+    }
+
+    private fun loadExternalRatings(imdbId: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val ratings = com.tvonnet.debridxtreamiptv.data.omdb.OmdbClient.fetchRatings(imdbId) ?: return@launch
+            if (_binding == null) return@launch
+            ratings.imdbRating?.let {
+                binding.tvImdbRating.text = it
+                binding.badgeImdb.visibility = View.VISIBLE
+            }
+            ratings.rottenTomatoes?.let {
+                binding.tvRtRating.text = it
+                binding.badgeRt.visibility = View.VISIBLE
+            }
+            if (binding.tvAgeRating.visibility != View.VISIBLE && !ratings.rated.isNullOrBlank()) {
+                binding.tvAgeRating.text = ratings.rated
+                binding.tvAgeRating.visibility = View.VISIBLE
+            }
+        }
     }
 
     private fun bindSeriesTotals(seasons: Int, episodes: Int) {

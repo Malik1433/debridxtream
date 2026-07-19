@@ -823,7 +823,9 @@ class PlayerActivity : AppCompatActivity() {
                 viewModel.loadDebridSeriesPlaylist(seriesId, seasonNum, episodeNumberExtra ?: 1)
             } else {
                 currentIptvEpisodeIdForPlaylist()?.let { episodeId ->
-                    viewModel.loadSeriesPlaylist(seriesId, seasonNum, episodeId, seriesTitleExtra)
+                    viewModel.loadSeriesPlaylist(
+                        seriesId, seasonNum, episodeId, seriesTitleExtra, episodeNumberExtra
+                    )
                 }
             }
         }
@@ -1661,8 +1663,20 @@ class PlayerActivity : AppCompatActivity() {
                         }
                     }
 
+                    // Do NOT let a passive playlist load hijack the stream the user is
+                    // already watching. When playback started from a SIBLING category
+                    // (multi-source panel), the playing stream id isn't in the PRIMARY
+                    // series' episode list, so emitSeriesPlaylist number-matches it to the
+                    // PRIMARY's own episode — a DIFFERENT source. Switching to it made every
+                    // category selection play the same (primary) stream ("select NL/DE →
+                    // same file"). The intent already started the correct chosen stream
+                    // (currentUrl), and next/prev/browser-pick switch episodes explicitly,
+                    // so only let the playlist drive playback when nothing is playing yet.
                     val currentEpId = contentId
-                    if (!state.isLoading && state.currentEpisode != null && currentEpId != state.currentEpisode.episodeId) {
+                    if (!state.isLoading && state.currentEpisode != null &&
+                        currentEpId != state.currentEpisode.episodeId &&
+                        currentUrl.isNullOrBlank()
+                    ) {
                          if (playbackSource != PlaybackSource.DEBRID) {
                              state.currentEpisode?.let { playSeriesEpisode(it) }
                          }
@@ -1708,7 +1722,9 @@ class PlayerActivity : AppCompatActivity() {
                  } else if (playbackSource != PlaybackSource.DEBRID) {
                      val episodeId = currentIptvEpisodeIdForPlaylist()
                      if (episodeId != null) {
-                         viewModel.loadSeriesPlaylist(seriesId, seasonNum, episodeId, seriesTitleExtra)
+                         viewModel.loadSeriesPlaylist(
+                             seriesId, seasonNum, episodeId, seriesTitleExtra, episodeNumberExtra
+                         )
                      } else {
                          episodeBrowserController.showMessage("Episodes unavailable", seasonTitle)
                      }
@@ -1869,19 +1885,41 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun playSeriesEpisode(episode: EpisodeEntityV2) {
         val url = viewModel.getSeriesStreamUrl(episode)
-        
+
         contentId = episode.episodeId
         currentUrl = url
+        episodeNumberExtra = episode.episodeNumber
+        episodeTitleExtra = episode.title
         val title = episode.title ?: "Episode ${episode.episodeNumber}"
         originalTitle = title
         bindModernMetadata(title)
         supportActionBar?.title = title
-        
+
         hasRecordedHistory = false
         if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.hidePrompt() }
         if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.resetState() }
-        
-        performSeamlessSwitch(url)
+
+        // Resume the switched-to episode from its saved position (next/prev/browser all
+        // funnel here). Key collapses to episode:xtream:episode:<id>, matching the save
+        // key in PlayerHistoryManager. Lookup is fast (single DB row); switch on main.
+        lifecycleScope.launch {
+            startPositionMs = resolveIptvEpisodeResumeMs(episode)
+            performSeamlessSwitch(url)
+        }
+    }
+
+    /** Saved resume position for an IPTV episode, 0 if none / already watched. */
+    private suspend fun resolveIptvEpisodeResumeMs(episode: EpisodeEntityV2): Long {
+        val episodeId = episode.episodeId?.takeIf { it.isNotBlank() } ?: return 0L
+        val key = com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder.iptvEpisode(
+            episodeId = episodeId,
+            seriesId = intent.getStringExtra(EXTRA_SERIES_ID),
+            seasonNumber = episode.seasonNumber,
+            episodeNumber = episode.episodeNumber
+        )
+        val state = watchedStateRepository.getState(key) ?: return 0L
+        if (state.isWatched) return 0L
+        return state.progressMs.takeIf { it > 0L } ?: 0L
     }
 
     private fun bindModernMetadata(title: String?) {
@@ -3636,11 +3674,11 @@ class PlayerActivity : AppCompatActivity() {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_LEFT -> { if (contentType == ContentType.LIVE_TV && liveOsd == null && !viewModel.browserState.value.isVisible) { viewModel.toggleBrowser(true, viewModel.zapState.value?.categoryId ?: liveCategoryId, contentId); return true } }
                 KeyEvent.KEYCODE_CAPTIONS -> { if (contentType != ContentType.LIVE_TV) { showSubtitleSelection(); return true } }
-                KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_UP -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = +1); return true } }
-                KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_DOWN -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = -1); return true } }
-                KeyEvent.KEYCODE_DPAD_UP -> { if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = +1); return true } }
+                KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_UP -> { if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = +1); return true } }
+                KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_DOWN -> { if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = -1); return true } }
+                KeyEvent.KEYCODE_DPAD_UP -> { if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = +1); return true } }
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = -1); return true }
+                    if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = -1); return true }
                 }
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { if (contentType == ContentType.LIVE_TV) { if (viewModel.browserState.value.isVisible || liveOsd != null) return super.dispatchKeyEvent(event); if (epgOverlayMode != EpgOverlayMode.HIDDEN && !epgOverlayPinned) hideEpgOverlay() else showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false); return true } }
                 KeyEvent.KEYCODE_INFO -> {

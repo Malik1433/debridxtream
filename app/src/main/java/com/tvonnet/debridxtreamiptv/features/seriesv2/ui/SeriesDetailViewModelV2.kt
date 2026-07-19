@@ -98,6 +98,15 @@ class SeriesDetailViewModelV2 @Inject constructor(
         .map { counts -> counts.size to counts.sumOf { it.totalEpisodes } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0 to 0)
 
+    /** identityKey -> saved progress ms, for in-progress episodes (episode-strip resume bars). */
+    val episodeProgress: StateFlow<Map<String, Long>> = watchedStateDao
+        .observeInProgressEpisodesForSeries(
+            seriesId,
+            com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.SOURCE_XTREAM
+        )
+        .map { rows -> rows.associate { it.identityKey to it.progressMs } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     /** (watched, total) for the currently-selected season. */
     val seasonProgress: StateFlow<Pair<Int, Int>> = combine(
         episodeDao.observeSeasonEpisodeCounts(seriesId),

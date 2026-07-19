@@ -64,7 +64,6 @@ class VodFragment : Fragment() {
         const val STATE_LAST_FOCUS_TARGET = "vod_last_focus_target"
         const val STATE_LAST_CATEGORY_ID = "vod_last_category_id"
         const val STATE_LAST_MOVIE_ID = "vod_last_movie_id"
-        val GENRE_LIST = listOf("All", "Action", "Drama", "Sci-Fi", "Horror", "Comedy", "Thriller", "Animation", "Romance", "Documentary")
         val SORT_LABELS = listOf("RECENTLY ADDED", "TOP RATED", "A – Z", "NEWEST")
     }
 
@@ -84,29 +83,26 @@ class VodFragment : Fragment() {
     private var llLoadingState: ViewGroup? = null
     private var llEmptyState: LinearLayout? = null
     private var tvEmptyMessage: TextView? = null
+    private var tvEmptyHint: TextView? = null
+    private var btnRetry: View? = null
     private var tvOfflineLabel: TextView? = null
 
     // Sort row / header / grid controls
     private lateinit var llSortChips: LinearLayout
     private lateinit var tvSectionMeta: TextView
-    private lateinit var tvTitleCount: TextView
-    private lateinit var llColToggle: ViewGroup
-    private lateinit var btnCol4: TextView
-    private lateinit var btnCol5: TextView
-    private lateinit var btnCol6: TextView
     private var btnSearch: View? = null
 
     // State
     private var selectedCategoryId: String = ""
     private var currentCategoryName: String = ""
     private var activeSortMode: SortMode = SortMode.RECENTLY_ADDED
-    private var activeGenre: String? = null
     private var gridColumnCount: Int = 5
 
     /** category_id -> synced movie count, for the sidebar count badges. */
     private var categoryCounts: Map<String, Int> = emptyMap()
 
     private var isMoviesLoadingFromViewModel: Boolean = false
+    private var hasLoadError: Boolean = false
     private var lastLoadStates: CombinedLoadStates? = null
 
     private var lastFocusedCategoryPosition: Int = RecyclerView.NO_POSITION
@@ -131,6 +127,9 @@ class VodFragment : Fragment() {
 
     private var watchedMovieKeysCache: Set<String> = emptySet()
 
+    /** streamId -> watch-progress fraction (0..1) for in-progress movies (card strip). */
+    private var movieProgressByStreamId: Map<String, Float> = emptyMap()
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -147,6 +146,7 @@ class VodFragment : Fragment() {
                 val identity = WatchedIdentityBuilder.iptvMovie(streamId)
                 watchedMovieKeysCache.contains(identity)
             },
+            progressChecker = { streamId -> movieProgressByStreamId[streamId] },
             onMovieLongClick = { movie -> handleFavoriteLongPress(movie) }
         ).apply {
             onItemFocused = { position ->
@@ -167,9 +167,10 @@ class VodFragment : Fragment() {
     private fun setupAdapterObserver() {
         if (adapterDataObserver == null) {
             adapterDataObserver = object : RecyclerView.AdapterDataObserver() {
+                // Only a FULL refresh needs focus re-assertion. Paging appends while
+                // scrolling must NOT scrollToPosition — it fought the scroll and could
+                // bounce focus onto the sidebar.
                 override fun onChanged() { restoreFocus() }
-                override fun onItemRangeInserted(positionStart: Int, itemCount: Int) { restoreFocus() }
-                override fun onItemRangeRemoved(positionStart: Int, itemCount: Int) { restoreFocus() }
             }
             vodAdapter.registerAdapterDataObserver(adapterDataObserver!!)
         }
@@ -209,16 +210,19 @@ class VodFragment : Fragment() {
         llLoadingState = view.findViewById(R.id.ll_loading_state)
         llEmptyState = view.findViewById(R.id.ll_empty_state)
         tvEmptyMessage = view.findViewById(R.id.tv_empty_message)
+        tvEmptyHint = view.findViewById(R.id.tv_empty_hint)
+        btnRetry = view.findViewById(R.id.btn_retry)
         tvOfflineLabel = view.findViewById(R.id.tv_offline_label)
+        btnRetry?.setOnClickListener {
+            btnRetry?.visibility = View.GONE
+            showEmptyState(false)
+            showLoadingState(true)
+            viewModel.onEvent(VodEvent.Retry)
+        }
 
         // Sort row / header / grid controls
         llSortChips = view.findViewById(R.id.ll_sort_chips)
         tvSectionMeta = view.findViewById(R.id.tv_section_meta)
-        tvTitleCount = view.findViewById(R.id.tv_title_count)
-        llColToggle = view.findViewById(R.id.ll_col_toggle)
-        btnCol4 = view.findViewById(R.id.btn_col_4)
-        btnCol5 = view.findViewById(R.id.btn_col_5)
-        btnCol6 = view.findViewById(R.id.btn_col_6)
         btnSearch = view.findViewById(R.id.btn_search)
     }
 
@@ -360,69 +364,6 @@ class VodFragment : Fragment() {
         }
     }
 
-    private fun setupColumnToggle() {
-        val buttons = listOf(btnCol4 to 4, btnCol5 to 5, btnCol6 to 6)
-        buttons.forEach { (btn, cols) ->
-            btn.setOnClickListener { setGridColumns(cols) }
-            btn.setOnFocusChangeListener { v, hasFocus ->
-                if (hasFocus) {
-                    (v as TextView).setBackgroundResource(R.drawable.bg_vod_col_toggle_active)
-                    (v as TextView).setTextColor(Color.parseColor("#00F0FF"))
-                } else {
-                    val isActive = cols == gridColumnCount
-                    if (isActive) {
-                        (v as TextView).setBackgroundResource(R.drawable.bg_vod_col_toggle_active)
-                        (v as TextView).setTextColor(Color.parseColor("#00F0FF"))
-                    } else {
-                        (v as TextView).setBackgroundResource(R.drawable.bg_vod_col_toggle_default)
-                        (v as TextView).setTextColor(Color.parseColor("#64748B"))
-                    }
-                }
-            }
-            // Column-toggle row is the middle rung: UP → sort chips, DOWN → back into the grid.
-            // LEFT/RIGHT fall through to the default traversal across the 4/5/6 buttons.
-            btn.setOnKeyListener { _, keyCode, event ->
-                if (event.action == android.view.KeyEvent.ACTION_DOWN) {
-                    when (keyCode) {
-                        android.view.KeyEvent.KEYCODE_DPAD_UP -> { focusSortChipsRow(); true }
-                        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> { focusGridTop(); true }
-                        else -> false
-                    }
-                } else false
-            }
-        }
-        updateColToggleUI(gridColumnCount)
-    }
-
-    private fun setGridColumns(cols: Int) {
-        gridColumnCount = cols
-        val lm = rvMoviesGrid.layoutManager as GridLayoutManager
-        lm.spanCount = cols
-        // Update item decoration
-        while (rvMoviesGrid.itemDecorationCount > 0) {
-            rvMoviesGrid.removeItemDecorationAt(0)
-        }
-        val spacingPx = resources.getDimensionPixelSize(R.dimen.grid_spacing_medium)
-        rvMoviesGrid.addItemDecoration(
-            com.tvonnet.debridxtreamiptv.utils.GridSpacingItemDecoration(cols, spacingPx, true)
-        )
-        rvMoviesGrid.adapter?.notifyItemRangeChanged(0, rvMoviesGrid.adapter?.itemCount ?: 0)
-        updateColToggleUI(cols)
-    }
-
-    private fun updateColToggleUI(activeCols: Int) {
-        val buttons = listOf(btnCol4 to 4, btnCol5 to 5, btnCol6 to 6)
-        buttons.forEach { (btn, cols) ->
-            if (cols == activeCols) {
-                btn.setBackgroundResource(R.drawable.bg_vod_col_toggle_active)
-                btn.setTextColor(Color.parseColor("#00F0FF"))
-            } else {
-                btn.setBackgroundResource(R.drawable.bg_vod_col_toggle_default)
-                btn.setTextColor(Color.parseColor("#64748B"))
-            }
-        }
-    }
-
     private fun setupSearch() {
         btnSearch?.apply {
             isFocusable = true
@@ -503,21 +444,7 @@ class VodFragment : Fragment() {
         rvMoviesGrid.post { if (isAdded) rvMoviesGrid.requestFocus() }
     }
 
-    // ── Vertical ladder above the grid: sort chips ↔ column toggle ↔ grid ──────
-    // Restores reachability of the two control rows that sat above the grid with no
-    // remote path into them (the top-row-UP no-op bug). Each hop moves exactly one row.
-
-    /** The currently-active column-toggle button (4/5/6) — the landing target when UP-ing out of the grid. */
-    private fun activeColButton(): TextView = when (gridColumnCount) {
-        4 -> btnCol4
-        6 -> btnCol6
-        else -> btnCol5
-    }
-
-    private fun focusColumnToggleRow() {
-        val btn = activeColButton()
-        btn.post { if (isAdded) btn.requestFocus() }
-    }
+    // ── Vertical ladder above the grid: sort chips ↔ grid ──────
 
     private fun focusSortChipsRow() {
         val chip = llSortChips.getChildAt(0)
@@ -642,7 +569,6 @@ class VodFragment : Fragment() {
      */
     private fun refreshSectionCount() {
         val count = categoryCounts[selectedCategoryId] ?: vodAdapter.itemCount
-        tvTitleCount.text = "$count TITLES"
         if (lastFocusTarget != FocusTarget.MOVIES) {
             tvSectionMeta.text = "$count titles"
         }
@@ -679,7 +605,11 @@ class VodFragment : Fragment() {
                 }
 
                 if (state.error != null) {
+                    hasLoadError = true
                     Toast.makeText(context, state.error, Toast.LENGTH_SHORT).show()
+                    if (vodAdapter.itemCount == 0 && !state.isLoadingMovies) showEmptyState(true)
+                } else if (vodAdapter.itemCount > 0) {
+                    hasLoadError = false
                 }
 
                 state.selectedCategoryId?.let { id ->
@@ -695,7 +625,7 @@ class VodFragment : Fragment() {
                     }
                 }
 
-                tvOfflineLabel?.visibility = if (state.error?.contains("network", true) == true) View.VISIBLE else View.GONE
+                tvOfflineLabel?.visibility = if (state.error != null) View.VISIBLE else View.GONE
 
                 if (state.isLoadingMovies && vodAdapter.itemCount == 0) {
                     showEmptyState(false)
@@ -776,8 +706,13 @@ class VodFragment : Fragment() {
             ?: loadState.refresh as? LoadState.Error
             ?: loadState.mediator?.refresh as? LoadState.Error
 
-        errorState?.let {
-            Toast.makeText(context, it.error.message ?: "Failed to load movies", Toast.LENGTH_LONG).show()
+        if (errorState != null) {
+            hasLoadError = true
+            Toast.makeText(context, errorState.error.message ?: "Failed to load movies", Toast.LENGTH_LONG).show()
+            // Re-evaluate the empty view so an error with 0 items surfaces Retry.
+            if (itemCount == 0) showEmptyState(true)
+        } else if (itemCount > 0) {
+            hasLoadError = false
         }
 
         if (!isPagingRefreshLoading && loadState.refresh is LoadState.NotLoading) {
@@ -793,7 +728,22 @@ class VodFragment : Fragment() {
         } else {
             rvMoviesGrid.visibility = View.VISIBLE
         }
-        if (show) tvEmptyMessage?.text = "No movies in this category"
+        if (show) {
+            // Distinguish a load failure (offer Retry) from a genuinely-empty category.
+            if (hasLoadError) {
+                tvEmptyMessage?.text = "Couldn't load movies"
+                tvEmptyHint?.visibility = View.VISIBLE
+                tvEmptyHint?.text = "Check your connection and try again"
+                btnRetry?.visibility = View.VISIBLE
+                btnRetry?.post { if (isAdded) btnRetry?.requestFocus() }
+            } else {
+                tvEmptyMessage?.text = "No movies in this category"
+                tvEmptyHint?.visibility = View.GONE
+                btnRetry?.visibility = View.GONE
+            }
+        } else {
+            btnRetry?.visibility = View.GONE
+        }
     }
 
     private fun showLoadingState(show: Boolean, keepContent: Boolean = false) {
@@ -957,13 +907,35 @@ class VodFragment : Fragment() {
             try {
                 watchedStateRepository.observeAllWatchedMovieKeys().collect { keys ->
                     watchedMovieKeysCache = keys.toSet()
-                    val snapshot = vodAdapter.snapshot()
-                    if (snapshot.items.isNotEmpty()) {
-                        vodAdapter.notifyDataSetChanged()
-                    }
+                    refreshCardOverlays()
                 }
             } catch (_: Exception) {}
         }
+        // In-progress movie positions → card progress strip.
+        lifecycleScope.launch {
+            try {
+                watchedStateRepository.observeInProgressMovieProgress().collect { rows ->
+                    movieProgressByStreamId = rows.mapNotNull { row ->
+                        val sid = row.iptvStreamId ?: return@mapNotNull null
+                        val frac = if (row.durationMs > 0L) {
+                            (row.progressMs.toFloat() / row.durationMs.toFloat()).coerceIn(0.02f, 1f)
+                        } else 0.35f
+                        sid to frac
+                    }.toMap()
+                    refreshCardOverlays()
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Refresh only the badge/progress overlays on visible cards — a payload rebind that
+     * does NOT reload the poster (full notifyDataSetChanged restarted every Glide load,
+     * the one scroll-jank source on the grid).
+     */
+    private fun refreshCardOverlays() {
+        if (vodAdapter.snapshot().items.isEmpty()) return
+        vodAdapter.notifyItemRangeChanged(0, vodAdapter.itemCount, VodAdapter.PAYLOAD_OVERLAYS)
     }
 
     private fun handleFavoriteLongPress(movie: XtreamVodInfo) {
@@ -1023,17 +995,28 @@ class VodFragment : Fragment() {
             .show()
     }
 
+    private val backdropHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var pendingBackdrop: Runnable? = null
+
     private fun updateBackdrop(movie: XtreamVodInfo) {
-        val imageUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.cover)
-            ?: com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.stream_icon)
-        if (!imageUrl.isNullOrBlank() && isAdded) {
-            Glide.with(this)
-                .load(imageUrl)
-                .transition(DrawableTransitionOptions.withCrossFade(500))
-                .placeholder(android.R.color.transparent)
-                .error(android.R.color.transparent)
-                .into(ivBackgroundBackdrop)
+        // Debounce: swap the backdrop only once focus RESTS (~300ms) — surfing the grid
+        // must not repaint the whole background on every D-pad step.
+        pendingBackdrop?.let { backdropHandler.removeCallbacks(it) }
+        val task = Runnable {
+            if (!isAdded) return@Runnable
+            val imageUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.cover)
+                ?: com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.stream_icon)
+            if (!imageUrl.isNullOrBlank()) {
+                Glide.with(this)
+                    .load(imageUrl)
+                    .transition(DrawableTransitionOptions.withCrossFade(700))
+                    .placeholder(android.R.color.transparent)
+                    .error(android.R.color.transparent)
+                    .into(ivBackgroundBackdrop)
+            }
         }
+        pendingBackdrop = task
+        backdropHandler.postDelayed(task, 300L)
     }
 
     private fun restoreFocus() {
@@ -1087,6 +1070,8 @@ class VodFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        pendingBackdrop?.let { backdropHandler.removeCallbacks(it) }
+        pendingBackdrop = null
         adapterDataObserver?.let {
             try { vodAdapter.unregisterAdapterDataObserver(it) } catch (_: Exception) {}
         }
@@ -1106,6 +1091,7 @@ class VodAdapter(
     private val onMovieClick: (XtreamVodInfo) -> Unit,
     private val favoriteChecker: ((String) -> Boolean)? = null,
     private val watchedChecker: ((String) -> Boolean)? = null,
+    private val progressChecker: ((String) -> Float?)? = null,
     private val onMovieLongClick: ((XtreamVodInfo) -> Unit)? = null
 ) : androidx.paging.PagingDataAdapter<XtreamVodInfo, VodViewHolder>(VodDiffCallback()) {
 
@@ -1113,6 +1099,19 @@ class VodAdapter(
 
     init {
         stateRestorationPolicy = StateRestorationPolicy.PREVENT_WHEN_EMPTY
+    }
+
+    companion object {
+        /** Payload for a badge/progress-only rebind (skips the poster reload). */
+        val PAYLOAD_OVERLAYS = Any()
+    }
+
+    private fun overlayState(movie: XtreamVodInfo): Triple<Boolean, Boolean, Float?> {
+        val sid = movie.stream_id?.toString()
+        val isFavorite = sid?.let { favoriteChecker?.invoke(it) } ?: false
+        val isWatched = sid?.let { watchedChecker?.invoke(it) } ?: false
+        val progress = sid?.let { progressChecker?.invoke(it) }
+        return Triple(isFavorite, isWatched, progress)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VodViewHolder {
@@ -1124,10 +1123,19 @@ class VodAdapter(
     override fun onBindViewHolder(holder: VodViewHolder, position: Int) {
         val movie = getItem(position)
         if (movie != null) {
-            val isFavorite = movie.stream_id?.let { favoriteChecker?.invoke(it.toString()) } ?: false
-            val isWatched = movie.stream_id?.let { watchedChecker?.invoke(it.toString()) } ?: false
-            holder.bind(movie, isFavorite, isWatched, onItemFocused, onMovieClick, onMovieLongClick)
+            val (isFavorite, isWatched, progress) = overlayState(movie)
+            holder.bind(movie, isFavorite, isWatched, progress, onItemFocused, onMovieClick, onMovieLongClick)
         }
+    }
+
+    override fun onBindViewHolder(holder: VodViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.contains(PAYLOAD_OVERLAYS)) {
+            val movie = getItem(position) ?: return
+            val (isFavorite, isWatched, progress) = overlayState(movie)
+            holder.bindOverlays(isFavorite, isWatched, progress) // no poster reload
+            return
+        }
+        super.onBindViewHolder(holder, position, payloads)
     }
 }
 
@@ -1142,29 +1150,44 @@ class VodDiffCallback : androidx.recyclerview.widget.DiffUtil.ItemCallback<Xtrea
 
 class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private val tvMovieTitle = itemView.findViewById<TextView>(R.id.tv_movie_title)
-    private val tvMovieRatingValue = itemView.findViewById<TextView>(R.id.tv_movie_rating_value)
-    private val tvMovieYear = itemView.findViewById<TextView>(R.id.tv_movie_year)
     private val tvQualityValue = itemView.findViewById<TextView>(R.id.tv_quality_value)
-    private val tvGenreShort = itemView.findViewById<TextView>(R.id.tv_genre_short)
     private val ivMoviePoster = itemView.findViewById<ImageView>(R.id.iv_movie_poster)
     private val ivFavoriteIndicator = itemView.findViewById<ImageView>(R.id.iv_favorite_indicator)
     private val flWatchedBadge = itemView.findViewById<View>(R.id.fl_watched_badge)
     private val flProgressBar = itemView.findViewById<View>(R.id.fl_progress_bar)
+    private val progressBarFill = itemView.findViewById<View>(R.id.progress_bar_fill)
     private val glowFocus = itemView.findViewById<View>(R.id.glow_focus)
     private val llQualityBadge = itemView.findViewById<View>(R.id.ll_quality_badge)
-    private val tvStar = itemView.findViewById<TextView>(R.id.tv_star)
-    private val tvMetaDot1 = itemView.findViewById<TextView>(R.id.tv_meta_dot1)
-    private val tvMetaDot2 = itemView.findViewById<TextView>(R.id.tv_meta_dot2)
 
     init {
         // Identical to home/top-10 cards: default-corner cyan bloom via duplicateParentState.
         com.tvonnet.debridxtreamiptv.util.FocusGlow.attachSelector(glowFocus)
     }
 
+    /** Badge/progress overlays only — used by the payload rebind (no poster reload). */
+    fun bindOverlays(isFavorite: Boolean, isWatched: Boolean, progress: Float?) {
+        ivFavoriteIndicator?.visibility = if (isFavorite) View.VISIBLE else View.GONE
+        flWatchedBadge?.visibility = if (isWatched) View.VISIBLE else View.GONE
+        // Progress strip: only for in-progress (unwatched) movies.
+        val frac = progress?.takeIf { it > 0f && !isWatched }
+        if (frac != null) {
+            flProgressBar?.visibility = View.VISIBLE
+            progressBarFill?.post {
+                val parent = flProgressBar?.width ?: 0
+                progressBarFill.layoutParams = progressBarFill.layoutParams.apply {
+                    width = (parent * frac).toInt()
+                }
+            }
+        } else {
+            flProgressBar?.visibility = View.GONE
+        }
+    }
+
     fun bind(
         movie: XtreamVodInfo,
         isFavorite: Boolean,
         isWatched: Boolean,
+        progress: Float?,
         onItemFocused: ((Int) -> Unit)?,
         onClick: (XtreamVodInfo) -> Unit,
         onLongClick: ((XtreamVodInfo) -> Unit)? = null
@@ -1207,55 +1230,17 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         cleanName = com.tvonnet.debridxtreamiptv.util.MediaTitleCleaner.clean(cleanName)
             .ifBlank { "Unknown Movie" }
         tvMovieTitle.text = cleanName
-        tvQualityValue.text = qualityBadge
 
-        // Quality badge colors
+        // Quality badge: 4K ONLY — an "HD" pill on every card is pure noise.
         val is4K = qualityBadge == "4K"
+        llQualityBadge?.visibility = if (is4K) View.VISIBLE else View.GONE
         if (is4K) {
+            tvQualityValue.text = "4K"
             tvQualityValue.setTextColor(Color.parseColor("#FFAA00"))
-        } else {
-            tvQualityValue.setTextColor(Color.parseColor("#94A3B8"))
         }
 
-        // Rating: prefer the dedicated 0–5 field (rating_5based); fall back to the 0–10
-        // `rating` string (normalized /5). When absent, HIDE the ★ + rating segment.
-        val ratingStars: Float? = run {
-            val five = movie.rating_5based?.toFloat()
-            if (five != null && five > 0f) return@run five.coerceIn(0f, 5f)
-            val raw = movie.rating?.trim()?.replace(",", ".")?.toFloatOrNull()
-            if (raw != null && raw > 0f) (if (raw > 5f) raw / 2f else raw).coerceIn(0f, 5f) else null
-        }
-        if (ratingStars != null) {
-            tvMovieRatingValue.text = String.format(Locale.US, "%.1f", ratingStars)
-            tvMovieRatingValue.visibility = View.VISIBLE
-            tvStar?.visibility = View.VISIBLE
-        } else {
-            tvMovieRatingValue.visibility = View.GONE
-            tvStar?.visibility = View.GONE
-        }
-
-        // Year — hide with its separator when absent (avoids dangling dots). The dot
-        // between rating and year only shows when BOTH are present.
-        val yearText = movie.releaseDate?.take(4)?.takeIf { it.isNotBlank() }
-        tvMovieYear.text = yearText ?: ""
-        tvMovieYear.visibility = if (yearText != null) View.VISIBLE else View.GONE
-        tvMetaDot1?.visibility =
-            if (ratingStars != null && yearText != null) View.VISIBLE else View.GONE
-
-        // Genre — hide with its separator when absent
-        val genreText = movie.genre?.split(",")?.firstOrNull()?.trim()?.takeIf { it.isNotBlank() }
-        tvGenreShort?.text = genreText ?: ""
-        tvGenreShort?.visibility = if (genreText != null) View.VISIBLE else View.GONE
-        tvMetaDot2?.visibility = if (genreText != null) View.VISIBLE else View.GONE
-
-        // Favorite
-        ivFavoriteIndicator?.visibility = if (isFavorite) View.VISIBLE else View.GONE
-
-        // Watched badge
-        flWatchedBadge?.visibility = if (isWatched) View.VISIBLE else View.GONE
-
-        // Progress bar (hidden for now — needs WatchedStateRepository progress data)
-        flProgressBar?.visibility = View.GONE
+        // Favorite / watched / progress overlays (shared with the payload rebind).
+        bindOverlays(isFavorite, isWatched, progress)
 
         // Poster
         val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.stream_icon)
@@ -1290,55 +1275,3 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     }
 }
 
-// ═══ GENRE PILL ADAPTER ═══
-
-class VodGenrePillAdapter(
-    private val genres: List<String>,
-    private val onGenreSelected: (String) -> Unit
-) : RecyclerView.Adapter<VodGenrePillAdapter.ViewHolder>() {
-
-    private var selectedPosition = 0
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_vod_genre_pill, parent, false)
-        return ViewHolder(view as TextView)
-    }
-
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val genre = genres[position]
-        val isActive = position == selectedPosition
-        holder.bind(genre, isActive) {
-            val old = selectedPosition
-            selectedPosition = holder.bindingAdapterPosition
-            notifyItemChanged(old)
-            notifyItemChanged(selectedPosition)
-            onGenreSelected(genre)
-        }
-    }
-
-    override fun getItemCount() = genres.size
-
-    class ViewHolder(private val tv: TextView) : RecyclerView.ViewHolder(tv) {
-        fun bind(genre: String, isActive: Boolean, onClick: () -> Unit) {
-            tv.text = genre
-            if (isActive) {
-                tv.setBackgroundResource(R.drawable.bg_vod_genre_pill_active)
-                tv.setTextColor(Color.parseColor("#00F0FF"))
-            } else {
-                tv.setBackgroundResource(R.drawable.bg_vod_genre_pill_default)
-                tv.setTextColor(Color.parseColor("#64748B"))
-            }
-            tv.setOnClickListener { onClick() }
-            tv.setOnFocusChangeListener { v, hasFocus ->
-                if (hasFocus) {
-                    (v as TextView).setBackgroundResource(R.drawable.bg_vod_genre_pill_active)
-                    (v as TextView).setTextColor(Color.parseColor("#00F0FF"))
-                } else if (!isActive) {
-                    (v as TextView).setBackgroundResource(R.drawable.bg_vod_genre_pill_default)
-                    (v as TextView).setTextColor(Color.parseColor("#64748B"))
-                }
-            }
-        }
-    }
-}

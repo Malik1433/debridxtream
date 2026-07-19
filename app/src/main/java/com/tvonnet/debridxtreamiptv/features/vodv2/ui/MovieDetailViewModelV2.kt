@@ -56,9 +56,13 @@ class MovieDetailViewModelV2 @Inject constructor(
         if (started) return
         started = true
 
-        if (TrailerValueParser.parse(existingTrailer) != null) {
-            _uiState.value = MovieDetailV2UiState(trailerValue = existingTrailer)
-            return
+        // Seed a provider-supplied trailer immediately so the Trailer button works while
+        // enrichment runs — but DON'T skip enrichment. Previously an early return here left
+        // any movie that carried a youtube_trailer (common for All Movies / Recently Added
+        // DB rows) with NO plot/cast/genre/backdrop. Enrichment must always run.
+        val hasProviderTrailer = TrailerValueParser.parse(existingTrailer) != null
+        if (hasProviderTrailer) {
+            _uiState.value = _uiState.value.copy(trailerValue = existingTrailer)
         }
 
         val safeTitle = title?.trim().orEmpty()
@@ -84,7 +88,8 @@ class MovieDetailViewModelV2 @Inject constructor(
 
                 _uiState.value = MovieDetailV2UiState(
                     isLoading = false,
-                    trailerValue = trailerKey,
+                    // Prefer the provider's valid trailer; fall back to TMDB's.
+                    trailerValue = if (hasProviderTrailer) existingTrailer else trailerKey,
                     plot = match.overview,
                     year = match.releaseDate?.take(4),
                     genre = match.genres?.takeIf { it.isNotBlank() },
@@ -238,8 +243,10 @@ class MovieDetailViewModelV2 @Inject constructor(
     private fun buildSearchQueries(title: String): List<String> {
         val base = title.trim()
 
-        // Remove common IPTV prefixes like "EN|" or "[EN]" or "EN -"
+        // Remove common IPTV prefixes: leading "|NL|" / "|EN|" / "|MULTI|" pipe-tags
+        // (one or more), plus "EN|", "[EN]", "EN -", and a bare MULTI.
         val noPrefix = base
+            .replace(Regex("^(\\s*\\|[^|]{1,10}\\|\\s*)+"), "")
             .replace(Regex("^\\[[A-Za-z]{2,3}]\\s*"), "")
             .replace(Regex("^[A-Za-z]{2,3}\\s*\\|\\s*"), "")
             .replace(Regex("^[A-Za-z]{2,3}\\s*-\\s*"), "")

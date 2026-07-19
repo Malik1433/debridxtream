@@ -94,7 +94,25 @@ data class TmdbTvShowDetails(
     @SerializedName("genres") val genres: List<TmdbGenre>?,
     @SerializedName("external_ids") val externalIds: TmdbExternalIds?,
     @SerializedName("seasons") val seasons: List<TmdbSeason>?,
-    @SerializedName("videos") val videos: TmdbVideoResponse? = null
+    @SerializedName("videos") val videos: TmdbVideoResponse? = null,
+    @SerializedName("credits") val credits: TmdbCredits? = null,
+    @SerializedName("episode_run_time") val episodeRunTime: List<Int>? = null,
+    @SerializedName("content_ratings") val contentRatings: TmdbContentRatingsResponse? = null,
+    @SerializedName("created_by") val createdBy: List<TmdbCreatedBy>? = null
+)
+
+data class TmdbCreatedBy(
+    @SerializedName("id") val id: Int?,
+    @SerializedName("name") val name: String?
+)
+
+data class TmdbContentRatingsResponse(
+    @SerializedName("results") val results: List<TmdbContentRating>?
+)
+
+data class TmdbContentRating(
+    @SerializedName("iso_3166_1") val countryCode: String?,
+    @SerializedName("rating") val rating: String?
 )
 
 data class TmdbSeason(

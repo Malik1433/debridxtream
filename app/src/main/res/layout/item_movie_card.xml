@@ -126,7 +126,8 @@
         </FrameLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- ─── META (below poster, per design) ─── -->
+    <!-- ─── META (below poster): title only — a calm grid. Rating/year/genre for the
+         focused card show in the section header (updateSectionHeaderForMovie). ─── -->
     <TextView
         android:id="@+id/tv_movie_title"
         android:layout_width="0dp"
@@ -141,77 +142,5 @@
         app:layout_constraintTop_toBottomOf="@id/card_container"
         app:layout_constraintStart_toStartOf="@id/card_container"
         app:layout_constraintEnd_toEndOf="@id/card_container" />
-
-    <!-- Sub-meta row: ★ rating · year · genre -->
-    <LinearLayout
-        android:id="@+id/ll_movie_meta"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="3dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        app:layout_constraintTop_toBottomOf="@id/tv_movie_title"
-        app:layout_constraintStart_toStartOf="@id/card_container"
-        app:layout_constraintEnd_toEndOf="@id/card_container">
-
-        <TextView
-            android:id="@+id/tv_star"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="★"
-            android:textColor="@color/vod_accent_cyan"
-            android:textSize="11sp" />
-
-        <TextView
-            android:id="@+id/tv_movie_rating_value"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="3dp"
-            android:text="N/A"
-            android:textColor="#64748B"
-            android:textSize="11sp"
-            android:fontFamily="monospace"
-            android:letterSpacing="0.04" />
-
-        <TextView
-            android:id="@+id/tv_meta_dot1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="5dp"
-            android:text="·"
-            android:textColor="#3D4F60"
-            android:textSize="11sp" />
-
-        <TextView
-            android:id="@+id/tv_movie_year"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text=""
-            android:textColor="#64748B"
-            android:textSize="11sp"
-            android:fontFamily="monospace"
-            android:letterSpacing="0.04" />
-
-        <TextView
-            android:id="@+id/tv_meta_dot2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="5dp"
-            android:text="·"
-            android:textColor="#3D4F60"
-            android:textSize="11sp" />
-
-        <TextView
-            android:id="@+id/tv_genre_short"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text=""
-            android:textColor="#64748B"
-            android:textSize="11sp"
-            android:fontFamily="monospace"
-            android:singleLine="true"
-            android:ellipsize="end" />
-    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

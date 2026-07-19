@@ -69,6 +69,8 @@
             android:paddingTop="30dp"
             android:paddingBottom="11dp">
 
+            <!-- Title only — a calm grid. Rating/year for the focused card show in
+                 the section header (updateSectionHeaderForSeries). -->
             <TextView
                 android:id="@+id/tv_series_title"
                 android:layout_width="match_parent"
@@ -79,78 +81,7 @@
                 android:textColor="#F1F5F9"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif-medium" />
-
-            <!-- Meta row: ★ rating · year -->
-            <LinearLayout
-                android:id="@+id/ll_rating_container"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:id="@+id/tv_star"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="★"
-                    android:textColor="#A78BFA"
-                    android:textSize="11sp" />
-
-                <TextView
-                    android:id="@+id/tv_series_rating"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="3dp"
-                    android:text="N/A"
-                    android:textColor="#94A3B8"
-                    android:textSize="11sp"
-                    android:fontFamily="monospace"
-                    android:letterSpacing="0.04" />
-
-                <TextView
-                    android:id="@+id/tv_meta_dot"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="5dp"
-                    android:text="·"
-                    android:textColor="#3D4F60"
-                    android:textSize="11sp" />
-
-                <TextView
-                    android:id="@+id/tv_series_year"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text=""
-                    android:textColor="#64748B"
-                    android:textSize="11sp"
-                    android:fontFamily="monospace"
-                    android:letterSpacing="0.04" />
-            </LinearLayout>
         </LinearLayout>
-
-        <!-- ─── PLAY OVERLAY (visible only on focus) ─── -->
-        <FrameLayout
-            android:id="@+id/fl_play_overlay"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="#4D000000"
-            android:alpha="0">
-
-            <FrameLayout
-                android:layout_width="52dp"
-                android:layout_height="52dp"
-                android:layout_gravity="center"
-                android:background="@drawable/bg_series_play_circle">
-
-                <ImageView
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ic_play"
-                    app:tint="#A78BFA" />
-            </FrameLayout>
-        </FrameLayout>
 
         <!-- NEW badge (top-left, purple, year >= 2024) -->
         <FrameLayout

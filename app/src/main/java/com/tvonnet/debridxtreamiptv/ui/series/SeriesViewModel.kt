@@ -66,6 +66,8 @@ class SeriesViewModel @Inject constructor(
     private val repository: XtreamRepository,
     private val seriesDao: com.tvonnet.debridxtreamiptv.data.local.dao.SeriesDao,
     private val favoritesCache: com.tvonnet.debridxtreamiptv.data.cache.FavoritesCache,
+    private val repositoryV2: com.tvonnet.debridxtreamiptv.features.seriesv2.data.repository.XtreamSeriesRepositoryV2,
+    private val episodeDaoV2: com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.EpisodeDaoV2,
     @ApplicationContext private val context: Context,
     val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -117,6 +119,40 @@ class SeriesViewModel @Inject constructor(
     
     private val _uiState = MutableStateFlow(SeriesUiState())
     val uiState: StateFlow<SeriesUiState> = _uiState.asStateFlow()
+
+    // ── Focus prefetch ──────────────────────────────────────────────────────────
+    // Warm get_series_info for the focused card so the detail page opens with the
+    // episodes already in Room. One fetch at a time, latest-focused wins the queue,
+    // and ids aren't retried within this session (dead listings would loop forever).
+    private val prefetchAttempted =
+        java.util.Collections.synchronizedSet(mutableSetOf<String>())
+    private var prefetchJob: kotlinx.coroutines.Job? = null
+    private var pendingPrefetchId: String? = null
+
+    fun prefetchSeriesDetail(seriesId: String) {
+        if (seriesId.isBlank() || prefetchAttempted.contains(seriesId)) return
+        pendingPrefetchId = seriesId
+        drainPrefetchQueue()
+    }
+
+    private fun drainPrefetchQueue() {
+        if (prefetchJob?.isActive == true) return
+        val id = pendingPrefetchId ?: return
+        pendingPrefetchId = null
+        prefetchAttempted.add(id)
+        prefetchJob = viewModelScope.launch(ioDispatcher) {
+            try {
+                if (episodeDaoV2.getCountForSeries(id) > 0) return@launch
+                // Collecting the flow runs the whole fetch-and-persist pipeline;
+                // emissions themselves are irrelevant here.
+                repositoryV2.getSeriesById(id).collect {}
+            } catch (_: Exception) {
+                // Prefetch is best-effort — the detail page does its own fetch anyway.
+            }
+        }.also { job ->
+            job.invokeOnCompletion { viewModelScope.launch { drainPrefetchQueue() } }
+        }
+    }
     
     /**
      * Paged series flow for current selected category

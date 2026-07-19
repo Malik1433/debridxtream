@@ -171,7 +171,8 @@ class PlayerViewModel @Inject constructor(
         seriesId: String,
         seasonNum: Int,
         startEpisodeId: String,
-        seriesTitle: String? = null
+        seriesTitle: String? = null,
+        startEpisodeNumber: Int? = null
     ) {
         android.util.Log.d("IPTV_EP_LOAD_FIX", "START series=${SensitiveLogRedactor.describeHash(seriesId)} season=$seasonNum currentEpisode=${SensitiveLogRedactor.describeHash(startEpisodeId)}")
         viewModelScope.launch {
@@ -196,7 +197,8 @@ class PlayerViewModel @Inject constructor(
                     emitSeriesPlaylist(
                         enrichIptvEpisodeArtwork(localBefore, seriesTitle, seasonNum),
                         startEpisodeId,
-                        null
+                        null,
+                        startEpisodeNumber
                     )
                     return@launch
                 }
@@ -214,11 +216,11 @@ class PlayerViewModel @Inject constructor(
 
                 val mappedEpisodes = enrichIptvEpisodeArtwork(localAfter, seriesTitle, seasonNum)
                 val error = if (mappedEpisodes.isEmpty()) "No episodes available" else null
-                emitSeriesPlaylist(mappedEpisodes, startEpisodeId, error)
+                emitSeriesPlaylist(mappedEpisodes, startEpisodeId, error, startEpisodeNumber)
             } catch (e: Exception) {
                 android.util.Log.d("IPTV_EP_LOAD_FIX", "NETWORK_FETCH_DONE result=error:${e.javaClass.simpleName}")
                 android.util.Log.d("IPTV_EP_LOAD_FIX", "LOCAL_AFTER count=0")
-                emitSeriesPlaylist(emptyList(), startEpisodeId, "Episodes unavailable")
+                emitSeriesPlaylist(emptyList(), startEpisodeId, "Episodes unavailable", startEpisodeNumber)
             }
         }
     }
@@ -226,9 +228,19 @@ class PlayerViewModel @Inject constructor(
     private fun emitSeriesPlaylist(
         episodes: List<EpisodeEntityV2>,
         startEpisodeId: String,
-        error: String?
+        error: String?,
+        startEpisodeNumber: Int? = null
     ) {
-        val startIndex = episodes.indexOfFirst { it.episodeId == startEpisodeId }.takeIf { it >= 0 } ?: -1
+        // Exact id match first. When playback started from a SIBLING category listing
+        // (multi-source stream panel), the playing stream id doesn't exist in the
+        // primary listing's episode list — fall back to the episode NUMBER so
+        // hasNext/auto-next still work instead of silently dying at index -1.
+        val startIndex = episodes.indexOfFirst { it.episodeId == startEpisodeId }
+            .takeIf { it >= 0 }
+            ?: startEpisodeNumber?.let { num ->
+                episodes.indexOfFirst { it.episodeNumber == num }.takeIf { it >= 0 }
+            }
+            ?: -1
         val current = if (startIndex >= 0) episodes[startIndex] else null
         android.util.Log.d("IPTV_EP_LOAD_FIX", "MAPPED count=${episodes.size}")
         android.util.Log.d("IPTV_EP_LOAD_FIX", "EMIT loading=false count=${episodes.size} currentFound=${current != null} error=$error")

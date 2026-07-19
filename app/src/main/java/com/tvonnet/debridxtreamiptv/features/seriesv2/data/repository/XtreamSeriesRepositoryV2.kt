@@ -90,6 +90,9 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
             if (response == null) {
                 android.util.Log.w("SeriesRepoV2", "getSeriesById: get_series_info timed out after ${SERIES_INFO_TIMEOUT_MS}ms — trying fallbacks")
                 fetchEpisodesFallback(seriesId, username, password)
+                if (episodeDao.getCountForSeries(seriesId) == 0) {
+                    adoptSiblingEpisodes(seriesId, username, password)
+                }
                 val updatedSeries = seriesDao.getSeriesById(seriesId)
                 if (updatedSeries != null) { emit(Result.Success(updatedSeries)); return@flow }
             } else {
@@ -109,6 +112,10 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
                     if (episodesMap.isNullOrEmpty()) {
                         android.util.Log.w("SeriesRepoV2", "getSeriesById: Primary info missing episodes. Attempting fallback fetch...")
                         fetchEpisodesFallback(seriesId, username, password)
+                        // Still empty (dead listing) → borrow episodes from a healthy sibling.
+                        if (episodeDao.getCountForSeries(seriesId) == 0) {
+                            adoptSiblingEpisodes(seriesId, username, password)
+                        }
                     }
 
                     // Re-fetch updated local series to emit standard result
@@ -120,6 +127,9 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
                  android.util.Log.w("SeriesRepoV2", "getSeriesById: 404 on get_series_info. Attempting fallback to get_show_episodes...")
                  // Fallback: Fetch Episodes Only
                  fetchEpisodesFallback(seriesId, username, password)
+                 if (episodeDao.getCountForSeries(seriesId) == 0) {
+                     adoptSiblingEpisodes(seriesId, username, password)
+                 }
 
                  // Return local data if we have it (now updated with episodes)
                  val updatedSeries = seriesDao.getSeriesById(seriesId)
@@ -133,14 +143,15 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
             }
         } catch (e: Exception) {
             android.util.Log.e("SeriesRepoV2", "getSeriesById: Exception: ${e.message}", e)
-            if (localSeries != null) {
-                return@flow
+            // Providers often return array-shaped JSON that breaks get_series_info parsing
+            // (dead regional dubs like SOM-/PH-). Try the episodes-only fallbacks, then
+            // adopt episodes from a healthy sibling of the same show. Do NOT early-return
+            // on a cached local series — that left cached dead listings showing "No episodes".
+            android.util.Log.w("SeriesRepoV2", "getSeriesById: Network exception, attempting episodes fallback + sibling adoption...")
+            try { fetchEpisodesFallback(seriesId, username, password) } catch (_: Exception) {}
+            if (episodeDao.getCountForSeries(seriesId) == 0) {
+                adoptSiblingEpisodes(seriesId, username, password)
             }
-
-            // Providers often return mixed JSON shapes that break get_series_info parsing.
-            // Attempt episodes-only fallbacks before giving up.
-            android.util.Log.w("SeriesRepoV2", "getSeriesById: Network exception, attempting episodes fallback...")
-            fetchEpisodesFallback(seriesId, username, password)
             val updatedSeries = seriesDao.getSeriesById(seriesId)
             if (updatedSeries != null) {
                 emit(Result.Success(updatedSeries))
@@ -783,6 +794,61 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
      * this to distinguish "fetch failed" (keep the row, retry later) from "fetched
      * fine but the episode genuinely doesn't exist" (safe to drop).
      */
+    /**
+     * When the opened listing has no episodes of its own (dead regional dub, or a
+     * provider that returns array-shaped JSON), adopt the episode list from a HEALTHY
+     * sibling of the same show and store it under THIS series id — so the detail page
+     * shows episodes. The adopted episodes keep the sibling's playable stream ids, which
+     * is exactly what the multi-source panel would resolve anyway. Best-effort, bounded.
+     */
+    private suspend fun adoptSiblingEpisodes(seriesId: String, username: String, password: String) {
+        if (episodeDao.getCountForSeries(seriesId) > 0) return
+        val siblings = runCatching { findSiblingListings(seriesId) }.getOrNull()
+            ?.filter { it.seriesId != seriesId }
+            ?: return
+        if (siblings.isEmpty()) return
+        // Try the variants most likely to carry real episodes FIRST — |MULTI| / |EN| /
+        // international listings usually do, while regional dubs (SOM-/PH-/AR-) are
+        // typically the same dead references. Bounded + short timeout so a wall of dead
+        // siblings can't hang the page for minutes.
+        val ordered = siblings.sortedByDescending { siblingEpisodeLikelihood(it.name) }.take(8)
+        android.util.Log.i("SeriesRepoV2", "adoptSiblingEpisodes: $seriesId has no episodes; trying ${ordered.size}/${siblings.size} siblings")
+        for (sib in ordered) {
+            try {
+                val resp = withTimeoutOrNull(6_000L) {
+                    apiService.getSeriesInfo(username, password, seriesId = sib.seriesId)
+                }
+                val epMap = resp?.takeIf { it.isSuccessful }?.body()?.episodes
+                if (!epMap.isNullOrEmpty()) {
+                    val eps = mapEpisodes(seriesId, epMap)
+                    if (eps.isNotEmpty()) {
+                        saveToDb(seriesId, eps)
+                        android.util.Log.i("SeriesRepoV2", "adoptSiblingEpisodes: adopted ${eps.size} episodes from sibling ${sib.seriesId} (${sib.name})")
+                        return
+                    }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Sibling also dead / parse error — try the next.
+            }
+        }
+        android.util.Log.w("SeriesRepoV2", "adoptSiblingEpisodes: no sibling of $seriesId had episodes")
+    }
+
+    /** Heuristic: which variants tend to carry real episode data. Higher = try sooner. */
+    private fun siblingEpisodeLikelihood(name: String?): Int {
+        val n = name?.uppercase().orEmpty()
+        var score = 0
+        if (n.contains("MULTI")) score += 5
+        if (Regex("\\|\\s*EN\\s*\\|").containsMatchIn(n) || n.startsWith("EN")) score += 4
+        if (n.contains("NETFLIX") || n.contains("4K") || n.contains("UHD")) score += 2
+        // Regional-dub prefixes are usually the dead references.
+        if (Regex("^(SOM|PH|AR|EXYU|ALB|PL|NL|PT|DE|ES|FR)\\b").containsMatchIn(n) ||
+            Regex("^\\|\\s*(SOM|PH|AR|EXYU|ALB|PL|NL|PT|DE|ES|FR)\\s*\\|").containsMatchIn(n)) score -= 2
+        return score
+    }
+
     private suspend fun ensureEpisodesCached(seriesId: String): Boolean {
         if (episodeDao.getCountForSeries(seriesId) > 0) return true
         val username = legacyRepository.getUsername()

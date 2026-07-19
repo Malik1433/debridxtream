@@ -25,6 +25,10 @@ class WatchedStateRepository @Inject constructor(
 
     fun observeAllWatchedEpisodeKeys() = watchedStateDao.observeAllWatchedEpisodeKeys()
 
+    /** streamId -> (progressMs, durationMs) for in-progress IPTV movies (browse card strip). */
+    fun observeInProgressMovieProgress() =
+        watchedStateDao.observeInProgressMovies()
+
     suspend fun upsertAutomaticProgress(state: WatchedStateEntity, timestamp: Long) {
         watchedStateDao.upsert(
             state.copy(

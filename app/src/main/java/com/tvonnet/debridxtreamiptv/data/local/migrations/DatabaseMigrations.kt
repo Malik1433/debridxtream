@@ -174,7 +174,8 @@ object DatabaseMigrations {
             MIGRATION_7_8,
             MIGRATION_8_9,
             MIGRATION_9_10,
-            MIGRATION_10_11
+            MIGRATION_10_11,
+            MIGRATION_11_12
         )
     }
 
@@ -298,6 +299,70 @@ object DatabaseMigrations {
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_watched_state_content_type_source` ON `watched_state` (`content_type`, `source`)")
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_watched_state_series_id_source_season_number` ON `watched_state` (`series_id`, `source`, `season_number`)")
             android.util.Log.d("DatabaseMigration", "Successfully migrated database from version 10 to 11")
+        }
+    }
+
+    /**
+     * Migration from version 11 to 12
+     * Fix: episodes_v2_core primary key episode_id → composite (series_id, episode_id).
+     *
+     * The same Xtream episode stream id can legitimately belong to more than one series
+     * listing (a show is listed as separate series_ids per category; the multi-source panel
+     * and sibling-episode adoption store a sibling's episodes under another series' id so
+     * each category resolves its own stream). With episode_id alone as PK, REPLACE-on-conflict
+     * flipped a row's series_id to whichever write came last, so getEpisode(thatSeriesId,…)
+     * returned null and "select any category → won't play from there". SQLite can't ALTER a
+     * primary key, so recreate the table with the composite key and copy existing rows.
+     */
+    val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `episodes_v2_core_new` (
+                    `episode_id` TEXT NOT NULL,
+                    `series_id` TEXT NOT NULL,
+                    `season_number` INTEGER NOT NULL,
+                    `episode_number` INTEGER NOT NULL,
+                    `title` TEXT,
+                    `container_extension` TEXT,
+                    `stream_type` TEXT,
+                    `duration_secs` TEXT,
+                    `added` TEXT,
+                    `custom_sid` TEXT,
+                    `direct_source` TEXT,
+                    `thumbnail` TEXT,
+                    `plot` TEXT,
+                    `cast` TEXT,
+                    `director` TEXT,
+                    `genre` TEXT,
+                    `release_date` TEXT,
+                    `rating` TEXT,
+                    `is_watched` INTEGER NOT NULL DEFAULT 0,
+                    `resume_position` INTEGER NOT NULL DEFAULT 0,
+                    `duration` INTEGER NOT NULL DEFAULT 0,
+                    `cached_at` INTEGER NOT NULL,
+                    PRIMARY KEY(`series_id`, `episode_id`),
+                    FOREIGN KEY(`series_id`) REFERENCES `series_v2_core`(`series_id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """)
+            // Copy existing rows (old episode_id PK is unique, so no collisions here).
+            db.execSQL("""
+                INSERT OR IGNORE INTO `episodes_v2_core_new` (
+                    `episode_id`, `series_id`, `season_number`, `episode_number`, `title`,
+                    `container_extension`, `stream_type`, `duration_secs`, `added`, `custom_sid`,
+                    `direct_source`, `thumbnail`, `plot`, `cast`, `director`, `genre`,
+                    `release_date`, `rating`, `is_watched`, `resume_position`, `duration`, `cached_at`
+                )
+                SELECT
+                    `episode_id`, `series_id`, `season_number`, `episode_number`, `title`,
+                    `container_extension`, `stream_type`, `duration_secs`, `added`, `custom_sid`,
+                    `direct_source`, `thumbnail`, `plot`, `cast`, `director`, `genre`,
+                    `release_date`, `rating`, `is_watched`, `resume_position`, `duration`, `cached_at`
+                FROM `episodes_v2_core`
+            """)
+            db.execSQL("DROP TABLE `episodes_v2_core`")
+            db.execSQL("ALTER TABLE `episodes_v2_core_new` RENAME TO `episodes_v2_core`")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_episodes_v2_core_series_id` ON `episodes_v2_core` (`series_id`)")
+            android.util.Log.d("DatabaseMigration", "Successfully migrated database from version 11 to 12 (composite PK)")
         }
     }
 }

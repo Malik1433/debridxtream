@@ -71,8 +71,15 @@ interface TmdbApiService {
     suspend fun getTvShowDetails(
         @Path("tv_id") tvId: String,
         @Query("api_key") apiKey: String,
-        @Query("append_to_response") appendToResponse: String = "external_ids,videos,credits"
+        @Query("append_to_response") appendToResponse: String = "external_ids,videos,credits,content_ratings"
     ): com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbTvShowDetails
+
+    @GET("tv/{tv_id}/recommendations")
+    suspend fun getTvRecommendations(
+        @Path("tv_id") tvId: String,
+        @Query("api_key") apiKey: String,
+        @Query("page") page: Int = 1
+    ): TmdbTvShowResponse
 
     @GET("tv/{tv_id}/season/{season_number}")
     suspend fun getTvSeasonDetails(

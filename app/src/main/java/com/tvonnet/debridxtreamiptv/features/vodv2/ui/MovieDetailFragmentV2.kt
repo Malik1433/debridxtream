@@ -19,6 +19,7 @@ import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbImageUrl
 import com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbMovie
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
+import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.omdb.OmdbClient
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
@@ -44,6 +45,9 @@ class MovieDetailFragmentV2 : Fragment() {
 
     @Inject
     lateinit var watchedStateRepository: WatchedStateRepository
+
+    @Inject
+    lateinit var repository: com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 
     private val viewModel: MovieDetailViewModelV2 by viewModels()
 
@@ -144,9 +148,7 @@ class MovieDetailFragmentV2 : Fragment() {
             }
         }
 
-        binding.btnFavorite.setOnClickListener {
-            Toast.makeText(context, "Favorite (coming soon)", Toast.LENGTH_SHORT).show()
-        }
+        setupFavoriteButton()
 
         // Enrich with TMDB (plot/trailer/backdrop/rating + cast/similar/age/imdb).
         viewModel.start(title = movieTitle, yearHint = year, existingTrailer = trailer)
@@ -285,6 +287,46 @@ class MovieDetailFragmentV2 : Fragment() {
             startPositionMs = resumePositionMs
         )
         startActivity(intent)
+    }
+
+    /** Real favorite toggle (reuses XtreamRepository favorites, same as browse). */
+    private fun setupFavoriteButton() {
+        val id = streamId ?: run {
+            binding.btnFavorite.visibility = View.GONE
+            return
+        }
+        var isFav = false
+        binding.btnFavorite.setImageResource(R.drawable.ic_favorite_border)
+        binding.btnFavorite.setOnClickListener {
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    if (isFav) {
+                        repository.removeFavorite(id)
+                        Toast.makeText(context, "Removed from favorites", Toast.LENGTH_SHORT).show()
+                    } else {
+                        repository.addFavorite(
+                            streamId = id,
+                            type = "vod",
+                            name = movieTitle ?: "Movie",
+                            iconUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(posterUrl)
+                        )
+                        Toast.makeText(context, "Added to favorites", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                repository.getFavoritesByType("vod").collect { favorites ->
+                    isFav = favorites.any { it.streamId == id }
+                    binding.btnFavorite.setImageResource(
+                        if (isFav) R.drawable.ic_favorite else R.drawable.ic_favorite_border
+                    )
+                }
+            }
+        }
     }
 
     private fun setupWatchedButton(year: String?) {

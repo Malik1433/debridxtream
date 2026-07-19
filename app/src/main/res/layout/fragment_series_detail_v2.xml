@@ -174,6 +174,75 @@
                     android:textSize="7sp" />
             </LinearLayout>
 
+            <!-- IMDb (OMDb) -->
+            <LinearLayout
+                android:id="@+id/badge_imdb"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/cin_detail_rating_badge"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:layout_marginEnd="7dp"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="IMDb"
+                    android:textColor="#FFAA00"
+                    android:textSize="7sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.04" />
+
+                <TextView
+                    android:id="@+id/tv_imdb_rating"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="#F1F5F9"
+                    android:textSize="8sp"
+                    android:fontFamily="monospace"
+                    tools:text="8.2" />
+            </LinearLayout>
+
+            <!-- Rotten Tomatoes (OMDb) -->
+            <LinearLayout
+                android:id="@+id/badge_rt"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/cin_detail_rating_badge"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:layout_marginEnd="7dp"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🍅"
+                    android:textSize="7sp" />
+
+                <TextView
+                    android:id="@+id/tv_rt_rating"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="#F1F5F9"
+                    android:textSize="8sp"
+                    android:fontFamily="monospace"
+                    tools:text="89%" />
+            </LinearLayout>
+
             <TextView
                 android:id="@+id/tv_year"
                 android:layout_width="wrap_content"
@@ -230,6 +299,35 @@
                 tools:visibility="visible" />
 
             <TextView
+                android:id="@+id/tv_runtime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="7dp"
+                android:textColor="#94A3B8"
+                android:textSize="8sp"
+                android:fontFamily="monospace"
+                android:visibility="gone"
+                tools:text="45M"
+                tools:visibility="visible" />
+
+            <TextView
+                android:id="@+id/tv_age_rating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="7dp"
+                android:background="@drawable/cin_detail_quality_badge"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textColor="#CBD5E1"
+                android:textSize="6sp"
+                android:fontFamily="monospace"
+                android:visibility="gone"
+                tools:text="TV-MA"
+                tools:visibility="visible" />
+
+            <TextView
                 android:id="@+id/tv_quality_badge"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -281,71 +379,6 @@
                 tools:text="AVAILABLE IN 4 CATEGORIES · UP TO 4K" />
         </LinearLayout>
 
-        <!-- Continue watching bar -->
-        <LinearLayout
-            android:id="@+id/layout_resume"
-            android:layout_width="240dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="vertical"
-            android:visibility="gone"
-            tools:visibility="visible">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/tv_resume_label"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:textColor="#00F0FF"
-                    android:textSize="6sp"
-                    android:fontFamily="monospace"
-                    android:letterSpacing="0.1"
-                    tools:text="CONTINUE · S01 · E03" />
-
-                <TextView
-                    android:id="@+id/tv_resume_right"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="#64748B"
-                    android:textSize="6sp"
-                    android:fontFamily="monospace"
-                    android:letterSpacing="0.06"
-                    tools:text="42% · 32M LEFT" />
-            </LinearLayout>
-
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="2dp"
-                android:layout_marginTop="4dp">
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="@drawable/cin_series_progress_bg" />
-
-                <View
-                    android:id="@+id/v_resume_progress"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:background="@drawable/cin_series_progress_fill" />
-            </FrameLayout>
-
-            <TextView
-                android:id="@+id/tv_resume_ep_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:textColor="#CBD5E1"
-                android:textSize="7sp"
-                android:textStyle="bold"
-                tools:text="Ghost in the Noise" />
-        </LinearLayout>
 
         <!-- Description -->
         <TextView
@@ -424,8 +457,89 @@
         </LinearLayout>
     </LinearLayout>
 
+    <!-- Director / Creator + Cast (TMDB enrichment). Anchored directly BELOW the hero
+         (action buttons) and constrained above the episodes section, so it can never
+         overlap either the buttons or the season button. Bias 0 keeps it hugging the
+         hero; constrainedHeight caps it if vertical space is tight. -->
+    <LinearLayout
+        android:id="@+id/layout_credits"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="44dp"
+        android:layout_marginTop="14dp"
+        android:orientation="horizontal"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/container_header"
+        app:layout_constraintBottom_toTopOf="@id/section_episodes"
+        app:layout_constraintVertical_bias="0"
+        app:layout_constrainedHeight="true"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:id="@+id/layout_director"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:id="@+id/tv_director_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CREATOR"
+                android:textColor="#64748B"
+                android:textSize="7sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.16" />
+
+            <TextView
+                android:id="@+id/tv_director"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="#F1F5F9"
+                android:textSize="9sp"
+                tools:text="William Monahan" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_cast"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="28dp"
+            android:orientation="vertical"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CAST"
+                android:textColor="#64748B"
+                android:textSize="7sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.16" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_cast"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal"
+                android:clipToPadding="false"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                tools:listitem="@layout/item_cast_member"
+                tools:itemCount="5" />
+        </LinearLayout>
+    </LinearLayout>
+
     <!-- ══ EPISODES SECTION (bottom) ══ -->
     <LinearLayout
+        android:id="@+id/section_episodes"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="44dp"
@@ -514,6 +628,23 @@
             android:orientation="horizontal"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             tools:listitem="@layout/item_episode_cin" />
+
+        <!-- Episode skeleton strip — shown while get_series_info is fetching and the
+             strip is still empty; shimmer started from code. -->
+        <LinearLayout
+            android:id="@+id/ll_episodes_loading"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="-15dp"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <include layout="@layout/item_episode_loading" />
+            <include layout="@layout/item_episode_loading" />
+            <include layout="@layout/item_episode_loading" />
+            <include layout="@layout/item_episode_loading" />
+            <include layout="@layout/item_episode_loading" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Hidden season list (kept for potential future use / logic parity) -->

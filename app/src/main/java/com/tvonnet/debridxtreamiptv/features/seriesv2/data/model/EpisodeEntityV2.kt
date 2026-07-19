@@ -4,7 +4,6 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
-import androidx.room.PrimaryKey
 
 /**
  * V2 Entity for Episode data.
@@ -13,6 +12,14 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "episodes_v2_core",
+    // Composite PK (series_id, episode_id): the SAME Xtream episode stream id can legitimately
+    // belong to more than one series listing — a show is listed as separate series_ids per
+    // category, and the multi-source panel (plus sibling-episode adoption) stores a sibling's
+    // episodes under another series' id so each category can resolve its own stream. With
+    // episode_id alone as PK, REPLACE-on-conflict flipped a row's series_id to whichever write
+    // came last, so getEpisode(thatSeriesId, …) returned null and "select any category → won't
+    // play from there". The composite key lets both rows coexist.
+    primaryKeys = ["series_id", "episode_id"],
     foreignKeys = [
         ForeignKey(
             entity = SeriesEntityV2::class,
@@ -24,7 +31,6 @@ import androidx.room.PrimaryKey
     indices = [Index("series_id")]
 )
 data class EpisodeEntityV2(
-    @PrimaryKey
     @ColumnInfo(name = "episode_id")
     val episodeId: String,
 

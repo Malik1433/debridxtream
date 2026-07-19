@@ -58,6 +58,9 @@ class EpisodesAdapterV2(
     var imdbId: String? = null
     var watchedKeys: Set<String> = emptySet()
 
+    /** identityKey -> saved progress ms, for in-progress resume bars (real V2 data). */
+    var progressByKey: Map<String, Long> = emptyMap()
+
     private var selectedEpisodeId: String? = null
 
     fun setSelectedEpisode(episodeId: String?) {
@@ -146,17 +149,24 @@ class EpisodesAdapterV2(
             val watched = identityKey != null && watchedKeys.contains(identityKey)
             val isActive = episode.episodeId == selectedEpisodeId
 
-            // Resume progress (only if we have a real position within a known duration)
+            // Resume progress: prefer real saved progress from the watched-state store
+            // (episode.resumePosition is never populated in the V2 flow), keyed by identity.
             val durationMs = episode.duration * 1000L
-            val resume = episode.resumePosition
-            val hasProgress = resume in 1 until durationMs.coerceAtLeast(1) && !watched
+            val resume = (identityKey?.let { progressByKey[it] } ?: 0L)
+                .takeIf { it > 0L } ?: episode.resumePosition
+            // When duration is unknown (0), still show a resume bar if we have a position.
+            val hasProgress = resume > 0L &&
+                (durationMs <= 0L || resume < durationMs) && !watched
+            // Fraction only meaningful when duration is known; else show a token bar.
+            val pctFraction = if (durationMs > 0L) {
+                (resume.toFloat() / durationMs.toFloat()).coerceIn(0.02f, 1f)
+            } else 0.35f
             if (hasProgress) {
                 binding.layoutProgress.visibility = View.VISIBLE
-                val pct = (resume.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
                 binding.vProgressFill.post {
                     val parent = binding.layoutProgress.width
                     val lp = binding.vProgressFill.layoutParams
-                    lp.width = (parent * pct).toInt()
+                    lp.width = (parent * pctFraction).toInt()
                     binding.vProgressFill.layoutParams = lp
                 }
             } else {
@@ -167,8 +177,8 @@ class EpisodesAdapterV2(
             binding.tvSubtitle.text = when {
                 watched -> "WATCHED" + (if (durationText.isNotEmpty()) " · $durationText" else "")
                 hasProgress -> {
-                    val pct = ((resume.toFloat() / durationMs.toFloat()) * 100).toInt().coerceIn(0, 100)
-                    "RESUME · $pct%"
+                    if (durationMs > 0L) "RESUME · ${(pctFraction * 100).toInt().coerceIn(1, 100)}%"
+                    else "RESUME"
                 }
                 !episode.releaseDate.isNullOrBlank() -> episode.releaseDate
                 else -> "EPISODE ${episode.episodeNumber}"
