@@ -146,6 +146,7 @@ class DebridDiscoverAdapter(
 
             Glide.with(ivPoster.context)
                 .load(item.posterUrl)
+                .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565) // IMG-1
                 .placeholder(R.color.surface_dark)
                 .error(R.color.surface_dark)
                 .into(ivPoster)

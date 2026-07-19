@@ -104,6 +104,14 @@ class CacheHelper(private val context: Context) {
     }
     
     fun memorySnapshot(): IptvCache? = inMemoryCache
+
+    /**
+     * Cheap "do we have cache to show" check — an in-memory hit or a file stat,
+     * never a Gson parse. Lets the Home collect-condition avoid a main-thread
+     * disk parse (ST-1) when deciding whether to load.
+     */
+    fun hasCacheFile(): Boolean =
+        inMemoryCache != null || File(context.filesDir, cacheFileName).exists()
     
     fun clearMemorySnapshot() {
         inMemoryCache = null

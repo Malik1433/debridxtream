@@ -277,6 +277,9 @@ object GlideUtils {
             .placeholder(placeholder)
             .error(error)
             .override(POSTER_WIDTH, POSTER_HEIGHT)
+            // IMG-1: posters have no alpha — RGB_565 halves their heap footprint vs the
+            // global ARGB_8888 default (logos keep 8888 via getChannelLogoOptions).
+            .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565)
             .transform(CenterCrop())
             .diskCacheStrategy(DiskCacheStrategy.ALL)
             .skipMemoryCache(false)

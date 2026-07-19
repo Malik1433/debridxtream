@@ -52,6 +52,11 @@ internal class HomeHeroManager(private var fragment: HomeFragment?) {
 
         Glide.with(frag)
             .load(heroUrl)
+            // IMG-3: hero rotates every 7s at ~8MB/slide (ARGB_8888, full-screen),
+            // evicting row posters from the 32MB cache. RGB_565 + a downscaled
+            // override (behind a scrim anyway) cuts each slide to ~1MB.
+            .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565)
+            .override(960, 540)
             .transition(DrawableTransitionOptions.withCrossFade())
             .listener(object : RequestListener<android.graphics.drawable.Drawable> {
                 override fun onLoadFailed(

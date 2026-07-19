@@ -119,6 +119,9 @@ internal class StremioHeroManager(
         descView.text = item.desc ?: "Experience high-quality streaming on DebridXtream."
 
         Glide.with(fragment).load(item.backdropUrl)
+            // IMG-3: same hero-vs-cache-thrash fix as HomeHeroManager.
+            .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565)
+            .override(960, 540)
             .transition(DrawableTransitionOptions.withCrossFade(500)).into(backdrop)
 
         updateDots()

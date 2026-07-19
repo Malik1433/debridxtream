@@ -125,7 +125,12 @@ class Top10Adapter(
 
             Glide.with(itemView.context)
                 .load(item.posterUrl)
-                .apply(RequestOptions().transform(CenterCrop(), RoundedCorners(cornerRadius)))
+                // IMG-1: posters RGB_565 (no alpha) — halve heap vs 8888 default.
+                .apply(
+                    RequestOptions()
+                        .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565)
+                        .transform(CenterCrop(), RoundedCorners(cornerRadius))
+                )
                 .placeholder(R.drawable.bg_card_focus_cyan)
                 .error(R.drawable.bg_card_focus_cyan)
                 .into(ivPoster)

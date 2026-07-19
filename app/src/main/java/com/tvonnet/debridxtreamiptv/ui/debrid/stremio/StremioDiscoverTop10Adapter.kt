@@ -59,6 +59,7 @@ internal class StremioDiscoverTop10Adapter(
             trend.setTextColor(r.trendColor)
             thumb.background = StremioGradients.cardBg(StremioPalette.forIndex(position), 3f, density, 0x00000000)
             Glide.with(thumb).load(r.posterUrl)
+                .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565) // IMG-1
                 .transform(RoundedCorners((3f * density).toInt()))
                 .into(thumb)
             row.setOnClickListener { onClick(r) }

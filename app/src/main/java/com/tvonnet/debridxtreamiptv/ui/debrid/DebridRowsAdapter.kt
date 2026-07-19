@@ -290,6 +290,7 @@ class DebridItemViewHolder(
         // Load poster with Glide
         Glide.with(itemView.context)
             .load(imageUrl)
+            .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565) // IMG-1: posters no alpha
             .diskCacheStrategy(DiskCacheStrategy.ALL)
             .override(overrideWidth, overrideHeight)
             .thumbnail(0.1f)

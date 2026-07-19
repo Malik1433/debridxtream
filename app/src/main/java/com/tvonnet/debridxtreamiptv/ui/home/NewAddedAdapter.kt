@@ -64,6 +64,8 @@ class NewAddedAdapter(
             if (!item.posterUrl.isNullOrEmpty()) {
                 Glide.with(itemView.context)
                     .load(item.posterUrl)
+                    // IMG-1: posters RGB_565 (no alpha) — halve heap vs 8888 default.
+                    .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565)
                     .placeholder(R.drawable.tv_card_placeholder)
                     .error(R.drawable.tv_card_placeholder)
                     .centerCrop()

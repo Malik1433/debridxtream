@@ -158,12 +158,24 @@ class DebridSeeAllActivity : AppCompatActivity() {
         }
     }
 
+    private val backdropHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var pendingBackdrop: Runnable? = null
+
     private fun updateBackdrop(item: CatalogItem) {
+        // IMG-2: debounce full-screen backdrop decode to focus-rest (~300ms).
+        pendingBackdrop?.let { backdropHandler.removeCallbacks(it) }
         val imageUrl = item.backdropUrl ?: item.posterUrl ?: return
-        val ivBackdrop = findViewById<ImageView>(R.id.ivBackdrop)
-        Glide.with(this)
-            .load(imageUrl)
-            .transition(DrawableTransitionOptions.withCrossFade(500))
-            .into(ivBackdrop)
+        val task = Runnable {
+            if (isFinishing || isDestroyed) return@Runnable
+            val ivBackdrop = findViewById<ImageView>(R.id.ivBackdrop)
+            Glide.with(this)
+                .load(imageUrl)
+                .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565)
+                .override(960, 540)
+                .transition(DrawableTransitionOptions.withCrossFade(500))
+                .into(ivBackdrop)
+        }
+        pendingBackdrop = task
+        backdropHandler.postDelayed(task, 300L)
     }
 }

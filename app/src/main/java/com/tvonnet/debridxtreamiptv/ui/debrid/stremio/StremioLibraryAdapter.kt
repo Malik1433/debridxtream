@@ -58,7 +58,8 @@ internal class StremioLibraryAdapter : RecyclerView.Adapter<StremioLibraryAdapte
             status.text = c.status
             status.setTextColor(c.statusColor)
             status.background = GradientDrawable().apply { cornerRadius = 1.5f * density; setColor(c.statusBg) }
-            Glide.with(image).load(c.posterUrl).into(image)
+            Glide.with(image).load(c.posterUrl)
+                .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565).into(image) // IMG-1
 
             progressWrap.isVisible = c.hasProgress
             if (c.hasProgress) card.post {

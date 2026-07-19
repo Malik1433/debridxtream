@@ -1497,11 +1497,26 @@ class XtreamRepository @Inject constructor(
         if (memoryCache != null) {
             return memoryCache
         }
-        
+
         // Otherwise read from file and cache in memory
         memoryCache = cacheHelper.readCache()
         return memoryCache
     }
+
+    /**
+     * ST-1: parse the on-disk catalog OFF the main thread and warm [memoryCache].
+     * Home calls this before its synchronous readCache() so the multi-MB Gson parse
+     * never runs on the UI thread. Signature-safe: readCache() itself is unchanged,
+     * so all 20+ existing callers keep working — they just hit a warm memoryCache.
+     */
+    suspend fun prewarmCache(): IptvCache? =
+        withContext(Dispatchers.IO) { readCache() }
+
+    /**
+     * Cheap "is there cache to show" check for the Home collect-condition —
+     * in-memory hit or a file stat, never a main-thread Gson parse (ST-1).
+     */
+    fun hasCache(): Boolean = memoryCache != null || cacheHelper.hasCacheFile()
     
     fun clearMemoryCache() {
         memoryCache = null

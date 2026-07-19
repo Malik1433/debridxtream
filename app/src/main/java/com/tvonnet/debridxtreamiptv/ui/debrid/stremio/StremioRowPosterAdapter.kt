@@ -72,7 +72,8 @@ internal class StremioRowPosterAdapter(
                 }
             }
 
-            Glide.with(image).load(item.posterUrl ?: item.backdropUrl).into(image)
+            Glide.with(image).load(item.posterUrl ?: item.backdropUrl)
+                .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565).into(image) // IMG-1
 
             val showProgress = item.isContinueWatching && (item.durationMs ?: 0L) > 0L
             progressWrap.isVisible = showProgress

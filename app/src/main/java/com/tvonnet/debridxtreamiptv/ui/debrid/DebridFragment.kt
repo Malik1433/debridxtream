@@ -471,17 +471,30 @@ class DebridFragment : Fragment() {
     }
 
 
+    private val backdropHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var pendingBackdrop: Runnable? = null
+
     private fun updateBackdrop(item: DebridContentItem) {
+        // IMG-2: debounce so surfing the grid doesn't decode an 8MB full-screen
+        // backdrop on every D-pad step — swap only once focus RESTS (~300ms).
+        // Mirrors VodFragment.updateBackdrop.
+        pendingBackdrop?.let { backdropHandler.removeCallbacks(it) }
         val imageUrl = item.backdropUrl ?: item.posterUrl
-        if (!imageUrl.isNullOrBlank()) {
+        if (imageUrl.isNullOrBlank()) return
+        val task = Runnable {
+            if (!isAdded) return@Runnable
             ivBackgroundBackdrop.animate().alpha(0.6f).setDuration(300).start()
             Glide.with(this)
                 .load(imageUrl)
+                .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565)
+                .override(960, 540)
                 .transition(DrawableTransitionOptions.withCrossFade(600))
                 .placeholder(android.R.color.transparent)
                 .error(android.R.color.transparent)
                 .into(ivBackgroundBackdrop)
         }
+        pendingBackdrop = task
+        backdropHandler.postDelayed(task, 300L)
     }
 
     private fun updateHero(item: DebridContentItem) {
