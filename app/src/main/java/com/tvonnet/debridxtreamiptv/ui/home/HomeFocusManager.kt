@@ -30,7 +30,9 @@ internal class HomeFocusManager(private var fragment: HomeFragment?) {
     internal var suppressNextHeroFocusMemory = false
     internal var lastFocusedRvIndex = 0
     internal var lastFocusedItemIndex = 0
-    internal var lastContentFocusArea = HomeContentFocusArea.MOVIES
+    // Default HERO so a fresh Home open lands on the hero Play button, not the
+    // Trending Movies row (owner request). Updated as the user navigates.
+    internal var lastContentFocusArea = HomeContentFocusArea.HERO
     internal var lastContinueWatchingIndex = 0
     internal var lastRecentLiveIndex = 0
     internal var lastMovieIndex = 0
@@ -47,7 +49,7 @@ internal class HomeFocusManager(private var fragment: HomeFragment?) {
         appliedLoadingFallbackFocus = false
         isContentFocusRequestPending = false
         didRestoreFocusForThisView = false
-        lastContentFocusArea = HomeContentFocusArea.MOVIES
+        lastContentFocusArea = HomeContentFocusArea.HERO // fresh open → hero Play button
         lastMovieIndex = 0
         lastSeriesIndex = 0
         lastContinueWatchingIndex = 0
@@ -76,12 +78,15 @@ internal class HomeFocusManager(private var fragment: HomeFragment?) {
         }
 
         val focused = when {
+            // Returning to Home restores exactly where the user was.
             isRememberedContentFocusValid() -> restoreContentFocus()
+            // Fresh open: land on the hero's Play button (owner request) — the hero
+            // banner is the top element, not the Continue Watching / Trending rows below.
+            frag.currentHeroItem != null && requestFocusSafely(frag.view?.findViewById(R.id.btn_hero_watch)) -> true
             state.continueWatching.isNotEmpty() -> requestContentFocus(frag.rvContinueWatching, 0)
             state.recentLiveChannels.isNotEmpty() -> requestContentFocus(frag.rvRecentLive, 0)
             state.top10Movies.isNotEmpty() -> requestContentFocus(frag.rvTop10Movies, 0)
             state.top10Series.isNotEmpty() -> requestContentFocus(frag.rvTop10Series, 0)
-            frag.currentHeroItem != null && requestFocusSafely(frag.view?.findViewById(R.id.btn_hero_watch)) -> true
             returnToSidebar() -> true
             else -> requestFocusSafely(frag.rvSidebar)
         }
