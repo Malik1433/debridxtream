@@ -121,6 +121,9 @@ class MainActivity : AppCompatActivity() {
             // full XMLTV on every launch. Also (re)register the periodic background sync
             // here so EPG stays fresh even if the user never opens Settings.
             lifecycleScope.launch(Dispatchers.IO) {
+                // ST-7: give the first home render a ~10s head start before the
+                // EPG XMLTV download/parse competes for network + memory on launch.
+                kotlinx.coroutines.delay(10_000)
                 runCatching {
                     com.tvonnet.debridxtreamiptv.worker.EpgSyncController()
                         .syncFromPreferences(applicationContext)
@@ -148,8 +151,11 @@ class MainActivity : AppCompatActivity() {
         // Phase 3.2: Initialize Voice Search Manager
         initializeVoiceSearch()
 
-        // Phase 1: Smart Network Detection
+        // Phase 1: Smart Network Detection.
+        // ST-6: defer the 1MB speed test ~30s past launch so it doesn't fight the
+        // first home content fetch (TMDB + posters) for the Fire TV's Wi-Fi.
         lifecycleScope.launch {
+            kotlinx.coroutines.delay(30_000)
             val quality = networkQualityManager.runSpeedTest()
             settingsPreferences.saveNetworkQuality(quality.name)
             Log.i("MainActivity", "Network Quality Optimized: ${quality.name}")

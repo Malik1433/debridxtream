@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 data class MovieDetailV2UiState(
@@ -73,9 +74,15 @@ class MovieDetailViewModelV2 @Inject constructor(
             android.util.Log.d("MovieDetailV2", "TMDB enrich start: title=$safeTitle year=$safeYearHint")
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
-                val match = withContext(Dispatchers.IO) { findBestTmdbMatch(safeTitle, safeYearHint) }
+                // B-11: bound the enrichment. findBestTmdbMatch tries up to 4 sequential
+                // search+details round-trips; on a slow TMDB day it could hang the
+                // loading spinner for minutes. The page is already interactive from the
+                // provider args, so a null (timeout) just skips enrichment.
+                val match = withTimeoutOrNull(12_000L) {
+                    withContext(Dispatchers.IO) { findBestTmdbMatch(safeTitle, safeYearHint) }
+                }
                 if (match == null) {
-                    android.util.Log.w("MovieDetailV2", "TMDB enrich: no match")
+                    android.util.Log.w("MovieDetailV2", "TMDB enrich: no match / timed out")
                     _uiState.value = _uiState.value.copy(isLoading = false)
                     return@launch
                 }
