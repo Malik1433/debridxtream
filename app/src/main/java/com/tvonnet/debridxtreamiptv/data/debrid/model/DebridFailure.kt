@@ -90,6 +90,20 @@ object DebridFailureClassifier {
                     cause = error
                 )
             }
+            // B1/A1: "Torrent not ready after N attempts" (poll timeout), a torrent
+            // with no usable links, and a blank unrestrict all mean the same thing —
+            // this torrent is NOT usable right now. Classifying them UNKNOWN made
+            // them retryable (a second full ~63s poll cycle) AND a dead-end in the
+            // picker (no auto-advance). NOT_CACHED is terminal-for-this-source and
+            // auto-advances to the next source.
+            raw.contains("not ready") || raw.contains("no links available") ||
+                raw.contains("no download url") || raw.contains("waiting_files_selection") -> {
+                DebridResolutionException(
+                    type = DebridFailureType.NOT_CACHED,
+                    message = "This source isn't ready on Real-Debrid. Trying the next source…",
+                    cause = error
+                )
+            }
             raw.contains("timeout") || raw.contains("socket") || raw.contains("connection") ||
                 raw.contains("network") || raw.contains("unknownhost") -> {
                 DebridResolutionException(

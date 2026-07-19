@@ -88,19 +88,28 @@ class UnifiedSourceProvider @Inject constructor(
 
             return streams.filterNot { stream ->
                 val candidateTitle = stream.title?.trim().orEmpty()
-                val candidateYearMatch = MOVIE_YEAR_REGEX.find(candidateTitle)
-                val candidateYear = candidateYearMatch?.value?.toIntOrNull()
-                val candidateTitleBeforeYear = candidateYearMatch
+                // B5: a year-like number can be part of the TITLE itself ("Blade
+                // Runner 2049", "1917", "2012"). Taking only the FIRST token used to
+                // mismatch such titles against the release year and EMPTY the picker.
+                // Consider every year token: wrong-year only when tokens exist and
+                // NONE of them equals the requested year.
+                val candidateYearMatches = MOVIE_YEAR_REGEX.findAll(candidateTitle).toList()
+                val candidateYears = candidateYearMatches.mapNotNull { it.value.toIntOrNull() }
+                val hasWrongYear = targetYear != null &&
+                    candidateYears.isNotEmpty() &&
+                    candidateYears.none { it == targetYear }
+                // Title key: split at the token matching the release year when
+                // present (keeps "2049" inside the title), else at the last token.
+                val splitMatch = candidateYearMatches.lastOrNull { it.value.toIntOrNull() == targetYear }
+                    ?: candidateYearMatches.lastOrNull()
+                val candidateTitleBeforeYear = splitMatch
                     ?.range
                     ?.first
                     ?.let { candidateTitle.substring(0, it) }
                 val candidateTitleKey = normalizeMovieTitle(candidateTitleBeforeYear)
 
-                val hasWrongYear = targetYear != null &&
-                    candidateYear != null &&
-                    targetYear != candidateYear
                 val hasClearlyWrongTitle = !targetTitle.isNullOrBlank() &&
-                    candidateYear != null &&
+                    candidateYears.isNotEmpty() &&
                     !candidateTitleKey.isNullOrBlank() &&
                     !candidateTitleKey.contains(targetTitle) &&
                     !targetTitle.contains(candidateTitleKey)

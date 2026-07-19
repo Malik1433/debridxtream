@@ -1434,11 +1434,13 @@ class MovieDetailActivity : AppCompatActivity() {
     }
 
     private fun notifyDebridFailure(reason: String?, autoPlayNext: Boolean) {
-        if (reason.isNullOrBlank()) return
+        // B7: a blank reason used to return early → the user got ZERO feedback on
+        // a failed selection. Fall back to a generic message instead.
+        val detail = reason?.takeIf { it.isNotBlank() } ?: "source could not be played"
         val message = if (autoPlayNext) {
-            "Playback failed, trying next source: $reason"
+            "Playback failed, trying next source: $detail"
         } else {
-            "Playback failed: $reason"
+            "Playback failed: $detail"
         }
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }

@@ -52,17 +52,21 @@ class RealDebridRateLimiter @Inject constructor() {
         return cooldown.error
     }
 
+    // B3: honor the server's Retry-After (clamped to sane bounds) instead of
+    // flooring EVERY rate-limit to 120s — a 5s throttle used to lock every
+    // source selection behind a 2-minute global wall.
+    private fun rateLimitSeconds(error: DebridResolutionException): Long =
+        error.retryAfterSeconds?.coerceIn(MIN_RATE_LIMIT_SECONDS, DEFAULT_RATE_LIMIT_SECONDS)
+            ?: DEFAULT_RATE_LIMIT_SECONDS
+
     fun recordFailure(key: String?, error: DebridResolutionException) {
         if (error.type == DebridFailureType.RATE_LIMITED) {
-            val seconds = error.retryAfterSeconds?.coerceAtLeast(DEFAULT_RATE_LIMIT_SECONDS)
-                ?: DEFAULT_RATE_LIMIT_SECONDS
-            globalCooldownUntilMillis = System.currentTimeMillis() + seconds * 1000L
+            globalCooldownUntilMillis = System.currentTimeMillis() + rateLimitSeconds(error) * 1000L
         }
 
         val normalized = key?.takeIf { it.isNotBlank() } ?: return
         val ttlMs = when (error.type) {
-            DebridFailureType.RATE_LIMITED -> (error.retryAfterSeconds?.coerceAtLeast(DEFAULT_RATE_LIMIT_SECONDS)
-                ?: DEFAULT_RATE_LIMIT_SECONDS) * 1000L
+            DebridFailureType.RATE_LIMITED -> rateLimitSeconds(error) * 1000L
             DebridFailureType.LEGAL_RESTRICTION,
             DebridFailureType.COPYRIGHT_BLOCKED -> BLOCKED_SOURCE_TTL_MS
             DebridFailureType.NOT_CACHED,
@@ -85,6 +89,7 @@ class RealDebridRateLimiter @Inject constructor() {
         // chain vs the old 1200ms spacing. 429 responses still trigger the global
         // cooldown below, so the account stays protected if RD tightens the limit.
         private const val MIN_REQUEST_INTERVAL_MS = 400L
+        private const val MIN_RATE_LIMIT_SECONDS = 5L
         private const val DEFAULT_RATE_LIMIT_SECONDS = 120L
         private const val BLOCKED_SOURCE_TTL_MS = 30L * 60L * 1000L
         private const val UNAVAILABLE_SOURCE_TTL_MS = 5L * 60L * 1000L

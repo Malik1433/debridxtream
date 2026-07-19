@@ -525,7 +525,10 @@ class DebridPlaybackRepository @Inject constructor(
             val unrestrictResult = realDebridRemote.unrestrictLink(link)
             when (unrestrictResult) {
                 is Success -> {
-                    val streamUrl = unrestrictResult.data.downloadUrl ?: unrestrictResult.data.streamingUrl
+                    // A4: guard BLANK too, not just null — a "" download used to become
+                    // Success("") and get cached for 15 min (poisoned instant-empty repeats).
+                    val streamUrl = unrestrictResult.data.downloadUrl?.takeIf { it.isNotBlank() }
+                        ?: unrestrictResult.data.streamingUrl?.takeIf { it.isNotBlank() }
                         ?: return Error(Exception("No download URL in unrestrict response"))
                     return Success(streamUrl)
                 }
@@ -649,7 +652,13 @@ class DebridPlaybackRepository @Inject constructor(
         return if (best != null && best.score > 0) {
             links.getOrNull(best.index) ?: links.firstOrNull()
         } else {
-            null
+            // A3: hinted torrent where no filename matches SxxEyy (absolute numbering,
+            // unusual naming). Returning null here failed the WHOLE resolution with
+            // "episode not found" even though a playable video exists — fall back to
+            // the largest selected video file (single-episode torrents: always right;
+            // season packs: best-effort instead of a guaranteed dead-end).
+            val largest = scoredLinks.maxByOrNull { it.sizeBytes }
+            largest?.let { links.getOrNull(it.index) } ?: links.firstOrNull()
         }
     }
 
@@ -731,7 +740,10 @@ class DebridPlaybackRepository @Inject constructor(
             lower.endsWith(".m2ts") ||
             lower.endsWith(".wmv") ||
             lower.endsWith(".flv") ||
-            lower.endsWith(".webm")
+            lower.endsWith(".webm") ||
+            // A2: .m4v was accepted by isDirectStreamUrl but rejected here — a
+            // .m4v-only torrent stalled in waiting_files_selection until timeout.
+            lower.endsWith(".m4v")
     }
 
     private fun shouldForceReauth(error: Exception?): Boolean {

@@ -43,6 +43,27 @@ class DebridFailureClassifierTest {
     }
 
     @Test
+    fun `torrent not ready poll timeout is not cached and terminal`() {
+        val failure = DebridFailureClassifier.classify(
+            Exception("Torrent not ready after 18 attempts")
+        )
+
+        assertEquals(DebridFailureType.NOT_CACHED, failure.type)
+        assertTrue(failure.terminal)
+        assertFalse(failure.retryable)
+    }
+
+    @Test
+    fun `blank unrestrict download is not cached and terminal`() {
+        val failure = DebridFailureClassifier.classify(
+            Exception("No download URL in unrestrict response")
+        )
+
+        assertEquals(DebridFailureType.NOT_CACHED, failure.type)
+        assertTrue(failure.terminal)
+    }
+
+    @Test
     fun `network timeout remains retryable`() {
         val failure = DebridFailureClassifier.classify(SocketTimeoutException("timeout"))
 
