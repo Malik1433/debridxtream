@@ -2576,6 +2576,9 @@ class PlayerActivity : AppCompatActivity() {
                                   return
                              }
                              if (contentType == ContentType.SERIES || contentType == ContentType.EPISODE) {
+                                  // A next-episode resolve is already in flight (countdown/prompt
+                                  // path fired first) — never double-advance or finish() under it.
+                                  if (isResolvingDebrid) return
                                   val state = viewModel.seriesPlaylistState.value
                                   if (state?.hasNext == true) {
                                        playNextEpisode()
