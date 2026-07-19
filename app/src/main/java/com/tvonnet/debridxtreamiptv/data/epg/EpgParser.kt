@@ -149,8 +149,16 @@ object EpgParser {
                             XmlPullParser.END_TAG -> {
                                 if (parser.name == "programme") {
                                     currentProgram?.let { program ->
-                                        if (program.channelId.isNotEmpty()) {
-                                            onProgram(program)
+                                        // Require a real start. parseTimestamp returns -1L for
+                                        // malformed input; adding those previously fabricated a
+                                        // 'now' timestamp and injected bogus "now-airing" rows.
+                                        if (program.channelId.isNotEmpty() && program.start > 0L) {
+                                            // Valid start but missing/invalid stop: give a 1h default
+                                            // window rather than dropping the programme wholesale.
+                                            val safeProgram = if (program.stop <= program.start)
+                                                program.copy(stop = program.start + 3_600_000L)
+                                            else program
+                                            onProgram(safeProgram)
                                             programCount++
 
                                             // Yield to avoid blocking and allow cancellation
@@ -482,7 +490,7 @@ object EpgParser {
         return try {
             if (timestamp == null || timestamp.length < 14) {
                 Log.w(TAG, "Invalid timestamp: $timestamp")
-                return System.currentTimeMillis()
+                return -1L // sentinel: caller skips/repairs; never fabricate 'now' (bogus now-airing)
             }
             
             // Extract date/time components from format: YYYYMMDDHHmmss
@@ -524,8 +532,8 @@ object EpgParser {
             
             baseTime
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse timestamp: $timestamp", e)
-            System.currentTimeMillis()
+            Log.w(TAG, "Failed to parse timestamp: $timestamp", e)
+            -1L // sentinel: caller skips/repairs; never fabricate 'now' (bogus now-airing)
         }
     }
 }

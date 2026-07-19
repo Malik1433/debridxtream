@@ -95,6 +95,11 @@ class DebridSeeAllViewModel @Inject constructor(
             "disney_series" -> catalogRepo.getDiscoveryContent(type = "series", watchProviders = "337", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
             "apple_movies" -> catalogRepo.getDiscoveryContent(type = "movie", watchProviders = "2", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
             "apple_series" -> catalogRepo.getDiscoveryContent(type = "series", watchProviders = "2", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
+            // Mirror the home-row params in DebridViewModel (appendRow) — these three rows existed
+            // on Home but had no "See All" case, so their See-All screen came up blank.
+            "hbo_series" -> catalogRepo.getDiscoveryContent(type = "series", watchProviders = "384", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
+            "hollywood_movies" -> catalogRepo.getDiscoveryContent(type = "movie", originalLanguage = "en", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
+            "hollywood_series" -> catalogRepo.getDiscoveryContent(type = "series", originalLanguage = "en", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
             else -> Result.Success(emptyList())
         }
     }

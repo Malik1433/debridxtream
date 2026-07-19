@@ -189,6 +189,9 @@ class WatchHistoryPreferences(private val context: Context) {
                 item.copy(posterUrl = healed)
             }
         } catch (e: Exception) {
+            // Don't silently discard: make the parse failure visible, but return empty WITHOUT
+            // overwriting the stored JSON so the good data self-heals on the next successful read.
+            android.util.Log.w("HISTORY_DEBUG", "Failed to parse Continue Watching list; keeping stored data", e)
             emptyList()
         }
     }
@@ -235,6 +238,8 @@ class WatchHistoryPreferences(private val context: Context) {
             val type = object : TypeToken<List<FavoriteItem>>() {}.type
             gson.fromJson<List<FavoriteItem>>(json, type) ?: emptyList()
         } catch (e: Exception) {
+            // Visible (not silent) parse failure; stored JSON is left intact for self-heal.
+            android.util.Log.w("HISTORY_DEBUG", "Failed to parse Favorites list; keeping stored data", e)
             emptyList()
         }
     }
@@ -269,7 +274,7 @@ class WatchHistoryPreferences(private val context: Context) {
     }
     
     fun getRecentLiveChannelsList(): List<RecentLiveChannelItem> {
-        android.util.Log.e("HISTORY_DEBUG", "WatchHistoryPreferences: getRecentLiveChannelsList called")
+        android.util.Log.d("HISTORY_DEBUG", "WatchHistoryPreferences: getRecentLiveChannelsList called")
         val json = prefs.getString(KEY_RECENT_LIVE_CHANNELS, null) ?: return emptyList()
         return try {
             android.util.Log.d("HISTORY_DEBUG", "Reading Recent Live list: jsonLength=${json.length}")
@@ -285,6 +290,8 @@ class WatchHistoryPreferences(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
+            // Visible (not silent) parse failure; stored JSON is left intact for self-heal.
+            android.util.Log.w("HISTORY_DEBUG", "Failed to parse Recent Live Channels list; keeping stored data", e)
             emptyList()
         }
     }

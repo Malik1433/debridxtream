@@ -36,6 +36,8 @@ class SeriesViewModelTest {
     private lateinit var repository: XtreamRepository
     private lateinit var seriesDao: com.tvonnet.debridxtreamiptv.data.local.dao.SeriesDao
     private lateinit var favoritesCache: FavoritesCache
+    private lateinit var repositoryV2: com.tvonnet.debridxtreamiptv.features.seriesv2.data.repository.XtreamSeriesRepositoryV2
+    private lateinit var episodeDaoV2: com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.EpisodeDaoV2
     private lateinit var context: Context
     private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var viewModel: SeriesViewModel
@@ -56,6 +58,8 @@ class SeriesViewModelTest {
         repository = mockk(relaxed = true)
         seriesDao = mockk(relaxed = true)
         favoritesCache = mockk(relaxed = true)
+        repositoryV2 = mockk(relaxed = true)
+        episodeDaoV2 = mockk(relaxed = true)
         context = mockk(relaxed = true)
         savedStateHandle = SavedStateHandle()
     }
@@ -76,7 +80,7 @@ class SeriesViewModelTest {
     fun `initial state is correct`() = runTest {
         // Given
         coEvery { repository.ensureSeriesCategories() } returns emptyList()
-        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, context, savedStateHandle)
+        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, repositoryV2, episodeDaoV2, context, savedStateHandle)
         
         // When
         val state = viewModel.uiState.value
@@ -97,7 +101,7 @@ class SeriesViewModelTest {
         coEvery { repository.fetchSeriesForCategory(any()) } returns Result.Success(emptyList())
         
         // When
-        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, context, savedStateHandle)
+        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, repositoryV2, episodeDaoV2, context, savedStateHandle)
         advanceUntilIdle()
         
         // Then — two virtual categories (All Series / Recently Added) are prepended to the
@@ -118,7 +122,7 @@ class SeriesViewModelTest {
         coEvery { repository.ensureSeriesCategories() } returns emptyList()
 
         // When
-        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, context, savedStateHandle)
+        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, repositoryV2, episodeDaoV2, context, savedStateHandle)
         advanceUntilIdle()
 
         // Then — the two virtual categories are always shown; no error, All Series selected.
@@ -143,7 +147,7 @@ class SeriesViewModelTest {
         coEvery { repository.ensureSeriesCategories() } returns mockCategories
         coEvery { repository.fetchSeriesForCategory("1") } returns Result.Success(mockSeriesList)
         
-        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, context, savedStateHandle)
+        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, repositoryV2, episodeDaoV2, context, savedStateHandle)
         advanceUntilIdle()
         
         // When
@@ -165,7 +169,7 @@ class SeriesViewModelTest {
         coEvery { repository.ensureSeriesCategories() } returns mockCategories
         coEvery { repository.fetchSeriesForCategory(any()) } returns Result.Error(Exception("Network error"))
         
-        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, context, savedStateHandle)
+        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, repositoryV2, episodeDaoV2, context, savedStateHandle)
         advanceUntilIdle()
         
         // When
@@ -183,7 +187,7 @@ class SeriesViewModelTest {
     fun `retry with empty real categories keeps virtual categories`() = runTest {
         // Given — no real categories, so only the two virtual categories exist.
         coEvery { repository.ensureSeriesCategories() } returns emptyList()
-        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, context, savedStateHandle)
+        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, repositoryV2, episodeDaoV2, context, savedStateHandle)
         advanceUntilIdle()
 
         // When
@@ -206,7 +210,7 @@ class SeriesViewModelTest {
         coEvery { repository.ensureSeriesCategories() } returns mockCategories
         coEvery { repository.fetchSeriesForCategory(any()) } returns Result.Success(emptyList())
 
-        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, context, savedStateHandle)
+        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, repositoryV2, episodeDaoV2, context, savedStateHandle)
         advanceUntilIdle()
 
         // Select the real category first (init auto-selects the All Series virtual, which
@@ -232,7 +236,7 @@ class SeriesViewModelTest {
         coEvery { repository.fetchSeriesForCategory(any()) } returns Result.Success(emptyList())
         
         // When
-        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, context, savedStateHandle)
+        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, repositoryV2, episodeDaoV2, context, savedStateHandle)
         advanceUntilIdle()
         
         // Then
@@ -252,7 +256,7 @@ class SeriesViewModelTest {
         coEvery { repository.fetchSeriesForCategory(any()) } returns Result.Success(emptyList())
 
         // When
-        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, context, savedStateHandle)
+        viewModel = SeriesViewModel(repository, seriesDao, favoritesCache, repositoryV2, episodeDaoV2, context, savedStateHandle)
         advanceUntilIdle()
 
         // Then — the first virtual category (All Series) is auto-selected, and categories

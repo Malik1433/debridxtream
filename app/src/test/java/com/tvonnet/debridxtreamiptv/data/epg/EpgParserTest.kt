@@ -57,13 +57,12 @@ class EpgParserTest {
     }
 
     @Test
-    fun testParseTimestampInvalidGracefulFallback() {
-        val now = System.currentTimeMillis()
-        val parsedNull = EpgParser.parseTimestamp(null)
-        val parsedShort = EpgParser.parseTimestamp("202311")
-        
-        // Should fall back to current time, allow a small margin for execution time
-        assertTrue(parsedNull >= now - 5000)
-        assertTrue(parsedShort >= now - 5000)
+    fun testParseTimestampInvalidReturnsSentinel() {
+        // Malformed/absent timestamps must NOT fabricate 'now' — doing so injected bogus
+        // "now-airing" programmes into the guide. They return the -1L sentinel; the parser
+        // then skips (invalid start) or repairs (invalid stop) the programme instead of
+        // placing it at the current time.
+        assertEquals(-1L, EpgParser.parseTimestamp(null))
+        assertEquals(-1L, EpgParser.parseTimestamp("202311"))
     }
 }

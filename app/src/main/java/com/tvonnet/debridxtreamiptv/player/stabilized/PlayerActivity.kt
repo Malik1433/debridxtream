@@ -3887,6 +3887,10 @@ class PlayerActivity : AppCompatActivity() {
                 putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, seriesTitleExtra ?: originalTitle)
                 putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, posterUrlExtra)
                 putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, backdropUrlExtra)
+                // This redirect only runs for DEBRID playback (guarded at the top of the method),
+                // so open the detail screen in debrid mode — without this it loaded as Xtream and
+                // showed "No episodes" for debrid content.
+                putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
             }
             null, ContentType.LIVE_TV -> null
         } ?: return false

@@ -43,7 +43,10 @@ class GlobalCrashHandler(private val context: Context) : Thread.UncaughtExceptio
         try {
             val prefs = context.getSharedPreferences("app_stability", Context.MODE_PRIVATE)
             val count = prefs.getInt("startup_crash_count", 0) + 1
-            prefs.edit().putInt("startup_crash_count", count).apply()
+            // commit() (not apply()) so the incremented count is durably persisted BEFORE the
+            // killProcess below — apply()'s async write was intermittently lost on crash-restart,
+            // defeating the 3-strikes RecoveryActivity trigger.
+            prefs.edit().putInt("startup_crash_count", count).commit()
 
             if (count >= 3) {
                 // Start RecoveryActivity
