@@ -176,8 +176,26 @@ object DatabaseMigrations {
             MIGRATION_9_10,
             MIGRATION_10_11,
             MIGRATION_11_12,
-            MIGRATION_12_13
+            MIGRATION_12_13,
+            MIGRATION_13_14
         )
+    }
+
+    /**
+     * Migration 13 -> 14 (B-2): numeric `added_ts` mirror column + index on vod_v2.
+     *
+     * The RECENTLY_ADDED / "All Movies" default tab sorts the WHOLE catalog with
+     * `ORDER BY CAST(added AS INTEGER) DESC` to take the newest 100 — the CAST makes
+     * it un-indexable, so it sorted 50k rows on every page. Backfill a numeric mirror
+     * and index it. Additive: the original TEXT `added` column is untouched.
+     */
+    val MIGRATION_13_14 = object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `vod_v2` ADD COLUMN `added_ts` INTEGER")
+            db.execSQL("UPDATE `vod_v2` SET `added_ts` = CAST(`added` AS INTEGER)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_vod_v2_added_ts` ON `vod_v2` (`added_ts`)")
+            android.util.Log.d("DatabaseMigration", "Successfully migrated database from version 13 to 14 (added_ts sort index)")
+        }
     }
 
     /**

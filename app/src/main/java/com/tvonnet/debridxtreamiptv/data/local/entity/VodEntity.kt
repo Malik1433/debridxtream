@@ -9,8 +9,13 @@ import com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo
  * Room Entity for VOD Movies
  * Phase 1: Database Infrastructure
  * B-1: categoryId index — the per-category browse filter was a full table scan.
+ * B-2: added_ts (INTEGER) index — the RECENTLY_ADDED sort `ORDER BY CAST(added AS
+ * INTEGER)` could never use an index; a numeric mirror column can.
  */
-@Entity(tableName = "vod_v2", indices = [Index(value = ["categoryId"])])
+@Entity(
+    tableName = "vod_v2",
+    indices = [Index(value = ["categoryId"]), Index(value = ["added_ts"])]
+)
 data class VodEntity(
     @PrimaryKey val streamId: String,
     val name: String?,
@@ -18,6 +23,8 @@ data class VodEntity(
     val rating: String?,
     val rating5based: Double?,
     val added: String?,
+    // B-2: numeric mirror of `added` (a unix-timestamp string) for indexable sorting.
+    @androidx.room.ColumnInfo(name = "added_ts") val addedTs: Long? = null,
     val categoryId: String?,
     @androidx.room.ColumnInfo(name = "category_ids") val category_ids: List<String> = emptyList(),
     val containerExtension: String?,
@@ -47,6 +54,7 @@ fun XtreamVodInfo.toVodEntity(categoryId: String): VodEntity {
         rating = this.rating,
         rating5based = this.rating_5based,
         added = this.added,
+        addedTs = this.added?.toLongOrNull(), // B-2: numeric mirror for indexed sort
         categoryId = categoryId, // We explicitly store the category ID we fetched it for
         category_ids = this.category_ids?.map { it.toString() } ?: emptyList(),
         containerExtension = this.container_extension,

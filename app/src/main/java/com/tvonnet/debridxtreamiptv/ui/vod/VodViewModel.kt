@@ -175,14 +175,15 @@ class VodViewModel @Inject constructor(
             // "Recently Added" = the RECENT_LIMIT newest movies by the provider `added`
             // timestamp (VOD has a real one, unlike series). Cap in an INNER subquery so
             // the Room PagingSource's appended LIMIT/OFFSET pages WITHIN the capped set.
-            "SELECT * FROM (SELECT * FROM vod_v2$whereClause ORDER BY CAST(added AS INTEGER) DESC LIMIT $RECENT_LIMIT)"
+            // B-2: sort on the indexed numeric mirror (added_ts) instead of CAST(added).
+            "SELECT * FROM (SELECT * FROM vod_v2$whereClause ORDER BY added_ts DESC LIMIT $RECENT_LIMIT)"
         } else {
             val order = when (q.sortMode) {
-                // 'added' is a unix-timestamp string; cast for numeric ordering, fall back to num
-                VodSortMode.RECENTLY_ADDED -> " ORDER BY CAST(added AS INTEGER) DESC, num DESC"
+                // B-2: added_ts is the indexable numeric mirror of the `added` timestamp string.
+                VodSortMode.RECENTLY_ADDED -> " ORDER BY added_ts DESC, num DESC"
                 VodSortMode.TOP_RATED -> " ORDER BY rating5based DESC, name COLLATE NOCASE ASC"
                 VodSortMode.A_TO_Z -> " ORDER BY name COLLATE NOCASE ASC"
-                VodSortMode.NEWEST -> " ORDER BY releaseDate DESC, CAST(added AS INTEGER) DESC"
+                VodSortMode.NEWEST -> " ORDER BY releaseDate DESC, added_ts DESC"
             }
             "SELECT * FROM vod_v2$whereClause$order"
         }
