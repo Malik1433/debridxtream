@@ -355,6 +355,17 @@
                 </LinearLayout>
             </androidx.constraintlayout.widget.ConstraintLayout>
 
+            <!-- Opaque content wrapper: keeps the rotating hero backdrop confined to
+                 the hero region above, so it no longer bleeds/changes behind the
+                 Continue Watching + Trending rows (restores the bounded-hero look). -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="#06090E"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
             <!-- ── CONTINUE WATCHING RAIL ── -->
             <LinearLayout
                 android:id="@+id/section_continue_watching"
@@ -565,6 +576,9 @@
                     tools:itemCount="6"
                     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
             </LinearLayout>
+
+            </LinearLayout>
+            <!-- /opaque content wrapper -->
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
