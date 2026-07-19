@@ -113,8 +113,27 @@ class CredentialsPreferences(private val context: Context) {
         const val KEY_DEVICE_ID = "device_id"
         const val KEY_PREFERRED_AUDIO_LANG = "preferred_audio_lang"
         const val DEFAULT_PREFERRED_AUDIO_LANG = "EN"
+        private const val KEY_IPTV_EXP_DATE = "iptv_exp_date"
+        private const val KEY_IPTV_EXP_CACHED_AT = "iptv_exp_cached_at"
+        private const val IPTV_EXP_TTL_MS = 12L * 60 * 60 * 1000 // 12h
     }
 
+    /**
+     * ST-4: cache the Xtream account expiry (epoch seconds) so Home doesn't fire a
+     * `login` network call on every view creation just to render the expiry chip.
+     * Returns the cached value only while younger than [IPTV_EXP_TTL_MS].
+     */
+    fun getCachedIptvExpiry(): Long? {
+        val cachedAt = prefs.getLong(KEY_IPTV_EXP_CACHED_AT, 0L)
+        if (cachedAt == 0L || System.currentTimeMillis() - cachedAt > IPTV_EXP_TTL_MS) return null
+        return prefs.getLong(KEY_IPTV_EXP_DATE, 0L).takeIf { it > 0L }
+    }
 
+    fun saveIptvExpiry(expEpochSeconds: Long) {
+        prefs.edit()
+            .putLong(KEY_IPTV_EXP_DATE, expEpochSeconds)
+            .putLong(KEY_IPTV_EXP_CACHED_AT, System.currentTimeMillis())
+            .apply()
+    }
 }
 

@@ -165,6 +165,18 @@ class XtreamRepository @Inject constructor(
     private val seriesCategoryStatus = ConcurrentHashMap<String, SeriesCategoryStatus>()
     
     fun initialize(baseUrl: String, username: String, password: String) {
+        val normalizedUrlPre = baseUrl.trimEnd('/') + "/"
+        // ST-3: idempotent for identical credentials — skip the expensive Retrofit/
+        // OkHttp/EpgParser reconstruction. initialize() is called from MainActivity,
+        // HomeFragment, and every browse ViewModel (Live/Series/Vod), so on a normal
+        // session it was rebuilding the whole HTTP stack many times over.
+        if (apiService != null &&
+            this.username == username &&
+            this.password == password &&
+            this.baseUrl == normalizedUrlPre
+        ) {
+            return
+        }
         try {
             this.username = username
             this.password = password

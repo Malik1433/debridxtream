@@ -356,11 +356,18 @@ class HomeFragment : Fragment() {
     private fun loadIptvExpiry() {
         val username = credentialsPrefs.getUsername() ?: return
         val password = credentialsPrefs.getPassword() ?: return
+        // ST-4: use the cached expiry (12h TTL) instead of a `login` network call on
+        // every Home view creation. Only hit the network when the cache is stale.
+        credentialsPrefs.getCachedIptvExpiry()?.let { cached ->
+            applyIptvExpiry(cached)
+            return
+        }
         if (!repository.isInitialized()) return
         viewLifecycleOwner.lifecycleScope.launch {
             val result = repository.login(username, password)
             val expSeconds = (result as? com.tvonnet.debridxtreamiptv.data.Result.Success)
                 ?.data?.user_info?.exp_date?.toLongOrNull() ?: return@launch
+            credentialsPrefs.saveIptvExpiry(expSeconds)
             if (view != null) applyIptvExpiry(expSeconds)
         }
     }
