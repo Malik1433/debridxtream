@@ -362,6 +362,49 @@ class XtreamRepository @Inject constructor(
                         stage = "Downloading series"
                     )
 
+                    // SY-1: the stage fetchers swallow network/auth failures into empty
+                    // results (no throw), so a totally-failed sync would otherwise write an
+                    // EMPTY cache and report SUCCESS — the user lands on Home with "No
+                    // categories". Zero categories across ALL three types is a strong
+                    // failure signal (a real account always has some). In that case do NOT
+                    // overwrite a good cache: keep the existing one, or report ERROR so the
+                    // sync screen offers a retry instead of a silent empty success.
+                    val allCategoriesEmpty = liveData.categories.isEmpty() &&
+                        vodData.categories.isEmpty() &&
+                        seriesData.categories.isEmpty()
+                    if (allCategoriesEmpty) {
+                        Log.w(TAG, "Sync produced zero categories across all types — treating as failure, not overwriting cache")
+                        val existing = memoryCache ?: cacheHelper.readCache()
+                        val existingHasContent = existing != null && (
+                            (existing.live?.categories?.isNotEmpty() == true) ||
+                            (existing.vod?.categories?.isNotEmpty() == true) ||
+                            (existing.series?.categories?.isNotEmpty() == true)
+                        )
+                        if (existingHasContent) {
+                            updateSyncProgress(
+                                type = syncType,
+                                state = SyncState.SUCCESS,
+                                percent = 100,
+                                liveCount = existing!!.live?.streams?.size ?: 0,
+                                vodCount = existing.vod?.streams?.size ?: 0,
+                                seriesCount = existing.series?.streams?.size ?: 0,
+                                stage = "Using cached data"
+                            )
+                            return@withContext Result.Success(existing)
+                        }
+                        updateSyncProgress(
+                            type = syncType,
+                            state = SyncState.ERROR,
+                            percent = 0,
+                            liveCount = 0,
+                            vodCount = 0,
+                            seriesCount = 0,
+                            stage = "Sync failed",
+                            errorMessage = "Could not load your content. Check your connection and try again."
+                        )
+                        return@withContext Result.Error(Exception("Sync returned no categories (network/auth failure)"))
+                    }
+
                     val cache = IptvCache(
                         timestamp = System.currentTimeMillis(),
                         live = liveData,
