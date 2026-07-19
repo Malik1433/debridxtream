@@ -32,6 +32,10 @@ class GlobalCrashHandler(private val context: Context) : Thread.UncaughtExceptio
             val crashlytics = com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
             crashlytics.setCustomKey("fatal_restart", true)
             crashlytics.recordException(throwable)
+            // QA fix: recordException persists on a background executor; killProcess
+            // right after would intermittently lose the report. A short bounded wait
+            // lets the disk write land — worst case adds 500ms to the crash-restart.
+            Thread.sleep(500)
         } catch (_: Exception) {
             // Crashlytics unavailable (e.g. not initialized) — never block the restart.
         }

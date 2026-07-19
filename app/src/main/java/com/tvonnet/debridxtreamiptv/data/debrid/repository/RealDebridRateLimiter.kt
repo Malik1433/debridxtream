@@ -56,7 +56,7 @@ class RealDebridRateLimiter @Inject constructor() {
     // flooring EVERY rate-limit to 120s — a 5s throttle used to lock every
     // source selection behind a 2-minute global wall.
     private fun rateLimitSeconds(error: DebridResolutionException): Long =
-        error.retryAfterSeconds?.coerceIn(MIN_RATE_LIMIT_SECONDS, DEFAULT_RATE_LIMIT_SECONDS)
+        error.retryAfterSeconds?.coerceIn(MIN_RATE_LIMIT_SECONDS, MAX_RATE_LIMIT_SECONDS)
             ?: DEFAULT_RATE_LIMIT_SECONDS
 
     fun recordFailure(key: String?, error: DebridResolutionException) {
@@ -90,6 +90,9 @@ class RealDebridRateLimiter @Inject constructor() {
         // cooldown below, so the account stays protected if RD tightens the limit.
         private const val MIN_REQUEST_INTERVAL_MS = 400L
         private const val MIN_RATE_LIMIT_SECONDS = 5L
+        // QA fix: a server Retry-After LARGER than the default must be honored too
+        // (capping 300s down to 120s risks premature retries) — bounded at 10 min.
+        private const val MAX_RATE_LIMIT_SECONDS = 600L
         private const val DEFAULT_RATE_LIMIT_SECONDS = 120L
         private const val BLOCKED_SOURCE_TTL_MS = 30L * 60L * 1000L
         private const val UNAVAILABLE_SOURCE_TTL_MS = 5L * 60L * 1000L

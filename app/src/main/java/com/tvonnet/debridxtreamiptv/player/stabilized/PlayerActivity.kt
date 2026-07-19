@@ -1843,11 +1843,20 @@ class PlayerActivity : AppCompatActivity() {
         // Resume the switched-to episode from its saved position (next/prev/browser all
         // funnel here). Key collapses to episode:xtream:episode:<id>, matching the save
         // key in PlayerHistoryManager. Lookup is fast (single DB row); switch on main.
+        // QA fix: latest-wins guard — two rapid NEXT/PREV presses launch two coroutines
+        // whose DB reads can complete out of order; without the guard the STALE
+        // episode's switch could run last (player plays A while metadata says B).
+        val reqId = ++episodeSwitchRequestId
         lifecycleScope.launch {
-            startPositionMs = resolveIptvEpisodeResumeMs(episode)
+            val resumeMs = resolveIptvEpisodeResumeMs(episode)
+            if (reqId != episodeSwitchRequestId) return@launch
+            startPositionMs = resumeMs
             performSeamlessSwitch(url)
         }
     }
+
+    // QA fix: monotonically increasing id for IPTV episode switches (latest-wins).
+    private var episodeSwitchRequestId = 0L
 
     /** Saved resume position for an IPTV episode, 0 if none / already watched. */
     private suspend fun resolveIptvEpisodeResumeMs(episode: EpisodeEntityV2): Long {
@@ -3236,7 +3245,9 @@ class PlayerActivity : AppCompatActivity() {
             if (!isResolvingDebrid) currentUrl?.let { initializePlayer(it) }
         } else {
             startStallMonitor()
-            if (wasPlayingBeforePause) { p.play(); wasPlayingBeforePause = false }
+            // QA fix: don't audibly resume a stale stream underneath an in-flight
+            // debrid re-resolve — the resolver's Success switch takes over playback.
+            if (wasPlayingBeforePause && !isResolvingDebrid) { p.play(); wasPlayingBeforePause = false }
         }
     }
     // Re-arm history for the new foreground segment: onStop's exit-save latches
@@ -3253,6 +3264,25 @@ class PlayerActivity : AppCompatActivity() {
         // has no resume value anyway — it re-tunes to the live edge).
         if (contentType == ContentType.LIVE_TV || isFinishing) {
             releasePlayer("on_stop")
+        } else {
+            // QA fix: the retained path must fully disarm every recovery source, or a
+            // backgrounded error (codec reclaimed, socket drop) re-inits playback WITH
+            // AUDIO while the app is in the background. releasePlayer did this purge;
+            // the retained branch has to do it too.
+            retryHandler.removeCallbacksAndMessages(null)
+            timeoutHandler.removeCallbacksAndMessages(null)
+            reconnectBannerPending = false
+        }
+    }
+
+    // QA fix: retention is otherwise unbounded — under memory pressure release the
+    // retained background player (codec + network) instead of waiting for the OS to
+    // reclaim the codec mid-hold. Position is already saved (onStop exit-save +
+    // updateLastPlaybackPosition in releasePlayer); onResume rebuilds from currentUrl.
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_BACKGROUND && player != null && contentType != ContentType.LIVE_TV) {
+            releasePlayer("trim_memory_$level")
         }
     }
 

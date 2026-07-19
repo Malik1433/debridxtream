@@ -267,10 +267,13 @@ object PlaybackDiagnosticsRecorder {
                 segment.matches(Regex("tt\\d+", RegexOption.IGNORE_CASE)) -> "{imdb}"
                 segment.matches(Regex("[a-fA-F0-9]{8,}")) -> "{hex}"
                 segment.matches(Regex("\\d+")) -> "{num}"
+                // QA fix: only echo KNOWN media/manifest extensions — a credential
+                // segment containing a dot ("abc.tv") must not leak as "{file}.tv".
                 segment.contains(".") -> segment.substringAfterLast('.', missingDelimiterValue = "")
-                    .takeIf { it.length in 2..5 }
+                    .lowercase(Locale.US)
+                    .takeIf { it in SAFE_FILE_EXTENSIONS }
                     ?.let { "{file}.$it" }
-                    ?: "{file}"
+                    ?: "{seg}"
                 // LP-D-4: short opaque segments in Xtream URLs are /user/pass/ —
                 // only echo known structural path words, redact everything else.
                 segment.lowercase(Locale.US) in SAFE_PATH_SEGMENTS -> segment
@@ -282,6 +285,11 @@ object PlaybackDiagnosticsRecorder {
     private val SAFE_PATH_SEGMENTS = setOf(
         "live", "movie", "movies", "series", "vod", "stream", "streams", "hls",
         "dash", "playlist", "resolve", "proxy", "api", "watch", "play", "video"
+    )
+
+    private val SAFE_FILE_EXTENSIONS = setOf(
+        "ts", "m3u8", "mpd", "mp4", "mkv", "avi", "mov", "m2ts", "wmv", "flv",
+        "webm", "m4v", "php", "srt", "vtt", "ass"
     )
 
     private fun userAgentProfile(userAgent: String?): String {

@@ -87,13 +87,20 @@ class PlaybackResolver @Inject constructor(
                         return ResolutionResult.Success(resolvedUrl)
                     }
                     is Result.Error -> {
+                        // QA fix (B1 completion): the repository returns several failures as RAW
+                        // Exceptions ("Torrent not ready…", "No links available…", "No download
+                        // URL…"). A plain `as?` cast left them untyped → not terminal → a wasted
+                        // second ~63s poll cycle AND failureType=null → the picker never
+                        // auto-advanced. Classify everything so the NOT_CACHED mapping applies.
                         val typedError = result.exception as? DebridResolutionException
-                        lastError = typedError?.message ?: result.exception.message
+                            ?: com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureClassifier
+                                .classify(result.exception)
+                        lastError = typedError.message
                         android.util.Log.w(
                             "PlaybackResolver",
-                            "Debrid resolution attempt $attempt failed: ${typedError?.type ?: "untyped"}"
+                            "Debrid resolution attempt $attempt failed: ${typedError.type}"
                         )
-                        if (typedError?.terminal == true) {
+                        if (typedError.terminal) {
                             return ResolutionResult.Error(
                                 message = typedError.message,
                                 failureType = typedError.type,
