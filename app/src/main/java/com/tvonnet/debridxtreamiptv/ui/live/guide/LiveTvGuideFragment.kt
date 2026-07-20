@@ -381,29 +381,29 @@ class LiveTvGuideFragment : Fragment() {
         hl.alpha = 1f
         if (!highlightShown) {
             highlightShown = true
+            hl.pivotX = 0f
+            hl.pivotY = 0f
+            hl.scaleX = 1f
+            hl.scaleY = 1f
             hl.layoutParams = hl.layoutParams.apply { width = tw; height = th }
             hl.translationX = tx
             hl.translationY = ty
             return
         }
-        hl.animate().translationX(tx).translationY(ty)
-            .setDuration(300).setInterpolator(OvershootInterpolator(0.6f)).start()
-        val startW = hl.width
-        val startH = hl.height
+        // Grow/shrink via scaleX/Y around the top-left pivot instead of writing layoutParams every
+        // frame — a per-frame layoutParams mutation forces a full layout pass each frame, while
+        // scale is a compositor-only transform. Pivot (0,0) keeps the box anchored at (tx,ty), so
+        // the geometry matches the old translation-positioned top-left exactly.
         highlightAnim?.cancel()
-        highlightAnim = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 300
-            interpolator = OvershootInterpolator(0.6f)
-            addUpdateListener {
-                if (_binding == null) return@addUpdateListener
-                val f = it.animatedValue as Float
-                hl.layoutParams = hl.layoutParams.apply {
-                    width = (startW + (tw - startW) * f).toInt()
-                    height = (startH + (th - startH) * f).toInt()
-                }
-            }
-            start()
-        }
+        val startW = hl.width * hl.scaleX
+        val startH = hl.height * hl.scaleY
+        hl.pivotX = 0f
+        hl.pivotY = 0f
+        hl.layoutParams = hl.layoutParams.apply { width = tw; height = th }
+        hl.scaleX = if (tw > 0) startW / tw else 1f
+        hl.scaleY = if (th > 0) startH / th else 1f
+        hl.animate().translationX(tx).translationY(ty).scaleX(1f).scaleY(1f)
+            .setDuration(300).setInterpolator(OvershootInterpolator(0.6f)).start()
     }
 
     private fun hideHighlight() {

@@ -103,8 +103,13 @@ android {
     }
     
     lint {
-        abortOnError false  // Don't fail build on lint errors (for now)
-        checkReleaseBuilds false
+        // Release lint re-enabled with a baseline: every issue that exists TODAY is grandfathered
+        // into lint-baseline.xml (so we don't have to fix 300+ pre-existing findings at once), but
+        // any NEW error fails the build. Regenerate by deleting lint-baseline.xml + running lintRelease.
+        abortOnError true
+        checkReleaseBuilds true
+        baseline = file("lint-baseline.xml")
+        warningsAsErrors false
     }
 
     

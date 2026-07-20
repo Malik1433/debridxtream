@@ -943,6 +943,7 @@ class PlayerActivity : AppCompatActivity() {
                 override fun getPlayerDuration(): Long = player?.duration ?: 0L
                 override fun getPlayerCurrentPosition(): Long = player?.currentPosition ?: 0L
                 override fun isPlayerPlaying(): Boolean = player?.isPlaying ?: false
+                override fun getPlayer(): ExoPlayer? = player
                 override fun getNextEpisode(): com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2? {
                     val state = viewModel.seriesPlaylistState.value
                     return if (state?.hasNext == true) {
@@ -2433,6 +2434,9 @@ class PlayerActivity : AppCompatActivity() {
             player?.playWhenReady = true
             // player?.play() removed as playWhenReady=true is sufficient
             startStallMonitor()
+            // A fresh ExoPlayer was just built — rebind the next-episode trigger to it so the
+            // scheduled 87%/-30s message lands on this instance (not the released previous one).
+            if (::nextEpisodeManager.isInitialized) nextEpisodeManager.rebindPlayer()
 
             playerListener = object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {

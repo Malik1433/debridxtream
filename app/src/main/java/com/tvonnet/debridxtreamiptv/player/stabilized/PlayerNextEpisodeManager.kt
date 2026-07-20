@@ -33,6 +33,13 @@ class PlayerNextEpisodeManager(
 
         /** Fired once when the countdown prompt appears — the 15s window for pre-resolving. */
         fun onNextEpisodePromptShown(nextEpisode: EpisodeEntityV2) {}
+
+        /**
+         * The active player, used to schedule an EXACT next-episode trigger at the 87%/-30s point via
+         * [androidx.media3.exoplayer.ExoPlayer.createMessage] instead of a 1Hz poll. Returning null
+         * falls back to the legacy per-second poll.
+         */
+        fun getPlayer(): androidx.media3.exoplayer.ExoPlayer? = null
     }
 
     private var nextEpisodeOverlay: View? = null
@@ -47,11 +54,38 @@ class PlayerNextEpisodeManager(
     
     val isPromptVisible: Boolean get() = isNextPromptVisible
 
+    // Legacy fallback poll — used ONLY when the delegate can't hand us the player (getPlayer()==null).
     private val nextCheckHandler = Handler(Looper.getMainLooper())
     private val nextCheckRunnable = object : Runnable {
         override fun run() {
             checkNextEpisodePrompt()
             nextCheckHandler.postDelayed(this, 1000)
+        }
+    }
+
+    // Exact-trigger path: an ExoPlayer message scheduled at the 87%/-30s position replaces the poll.
+    private var listenerPlayer: androidx.media3.exoplayer.ExoPlayer? = null
+    private var scheduledTrigger: androidx.media3.exoplayer.PlayerMessage? = null
+    private val playerListener = object : androidx.media3.common.Player.Listener {
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            when (playbackState) {
+                androidx.media3.common.Player.STATE_READY -> scheduleNextEpisodeTrigger()
+                androidx.media3.common.Player.STATE_ENDED -> {
+                    // Missed-trigger safety net (e.g. a seek consumed the scheduled message): the
+                    // scheduled 87%/-30s message is the PRIMARY path — this only covers the rare miss.
+                    if (delegate.isPlaybackEligibleForPrompt() &&
+                        !nextPromptShownForThisEpisode && !isNextPromptVisible
+                    ) {
+                        delegate.getNextEpisode()?.let { showNextEpisodePrompt(it) }
+                    }
+                }
+            }
+        }
+        override fun onMediaItemTransition(
+            mediaItem: androidx.media3.common.MediaItem?,
+            reason: Int
+        ) {
+            scheduleNextEpisodeTrigger()
         }
     }
 
@@ -73,12 +107,76 @@ class PlayerNextEpisodeManager(
     }
 
     fun onStart() {
-        nextCheckHandler.post(nextCheckRunnable)
+        if (delegate.getPlayer() != null) {
+            rebindPlayer()
+        } else {
+            // No player handle — keep the legacy 1Hz poll so the prompt still works.
+            nextCheckHandler.post(nextCheckRunnable)
+        }
+    }
+
+    /**
+     * Bind (or re-bind) the trigger listener to the CURRENT player. Must be called every time the
+     * player is (re)built — [PlayerActivity.initializePlayer] creates a fresh ExoPlayer per episode
+     * and per retry, and the scheduled message lives on a specific player instance.
+     */
+    fun rebindPlayer() {
+        val p = delegate.getPlayer() ?: return
+        if (p === listenerPlayer) {
+            scheduleNextEpisodeTrigger()
+            return
+        }
+        cancelScheduledTrigger()
+        listenerPlayer?.removeListener(playerListener)
+        listenerPlayer = p
+        p.addListener(playerListener)
+        scheduleNextEpisodeTrigger() // in case the player is already READY
     }
 
     fun onStop() {
         nextCheckHandler.removeCallbacks(nextCheckRunnable)
+        cancelScheduledTrigger()
+        listenerPlayer?.removeListener(playerListener)
+        listenerPlayer = null
         nextEpisodeTimer?.cancel()
+    }
+
+    /**
+     * Schedule a single ExoPlayer message to fire at the earlier of 87%-position or 30s-before-end —
+     * exactly the OR condition the old poll used — so the 30s auto-play countdown and the debrid
+     * pre-resolve lead are preserved, without any per-second polling.
+     */
+    private fun scheduleNextEpisodeTrigger() {
+        val p = listenerPlayer ?: return
+        cancelScheduledTrigger()
+        if (!delegate.isPlaybackEligibleForPrompt()) return
+        if (nextPromptShownForThisEpisode || isNextPromptVisible) return
+        val duration = p.duration
+        if (duration <= 0L || duration == androidx.media3.common.C.TIME_UNSET) return // live / unknown
+
+        val percentPos = (duration * 0.87).toLong()
+        val remainingPos = duration - COUNTDOWN_MS
+        val triggerPos = maxOf(0L, minOf(percentPos, remainingPos)).coerceAtMost(duration - 1)
+
+        // Already past the trigger (e.g. resumed near the end) — prompt now instead of scheduling.
+        if (p.currentPosition >= triggerPos) {
+            checkNextEpisodePrompt()
+            return
+        }
+
+        scheduledTrigger = p.createMessage { _, _ -> checkNextEpisodePrompt() }
+            .setLooper(Looper.getMainLooper())
+            .setPosition(triggerPos)
+            .setDeleteAfterDelivery(true)
+        scheduledTrigger?.send()
+    }
+
+    private fun cancelScheduledTrigger() {
+        try {
+            scheduledTrigger?.cancel()
+        } catch (_: Exception) {
+        }
+        scheduledTrigger = null
     }
 
     fun resetState() {
