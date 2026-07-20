@@ -838,9 +838,13 @@ class LiveTvGuideFragment : Fragment() {
 
     private fun startClock() {
         viewLifecycleOwner.lifecycleScope.launch {
-            while (isActive) {
-                binding.tvClock.text = clockFmt.format(Date())
-                kotlinx.coroutines.delay(20_000)
+            // Phase 4: only tick while STARTED — this updated the clock every 20s even while the
+            // guide was STOPPED. repeatOnLifecycle cancels on STOP, restarts (fresh time) on re-START.
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (isActive) {
+                    binding.tvClock.text = clockFmt.format(Date())
+                    kotlinx.coroutines.delay(20_000)
+                }
             }
         }
     }

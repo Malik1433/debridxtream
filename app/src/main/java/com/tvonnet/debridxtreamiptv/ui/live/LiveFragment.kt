@@ -1475,9 +1475,14 @@ class LiveFragment : Fragment() {
     private fun startHeaderClock() {
         clockJob?.cancel()
         clockJob = viewLifecycleOwner.lifecycleScope.launch {
-            while (isActive) {
-                tvHeaderClock?.text = topBarTimeFormatter.format(Date())
-                delay(millisUntilNextMinute())
+            // Phase 4: only tick while the fragment is at least STARTED — the clock was updating
+            // the (invisible) header text every minute even while STOPPED. repeatOnLifecycle
+            // cancels the loop on STOP and restarts it (with a fresh time) on re-START.
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (isActive) {
+                    tvHeaderClock?.text = topBarTimeFormatter.format(Date())
+                    delay(millisUntilNextMinute())
+                }
             }
         }
     }
