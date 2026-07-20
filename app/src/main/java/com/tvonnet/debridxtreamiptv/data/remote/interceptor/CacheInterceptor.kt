@@ -40,6 +40,13 @@ class CacheInterceptor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
 
+        // Phase 5 (#19): never serve the credential-bearing login or the time-sensitive EPG
+        // endpoints from the 5-minute cache. Xtream carries username/password in the query on
+        // every request and the login response body echoes them; EPG must also stay fresh.
+        if (shouldBypassCache(request.url.toString())) {
+            return chain.proceed(request)
+        }
+
         try {
             val isOnline = isNetworkAvailable()
 
@@ -67,7 +74,7 @@ class CacheInterceptor(
             if (response.isSuccessful) {
                 return response.newBuilder()
                     .removeHeader("Pragma")
-                    .header("Cache-Control", "public, max-age=${DEFAULT_CACHE_MINUTES * 60}")
+                    .header("Cache-Control", "private, max-age=${DEFAULT_CACHE_MINUTES * 60}")
                     .build()
             }
 
@@ -84,6 +91,17 @@ class CacheInterceptor(
                 throw fallbackException
             }
         }
+    }
+
+    /**
+     * Bypass the cache for requests we must never serve stale or store with credentials: the
+     * Xtream login (no `action` — its body echoes username/password) and the time-sensitive EPG
+     * endpoints. Everything else (VOD/series/live LISTS) may still use the short cache.
+     */
+    private fun shouldBypassCache(url: String): Boolean {
+        val action = Regex("[?&]action=([^&]*)").find(url)?.groupValues?.getOrNull(1)
+        if (action.isNullOrBlank()) return true
+        return action == "get_short_epg" || action == "get_simple_data_table"
     }
 
     /**
