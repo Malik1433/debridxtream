@@ -5,6 +5,7 @@ import android.util.Log
 import com.tvonnet.debridxtreamiptv.data.model.EpgProgram
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
 import kotlinx.coroutines.*
+import kotlin.coroutines.coroutineContext
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.BufferedReader
@@ -96,7 +97,10 @@ object EpgParser {
         var programCount = 0
         var skippedInvalidTags = 0
 
-        parsingJob = CoroutineScope(Dispatchers.IO).launch {
+        // Phase 4: launch as a CHILD of the caller (coroutineContext) rather than a brand-new
+        // detached CoroutineScope — otherwise cancelling the caller left this parse running
+        // (a detached-scope leak). Still stored in parsingJob for the explicit external cancel.
+        parsingJob = CoroutineScope(coroutineContext + Dispatchers.IO).launch {
             try {
                 val chunkSize = memoryManager.getOptimalChunkSize()
                 val bufferedReader = BufferedReader(reader, chunkSize)
