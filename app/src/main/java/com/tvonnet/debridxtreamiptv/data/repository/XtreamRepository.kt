@@ -170,6 +170,12 @@ class XtreamRepository @Inject constructor(
 
     private val seriesCategoryStatus = ConcurrentHashMap<String, SeriesCategoryStatus>()
     
+    // Phase 4: @Synchronized so concurrent first-callers (MainActivity + HomeFragment + every
+    // browse ViewModel all call initialize()) can't both pass the idempotency guard while
+    // apiService is still null and rebuild the whole Retrofit/OkHttp stack twice (a race that
+    // could also leave apiService/baseUrl briefly inconsistent). The section is short and, after
+    // the first init, returns immediately — so it stays safe to call from the main thread.
+    @Synchronized
     fun initialize(baseUrl: String, username: String, password: String) {
         val normalizedUrlPre = baseUrl.trimEnd('/') + "/"
         // ST-3: idempotent for identical credentials — skip the expensive Retrofit/
