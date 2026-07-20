@@ -14,6 +14,10 @@ import com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -278,11 +282,38 @@ class DebridViewModel @Inject constructor(
         }
     }
 
-    private suspend fun fetchCatalogRows(): CatalogLoadResult {
+    private suspend fun fetchCatalogRows(): CatalogLoadResult = coroutineScope {
         val rows = mutableListOf<DebridRow>()
         val errors = mutableListOf<Exception>()
         rowParams.clear()
         rowPages.clear()
+
+        // Phase 2: fetch every row's content CONCURRENTLY up-front. This was ~17 sequential
+        // network calls under one wall-clock, so a single slow provider blanked the whole
+        // debrid home. Concurrency is bounded by a Semaphore (TMDB-friendly). The row
+        // assembly/order/See-All logic below is UNCHANGED — it just consumes resolved results.
+        val gate = Semaphore(6)
+        val continueWatchingDeferred = async { runCatching { catalogRepo.getContinueWatching() }.getOrDefault(emptyList()) }
+        val libraryDeferred = async { runCatching { catalogRepo.getLibraryItems() }.getOrDefault(emptyList()) }
+        val trendingMoviesDeferred = async { gate.withPermit { catalogRepo.getTrendingMovies() } }
+        val trendingSeriesDeferred = async { gate.withPermit { catalogRepo.getTrendingSeries() } }
+        val customSpecs = listOf(
+            Triple("bollywood_movies", "Bollywood New Popular Movies", RowLoadParams("movie", originalLanguage = "hi", watchRegion = "IN", releaseDateGte = "2024-01-01")),
+            Triple("bollywood_series", "Bollywood New Popular Series", RowLoadParams("series", originalLanguage = "hi", watchRegion = "IN", releaseDateGte = "2024-01-01")),
+            Triple("punjabi_movies", "Punjabi New Popular Movies", RowLoadParams("movie", originalLanguage = "pa", watchRegion = "IN", releaseDateGte = "2024-01-01")),
+            Triple("tamil_movies", "Tamil New Popular Movies", RowLoadParams("movie", originalLanguage = "ta", watchRegion = "IN", releaseDateGte = "2024-01-01")),
+            Triple("tamil_series", "Tamil New Popular Series", RowLoadParams("series", originalLanguage = "ta", watchRegion = "IN", releaseDateGte = "2024-01-01")),
+            Triple("netflix_movies", "Netflix New Popular Movies", RowLoadParams("movie", watchProviders = "8", watchRegion = "US", releaseDateGte = "2024-01-01")),
+            Triple("netflix_series", "Netflix New Popular Series", RowLoadParams("series", watchProviders = "8", watchRegion = "US", releaseDateGte = "2024-01-01")),
+            Triple("prime_movies", "Prime Video New Popular Movies", RowLoadParams("movie", watchProviders = "9|119", watchRegion = "US", releaseDateGte = "2024-01-01")),
+            Triple("prime_series", "Prime Video New Popular Series", RowLoadParams("series", watchProviders = "9|119", watchRegion = "US", releaseDateGte = "2024-01-01")),
+            Triple("disney_movies", "Disney+ New Popular Movies", RowLoadParams("movie", watchProviders = "337", watchRegion = "US", releaseDateGte = "2024-01-01")),
+            Triple("disney_series", "Disney+ New Popular Series", RowLoadParams("series", watchProviders = "337", watchRegion = "US", releaseDateGte = "2024-01-01")),
+            Triple("hbo_series", "HBO / Max New Popular Series", RowLoadParams("series", watchProviders = "384", watchRegion = "US", releaseDateGte = "2024-01-01")),
+            Triple("hollywood_movies", "Hollywood New Popular Movies", RowLoadParams("movie", originalLanguage = "en", watchRegion = "US", releaseDateGte = "2024-01-01")),
+            Triple("hollywood_series", "Hollywood New Popular Series", RowLoadParams("series", originalLanguage = "en", watchRegion = "US", releaseDateGte = "2024-01-01"))
+        )
+        val customDeferred = customSpecs.map { spec -> spec to async { gate.withPermit { loadRowContent(spec.third, 1) } } }
 
         suspend fun appendRow(id: String, title: String, params: RowLoadParams? = null, preloadedItems: Result<List<CatalogItem>>? = null) {
             val result = preloadedItems ?: if (params != null) {
@@ -315,107 +346,44 @@ class DebridViewModel @Inject constructor(
             }
         }
 
-        // Load Continue Watching
-        try {
-            val continueWatching = catalogRepo.getContinueWatching()
-            if (continueWatching.isNotEmpty()) {
-                rows.add(
-                    DebridRow(
-                        id = "continue_watching",
-                        title = "Continue Watching",
-                        items = continueWatching.map { it.toDebridContentItem() },
-                        canLoadMore = false
-                    )
+        // --- Assemble rows in the original display order (content already resolving above) ---
+
+        // 1. Continue Watching
+        val continueWatching = continueWatchingDeferred.await()
+        if (continueWatching.isNotEmpty()) {
+            rows.add(
+                DebridRow(
+                    id = "continue_watching",
+                    title = "Continue Watching",
+                    items = continueWatching.map { it.toDebridContentItem() },
+                    canLoadMore = false
                 )
-            }
-        } catch (e: Exception) {
-            // Ignore history load errors
+            )
         }
 
-        // 2. My Library (New optional row)
-        try {
-            val libraryItems = catalogRepo.getLibraryItems()
-            if (libraryItems.isNotEmpty()) {
-                rows.add(
-                    DebridRow(
-                        id = "my_library",
-                        title = "My Library",
-                        items = libraryItems.map { it.toDebridContentItem() },
-                        canLoadMore = false
-                    )
+        // 2. My Library (optional row)
+        val libraryItems = libraryDeferred.await()
+        if (libraryItems.isNotEmpty()) {
+            rows.add(
+                DebridRow(
+                    id = "my_library",
+                    title = "My Library",
+                    items = libraryItems.map { it.toDebridContentItem() },
+                    canLoadMore = false
                 )
-            }
-        } catch (e: Exception) {
-            // Ignore library load errors
+            )
         }
 
-        // 3. Trending Movies
-        appendRow("trending_movies", "Trending Movies", preloadedItems = catalogRepo.getTrendingMovies())
+        // 3 & 4. Trending (preloaded; no See-All pagination — same as before)
+        appendRow("trending_movies", "Trending Movies", preloadedItems = trendingMoviesDeferred.await())
+        appendRow("trending_series", "Trending Series", preloadedItems = trendingSeriesDeferred.await())
 
-        // 4. Trending Series
-        appendRow("trending_series", "Trending Series", preloadedItems = catalogRepo.getTrendingSeries())
+        // 5+. Custom rows, in the same display order as before
+        for ((spec, deferred) in customDeferred) {
+            appendRow(spec.first, spec.second, params = spec.third, preloadedItems = deferred.await())
+        }
 
-        // --- CUSTOM ROWS START ---
-
-        // Bollywood Movies
-        appendRow("bollywood_movies", "Bollywood New Popular Movies", 
-            RowLoadParams("movie", originalLanguage = "hi", watchRegion = "IN", releaseDateGte = "2024-01-01"))
-
-        // Bollywood Series
-        appendRow("bollywood_series", "Bollywood New Popular Series",
-            RowLoadParams("series", originalLanguage = "hi", watchRegion = "IN", releaseDateGte = "2024-01-01"))
-
-        // Punjabi Movies
-        appendRow("punjabi_movies", "Punjabi New Popular Movies",
-            RowLoadParams("movie", originalLanguage = "pa", watchRegion = "IN", releaseDateGte = "2024-01-01"))
-
-        // Tamil Movies
-        appendRow("tamil_movies", "Tamil New Popular Movies",
-            RowLoadParams("movie", originalLanguage = "ta", watchRegion = "IN", releaseDateGte = "2024-01-01"))
-
-        // Tamil Series
-        appendRow("tamil_series", "Tamil New Popular Series",
-            RowLoadParams("series", originalLanguage = "ta", watchRegion = "IN", releaseDateGte = "2024-01-01"))
-
-        // Netflix Movies
-        appendRow("netflix_movies", "Netflix New Popular Movies",
-            RowLoadParams("movie", watchProviders = "8", watchRegion = "US", releaseDateGte = "2024-01-01"))
-
-        // Netflix Series
-        appendRow("netflix_series", "Netflix New Popular Series",
-            RowLoadParams("series", watchProviders = "8", watchRegion = "US", releaseDateGte = "2024-01-01"))
-
-        // Amazon Prime Movies
-        appendRow("prime_movies", "Prime Video New Popular Movies",
-            RowLoadParams("movie", watchProviders = "9|119", watchRegion = "US", releaseDateGte = "2024-01-01"))
-
-        // Amazon Prime Series
-        appendRow("prime_series", "Prime Video New Popular Series",
-            RowLoadParams("series", watchProviders = "9|119", watchRegion = "US", releaseDateGte = "2024-01-01"))
-
-        // Disney+ Movies
-        appendRow("disney_movies", "Disney+ New Popular Movies",
-            RowLoadParams("movie", watchProviders = "337", watchRegion = "US", releaseDateGte = "2024-01-01"))
-
-        // Disney+ Series
-        appendRow("disney_series", "Disney+ New Popular Series",
-            RowLoadParams("series", watchProviders = "337", watchRegion = "US", releaseDateGte = "2024-01-01"))
-
-        // HBO Max Series
-        appendRow("hbo_series", "HBO / Max New Popular Series",
-            RowLoadParams("series", watchProviders = "384", watchRegion = "US", releaseDateGte = "2024-01-01"))
-
-        // Hollywood Movies
-        appendRow("hollywood_movies", "Hollywood New Popular Movies",
-            RowLoadParams("movie", originalLanguage = "en", watchRegion = "US", releaseDateGte = "2024-01-01"))
-
-        // Hollywood Series
-        appendRow("hollywood_series", "Hollywood New Popular Series",
-            RowLoadParams("series", originalLanguage = "en", watchRegion = "US", releaseDateGte = "2024-01-01"))
-
-        // --- CUSTOM ROWS END ---
-
-        return CatalogLoadResult(rows = rows, errors = errors)
+        CatalogLoadResult(rows = rows, errors = errors)
     }
 
     private suspend fun loadRowContent(params: RowLoadParams, page: Int): Result<List<CatalogItem>> {
