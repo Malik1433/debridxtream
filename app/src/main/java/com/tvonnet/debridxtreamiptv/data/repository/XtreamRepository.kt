@@ -1434,7 +1434,12 @@ class XtreamRepository @Inject constructor(
             }
             Log.d("XtreamDebug", "⬇️ Network fetch: Series detail $seriesId")
             val start = System.currentTimeMillis()
-            val response = apiService!!.getSeriesInfo(username, password, seriesId = seriesId)
+            val response = withTimeoutOrNull(SERIES_DETAIL_REQUEST_TIMEOUT_MS) {
+                apiService!!.getSeriesInfo(username, password, seriesId = seriesId)
+            } ?: run {
+                Log.w("XtreamDebug", "Series detail $seriesId timed out after ${SERIES_DETAIL_REQUEST_TIMEOUT_MS}ms; trying fallback")
+                return fetchFallbackSeriesDetail(seriesId)
+            }
             Log.d("XtreamDebug", "Response received in ${System.currentTimeMillis() - start}ms. Code: ${response.code()}")
             
             if (response.isSuccessful && response.body() != null) {
@@ -2415,6 +2420,9 @@ class XtreamRepository @Inject constructor(
         // SY-2: per-stage bound for the initial sync — a hung provider on one stage no
         // longer parks the user for the raw ~30s socket timeout ×3 (up to ~90-180s).
         private const val SYNC_STAGE_TIMEOUT_MS = 25_000L
+        // Phase 2: per-request bound so a hung provider can't stall the series-detail
+        // screen. On timeout we fall through to the fallback fetch instead of blocking.
+        private const val SERIES_DETAIL_REQUEST_TIMEOUT_MS = 15_000L
         private const val SEARCH_INDEX_CHUNK = 2000
         private const val KEY_SEARCH_INDEX_VOD_TIME = "search_index_vod_time"
         private const val KEY_SEARCH_INDEX_SERIES_TIME = "search_index_series_time"
