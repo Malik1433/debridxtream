@@ -99,7 +99,11 @@ class PlayerHistoryManager(
         if (isWatched) return // completion handling belongs to the exit path
         val now = System.currentTimeMillis()
         val item = buildContinueWatchingItem(id, type, pos, dur, now)
-        watchHistoryPrefs.saveContinueWatchingItem(item)
+        // Phase 1: the Continue-Watching prefs write is a full Gson decode+encode. On the
+        // periodic snapshot it was running on the caller (main) thread every ~30s of playback.
+        // Offload it to the existing IO persistScope. (The exit-time save in
+        // recordContinueWatchingHistory stays synchronous for crash/kill durability.)
+        persistScope.launch { watchHistoryPrefs.saveContinueWatchingItem(item) }
         recordAutomaticWatchedState(type, id, item, pos, dur, isWatched = false, timestamp = now)
     }
 

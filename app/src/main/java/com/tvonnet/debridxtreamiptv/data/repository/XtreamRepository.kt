@@ -566,7 +566,7 @@ class XtreamRepository @Inject constructor(
             }
         }
 
-        val cacheLiveCategories = readCache()?.live?.categories.orEmpty()
+        val cacheLiveCategories = prewarmCache()?.live?.categories.orEmpty()
         if (cacheLiveCategories.isNotEmpty()) {
             try {
                 cacheManager?.putCategories(cacheLiveCategories, "live")
@@ -597,7 +597,7 @@ class XtreamRepository @Inject constructor(
                         IptvCache(System.currentTimeMillis(), updatedLiveData, null, null, null)
                     }
                     memoryCache = updatedCache
-                    cacheHelper.writeCache(updatedCache)
+                    withContext(Dispatchers.IO) { cacheHelper.writeCache(updatedCache) }
                 }
                 categories
             } else {
@@ -852,7 +852,7 @@ class XtreamRepository @Inject constructor(
             }
         }
 
-        val cacheVodCategories = readCache()?.vod?.categories.orEmpty()
+        val cacheVodCategories = prewarmCache()?.vod?.categories.orEmpty()
         if (cacheVodCategories.isNotEmpty()) {
             try {
                 cacheManager?.putCategories(cacheVodCategories, "vod")
@@ -886,7 +886,7 @@ class XtreamRepository @Inject constructor(
         }
     }
 
-    private fun updateVodCategoriesCache(categories: List<XtreamCategory>) {
+    private suspend fun updateVodCategoriesCache(categories: List<XtreamCategory>) {
         try {
             val existingCache = readCache()
             val existingVodStreams = existingCache?.vod?.streams ?: emptyList()
@@ -909,7 +909,7 @@ class XtreamRepository @Inject constructor(
                 )
             }
             memoryCache = updatedCache
-            cacheHelper.writeCache(updatedCache)
+            withContext(Dispatchers.IO) { cacheHelper.writeCache(updatedCache) }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to persist VOD categories to cache", e)
         }
@@ -922,7 +922,7 @@ class XtreamRepository @Inject constructor(
             }
         }
 
-        val cacheSeriesCategories = readCache()?.series?.categories.orEmpty()
+        val cacheSeriesCategories = prewarmCache()?.series?.categories.orEmpty()
         if (cacheSeriesCategories.isNotEmpty()) {
             try {
                 cacheManager?.putCategories(cacheSeriesCategories, "series")
@@ -956,7 +956,7 @@ class XtreamRepository @Inject constructor(
         }
     }
 
-    private fun updateSeriesCategoriesCache(categories: List<XtreamCategory>) {
+    private suspend fun updateSeriesCategoriesCache(categories: List<XtreamCategory>) {
         try {
             val existingCache = readCache()
             val existingSeriesStreams = existingCache?.series?.streams ?: emptyList()
@@ -979,7 +979,7 @@ class XtreamRepository @Inject constructor(
                 )
             }
             memoryCache = updatedCache
-            cacheHelper.writeCache(updatedCache)
+            withContext(Dispatchers.IO) { cacheHelper.writeCache(updatedCache) }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to persist Series categories to cache", e)
         }
@@ -2031,7 +2031,7 @@ class XtreamRepository @Inject constructor(
     suspend fun getLiveStreamById(streamId: String): XtreamStream? {
         val cache = memoryCache
             ?: cacheHelper.memorySnapshot()?.also { memoryCache = it }
-            ?: cacheHelper.readCache()?.also { memoryCache = it }
+            ?: withContext(Dispatchers.IO) { cacheHelper.readCache() }?.also { memoryCache = it }
         val memoryMatch = cache?.live?.streams?.find { it.stream_id == streamId }
         if (memoryMatch != null) return memoryMatch
 
@@ -2046,7 +2046,7 @@ class XtreamRepository @Inject constructor(
     suspend fun getVodById(streamId: String): XtreamVodInfo? {
         val cache = memoryCache
             ?: cacheHelper.memorySnapshot()?.also { memoryCache = it }
-            ?: cacheHelper.readCache()?.also { memoryCache = it }
+            ?: withContext(Dispatchers.IO) { cacheHelper.readCache() }?.also { memoryCache = it }
         val memoryMatch = cache?.vod?.streams?.find { it.stream_id == streamId }
         if (memoryMatch != null) return memoryMatch
 
@@ -2071,7 +2071,7 @@ class XtreamRepository @Inject constructor(
         // Fallback to global cache
         val cache = memoryCache
             ?: cacheHelper.memorySnapshot()?.also { memoryCache = it }
-            ?: cacheHelper.readCache()?.also { memoryCache = it }
+            ?: withContext(Dispatchers.IO) { cacheHelper.readCache() }?.also { memoryCache = it }
         val memoryMatch = cache?.series?.streams?.find { it.series_id == streamId }
         if (memoryMatch != null) return memoryMatch
 
@@ -2137,7 +2137,7 @@ class XtreamRepository @Inject constructor(
         }
         
         memoryCache = updatedCache
-        cacheHelper.writeCache(updatedCache)
+        withContext(Dispatchers.IO) { cacheHelper.writeCache(updatedCache) }
         cacheManager?.putCategories(categories, "series")
         
         // Clear per-category cache so it can repopulate with fresh series data
@@ -2149,7 +2149,7 @@ class XtreamRepository @Inject constructor(
      * Update per-category series cache
      * Called after fetching series for a category
      */
-    private fun updateSeriesCacheForCategory(categoryId: String, series: List<XtreamSeriesInfo>) {
+    private suspend fun updateSeriesCacheForCategory(categoryId: String, series: List<XtreamSeriesInfo>) {
         perCategorySeriesCache[categoryId] = series
         persistSeriesStreamsForCategory(categoryId, series)
         Log.d(TAG, "Updated per-category cache for $categoryId: ${series.size} series (persisted)")
@@ -2305,7 +2305,7 @@ class XtreamRepository @Inject constructor(
         )
     }
 
-    private fun persistSeriesStreamsForCategory(categoryId: String, series: List<XtreamSeriesInfo>) {
+    private suspend fun persistSeriesStreamsForCategory(categoryId: String, series: List<XtreamSeriesInfo>) {
         val seriesToPersist = series.takeIf { it.isNotEmpty() } ?: return
         val existingCache = readCache()
         val existingSeriesData = existingCache?.series
@@ -2337,7 +2337,7 @@ class XtreamRepository @Inject constructor(
         memoryCache = updatedCache
         // Do NOT update allSeriesCacheFallback here. It should only be updated when we fetch ALL series.
         // allSeriesCacheFallback = updatedSeriesData.streams
-        cacheHelper.writeCache(updatedCache)
+        withContext(Dispatchers.IO) { cacheHelper.writeCache(updatedCache) }
         Log.d(
             TAG,
             "Persisted ${seriesToPersist.size} series for category $categoryId (cached total: ${updatedSeriesData.streams.size})"

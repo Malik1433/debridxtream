@@ -12,6 +12,10 @@ import java.io.BufferedWriter
 
 class CacheHelper(private val context: Context) {
     private val cacheFileName = "iptv_cache.json"
+    // Single reused default Gson (Phase 1): a fresh Gson() per call rebuilt the reflective
+    // type-adapter cache every time on the multi-MB catalog. MUST stay an UNCONFIGURED default
+    // Gson so the on-disk iptv_cache.json / series caches stay byte-identical for existing users.
+    private val gson = Gson()
     
     fun writeCache(cache: IptvCache) {
         // SY-8: write to a temp file then atomically rename over the real one. The old
@@ -22,7 +26,7 @@ class CacheHelper(private val context: Context) {
         var writer: BufferedWriter? = null
         try {
             writer = BufferedWriter(FileWriter(tmp))
-            Gson().toJson(cache, writer)
+            gson.toJson(cache, writer)
             writer.flush()
             writer.close()
             writer = null
@@ -69,7 +73,6 @@ class CacheHelper(private val context: Context) {
             
             // Use streaming to avoid loading entire file into memory
             reader = BufferedReader(FileReader(file), 8192) // 8KB buffer
-            val gson = Gson()
             val cache = gson.fromJson(reader, IptvCache::class.java)
             Log.d(TAG, "Cache read successfully")
             inMemoryCache = cache
@@ -144,7 +147,6 @@ class CacheHelper(private val context: Context) {
             if (!dir.exists()) dir.mkdirs()
             
             val file = File(dir, "$seriesId.json")
-            val gson = Gson()
             val writer = BufferedWriter(FileWriter(file))
             gson.toJson(detail, writer)
             writer.flush()
@@ -168,7 +170,6 @@ class CacheHelper(private val context: Context) {
                 return null
             }
             
-            val gson = Gson()
             val reader = BufferedReader(FileReader(file))
             val detail = gson.fromJson(reader, com.tvonnet.debridxtreamiptv.data.model.XtreamSeriesDetailResponse::class.java)
             reader.close()
@@ -185,7 +186,6 @@ class CacheHelper(private val context: Context) {
             if (!dir.exists()) dir.mkdirs()
             
             val file = File(dir, "all_series.json")
-            val gson = Gson()
             val writer = BufferedWriter(FileWriter(file))
             gson.toJson(series, writer)
             writer.flush()
@@ -209,7 +209,6 @@ class CacheHelper(private val context: Context) {
                 return null
             }
             
-            val gson = Gson()
             val reader = BufferedReader(FileReader(file))
             val type = object : com.google.gson.reflect.TypeToken<List<com.tvonnet.debridxtreamiptv.data.model.XtreamSeriesInfo>>() {}.type
             val series = gson.fromJson<List<com.tvonnet.debridxtreamiptv.data.model.XtreamSeriesInfo>>(reader, type)

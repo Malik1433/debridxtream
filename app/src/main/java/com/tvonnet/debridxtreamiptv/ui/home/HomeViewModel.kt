@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -92,13 +93,17 @@ class HomeViewModel @Inject constructor(
 
     private fun loadHomeData() {
         if (loadHomeDataJob?.isActive == true) return
-        loadHomeDataJob = viewModelScope.launch {
-            android.util.Log.e("HISTORY_DEBUG", "HomeViewModel: refreshHomeData starting")
+        // Phase 1: run the whole home build OFF the main thread. It decodes the
+        // continue-watching / recent-live prefs (Gson) and sorts the full VOD catalog for
+        // the top-10 below — all of which used to run on Main. No View is touched here
+        // (this is a ViewModel); _uiState is a thread-safe StateFlow.
+        loadHomeDataJob = viewModelScope.launch(Dispatchers.Default) {
+            android.util.Log.d("HISTORY_DEBUG", "HomeViewModel: refreshHomeData starting")
             runCatching {
                 val continueWatching = watchHistoryPrefs.getContinueWatchingList()
-                android.util.Log.e("HISTORY_DEBUG", "HomeViewModel: continueWatching size=${continueWatching.size}")
+                android.util.Log.d("HISTORY_DEBUG", "HomeViewModel: continueWatching size=${continueWatching.size}")
                 val recentLiveChannels = watchHistoryPrefs.getRecentLiveChannelsList()
-                android.util.Log.e("HISTORY_DEBUG", "HomeViewModel: recentLiveChannels size=${recentLiveChannels.size}")
+                android.util.Log.d("HISTORY_DEBUG", "HomeViewModel: recentLiveChannels size=${recentLiveChannels.size}")
 
                 // ST-1: parse the multi-MB catalog OFF the main thread and warm the
                 // in-memory cache, so the synchronous readCache() below is instant.
