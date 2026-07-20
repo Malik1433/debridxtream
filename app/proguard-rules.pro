@@ -20,3 +20,12 @@
 -keepattributes Signature
 -keepattributes Exceptions
 -keepattributes *Annotation*
+
+# Phase 6: Ktor CIO powers the companion-pairing server (network/CompanionConfigServer via
+# embeddedServer(CIO, ...)). Release builds run R8 (minifyEnabled true), which without these rules
+# strips/obfuscates Ktor + its slf4j logging facade and the release server fails to start.
+-keep class io.ktor.** { *; }
+-keep class io.ktor.server.cio.** { *; }
+-dontwarn io.ktor.**
+-keep class org.slf4j.** { *; }
+-dontwarn org.slf4j.**
