@@ -25,6 +25,13 @@ sealed class Result<out T> {
 suspend fun <T> resultOf(block: suspend () -> T): Result<T> {
     return try {
         Result.Success(block())
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        // Phase 4: never swallow cancellation — CancellationException is an Exception, so the
+        // broad catch below used to wrap it in Result.Error, breaking structured concurrency for
+        // every resultOf caller (RD/TMDB/addon). That left callers seeing a "failure" instead of a
+        // clean cancel — the "loading never settles" / ghost-error symptom. Rethrow so the
+        // coroutine unwinds normally.
+        throw e
     } catch (e: Exception) {
         Result.Error(e)
     }

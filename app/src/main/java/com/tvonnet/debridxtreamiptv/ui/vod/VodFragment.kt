@@ -578,6 +578,10 @@ class VodFragment : Fragment() {
 
     private fun setupObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
+            // Phase 4: gate the pure UI-state collector so it doesn't run (touch views / show
+            // toasts) while the fragment is STOPPED; the StateFlow replays the latest value on
+            // re-START so nothing is missed.
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.uiState.collect { state ->
                 val displayCategories = buildSidebarCategories(state.categories)
                 val categoryAdapter = rvCategoriesSidebar.adapter as? CategorySidebarAdapter
@@ -634,11 +638,14 @@ class VodFragment : Fragment() {
                     showLoadingState(true)
                 }
             }
+            }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.pagedMovies.collectLatest { pagingData ->
                 vodAdapter.submitData(pagingData)
+            }
             }
         }
     }
