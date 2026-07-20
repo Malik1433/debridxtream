@@ -944,6 +944,9 @@ class PlayerActivity : AppCompatActivity() {
                 override fun getPlayerCurrentPosition(): Long = player?.currentPosition ?: 0L
                 override fun isPlayerPlaying(): Boolean = player?.isPlaying ?: false
                 override fun getPlayer(): ExoPlayer? = player
+                override fun getSeriesFallbackPosterUrl(): String? =
+                    posterUrlExtra?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+                        ?: backdropUrlExtra?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
                 override fun getNextEpisode(): com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2? {
                     val state = viewModel.seriesPlaylistState.value
                     return if (state?.hasNext == true) {

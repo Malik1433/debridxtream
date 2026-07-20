@@ -28,6 +28,14 @@
             android:layout_height="90dp"
             app:layout_constraintTop_toTopOf="parent">
 
+            <ImageView
+                android:id="@+id/iv_next_episode_thumb"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                tools:ignore="ContentDescription"
+                tools:src="@drawable/placeholder_banner" />
+
             <View
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"

@@ -40,9 +40,13 @@ class PlayerNextEpisodeManager(
          * falls back to the legacy per-second poll.
          */
         fun getPlayer(): androidx.media3.exoplayer.ExoPlayer? = null
+
+        /** Series poster/backdrop, shown in the prompt when the next episode has no thumbnail. */
+        fun getSeriesFallbackPosterUrl(): String? = null
     }
 
     private var nextEpisodeOverlay: View? = null
+    private var ivNextEpThumb: android.widget.ImageView? = null
     private var tvNextEpTitle: TextView? = null
     private var tvCountdownSeconds: TextView? = null
     private var btnPlayNext: View? = null
@@ -93,6 +97,7 @@ class PlayerNextEpisodeManager(
         if (nextEpisodeOverlay != null) return
         val overlay = activity.findViewById<View>(R.id.view_next_episode_prompt) ?: return
         nextEpisodeOverlay = overlay
+        ivNextEpThumb = overlay.findViewById(R.id.iv_next_episode_thumb)
         tvNextEpTitle = overlay.findViewById(R.id.tv_next_episode_title)
         tvCountdownSeconds = overlay.findViewById(R.id.tv_countdown_seconds)
         btnPlayNext = overlay.findViewById(R.id.btn_play_now)
@@ -217,6 +222,23 @@ class PlayerNextEpisodeManager(
         
         nextEpisodeOverlay?.isVisible = true
         tvNextEpTitle?.text = nextEp.title ?: "Episode ${nextEp.episodeNumber}"
+        ivNextEpThumb?.let { iv ->
+            val imageUrl = nextEp.thumbnail
+                ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+                ?: delegate.getSeriesFallbackPosterUrl()
+                    ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+            if (imageUrl == null) {
+                com.bumptech.glide.Glide.with(iv).clear(iv)
+                iv.setImageResource(R.drawable.placeholder_banner)
+            } else {
+                com.bumptech.glide.Glide.with(iv)
+                    .load(imageUrl)
+                    .placeholder(R.drawable.placeholder_banner)
+                    .error(R.drawable.placeholder_banner)
+                    .transition(com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade())
+                    .into(iv)
+            }
+        }
         delegate.onNextEpisodePromptShown(nextEp)
         
         nextEpisodeTimer?.cancel()
