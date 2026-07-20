@@ -2,20 +2,56 @@ package com.tvonnet.debridxtreamiptv.data.prefs
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 
 class CredentialsPreferences(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val identityPrefs = IdentityPreferences(context)
+
+    // Phase 5: the sensitive credential values (server_url / username / password / logged_in) live in
+    // an ENCRYPTED prefs file. If EncryptedSharedPreferences can't be created (security-crypto is still
+    // alpha and its AndroidKeyStore path is flaky on some Fire OS builds), fall back to the plain prefs
+    // so the user is never crashed or locked out — no worse than before this change.
+    private val credsPrefs: SharedPreferences = try {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        EncryptedSharedPreferences.create(
+            context,
+            SECURE_PREFS_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    } catch (e: Exception) {
+        android.util.Log.w("CredentialsPrefs", "EncryptedSharedPreferences unavailable; using plain fallback", e)
+        prefs
+    }
 
     init {
         identityPrefs.migrateFromLegacy(
             deviceId = prefs.getString(KEY_DEVICE_ID, null),
             syncCode = prefs.getString(KEY_SYNC_CODE, null)
         )
+        // One-time migration: move any legacy PLAINTEXT credentials into the encrypted store, then
+        // scrub them from the plain file. Only runs when encryption is actually active
+        // (credsPrefs !== prefs) and the legacy plaintext password is still present.
+        if (credsPrefs !== prefs && prefs.contains(KEY_PASSWORD)) {
+            credsPrefs.edit()
+                .putString(KEY_SERVER_URL, prefs.getString(KEY_SERVER_URL, null))
+                .putString(KEY_USERNAME, prefs.getString(KEY_USERNAME, null))
+                .putString(KEY_PASSWORD, prefs.getString(KEY_PASSWORD, null))
+                .putBoolean(KEY_LOGGED_IN, prefs.getBoolean(KEY_LOGGED_IN, false))
+                .apply()
+            prefs.edit()
+                .remove(KEY_SERVER_URL).remove(KEY_USERNAME).remove(KEY_PASSWORD).remove(KEY_LOGGED_IN)
+                .apply()
+        }
     }
     
     fun saveCredentials(serverUrl: String, username: String, password: String) {
-        prefs.edit().apply {
+        credsPrefs.edit().apply {
             putString(KEY_SERVER_URL, serverUrl)
             putString(KEY_USERNAME, username)
             putString(KEY_PASSWORD, password)
@@ -29,7 +65,7 @@ class CredentialsPreferences(private val context: Context) {
      * This allows the LoginFragment to perform a fresh validation before proceeding.
      */
     fun saveSyncedCredentials(serverUrl: String, username: String, password: String) {
-        prefs.edit().apply {
+        credsPrefs.edit().apply {
             putString(KEY_SERVER_URL, serverUrl)
             putString(KEY_USERNAME, username)
             putString(KEY_PASSWORD, password)
@@ -39,23 +75,23 @@ class CredentialsPreferences(private val context: Context) {
     }
     
     fun getServerUrl(): String? {
-        return prefs.getString(KEY_SERVER_URL, null)
+        return credsPrefs.getString(KEY_SERVER_URL, null)
     }
     
     fun getUsername(): String? {
-        return prefs.getString(KEY_USERNAME, null)
+        return credsPrefs.getString(KEY_USERNAME, null)
     }
     
     fun getPassword(): String? {
-        return prefs.getString(KEY_PASSWORD, null)
+        return credsPrefs.getString(KEY_PASSWORD, null)
     }
     
     fun isLoggedIn(): Boolean {
-        return prefs.getBoolean(KEY_LOGGED_IN, false)
+        return credsPrefs.getBoolean(KEY_LOGGED_IN, false)
     }
     
     fun clearCredentials() {
-        prefs.edit().apply {
+        credsPrefs.edit().apply {
             remove(KEY_SERVER_URL)
             remove(KEY_USERNAME)
             remove(KEY_PASSWORD)
@@ -105,6 +141,7 @@ class CredentialsPreferences(private val context: Context) {
     
     companion object {
         const val PREFS_NAME = "iptv_credentials"
+        private const val SECURE_PREFS_NAME = "iptv_credentials_secure"
         const val KEY_SERVER_URL = "server_url"
         const val KEY_USERNAME = "username"
         const val KEY_PASSWORD = "password"
