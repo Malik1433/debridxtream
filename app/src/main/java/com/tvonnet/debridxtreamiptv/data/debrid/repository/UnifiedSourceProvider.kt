@@ -767,7 +767,11 @@ class UnifiedSourceProvider @Inject constructor(
         val nonDebridPatterns = listOf(
             "live ", " news", " weather", " sports channel", " tv channel",
             " documentary series", " reality show", " talk show", " podcast",
-            " season ", " episode ", " s", " e", " ep ", " ptv ", " channel "
+            // NOTE: " s" and " e" were removed here — those 2-char substrings matched almost
+            // any multi-word movie title (e.g. "Toy Story" -> " s", "The Empire..." -> " e"),
+            // misrouting real movies to IPTV. Season/episode detection is already covered by
+            // " season ", " episode ", " ep " below and " s01".." s05" in tvContentPatterns.
+            " season ", " episode ", " ep ", " ptv ", " channel "
         )
 
         // Skip titles that indicate TV/series content
@@ -1469,21 +1473,27 @@ class UnifiedSourceProvider @Inject constructor(
         if (hashes.isEmpty()) return@coroutineScope emptyMap()
 
         val availabilitySemaphore = Semaphore(1)
+        // Phase 2: accumulate each hash's verified status as it resolves, so a 20s timeout (or
+        // error) KEEPS the already-verified results instead of discarding everything and marking
+        // every source UNKNOWN. Semaphore(1) serialises the RD calls, so entries are written one
+        // at a time; on timeout the partial map is returned and only the unresolved hashes stay
+        // unknown.
+        val verified = java.util.concurrent.ConcurrentHashMap<String, DebridCacheStatus>()
         try {
             withTimeout(20000L) {
                 hashes.map { hash ->
                     async {
                         availabilitySemaphore.withPermit {
-                            hash to resolveCachedAvailability(hash)
+                            verified[hash] = resolveCachedAvailability(hash)
                         }
                     }
-                }.awaitAll().toMap()
+                }.awaitAll()
             }
         } catch (e: Exception) {
             coroutineContext.ensureActive()
-            Log.w(TAG, "RD cache verification incomplete; cache state remains unknown for ${hashes.size} hashes")
-            emptyMap()
+            Log.w(TAG, "RD cache verification incomplete after timeout; keeping ${verified.size}/${hashes.size} resolved, rest stay unknown")
         }
+        verified.toMap()
     }
 
     private suspend fun resolveCachedAvailability(hash: String): DebridCacheStatus {
