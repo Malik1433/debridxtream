@@ -446,6 +446,11 @@ object EpgParser {
 
 
 
+    // Phase 6: compile the HTML-tag regex ONCE. cleanTextContent runs on every programme's
+    // title/desc/category (~870k times on a 289k-programme guide) and used to Pattern.compile a
+    // fresh Regex on each call.
+    private val htmlTagRegex = Regex("<[^>]+>")
+
     /**
      * Clean text content by removing HTML entities and normalizing
      */
@@ -460,7 +465,7 @@ object EpgParser {
             .replace("&quot;", "\"")
             .replace("&#39;", "'")
             // Remove remaining HTML tags if any
-            .replace(Regex("<[^>]+>"), "")
+            .replace(htmlTagRegex, "")
             // Trim whitespace
             .trim()
     }

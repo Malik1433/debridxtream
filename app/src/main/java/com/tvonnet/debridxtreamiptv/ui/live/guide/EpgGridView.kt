@@ -69,6 +69,8 @@ class EpgGridView @JvmOverloads constructor(
     private var focusProg = -1               // -1 == channel cell
 
     private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+    // Phase 6: reused across draws so the onDraw hot path doesn't allocate a new Date per label.
+    private val scratchDate = Date()
 
     // ── Colors ──────────────────────────────────────────────────────────
     private val cBg = color(R.color.epg_bg)
@@ -388,7 +390,12 @@ class EpgGridView @JvmOverloads constructor(
         canvas.drawText(p.title, left + dp(15f), bt + dp(6f) + sp(14f), textDisplay)
         textMono.color = if (p.isNow(now)) cCyan else cTextMuted
         textMono.textSize = sp(11f)
-        val timeLabel = "${timeFmt.format(Date(p.startMs))} - ${timeFmt.format(Date(p.stopMs))}"
+        val timeLabel = p.cachedTimeLabel ?: run {
+            scratchDate.time = p.startMs
+            val startLabel = timeFmt.format(scratchDate)
+            scratchDate.time = p.stopMs
+            "$startLabel - ${timeFmt.format(scratchDate)}".also { p.cachedTimeLabel = it }
+        }
         canvas.drawText(timeLabel, left + dp(15f), bb - dp(8f), textMono)
         canvas.restoreToCount(save)
 
@@ -492,7 +499,8 @@ class EpgGridView @JvmOverloads constructor(
                 canvas.drawRect(x, 0f, x + dp(1f), headerHeight, fill)
                 textMono.color = cTextSecondary
                 textMono.textSize = sp(12f)
-                canvas.drawText(timeFmt.format(Date(windowStartMs + m * 60000L)), x + dp(6f), headerHeight / 2 + sp(4f), textMono)
+                scratchDate.time = windowStartMs + m * 60000L
+                canvas.drawText(timeFmt.format(scratchDate), x + dp(6f), headerHeight / 2 + sp(4f), textMono)
             }
             m += 30
         }

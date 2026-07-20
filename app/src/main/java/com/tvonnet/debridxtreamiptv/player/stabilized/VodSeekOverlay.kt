@@ -55,6 +55,20 @@ class VodSeekOverlay @JvmOverloads constructor(
         if (focused != focusedState) { focusedState = focused; invalidate() }
     }
 
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        // Phase 6: the progress gradient depends only on the view width, so build it once per
+        // resize instead of allocating a new LinearGradient on every onDraw frame.
+        val left = glowR
+        val right = w - glowR
+        progressPaint.shader = LinearGradient(
+            left, 0f, right, 0f,
+            intArrayOf(0xFF0055CC.toInt(), 0xFF0A84FF.toInt(), 0xFF00C8FF.toInt()),
+            floatArrayOf(0f, 0.55f, 1f),
+            Shader.TileMode.CLAMP
+        )
+    }
+
     override fun onDraw(canvas: Canvas) {
         val cy = height / 2f
         val h = if (focusedState) barH * 1.25f else barH
@@ -88,12 +102,7 @@ class VodSeekOverlay @JvmOverloads constructor(
             rect.set(left, cy - gr, px, cy + gr)
             canvas.drawRoundRect(rect, gr, gr, progressGlow)
 
-            progressPaint.shader = LinearGradient(
-                left, 0f, right, 0f,
-                intArrayOf(0xFF0055CC.toInt(), 0xFF0A84FF.toInt(), 0xFF00C8FF.toInt()),
-                floatArrayOf(0f, 0.55f, 1f),
-                Shader.TileMode.CLAMP
-            )
+            // progressPaint.shader is built once in onSizeChanged (Phase 6) — no per-frame alloc.
             rect.set(left, cy - r, px, cy + r)
             canvas.drawRoundRect(rect, r, r, progressPaint)
         }

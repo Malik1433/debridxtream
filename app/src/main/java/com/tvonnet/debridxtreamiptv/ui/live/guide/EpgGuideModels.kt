@@ -49,6 +49,10 @@ data class GuideProgram(
     val genre: EpgGenre,
     val hasReminder: Boolean = false
 ) {
+    // Phase 6: view-populated cache of the formatted "HH:mm - HH:mm" label, so the EPG grid
+    // doesn't re-run SimpleDateFormat + allocate Dates on every onDraw frame during scroll.
+    var cachedTimeLabel: String? = null
+
     fun isNow(now: Long) = now in startMs until stopMs
     fun hasEnded(now: Long) = now >= stopMs
     fun durationMinutes(): Int = (((stopMs - startMs) / 60000L).toInt()).coerceAtLeast(1)
