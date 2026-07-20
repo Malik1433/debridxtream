@@ -26,8 +26,8 @@ android {
         applicationId "com.debridxtream.tv"
         minSdk 21
         targetSdk 35  // Updated to match compileSdk for latest Android features
-        versionCode 28
-        versionName "2.0.7"
+        versionCode 29
+        versionName "2.0.8"
         multiDexEnabled true
         multiDexKeepFile file('multidex-keep.txt')
         multiDexKeepProguard file('multidex-keep.pro')
