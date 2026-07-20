@@ -395,13 +395,26 @@ internal class StremioSearchOverlay(
     }
 
     private fun startCaretBlink() {
-        ValueAnimator.ofFloat(1f, 0f).apply {
+        val animator = ValueAnimator.ofFloat(1f, 0f).apply {
             duration = 550
             repeatCount = ValueAnimator.INFINITE
             repeatMode = ValueAnimator.REVERSE
             addUpdateListener { caret.alpha = it.animatedValue as Float }
-            start()
         }
+        // Phase 3: tie the infinite caret animator (and any pending search callbacks) to the
+        // view's attach state so they're cancelled when the overlay's view is destroyed.
+        // Previously the animator held `caret` forever (INFINITE, no reference to cancel),
+        // leaking the view hierarchy for the app's lifetime.
+        caret.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {
+                if (!animator.isStarted) animator.start()
+            }
+            override fun onViewDetachedFromWindow(v: View) {
+                animator.cancel()
+                handler.removeCallbacksAndMessages(null)
+            }
+        })
+        animator.start()
     }
 
     // ── drawable helpers ──
