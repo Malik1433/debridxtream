@@ -28,8 +28,13 @@ fun ImageView.loadPosterOrPlaceholder(
     cornerRadiusDp: Int = 12,
     isBackdrop: Boolean = false
 ) {
-    android.util.Log.d("GLIDE_DEBUG", "loadPosterOrPlaceholder entry: imageUrl=${SensitiveLogRedactor.describeUrl(imageUrl)}")
-    
+    // Phase 6: BuildConfig.DEBUG-guarded — this runs on every poster bind (every card, every
+    // scroll frame), and the message string (describeUrl + concat) was being built on every bind
+    // even in release where the log itself is dropped.
+    if (com.tvonnet.debridxtreamiptv.BuildConfig.DEBUG) {
+        android.util.Log.d("GLIDE_DEBUG", "loadPosterOrPlaceholder entry: imageUrl=${SensitiveLogRedactor.describeUrl(imageUrl)}")
+    }
+
     // Step 1: Centralized resolution via GlobalConfig
     val safeResolved = GlobalConfig.resolveIconUrl(imageUrl) ?: ""
     

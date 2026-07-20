@@ -25,6 +25,10 @@ class StremioAddonFetcher @Inject constructor(
 
     companion object {
         private const val TAG = "StremioAddonFetcher"
+        // Phase 6: cache the (essentially static) addon manifest per URL so it isn't re-fetched on
+        // every source query — each query was 2 sequential round-trips (manifest + streams).
+        private const val MANIFEST_TTL_MS = 60L * 60 * 1000 // 1h
+        private val manifestCache = java.util.concurrent.ConcurrentHashMap<String, Pair<StremioManifest, Long>>()
         private const val TIMEOUT_SECONDS = 20L
 
         // Debrid proxy (StremThru/Debridio "Torz") playback URLs are ".../<hash>/<fileIdx>/".
@@ -114,6 +118,9 @@ class StremioAddonFetcher @Inject constructor(
     }
 
     private fun fetchManifest(manifestUrl: String): StremioManifest? {
+        manifestCache[manifestUrl]?.let { (cached, at) ->
+            if (System.currentTimeMillis() - at < MANIFEST_TTL_MS) return cached
+        }
         val request = Request.Builder()
             .url(manifestUrl)
             .header("User-Agent", "Stremio/1.0")
@@ -128,7 +135,9 @@ class StremioAddonFetcher @Inject constructor(
 
             val body = response.body?.string()
             if (body.isNullOrBlank()) return null
-            return gson.fromJson(body, StremioManifest::class.java)
+            return gson.fromJson(body, StremioManifest::class.java)?.also {
+                manifestCache[manifestUrl] = it to System.currentTimeMillis()
+            }
         }
     }
 
