@@ -13,8 +13,10 @@ object AddonCatalogServiceFactory {
     private const val PLACEHOLDER_BASE_URL = "https://addons-placeholder.tv/"
     private const val TIMEOUT_SECONDS = 30L
 
-    fun create(): AddonCatalogService {
-        val clientBuilder = OkHttpClient.Builder()
+    fun create(baseClient: OkHttpClient): AddonCatalogService {
+        // Phase 6: derive from the shared base client (shared pool + dispatcher). Only the default
+        // User-Agent/Accept header interceptor is added here — no auth ever goes on the shared base.
+        val clientBuilder = baseClient.newBuilder()
             .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .addInterceptor { chain ->

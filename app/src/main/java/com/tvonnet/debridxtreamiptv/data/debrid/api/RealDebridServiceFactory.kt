@@ -16,10 +16,14 @@ object RealDebridServiceFactory {
     private const val TIMEOUT_SECONDS = 30L
 
     fun create(
+        baseClient: OkHttpClient,
         accessTokenProvider: RealDebridAuthInterceptor.AccessTokenProvider? = null,
         tokenRefresher: javax.inject.Provider<RealDebridAuthInterceptor.TokenRefresher>? = null
     ): RealDebridApiService {
-        val clientBuilder = OkHttpClient.Builder()
+        // Phase 6: derive from the shared base client so the connection pool + dispatcher are shared;
+        // the RD auth interceptor/authenticator is added ONLY to this derived client, never the base
+        // (so the RD token can never be attached to TMDB / addon / other-host requests).
+        val clientBuilder = baseClient.newBuilder()
             .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
 

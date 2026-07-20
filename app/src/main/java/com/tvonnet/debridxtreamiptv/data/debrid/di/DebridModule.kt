@@ -25,14 +25,18 @@ object DebridModule {
     @Provides
     @Singleton
     @RealDebridOAuth
-    fun provideRealDebridOAuthService(): RealDebridApiService {
-        return RealDebridServiceFactory.create()
+    fun provideRealDebridOAuthService(base: OkHttpClient): RealDebridApiService {
+        // Phase 6: `base` is the app's shared OkHttpClient (AppModule.provideOkHttpClient) — one
+        // 32-connection pool + dispatcher shared across all debrid clients; each derives its own
+        // client (+ its own auth) via newBuilder(). No auth lives on the base.
+        return RealDebridServiceFactory.create(base)
     }
 
     @Provides
     @Singleton
     @RealDebridAuthorized
     fun provideRealDebridAuthorizedService(
+        base: OkHttpClient,
         preferences: DebridPreferences,
         repoProvider: javax.inject.Provider<com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridAccountRepository>
     ): RealDebridApiService {
@@ -40,19 +44,20 @@ object DebridModule {
         val refresherProvider = javax.inject.Provider<com.tvonnet.debridxtreamiptv.data.debrid.api.RealDebridAuthInterceptor.TokenRefresher> { 
             repoProvider.get() 
         }
-        return RealDebridServiceFactory.create(preferences, refresherProvider)
+        return RealDebridServiceFactory.create(base, preferences, refresherProvider)
     }
 
     @Provides
     @Singleton
-    fun provideAddonCatalogService(): AddonCatalogService {
-        return AddonCatalogServiceFactory.create()
+    fun provideAddonCatalogService(base: OkHttpClient): AddonCatalogService {
+        return AddonCatalogServiceFactory.create(base)
     }
 
     @Provides
     @Singleton
-    fun provideTorBoxApiService(preferences: TorBoxPreferences): TorBoxApiService {
-        val client = OkHttpClient.Builder()
+    fun provideTorBoxApiService(base: OkHttpClient, preferences: TorBoxPreferences): TorBoxApiService {
+        // Phase 6: share the base pool/dispatcher; the TorBox Bearer auth is added ONLY here.
+        val client = base.newBuilder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .addInterceptor { chain ->
@@ -79,8 +84,9 @@ object DebridModule {
 
     @Provides
     @Singleton
-    fun provideTmdbApiService(): TmdbApiService {
-        val client = OkHttpClient.Builder()
+    fun provideTmdbApiService(base: OkHttpClient): TmdbApiService {
+        // Phase 6: share the base pool/dispatcher. TMDB uses an api_key query param, no auth header.
+        val client = base.newBuilder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
