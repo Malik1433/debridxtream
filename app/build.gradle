@@ -40,6 +40,10 @@ android {
         }
         def tmdbKey = properties.getProperty("TMDB_API_KEY") ?: ""
         buildConfigField "String", "TMDB_API_KEY", "\"${tmdbKey}\""
+        // Phase 5: OMDb key out of source, same pattern as TMDB. Put OMDB_API_KEY in
+        // local.properties (mirrors TMDB_API_KEY) or IMDb/RT ratings return empty.
+        def omdbKey = properties.getProperty("OMDB_API_KEY") ?: ""
+        buildConfigField "String", "OMDB_API_KEY", "\"${omdbKey}\""
 
         // Anti-repack signature self-check. Owner puts the RELEASE signing cert's
         // SHA-256 (uppercase hex, no colons) in keystore.properties; the app then

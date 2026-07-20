@@ -15,8 +15,10 @@
 
     <!-- Phase 3.2: Advanced TV Features - Picture-in-Picture Support -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
-        tools:ignore="ScopedStorage" />
+    <!-- Phase 5: MANAGE_EXTERNAL_STORAGE removed — it was declared but never used (the only
+         file write, the update APK, goes to cacheDir via FileProvider). It triggers an automatic
+         Play-Store policy rejection, so dropping it is a pure win. CAMERA (QR scan) and
+         RECORD_AUDIO (voice search) are kept — they ARE used. -->
 
     <!-- In-app auto-update: hand the downloaded APK to the package installer -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />

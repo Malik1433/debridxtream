@@ -21,7 +21,8 @@ data class OmdbRatings(
  */
 object OmdbClient {
 
-    private const val API_KEY = "42b01442"
+    // Phase 5: key sourced from BuildConfig (local.properties OMDB_API_KEY) instead of hardcoded.
+    private val API_KEY = com.tvonnet.debridxtreamiptv.BuildConfig.OMDB_API_KEY
     private val client by lazy { OkHttpClient() }
     private val gson = Gson()
 
