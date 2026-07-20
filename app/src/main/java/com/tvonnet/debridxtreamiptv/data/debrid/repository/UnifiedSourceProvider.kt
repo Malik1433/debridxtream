@@ -8,7 +8,6 @@ import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureClassifier
 import com.tvonnet.debridxtreamiptv.data.debrid.source.AddonRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.debrid.source.DynamicAddonFetcher
 import com.tvonnet.debridxtreamiptv.data.debrid.source.RealDebridRemoteDataSource
-import com.tvonnet.debridxtreamiptv.data.debrid.source.SimplifiedPureFireFetcher
 import com.tvonnet.debridxtreamiptv.data.debrid.source.StremioAddonFetcher
 import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
@@ -51,7 +50,6 @@ class UnifiedSourceProvider @Inject constructor(
     private val xtreamRepository: XtreamRepository,
     private val addonRemote: AddonRemoteDataSource,
     private val tmdbRemote: TmdbRemoteDataSource,
-    private val simplifiedPureFireFetcher: SimplifiedPureFireFetcher,
     private val mediaFusionFetcher: com.tvonnet.debridxtreamiptv.data.debrid.source.MediaFusionFetcher,
     private val settingsPrefs: com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences,
     private val dynamicAddonFetcher: DynamicAddonFetcher,
@@ -329,18 +327,6 @@ class UnifiedSourceProvider @Inject constructor(
                 }
             }
 
-            val torrentioDeferred = async {
-                try {
-                    simplifiedPureFireFetcher.fetchMovieSources(imdbId, title, releaseYear, contentType)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.e(TAG, "Torrentio movie provider failed: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
-                    Log.e(TAG, "❌ Torrentio fetch failed", e)
-                    emptyList()
-                }
-            }
-
             val mediaFusionDeferred = async {
                 try {
                     mediaFusionFetcher.fetchMovieSources(imdbId)
@@ -367,12 +353,11 @@ class UnifiedSourceProvider @Inject constructor(
 
             // Wait for all to finish
             val configuredAddonStreams = stremioDeferred.await()
-            val torrentioStreams = torrentioDeferred.await()
             val mediaFusionStreams = mediaFusionDeferred.await()
             val dynamicStreams = dynamicDeferred.await()
 
-            // Merge results
-            val fetchedStreams = configuredAddonStreams + torrentioStreams + mediaFusionStreams + dynamicStreams
+            // Merge results (PureFire/Torrentio removed — sources come from the external addons)
+            val fetchedStreams = configuredAddonStreams + mediaFusionStreams + dynamicStreams
             val titleMatchedStreams = filterMismatchedAddonMovieStreams(fetchedStreams, title, yearHint)
             val filteredCount = fetchedStreams.size - titleMatchedStreams.size
             if (filteredCount > 0) {
@@ -553,18 +538,6 @@ class UnifiedSourceProvider @Inject constructor(
                 }
             }
 
-            val torrentioDeferred = async {
-                try {
-                    simplifiedPureFireFetcher.fetchEpisodeSources(imdbId, seasonNumber, episodeNumber, title)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.e(TAG, "Torrentio episode provider failed: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
-                    Log.e(TAG, "❌ Torrentio episode fetch failed", e)
-                    emptyList()
-                }
-            }
-
             val mediaFusionDeferred = async {
                 try {
                     mediaFusionFetcher.fetchEpisodeSources(imdbId, seasonNumber, episodeNumber)
@@ -590,12 +563,11 @@ class UnifiedSourceProvider @Inject constructor(
             }
 
             val configuredAddonStreams = stremioDeferred.await()
-            val torrentioStreams = torrentioDeferred.await()
             val mediaFusionStreams = mediaFusionDeferred.await()
             val dynamicStreams = dynamicDeferred.await()
 
             val addonStreams = prioritizeAddonStreams(
-                deduplicateStreams(configuredAddonStreams + torrentioStreams + mediaFusionStreams + dynamicStreams)
+                deduplicateStreams(configuredAddonStreams + mediaFusionStreams + dynamicStreams)
             )
 
             if (addonStreams.isNotEmpty()) {
@@ -646,8 +618,7 @@ class UnifiedSourceProvider @Inject constructor(
                 when (sourceType.uppercase()) {
                     AddonSourceType.STREMIO.name ->
                         filterMismatchedAddonMovieStreams(fetchStremioMovieSources(imdbId), title, yearHint)
-                    AddonSourceType.TORRENTIO.name ->
-                        simplifiedPureFireFetcher.fetchMovieSources(imdbId, title, releaseYear, contentType)
+                    AddonSourceType.TORRENTIO.name -> emptyList() // PureFire/Torrentio removed
                     AddonSourceType.MEDIA_FUSION.name ->
                         mediaFusionFetcher.fetchMovieSources(imdbId)
                     AddonSourceType.DYNAMIC.name ->
@@ -675,8 +646,7 @@ class UnifiedSourceProvider @Inject constructor(
                 when (sourceType.uppercase()) {
                     AddonSourceType.STREMIO.name ->
                         fetchStremioEpisodeSources(imdbId, seasonNumber, episodeNumber)
-                    AddonSourceType.TORRENTIO.name ->
-                        simplifiedPureFireFetcher.fetchEpisodeSources(imdbId, seasonNumber, episodeNumber, title)
+                    AddonSourceType.TORRENTIO.name -> emptyList() // PureFire/Torrentio removed
                     AddonSourceType.MEDIA_FUSION.name ->
                         mediaFusionFetcher.fetchEpisodeSources(imdbId, seasonNumber, episodeNumber)
                     AddonSourceType.DYNAMIC.name ->
@@ -865,16 +835,6 @@ class UnifiedSourceProvider @Inject constructor(
                 tmdbHealth
             } catch (e: Exception) {
                 Log.w(TAG, "   ❌ TMDB API check failed: ${e.message}")
-                false
-            }
-
-            // Check PureFire source fetcher
-            results["PureFire"] = try {
-                Log.d(TAG, "   🔥 Checking PureFire source fetcher...")
-                // This is a simple check - actual connectivity would require network call
-                true
-            } catch (e: Exception) {
-                Log.w(TAG, "   ❌ PureFire fetcher check failed: ${e.message}")
                 false
             }
 
