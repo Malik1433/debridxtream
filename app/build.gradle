@@ -112,6 +112,11 @@ android {
         warningsAsErrors false
     }
 
+    // Phase 8: expose the exported Room schema JSONs to MigrationTestHelper as androidTest assets.
+    sourceSets {
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+
     
     // Performance optimizations
     packagingOptions {
@@ -124,6 +129,13 @@ android {
         unitTests.returnDefaultValues = true
     }
 
+}
+
+// Phase 8: tell the Room annotation processor where to write the exported schema JSONs.
+kapt {
+    arguments {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
 }
 
 dependencies {
@@ -228,6 +240,9 @@ dependencies {
 
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    androidTestImplementation 'androidx.test:runner:1.5.2'
+    // Phase 8: Room MigrationTestHelper for on-device/emulator schema-migration tests.
+    androidTestImplementation 'androidx.room:room-testing:2.6.1'
 
     // Firebase (Magic Link System)
     implementation platform('com.google.firebase:firebase-bom:33.1.2')

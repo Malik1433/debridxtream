@@ -61,7 +61,11 @@ import com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.SeriesDaoV2
         WatchedStateEntity::class
     ],
     version = 14,
-    exportSchema = false
+    // Phase 8: export the schema JSON (room.schemaLocation in build.gradle) so Room migrations become
+    // testable via MigrationTestHelper — the gate for removing fallbackToDestructiveMigration (7.5).
+    // NOTE: schemas only exist from v14 forward (export was off historically); pre-14 versions have
+    // no exported JSON, so the helper can only prove v14 -> future paths.
+    exportSchema = true
 )
 @TypeConverters(DatabaseConverters::class)
 abstract class AppDatabase : RoomDatabase() {

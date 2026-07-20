@@ -1,36 +1,41 @@
 package com.tvonnet.debridxtreamiptv.data.local
 
+import android.content.Context
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
 import com.tvonnet.debridxtreamiptv.data.local.dao.ChannelDao
 import com.tvonnet.debridxtreamiptv.data.local.entity.ChannelEntity
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
-import com.tvonnet.debridxtreamiptv.testutil.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
- * Unit tests for ChannelDao
- * Week 6: Room Database Integration
+ * Phase 8: REAL Room DAO test. The previous version mocked the DAO under test (mockk(relaxed=true)
+ * then coVerify) — which proves nothing about the actual SQL. This builds a real in-memory Room
+ * database under Robolectric and asserts on genuine query results, so a broken @Query, schema
+ * mismatch, or converter bug now fails the build.
  */
 @ExperimentalCoroutinesApi
+@RunWith(RobolectricTestRunner::class)
+@Config(manifest = Config.NONE, sdk = [33])
 class ChannelDaoTest {
-    
+
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
-    
+    private lateinit var db: AppDatabase
     private lateinit var channelDao: ChannelDao
-    
-    private val testChannel1 = ChannelEntity(
+
+    private val liveChannel = ChannelEntity(
         streamId = "123",
         name = "Test Channel 1",
         categoryId = "cat1",
@@ -41,10 +46,10 @@ class ChannelDaoTest {
         lastWatched = null,
         streamType = "live"
     )
-    
-    private val testChannel2 = ChannelEntity(
+
+    private val favoriteChannel = ChannelEntity(
         streamId = "456",
-        name = "Test Channel 2",
+        name = "News Central",
         categoryId = "cat1",
         streamIcon = "http://example.com/icon2.png",
         epgChannelId = "epg2",
@@ -53,134 +58,115 @@ class ChannelDaoTest {
         lastWatched = System.currentTimeMillis(),
         streamType = "live"
     )
-    
+
     @Before
     fun setup() {
-        channelDao = mockk(relaxed = true)
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        channelDao = db.channelDao()
     }
-    
-    @Test
-    fun `test insertChannel saves channel successfully`() = runTest {
-        // When
-        channelDao.insertChannel(testChannel1)
-        
-        // Then
-        coVerify { channelDao.insertChannel(testChannel1) }
+
+    @After
+    fun teardown() {
+        db.close()
     }
-    
+
     @Test
-    fun `test insertChannels saves multiple channels successfully`() = runTest {
-        // Given
-        val channels = listOf(testChannel1, testChannel2)
-        
-        // When
-        channelDao.insertChannels(channels)
-        
-        // Then
-        coVerify { channelDao.insertChannels(channels) }
-    }
-    
-    @Test
-    fun `test getChannelById returns correct channel`() = runTest {
-        // Given
-        coEvery { channelDao.getChannelById("123") } returns testChannel1
-        
-        // When
+    fun `insertChannel then getChannelById round-trips the row`() = runTest {
+        channelDao.insertChannel(liveChannel)
+
         val result = channelDao.getChannelById("123")
-        
-        // Then
         assertNotNull(result)
         assertEquals("123", result?.streamId)
         assertEquals("Test Channel 1", result?.name)
+        assertEquals("cat1", result?.categoryId)
     }
-    
+
     @Test
-    fun `test getChannelsByCategory returns channels for category`() = runTest {
-        // Given
-        val channels = listOf(testChannel1, testChannel2)
-        coEvery { channelDao.getChannelsByCategory("cat1") } returns channels
-        
-        // When
+    fun `getChannelById returns null for a missing id`() = runTest {
+        assertNull(channelDao.getChannelById("does-not-exist"))
+    }
+
+    @Test
+    fun `insertChannels then getChannelsByCategory returns all rows in the category`() = runTest {
+        channelDao.insertChannels(listOf(liveChannel, favoriteChannel))
+
         val result = channelDao.getChannelsByCategory("cat1")
-        
-        // Then
         assertEquals(2, result.size)
         assertTrue(result.all { it.categoryId == "cat1" })
     }
-    
+
     @Test
-    fun `test getFavoriteChannels returns only favorite channels`() = runTest {
-        // Given
-        val favoriteChannels = listOf(testChannel2)
-        coEvery { channelDao.getFavoriteChannels() } returns flowOf(favoriteChannels)
-        
-        // When
-        // Verify method exists
-        channelDao.getFavoriteChannels()
-        
-        // Then
-        coVerify { channelDao.getFavoriteChannels() }
+    fun `getFavoriteChannels emits only favorites`() = runTest {
+        channelDao.insertChannels(listOf(liveChannel, favoriteChannel))
+
+        val favorites = channelDao.getFavoriteChannels().first()
+        assertEquals(1, favorites.size)
+        assertEquals("456", favorites.first().streamId)
     }
-    
+
     @Test
-    fun `test updateFavoriteStatus updates channel favorite status`() = runTest {
-        // When
+    fun `updateFavoriteStatus flips the persisted flag`() = runTest {
+        channelDao.insertChannel(liveChannel) // isFavorite = false
+
         channelDao.updateFavoriteStatus("123", true)
-        
-        // Then
-        coVerify { channelDao.updateFavoriteStatus("123", true) }
+
+        assertTrue(channelDao.getChannelById("123")?.isFavorite == true)
+        assertEquals(1, channelDao.getFavoriteChannels().first().size)
     }
-    
+
     @Test
-    fun `test updateLastWatched updates channel last watched timestamp`() = runTest {
-        // Given
-        val timestamp = System.currentTimeMillis()
-        
-        // When
-        channelDao.updateLastWatched("123", timestamp)
-        
-        // Then
-        coVerify { channelDao.updateLastWatched("123", timestamp) }
+    fun `updateLastWatched persists the timestamp`() = runTest {
+        channelDao.insertChannel(liveChannel)
+
+        channelDao.updateLastWatched("123", 42L)
+
+        assertEquals(42L, channelDao.getChannelById("123")?.lastWatched)
     }
-    
+
     @Test
-    fun `test deleteChannel removes channel successfully`() = runTest {
-        // When
-        channelDao.deleteChannel(testChannel1)
-        
-        // Then
-        coVerify { channelDao.deleteChannel(testChannel1) }
+    fun `deleteChannel removes only that row`() = runTest {
+        channelDao.insertChannels(listOf(liveChannel, favoriteChannel))
+
+        channelDao.deleteChannel(liveChannel)
+
+        assertNull(channelDao.getChannelById("123"))
+        assertNotNull(channelDao.getChannelById("456"))
     }
-    
+
     @Test
-    fun `test deleteChannelsByCategory removes all channels in category`() = runTest {
-        // When
+    fun `deleteChannelsByCategory clears the category`() = runTest {
+        channelDao.insertChannels(listOf(liveChannel, favoriteChannel))
+
         channelDao.deleteChannelsByCategory("cat1")
-        
-        // Then
-        coVerify { channelDao.deleteChannelsByCategory("cat1") }
+
+        assertEquals(0, channelDao.getChannelsByCategory("cat1").size)
     }
-    
+
     @Test
-    fun `test deleteAllChannels removes all channels`() = runTest {
-        // When
+    fun `deleteAllChannels empties the table`() = runTest {
+        channelDao.insertChannels(listOf(liveChannel, favoriteChannel))
+
         channelDao.deleteAllChannels()
-        
-        // Then
-        coVerify { channelDao.deleteAllChannels() }
+
+        assertEquals(0, channelDao.countAllLiveChannels())
     }
-    
+
     @Test
-    fun `test getChannelsByType returns channels of specific type`() = runTest {
-        // Given
-        val liveChannels = listOf(testChannel1, testChannel2)
-        coEvery { channelDao.getChannelsByType("live") } returns flowOf(liveChannels)
-        
-        // When
-        channelDao.getChannelsByType("live")
-        
-        // Then
-        coVerify { channelDao.getChannelsByType("live") }
+    fun `searchChannels matches on a name substring`() = runTest {
+        channelDao.insertChannels(listOf(liveChannel, favoriteChannel))
+
+        val hits = channelDao.searchChannels("News")
+        assertEquals(1, hits.size)
+        assertEquals("456", hits.first().streamId)
+    }
+
+    @Test
+    fun `countAllLiveChannels counts distinct live rows`() = runTest {
+        channelDao.insertChannels(listOf(liveChannel, favoriteChannel))
+
+        assertEquals(2, channelDao.countAllLiveChannels())
     }
 }
-

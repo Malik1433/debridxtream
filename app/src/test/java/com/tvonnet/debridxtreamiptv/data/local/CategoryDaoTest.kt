@@ -1,138 +1,107 @@
 package com.tvonnet.debridxtreamiptv.data.local
 
+import android.content.Context
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
 import com.tvonnet.debridxtreamiptv.data.local.dao.CategoryDao
 import com.tvonnet.debridxtreamiptv.data.local.entity.CategoryEntity
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
-import com.tvonnet.debridxtreamiptv.testutil.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
- * Unit tests for CategoryDao
- * Week 6: Room Database Integration
+ * Phase 8: REAL Room DAO test (was mockk(relaxed=true) + coVerify, which asserted nothing about SQL).
  */
 @ExperimentalCoroutinesApi
+@RunWith(RobolectricTestRunner::class)
+@Config(manifest = Config.NONE, sdk = [33])
 class CategoryDaoTest {
-    
+
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
-    
+    private lateinit var db: AppDatabase
     private lateinit var categoryDao: CategoryDao
-    
-    private val testCategory1 = CategoryEntity(
-        categoryId = "cat1",
-        categoryName = "Sports",
-        type = "live"
-    )
-    
-    private val testCategory2 = CategoryEntity(
-        categoryId = "cat2",
-        categoryName = "Movies",
-        type = "vod"
-    )
-    
+
+    private val live = CategoryEntity(categoryId = "cat1", categoryName = "Sports", type = "live")
+    private val vod = CategoryEntity(categoryId = "cat2", categoryName = "Movies", type = "vod")
+
     @Before
     fun setup() {
-        categoryDao = mockk(relaxed = true)
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        categoryDao = db.categoryDao()
     }
-    
+
+    @After
+    fun teardown() = db.close()
+
     @Test
-    fun `test insertCategory saves category successfully`() = runTest {
-        // When
-        categoryDao.insertCategory(testCategory1)
-        
-        // Then
-        coVerify { categoryDao.insertCategory(testCategory1) }
-    }
-    
-    @Test
-    fun `test insertCategories saves multiple categories successfully`() = runTest {
-        // Given
-        val categories = listOf(testCategory1, testCategory2)
-        
-        // When
-        categoryDao.insertCategories(categories)
-        
-        // Then
-        coVerify { categoryDao.insertCategories(categories) }
-    }
-    
-    @Test
-    fun `test getCategoryById returns correct category`() = runTest {
-        // Given
-        coEvery { categoryDao.getCategoryById("cat1") } returns testCategory1
-        
-        // When
+    fun `insertCategory then getCategoryById round-trips`() = runTest {
+        categoryDao.insertCategory(live)
+
         val result = categoryDao.getCategoryById("cat1")
-        
-        // Then
-        assertNotNull(result)
-        assertEquals("cat1", result?.categoryId)
         assertEquals("Sports", result?.categoryName)
+        assertEquals("live", result?.type)
     }
-    
+
     @Test
-    fun `test getCategoriesByType returns categories of specific type`() = runTest {
-        // Given
-        val liveCategories = listOf(testCategory1)
-        coEvery { categoryDao.getCategoriesByType("live") } returns flowOf(liveCategories)
-        
-        // When
-        categoryDao.getCategoriesByType("live")
-        
-        // Then
-        coVerify { categoryDao.getCategoriesByType("live") }
+    fun `getCategoryById returns null for a missing id`() = runTest {
+        assertNull(categoryDao.getCategoryById("nope"))
     }
-    
+
     @Test
-    fun `test getAllCategories returns all categories`() = runTest {
-        // Given
-        val allCategories = listOf(testCategory1, testCategory2)
-        coEvery { categoryDao.getAllCategories() } returns flowOf(allCategories)
-        
-        // When
-        categoryDao.getAllCategories()
-        
-        // Then
-        coVerify { categoryDao.getAllCategories() }
+    fun `getCategoriesByTypeSync filters by type`() = runTest {
+        categoryDao.insertCategories(listOf(live, vod))
+
+        val liveCats = categoryDao.getCategoriesByTypeSync("live")
+        assertEquals(1, liveCats.size)
+        assertEquals("cat1", liveCats.first().categoryId)
     }
-    
+
     @Test
-    fun `test deleteCategory removes category successfully`() = runTest {
-        // When
-        categoryDao.deleteCategory(testCategory1)
-        
-        // Then
-        coVerify { categoryDao.deleteCategory(testCategory1) }
+    fun `getAllCategories flow emits every inserted row`() = runTest {
+        categoryDao.insertCategories(listOf(live, vod))
+
+        assertEquals(2, categoryDao.getAllCategories().first().size)
     }
-    
+
     @Test
-    fun `test deleteCategoriesByType removes all categories of type`() = runTest {
-        // When
+    fun `deleteCategoriesByType removes only that type`() = runTest {
+        categoryDao.insertCategories(listOf(live, vod))
+
         categoryDao.deleteCategoriesByType("live")
-        
-        // Then
-        coVerify { categoryDao.deleteCategoriesByType("live") }
+
+        assertEquals(0, categoryDao.getCategoriesByTypeSync("live").size)
+        assertEquals(1, categoryDao.getCategoriesByTypeSync("vod").size)
     }
-    
+
     @Test
-    fun `test deleteAllCategories removes all categories`() = runTest {
-        // When
+    fun `deleteAllCategories empties the table`() = runTest {
+        categoryDao.insertCategories(listOf(live, vod))
+
         categoryDao.deleteAllCategories()
-        
-        // Then
-        coVerify { categoryDao.deleteAllCategories() }
+
+        assertEquals(0, categoryDao.getAllCategories().first().size)
+    }
+
+    @Test
+    fun `insertCategory REPLACEs on conflicting id`() = runTest {
+        categoryDao.insertCategory(live)
+        categoryDao.insertCategory(live.copy(categoryName = "Sports HD"))
+
+        assertEquals("Sports HD", categoryDao.getCategoryById("cat1")?.categoryName)
+        assertEquals(1, categoryDao.getAllCategories().first().size)
     }
 }
-
