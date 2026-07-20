@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -225,47 +226,49 @@ class HomeViewModel @Inject constructor(
                     }
 
                     // 3. Enrich History Data (Artwork Restoration)
-                    android.util.Log.e("HISTORY_DEBUG", "Enriching ${continueWatching.size} Continue Watching items and ${recentLiveChannels.size} Recent Live items")
+                    android.util.Log.d("HISTORY_DEBUG", "Enriching ${continueWatching.size} Continue Watching items and ${recentLiveChannels.size} Recent Live items")
 
-                    val enrichedContinueWatching = mutableListOf<ContinueWatchingItem>()
-                    for (item in continueWatching) {
-                        val enriched = if (item.source == "xtream" && (item.posterUrl.isNullOrBlank() || !item.posterUrl.startsWith("http"))) {
-                            val serverUrl = credentialsPrefs.getServerUrl() ?: ""
-                            android.util.Log.e("HISTORY_DEBUG", "Enriching Xtream VOD/EP: ${item.title} (id=${item.contentId}) using server: $serverUrl")
-                            when (item.contentType) {
-                                ContentType.MOVIE -> {
-                                    repository.getVodById(item.contentId)?.let { vod ->
-                                        val icon = vod.stream_icon.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
-                                        val cover = vod.cover.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
-                                        android.util.Log.e("HISTORY_DEBUG", "Resolved VOD artwork: icon=$icon | cover=$cover")
-                                        item.copy(posterUrl = icon ?: cover, backdropUrl = cover ?: icon)
-                                    } ?: item.also { android.util.Log.w("HISTORY_DEBUG", "VOD not found in repository: ${item.contentId}") }
+                    // Phase 2: enrich Continue-Watching artwork CONCURRENTLY (was an N+1 sequence of
+                    // repo/DB lookups re-run on every home load / return). async+awaitAll preserves
+                    // order; N is bounded (CW is capped) so no extra throttle is needed, and a
+                    // Phase-2 timeout cancels these children via structured concurrency.
+                    val enrichedContinueWatching = coroutineScope {
+                        continueWatching.map { item ->
+                            async {
+                                if (item.source == "xtream" && (item.posterUrl.isNullOrBlank() || !item.posterUrl.startsWith("http"))) {
+                                    val serverUrl = credentialsPrefs.getServerUrl() ?: ""
+                                    when (item.contentType) {
+                                        ContentType.MOVIE -> {
+                                            repository.getVodById(item.contentId)?.let { vod ->
+                                                val icon = vod.stream_icon.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
+                                                val cover = vod.cover.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
+                                                item.copy(posterUrl = icon ?: cover, backdropUrl = cover ?: icon)
+                                            } ?: item
+                                        }
+                                        ContentType.SERIES, ContentType.EPISODE -> enrichSeriesContinueWatchingArtwork(item, serverUrl)
+                                        else -> item
+                                    }
+                                } else {
+                                    item
                                 }
-                                ContentType.SERIES, ContentType.EPISODE -> {
-                                    enrichSeriesContinueWatchingArtwork(item, serverUrl)
-                                }
-                                else -> item
                             }
-                        } else {
-                            item
-                        }
-                        enrichedContinueWatching.add(enriched)
+                        }.awaitAll()
                     }
 
-                    val enrichedRecentLive = mutableListOf<RecentLiveChannelItem>()
-                    for (item in recentLiveChannels) {
-                        val enriched = if (item.channelLogo.isNullOrBlank() || !item.channelLogo.startsWith("http")) {
-                            val serverUrl = credentialsPrefs.getServerUrl() ?: ""
-                            android.util.Log.e("HISTORY_DEBUG", "Enriching Live Channel: ${item.channelName} (id=${item.channelId}) using server: $serverUrl")
-                            repository.getLiveStreamById(item.channelId)?.let { stream ->
-                                val icon = stream.stream_icon.toAbsoluteUrl(ContentType.LIVE_TV, serverUrl)
-                                android.util.Log.e("HISTORY_DEBUG", "Resolved Live logo: $icon")
-                                item.copy(channelLogo = icon)
-                            } ?: item.also { android.util.Log.w("HISTORY_DEBUG", "Live stream not found in repository: ${item.channelId}") }
-                        } else {
-                            item
-                        }
-                        enrichedRecentLive.add(enriched)
+                    val enrichedRecentLive = coroutineScope {
+                        recentLiveChannels.map { item ->
+                            async {
+                                if (item.channelLogo.isNullOrBlank() || !item.channelLogo.startsWith("http")) {
+                                    val serverUrl = credentialsPrefs.getServerUrl() ?: ""
+                                    repository.getLiveStreamById(item.channelId)?.let { stream ->
+                                        val icon = stream.stream_icon.toAbsoluteUrl(ContentType.LIVE_TV, serverUrl)
+                                        item.copy(channelLogo = icon)
+                                    } ?: item
+                                } else {
+                                    item
+                                }
+                            }
+                        }.awaitAll()
                     }
 
                     val newSections = emptyList<HomeSection>()

@@ -624,17 +624,17 @@ class SeriesDetailActivity : AppCompatActivity() {
                 if (showDetailsResult is Result.Error) return@withContext Result.Error(showDetailsResult.exception)
                 val showDetails = (showDetailsResult as Result.Success).data
                 
-                // 2. Fetch Seasons Details (to get episodes)
-                val seasonsDetails = mutableListOf<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbSeasonDetails>()
-                showDetails.seasons?.forEach { season ->
-                    val seasonNumber = season.seasonNumber ?: return@forEach
-                    // Skip season 0 (specials) if desired, or keep it.
-                    if (seasonNumber > 0) {
-                        val seasonResult = tmdbRemoteDataSource.getSeasonDetails(idInt, seasonNumber)
-                        if (seasonResult is Result.Success) {
-                            seasonsDetails.add(seasonResult.data)
-                        }
-                    }
+                // 2. Fetch season details CONCURRENTLY. This was an N+1 sequential TMDB call per
+                //    season that blocked the debrid series-detail load (one slow season stalled the
+                //    whole page). async+awaitAll preserves season order; only successful seasons are
+                //    kept and season 0 (specials) is skipped — identical result to the old loop.
+                //    Season count is naturally small, so no extra concurrency cap is needed.
+                val seasonsDetails = coroutineScope {
+                    showDetails.seasons.orEmpty()
+                        .mapNotNull { it.seasonNumber?.takeIf { n -> n > 0 } }
+                        .map { seasonNumber -> async { tmdbRemoteDataSource.getSeasonDetails(idInt, seasonNumber) } }
+                        .awaitAll()
+                        .mapNotNull { (it as? Result.Success)?.data }
                 }
                 
                 // 3. Map to Xtream format
