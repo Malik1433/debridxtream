@@ -144,8 +144,9 @@ class DynamicAddonFetcher @Inject constructor(
                 .header("User-Agent", "Mozilla/5.0")
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-
+            // Phase 4: .use { } so the response body is ALWAYS closed. The early return on a
+            // non-2xx response below used to leak the connection (the body was never closed).
+            httpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 Log.w(TAG, "❌ [${definition.name}] HTTP ${response.code}: ${response.message}")
                 return emptyList()
@@ -183,6 +184,7 @@ class DynamicAddonFetcher @Inject constructor(
 
             Log.d(TAG, "✅ [${definition.name}] Parsed ${streams.size} streams")
             streams
+            }
         } catch (e: Exception) {
             Log.e(TAG, "❌ [${definition.name}] Fetch failed: ${e.message}")
             emptyList()
