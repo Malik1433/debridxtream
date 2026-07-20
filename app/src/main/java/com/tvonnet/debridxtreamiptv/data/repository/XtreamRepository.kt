@@ -144,17 +144,22 @@ class XtreamRepository @Inject constructor(
         context.getSharedPreferences(SYNC_PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    // Legacy memory cache to avoid repeated Gson parsing (for full IptvCache object)
-    private var memoryCache: IptvCache? = null
-    private val seriesDetailCache = mutableMapOf<String, XtreamSeriesDetailResponse>()
+    // Legacy memory cache to avoid repeated Gson parsing (for full IptvCache object).
+    // Phase 3: @Volatile so the cross-thread reads/writes (now on Dispatchers.IO after the
+    // Phase 1 off-main change) publish safely.
+    @Volatile private var memoryCache: IptvCache? = null
+    // Phase 3: ConcurrentHashMap — these were plain mutableMapOf read+written from concurrent
+    // coroutines, which risks ConcurrentModificationException / corrupted reads. No TTL/size cap
+    // added here (some are fallback caches that must NOT be evicted when the network is down).
+    private val seriesDetailCache = ConcurrentHashMap<String, XtreamSeriesDetailResponse>()
 
     // Per-category series cache for detail screen fallback
-    private val perCategorySeriesCache = mutableMapOf<String, List<XtreamSeriesInfo>>()
-    
+    private val perCategorySeriesCache = ConcurrentHashMap<String, List<XtreamSeriesInfo>>()
+
     // Cache for ALL series (fallback strategy)
-    private var allSeriesCacheFallback: List<XtreamSeriesInfo>? = null
+    @Volatile private var allSeriesCacheFallback: List<XtreamSeriesInfo>? = null
     // Per-category VOD cache (lazy loaded)
-    private val perCategoryVodCache = mutableMapOf<String, List<XtreamVodInfo>>()
+    private val perCategoryVodCache = ConcurrentHashMap<String, List<XtreamVodInfo>>()
     private val vodFetchLocks = ConcurrentHashMap<String, Mutex>()
     private val vodFetchSemaphore = Semaphore(MAX_CONCURRENT_VOD_FETCHES)
 

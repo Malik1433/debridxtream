@@ -14,7 +14,10 @@ class RealDebridRateLimiter @Inject constructor() {
     private val mutex = Mutex()
     private val sourceCooldowns = ConcurrentHashMap<String, Cooldown>()
     private var nextAllowedAtMillis: Long = 0L
-    private var globalCooldownUntilMillis: Long = 0L
+    // Phase 3: @Volatile — written in recordFailure() and read in globalCooldown() from
+    // concurrent coroutines with no shared lock; without this the cooldown a rate-limit sets
+    // may not be visible to another coroutine, defeating the global rate-limit protection.
+    @Volatile private var globalCooldownUntilMillis: Long = 0L
 
     suspend fun awaitPermit() {
         val delayMs = mutex.withLock {

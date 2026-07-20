@@ -53,8 +53,11 @@ class MemoryManager private constructor(private val context: Context) {
     private val memoryHistory = ConcurrentHashMap<String, Long>()
 
     // Cleanup callbacks
-    private val cleanupCallbacks = mutableSetOf<MemoryPressureCallback>()
-    private val emergencyCallbacks = mutableSetOf<EmergencyCleanupCallback>()
+    // Phase 3: CopyOnWriteArraySet so add/remove (e.g. from a fragment's onDestroyView) is safe
+    // while the memory-pressure loop iterates the set — the plain mutableSetOf risked a
+    // ConcurrentModificationException / corrupted iteration.
+    private val cleanupCallbacks = java.util.concurrent.CopyOnWriteArraySet<MemoryPressureCallback>()
+    private val emergencyCallbacks = java.util.concurrent.CopyOnWriteArraySet<EmergencyCleanupCallback>()
 
     // Coroutine scope for monitoring
     private val monitoringScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

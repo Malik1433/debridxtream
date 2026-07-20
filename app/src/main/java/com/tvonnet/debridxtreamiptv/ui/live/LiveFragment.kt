@@ -366,8 +366,10 @@ class LiveFragment : Fragment() {
         // Phase 2.5: Initialize EPG cache system
         EpgCache.initialize(repository)
 
-        // Initialize MemoryManager for this fragment
-        memoryManager.addEmergencyCleanupCallback(object : MemoryManager.EmergencyCleanupCallback {
+        // Initialize MemoryManager for this fragment. Phase 3: keep a reference so the callback
+        // can be removed in onDestroyView — the old anonymous callback captured this LiveFragment
+        // and was never removed, leaking the fragment for the app's lifetime.
+        emergencyCleanupCallback = object : MemoryManager.EmergencyCleanupCallback {
             override suspend fun onEmergencyCleanup() {
                 try {
                     withContext(Dispatchers.Main.immediate) {
@@ -385,7 +387,7 @@ class LiveFragment : Fragment() {
                     android.util.Log.e("LiveFragment", "Emergency cleanup failed", e)
                 }
             }
-        })
+        }.also { memoryManager.addEmergencyCleanupCallback(it) }
 
         // Observe ViewModel state
         observeViewModel()
@@ -417,8 +419,15 @@ class LiveFragment : Fragment() {
         com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
     }
     
+    private var emergencyCleanupCallback: MemoryManager.EmergencyCleanupCallback? = null
+
     override fun onDestroyView() {
         super.onDestroyView()
+
+        // Phase 3: unregister the emergency-cleanup callback so MemoryManager no longer retains
+        // this fragment (fixes the LiveFragment self-leak).
+        emergencyCleanupCallback?.let { memoryManager.removeEmergencyCleanupCallback(it) }
+        emergencyCleanupCallback = null
 
         // Cancel all coroutines properly
         try {
