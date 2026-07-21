@@ -662,20 +662,7 @@ class UnifiedSourceProvider @Inject constructor(
     }
 
     /** Stable part of a saved stream id — strips the volatile "_<index>" suffix. */
-    private fun stableStreamIdentity(id: String?): String? {
-        if (id.isNullOrBlank()) return null
-        return id.trim()
-            .replace(Regex("_\\d+$"), "")
-            .lowercase()
-            .takeIf { it.isNotBlank() }
-    }
 
-    private fun streamMatchesStableIdentity(stream: AddonStream, stableId: String): Boolean {
-        val hash = normalizeInfoHash(stream.infoHash) ?: extractInfoHashFromMagnet(stream.magnet)
-        if (hash == stableId) return true
-        // Sources without an infoHash use title.hashCode() as the stable id part.
-        return stream.title?.hashCode()?.toString() == stableId
-    }
 
     /**
      * Get IPTV sources (original functionality)
@@ -699,114 +686,6 @@ class UnifiedSourceProvider @Inject constructor(
         }
     }
 
-    /**
-     * Check if content should be treated as debrid content
-     * Improved logic to better identify movies that should use PureFire sources
-     * - Uses explicit debrid category flag when available
-     * - Applies intelligent detection based on title patterns and categories
-     * - Avoids routing obvious TV/live content to debrid
-     */
-    private fun isDebridContent(
-        categoryId: String?,
-        title: String?
-    ): Boolean {
-        val titleLower = title?.lowercase() ?: ""
-
-        // Explicit debrid category
-        if (categoryId == "debrid") {
-            Log.d(TAG, "🚨 DEBRID DETECTION SUCCESS: explicit flag = true - WILL SKIP IPTV API")
-            return true
-        }
-
-        // Enhanced category-based detection
-        val movieCategories = listOf(
-            "movies", "cinema", "film", "movies_vod", "vod_movies"
-        )
-        val tvCategories = listOf(
-            "live_tv", "live", "sports", "news", "tv_channels", "series", "shows"
-        )
-
-        // Check if category suggests this should use IPTV
-        if (categoryId != null && tvCategories.any { categoryId.lowercase().contains(it) }) {
-            Log.d(TAG, "📺 IPTV CATEGORY DETECTED: $categoryId - will use IPTV sources")
-            return false
-        }
-
-        // Skip obvious non-debrid content based on title patterns
-        val nonDebridPatterns = listOf(
-            "live ", " news", " weather", " sports channel", " tv channel",
-            " documentary series", " reality show", " talk show", " podcast",
-            // NOTE: " s" and " e" were removed here — those 2-char substrings matched almost
-            // any multi-word movie title (e.g. "Toy Story" -> " s", "The Empire..." -> " e"),
-            // misrouting real movies to IPTV. Season/episode detection is already covered by
-            // " season ", " episode ", " ep " below and " s01".." s05" in tvContentPatterns.
-            " season ", " episode ", " ep ", " ptv ", " channel "
-        )
-
-        // Skip titles that indicate TV/series content
-        val tvContentPatterns = listOf(
-            " season ", " episode ", " s01", " s02", " s03", " s04", " s05",
-            " ep ", " part ", " series", " show", " channel ", " tv ",
-            " live ", " news ", " weather "
-        )
-
-        val isNonDebridContent = nonDebridPatterns.any { pattern ->
-            titleLower.contains(pattern)
-        } || tvContentPatterns.any { pattern ->
-            titleLower.contains(pattern)
-        }
-
-        if (isNonDebridContent) {
-            Log.d(TAG, "📺 NON-DEBRID CONTENT DETECTED: '$title' - will use IPTV sources")
-            return false
-        }
-
-        // More specific movie detection patterns
-        val movieIndicators = listOf(
-            "(", ")", "movie", "film", "cinema", "hd", "4k", "bluray", "dvd"
-        )
-
-        val hasMovieIndicators = movieIndicators.any { indicator ->
-            titleLower.contains(indicator)
-        }
-
-        // Check for year patterns (common in movies)
-        val yearPattern = Regex("\\b(19|20)\\d{2}\\b")
-        val hasYearPattern = yearPattern.containsMatchIn(titleLower)
-
-        // Check title length (movies tend to have longer, more descriptive titles)
-        val hasReasonableTitleLength = titleLower.length > 5
-
-        // Final decision logic
-        val shouldUseDebrid = when {
-            // Skip if title is empty or too short
-            titleLower.isBlank() || !hasReasonableTitleLength -> {
-                Log.d(TAG, "📺 INVALID TITLE: '$title' - will use IPTV sources")
-                false
-            }
-
-            // Use debrid for content with strong movie indicators
-            hasMovieIndicators && hasYearPattern -> {
-                Log.d(TAG, "🎬 STRONG MOVIE INDICATORS: '$title' - will try PureFire sources first")
-                true
-            }
-
-            // Use debrid for movie category content
-            movieCategories.any { categoryId?.lowercase()?.contains(it) == true } -> {
-                Log.d(TAG, "🎬 MOVIE CATEGORY: '$categoryId' - will try PureFire sources first")
-                true
-            }
-
-            // Default to IPTV for ambiguous content
-            else -> {
-                Log.d(TAG, "📺 AMBIGUOUS CONTENT: '$title' (category: $categoryId) - defaulting to IPTV sources")
-                false
-            }
-        }
-
-        Log.d(TAG, "🤖 Debrid detection for '$title': $shouldUseDebrid (category: $categoryId)")
-        return shouldUseDebrid
-    }
 
     /**
      * Simplified health check for available source providers
