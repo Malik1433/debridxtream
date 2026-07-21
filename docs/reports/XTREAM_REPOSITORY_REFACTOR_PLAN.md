@@ -225,3 +225,27 @@ Status: NO RUNTIME CODE CHANGED.
 - EPG destructive-refresh behavior is still report-only and should be frozen before extracting EPG responsibilities.
 - Series outage semantics are still report-only and should be frozen before moving series fallback logic.
 - Provider-switch and partial-sync tests intentionally freeze current risky behavior, not the desired future behavior.
+
+## Phase 7B — Decompose to <500 lines (plan, 2026-07-21)
+
+Goal: XtreamRepository (~2470) → a thin facade <500 lines that delegates to domain collaborators;
+public API stays stable for the 24 external callers. Already extracted: XtreamSession (+ provider-switch
+fix), FavoritesRepository, SearchHistoryRepository, EpgQueryRepository, and the pure helper files
+(SourceModels, EpgMapping, SeriesCategoryMatching, SeriesCachePersistence). Freeze/DAO tests in place.
+
+Shared-state note: domains are glued by mutable catalog caches (memoryCache, perCategoryVodCache,
+perCategorySeriesCache, allSeriesCacheFallback, seriesDetailCache, seriesCategoryStatus, vodFetchLocks).
+Extract those FIRST so every domain collaborator shares one holder; the facade keeps get/set-delegating
+views so access sites stay unchanged.
+
+Sub-phases (risk order), each: extract → compile → freeze tests → device-verify (risky) → commit → push:
+- 7B-0 CatalogCache — shared caches + readCache/hasCache/clearMemoryCache. ~150 out. medium (glue).
+- 7B-1 SearchIndexManager — index sync (own scope/mutex). ~250 out. low.
+- 7B-2 EpgSyncManager — fetchAndSaveEpg/ensureEpgData/fetchShortEpg*/fetchEpg. ~250 out. medium (EPG QA).
+- 7B-3 LiveRepository — Live fetch/cache/enrichChannelsWithCurrentEpg. ~236 out. medium (Live QA).
+- 7B-4 VodRepository — VOD fetch/cache/getMovieSources. ~290 out. medium (VOD QA).
+- 7B-5 SeriesRepository (+ maybe SeriesDetailRepository) — fetch/detail/fallback/status. ~624 out. high (Series QA).
+- 7B-6 SyncManager — full sync orchestrating the domain collaborators. ~280 out. high (cold login/sync QA).
+
+Result: facade ≈ 300–450 lines (session + collaborators + ~90 thin delegators + URL builders + lookups).
+Multi-session effort; each sub-phase is a shippable, verified checkpoint.
