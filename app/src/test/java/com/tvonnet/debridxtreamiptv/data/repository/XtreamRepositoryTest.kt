@@ -212,7 +212,11 @@ class XtreamRepositoryTest {
     }
 
     @Test
-    fun `fetchAllAndCache currently writes empty success cache when domain fetches fail`() = runTest {
+    fun `fetchAllAndCache preserves the good cache and does not clobber it with empty data when all domain fetches fail`() = runTest {
+        // Phase 8: this test used to document the OLD data-loss bug — "currently writes empty success
+        // cache" — where a total fetch failure overwrote the good cache with empties. The loading
+        // fixes corrected that: with a valid cache present, a total fetch failure now serves the
+        // cache (isSuccess) and does NOT write anything, so the user's catalog is never wiped.
         val writtenCache = slot<IptvCache>()
         every { anyConstructed<CacheHelper>().writeCache(capture(writtenCache)) } just Runs
         every { anyConstructed<CacheHelper>().readCache() } returns createMockCache()
@@ -234,11 +238,10 @@ class XtreamRepositoryTest {
 
         val result = repository.fetchAllAndCache()
 
+        // Serves the existing cache instead of failing...
         assertTrue(result.isSuccess)
-        assertTrue(writtenCache.isCaptured)
-        assertEquals(0, writtenCache.captured.live?.streams?.size)
-        assertEquals(0, writtenCache.captured.vod?.streams?.size)
-        assertEquals(0, writtenCache.captured.series?.streams?.size)
+        // ...and critically does NOT overwrite the good cache with an empty one (no clobbering write).
+        assertFalse(writtenCache.isCaptured)
     }
     
     // Note: These tests require proper DI refactoring of XtreamRepository to work correctly
