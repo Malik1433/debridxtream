@@ -100,6 +100,7 @@ class XtreamRepository @Inject constructor(
     private val cacheHelper = CacheHelper(context)
     private val favoritesRepository = FavoritesRepository(favoriteDao, favoritesCache)
     private val searchHistoryRepository = SearchHistoryRepository(searchHistoryDao)
+    private val epgQueryRepository = EpgQueryRepository(epgDao)
     private var username: String = "username"
     private var password: String = "password"
     private var baseUrl: String = ""
@@ -1766,26 +1767,16 @@ class XtreamRepository @Inject constructor(
         }
     }
     
-    /**
-     * Get all EPG programs for a specific channel (reactive)
-     */
-    fun getEpgByChannel(channelId: String): Flow<List<EpgEntity>>? {
-        return epgDao?.getProgramsByChannel(channelId)
-    }
-    
-    /**
-     * Get current program for a channel (one-shot)
-     */
-    suspend fun getCurrentProgram(channelId: String): EpgEntity? {
-        return epgDao?.getCurrentProgram(channelId, System.currentTimeMillis())
-    }
-    
-    /**
-     * Get next program for a channel (one-shot)
-     */
-    suspend fun getNextProgram(channelId: String): EpgEntity? {
-        return epgDao?.getNextProgram(channelId, System.currentTimeMillis())
-    }
+    // EPG read/query methods moved to EpgQueryRepository (Phase 7); repository delegates. epgDao-only,
+    // behaviour unchanged. (Network EPG fetch/sync stays below — it needs apiService + credentials.)
+    fun getEpgByChannel(channelId: String): Flow<List<EpgEntity>>? =
+        epgQueryRepository.getEpgByChannel(channelId)
+
+    suspend fun getCurrentProgram(channelId: String): EpgEntity? =
+        epgQueryRepository.getCurrentProgram(channelId)
+
+    suspend fun getNextProgram(channelId: String): EpgEntity? =
+        epgQueryRepository.getNextProgram(channelId)
 
     /**
      * Lightweight per-channel EPG (now/next) using Xtream `get_short_epg`.
@@ -1837,29 +1828,12 @@ class XtreamRepository @Inject constructor(
     // XtreamEpgListing.toEpgEntityOrNull / decodeBase64IfPossible moved to EpgMapping.kt (Phase 7) —
     // pure leaf-mappers, same package, resolved by wildcard import. Behaviour unchanged.
 
-    /**
-     * Get upcoming programs for a channel (next 12 hours)
-     */
-    fun getUpcomingPrograms(channelId: String): Flow<List<EpgEntity>>? {
-        val now = System.currentTimeMillis()
-        val twelveHoursLater = now + (12 * 60 * 60 * 1000)
-        return epgDao?.getUpcomingPrograms(channelId, now, twelveHoursLater)
-    }
-    
-    /**
-     * Check if EPG data exists for a channel
-     */
-    suspend fun hasEpgData(channelId: String): Boolean {
-        return epgDao?.hasEpgData(channelId) ?: false
-    }
-    
-    /**
-     * Clear old EPG programs (older than 24 hours)
-     */
-    suspend fun clearOldEpg() {
-        val cutoffTime = System.currentTimeMillis() - (24 * 60 * 60 * 1000)
-        epgDao?.clearOldPrograms(cutoffTime)
-    }
+    fun getUpcomingPrograms(channelId: String): Flow<List<EpgEntity>>? =
+        epgQueryRepository.getUpcomingPrograms(channelId)
+
+    suspend fun hasEpgData(channelId: String): Boolean = epgQueryRepository.hasEpgData(channelId)
+
+    suspend fun clearOldEpg() = epgQueryRepository.clearOldEpg()
     
     // ========== Week 12: Stream Lookup for Favorites Playback ==========
     
@@ -2238,9 +2212,8 @@ class XtreamRepository @Inject constructor(
         return cacheManager?.countAllLiveChannels() ?: 0
     }
 
-    suspend fun searchEpg(query: String): List<com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity> {
-        return epgDao?.searchPrograms(query, System.currentTimeMillis()) ?: emptyList()
-    }
+    suspend fun searchEpg(query: String): List<com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity> =
+        epgQueryRepository.searchEpg(query)
 
     /**
      * Search-index sync: fills Room with the FULL VOD/series catalog so search
