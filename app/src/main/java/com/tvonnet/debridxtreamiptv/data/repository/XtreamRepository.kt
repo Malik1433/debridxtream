@@ -1,7 +1,5 @@
 package com.tvonnet.debridxtreamiptv.data.repository
 
-import com.tvonnet.debridxtreamiptv.data.local.entity.EpisodeEntity
-import com.tvonnet.debridxtreamiptv.data.local.entity.SeasonEntity
 
 import android.content.Context
 import android.util.Log
@@ -18,51 +16,19 @@ import com.tvonnet.debridxtreamiptv.data.local.entity.FavoriteEntity
 import com.tvonnet.debridxtreamiptv.data.local.entity.SearchHistoryEntity
 import com.tvonnet.debridxtreamiptv.data.local.dao.VodDao
 import com.tvonnet.debridxtreamiptv.data.local.dao.SeriesDao
-import com.tvonnet.debridxtreamiptv.data.local.entity.toVodEntity
-import com.tvonnet.debridxtreamiptv.data.local.entity.toSeriesEntity
 import com.tvonnet.debridxtreamiptv.data.model.*
-import com.tvonnet.debridxtreamiptv.data.model.SeriesCategoryState
 import com.tvonnet.debridxtreamiptv.data.model.SeriesCategoryStatus
 import com.tvonnet.debridxtreamiptv.data.remote.XtreamApiService
 import com.tvonnet.debridxtreamiptv.utils.PerformanceMonitor
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
-import retrofit2.HttpException
-import java.util.LinkedHashMap
-import java.util.LinkedHashSet
-import java.util.Locale
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.math.abs
-import kotlin.coroutines.coroutineContext
-import com.tvonnet.debridxtreamiptv.data.local.entity.toSeasonEntity
-import com.tvonnet.debridxtreamiptv.data.local.entity.toEpisodeEntity
-import com.tvonnet.debridxtreamiptv.data.local.entity.toXtreamSeriesInfo
-import com.tvonnet.debridxtreamiptv.data.local.entity.toXtreamVodInfo
 import com.tvonnet.debridxtreamiptv.data.local.relation.SeriesWithSeasonsAndEpisodes
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-import com.google.gson.JsonSyntaxException
-import com.google.gson.JsonElement
-import kotlinx.coroutines.flow.flowOf
 
 /**
  * Week 7: Integrated with CacheManager for multi-level caching
@@ -135,9 +101,7 @@ class XtreamRepository @Inject constructor(
     private val seriesRepository = SeriesRepository(session, cacheManager, seriesDao, catalogCache, cacheHelper)
 
 
-    private val syncMutex = Mutex()
-    private val _syncProgress = MutableStateFlow(SyncProgress.idle())
-    val syncProgress: StateFlow<SyncProgress> = _syncProgress.asStateFlow()
+    val syncProgress: StateFlow<SyncProgress> get() = syncManager.syncProgress
     
     // Phase 4: @Synchronized so concurrent first-callers (MainActivity + HomeFragment + every
     // browse ViewModel all call initialize()) can't both pass the idempotency guard while
@@ -206,286 +170,14 @@ class XtreamRepository @Inject constructor(
         }
     }
     
-    suspend fun fetchAllAndCache(): Result<IptvCache> {
-        return syncContent(syncType = SyncType.BACKGROUND, includeLatest = false)
-    }
+    // Phase 7B-6: full-catalog sync orchestrator moved to SyncManager; the repository delegates.
+    suspend fun fetchAllAndCache(): Result<IptvCache> = syncManager.fetchAllAndCache()
 
-    suspend fun syncInitialData(): Result<IptvCache> {
-        return syncContent(syncType = SyncType.INITIAL, includeLatest = true)
-    }
+    suspend fun syncInitialData(): Result<IptvCache> = syncManager.syncInitialData()
 
-    suspend fun refreshCategoriesAndLatest(): Result<IptvCache> {
-        if (_syncProgress.value.state == SyncState.RUNNING) {
-            return Result.Error(Exception("Sync already running"))
-        }
-        return syncContent(syncType = SyncType.BACKGROUND, includeLatest = true)
-    }
+    suspend fun refreshCategoriesAndLatest(): Result<IptvCache> = syncManager.refreshCategoriesAndLatest()
 
-    fun shouldRunBackgroundSync(): Boolean {
-        val lastType = syncPrefs.getString(KEY_LAST_SYNC_TYPE, null)
-        val lastTime = syncPrefs.getLong(KEY_LAST_SYNC_TIME, 0L)
-        if (lastType == SyncType.INITIAL.name && lastTime > 0L) {
-            val elapsed = System.currentTimeMillis() - lastTime
-            if (elapsed < BACKGROUND_SYNC_SKIP_AFTER_INITIAL_MS) {
-                return false
-            }
-        }
-        return true
-    }
-
-    private suspend fun syncContent(
-        syncType: SyncType,
-        includeLatest: Boolean
-    ): Result<IptvCache> {
-        return syncMutex.withLock {
-            updateSyncProgress(
-                type = syncType,
-                state = SyncState.RUNNING,
-                percent = 0,
-                liveCount = 0,
-                vodCount = 0,
-                seriesCount = 0,
-                stage = "Preparing data"
-            )
-
-            try {
-                withContext(Dispatchers.IO) {
-                    if (apiService == null) {
-                        val cached = cacheHelper.readCache()
-                        if (cached != null) {
-                            updateSyncProgress(
-                                type = syncType,
-                                state = SyncState.SUCCESS,
-                                percent = 100,
-                                liveCount = cached.live?.streams?.size ?: 0,
-                                vodCount = cached.vod?.streams?.size ?: 0,
-                                seriesCount = cached.series?.streams?.size ?: 0,
-                                stage = "Using cached data"
-                            )
-                            return@withContext Result.Success(cached)
-                        }
-                        updateSyncProgress(
-                            type = syncType,
-                            state = SyncState.ERROR,
-                            percent = 0,
-                            liveCount = 0,
-                            vodCount = 0,
-                            seriesCount = 0,
-                            stage = "Sync failed",
-                            errorMessage = "API service not initialized"
-                        )
-                        return@withContext Result.Error(Exception("API service not initialized and no cache available"))
-                    }
-
-                    Log.d(TAG, "Sync started (type=$syncType, includeLatest=$includeLatest)")
-
-                    // SY-2: bound each stage so one hung provider stage can't stall the
-                    // whole sync. A timeout falls to empty for that stage; if ALL stages
-                    // come back empty, the SY-1 all-empty guard below reports it honestly.
-                    val liveResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { liveRepository.fetchLiveCategoriesAndStreams() }
-                    val liveData = liveResult?.getOrNull() ?: LiveCacheData(emptyList(), emptyList())
-                    val liveCount = liveData.streams.size
-                    updateSyncProgress(
-                        type = syncType,
-                        state = SyncState.RUNNING,
-                        percent = 25,
-                        liveCount = liveCount,
-                        vodCount = 0,
-                        seriesCount = 0,
-                        stage = "Downloading live channels"
-                    )
-
-                    val vodResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { vodRepository.fetchVodCategoriesAndStreams() }
-                    val vodData = vodResult?.getOrNull() ?: VodCacheData(emptyList(), emptyList())
-                    val vodStreams = if (includeLatest) {
-                        vodRepository.fetchLatestVodStreams(vodData.categories)
-                    } else {
-                        vodData.streams
-                    }
-                    val vodFinal = vodData.copy(streams = vodStreams)
-                    updateSyncProgress(
-                        type = syncType,
-                        state = SyncState.RUNNING,
-                        percent = 50,
-                        liveCount = liveCount,
-                        vodCount = vodStreams.size,
-                        seriesCount = 0,
-                        stage = "Downloading movies"
-                    )
-
-                    val seriesResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { seriesRepository.fetchSeriesCategoriesAndStreams() }
-                    val seriesData = seriesResult?.getOrNull() ?: SeriesCacheData(emptyList(), emptyList())
-                    val seriesStreams = if (includeLatest) {
-                        seriesRepository.fetchLatestSeriesStreams(seriesData.categories)
-                    } else {
-                        seriesData.streams
-                    }
-                    val seriesFinal = seriesData.copy(streams = seriesStreams)
-                    updateSyncProgress(
-                        type = syncType,
-                        state = SyncState.RUNNING,
-                        percent = 75,
-                        liveCount = liveCount,
-                        vodCount = vodStreams.size,
-                        seriesCount = seriesStreams.size,
-                        stage = "Downloading series"
-                    )
-
-                    // SY-1: the stage fetchers swallow network/auth failures into empty
-                    // results (no throw), so a totally-failed sync would otherwise write an
-                    // EMPTY cache and report SUCCESS — the user lands on Home with "No
-                    // categories". Zero categories across ALL three types is a strong
-                    // failure signal (a real account always has some). In that case do NOT
-                    // overwrite a good cache: keep the existing one, or report ERROR so the
-                    // sync screen offers a retry instead of a silent empty success.
-                    val allCategoriesEmpty = liveData.categories.isEmpty() &&
-                        vodData.categories.isEmpty() &&
-                        seriesData.categories.isEmpty()
-                    if (allCategoriesEmpty) {
-                        Log.w(TAG, "Sync produced zero categories across all types — treating as failure, not overwriting cache")
-                        val existing = memoryCache ?: cacheHelper.readCache()
-                        val existingHasContent = existing != null && (
-                            (existing.live?.categories?.isNotEmpty() == true) ||
-                            (existing.vod?.categories?.isNotEmpty() == true) ||
-                            (existing.series?.categories?.isNotEmpty() == true)
-                        )
-                        if (existingHasContent) {
-                            updateSyncProgress(
-                                type = syncType,
-                                state = SyncState.SUCCESS,
-                                percent = 100,
-                                liveCount = existing!!.live?.streams?.size ?: 0,
-                                vodCount = existing.vod?.streams?.size ?: 0,
-                                seriesCount = existing.series?.streams?.size ?: 0,
-                                stage = "Using cached data"
-                            )
-                            return@withContext Result.Success(existing)
-                        }
-                        updateSyncProgress(
-                            type = syncType,
-                            state = SyncState.ERROR,
-                            percent = 0,
-                            liveCount = 0,
-                            vodCount = 0,
-                            seriesCount = 0,
-                            stage = "Sync failed",
-                            errorMessage = "Could not load your content. Check your connection and try again."
-                        )
-                        return@withContext Result.Error(Exception("Sync returned no categories (network/auth failure)"))
-                    }
-
-                    val cache = IptvCache(
-                        timestamp = System.currentTimeMillis(),
-                        live = liveData,
-                        vod = vodFinal,
-                        series = seriesFinal,
-                        epg = null
-                    )
-
-                    updateSyncProgress(
-                        type = syncType,
-                        state = SyncState.RUNNING,
-                        percent = 90,
-                        liveCount = liveCount,
-                        vodCount = vodStreams.size,
-                        seriesCount = seriesStreams.size,
-                        stage = "Finalizing cache"
-                    )
-
-                    cacheHelper.writeCache(cache)
-                    memoryCache = cache
-
-                    if (cacheManager != null) {
-                        liveData.let { live ->
-                            cacheManager.putCategories(live.categories, "live")
-                            if (live.streams.isNotEmpty()) {
-                                val firstCategoryId = live.categories.firstOrNull()?.category_id ?: ""
-                                if (firstCategoryId.isNotEmpty()) {
-                                    cacheManager.putChannels(firstCategoryId, live.streams, "live")
-                                }
-                            }
-                        }
-                        cacheManager.putCategories(vodFinal.categories, "vod")
-                        cacheManager.putCategories(seriesFinal.categories, "series")
-                    }
-
-                    PerformanceMonitor.trackMemory("afterFetchAllAndCache")
-                    saveSyncMetadata(syncType)
-                    // Fill the search index (full catalog → Room) in the
-                    // background so Search covers categories the user never
-                    // opened. Fire-and-forget; idempotent via REPLACE upserts.
-                    scheduleSearchIndexSyncIfStale()
-                    updateSyncProgress(
-                        type = syncType,
-                        state = SyncState.SUCCESS,
-                        percent = 100,
-                        liveCount = liveCount,
-                        vodCount = vodStreams.size,
-                        seriesCount = seriesStreams.size,
-                        stage = "Complete"
-                    )
-
-                    Result.Success(cache)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to fetch data", e)
-                val cached = cacheHelper.readCache()
-                if (cached != null) {
-                    updateSyncProgress(
-                        type = syncType,
-                        state = SyncState.SUCCESS,
-                        percent = 100,
-                        liveCount = cached.live?.streams?.size ?: 0,
-                        vodCount = cached.vod?.streams?.size ?: 0,
-                        seriesCount = cached.series?.streams?.size ?: 0,
-                        stage = "Using cached data"
-                    )
-                    Result.Success(cached)
-                } else {
-                    updateSyncProgress(
-                        type = syncType,
-                        state = SyncState.ERROR,
-                        percent = 0,
-                        liveCount = 0,
-                        vodCount = 0,
-                        seriesCount = 0,
-                        stage = "Sync failed",
-                        errorMessage = e.message
-                    )
-                    Result.Error(e)
-                }
-            }
-        }
-    }
-
-    private fun updateSyncProgress(
-        type: SyncType,
-        state: SyncState,
-        percent: Int,
-        liveCount: Int,
-        vodCount: Int,
-        seriesCount: Int,
-        stage: String,
-        errorMessage: String? = null
-    ) {
-        _syncProgress.value = SyncProgress(
-            type = type,
-            state = state,
-            percent = percent.coerceIn(0, 100),
-            liveCount = liveCount,
-            vodCount = vodCount,
-            seriesCount = seriesCount,
-            stage = stage,
-            errorMessage = errorMessage
-        )
-    }
-
-    private fun saveSyncMetadata(syncType: SyncType) {
-        syncPrefs.edit()
-            .putLong(KEY_LAST_SYNC_TIME, System.currentTimeMillis())
-            .putString(KEY_LAST_SYNC_TYPE, syncType.name)
-            .apply()
-    }
+    fun shouldRunBackgroundSync(): Boolean = syncManager.shouldRunBackgroundSync()
     
     // Phase 7B-3: Live TV domain moved to LiveRepository; the repository delegates its public API.
     // fetchLiveCategoriesAndStreams stays reachable for syncContent via liveRepository (below).
@@ -592,11 +284,7 @@ class XtreamRepository @Inject constructor(
         Log.d(TAG, "Memory cache cleared (Legacy + CacheManager + per-category)")
     }
     
-    suspend fun forceRefresh(): Result<IptvCache> {
-        // Clear memory cache before fetching new data
-        clearMemoryCache()
-        return refreshCategoriesAndLatest()
-    }
+    suspend fun forceRefresh(): Result<IptvCache> = syncManager.forceRefresh()
     
     // ========================================
     // WEEK 10: FAVORITES METHODS
@@ -741,12 +429,6 @@ class XtreamRepository @Inject constructor(
         private const val TAG = "XtreamRepository"
         private const val DEFAULT_EPG_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000L
         private const val SYNC_PREFS_NAME = "sync_prefs"
-        private const val KEY_LAST_SYNC_TIME = "last_sync_time"
-        private const val KEY_LAST_SYNC_TYPE = "last_sync_type"
-        private const val BACKGROUND_SYNC_SKIP_AFTER_INITIAL_MS = 2 * 60 * 1000L
-        // SY-2: per-stage bound for the initial sync — a hung provider on one stage no
-        // longer parks the user for the raw ~30s socket timeout ×3 (up to ~90-180s).
-        private const val SYNC_STAGE_TIMEOUT_MS = 25_000L
         // Phase 2: per-request bound so a hung provider can't stall the series-detail
         // screen. On timeout we fall through to the fallback fetch instead of blocking.
     }
@@ -772,6 +454,10 @@ class XtreamRepository @Inject constructor(
     // shared sync prefs, and the DAOs. Declared here (after syncPrefs) so its deps are initialised.
     private val searchIndexManager =
         SearchIndexManager(session, syncPrefs, vodDao, seriesDao, cacheManager)
+    private val syncManager = SyncManager(
+        session, catalogCache, cacheHelper, cacheManager, syncPrefs,
+        liveRepository, vodRepository, seriesRepository, searchIndexManager
+    )
 
     fun scheduleSearchIndexSyncIfStale() = searchIndexManager.scheduleSearchIndexSyncIfStale()
 
