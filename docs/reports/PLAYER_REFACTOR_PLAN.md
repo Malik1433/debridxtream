@@ -83,3 +83,68 @@ Phase 5A (PlayerBufferConfigFactory extraction) is **COMPLETED & VERIFIED**.
 - **Open Issue C:** Debrid expired resume starts playback then stalls on reloading.
 - **Next recommended task:** Diagnose Only for Open Issue C (no fix without approval).
 - **No automatic fixes applied.**
+
+---
+
+# PlayerActivity Decomposition Roadmap (drafted 2026-07-22)
+
+**Status: PROPOSAL ONLY — no phase below is approved. Each needs explicit owner approval before execution**,
+per the governance in §1. Nothing here changes the existing BLOCKED status of PlayerNetworkStallManager.
+
+## Current state
+`player/stabilized/PlayerActivity.kt` — **4402 lines, 145 methods, 152 fields**, `@AndroidEntryPoint` Activity.
+Largest single methods: `initializePlayer` ~430, `onCreate` ~380, `handlePlaybackError` ~190,
+`dispatchKeyEvent` ~140, `initBrowserOverlay` ~75.
+
+Already extracted (this codebase's established delegate convention — keep following it):
+PlayerHistoryManager, PlayerTrackManager, PlayerNextEpisodeManager, PlayerBufferConfigFactory,
+EpisodeBrowserController, LivePlayerOsdManager, PlaybackQoeTracker, VodSeekOverlay,
+LivePlaybackLoadErrorPolicy.
+
+## Why this file is different from the data-layer god-classes
+XtreamRepository (2716→467) and UnifiedSourceProvider decomposed cleanly because their logic is
+state-in/state-out and unit-testable. PlayerActivity is an Activity: everything touches views, the
+ExoPlayer instance, and lifecycle. So the unit here is a **delegate/controller that receives the
+PlayerView + player + lifecycle scope**, not a "repository". Benefit: extracted managers become
+unit-testable (cf. PlayerHistoryManagerTest).
+
+## Known landmines (from prior post-mortems — DO NOT regress)
+- NEVER re-add TsExtractor DETECT_ACCESS_UNITS / NON_IDR flags (video freeze on live TS).
+- NEVER set LiveConfiguration on raw TS (seek-loop froze all .ts channels).
+- First-frame freeze on any channel = AudioTrack alloc failure (bounded tunneling-off + cool-off).
+- Adopt-before-takeFrame was rejected — keep the shared-player handoff order as-is.
+Any phase touching live playback must be re-verified against all four.
+
+## Proposed phase order (risk-ascending; sizes approximate)
+
+| Phase | Extract | ~Lines | Risk |
+|---|---|---|---|
+| P6 | `PlayerHelpers.kt` — pure fns: cleanTitle, cleanLoaderTitle, frameRateMismatch, resolveMediaMimeType, resolveTimeoutMs, formatTimeRangeCompact, parseRetryAfterMs, isAudioSinkInitFailure, isTerminalDirectHttpPlaybackError, readyStallRequiredStrikes, requiresAddonProxyPlaybackContext, qoeMode, isDolbyVisionDisplaySupported | ~150 | LOW |
+| P7 | `PlayerDiagnosticsFields` — diagnosticsContent/Source/Playback/trackDiagnosticsFields, readStreamHeaders, effectivePlaybackHeadersFor (pass a state snapshot, don't reach into the Activity) | ~150 | LOW-MED |
+| P8 | `PlayerDebugOverlay` — startDebugOverlay, updateDebugOverlay | ~120 | LOW |
+| P9 | `PlayerPipController` + `PlayerXRayController` | ~140 | LOW-MED |
+| P10 | `PlayerReconnectManager` — watchdog baseline, backoff, reconnect budget, network-quality, reconnecting banner, network callback register/unregister | ~200 | MED (live QA) |
+| P11 | `PlayerLoaderUi` — cinematic loader, metadata bind, play/pause visibility, interactive animations, volume icon | ~250 | MED (UI only) |
+| P12 | `PlayerExitCoordinator` — performBackExit, exit-result rules, finishWithReturnToSources, shared-player handoff + frame capture + adopted cover | ~200 | MED-HIGH (handoff order is a landmine) |
+| P13 | `PlayerSeriesController` — playlist state, episode browser wiring, play next/prev, IPTV episode resume | ~250 | MED-HIGH |
+| P14 | `PlayerDebridSourceManager` — source profile, fresh direct-debrid resolve, source panel, switchToMovieSource, addon-proxy failure tracking, resolution-state observer | ~300 | HIGH |
+| P15 | `PlayerStallMonitor` — checkForStall, checkVideoRenderProgress, start/stop (**this is the previously BLOCKED Phase 2 scope — re-approve explicitly**) | ~150 | HIGH |
+| P16 | `PlayerErrorRecoveryManager` — handlePlaybackError taxonomy, network recovery, timeout, terminal failure, failure-detail redirect, black-video fallback | ~400 | HIGH |
+| P17 | `PlayerInputController` — dispatchKeyEvent, long-press, smart-focus controller, seek navigation, control focus wiring | ~250 | HIGH (every D-pad path) |
+| P18 | `PlayerLiveController` — zap, tune, live OSD wiring, EPG overlay modes, seamless switch, channel meta | ~350 | VERY HIGH (live TS landmines) |
+| P19 | `PlayerFactory` — split `initializePlayer` (ExoPlayer build, codec selector, media item, track overrides, frame-rate match) + slim `onCreate` into setup* delegations | ~800 | HIGHEST — do LAST |
+
+## Realistic target
+Extracting P6–P18 lands the Activity around **1200–1500 lines**. Only P19 (initializePlayer + onCreate)
+brings it toward **600–800**. Getting an Activity strictly under 500 is not a realistic goal without
+splitting the screen itself (e.g. a PlayerScreenCoordinator owning wiring) — **propose 600–800 as the
+success bar**, and treat <500 as aspirational, unlike the data-layer classes.
+
+## Per-phase definition of done
+1. Extract verbatim into a `player/stabilized/Player*.kt` delegate (constructor takes only what it needs).
+2. `compileDebugKotlin` + full `:app:testDebugUnitTest` green; add unit tests for the delegate where it is
+   now testable.
+3. **Device QA matrix on a real Fire TV — every phase**: live TS channel (zap ×5), live HLS, VOD (IPTV),
+   VOD (debrid), series episode + next-episode, resume-from-Continue-Watching, back/exit, PiP.
+   Re-check the four landmines above.
+4. Commit + push per phase; one phase per commit so any regression is bisectable.
