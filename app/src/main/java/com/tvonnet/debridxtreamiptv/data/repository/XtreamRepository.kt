@@ -1144,15 +1144,8 @@ class XtreamRepository @Inject constructor(
                 }
                 
                 allSeriesCacheFallback?.let { allSeries ->
-                    val filtered = allSeries.filter { 
-                        val catIdStr = it.category_id?.trim()
-                        val targetIdStr = categoryId.trim()
-                        val stringMatch = catIdStr == targetIdStr
-                        val listMatch = it.category_ids?.contains(targetIdStr.toIntOrNull()) == true
-                        val intMatch = catIdStr?.toIntOrNull() == targetIdStr.toIntOrNull()
-                        stringMatch || listMatch || (intMatch && targetIdStr.toIntOrNull() != null)
-                    }
-                    
+                    val filtered = allSeries.filter { it.matchesCategory(categoryId) }
+
                     if (filtered.isNotEmpty()) {
                         Log.d(TAG, "⚡ Level 2 Cache HIT: Pre-loading ${filtered.size} series for category $categoryId")
                         // Save to DB immediately so UI shows data while network call runs
@@ -1209,19 +1202,8 @@ class XtreamRepository @Inject constructor(
                         Log.d(TAG, "Sample Series: name=${it.name}, cat_id=${it.category_id}, cat_ids=${it.category_ids}") 
                     }
 
-                    val filtered = allResult.data.filter { 
-                        val catIdStr = it.category_id?.trim()
-                        val targetIdStr = categoryId.trim()
-                        
-                        val stringMatch = catIdStr == targetIdStr
-                        val listMatch = it.category_ids?.contains(targetIdStr.toIntOrNull()) == true
-                        
-                        // Also try loose integer matching
-                        val intMatch = catIdStr?.toIntOrNull() == targetIdStr.toIntOrNull()
-                        
-                        stringMatch || listMatch || (intMatch && targetIdStr.toIntOrNull() != null)
-                    }
-                    
+                    val filtered = allResult.data.filter { it.matchesCategory(categoryId) }
+
                     if (filtered.isNotEmpty()) {
                         Log.d(TAG, "Found ${filtered.size} series for category $categoryId in ALL list")
                         updateSeriesCacheForCategory(categoryId, filtered)
@@ -2098,14 +2080,7 @@ class XtreamRepository @Inject constructor(
 
         // Attempt to use cached all-series list first with RELAXED filtering
         allSeriesCacheFallback?.let { cachedAll ->
-            val filtered = cachedAll.filter { 
-                val catIdStr = it.category_id?.trim()
-                val targetIdStr = categoryId.trim()
-                val stringMatch = catIdStr == targetIdStr
-                val listMatch = it.category_ids?.contains(targetIdStr.toIntOrNull()) == true
-                val intMatch = catIdStr?.toIntOrNull() == targetIdStr.toIntOrNull()
-                stringMatch || listMatch || (intMatch && targetIdStr.toIntOrNull() != null)
-            }
+            val filtered = cachedAll.filter { it.matchesCategory(categoryId) }
             if (filtered.isNotEmpty()) {
                 Log.d(TAG, "Fallback (cached all-series) succeeded for category $categoryId: ${filtered.size} series (Relaxed Filter)")
                 updateSeriesCacheForCategory(categoryId, filtered)
@@ -2120,15 +2095,8 @@ class XtreamRepository @Inject constructor(
                 // Promote disk snapshot into memory for future fallbacks
                 allSeriesCacheFallback = cachedStreams
                 
-                val filtered = cachedStreams.filter { 
-                    val catIdStr = it.category_id?.trim()
-                    val targetIdStr = categoryId.trim()
-                    val stringMatch = catIdStr == targetIdStr
-                    val listMatch = it.category_ids?.contains(targetIdStr.toIntOrNull()) == true
-                    val intMatch = catIdStr?.toIntOrNull() == targetIdStr.toIntOrNull()
-                    stringMatch || listMatch || (intMatch && targetIdStr.toIntOrNull() != null)
-                }
-                
+                val filtered = cachedStreams.filter { it.matchesCategory(categoryId) }
+
                 if (filtered.isNotEmpty()) {
                     Log.d(TAG, "Fallback (disk cache all-series) succeeded for category $categoryId: ${filtered.size} series (Relaxed Filter)")
                     updateSeriesCacheForCategory(categoryId, filtered)
@@ -2140,14 +2108,7 @@ class XtreamRepository @Inject constructor(
         val allSeriesResult = fetchAllSeries()
         return when (allSeriesResult) {
             is Result.Success -> {
-                val filtered = allSeriesResult.data.filter { 
-                    val catIdStr = it.category_id?.trim()
-                    val targetIdStr = categoryId.trim()
-                    val stringMatch = catIdStr == targetIdStr
-                    val listMatch = it.category_ids?.contains(targetIdStr.toIntOrNull()) == true
-                    val intMatch = catIdStr?.toIntOrNull() == targetIdStr.toIntOrNull()
-                    stringMatch || listMatch || (intMatch && targetIdStr.toIntOrNull() != null)
-                }
+                val filtered = allSeriesResult.data.filter { it.matchesCategory(categoryId) }
                 if (filtered.isNotEmpty()) {
                     Log.d(TAG, "Fallback (network all-series) succeeded for category $categoryId: ${filtered.size} series")
                     updateSeriesCacheForCategory(categoryId, filtered)
