@@ -2037,22 +2037,9 @@ class XtreamRepository @Inject constructor(
             categories = categories,
             streams = existingStreams
         )
-        
-        val updatedCache = if (existingCache != null) {
-            existingCache.copy(
-                timestamp = System.currentTimeMillis(),
-                series = updatedSeriesData
-            )
-        } else {
-            IptvCache(
-                timestamp = System.currentTimeMillis(),
-                live = null,
-                vod = null,
-                series = updatedSeriesData,
-                epg = null
-            )
-        }
-        
+
+        val updatedCache = existingCache.withSeriesData(updatedSeriesData, System.currentTimeMillis())
+
         memoryCache = updatedCache
         withContext(Dispatchers.IO) { cacheHelper.writeCache(updatedCache) }
         cacheManager?.putCategories(categories, "series")
@@ -2219,16 +2206,7 @@ class XtreamRepository @Inject constructor(
             streams = mergedStreams
         )
 
-        val updatedCache = existingCache?.copy(
-            timestamp = System.currentTimeMillis(),
-            series = updatedSeriesData
-        ) ?: IptvCache(
-            timestamp = System.currentTimeMillis(),
-            live = null,
-            vod = null,
-            series = updatedSeriesData,
-            epg = null
-        )
+        val updatedCache = existingCache.withSeriesData(updatedSeriesData, System.currentTimeMillis())
 
         memoryCache = updatedCache
         // Do NOT update allSeriesCacheFallback here. It should only be updated when we fetch ALL series.
