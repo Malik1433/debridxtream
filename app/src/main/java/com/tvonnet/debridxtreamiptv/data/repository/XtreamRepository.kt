@@ -2075,18 +2075,13 @@ class XtreamRepository @Inject constructor(
      * Week 12: Helper for playback
      */
     fun buildVodStreamUrl(vod: XtreamVodInfo, baseServerUrl: String): String {
-        // Format: http://server:port/movie/username/password/streamId.ext
-        // Blank-safe like buildSeriesEpisodeStreamUrl: a "" extension used to build
-        // ".../<id>." which Xtream servers reject (405).
-        val url = baseServerUrl.trimEnd('/')
-        val ext = vod.container_extension?.takeIf { it.isNotBlank() } ?: "mp4"
-        return "$url/movie/$username/$password/${vod.stream_id}.$ext"
+        // NOTE: preserve the original `${vod.stream_id}` template semantics — a null id renders
+        // the literal "null" (not ""), so keep .toString() here rather than orEmpty().
+        return buildVodStreamUrl(baseServerUrl, username, password, vod.stream_id.toString(), vod.container_extension)
     }
-    
+
     fun buildSeriesEpisodeStreamUrl(episodeId: String, containerExtension: String?, baseServerUrl: String): String {
-        val url = baseServerUrl.trimEnd('/')
-        val ext = containerExtension?.takeIf { it.isNotBlank() } ?: "mp4"
-        return "$url/series/$username/$password/$episodeId.$ext"
+        return buildSeriesEpisodeStreamUrl(baseServerUrl, username, password, episodeId, containerExtension)
     }
     
     /**

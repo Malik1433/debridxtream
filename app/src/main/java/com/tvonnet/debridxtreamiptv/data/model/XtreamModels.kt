@@ -215,3 +215,30 @@ fun buildLiveStreamUrl(
     return "$url/live/$username/$password/$streamId.$extension"
 }
 
+// Format: http://server:port/movie/username/password/streamId.ext
+// Blank-safe: a "" extension would build ".../<id>." which Xtream servers reject (405), so
+// blank/null falls back to "mp4" (VOD default), mirroring the series builder below.
+fun buildVodStreamUrl(
+    baseServerUrl: String,
+    username: String,
+    password: String,
+    streamId: String,
+    containerExtension: String?
+): String {
+    val url = baseServerUrl.trimEnd('/')
+    val extension = containerExtension?.takeIf { it.isNotBlank() } ?: "mp4"
+    return "$url/movie/$username/$password/$streamId.$extension"
+}
+
+fun buildSeriesEpisodeStreamUrl(
+    baseServerUrl: String,
+    username: String,
+    password: String,
+    episodeId: String,
+    containerExtension: String?
+): String {
+    val url = baseServerUrl.trimEnd('/')
+    val extension = containerExtension?.takeIf { it.isNotBlank() } ?: "mp4"
+    return "$url/series/$username/$password/$episodeId.$extension"
+}
+
