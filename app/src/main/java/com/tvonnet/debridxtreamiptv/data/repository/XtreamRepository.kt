@@ -24,7 +24,6 @@ import com.tvonnet.debridxtreamiptv.data.model.*
 import com.tvonnet.debridxtreamiptv.data.model.SeriesCategoryState
 import com.tvonnet.debridxtreamiptv.data.model.SeriesCategoryStatus
 import com.tvonnet.debridxtreamiptv.data.remote.XtreamApiService
-import com.tvonnet.debridxtreamiptv.data.remote.XtreamRetrofitClient
 import com.tvonnet.debridxtreamiptv.utils.PerformanceMonitor
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
 import kotlinx.coroutines.CancellationException
@@ -89,21 +88,29 @@ class XtreamRepository @Inject constructor(
     private val favoritesCache: FavoritesCache,
     private val memoryManager: MemoryManager
 ) {
-    private var apiService: XtreamApiService? = null
-    
+    // Phase 7: provider session (creds + built service + URL) extracted into XtreamSession. The four
+    // former fields are now read-only views onto it, so every existing read site is unchanged.
+    private val session = XtreamSession(context)
+    // @get:JvmName avoids a JVM platform clash with the public getApiService()/getUsername()/
+    // getPassword() functions below (a Kotlin `val apiService` would otherwise also emit getApiService()).
+    @get:JvmName("apiServiceView")
+    private val apiService: XtreamApiService? get() = session.apiService
+    @get:JvmName("usernameView")
+    private val username: String get() = session.username
+    @get:JvmName("passwordView")
+    private val password: String get() = session.password
+    private val baseUrl: String get() = session.baseUrl
+
     // V2 Rescue Patch: Expose service for V2 components
-    fun getApiService(): XtreamApiService? = apiService
-    fun getUsername(): String = username
-    fun getPassword(): String = password
-    fun getServerUrl(): String = baseUrl
+    fun getApiService(): XtreamApiService? = session.apiService
+    fun getUsername(): String = session.username
+    fun getPassword(): String = session.password
+    fun getServerUrl(): String = session.baseUrl
 
     private val cacheHelper = CacheHelper(context)
     private val favoritesRepository = FavoritesRepository(favoriteDao, favoritesCache)
     private val searchHistoryRepository = SearchHistoryRepository(searchHistoryDao)
     private val epgQueryRepository = EpgQueryRepository(epgDao)
-    private var username: String = "username"
-    private var password: String = "password"
-    private var baseUrl: String = ""
 
     private val epgPrefs by lazy {
         context.getSharedPreferences("epg_prefs", Context.MODE_PRIVATE)
@@ -146,27 +153,10 @@ class XtreamRepository @Inject constructor(
     // the first init, returns immediately — so it stays safe to call from the main thread.
     @Synchronized
     fun initialize(baseUrl: String, username: String, password: String) {
-        val normalizedUrlPre = baseUrl.trimEnd('/') + "/"
-        // ST-3: idempotent for identical credentials — skip the expensive Retrofit/
-        // OkHttp/EpgParser reconstruction. initialize() is called from MainActivity,
-        // HomeFragment, and every browse ViewModel (Live/Series/Vod), so on a normal
-        // session it was rebuilding the whole HTTP stack many times over.
-        if (apiService != null &&
-            this.username == username &&
-            this.password == password &&
-            this.baseUrl == normalizedUrlPre
-        ) {
-            return
-        }
-        try {
-            this.username = username
-            this.password = password
-            this.baseUrl = baseUrl.trimEnd('/') + "/"
-            com.tvonnet.debridxtreamiptv.util.GlobalConfig.baseUrl = this.baseUrl
-            val normalizedUrl = this.baseUrl
-            // Week 8: Pass context for HTTP caching support
-            apiService = XtreamRetrofitClient.create(normalizedUrl, context)
-
+        // ST-3: idempotency + the Retrofit/OkHttp rebuild + GlobalConfig publish now live in
+        // XtreamSession; it returns true only on a real (re)build so the repository-side post-init
+        // hooks below run exactly when the old code ran them (inside the same try, never on skip).
+        session.initialize(baseUrl, username, password) {
             // Initialize EpgParser with MemoryManager
             EpgParser.initialize(context)
 
@@ -180,19 +170,16 @@ class XtreamRepository @Inject constructor(
             memoryManager.startMonitoring()
 
             Log.d(TAG, "Repository initialized with memory management support")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize API service", e)
-            apiService = null
         }
     }
-    
+
     fun ensureInitialized(serverUrl: String?, username: String?, password: String?) {
         if (!isInitialized() && !serverUrl.isNullOrBlank() && !username.isNullOrBlank() && !password.isNullOrBlank()) {
             initialize(serverUrl, username, password)
         }
     }
-    
-    fun isInitialized(): Boolean = apiService != null
+
+    fun isInitialized(): Boolean = session.isInitialized()
     
     suspend fun login(username: String, password: String): Result<XtreamLoginResponse> {
         return try {

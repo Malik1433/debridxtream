@@ -133,11 +133,9 @@ class XtreamRepositoryTest {
         val apiService = mockk<XtreamApiService>()
         coEvery { apiService.login(testUsername, testPassword) } returns Response.success(mockLoginResponse)
         
-        // Use reflection to set the private apiService field
-        val apiServiceField = repository.javaClass.getDeclaredField("apiService")
-        apiServiceField.isAccessible = true
-        apiServiceField.set(repository, apiService)
-        
+        // Use reflection to set the private apiService field (now on the extracted XtreamSession)
+        setApiService(apiService)
+
         // When
         val result = repository.login(testUsername, testPassword)
         
@@ -168,11 +166,9 @@ class XtreamRepositoryTest {
             "Unauthorized".toResponseBody()
         )
         
-        // Set API service using reflection
-        val apiServiceField = repository.javaClass.getDeclaredField("apiService")
-        apiServiceField.isAccessible = true
-        apiServiceField.set(repository, apiService)
-        
+        // Set API service using reflection (now on the extracted XtreamSession)
+        setApiService(apiService)
+
         // When
         val result = repository.login("wrong", "credentials")
         
@@ -359,9 +355,14 @@ class XtreamRepositoryTest {
     }
 
     private fun setApiService(apiService: XtreamApiService) {
-        val apiServiceField = repository.javaClass.getDeclaredField("apiService")
+        // Phase 7: apiService now lives on the extracted XtreamSession, reached via the repo's
+        // private `session` field.
+        val sessionField = repository.javaClass.getDeclaredField("session")
+        sessionField.isAccessible = true
+        val session = sessionField.get(repository)
+        val apiServiceField = session.javaClass.getDeclaredField("apiService")
         apiServiceField.isAccessible = true
-        apiServiceField.set(repository, apiService)
+        apiServiceField.set(session, apiService)
     }
     
     // Helper function to create mock cache data

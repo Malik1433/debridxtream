@@ -86,9 +86,13 @@ class EpgGenerationalReplaceTest {
     }
 
     private fun setApiService(api: XtreamApiService) {
-        val field = repository.javaClass.getDeclaredField("apiService")
+        // Phase 7: apiService now lives on the extracted XtreamSession (repo's private `session` field).
+        val sessionField = repository.javaClass.getDeclaredField("session")
+        sessionField.isAccessible = true
+        val session = sessionField.get(repository)
+        val field = session.javaClass.getDeclaredField("apiService")
         field.isAccessible = true
-        field.set(repository, api)
+        field.set(session, api)
     }
 
     private fun stubEpgBody(xml: String) {

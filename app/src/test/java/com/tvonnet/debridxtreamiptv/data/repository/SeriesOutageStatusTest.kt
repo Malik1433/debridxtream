@@ -76,9 +76,13 @@ class SeriesOutageStatusTest {
     }
 
     private fun setApiService(apiService: XtreamApiService) {
-        val field = repository.javaClass.getDeclaredField("apiService")
+        // Phase 7: apiService now lives on the extracted XtreamSession (repo's private `session` field).
+        val sessionField = repository.javaClass.getDeclaredField("session")
+        sessionField.isAccessible = true
+        val session = sessionField.get(repository)
+        val field = session.javaClass.getDeclaredField("apiService")
         field.isAccessible = true
-        field.set(repository, apiService)
+        field.set(session, apiService)
     }
 
     private fun sampleSeries(categoryId: String) = XtreamSeriesInfo(
