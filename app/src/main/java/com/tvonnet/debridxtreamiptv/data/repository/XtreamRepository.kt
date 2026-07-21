@@ -174,9 +174,14 @@ class XtreamRepository @Inject constructor(
     }
 
     fun ensureInitialized(serverUrl: String?, username: String?, password: String?) {
-        if (!isInitialized() && !serverUrl.isNullOrBlank() && !username.isNullOrBlank() && !password.isNullOrBlank()) {
-            initialize(serverUrl, username, password)
-        }
+        if (serverUrl.isNullOrBlank() || username.isNullOrBlank() || password.isNullOrBlank()) return
+        // Already built for exactly these credentials -> nothing to do (fast path, no lock).
+        if (session.matches(serverUrl, username, password)) return
+        // Bug fix (Phase 7): previously this only ran when NOT initialized, so calling it with a
+        // DIFFERENT provider's credentials was a silent no-op and the app kept the stale session.
+        // Now a credential change (re-login / provider switch) actually rebuilds the session.
+        // Same-credential callers are still cheap: initialize()'s idempotency guard returns immediately.
+        initialize(serverUrl, username, password)
     }
 
     fun isInitialized(): Boolean = session.isInitialized()

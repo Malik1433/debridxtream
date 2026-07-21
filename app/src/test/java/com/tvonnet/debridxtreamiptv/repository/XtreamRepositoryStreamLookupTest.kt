@@ -406,10 +406,24 @@ class XtreamRepositoryStreamLookupTest {
     }
 
     @Test
-    fun `ensureInitialized currently keeps first initialized provider when service already exists`() {
+    fun `ensureInitialized switches to the new provider when credentials differ`() {
+        // Phase 7 bug fix: ensureInitialized used to be a no-op once a service existed, so a
+        // re-login / provider switch silently kept the stale session. It now rebuilds on a
+        // credential change.
         repository.initialize("http://provider-a.test:8080", "firstUser", "firstPass")
 
         repository.ensureInitialized("http://provider-b.test:8080", "secondUser", "secondPass")
+
+        assertEquals("http://provider-b.test:8080/", repository.getServerUrl())
+        assertEquals("secondUser", repository.getUsername())
+        assertEquals("secondPass", repository.getPassword())
+    }
+
+    @Test
+    fun `ensureInitialized with identical credentials keeps the existing provider`() {
+        repository.initialize("http://provider-a.test:8080", "firstUser", "firstPass")
+
+        repository.ensureInitialized("http://provider-a.test:8080", "firstUser", "firstPass")
 
         assertEquals("http://provider-a.test:8080/", repository.getServerUrl())
         assertEquals("firstUser", repository.getUsername())

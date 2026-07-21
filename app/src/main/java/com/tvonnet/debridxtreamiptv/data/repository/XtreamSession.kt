@@ -36,6 +36,18 @@ internal class XtreamSession(private val context: Context) {
     fun isInitialized(): Boolean = apiService != null
 
     /**
+     * Lock-free fast-path check: is the session already built for exactly these credentials? Used by
+     * ensureInitialized to skip work when we are already on the requested provider, without taking the
+     * initialize() lock. A stale read at worst causes one extra initialize() call, which re-checks
+     * under the lock — so it is safe.
+     */
+    fun matches(serverUrl: String, username: String, password: String): Boolean =
+        apiService != null &&
+            this.username == username &&
+            this.password == password &&
+            this.baseUrl == serverUrl.trimEnd('/') + "/"
+
+    /**
      * (Re)build the session for the given credentials. Returns true iff a real (re)initialisation
      * happened (i.e. not the idempotent skip and not a failure), so the caller can run its own
      * post-init side effects only when appropriate.
