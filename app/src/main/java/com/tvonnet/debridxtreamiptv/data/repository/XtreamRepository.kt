@@ -98,6 +98,7 @@ class XtreamRepository @Inject constructor(
     fun getServerUrl(): String = baseUrl
 
     private val cacheHelper = CacheHelper(context)
+    private val favoritesRepository = FavoritesRepository(favoriteDao, favoritesCache)
     private var username: String = "username"
     private var password: String = "password"
     private var baseUrl: String = ""
@@ -1545,73 +1546,21 @@ class XtreamRepository @Inject constructor(
     // WEEK 10: FAVORITES METHODS
     // ========================================
     
-    /**
-     * Get all favorites as Flow (reactive)
-     */
-    fun getAllFavorites(): Flow<List<FavoriteEntity>> {
-        return favoriteDao?.getAllFavorites() 
-            ?: throw IllegalStateException("FavoriteDao not initialized")
-    }
-    
-    /**
-     * Get favorites filtered by type (live, vod, series)
-     */
-    fun getFavoritesByType(type: String): Flow<List<FavoriteEntity>> {
-        return favoriteDao?.getFavoritesByType(type)
-            ?: throw IllegalStateException("FavoriteDao not initialized")
-    }
-    
-    /**
-     * Check if a stream is favorited
-     */
-    suspend fun isFavorite(streamId: String): Boolean {
-        // Week 12: Use performance cache if available (O(1) lookup)
-        if (favoritesCache != null && favoritesCache.isInitialized()) {
-            return favoritesCache.isFavorite(streamId)
-        }
-        // Fallback to database query
-        return favoriteDao?.isFavorite(streamId) ?: false
-    }
-    
-    /**
-     * Add a stream to favorites
-     * @param streamId The unique ID of the stream
-     * @param type The type: "live", "vod", or "series"
-     * @param name Display name of the stream
-     * @param iconUrl Optional icon/thumbnail URL
-     * Week 12: Updated to include name and iconUrl
-     */
-    suspend fun addFavorite(streamId: String, type: String, name: String, iconUrl: String? = null) {
-        val favorite = FavoriteEntity(
-            streamId = streamId,
-            type = type,
-            name = name,
-            iconUrl = iconUrl,
-            addedAt = System.currentTimeMillis()
-        )
-        favoriteDao?.insertFavorite(favorite)
-        // Week 12: Update performance cache (optimistic)
-        favoritesCache?.addToCache(streamId)
-        Log.d(TAG, "Added favorite: $streamId (name: $name, type: $type)")
-    }
-    
-    /**
-     * Remove a stream from favorites
-     */
-    suspend fun removeFavorite(streamId: String) {
-        favoriteDao?.deleteFavoriteByStreamId(streamId)
-        // Week 12: Update performance cache (optimistic)
-        favoritesCache?.removeFromCache(streamId)
-        Log.d(TAG, "Removed favorite: $streamId")
-    }
-    
-    /**
-     * Remove all favorites
-     */
-    suspend fun clearAllFavorites() {
-        favoriteDao?.deleteAllFavorites()
-        Log.d(TAG, "Cleared all favorites")
-    }
+    // Favorites moved to FavoritesRepository (Phase 7); XtreamRepository delegates its public
+    // favorites API to it. Same FavoriteDao/FavoritesCache, behaviour unchanged.
+    fun getAllFavorites(): Flow<List<FavoriteEntity>> = favoritesRepository.getAllFavorites()
+
+    fun getFavoritesByType(type: String): Flow<List<FavoriteEntity>> =
+        favoritesRepository.getFavoritesByType(type)
+
+    suspend fun isFavorite(streamId: String): Boolean = favoritesRepository.isFavorite(streamId)
+
+    suspend fun addFavorite(streamId: String, type: String, name: String, iconUrl: String? = null) =
+        favoritesRepository.addFavorite(streamId, type, name, iconUrl)
+
+    suspend fun removeFavorite(streamId: String) = favoritesRepository.removeFavorite(streamId)
+
+    suspend fun clearAllFavorites() = favoritesRepository.clearAllFavorites()
 
     // ========== Search History Operations ==========
 
