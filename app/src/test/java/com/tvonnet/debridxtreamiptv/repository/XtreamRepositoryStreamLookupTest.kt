@@ -645,10 +645,15 @@ class XtreamRepositoryStreamLookupTest {
     }
 
     private fun setPerCategoryVodCache(vararg entries: Pair<String, List<XtreamVodInfo>>) {
-        val field = XtreamRepository::class.java.getDeclaredField("perCategoryVodCache")
+        // Phase 7B-0: perCategoryVodCache now lives on the shared CatalogCache (repo's private
+        // `catalogCache` field), reached through that.
+        val catalogField = XtreamRepository::class.java.getDeclaredField("catalogCache")
+        catalogField.isAccessible = true
+        val catalogCache = catalogField.get(repository)
+        val field = catalogCache.javaClass.getDeclaredField("perCategoryVodCache")
         field.isAccessible = true
         @Suppress("UNCHECKED_CAST")
-        val cache = field.get(repository) as MutableMap<String, List<XtreamVodInfo>>
+        val cache = field.get(catalogCache) as MutableMap<String, List<XtreamVodInfo>>
         cache.clear()
         entries.forEach { (categoryId, streams) ->
             cache[categoryId] = streams

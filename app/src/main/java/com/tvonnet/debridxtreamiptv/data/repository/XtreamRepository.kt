@@ -120,31 +120,27 @@ class XtreamRepository @Inject constructor(
         context.getSharedPreferences(SYNC_PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    // Legacy memory cache to avoid repeated Gson parsing (for full IptvCache object).
-    // Phase 3: @Volatile so the cross-thread reads/writes (now on Dispatchers.IO after the
-    // Phase 1 off-main change) publish safely.
-    @Volatile private var memoryCache: IptvCache? = null
-    // Phase 3: ConcurrentHashMap — these were plain mutableMapOf read+written from concurrent
-    // coroutines, which risks ConcurrentModificationException / corrupted reads. No TTL/size cap
-    // added here (some are fallback caches that must NOT be evicted when the network is down).
-    private val seriesDetailCache = ConcurrentHashMap<String, XtreamSeriesDetailResponse>()
+    // Phase 7B-0: the shared catalog caches (the glue across Sync/Live/VOD/Series) live in CatalogCache.
+    // The repository keeps get/set views onto them so every existing read/write site is unchanged.
+    private val catalogCache = CatalogCache(cacheHelper, cacheManager)
+    private var memoryCache: IptvCache?
+        get() = catalogCache.memoryCache
+        set(value) { catalogCache.memoryCache = value }
+    private val seriesDetailCache get() = catalogCache.seriesDetailCache
+    private val perCategorySeriesCache get() = catalogCache.perCategorySeriesCache
+    private var allSeriesCacheFallback: List<XtreamSeriesInfo>?
+        get() = catalogCache.allSeriesCacheFallback
+        set(value) { catalogCache.allSeriesCacheFallback = value }
+    private val perCategoryVodCache get() = catalogCache.perCategoryVodCache
+    private val vodFetchLocks get() = catalogCache.vodFetchLocks
+    private val seriesCategoryStatus get() = catalogCache.seriesCategoryStatus
 
-    // Per-category series cache for detail screen fallback
-    private val perCategorySeriesCache = ConcurrentHashMap<String, List<XtreamSeriesInfo>>()
-
-    // Cache for ALL series (fallback strategy)
-    @Volatile private var allSeriesCacheFallback: List<XtreamSeriesInfo>? = null
-    // Per-category VOD cache (lazy loaded)
-    private val perCategoryVodCache = ConcurrentHashMap<String, List<XtreamVodInfo>>()
-    private val vodFetchLocks = ConcurrentHashMap<String, Mutex>()
     private val vodFetchSemaphore = Semaphore(MAX_CONCURRENT_VOD_FETCHES)
 
     private val syncMutex = Mutex()
     private val epgSyncMutex = Mutex()
     private val _syncProgress = MutableStateFlow(SyncProgress.idle())
     val syncProgress: StateFlow<SyncProgress> = _syncProgress.asStateFlow()
-
-    private val seriesCategoryStatus = ConcurrentHashMap<String, SeriesCategoryStatus>()
     
     // Phase 4: @Synchronized so concurrent first-callers (MainActivity + HomeFragment + every
     // browse ViewModel all call initialize()) can't both pass the idempotency guard while
