@@ -72,7 +72,6 @@ class UnifiedSourceProvider @Inject constructor(
         private const val CACHED_STATUS_TTL_MS = 15L * 60L * 1000L
         private const val NOT_CACHED_STATUS_TTL_MS = 3L * 60L * 1000L
         private const val UNKNOWN_STATUS_TTL_MS = 60L * 1000L
-        private val ADDABLE_INFO_HASH = Regex("^(?:[a-fA-F0-9]{40}|[a-zA-Z2-7]{32})$")
         private val MOVIE_YEAR_REGEX = Regex("\\b(?:19|20)\\d{2}\\b")
 
         internal fun filterMismatchedAddonMovieStreams(
@@ -1527,18 +1526,6 @@ class UnifiedSourceProvider @Inject constructor(
     /**
      * Format file size in bytes to human readable format
      */
-    private fun formatFileSize(bytes: Long): String {
-        if (bytes < 1024) return "${bytes}B"
-        val kb = bytes / 1024.0
-        if (kb < 1024) return "%.1fKB".format(kb)
-        val mb = kb / 1024.0
-        if (mb < 1024) return "%.1fMB".format(mb)
-        val gb = mb / 1024.0
-        if (gb < 1024) return "%.1fGB".format(gb)
-        val tb = gb / 1024.0
-        return "%.1fTB".format(tb)
-    }
-
     private fun isDirectStreamUrl(url: String): Boolean {
         val lowered = url.lowercase()
         if (!lowered.startsWith("http")) return false
@@ -1561,66 +1548,5 @@ class UnifiedSourceProvider @Inject constructor(
             clean.endsWith(".m2ts")
     }
 
-    private fun normalizeInfoHash(infoHash: String?): String? {
-        val trimmed = infoHash?.trim() ?: return null
-        return if (trimmed.length >= 32) trimmed.lowercase() else null
-    }
-
-    private fun isValidMagnet(magnet: String?): Boolean {
-        if (magnet.isNullOrBlank()) return false
-        val trimmed = magnet.trim()
-        if (!trimmed.startsWith("magnet:", ignoreCase = true)) return false
-        val btihIndex = trimmed.indexOf("btih:", ignoreCase = true)
-        if (btihIndex == -1) return false
-        val hash = trimmed.substring(btihIndex + 5).substringBefore('&').substringBefore('#')
-        return hash.length >= 32
-    }
-
-    private fun extractInfoHashFromMagnet(magnet: String?): String? {
-        if (magnet.isNullOrBlank()) return null
-        val btihIndex = magnet.indexOf("btih:", ignoreCase = true)
-        if (btihIndex == -1) return null
-        return normalizeInfoHash(magnet.substring(btihIndex + 5).substringBefore('&').substringBefore('#'))
-    }
-
-    private fun normalizeAddableInfoHash(infoHash: String?): String? {
-        val trimmed = infoHash?.trim() ?: return null
-        return trimmed.takeIf { ADDABLE_INFO_HASH.matches(it) }?.lowercase()
-    }
-
-    private fun isAddableMagnet(magnet: String?): Boolean {
-        return extractAddableInfoHashFromMagnet(magnet) != null
-    }
-
-    private fun extractAddableInfoHashFromMagnet(magnet: String?): String? {
-        if (magnet.isNullOrBlank()) return null
-        val trimmed = magnet.trim()
-        if (!trimmed.startsWith("magnet:", ignoreCase = true)) return null
-        val btihIndex = trimmed.indexOf("btih:", ignoreCase = true)
-        if (btihIndex == -1) return null
-        return normalizeAddableInfoHash(trimmed.substring(btihIndex + 5).substringBefore('&').substringBefore('#'))
-    }
-
-    private fun DebridCacheStatus.toLegacyCachedFlag(): Boolean? {
-        return when (this) {
-            DebridCacheStatus.VERIFIED_CACHED,
-            DebridCacheStatus.DIRECT_STREAM -> true
-            DebridCacheStatus.NOT_CACHED -> false
-            DebridCacheStatus.UNKNOWN -> null
-        }
-    }
-
-    private fun parseCachedValue(value: Any?): Boolean? {
-        return when (value) {
-            is Boolean -> value
-            is String -> when (value.trim().lowercase()) {
-                "true", "1", "yes" -> true
-                "false", "0", "no" -> false
-                else -> null
-            }
-            is Number -> value.toInt() != 0
-            else -> null
-        }
-    }
 
 }
