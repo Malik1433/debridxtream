@@ -1,6 +1,11 @@
 package com.tvonnet.debridxtreamiptv.data.debrid.repository
 
+import android.util.Log
+import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonSourceType
+import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonStream
 import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
+
+private const val TAG = "UnifiedSourceProvider"
 
 /**
  * Phase 7 (UnifiedSourceProvider decomposition), step 1: the pure magnet / info-hash / size / cached-value
@@ -83,4 +88,124 @@ internal fun parseCachedValue(value: Any?): Boolean? {
         is Number -> value.toInt() != 0
         else -> null
     }
+}
+
+// ── USP-2: pure stream scoring / dedup / label helpers (no provider state) ──
+
+internal fun getSourceLabel(source: AddonSourceType): String {
+    return when (source) {
+        AddonSourceType.MEDIA_FUSION -> "MediaFusion"
+        AddonSourceType.STREMIO -> "Stremio"
+        AddonSourceType.ZILEAN -> "Zilean"
+        AddonSourceType.TORRENTIO -> "TorrentIO"
+        AddonSourceType.DYNAMIC -> "Dynamic"
+        AddonSourceType.UNKNOWN -> "PureFire"
+    }
+}
+
+internal fun deduplicateStreams(streams: List<AddonStream>): List<AddonStream> {
+    if (streams.size <= 1) return streams
+
+    val seen = mutableMapOf<String, AddonStream>()
+    val noHashStreams = mutableListOf<AddonStream>()
+
+    for (stream in streams) {
+        val hash = stream.infoHash?.trim()?.lowercase()
+        if (hash.isNullOrBlank()) {
+            noHashStreams.add(stream)
+            continue
+        }
+        val dedupKey = buildStreamVariantKey(hash, stream)
+        val existing = seen[dedupKey]
+        if (existing == null) {
+            seen[dedupKey] = stream
+        } else {
+            // Keep the one with more useful metadata; cache is verified later.
+            val existingScore = metadataScore(existing)
+            val newScore = metadataScore(stream)
+            if (newScore > existingScore) {
+                seen[dedupKey] = stream
+            }
+        }
+    }
+
+    val result = seen.values.toList() + noHashStreams
+    val removed = streams.size - result.size
+    if (removed > 0) {
+        Log.d(TAG, "🔄 Dedup removed $removed duplicate streams (${streams.size} → ${result.size})")
+    }
+    return result
+}
+
+internal fun buildStreamVariantKey(hash: String, stream: AddonStream): String {
+    val languageKey = normalizeVariantPart(
+        stream.languages?.joinToString(",")?.lowercase()
+    )
+    // The same torrent offered by two providers is only a real choice when the
+    // DELIVERY differs: an addon-proxy direct URL streams immediately, while a
+    // magnet goes through the RD resolution chain. Provider names alone must
+    // not duplicate picker rows for an identical torrent.
+    val deliveryKey = if (stream.url.isNullOrBlank()) "magnet" else "direct"
+    val fileIdxKey = (stream.extras["fileIdx"] as? Number)?.toString()
+        ?: (stream.extras["fileIdx"] as? String)?.trim()?.takeIf { it.isNotBlank() }
+    val bingeGroupKey = normalizeVariantPart(stream.extras["bingeGroup"] as? String)
+
+    return buildString {
+        append(hash)
+        append('|')
+        append(languageKey)
+        append('|')
+        append(deliveryKey)
+        append('|')
+        append(fileIdxKey.orEmpty())
+        append('|')
+        append(bingeGroupKey)
+    }
+}
+
+internal fun normalizeVariantPart(value: String?): String {
+    return value?.trim()?.lowercase()?.takeIf { it.isNotBlank() } ?: ""
+}
+
+internal fun getAddonLanguageScore(stream: AddonStream, preferredLanguages: List<String>): Int {
+    val languages = stream.languages?.map { it.lowercase() } ?: return 0
+    val preferredScore = preferredLanguages.firstOrNull { languages.contains(it) }?.let { lang ->
+        when (lang) {
+            preferredLanguages.firstOrNull() -> 4
+            "hi", "de" -> 3
+            else -> 2
+        }
+    } ?: 0
+    val multiScore = if (languages.contains("multi")) 2 else 0
+    return maxOf(preferredScore, multiScore)
+}
+
+internal fun sourcePriority(source: AddonSourceType): Int {
+    return when (source) {
+        AddonSourceType.MEDIA_FUSION -> 4
+        AddonSourceType.STREMIO -> 4
+        AddonSourceType.DYNAMIC -> 3
+        AddonSourceType.TORRENTIO -> 2
+        AddonSourceType.ZILEAN -> 1
+        AddonSourceType.UNKNOWN -> 0
+    }
+}
+
+internal fun qualityPriority(quality: String?): Int {
+    return when (quality?.lowercase()) {
+        "4k", "2160p" -> 4
+        "1080p" -> 3
+        "720p" -> 2
+        "480p" -> 1
+        else -> 0
+    }
+}
+
+internal fun metadataScore(stream: AddonStream): Int {
+    var score = 0
+    if (stream.sizeBytes != null && stream.sizeBytes > 0) score += 2
+    if (stream.seeders != null && stream.seeders > 0) score += 1
+    if (!stream.quality.isNullOrBlank() && stream.quality != "Unknown") score += 1
+    if (!stream.url.isNullOrBlank()) score += 1
+    return score
 }
