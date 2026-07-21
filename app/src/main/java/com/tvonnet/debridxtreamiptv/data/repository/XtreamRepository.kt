@@ -1088,26 +1088,8 @@ class XtreamRepository @Inject constructor(
         return sources.values.sortedWith(comparator)
     }
 
-    private fun normalizeTitle(value: String?): String? {
-        if (value.isNullOrBlank()) return null
-        return NON_ALPHANUMERIC_REGEX.replace(value.lowercase(Locale.US), "").takeIf { it.isNotEmpty() }
-    }
-
-    private fun extractYear(text: String?): Int? {
-        if (text.isNullOrBlank()) return null
-        val match = YEAR_REGEX.find(text)
-        return match?.value?.toIntOrNull()
-    }
-
-    private fun buildMovieSourceLabel(category: XtreamCategory?, stream: XtreamVodInfo): String {
-        val parts = mutableListOf<String>()
-        category?.category_name?.takeIf { !it.isNullOrBlank() }?.let { parts.add(it.trim()) }
-        stream.container_extension?.takeIf { !it.isNullOrBlank() }?.let {
-            parts.add(it.uppercase(Locale.US))
-        }
-        extractYear(stream.releaseDate)?.let { parts.add(it.toString()) }
-        return parts.joinToString(" • ").ifBlank { stream.name ?: "Source" }
-    }
+    // normalizeTitle / extractYear / buildMovieSourceLabel moved to SourceModels.kt (Phase 7) —
+    // pure helpers, same package, resolved by wildcard import. Behaviour unchanged.
 
     private suspend fun fetchSeriesCategoriesAndStreams(): Result<SeriesCacheData> {
         return try {
@@ -2377,8 +2359,6 @@ class XtreamRepository @Inject constructor(
     
     companion object {
         private const val TAG = "XtreamRepository"
-        private val NON_ALPHANUMERIC_REGEX = Regex("[^a-z0-9]")
-        private val YEAR_REGEX = Regex("(19|20)\\d{2}")
         private const val EPG_BATCH_SIZE = 500
         private const val DEFAULT_EPG_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000L
         private const val SERIES_CATEGORY_FAILURE_COOLDOWN_MS = 2 * 60 * 1000L
