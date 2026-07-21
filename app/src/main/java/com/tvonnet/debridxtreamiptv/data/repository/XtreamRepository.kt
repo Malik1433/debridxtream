@@ -99,6 +99,7 @@ class XtreamRepository @Inject constructor(
 
     private val cacheHelper = CacheHelper(context)
     private val favoritesRepository = FavoritesRepository(favoriteDao, favoritesCache)
+    private val searchHistoryRepository = SearchHistoryRepository(searchHistoryDao)
     private var username: String = "username"
     private var password: String = "password"
     private var baseUrl: String = ""
@@ -1563,49 +1564,16 @@ class XtreamRepository @Inject constructor(
     suspend fun clearAllFavorites() = favoritesRepository.clearAllFavorites()
 
     // ========== Search History Operations ==========
+    // Moved to SearchHistoryRepository (Phase 7); XtreamRepository delegates. Same DAO, behaviour unchanged.
 
-    /**
-     * Get recent search queries as Flow (reactive)
-     */
-    fun getRecentSearches(limit: Int = 10): Flow<List<SearchHistoryEntity>> {
-        return searchHistoryDao?.getRecentSearches(limit)
-            ?: throw IllegalStateException("SearchHistoryDao not initialized")
-    }
+    fun getRecentSearches(limit: Int = 10): Flow<List<SearchHistoryEntity>> =
+        searchHistoryRepository.getRecentSearches(limit)
 
-    /**
-     * Save a search query to history
-     */
-    suspend fun saveSearchQuery(query: String) {
-        if (query.isBlank()) return
+    suspend fun saveSearchQuery(query: String) = searchHistoryRepository.saveSearchQuery(query)
 
-        val search = SearchHistoryEntity(query = query.trim())
-        searchHistoryDao?.insertSearch(search)
+    suspend fun removeSearchQuery(query: String) = searchHistoryRepository.removeSearchQuery(query)
 
-        // Clean old searches periodically
-        try {
-            searchHistoryDao?.cleanOldSearches()
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to clean old searches", e)
-        }
-
-        Log.d(TAG, "Saved search query: $query")
-    }
-
-    /**
-     * Remove a specific search query from history
-     */
-    suspend fun removeSearchQuery(query: String) {
-        searchHistoryDao?.deleteSearchByQuery(query)
-        Log.d(TAG, "Removed search query: $query")
-    }
-
-    /**
-     * Clear all search history
-     */
-    suspend fun clearSearchHistory() {
-        searchHistoryDao?.deleteAllSearches()
-        Log.d(TAG, "Cleared all search history")
-    }
+    suspend fun clearSearchHistory() = searchHistoryRepository.clearSearchHistory()
 
     // ========================================
     // Week 11: EPG OPERATIONS
