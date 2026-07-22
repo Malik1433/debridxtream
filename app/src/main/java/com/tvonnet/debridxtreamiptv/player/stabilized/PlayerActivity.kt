@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.ActivityManager
 import android.app.Dialog
 import android.content.Context
+import android.media.AudioManager
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.ConnectivityManager
@@ -186,6 +187,24 @@ class PlayerActivity : AppCompatActivity() {
     // ── channel-zap debounce (LP-B-1) ───────────────────────────────────────
     // The OSD/index advances on every keypress; the actual tune is coalesced to
     // the LAST target after the user settles (ZAP_DEBOUNCE_MS of no new zap).
+    /** P19b: transport-control wiring (buttons + volume), actions stay here. */
+    private val transportButtons: PlayerTransportButtons by lazy {
+        PlayerTransportButtons(playerView, object : TransportActions {
+            override fun onAudioSelection() = showAudioSelection()
+            override fun onSubtitleSelection() = showSubtitleSelection()
+            override fun onAspectRatio() = showAspectSelection()
+            override fun onPlay() { player?.play() }
+            override fun onPause() { player?.pause() }
+            override fun onRewind() { player?.seekBack() }
+            override fun onForward() { player?.seekForward() }
+            override fun onNextEpisode() = playNextEpisode()
+            override fun onPreviousEpisode() = playPreviousEpisode()
+            override fun onEpisodes() = showEpisodeBrowser()
+            override fun onSources() = openMovieSourcePanel()
+            override fun isControllerVisible(): Boolean = isControllerVisible
+        })
+    }
+
     /** P18: LP-B-1 — the OSD advances per keypress, the real connect is debounced. */
     private val zapDebouncer = PlayerZapDebouncer(
         handler = Handler(Looper.getMainLooper()),
@@ -757,81 +776,17 @@ class PlayerActivity : AppCompatActivity() {
                 }
             })
             
-            playerView.findViewById<View>(R.id.btn_player_audio)?.setOnClickListener {
-                showAudioSelection()
-            }
-
-            playerView.findViewById<View>(R.id.btn_player_language)?.setOnClickListener {
-                showAudioSelection()
-            }
-
-            playerView.findViewById<View>(R.id.btn_player_subtitles)?.setOnClickListener {
-                showSubtitleSelection()
-            }
-
-            playerView.findViewById<View>(R.id.exo_play)?.setOnClickListener {
-                player?.play()
-                updatePlayPauseVisibility(playerView, true, isControllerVisible)
-            }
-            playerView.findViewById<View>(R.id.exo_pause)?.setOnClickListener {
-                player?.pause()
-                updatePlayPauseVisibility(playerView, false, isControllerVisible)
-            }
-            playerView.findViewById<View>(R.id.exo_rew)?.setOnClickListener {
-                player?.seekBack()
-            }
-            playerView.findViewById<View>(R.id.exo_ffwd)?.setOnClickListener {
-                player?.seekForward()
-            }
-            
             player?.let { updatePlayPauseVisibility(playerView, it.isPlaying, isControllerVisible) }
             bindModernMetadata(streamTitle)
             setupInteractiveAnimations(playerView)
             setupSeekOverlay()
 
-            val btnNext = playerView.findViewById<View>(R.id.btn_next_episode)
-            val btnPrev = playerView.findViewById<View>(R.id.btn_prev_episode)
-            val btnEpisodes = playerView.findViewById<View>(R.id.btn_episodes)
             val isSeriesControls = contentType == ContentType.SERIES || contentType == ContentType.EPISODE
-            if (isSeriesControls) {
-                btnNext?.isVisible = true
-                btnNext?.setOnClickListener {
-                     playNextEpisode()
-                }
-                // VOD Player redesign: series-only PREV EP + EPISODES controls.
-                btnPrev?.isVisible = true
-                btnPrev?.setOnClickListener {
-                    playPreviousEpisode()
-                }
-                btnEpisodes?.isVisible = true
-                btnEpisodes?.setOnClickListener {
-                    playerView.hideController()
-                    showEpisodeBrowser()
-                }
-            } else {
-                btnNext?.isVisible = false
-                btnPrev?.isVisible = false
-                btnEpisodes?.isVisible = false
-            }
-            // Movies: an in-player "Sources" button to switch source/language mid-playback
-            // (e.g. Hindi → German) without going back to the detail screen.
-            val btnSources = playerView.findViewById<View>(R.id.btn_player_sources)
-            if (contentType == ContentType.MOVIE) {
-                btnSources?.isVisible = true
-                btnSources?.setOnClickListener {
-                    playerView.hideController()
-                    openMovieSourcePanel()
-                }
-            } else {
-                btnSources?.isVisible = false
-            }
+            transportButtons.bind(isSeriesControls, isMovie = contentType == ContentType.MOVIE)
+            transportButtons.bindVolume(getSystemService(Context.AUDIO_SERVICE) as? AudioManager)
             // VOD Player redesign: explicit horizontal focus chain so play/pause visibility
             // swaps never trap focus (both exo_play & exo_pause share the same L/R links).
             wireControlFocus(isSeriesControls)
-
-            playerView.findViewById<View>(R.id.btn_aspect_ratio)?.setOnClickListener {
-                showAspectSelection()
-            }
 
             nextEpisodeManager = PlayerNextEpisodeManager(this, playerView, object : PlayerNextEpisodeManager.Delegate {
                 override fun isPlaybackEligibleForPrompt(): Boolean {
@@ -879,42 +834,6 @@ class PlayerActivity : AppCompatActivity() {
             observeSeriesPlaylistState()
             observeDebridResolutionState()
             setupEpisodeBrowser()
-
-            val volumeProgress = playerView.findViewById<android.widget.SeekBar>(R.id.volume_progress)
-            val btnVolume = playerView.findViewById<android.widget.ImageButton>(R.id.btn_player_volume)
-            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
-
-            if (audioManager != null && volumeProgress != null) {
-                val maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
-                val currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
-                volumeProgress.max = maxVolume
-                volumeProgress.progress = currentVolume
-
-                volumeProgress.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
-                    override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
-                        if (fromUser) {
-                            audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, progress, android.media.AudioManager.FLAG_SHOW_UI)
-                            updateVolumeIcon(progress, maxVolume, btnVolume)
-                        }
-                    }
-                    override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
-                    override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {}
-                })
-
-                btnVolume?.setOnClickListener {
-                    val isMuted = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) == 0
-                    if (isMuted) {
-                        val prev = 7.coerceAtMost(maxVolume)
-                        audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, prev, android.media.AudioManager.FLAG_SHOW_UI)
-                        volumeProgress.progress = prev
-                        updateVolumeIcon(prev, maxVolume, btnVolume)
-                    } else {
-                        audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, 0, android.media.AudioManager.FLAG_SHOW_UI)
-                        volumeProgress.progress = 0
-                        updateVolumeIcon(0, maxVolume, btnVolume)
-                    }
-                }
-            }
 
             xrayController.bindToggle()
 
