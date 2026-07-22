@@ -8,8 +8,34 @@
 - NEVER save working files or tests to root — use `/src`, `/tests`, `/docs`, `/config`, `/scripts`
 - ALWAYS read a file before editing it
 - NEVER commit secrets, credentials, or .env files
-- Keep files under 500 lines
+- Keep files under 500 lines — enforced by detekt, see "Code structure" below
 - Validate input at system boundaries
+
+## Code structure & decomposition
+
+**Enforcement:** `./gradlew :app:detekt` (config `config/detekt/detekt.yml`). Everything oversized today
+is baselined; it only fails on NEW violations. Thresholds: class 600, method 60, cyclomatic 15,
+params 6/7. **NEVER run `detektBaseline` to silence a failure** — that deletes the guardrail. Regenerate
+only after real refactoring, so the baseline shrinks.
+
+**Line count is a proxy, not the goal — cohesion is.** Rules when breaking up a large file:
+
+- **Split by responsibility, not by line ranges.** Each extracted unit needs one reason to change. Do
+  not slice a file just to get under a number.
+- **The new file must not itself be a god-class.** (Real example: a Series extraction produced a
+  780-line `SeriesRepository` — that moved the problem instead of solving it. If a domain is too big for
+  one collaborator, split it further.)
+- **Behaviour-preserving by default:** move bodies verbatim, keep the public API stable so callers don't
+  change, verify `compileDebugKotlin` + full `:app:testDebugUnitTest` after every step. Any real
+  behaviour change is a separate, explicitly-approved commit.
+- **One phase per commit** so a regression is bisectable. Push per phase.
+- **UI / playback / Live changes require device QA on the Fire TV**, not just green tests — and must not
+  regress the known playback landmines (see the player memory notes and
+  `docs/reports/PLAYER_REFACTOR_PLAN.md`).
+- **Respect the approval gates** in the plan docs (e.g. PlayerActivity phases are owner-approved one at a
+  time; `PlayerNetworkStallManager` is explicitly BLOCKED). Ask before starting a gated phase.
+- Prefer the pattern already used in that package (e.g. `player/stabilized/` uses `Player*Manager` /
+  `*Controller` delegates; the data layer uses a thin facade over domain collaborators).
 
 ## Agent Comms — Reality-Based Coordination
 
