@@ -159,13 +159,13 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     private var subtitleEntries: List<String> by session::subtitleEntries
     private var activeTrackDialog: Dialog? = null
     private var timeoutMs: Long by session::timeoutMs
-    private val timeoutHandler = Handler(Looper.getMainLooper())
-    private val timeoutRunnable = Runnable { recovery.handleTimeout() }
-    private val retryHandler = Handler(Looper.getMainLooper())
+    internal val timeoutHandler = Handler(Looper.getMainLooper())
+    internal val timeoutRunnable = Runnable { recovery.handleTimeout() }
+    internal val retryHandler = Handler(Looper.getMainLooper())
 
     /** C1: error/timeout/network-recovery brain. Owns the connectivity callback;
      *  shares this Activity's timeout/retry Handlers so both arm/cancel the same work. */
-    private val recovery: PlayerRecoveryController by lazy {
+    internal val recovery: PlayerRecoveryController by lazy {
         PlayerRecoveryController(this, session, this, timeoutHandler, retryHandler, timeoutRunnable)
     }
 
@@ -339,17 +339,17 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     internal fun resetReconnectBudget() = reconnectManager.resetBudget()
     private fun showReconnectingBanner() = reconnectManager.showBanner()
     internal fun hideReconnectingBanner() = reconnectManager.hideBanner()
-    private fun maybeUpdateNetworkQuality() =
+    internal fun maybeUpdateNetworkQuality() =
         reconnectManager.maybeUpdateNetworkQuality(bandwidthMeter?.bitrateEstimate)
 
     /** P14: remembers which addon-proxy context last failed / already succeeded. */
-    private val addonProxyFailures = AddonProxyFailureTracker()
+    internal val addonProxyFailures = AddonProxyFailureTracker()
     private var hasRenderedFirstFrameForCurrentSource: Boolean by session::hasRenderedFirstFrameForCurrentSource
     // Black-video fallback: some HW decoders (e.g. MTK on high-bitrate/4K HEVC) play audio
     // but never render video under tunneling. If no frame arrives while audio is playing,
     // reinit once without tunneling.
     private var blackVideoFallbackTried: Boolean by session::blackVideoFallbackTried
-    private val blackVideoCheckRunnable = Runnable { checkBlackVideoFallback() }
+    internal val blackVideoCheckRunnable = Runnable { checkBlackVideoFallback() }
     internal var isControllerVisible = false
 
     private val overlayHandler = Handler(Looper.getMainLooper())
@@ -370,7 +370,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     private var switchCount: Int by session::switchCount
     private var debugListener: Player.Listener? = null
     private var playerListener: Player.Listener? = null
-    private val captureRunnable = Runnable { captureManualTrackSelection() }
+    internal val captureRunnable = Runnable { captureManualTrackSelection() }
     /** P8: the 1 Hz developer overlay; it renders only while [debugSnapshot] returns non-null. */
     private val debugOverlay = PlayerDebugOverlay(
         target = { tvDebugInfo },
@@ -441,7 +441,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     // Provider socket drops surface as STATE_ENDED; reconnect in place, but cap
     // it so an instantly-dropping stream degrades to the error path, not a loop.
     private var endedReconnects: Int by session::endedReconnects
-    private var lastEndedReconnectAtMs = 0L
+    internal var lastEndedReconnectAtMs = 0L
 
     // ── unified reconnect budget (QA fix 2) ─────────────────────────────────
     // The three recovery subsystems (generic error retry, ENDED-reconnect, live
@@ -568,9 +568,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         // Live viewers zap within seconds — catch a frozen first frame fast.
         private const val LIVE_VIDEO_FREEZE_THRESHOLD_MS = 4000L
         private const val MAX_LIVE_FREEZE_REPREPARES = 2
-        // How long audio may play with no video frame before the black-video fallback
-        // (reinit without tunneling) kicks in.
-        private const val BLACK_VIDEO_CHECK_MS = 5_000L
         // Unified reconnect budget (QA fix 2): aggregate ceiling across ALL recovery
         // subsystems so a dead channel can't chain error-retry + ENDED-reconnect +
         // freeze re-prepare into a burst against a WAF/max_connections=1 server.
@@ -580,9 +577,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         // settles — instead of a storm of socket cycles that trips the WAF and
         // (because each tune resets the reconnect budget) never trips our own throttle.
         private const val ZAP_DEBOUNCE_MS = 350L
-        // A just-dropped provider socket usually needs a moment before it accepts a
-        // new connection — an immediate retry mostly fails and burns a budget slot.
-        private const val LIVE_ENDED_RECONNECT_DELAY_MS = 1500L
         // Fixed cool-off for HTTP 429 when the server sends no Retry-After (QA fix 4).
         internal const val HTTP_429_COOLOFF_MS = 20_000L
         private const val OVERLAY_TIMEOUT = 6000L
@@ -1451,7 +1445,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         return addonProxyFailures.hasRepeatedServerError(context)
     }
 
-    private fun maybeRecordDirectAddonProxySuccess() {
+    internal fun maybeRecordDirectAddonProxySuccess() {
         val url = currentUrl ?: return
         if (!requiresAddonProxyPlaybackContext(url)) return
         if (!hasRenderedFirstFrameForCurrentSource) return
@@ -1604,194 +1598,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
             // scheduled 87%/-30s message lands on this instance (not the released previous one).
             if (::nextEpisodeManager.isInitialized) nextEpisodeManager.rebindPlayer()
 
-            playerListener = object : Player.Listener {
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    PlaybackDiagnosticsRecorder.record(
-                        this@PlayerActivity,
-                        "player_state_changed",
-                        diagnosticsPlaybackFields() + mapOf(
-                            "playerState" to PlaybackDiagnosticsRecorder.playerStateName(playbackState),
-                            "positionMs" to (player?.currentPosition ?: 0L),
-                            "durationMs" to (player?.duration ?: 0L)
-                        )
-                    )
-                    if (playbackState == Player.STATE_READY) {
-                         isSwitching = false
-                         // BUFFERING→READY: refresh the session network-quality estimate
-                         // (QA fix 7) using the passive bandwidth meter, debounced.
-                         if (lastBufferingStartMs != 0L) maybeUpdateNetworkQuality()
-                         // Keep the resume target alive while a debrid re-resolve is in flight:
-                         // clearing it here would make the upcoming seamless switch start from 0.
-                         if (!isResolvingDebrid && player?.currentPosition ?: 0L > 1000) startPositionMs = 0L
-                        maybeMatchDisplayFrameRate()
-                        // Black-video watchdog (VOD): audio can play while the HW decoder
-                        // renders no frames under tunneling — reinit without tunneling if so.
-                        if (contentType != ContentType.LIVE_TV &&
-                            !hasRenderedFirstFrameForCurrentSource && !blackVideoFallbackTried
-                        ) {
-                            timeoutHandler.removeCallbacks(blackVideoCheckRunnable)
-                            timeoutHandler.postDelayed(blackVideoCheckRunnable, BLACK_VIDEO_CHECK_MS)
-                        }
-                        timeoutHandler.removeCallbacks(timeoutRunnable)
-                        watchdogExtensions = 0
-                        watchdogBufferedPosAtArm = -1L
-                        retryCount = 0
-                        audioSinkRecoveryCount = 0
-                        // A clean READY means recovery succeeded — reset the unified
-                        // reconnect budget (fix 2) and retire the banner (fix 3).
-                        resetReconnectBudget()
-                        hideReconnectingBanner()
-                        // First playable frame — dissolve the cinematic loader to reveal video.
-                        loaderUi.hide()
-                        lastBufferingStartMs = 0L
-                        addonProxyFailures.clearFailures()
-                        maybeRecordDirectAddonProxySuccess()
-                        if (contentType != ContentType.LIVE_TV) {
-                            updatePlayPauseVisibility(playerView, player?.playWhenReady == true, isControllerVisible)
-                            backHideArmed = false
-                            playerView.showController()
-                        }
-                    } else if (playbackState == Player.STATE_BUFFERING) {
-                        timeoutHandler.removeCallbacks(timeoutRunnable)
-                        timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
-                        armWatchdogBaseline()
-                        if (lastBufferingStartMs == 0L) lastBufferingStartMs = SystemClock.elapsedRealtime()
-                    } else if (playbackState == Player.STATE_ENDED || playbackState == Player.STATE_IDLE) {
-                        timeoutHandler.removeCallbacks(timeoutRunnable)
-                        lastBufferingStartMs = 0L
-                        if (playbackState == Player.STATE_ENDED) {
-                             val nowMs = SystemClock.elapsedRealtime()
-                             if (nowMs - lastEndedReconnectAtMs > 30_000L) endedReconnects = 0
-                             val canReconnect = endedReconnects < 3
-                             // A live stream never legitimately ends — ENDED means the
-                             // provider dropped the socket. Reconnect instead of
-                             // silently finishing back to the channel list.
-                             if (contentType == ContentType.LIVE_TV) {
-                                  // Inner cap (endedReconnects) AND the aggregate budget
-                                  // must both allow it; canAttemptReconnect() records the
-                                  // attempt + shows the banner only when it returns true.
-                                  if (canReconnect && canAttemptReconnect()) {
-                                       endedReconnects++; lastEndedReconnectAtMs = nowMs
-                                       Log.i("PlayerActivity", "Live stream ended unexpectedly — reconnecting ($endedReconnects/3)")
-                                       // A just-dropped socket usually refuses an immediate
-                                       // reconnect — give the provider a moment so the FIRST
-                                       // attempt succeeds instead of burning budget slots.
-                                       // Stale-guarded: a zap meanwhile changes currentUrl
-                                       // and this runnable no-ops.
-                                       val urlAtEnded = currentUrl
-                                       retryHandler.postDelayed({
-                                            if (!isFinishing && !isDestroyed && currentUrl == urlAtEnded) {
-                                                 urlAtEnded?.let { liveTuner.performSeamlessSwitch(it) }
-                                            }
-                                       }, LIVE_ENDED_RECONNECT_DELAY_MS)
-                                  } else {
-                                       recovery.handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
-                                  }
-                                  return
-                             }
-                             // Same for VOD: a mid-stream socket drop reports ENDED
-                             // long before the real end. Only finish when actually
-                             // at the end of the content; otherwise resume in place.
-                             val durationMs = player?.duration ?: 0L
-                             val positionMs = player?.currentPosition ?: 0L
-                             val endedMidStream = durationMs > 0L && positionMs < durationMs - 15_000L
-                             if (endedMidStream && canReconnect && canAttemptReconnect()) {
-                                  endedReconnects++; lastEndedReconnectAtMs = nowMs
-                                  Log.i(
-                                      "PlayerActivity",
-                                      "Stream ended ${durationMs - positionMs}ms before content end — resuming ($endedReconnects/3)"
-                                  )
-                                  startPositionMs = positionMs
-                                  currentUrl?.let { liveTuner.performSeamlessSwitch(it) }
-                                  return
-                             }
-                             if (contentType == ContentType.SERIES || contentType == ContentType.EPISODE) {
-                                  // A next-episode resolve is already in flight (countdown/prompt
-                                  // path fired first) — never double-advance or finish() under it.
-                                  if (isResolvingDebrid) return
-                                  val state = viewModel.seriesPlaylistState.value
-                                  if (state?.hasNext == true) {
-                                       seriesController.playNextEpisode()
-                                       return
-                                  }
-                             }
-                             didPlaybackComplete = true
-                             if (!(::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible)) finish()
-                        }
-                    }
-                }
-                override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-                    if (contentType != ContentType.LIVE_TV) {
-                        updatePlayPauseVisibility(playerView, playWhenReady, isControllerVisible)
-                    } else if (playWhenReady) {
-                        maybeSnapToLiveEdge()
-                    }
-                }
-                override fun onRenderedFirstFrame() {
-                    hasRenderedFirstFrameForCurrentSource = true
-                    timeoutHandler.removeCallbacks(blackVideoCheckRunnable)
-                    liveOsd?.hideZapBackdrop()
-                    // First rendered frame = the source is genuinely playing; clear the
-                    // unified reconnect budget (fix 2) and hide the banner (fix 3).
-                    resetReconnectBudget()
-                    hideReconnectingBanner()
-                    maybeRecordDirectAddonProxySuccess()
-                    PlaybackDiagnosticsRecorder.record(
-                        this@PlayerActivity,
-                        "first_frame_rendered",
-                        diagnosticsPlaybackFields() + mapOf("positionMs" to (player?.currentPosition ?: 0L))
-                    )
-                }
-                override fun onTrackSelectionParametersChanged(parameters: androidx.media3.common.TrackSelectionParameters) {
-                    timeoutHandler.removeCallbacks(captureRunnable)
-                    timeoutHandler.postDelayed(captureRunnable, 1500)
-                }
-
-                override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
-                    PlaybackDiagnosticsRecorder.record(
-                        this@PlayerActivity,
-                        "track_discovery",
-                        diagnosticsPlaybackFields() + trackDiagnosticsFields(tracks)
-                    )
-                    if (!hasAppliedIndexOverride) {
-                        applyTrackIndexOverrides()
-                        hasAppliedIndexOverride = true
-                    }
-                    
-                    timeoutHandler.removeCallbacks(captureRunnable)
-                    timeoutHandler.postDelayed(captureRunnable, 1500)
-                    
-                    if (isSoftwareAudioEnabled) {
-                        val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
-                        var hasSupportedAudioSelected = false
-                        var firstSupportedGroup: androidx.media3.common.Tracks.Group? = null
-                        var hasAudioOverride = false
-                        for (group in audioGroups) {
-                            if (player?.trackSelectionParameters?.overrides?.containsKey(group.mediaTrackGroup) == true) {
-                                hasAudioOverride = true
-                            }
-                            if (group.isSupported) {
-                                if (firstSupportedGroup == null) firstSupportedGroup = group
-                                if (group.isSelected) { hasSupportedAudioSelected = true; break }
-                            }
-                        }
-                        if (!hasSupportedAudioSelected && firstSupportedGroup != null && audioGroups.size > 1 && !hasAudioOverride) {
-                             // LP-B-6: guard the snapshot — the old `?: player?.trackSelectionParameters!!`
-                             // fallback NPE'd if the player was released while this callback was in flight.
-                             player?.let { p ->
-                                 p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
-                                     .setOverrideForType(TrackSelectionOverride(firstSupportedGroup.mediaTrackGroup, 0))
-                                     .build()
-                             }
-                        }
-                    }
-                }
-                override fun onPlayerError(error: PlaybackException) {
-                    isSwitching = false
-                    timeoutHandler.removeCallbacks(timeoutRunnable)
-                    recovery.handlePlaybackError(error)
-                }
-            }
+            playerListener = PlayerEventListener(this, session, isSoftwareAudioEnabled)
             playerListener?.let { player?.addListener(it) }
 
             debugListener?.let { player?.removeListener(it) }
@@ -2129,7 +1936,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
      * the broadcast. Viewers expect play = live NOW, so snap to the live edge when
      * more than 30s behind (HLS/DASH only — raw TS has no live window).
      */
-    private fun maybeSnapToLiveEdge() {
+    internal fun maybeSnapToLiveEdge() {
         val p = player ?: return
         if (!p.isCurrentMediaItemLive) return
         val offsetMs = p.currentLiveOffset
@@ -2144,7 +1951,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
      * frame rate (e.g. 23.976fps film → 23.976/47.952Hz instead of judddering on 60Hz).
      * Skipped for live TV: a mode switch blanks the screen 1-2s, unacceptable while zapping.
      */
-    private fun maybeMatchDisplayFrameRate() {
+    internal fun maybeMatchDisplayFrameRate() {
         if (frameRateMatchedForCurrentSource) return
         if (contentType == ContentType.LIVE_TV) return
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
@@ -2507,7 +2314,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         )
     }
 
-    private fun applyTrackIndexOverrides() {
+    internal fun applyTrackIndexOverrides() {
         val p = player ?: return
         val seriesId = intent.getStringExtra(EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
         trackManager.applyTrackIndexOverrides(p, debridInfoHashExtra, seriesId)

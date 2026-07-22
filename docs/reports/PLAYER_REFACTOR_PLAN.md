@@ -493,3 +493,46 @@ Pattern that carried C2–C6: each controller holds the concrete `PlayerActivity
 state via `by session::field` delegates, collaborators via get-only forwarders / bridges, so method bodies
 moved byte-identical. Members the controllers reach were bumped `private`→`internal`. Every detekt flag
 across the pass was a pre-existing exemption relocated or re-keyed (baseline 355 → 348, net *shrank*).
+
+---
+
+# Part 2 — Fragment split to ≤600 (owner-approved 2026-07-23)
+
+**Goal:** every player file ≤600, the *standard* Android way. Measured start: PlayerActivity **2517**,
+of which `initializePlayer` 325 + `onCreate` 272 + 152 field decls (~200) + EPG-render cluster (~150) +
+stall/freeze cluster (~110) are the mass. Owner chose the **fragment split** (textbook) over a coordinator
+shell or extraction-only.
+
+**Target shape:**
+- `PlayerActivity` (~120 lines) — thin host: parse intent, pick + attach the fragment by contentType, forward
+  PiP / config-change callbacks. Owns no player logic.
+- `BasePlayerFragment` (≤600) — shared scaffolding both modes use: the ExoPlayer + PlayerView lifecycle,
+  `initializePlayer`, the collaborators (recovery, debrid coordinator, series controller, vm-binder, input
+  router, metadata, media-item, stall), error/timeout/exit/history, seek overlay, controller focus.
+- `LivePlayerFragment` (≤600) — live only: the live tuner + OSD + EPG renderer + zap + channel browser +
+  the `LiveSharedPlayer` adopt/hand-off + live key branches.
+- `VodPlayerFragment` (≤600) — VOD only: episode browser + up-next + source panel + VOD seek + VOD back.
+
+**Sequencing — Stage 1 first (low-risk collaborator extractions, same proven pattern, each device-verified),
+THEN the structural split.** Every phase: verbatim move, own commit + push, detekt, device QA on .64.
+
+| Phase | Extract | Est. after | Risk |
+|---|---|---|---|
+| ~~P20~~ | ✅ **DONE (`<p20>`)** — `PlayerEventListener` (282): the `Player.Listener` object out of `initializePlayer` (READY resets, BUFFERING watchdog, ENDED reconnect, first-frame, track-select). initializePlayer 325→~140. detekt +TooManyFunctions on the Activity (config calls this legitimate for facades) + relocated listener flags → baseline 348→351. Device .64: VOD resume+first-frame + live zap (3 switches). NOTE: the Fire TV screen sleeping made screencaps black + input queue — WAKEUP first. | 2323 | done |
+| P21 | `PlayerLiveEpgRenderer` — renderOverlay + setupOverlayViews + bindNextSlot + updateOverlayVisibility + setOverlayVisible + the ~15 EPG views (owns its own findViewById) | ~2130 | MED |
+| P22 | `PlayerStallMonitor` — checkForStall + checkVideoRenderProgress + readyStallRequiredStrikes + stall handler/runnable | ~2010 | MED (live) |
+| P23 | `PlayerMetadataBinder` — bindModernMetadata + the poster/title/subtitle/quality views | ~1930 | LOW |
+| P24 | `PlayerMediaItemFactory` — buildMediaItem + maybeMatchDisplayFrameRate (the TS-vs-HLS LiveConfiguration gate lives here — the landmine moves as a UNIT) | ~1840 | MED (landmine) |
+| P25 | `PlayerLaunchArgs` (intent → session) + slim `onCreate` into `setup*()` steps | ~1650 | MED |
+| — | *Stage 1 done: Activity ~1650, six new ≤600 collaborators.* | | |
+| P26 | **Activity → single `PlayerScreenFragment` + thin host Activity.** Behaviour-preserving move of the whole body into ONE fragment; Activity keeps only intent→fragment + PiP/config forwarding. Re-verify the FOUR landmines + shared-player hand-off + PiP + 2-step BACK. | Activity ~140, Fragment ~1500 | HIGH |
+| P27 | Split `PlayerScreenFragment` → `BasePlayerFragment` + `LivePlayerFragment` (move the `contentType==LIVE_TV` branches down) | Base ~800, Live ~500 | HIGH (live) |
+| P28 | Split out `VodPlayerFragment` (movie/episode branches) → Base ≤600 | Base ≤600, Vod ~450 | HIGH (VOD) |
+
+**Landmine gate (unchanged, re-checked every live/VOD-touching phase):** TS extractor flags, TS
+LiveConfiguration, first-frame AudioTrack, shared-player hand-off order — plus, for the fragment stages,
+PiP entry and the 2-step VOD BACK. Any red → stop, do not baseline over it.
+
+**Honest note:** P26 (Activity→Fragment) is the real risk cliff — Fire TV lifecycle, PiP is Activity-scoped,
+`onBackPressedDispatcher`, and the shared player all change ownership. It is done as ONE behaviour-preserving
+move (no Live/VOD split yet) so a regression is bisectable before the split in P27/P28.
