@@ -119,7 +119,7 @@ Any phase touching live playback must be re-verified against all four.
 
 | Phase | Extract | ~Lines | Risk |
 |---|---|---|---|
-| P6 | `PlayerHelpers.kt` — pure fns: cleanTitle, cleanLoaderTitle, frameRateMismatch, resolveMediaMimeType, resolveTimeoutMs, formatTimeRangeCompact, parseRetryAfterMs, isAudioSinkInitFailure, isTerminalDirectHttpPlaybackError, readyStallRequiredStrikes, requiresAddonProxyPlaybackContext, qoeMode, isDolbyVisionDisplaySupported | ~150 | LOW |
+| ~~P6~~ | ✅ **DONE (495d288)** — `PlayerHelpers.kt`: cleanTitle, cleanLoaderTitle, frameRateMismatch, parseRetryAfterMs, isAudioSinkInitFailure moved verbatim; qoeMode, resolveMediaMimeType, isTerminalDirectHttpPlaybackError parameterised to become state-free. **Not moved** (they read companion consts / the Display / the debrid repo, so forcing them out would have been worse): resolveTimeoutMs, readyStallRequiredStrikes, isDolbyVisionDisplaySupported, requiresAddonProxyPlaybackContext, formatTimeRangeCompact. New `PlayerHelpersTest` (9 tests). 4402→4270. | ~130 | LOW |
 | P7 | `PlayerDiagnosticsFields` — diagnosticsContent/Source/Playback/trackDiagnosticsFields, readStreamHeaders, effectivePlaybackHeadersFor (pass a state snapshot, don't reach into the Activity) | ~150 | LOW-MED |
 | P8 | `PlayerDebugOverlay` — startDebugOverlay, updateDebugOverlay | ~120 | LOW |
 | P9 | `PlayerPipController` + `PlayerXRayController` | ~140 | LOW-MED |
@@ -148,3 +148,12 @@ success bar**, and treat <500 as aspirational, unlike the data-layer classes.
    VOD (debrid), series episode + next-episode, resume-from-Continue-Watching, back/exit, PiP.
    Re-check the four landmines above.
 4. Commit + push per phase; one phase per commit so any regression is bisectable.
+
+## Phase execution log
+- **P6 — DONE 2026-07-22, commit `495d288`, pushed.** Device QA on 192.168.178.64: debrid series
+  episode resume + playback (House of the Dragon S1:E2, position written back on exit), live TS full
+  player + 3 zaps (HW.video.avc first frame, 1280x720 @ 2.9 Mbps — no freeze, no AudioTrack failure),
+  dead 8K channel degraded through the reconnect path without crashing, no FATAL in logcat.
+  Landmines re-checked: no TsExtractor flag change, no LiveConfiguration on TS, tunneling fallback
+  untouched, shared-player handoff untouched.
+- **Next: P7 / P8 are the low-risk pair — still NOT approved.** Ask the owner before starting either.
