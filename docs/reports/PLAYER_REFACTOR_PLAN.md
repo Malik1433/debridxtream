@@ -148,6 +148,45 @@ success bar**, and treat <500 as aspirational, unlike the data-layer classes.
    VOD (debrid), series episode + next-episode, resume-from-Continue-Watching, back/exit, PiP.
    Re-check the four landmines above.
 4. Commit + push per phase; one phase per commit so any regression is bisectable.
+5. **Refresh the detekt baseline (see below) and confirm its total count did NOT grow.**
+
+## Interaction with the detekt guardrail (added 2026-07-22)
+
+detekt baseline IDs are keyed `Rule:FileName.kt$Class$signature`. Moving an already-baselined method
+into a new delegate therefore changes its ID, and detekt reports it as a **new** violation even though
+the code is byte-identical. Phases P11 and P13-P19 each move at least one baselined method, so this
+will fire — it is expected, not a regression:
+
+| Phase | Baselined methods it relocates |
+|---|---|
+| P11 | bindModernMetadata |
+| P13 | observeSeriesPlaylistState, playNextEpisode, showEpisodeBrowser |
+| P14 | observeDebridResolutionState, refreshDirectDebridSourceFromMetadata, switchToMovieSource |
+| P15 | checkVideoRenderProgress |
+| P16 | handlePlaybackError, handleTimeout |
+| P17 | dispatchKeyEvent |
+| P18 | renderOverlay |
+| P19 | initializePlayer, onCreate |
+
+**Correct handling — do NOT "fix" the long method while moving it.** Splitting a 400-line playback
+method in the same commit as relocating it destroys the verbatim/zero-behaviour-change property that
+makes these phases safe to ship. Instead:
+
+1. Move verbatim; let detekt fail.
+2. `./gradlew :app:detektBaseline` to re-key the moved entries.
+3. **Verify the total did not grow:** `grep -c "<ID>" config/detekt/detekt-baseline.xml` must be **<=**
+   the pre-phase count (it was **300** at setup). Same count = a pure relocation. Higher = you added new
+   debt: investigate before committing.
+4. Commit the refreshed baseline **with** the phase, so the two always move together.
+
+Reducing those long methods is worthwhile, but as its own separate, separately-QA'd commit *after* the
+relocation has shipped and been device-verified.
+
+## Note on the line target vs the guardrail
+detekt's `LargeClass` threshold is 600. The 600-800 success bar above means PlayerActivity would still
+carry a baselined LargeClass entry at the end. That is acceptable (it stays grandfathered), but if you
+want the file to actually clear the guardrail rather than stay baselined, the real target is **<600**,
+which realistically needs P19 to split `initializePlayer` + `onCreate` across two delegates, not one.
 
 ## Phase execution log
 - **P6 — DONE 2026-07-22, commit `495d288`, pushed.** Device QA on 192.168.178.64: debrid series

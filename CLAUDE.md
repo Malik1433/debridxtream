@@ -15,8 +15,15 @@
 
 **Enforcement:** `./gradlew :app:detekt` (config `config/detekt/detekt.yml`). Everything oversized today
 is baselined; it only fails on NEW violations. Thresholds: class 600, method 60, cyclomatic 15,
-params 6/7. **NEVER run `detektBaseline` to silence a failure** — that deletes the guardrail. Regenerate
-only after real refactoring, so the baseline shrinks.
+params 6/7.
+
+**Baseline discipline.** Baseline IDs are keyed `Rule:File.kt$Class$signature`, so *relocating* an
+already-baselined method into a new file legitimately re-fires as "new". That case is expected:
+regenerate with `./gradlew :app:detektBaseline`, then **verify the total did not grow** —
+`grep -c "<ID>" config/detekt/detekt-baseline.xml` must be **<=** the previous count (300 at setup) —
+and commit the refreshed baseline together with the refactor. **Never regenerate to silence a genuinely
+new violation**, and never "fix" a long method in the same commit that moves it — relocate verbatim
+first, improve it in a separate, separately-verified commit.
 
 **Line count is a proxy, not the goal — cohesion is.** Rules when breaking up a large file:
 
