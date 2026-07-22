@@ -568,10 +568,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         // Live viewers zap within seconds — catch a frozen first frame fast.
         private const val LIVE_VIDEO_FREEZE_THRESHOLD_MS = 4000L
         private const val MAX_LIVE_FREEZE_REPREPARES = 2
-        // Dead/looping provider restreams reconnect forever without this cap:
-        // the server replays the same GOP on every connection, so retry #3+
-        // can never succeed. Fail fast with a clear message instead.
-        internal const val LIVE_MAX_RETRIES = 2
         // How long audio may play with no video frame before the black-video fallback
         // (reinit without tunneling) kicks in.
         private const val BLACK_VIDEO_CHECK_MS = 5_000L
@@ -584,26 +580,9 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         // settles — instead of a storm of socket cycles that trips the WAF and
         // (because each tune resets the reconnect budget) never trips our own throttle.
         private const val ZAP_DEBOUNCE_MS = 350L
-        // Progress-aware watchdog: extra 12s windows granted while the buffer is
-        // still growing (slow-but-alive connection), before tearing the player down.
-        internal const val MAX_WATCHDOG_EXTENSIONS = 2
         // A just-dropped provider socket usually needs a moment before it accepts a
         // new connection — an immediate retry mostly fails and burns a budget slot.
         private const val LIVE_ENDED_RECONNECT_DELAY_MS = 1500L
-        // AudioTrack-allocation recovery (device-verified 2026-07-18, dumpsys
-        // media.audio_flinger). Two distinct failures share the "AudioTrack init failed /
-        // Cannot create AudioTrack" symptom:
-        //   (a) tunneled HW-AV-sync slot briefly held by a prior session — ONE re-init
-        //       without tunneling recovers it (the rare, genuinely transient case);
-        //   (b) AudioFlinger output SATURATED ("no more tracks available", errno -12) —
-        //       ~80 leaked tracks accumulated across app restarts because this Amlogic
-        //       firmware never reclaims released/dead-process AudioTracks. NOTHING an
-        //       in-app re-init can do here; each attempt only LEAKS ~5 more tracks (media3
-        //       retries the AudioTrack build 5× per init). Needs a device reboot.
-        // So: exactly ONE recovery attempt (covers case a), then fail fast with an
-        // actionable message (case b) instead of a leak-amplifying retry spiral.
-        internal const val AUDIO_SINK_MAX_RECOVERIES = 1
-        internal const val AUDIO_SINK_COOLOFF_MS = 900L
         // Fixed cool-off for HTTP 429 when the server sends no Retry-After (QA fix 4).
         internal const val HTTP_429_COOLOFF_MS = 20_000L
         private const val OVERLAY_TIMEOUT = 6000L
@@ -625,7 +604,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         private const val DEBRID_READY_STALL_STRIKES = 3
         private const val DIRECT_DEBRID_READY_STALL_STRIKES = 4
         private const val DIRECT_DEBRID_LOW_RAM_STALL_STRIKES = 3
-        internal const val NETWORK_RECOVERY_BUFFER_MS = 5000L
         const val EXTRA_SERIES_ID = "EXTRA_SERIES_ID"
         const val EXTRA_SEASON_NUM = "EXTRA_SEASON_NUM"
         const val EXTRA_EPISODE_NUM = "EXTRA_EPISODE_NUM"

@@ -145,7 +145,7 @@ internal class PlayerRecoveryController(
         if (!playerSnapshot.playWhenReady) return
         val now = SystemClock.elapsedRealtime()
         val bufferingMs = if (lastBufferingStartMs > 0L) now - lastBufferingStartMs else 0L
-        if (playerSnapshot.playbackState == Player.STATE_IDLE || (playerSnapshot.playbackState == Player.STATE_BUFFERING && bufferingMs >= PlayerActivity.NETWORK_RECOVERY_BUFFER_MS)) {
+        if (playerSnapshot.playbackState == Player.STATE_IDLE || (playerSnapshot.playbackState == Player.STATE_BUFFERING && bufferingMs >= NETWORK_RECOVERY_BUFFER_MS)) {
             // Consult the unified budget (fix 2) so a flapping network can't chain
             // re-inits past the aggregate ceiling; shows the banner (fix 3) too.
             if (!canAttemptReconnect()) {
@@ -195,13 +195,13 @@ internal class PlayerRecoveryController(
         // Bounded by AUDIO_SINK_MAX_RECOVERIES so a genuinely dead audio device fails
         // cleanly instead of looping a frozen frame.
         if (isAudioSinkInitFailure(error)) {
-            if (audioSinkRecoveryCount < PlayerActivity.AUDIO_SINK_MAX_RECOVERIES && canAttemptReconnect()) {
+            if (audioSinkRecoveryCount < AUDIO_SINK_MAX_RECOVERIES && canAttemptReconnect()) {
                 audioSinkRecoveryCount++
                 val tunnelingWasOn = !disableTunnelingForSession
                 disableTunnelingForSession = true
                 Log.w(
                     "PlayerActivity",
-                    "AudioTrack init failed — audio-device recovery $audioSinkRecoveryCount/${PlayerActivity.AUDIO_SINK_MAX_RECOVERIES} (tunnelingWasOn=$tunnelingWasOn), cool-off ${PlayerActivity.AUDIO_SINK_COOLOFF_MS}ms"
+                    "AudioTrack init failed — audio-device recovery $audioSinkRecoveryCount/${AUDIO_SINK_MAX_RECOVERIES} (tunnelingWasOn=$tunnelingWasOn), cool-off ${AUDIO_SINK_COOLOFF_MS}ms"
                 )
                 PlaybackDiagnosticsRecorder.record(
                     activity,
@@ -216,7 +216,7 @@ internal class PlayerRecoveryController(
                     startPositionMs = player!!.currentPosition
                 }
                 player?.release(); player = null
-                retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, PlayerActivity.AUDIO_SINK_COOLOFF_MS)
+                retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, AUDIO_SINK_COOLOFF_MS)
                 return
             }
             // The single recovery didn't help → the audio output is saturated (leaked
@@ -277,7 +277,7 @@ internal class PlayerRecoveryController(
         // debrid path treats 429 as terminal separately (isTerminalDirectHttpPlaybackError).
         val responseCode = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
         if (isRateLimitCoolOff(responseCode, directDebridPlayback)) {
-            if (retryCount < maxRetriesFor(contentType, PlayerActivity.LIVE_MAX_RETRIES, maxRetries) &&
+            if (retryCount < maxRetriesFor(contentType, LIVE_MAX_RETRIES, maxRetries) &&
                 canAttemptReconnect()
             ) {
                 retryCount++
@@ -302,7 +302,7 @@ internal class PlayerRecoveryController(
             }
             return
         }
-        if (retryCount < maxRetriesFor(contentType, PlayerActivity.LIVE_MAX_RETRIES, maxRetries)) {
+        if (retryCount < maxRetriesFor(contentType, LIVE_MAX_RETRIES, maxRetries)) {
             // Aggregate budget gate (fix 2): even under the per-source retry cap, refuse
             // to reconnect once the rolling window is spent. Records the attempt + shows
             // the banner when allowed.
@@ -368,13 +368,13 @@ internal class PlayerRecoveryController(
             if (contentType == ContentType.LIVE_TV) {
                 val buffered = player?.bufferedPosition ?: 0L
                 if (buffered > watchdogBufferedPosAtArm + 500L &&
-                    watchdogExtensions < PlayerActivity.MAX_WATCHDOG_EXTENSIONS
+                    watchdogExtensions < MAX_WATCHDOG_EXTENSIONS
                 ) {
                     watchdogExtensions++
                     watchdogBufferedPosAtArm = buffered
                     Log.i(
                         "PlayerActivity",
-                        "Buffering slow but progressing (buffered=${buffered}ms) — extending watchdog $watchdogExtensions/${PlayerActivity.MAX_WATCHDOG_EXTENSIONS}"
+                        "Buffering slow but progressing (buffered=${buffered}ms) — extending watchdog $watchdogExtensions/${MAX_WATCHDOG_EXTENSIONS}"
                     )
                     timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
                     return
@@ -399,7 +399,7 @@ internal class PlayerRecoveryController(
                 handleTerminalPlaybackFailure("Connection timeout")
                 return
             }
-            if (retryCount < (if (contentType == ContentType.LIVE_TV) PlayerActivity.LIVE_MAX_RETRIES else maxRetries)) {
+            if (retryCount < (if (contentType == ContentType.LIVE_TV) LIVE_MAX_RETRIES else maxRetries)) {
                 // Aggregate budget gate (fix 2): a stuck first-connect timeout is part
                 // of the same reconnect family; refuse once the window is spent.
                 if (!canAttemptReconnect()) {
@@ -432,7 +432,7 @@ internal class PlayerRecoveryController(
                 // only the source starved — so this cuts each visible reconnect by
                 // ~4-5s and avoids the audio-focus abandon/request churn. The full
                 // engine rebuild is kept as the SECOND retry for wedged pipelines.
-                if (contentType == ContentType.LIVE_TV && retryCount < PlayerActivity.LIVE_MAX_RETRIES && player != null) {
+                if (contentType == ContentType.LIVE_TV && retryCount < LIVE_MAX_RETRIES && player != null) {
                     Log.i("PlayerActivity", "Buffer timeout — in-place re-prepare (retry $retryCount)")
                     currentUrl?.let { performSeamlessSwitch(it) }
                     return
@@ -449,5 +449,30 @@ internal class PlayerRecoveryController(
                 handleTerminalPlaybackFailure("Connection timeout")
             }
         }
+    }
+
+    private companion object {
+        // Dead/looping provider restreams reconnect forever without this cap:
+        // the server replays the same GOP on every connection, so retry #3+
+        // can never succeed. Fail fast with a clear message instead.
+        const val LIVE_MAX_RETRIES = 2
+        // Progress-aware watchdog: extra 12s windows granted while the buffer is
+        // still growing (slow-but-alive connection), before tearing the player down.
+        const val MAX_WATCHDOG_EXTENSIONS = 2
+        // AudioTrack-allocation recovery (device-verified 2026-07-18, dumpsys
+        // media.audio_flinger). Two distinct failures share the "AudioTrack init failed /
+        // Cannot create AudioTrack" symptom:
+        //   (a) tunneled HW-AV-sync slot briefly held by a prior session — ONE re-init
+        //       without tunneling recovers it (the rare, genuinely transient case);
+        //   (b) AudioFlinger output SATURATED ("no more tracks available", errno -12) —
+        //       ~80 leaked tracks accumulated across app restarts because this Amlogic
+        //       firmware never reclaims released/dead-process AudioTracks. NOTHING an
+        //       in-app re-init can do here; each attempt only LEAKS ~5 more tracks (media3
+        //       retries the AudioTrack build 5× per init). Needs a device reboot.
+        // So: exactly ONE recovery attempt (covers case a), then fail fast with an
+        // actionable message (case b) instead of a leak-amplifying retry spiral.
+        const val AUDIO_SINK_MAX_RECOVERIES = 1
+        const val AUDIO_SINK_COOLOFF_MS = 900L
+        const val NETWORK_RECOVERY_BUFFER_MS = 5000L
     }
 }

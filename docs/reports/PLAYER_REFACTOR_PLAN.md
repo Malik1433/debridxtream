@@ -452,4 +452,44 @@ Design:
   crash. (Separately observed + FLAGGED a pre-existing `LiveTvGuideFragment` binding NPE on fast nav — a posted
   chip-build runnable touches the destroyed view binding; entirely outside this refactor.)
 
-Then F1 sweep → ~600.
+### F1 field/companion sweep — DONE (2538→2516)
+Moved the five recovery-only constants that C1 had left in the Activity companion (referenced from the
+controller as `PlayerActivity.X`) into `PlayerRecoveryController`'s own `companion object`, so the constant
+and its documentation now live next to the logic that owns it: `LIVE_MAX_RETRIES`, `MAX_WATCHDOG_EXTENSIONS`,
+`AUDIO_SINK_MAX_RECOVERIES`, `AUDIO_SINK_COOLOFF_MS`, `NETWORK_RECOVERY_BUFFER_MS` (incl. the 12-line
+device-verified AudioTrack-recovery note). Values byte-identical — compile-verified. `HTTP_429_COOLOFF_MS`
+stays on the Activity (also used by its media3 `playbackLoadErrorPolicy`). detekt clean (no baseline change),
+full tests green, device smoke on .64 (a debrid item resumes + first-frames) clean.
+
+The rest of the "state" already moved with its collaborator during C1–C6 (all mutable screen state lives in
+`PlayerSessionState` since S1; each controller owns its own fields). No further single-owner constants/fields
+remain that can move without adding coupling.
+
+---
+
+## Route-to-≤600: outcome (2026-07-23)
+
+**Done: C1–C6 + F1, all committed, pushed, and device-verified on .64.** PlayerActivity **3539 → 2516**
+(−1023), seven new ≤600 collaborators created (each with its landmine discipline intact):
+
+| Phase | New file | Lines | Activity after |
+|---|---|---|---|
+| C1 | `PlayerRecoveryController` | 478 | 3244 |
+| C2 | `PlayerLiveTuner` | 277 | 3062 |
+| C3 | `PlayerDebridCoordinator` | 189 | 2946 |
+| C4 | `PlayerSeriesController` | 345 | 2686 |
+| C5 | `PlayerViewModelBinder` | 71 | 2658 |
+| C6 | `PlayerInputRouter` | 195 | 2538 |
+| F1 | (constants sweep) | — | 2516 |
+
+**The Activity is at 2516, not ≤600 — as this plan predicted.** Every *created* file is ≤600 by design;
+the Activity's remaining mass is `onCreate`/`initializePlayer` (~800 together), the view-field declarations,
+and the setup wiring that binds all seven collaborators. Getting the Activity itself to ≤600 needs the
+**screen split** (a `PlayerScreenCoordinator` owning the delegates, or separate Live/VOD player screens) —
+a structural change with a real regression surface that, per the top of this section, **needs its own plan +
+owner approval**. It was deliberately left out of the route-to-600 pass.
+
+Pattern that carried C2–C6: each controller holds the concrete `PlayerActivity` + `PlayerSessionState`;
+state via `by session::field` delegates, collaborators via get-only forwarders / bridges, so method bodies
+moved byte-identical. Members the controllers reach were bumped `private`→`internal`. Every detekt flag
+across the pass was a pre-existing exemption relocated or re-keyed (baseline 355 → 348, net *shrank*).
