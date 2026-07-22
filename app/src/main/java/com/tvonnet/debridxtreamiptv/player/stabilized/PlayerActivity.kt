@@ -782,7 +782,7 @@ class PlayerActivity : AppCompatActivity() {
         val streamTitle = intent.getStringExtra(EXTRA_STREAM_TITLE)
         startPositionMs = intent.getLongExtra(EXTRA_START_POSITION, 0L)
         originalTitle = streamTitle
-        streamHeaders = readStreamHeaders(intent)
+        streamHeaders = readStreamHeaders(intent, EXTRA_STREAM_HEADERS)
         subtitleEntries = intent.getStringArrayListExtra(EXTRA_SUBTITLE_ENTRIES) ?: emptyList()
 
         val isDebrid = playbackSource == PlaybackSource.DEBRID
@@ -2022,12 +2022,6 @@ class PlayerActivity : AppCompatActivity() {
 
 
 
-    private fun readStreamHeaders(intent: Intent): Map<String, String>? {
-        @Suppress("UNCHECKED_CAST")
-        val raw = intent.getSerializableExtra(EXTRA_STREAM_HEADERS) as? HashMap<String, String>
-        return raw?.takeIf { it.isNotEmpty() }
-    }
-
     private fun requiresAddonProxyPlaybackContext(url: String?): Boolean {
         return directDebridPlayback && debridPlaybackRepository.requiresDirectProxyReadinessCheck(
             url = url,
@@ -2045,38 +2039,30 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun diagnosticsContentFields(): Map<String, Any?> {
-        return PlaybackDiagnosticsRecorder.contentFields(
-            kind = contentType?.name?.lowercase(Locale.US) ?: "unknown",
-            tmdbId = tmdbIdExtra,
-            imdbId = imdbIdExtra,
-            season = seasonNumberExtra,
-            episode = episodeNumberExtra
-        )
-    }
-
-    private fun diagnosticsSourceFields(): Map<String, Any?> {
-        return mapOf(
-            "provider" to debridProviderExtra,
-            "sourceType" to debridSourceTypeExtra,
-            "sourceName" to debridSourceNameExtra,
-            "languages" to debridLanguagesExtra,
-            "quality" to debridQualityExtra,
-            "hasBingeGroup" to !debridBingeGroupExtra.isNullOrBlank(),
-            "bingeGroupFingerprint" to PlaybackDiagnosticsRecorder.identityFingerprint(debridBingeGroupExtra),
-            "fileIdx" to debridFileIdxExtra,
-            "streamIdFingerprint" to PlaybackDiagnosticsRecorder.identityFingerprint(debridStreamIdExtra ?: debridInfoHashExtra)
-        )
-    }
-
     private fun diagnosticsPlaybackFields(
         url: String? = currentUrl,
         headers: Map<String, String>? = effectivePlaybackHeadersFor(url),
         retry: Int? = retryCount,
         mimeHint: String? = null
     ): Map<String, Any?> {
-        return diagnosticsContentFields() +
-            diagnosticsSourceFields() +
+        return diagnosticsContentFields(
+                kind = contentType?.name?.lowercase(Locale.US) ?: "unknown",
+                tmdbId = tmdbIdExtra,
+                imdbId = imdbIdExtra,
+                season = seasonNumberExtra,
+                episode = episodeNumberExtra
+            ) +
+            diagnosticsSourceFields(
+                provider = debridProviderExtra,
+                sourceType = debridSourceTypeExtra,
+                sourceName = debridSourceNameExtra,
+                languages = debridLanguagesExtra,
+                quality = debridQualityExtra,
+                bingeGroup = debridBingeGroupExtra,
+                fileIdx = debridFileIdxExtra,
+                streamId = debridStreamIdExtra,
+                infoHash = debridInfoHashExtra
+            ) +
             PlaybackDiagnosticsRecorder.playbackFields(
                 context = this,
                 url = url,
@@ -4085,41 +4071,6 @@ class PlayerActivity : AppCompatActivity() {
             this,
             "track_selected",
             diagnosticsPlaybackFields() + trackDiagnosticsFields(p.currentTracks)
-        )
-    }
-
-    private fun trackDiagnosticsFields(tracks: androidx.media3.common.Tracks): Map<String, Any?> {
-        var supportedAudioTrackCount = 0
-        var supportedTextTrackCount = 0
-        val selectedAudioLanguages = mutableListOf<String>()
-        val selectedTextLanguages = mutableListOf<String>()
-
-        tracks.groups.forEach { group ->
-            for (index in 0 until group.length) {
-                if (!group.isTrackSupported(index)) continue
-                val format = group.getTrackFormat(index)
-                when (group.type) {
-                    C.TRACK_TYPE_AUDIO -> {
-                        supportedAudioTrackCount++
-                        if (group.isTrackSelected(index)) {
-                            selectedAudioLanguages += format.language ?: "unknown"
-                        }
-                    }
-                    C.TRACK_TYPE_TEXT -> {
-                        supportedTextTrackCount++
-                        if (group.isTrackSelected(index)) {
-                            selectedTextLanguages += format.language ?: "unknown"
-                        }
-                    }
-                }
-            }
-        }
-
-        return mapOf(
-            "supportedAudioTrackCount" to supportedAudioTrackCount,
-            "supportedTextTrackCount" to supportedTextTrackCount,
-            "selectedAudioLanguages" to selectedAudioLanguages.distinct(),
-            "selectedTextLanguages" to selectedTextLanguages.distinct()
         )
     }
 
