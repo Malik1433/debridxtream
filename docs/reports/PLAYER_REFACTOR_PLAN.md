@@ -312,14 +312,25 @@ plan + approval. Every file CREATED by the steps above stays ≤600 by design.
   declares each as `by session::field`, so every call site (Activity + collaborators) compiled unchanged.
   This is the enabler: new controllers take the session directly, no more 20-callback host interfaces.
 
-### Next: C1 `PlayerRecoveryController` (design settled, not yet executed)
-Move verbatim: `handlePlaybackError` (all reactions), `handleTimeout`, `attemptNetworkRecovery`,
-`handleInitializationError`, `retryBackoffDelayMs`, the timeout/retry Handlers and the network callback
-register/unregister. Constructor: `(activity: Context, session: PlayerSessionState, host: RecoveryHost)`.
-`RecoveryHost` (~14 methods — an interface, so detekt is fine): player()/setPlayer(null)/releasePlayer,
-initializePlayer(url), performSeamlessSwitch(url), canAttemptReconnect(), handleTerminal(reason, prefer),
-finishWithReturnToSources(auto, reason), refreshDirectDebrid(reason): Boolean, canUseDebridResolver(),
-reResolveDebrid(), recordProxyFailure(), hasRepeatedProxyTimeout(url), hasRepeatedProxyServerError(err),
-requiresAddonProxyContext(url), diagnosticsFields(...). All session state reads/writes go through
-`session.` directly — that is the point of S1.
+### C1 `PlayerRecoveryController` — DONE (3539→3244, controller 453 lines)
+Moved verbatim: `handlePlaybackError` (all reactions), `handleTimeout`, `attemptNetworkRecovery`,
+`handleInitializationError`, `retryBackoffDelayMs`, the network callback register/unregister +
+`connectivityManager`/`networkCallback` (fully owned now). Constructor `(activity, session, host,
+timeoutHandler, retryHandler, timeoutRunnable)`.
+
+Design decisions that departed from the sketch above (all to keep the move truly verbatim):
+- **The two Handlers + `timeoutRunnable` stay owned by the Activity**, not the controller — they are
+  armed/cancelled from ~30 non-recovery sites (initializePlayer, the lifecycle callbacks, releasePlayer).
+  The controller holds the SAME instances (passed in), so both sides post/cancel the same work and every
+  one of those 30 sites compiled unchanged. Only `timeoutRunnable`'s body flipped to `recovery.handleTimeout()`.
+- **Session state via delegated props on the controller** (`by session::field`, same idiom as the Activity)
+  + a `player` bridge property (get/set → host) → the moved bodies are byte-identical; only 4 mechanical
+  edits: consts → `PlayerActivity.X` (bumped 6 to `internal`), `record(this,`→`record(activity,`,
+  `viewModel.reResolveDebridUrl`/`settingsPreferences.isAutoReconnectEnabled()` → host forwarders.
+- **`RecoveryHost` kept the Activity's real method NAMES** (so review is 1:1); existing methods just gained
+  `override` (private→public). New tiny overrides: `peekPlayer`/`assignPlayer`/`requestSeamlessSwitch`/
+  `diagnosticsFields`/`isAutoReconnectEnabled`/`reResolveDebridUrl`/`maxRetriesConfigured`.
+- detekt: no NEW violations; the 7 controller flags are the SAME giant-method exemptions relocated from
+  the Activity (baseline regenerated 355→**349**, i.e. shrank — verified none genuinely new).
+
 Then C2 live tuner, C3 debrid coordinator, C4 series, C5 UI binder, C6 input shell, F1 sweep → ~600.
