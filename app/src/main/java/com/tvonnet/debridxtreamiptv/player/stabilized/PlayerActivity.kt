@@ -2059,131 +2059,30 @@ class PlayerActivity : AppCompatActivity() {
             armWatchdogBaseline()
             hasRenderedFirstFrameForCurrentSource = false
 
-            val httpDataSourceFactory = OkHttpDataSource.Factory(playbackOkHttpClient)
             val requestHeaders = effectivePlaybackHeadersFor(streamUrl)
             PlaybackDiagnosticsRecorder.record(
                 this,
                 "player_initialize_started",
                 diagnosticsPlaybackFields(streamUrl, requestHeaders)
             )
-            if (!requestHeaders.isNullOrEmpty()) {
-                httpDataSourceFactory.setDefaultRequestProperties(requestHeaders)
-            }
-            if (requestHeaders?.keys?.any { it.equals("User-Agent", ignoreCase = true) } != true) {
-                // Xtream panels throttle/starve stream requests from unknown player UAs
-                // (first GOP then nothing) — identify playback exactly like our API
-                // client does. Debrid CDNs don't care, keep the app UA there.
-                httpDataSourceFactory.setUserAgent(
-                    if (playbackSource == PlaybackSource.DEBRID) {
-                        "DebridXtream/1.0 (Linux; Android 10; TV)"
-                    } else {
-                        "IPTVSmartersPlayer"
-                    }
-                )
-            }
-
-            val isDebrid = playbackSource == PlaybackSource.DEBRID
-
-            // 1. Bypass physical disk caching for high-bitrate Debrid streams to prevent I/O choking.
-            //    Using pure upstream network resolution (RAM only) ensures the decoder isn't starved by slow eMMC writes.
-            //    Live streams also bypass: an infinite TS stream through a 500MB LRU cache is
-            //    pure eviction churn with zero reuse value.
-            // NOTE: do NOT set TsExtractor FLAG_ALLOW_NON_IDR_KEYFRAMES /
-            // FLAG_DETECT_ACCESS_UNITS here — they froze video (audio kept playing)
-            // on some AVC live TS channels (Belgium category) on MTK Fire TVs.
-            val mediaSourceFactory = if (isDebrid || contentType == ContentType.LIVE_TV) {
-                DefaultMediaSourceFactory(httpDataSourceFactory)
-            } else {
-                val dataSourceFactory = CacheDataSource.Factory()
-                    .setCache(PlayerCacheManager.getCache(this))
-                    .setUpstreamDataSourceFactory(httpDataSourceFactory)
-                    .setCacheWriteDataSinkFactory(CacheDataSink.Factory().setCache(PlayerCacheManager.getCache(this)))
-                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-                DefaultMediaSourceFactory(dataSourceFactory)
-            }.setLoadErrorHandlingPolicy(playbackLoadErrorPolicy)
-            
-            val bufferConfig = PlayerBufferConfigFactory.buildConfig(this, settingsPreferences, contentType, streamUrl, isDebrid)
-            val backBufferMs =
-                if (contentType != ContentType.LIVE_TV && !DeviceProfile.isLowRamDevice(this)) 15000 else 0
-            val loadControl = DefaultLoadControl.Builder()
-                .setBufferDurationsMs(bufferConfig.minBufferMs, bufferConfig.maxBufferMs, bufferConfig.startPlaybackMs, bufferConfig.rebufferPlaybackMs)
-                // 2. Increase Target Buffer Bytes threshold for Debrid to allow heavy Pre-buffering
-                .setTargetBufferBytes(PlayerBufferConfigFactory.resolveTargetBufferBytes(this, isDebrid))
-                // On low-RAM devices the byte cap must win: with time-priority a single
-                // high-bitrate 4K stream buffers past the heap limit and OOMs the app.
-                .setPrioritizeTimeOverSizeThresholds(!DeviceProfile.isLowRamDevice(this))
-                .setBackBuffer(backBufferMs, /* retainBackBufferFromKeyframe= */ true)
-                .build()
-            
-            val trackSelector = DefaultTrackSelector(this)
-            // 3. Enable hardware Video Tunneling. This offloads audio/video synchronization to the hardware composer.
             if (disableTunnelingForSession) {
                 Log.i("PlayerActivity", "Tunneling disabled for this session after video freeze")
             }
-            var parametersBuilder = trackSelector.buildUponParameters()
-                .setTunnelingEnabled(!disableTunnelingForSession)
-            trackManager.preferredAudioLanguage?.let { parametersBuilder = parametersBuilder.setPreferredAudioLanguage(it) }
-            trackManager.preferredSubtitleLanguage?.let { parametersBuilder = parametersBuilder.setPreferredTextLanguage(it) }
-            // On a known-slow connection, cap adaptive selections at 1080p/8Mbps so
-            // HLS/DASH masters don't pick a 4K rendition that immediately stalls.
-            // Single-track streams (torrents, raw TS) are unaffected.
-            val savedNetworkQuality = runCatching {
-                NetworkQuality.valueOf(settingsPreferences.getNetworkQuality())
-            }.getOrDefault(NetworkQuality.MODERATE)
-            if (savedNetworkQuality == NetworkQuality.SLOW) {
-                parametersBuilder = parametersBuilder
-                    .setMaxVideoSize(1920, 1080)
-                    .setMaxVideoBitrate(8_000_000)
-            }
-            trackSelector.parameters = parametersBuilder.build()
-
-            val extensionMode = if (isSoftwareAudioEnabled) DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
-            val renderersFactory = DefaultRenderersFactory(this)
-                .setExtensionRendererMode(extensionMode)
-                // If the primary hardware decoder fails to initialize (e.g. HEVC on a busy
-                // or incapable SoC), fall back to a lower-priority decoder instead of erroring.
-                .setEnableDecoderFallback(true)
-                // Dolby Vision on a non-DV display renders to a black screen (audio plays).
-                // When the display can't do DV, hide the DV decoder so media3 falls back to
-                // its HEVC base layer (the HDR10/SDR image of DV profile 7/8), which plays.
-                .setMediaCodecSelector(dolbyVisionAwareCodecSelector())
-
-            val audioAttributes = AudioAttributes.Builder()
-                .setUsage(C.USAGE_MEDIA)
-                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                .build()
-
-            // Passive bandwidth meter (QA fix 7): read its estimate on rebuffer
-            // transitions to adapt buffer/quality sizing session-to-session. No extra
-            // network requests — it only measures the segments we already fetch.
-            // LP-A-2: singleton, not per-init — ABR carries the estimate across
-            // zaps/reconnects instead of cold-starting on every channel.
-            val meter = DefaultBandwidthMeter.getSingletonInstance(this)
-            bandwidthMeter = meter
-
-            player = ExoPlayer.Builder(this)
-                .setRenderersFactory(renderersFactory)
-                .setBandwidthMeter(meter)
-                .setMediaSourceFactory(mediaSourceFactory)
-                .setLoadControl(loadControl)
-                // Gentle live-latency catch-up (QA fix 8): only activates for sources
-                // that carry a LiveConfiguration (HLS/DASH). The raw-TS branch of
-                // buildMediaItem deliberately sets NO LiveConfiguration (documented TS
-                // flush-loop device bug), so TS playback is unaffected by this.
-                .setLivePlaybackSpeedControl(
-                    DefaultLivePlaybackSpeedControl.Builder()
-                        .setFallbackMaxPlaybackSpeed(1.03f)
-                        .build()
-                )
-                .setTrackSelector(trackSelector)
-                .setSeekForwardIncrementMs(15000)
-                .setSeekBackIncrementMs(15000)
-                .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ true)
-                .setHandleAudioBecomingNoisy(true)
-                .setWakeMode(C.WAKE_MODE_NETWORK)
-                .setSeekParameters(SeekParameters.CLOSEST_SYNC)
-                .build()
-                .also { playerView.player = it }
+            val engine = PlayerEngineFactory(this, playbackOkHttpClient, settingsPreferences).build(
+                config = PlaybackEngineConfig(
+                    streamUrl = streamUrl,
+                    contentType = contentType,
+                    playbackSource = playbackSource,
+                    requestHeaders = requestHeaders,
+                    disableTunneling = disableTunnelingForSession,
+                    preferredAudioLanguage = trackManager.preferredAudioLanguage,
+                    preferredSubtitleLanguage = trackManager.preferredSubtitleLanguage
+                ),
+                loadErrorPolicy = playbackLoadErrorPolicy,
+                codecSelector = dolbyVisionAwareCodecSelector()
+            )
+            bandwidthMeter = engine.bandwidthMeter
+            player = engine.player.also { playerView.player = it }
             frameRateMatchedForCurrentSource = false
 
             // LP-D-2: QoE analytics (TTFF / rebuffers / dropped frames / errors).
