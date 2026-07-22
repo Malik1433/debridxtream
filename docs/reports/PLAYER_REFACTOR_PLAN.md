@@ -409,4 +409,22 @@ Design:
   controller + its playlist collector wire up at setup with no crash. Next-episode / episode-browser switching
   is verbatim + compile/test-covered but not blind-drivable on the secure player surface (same as P13's note).
 
-Then C5 UI binder, C6 input shell, F1 sweep → ~600.
+### C5 `PlayerViewModelBinder` — DONE (2686→2658, binder 71 lines)
+Moved verbatim the remaining lifecycle-scoped viewModel→UI subscriptions: `observeOverlayState`,
+`observeZapState`, and `observeXrayMetadata` (extracted from an inline `lifecycleScope.launch` block in the
+setup path). **Most collectors were already gone** — the Live-OSD collectors left with C2, the debrid-
+resolution collector with C3, the series-playlist collector with C4 — so this phase is deliberately small.
+
+Design:
+- The **sinks** these feed stay on the Activity: `renderOverlay` (the legacy EPG overlay renderer wired to
+  ~15 view fields — a different concern from "flow subscription", so not dragged along), the X-Ray controller,
+  the channel-number view. The binder only owns the subscriptions and calls back through `activity`.
+- 3 members bumped `private`→`internal` (`xrayController`, `tvChannelNumber`, `renderOverlay`); removed the
+  now-unused `repeatOnLifecycle` import from the Activity (all remaining uses are inside collaborators).
+- detekt: 1 flag (`renderOverlay` Cyclomatic, re-keyed by private→internal) — pre-existing exemption; baseline
+  net 0 (**348**). compile + full tests green.
+- **Device QA .64 (commit `<c5>`):** Live TV played and zapped (two seamless switches + fresh first frames),
+  which drives both `observeZapState` (channel number) and `observeOverlayState` (EPG/OSD bind) — so the
+  collectors wire up at setup with no crash.
+
+Then C6 input shell, F1 sweep → ~600.

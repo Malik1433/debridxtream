@@ -26,7 +26,6 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import com.bumptech.glide.Glide
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -122,7 +121,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     private val pipController = PlayerPipController(this)
 
     /** P9: the in-player X-Ray panel (toggle, animation, metadata/cast rendering). */
-    private val xrayController: PlayerXRayController by lazy {
+    internal val xrayController: PlayerXRayController by lazy {
         PlayerXRayController(
             activity = this,
             playerView = playerView,
@@ -194,6 +193,11 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     /** C4: series episode browsing + switching. */
     internal val seriesController: PlayerSeriesController by lazy {
         PlayerSeriesController(this, session)
+    }
+
+    /** C5: the remaining lifecycle-scoped viewModel→UI subscriptions. */
+    private val viewModelBinder: PlayerViewModelBinder by lazy {
+        PlayerViewModelBinder(this, session)
     }
     private var frameRateMatchedForCurrentSource: Boolean by session::frameRateMatchedForCurrentSource
 
@@ -379,7 +383,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
 
     private var epgOverlay: View? = null
     private var imgChannelLogo: ImageView? = null
-    private var tvChannelNumber: TextView? = null
+    internal var tvChannelNumber: TextView? = null
     internal var tvChannelName: TextView? = null
     private var tvNowTitle: TextView? = null
     private var tvNowTime: TextView? = null
@@ -832,8 +836,8 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
             val epgChannelId = currentEpgChannelId
             val streamIdForEpg = contentId?.takeIf { it.toLongOrNull() != null }
             viewModel.observeEpg(epgChannelId, streamIdForEpg)
-            observeOverlayState()
-            observeZapState()
+            viewModelBinder.observeOverlayState()
+            viewModelBinder.observeZapState()
         } else {
             playerView.useController = true
             playerView.controllerAutoShow = true
@@ -917,11 +921,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
                 )
             }
 
-            lifecycleScope.launch {
-                lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                    viewModel.xrayMetadata.collect { state -> xrayController.render(state) }
-                }
-            }
+            viewModelBinder.observeXrayMetadata()
         }
 
         if (canFreshResolveDirectDebrid && isExpired) {
@@ -1123,34 +1123,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         lastOverlayState?.let { renderOverlay(it) }
     }
 
-    private fun observeOverlayState() {
-        lifecycleScope.launch {
-            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                viewModel.overlayState.collect { 
-                    if (it.streamId != null && it.streamId != contentId) return@collect
-                    renderOverlay(it) 
-                }
-            }
-        }
-    }
-
-    private fun observeZapState() {
-        lifecycleScope.launch {
-            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                viewModel.zapState.collect { state ->
-                    if (contentType != ContentType.LIVE_TV) return@collect
-                    val number = state?.let { (it.index + 1).coerceAtLeast(1) } ?: 1
-                    tvChannelNumber?.text = number.toString()
-                    liveOsd?.setChannelNumber(state?.let { it.index + 1 })
-                    state?.let {
-                        liveOsd?.setZapState(it.categoryId, it.categoryName, it.channels, it.index)
-                        viewModel.refreshSurfEpg()
-                    }
-                }
-            }
-        }
-    }
-
     private lateinit var nextEpisodeManager: PlayerNextEpisodeManager
 
     // Standard TV BACK: armed after 1st BACK hides the controller, so the 2nd BACK exits
@@ -1348,7 +1320,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
 
 
 
-    private fun renderOverlay(state: PlayerOverlayUiState) {
+    internal fun renderOverlay(state: PlayerOverlayUiState) {
         lastOverlayState = state
         if (contentType != ContentType.LIVE_TV) return
         liveOsd?.let { osd ->
