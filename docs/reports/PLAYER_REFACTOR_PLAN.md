@@ -340,4 +340,28 @@ Design decisions that departed from the sketch above (all to keep the move truly
   playback — their wiring (onStart→registerNetworkCallback, shared timeout/retry handlers, seamless-switch
   forwarding) is exercised and green; the 429/terminal branches remain unit-tested (need a failing source).
 
-Then C2 live tuner, C3 debrid coordinator, C4 series, C5 UI binder, C6 input shell, F1 sweep → ~600.
+### C2 `PlayerLiveTuner` — DONE (3244→3062, tuner 277 lines)
+Moved verbatim: `zapChannel` (per-keypress OSD + debounce), `tuneToZapChannel` (the single tune commit),
+`tuneToZapIndex`, `toggleLiveFavorite`, `setupLiveOsd` (Live OSD + its 4 lifecycle collectors) and
+`performSeamlessSwitch` (the gold-standard atomic stop→clear→prepare→seek→play).
+
+Design:
+- **Held the concrete `PlayerActivity`, not an interface.** This cluster is wired to the Activity's views
+  (`playerView`, `findViewById`), `viewModel` (~12 calls), `prefs`, `epgOverlayUi`, `zapDebouncer`,
+  `qoeTracker` and lifecycle — a narrow host interface would have needed ~25 methods and bought nothing.
+  16 Activity members bumped `private`→`internal`; the tuner reads them through get-only forwarders +
+  session delegates + a `player`/`liveOsd` bridge, so the bodies stayed byte-identical (only `findViewById`
+  and the 4 `repeatOnLifecycle` calls took an `activity.` prefix — no LifecycleOwner receiver in the tuner).
+- **Kept on the Activity (shared, and the LiveConfiguration landmine lives here):** `buildMediaItem`,
+  `resolveTimeoutMs`, `armWatchdogBaseline`, `startStallMonitor`, `bindChannelMeta`, `showEpgOverlay`,
+  `liveOsd` field. The timeout Handler + `timeoutRunnable` stay Activity-owned (same as C1) and are passed in.
+- `performSeamlessSwitch`'s 8 callers (channel browser, C1 recovery via `requestSeamlessSwitch`, ENDED /
+  freeze reconnect, the resume collector) now call `liveTuner.performSeamlessSwitch`.
+- detekt: clean, no baseline change (none of the moved methods trip a threshold). compile + full tests green.
+- **Device QA .64 (commit `<c2>`):** live TS zap — Sky Sports Cricket HD (XTREAM) fullscreen, four zaps each
+  logged `Performing seamless switch` + a fresh `First Frame Render`; shared handoff — BACK returned to the
+  guide with the mini preview still playing live (scoreboard advanced 106→110 runs, not frozen/black); zero
+  FATAL. The four live landmines (TS flags, TS LiveConfiguration, first-frame AudioTrack, shared handoff) all
+  held.
+
+Then C3 debrid coordinator, C4 series, C5 UI binder, C6 input shell, F1 sweep → ~600.

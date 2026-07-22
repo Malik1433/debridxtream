@@ -89,7 +89,7 @@ import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
 @UnstableApi
 @AndroidEntryPoint
 class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHost {
-    private val viewModel: PlayerViewModel by viewModels()
+    internal val viewModel: PlayerViewModel by viewModels()
 
     @Inject
     lateinit var okHttpClient: OkHttpClient
@@ -109,7 +109,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     @Inject
     lateinit var debridPlaybackRepository: DebridPlaybackRepository
 
-    private val prefs by lazy { CredentialsPreferences(this) }
+    internal val prefs by lazy { CredentialsPreferences(this) }
 
     /** S1: every mutable screen state lives here; the vars below just delegate. */
     private val session = PlayerSessionState().apply { timeoutMs = TIMEOUT_MS }
@@ -144,7 +144,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     }
 
     internal var player: ExoPlayer? = null
-    private lateinit var playerView: PlayerView
+    internal lateinit var playerView: PlayerView
 
     // True when this session was launched from the Live TV EPG guide with a shared
     // preview player to adopt (seamless mini <-> fullscreen continuity).
@@ -169,6 +169,12 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     private val recovery: PlayerRecoveryController by lazy {
         PlayerRecoveryController(this, session, this, timeoutHandler, retryHandler, timeoutRunnable)
     }
+
+    /** C2: Live-TV zapping + OSD + the seamless-switch primitive. Shares this
+     *  Activity's timeout Handler so the buffer watchdog arms identically. */
+    internal val liveTuner: PlayerLiveTuner by lazy {
+        PlayerLiveTuner(this, session, timeoutHandler, timeoutRunnable)
+    }
     private var frameRateMatchedForCurrentSource: Boolean by session::frameRateMatchedForCurrentSource
 
     // ── crash-safe progress heartbeat (VOD) ─────────────────────────────────
@@ -189,7 +195,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     // handleTimeout extends the window while the buffer keeps growing.
     private var watchdogExtensions: Int by session::watchdogExtensions
     private var watchdogBufferedPosAtArm: Long by session::watchdogBufferedPosAtArm
-    private fun armWatchdogBaseline() {
+    internal fun armWatchdogBaseline() {
         watchdogBufferedPosAtArm = player?.bufferedPosition ?: -1L
         watchdogExtensions = 0
     }
@@ -205,7 +211,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
                 val id = stream.stream_id ?: return
                 val serverUrl = baseServerUrl ?: prefs.getServerUrl() ?: ""
                 val newUrl = stream.toLiveStreamUrl(serverUrl, prefs.getUsername().orEmpty(), prefs.getPassword().orEmpty())
-                performSeamlessSwitch(newUrl)
+                liveTuner.performSeamlessSwitch(newUrl)
                 contentId = id
                 currentUrl = newUrl
                 channelLogoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon)
@@ -241,10 +247,10 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     }
 
     /** P18: LP-B-1 — the OSD advances per keypress, the real connect is debounced. */
-    private val zapDebouncer = PlayerZapDebouncer(
+    internal val zapDebouncer = PlayerZapDebouncer(
         handler = Handler(Looper.getMainLooper()),
         debounceMs = ZAP_DEBOUNCE_MS,
-        onCommit = { target -> tuneToZapChannel(target) }
+        onCommit = { target -> liveTuner.tuneToZapChannel(target) }
     )
 
     // Fail fast on permanently broken sources so app-level fallback kicks in quickly;
@@ -279,7 +285,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     // ── C1 RecoveryHost bridge: the recovery controller reaches back through these ──
     override fun peekPlayer(): ExoPlayer? = player
     override fun assignPlayer(player: ExoPlayer?) { this.player = player }
-    override fun requestSeamlessSwitch(newUrl: String) = performSeamlessSwitch(newUrl)
+    override fun requestSeamlessSwitch(newUrl: String) = liveTuner.performSeamlessSwitch(newUrl)
     override fun isAutoReconnectEnabled(): Boolean = settingsPreferences.isAutoReconnectEnabled()
     override fun maxRetriesConfigured(): Int = maxRetries
     override fun diagnosticsFields(url: String?, retry: Int?): Map<String, Any?> =
@@ -295,9 +301,9 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
 
     // P10: thin delegators — the recovery subsystems that call these still live here.
     override fun canAttemptReconnect(): Boolean = reconnectManager.canAttemptReconnect()
-    private fun resetReconnectBudget() = reconnectManager.resetBudget()
+    internal fun resetReconnectBudget() = reconnectManager.resetBudget()
     private fun showReconnectingBanner() = reconnectManager.showBanner()
-    private fun hideReconnectingBanner() = reconnectManager.hideBanner()
+    internal fun hideReconnectingBanner() = reconnectManager.hideBanner()
     private fun maybeUpdateNetworkQuality() =
         reconnectManager.maybeUpdateNetworkQuality(bandwidthMeter?.bitrateEstimate)
 
@@ -313,7 +319,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
 
     private val overlayHandler = Handler(Looper.getMainLooper())
     /** P18: the legacy EPG strip's mode/pin/auto-hide (only used without the Live OSD). */
-    private val epgOverlayUi: PlayerEpgOverlay by lazy {
+    internal val epgOverlayUi: PlayerEpgOverlay by lazy {
         PlayerEpgOverlay(
             handler = overlayHandler,
             timeoutMs = OVERLAY_TIMEOUT,
@@ -417,7 +423,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     private var bandwidthMeter: DefaultBandwidthMeter? = null
 
     // LP-D-2: per-player QoE analytics listener (TTFF, rebuffers, errors).
-    private var qoeTracker: PlaybackQoeTracker? = null
+    internal var qoeTracker: PlaybackQoeTracker? = null
 
     private val stallRunnable = object : Runnable {
         override fun run() {
@@ -472,7 +478,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     private lateinit var episodeBrowserController: EpisodeBrowserController
     private var currentZapRequestId: Long by session::currentZapRequestId
     // Cinematic live OSD (design_handoff Live Player); non-null only for LIVE_TV.
-    private var liveOsd: LivePlayerOsdManager? = null
+    internal var liveOsd: LivePlayerOsdManager? = null
 
     // Persistent "Reconnecting… (n/N)" pill (QA fix 3). Shown whenever ANY recovery
     // subsystem triggers a reconnect; hidden on the first rendered frame / READY.
@@ -775,7 +781,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
 
         if (contentType == ContentType.LIVE_TV) {
             setupOverlayViews()
-            setupLiveOsd()
+            liveTuner.setupLiveOsd()
             bindChannelMeta(channelName)
             // Backdrop covers the black surface until the first frame renders.
             liveOsd?.showZapBackdrop()
@@ -968,197 +974,9 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         })
     }
 
-    private fun zapChannel(direction: Int) {
-        val target = viewModel.moveZap(direction) ?: run {
-            val isReady = viewModel.zapState.value?.channels?.isNotEmpty() == true
-            val msg = if (isReady) getString(R.string.player_zap_unavailable)
-                else getString(R.string.player_zap_loading)
-            liveOsd?.showToast(msg.uppercase(Locale.getDefault())) ?: showToast(msg)
-            return
-        }
-        // LP-B-1: moveZap already advanced the in-memory index. Update the OSD
-        // immediately for every keypress (including auto-repeat) so surfing feels
-        // instant, but DEBOUNCE the real stream connect — only tuneToZapChannel
-        // (which resets the reconnect budget + calls performSeamlessSwitch) fires,
-        // once, ZAP_DEBOUNCE_MS after the user stops pressing.
-        val osd = liveOsd
-        if (osd != null) {
-            osd.setChannelNumber((viewModel.zapState.value?.index ?: 0) + 1)
-            osd.setFavorites(viewModel.liveFavoriteIds.value, target.streamId)
-            osd.showZapOsd()
-        } else {
-            val keepPinned = epgOverlayUi.isPinnedUp()
-            showEpgOverlay(mode = EpgOverlayMode.COMPACT, pinned = keepPinned)
-        }
-        zapDebouncer.schedule(target)
-    }
-
-    /** OK-tune from the surf drawer (Live Player OSD spec §7). */
-    private fun tuneToZapIndex(index: Int) {
-        val target = viewModel.zapTo(index) ?: return
-        liveOsd?.showToast("▶ TUNING · ${target.name}")
-        tuneToZapChannel(target)
-    }
-
-    private fun tuneToZapChannel(target: ZapChannel) {
-        // This is the single commit point for a tune (debounced zap, drawer OK-tune,
-        // resume). Cancel any still-pending debounced zap so a late commit can't
-        // fire on top of this one (LP-B-1).
-        zapDebouncer.cancel()
-
-        currentZapRequestId++
-        val reqId = currentZapRequestId
-
-        // A user-initiated zap is a fresh recovery context — reset the unified
-        // reconnect budget (fix 2) and retire any leftover banner (fix 3) so the new
-        // channel starts with a full budget.
-        resetReconnectBudget()
-        hideReconnectingBanner()
-        retryCount = 0
-        audioSinkRecoveryCount = 0
-        endedReconnects = 0
-        liveFreezeReprepares = 0
-
-        contentId = target.streamId
-        currentUrl = target.streamUrl
-        channelLogoUrl = target.logoUrl
-        bindChannelMeta(target.name)
-        supportActionBar?.title = target.name
-
-        val epgKey = target.epgChannelId?.takeIf { it.isNotBlank() } ?: target.streamId
-        currentEpgChannelId = epgKey
-        viewModel.observeEpg(epgKey, target.streamId)
-
-        val osd = liveOsd
-        if (osd != null) {
-            osd.setChannelNumber((viewModel.zapState.value?.index ?: 0) + 1)
-            osd.setFavorites(viewModel.liveFavoriteIds.value, target.streamId)
-            osd.showZapOsd()
-        } else {
-            val keepPinned = epgOverlayUi.isPinnedUp()
-            showEpgOverlay(mode = EpgOverlayMode.COMPACT, pinned = keepPinned)
-        }
-
-        performSeamlessSwitch(target.streamUrl, reqId)
-    }
-
-    private fun setupLiveOsd() {
-        if (liveOsd != null) return
-        val osdRoot = findViewById<View>(R.id.view_live_osd) ?: return
-        liveOsd = LivePlayerOsdManager(
-            root = osdRoot,
-            playerView = playerView,
-            playerProvider = { player },
-            onRequestGuideData = { windowStart, windowEnd ->
-                viewModel.loadGuideEpg(windowStart, windowEnd)
-            },
-            onTuneChannel = { index -> tuneToZapIndex(index) },
-            onToggleFavorite = { toggleLiveFavorite() },
-            onCategorySelected = { categoryId ->
-                viewModel.switchZapCategory(categoryId, baseServerUrl ?: prefs.getServerUrl())
-            }
-        ).also {
-            it.show()
-            it.showOsd(focus = false)
-        }
-        viewModel.observeLiveFavorites()
-        viewModel.loadSurfCategories()
-        lifecycleScope.launch {
-            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                viewModel.liveFavoriteIds.collect { ids ->
-                    liveOsd?.setFavorites(ids, contentId)
-                }
-            }
-        }
-        lifecycleScope.launch {
-            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                viewModel.surfCategories.collect { cats ->
-                    liveOsd?.setCategories(cats)
-                }
-            }
-        }
-        lifecycleScope.launch {
-            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                viewModel.surfEpg.collect { map ->
-                    liveOsd?.setSurfEpg(map)
-                }
-            }
-        }
-        lifecycleScope.launch {
-            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                viewModel.guideEpg.collect { map ->
-                    liveOsd?.setGuideEpg(map)
-                }
-            }
-        }
-    }
-
-    private fun toggleLiveFavorite() {
-        val id = contentId
-        val name = pendingChannelName
-        lifecycleScope.launch {
-            val added = viewModel.toggleLiveFavorite(id, name, channelLogoUrl) ?: return@launch
-            liveOsd?.showToast(
-                if (added) "★ ADDED TO FAVORITES · ${name.orEmpty()}"
-                else "REMOVED FROM FAVORITES"
-            )
-        }
-    }
-
-    private fun performSeamlessSwitch(newUrl: String, requestId: Long = -1L) {
-        if (isFinishing || isDestroyed) return
-        val playerSnapshot = player ?: return
-        
-        if (requestId != -1L && requestId != currentZapRequestId) {
-            Log.w("SWITCH_DEBUG", "Dropping stale switch request: $requestId vs latest $currentZapRequestId")
-            return
-        }
-        
-        isSwitching = true
-        switchCount++
-        frameRateMatchedForCurrentSource = false
-        liveOsd?.showZapBackdrop()
-        qoeTracker?.markPrepareStart() // LP-D-2: TTFF measures this switch (zap latency)
-        Log.i("PlayerActivity", "Performing seamless switch to: ${SensitiveLogRedactor.describeUrl(newUrl)}")
-        
-        timeoutHandler.removeCallbacks(timeoutRunnable)
-        timeoutMs = resolveTimeoutMs(newUrl)
-        timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
-        armWatchdogBaseline()
-
-        startStallMonitor()
-        
-        // GOLD STANDARD SWITCH BLOCK (Atomic Reset)
-        // 1. Stop current playback pipeline
-        playerSnapshot.stop()
-        
-        // 2. Clear previous media items to avoid state leakage
-        playerSnapshot.clearMediaItems()
-        
-        val mediaItem = buildMediaItem(newUrl)
-        
-        // 3. Set new target
-        playerSnapshot.setMediaItem(mediaItem)
-        
-        // 4. Prepare FIRST to initialize codecs
-        playerSnapshot.prepare()
-        
-        // 5. Seek AFTER prepare for stable decoder positioning
-        if (startPositionMs > 0L) {
-            playerSnapshot.seekTo(startPositionMs)
-        }
-        
-        // 6. Start
-        playerSnapshot.playWhenReady = true
-        
-        // NOTE: DO NOT re-bind playerView.player here. 
-        // Re-binding causes Surface detachment/attachment race conditions on many Android TV devices.
-        Log.d("SWITCH_DEBUG", "Seamless switch command sequence complete (Position: $startPositionMs)")
-    }
-
     private data class ParsedSubtitle(val url: String, val language: String?)
 
-    private fun buildMediaItem(url: String): MediaItem {
+    internal fun buildMediaItem(url: String): MediaItem {
         val subtitleConfigs = trackManager.buildSubtitleConfigurations(subtitleEntries)
         val builder = MediaItem.Builder().setUri(url)
         val mimeHint = resolveMediaMimeType(
@@ -1640,7 +1458,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
             val resumeMs = resolveIptvEpisodeResumeMs(episode)
             if (reqId != episodeSwitchRequestId) return@launch
             startPositionMs = resumeMs
-            performSeamlessSwitch(url)
+            liveTuner.performSeamlessSwitch(url)
         }
     }
 
@@ -1838,7 +1656,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         titleView.text = program.title ?: getString(R.string.epg_no_info)
     }
 
-    private fun bindChannelMeta(channelName: String?) {
+    internal fun bindChannelMeta(channelName: String?) {
         pendingChannelName = channelName
         liveOsd?.bindChannel(channelName, channelLogoUrl)
         val nameView = tvChannelName ?: return
@@ -2152,7 +1970,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
                                        val urlAtEnded = currentUrl
                                        retryHandler.postDelayed({
                                             if (!isFinishing && !isDestroyed && currentUrl == urlAtEnded) {
-                                                 urlAtEnded?.let { performSeamlessSwitch(it) }
+                                                 urlAtEnded?.let { liveTuner.performSeamlessSwitch(it) }
                                             }
                                        }, LIVE_ENDED_RECONNECT_DELAY_MS)
                                   } else {
@@ -2173,7 +1991,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
                                       "Stream ended ${durationMs - positionMs}ms before content end — resuming ($endedReconnects/3)"
                                   )
                                   startPositionMs = positionMs
-                                  currentUrl?.let { performSeamlessSwitch(it) }
+                                  currentUrl?.let { liveTuner.performSeamlessSwitch(it) }
                                   return
                              }
                              if (contentType == ContentType.SERIES || contentType == ContentType.EPISODE) {
@@ -2367,7 +2185,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
                     "PlayerActivity",
                     "Live video frozen (rendered=$rendered) — re-preparing stream, attempt $liveFreezeReprepares/$MAX_LIVE_FREEZE_REPREPARES"
                 )
-                currentUrl?.let { performSeamlessSwitch(it) }
+                currentUrl?.let { liveTuner.performSeamlessSwitch(it) }
             } else {
                 recovery.handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
             }
@@ -2406,7 +2224,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     // handleTerminalPlaybackFailure).
 
     private fun showError(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-    private fun showToast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    internal fun showToast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 
     /**
      * VOD Player redesign: wire explicit L/R DPAD focus across the transport row so navigation
@@ -2647,7 +2465,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     }
 
     // Distance of refreshRate from the nearest integer multiple of frameRate (0 = judder-free).
-    private fun startStallMonitor() {
+    internal fun startStallMonitor() {
         stallDetector.reset(player?.currentPosition ?: 0L, SystemClock.elapsedRealtime())
         freezeDetector.reset()
         stallHandler.removeCallbacks(stallRunnable); stallHandler.postDelayed(stallRunnable, 5000)
@@ -2657,7 +2475,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
 
     override fun onDestroy() { super.onDestroy(); loaderUi.release(); dismissActiveTrackDialog(); liveOsd?.release(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_destroy"); PlaybackDiagnosticsRecorder.finishSession(this, "activity_destroyed") }
 
-    private fun resolveTimeoutMs(url: String): Long = when {
+    internal fun resolveTimeoutMs(url: String): Long = when {
         url.lowercase().contains("mediafusion.elfhosted.com") -> MEDIAFUSION_TIMEOUT_MS
         contentType == ContentType.LIVE_TV -> LIVE_TIMEOUT_MS
         else -> TIMEOUT_MS
@@ -2814,7 +2632,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
                             )
                         )
                     ) {
-                        zapChannel(direction = direction)
+                        liveTuner.zapChannel(direction = direction)
                         return true
                     }
                 }
@@ -2936,7 +2754,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     private fun setOverlayVisible(visible: Boolean) { val o = epgOverlay ?: return; if (visible) { if (o.isVisible) return; o.alpha = 0f; o.isVisible = true; o.animate().alpha(1f).setDuration(160).start() } else { if (!o.isVisible) return; o.animate().alpha(0f).setDuration(140).withEndAction { o.isVisible = false }.start() } }
     private fun setVodOverlayVisible(visible: Boolean) { val o = vodInfoOverlay ?: return; if (visible) { if (o.isVisible) return; o.alpha = 0f; o.isVisible = true; o.animate().alpha(1f).setDuration(160).start() } else { if (!o.isVisible) return; o.animate().alpha(0f).setDuration(140).withEndAction { o.isVisible = false }.start() } }
 
-    private fun showEpgOverlay(mode: EpgOverlayMode, pinned: Boolean) {
+    internal fun showEpgOverlay(mode: EpgOverlayMode, pinned: Boolean) {
         if (contentType != ContentType.LIVE_TV) return
         epgOverlayUi.show(mode, pinned)
     }
@@ -3210,7 +3028,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
                         if (player == null) {
                             initializePlayer(state.url)
                         } else {
-                            performSeamlessSwitch(state.url)
+                            liveTuner.performSeamlessSwitch(state.url)
                         }
                     }
                     is DebridResolutionState.Error -> {
