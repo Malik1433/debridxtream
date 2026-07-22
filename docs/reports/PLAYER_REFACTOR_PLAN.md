@@ -125,7 +125,7 @@ Any phase touching live playback must be re-verified against all four.
 | ~~P9~~ | ✅ **DONE (e76fad3)** — `PlayerXRayController` (toggle + animation + metadata/cast rendering + CastAdapter/CastViewHolder), `PlayerPipController` (capability + params + enter only). `hideUiForPiP`/`showUiForNormalMode` stay on the Activity by design — they orchestrate 8 screen collaborators. 4198→4108. | ~90 | LOW-MED |
 | ~~P10~~ | ✅ **DONE (e5e3ecc)** — `PlayerReconnectManager`: the rolling 4-per-60s budget, the delayed "RECONNECTING… (n/4)" banner (via a `ReconnectBannerHost` the Activity implements) and `maybeUpdateNetworkQuality`. **Recovery itself stayed put** — watchdog baseline is read inside `handleTimeout`, network callbacks call `attemptNetworkRecovery`, and Phase 2 is still BLOCKED. New `PlayerReconnectBudgetTest` (4 tests). 4108→3987. | ~120 | MED |
 | ~~P11~~ | ✅ **DONE (e9bcf78)** — split into TWO files by responsibility: `PlayerLoaderUi` (cinematic overlay, its 4 views + both animators, `release()` replaces the onDestroy animator pokes) and `PlayerControlChrome` (updatePlayPauseVisibility / setupInteractiveAnimations / updateVolumeIcon, state-free). 3987→3854. | ~220 | MED |
-| P12 | `PlayerExitCoordinator` — performBackExit, exit-result rules, finishWithReturnToSources, shared-player handoff + frame capture + adopted cover | ~200 | MED-HIGH (handoff order is a landmine) |
+| ~~P12~~ | ✅ **DONE (66363a5)** — split: `PlayerHandoffFrames` (captureVideoFrame + showAdoptedCoverFrame) and `PlayerExitResults` (3 pure result-Intent builders + `LiveReturnChannel`). **`performBackExit` / `handBackSharedPlayerIfNeeded` stayed** — they sequence the capture→hand-back→finish landmine and drive player/listeners/stall/history; a coordinator would need ~10 callbacks. New `PlayerExitResultsTest` (4 tests). 3854→3793. | ~60 | MED-HIGH |
 | P13 | `PlayerSeriesController` — playlist state, episode browser wiring, play next/prev, IPTV episode resume | ~250 | MED-HIGH |
 | P14 | `PlayerDebridSourceManager` — source profile, fresh direct-debrid resolve, source panel, switchToMovieSource, addon-proxy failure tracking, resolution-state observer | ~300 | HIGH |
 | P15 | `PlayerStallMonitor` — checkForStall, checkVideoRenderProgress, start/stop (**this is the previously BLOCKED Phase 2 scope — re-approve explicitly**) | ~150 | HIGH |
@@ -224,3 +224,9 @@ delegates. When PlayerActivity drops under 600, remove its `LargeClass` entry fr
   No unit tests — view/animator code; device QA is the real check.
 - **Next: P12 (`PlayerExitCoordinator`, ~200 lines, MED-HIGH — the shared-player handoff order is a
   landmine) — NOT approved.**
+- **P12 — DONE 2026-07-22, commit `66363a5`, pushed.** Device QA on .64 covered the landmine end to end:
+  guide preview → Watch → fullscreen adopts the shared player and renders → BACK → the mini preview is
+  still playing the same channel with its EPG intact, no black frame, no crash. Return-to-sources intents
+  are covered by unit tests instead (they need a real source failure to trigger on device). Detekt
+  flagged LongParameterList + SwallowedException on the new files — **fixed, not baselined**.
+- **Next: P13 (`PlayerSeriesController`, ~250 lines, MED-HIGH) — NOT approved.**
