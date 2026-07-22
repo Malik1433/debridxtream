@@ -122,7 +122,7 @@ Any phase touching live playback must be re-verified against all four.
 | ~~P6~~ | ✅ **DONE (495d288)** — `PlayerHelpers.kt`: cleanTitle, cleanLoaderTitle, frameRateMismatch, parseRetryAfterMs, isAudioSinkInitFailure moved verbatim; qoeMode, resolveMediaMimeType, isTerminalDirectHttpPlaybackError parameterised to become state-free. **Not moved** (they read companion consts / the Display / the debrid repo, so forcing them out would have been worse): resolveTimeoutMs, readyStallRequiredStrikes, isDolbyVisionDisplaySupported, requiresAddonProxyPlaybackContext, formatTimeRangeCompact. New `PlayerHelpersTest` (9 tests). 4402→4270. | ~130 | LOW |
 | ~~P7~~ | ✅ **DONE (0235915)** — `PlayerDiagnosticsFields.kt`: readStreamHeaders / diagnosticsContentFields / diagnosticsSourceFields / trackDiagnosticsFields now take state as params. `diagnosticsPlaybackFields` + `effectivePlaybackHeadersFor` stay on the Activity (Context / debrid repo). New `PlayerDiagnosticsFieldsTest` (4 tests, privacy contract). 4270→4206. | ~65 | LOW-MED |
 | ~~P8~~ | ✅ **DONE (995184d)** — `PlayerDebugOverlay` delegate + pure `buildDebugOverlayText(PlayerDebugSnapshot)`; onResume→start(), onStop→stop(). New `PlayerDebugOverlayTest` (3 tests). **Found: `debugEnabled` has no setter anywhere — the overlay is currently unreachable at runtime; left inert on purpose.** 4206→4198. | ~60 | LOW |
-| P9 | `PlayerPipController` + `PlayerXRayController` | ~140 | LOW-MED |
+| ~~P9~~ | ✅ **DONE (e76fad3)** — `PlayerXRayController` (toggle + animation + metadata/cast rendering + CastAdapter/CastViewHolder), `PlayerPipController` (capability + params + enter only). `hideUiForPiP`/`showUiForNormalMode` stay on the Activity by design — they orchestrate 8 screen collaborators. 4198→4108. | ~90 | LOW-MED |
 | P10 | `PlayerReconnectManager` — watchdog baseline, backoff, reconnect budget, network-quality, reconnecting banner, network callback register/unregister | ~200 | MED (live QA) |
 | P11 | `PlayerLoaderUi` — cinematic loader, metadata bind, play/pause visibility, interactive animations, volume icon | ~250 | MED (UI only) |
 | P12 | `PlayerExitCoordinator` — performBackExit, exit-result rules, finishWithReturnToSources, shared-player handoff + frame capture + adopted cover | ~200 | MED-HIGH (handoff order is a landmine) |
@@ -203,3 +203,12 @@ delegates. When PlayerActivity drops under 600, remove its `LargeClass` entry fr
   subtitles, live TS full player (first frame, 1280x720 @ ~2.6–3.6 Mbps), HOME (onStop) + relaunch, no
   FATAL. `:app:detekt` green (new guardrail).
 - **Next: P9 (`PlayerPipController` + `PlayerXRayController`) — NOT approved.** Ask the owner first.
+- **P9 — DONE 2026-07-22, commit `e76fad3`, pushed.** Device QA on .64: debrid episode playback +
+  subtitles, BACK exit through the rewritten X-Ray-visibility path, live TS full player (first frame,
+  ~2.8–3.1 Mbps), no FATAL; `:app:detekt` green. **Two honest gaps:** the X-Ray toggle sits inside a
+  `visibility="gone"` FrameLayout in `custom_player_control_view.xml`, so the panel is unreachable
+  through the UI (before and after this change); and PiP long-press ran without crashing but the system
+  did not visibly enter PiP — params/API are verbatim, so treat PiP as *unverified*, not regressed.
+- **Two dormant features found while decomposing** (both pre-existing, owner's call whether to wire up or
+  delete): `debugEnabled` has no setter (P8), and the X-Ray toggle is in a gone container (P9).
+- **Next: P10 (`PlayerReconnectManager`, ~200 lines, MED — needs real live QA) — NOT approved.**
