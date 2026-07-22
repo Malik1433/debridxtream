@@ -360,22 +360,25 @@ class PlayerActivity : AppCompatActivity() {
     private var debugListener: Player.Listener? = null
     private var playerListener: Player.Listener? = null
     private val captureRunnable = Runnable { captureManualTrackSelection() }
-    private val debugOverlayHandler = Handler(Looper.getMainLooper())
-    private val debugOverlayRunnable = object : Runnable {
-        override fun run() {
-            if (isFinishing || isDestroyed) return
-            val p = player
-            if (!debugEnabled || p == null) return
-            updateDebugOverlay()
-            debugOverlayHandler.postDelayed(this, 1000)
-        }
-    }
+    /** P8: the 1 Hz developer overlay; it renders only while [debugSnapshot] returns non-null. */
+    private val debugOverlay = PlayerDebugOverlay(
+        target = { tvDebugInfo },
+        snapshot = { debugSnapshot() }
+    )
 
-    private fun startDebugOverlay() {
-        debugOverlayHandler.removeCallbacks(debugOverlayRunnable)
-        if (debugEnabled && player != null) {
-            debugOverlayHandler.post(debugOverlayRunnable)
-        }
+    private fun debugSnapshot(): PlayerDebugSnapshot? {
+        if (isFinishing || isDestroyed) return null
+        if (!debugEnabled) return null
+        val p = player ?: return null
+        return PlayerDebugSnapshot(
+            playbackState = p.playbackState,
+            playWhenReady = p.playWhenReady,
+            positionMs = p.currentPosition,
+            bufferedPositionMs = p.bufferedPosition,
+            switchCount = switchCount,
+            playbackSource = playbackSource,
+            url = currentUrl
+        )
     }
 
     private var epgOverlay: View? = null
@@ -1242,32 +1245,6 @@ class PlayerActivity : AppCompatActivity() {
                 else "REMOVED FROM FAVORITES"
             )
         }
-    }
-
-    private fun updateDebugOverlay() {
-        if (!debugEnabled) return
-        val p = player ?: return
-        try {
-            val stateStr = when (p.playbackState) {
-                Player.STATE_IDLE -> "IDLE"
-                Player.STATE_BUFFERING -> "BUFFER"
-                Player.STATE_READY -> "READY"
-                Player.STATE_ENDED -> "ENDED"
-                else -> "UNKNOWN"
-            }
-            val posStr = String.format("%02d:%02d", java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(p.currentPosition), java.util.concurrent.TimeUnit.MILLISECONDS.toSeconds(p.currentPosition) - java.util.concurrent.TimeUnit.MINUTES.toSeconds(java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(p.currentPosition)))
-            val bufStr = String.format("%02d:%02d", java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(p.bufferedPosition), java.util.concurrent.TimeUnit.MILLISECONDS.toSeconds(p.bufferedPosition) - java.util.concurrent.TimeUnit.MINUTES.toSeconds(java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(p.bufferedPosition)))
-            val urlRaw = currentUrl ?: "Null"
-            val shortUrl = if (urlRaw.length > 55) urlRaw.substring(0, 52) + "..." else urlRaw
-
-            val debugStr = buildString {
-                append("State: $stateStr | Playing: ${p.playWhenReady}\n")
-                append("Pos: $posStr | Buf: $bufStr\n")
-                append("Switches: $switchCount | Src: $playbackSource\n")
-                append("URL: $shortUrl")
-            }
-            tvDebugInfo?.text = debugStr
-        } catch (e: Exception) { }
     }
 
     private fun performSeamlessSwitch(newUrl: String, requestId: Long = -1L) {
@@ -2551,10 +2528,10 @@ class PlayerActivity : AppCompatActivity() {
             debugListener?.let { player?.removeListener(it) }
             debugListener = object : Player.Listener {
                 override fun onPlaybackStateChanged(state: Int) {
-                    updateDebugOverlay()
+                    debugOverlay.refresh()
                 }
                 override fun onPlayerError(error: PlaybackException) {
-                    if (debugEnabled) tvDebugInfo?.text = tvDebugInfo?.text?.toString() + "\nERR: ${error.message}"
+                    if (debugEnabled) debugOverlay.appendError(error.message)
                 }
             }
             player?.addListener(debugListener!!)
@@ -3122,7 +3099,7 @@ class PlayerActivity : AppCompatActivity() {
     private var wasPlayingBeforePause = false
 
     override fun onResume() {
-        super.onResume(); startDebugOverlay()
+        super.onResume(); debugOverlay.start()
         val p = player
         if (p == null) {
             if (!isResolvingDebrid) currentUrl?.let { initializePlayer(it) }
@@ -3139,7 +3116,7 @@ class PlayerActivity : AppCompatActivity() {
     override fun onStart() { super.onStart(); hasRecordedHistory = false; registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() }; if (seekOverlay != null) { seekOverlayHandler.removeCallbacks(seekOverlayRunnable); seekOverlayHandler.post(seekOverlayRunnable) }; progressSaveHandler.removeCallbacks(progressSaveRunnable); progressSaveHandler.postDelayed(progressSaveRunnable, PROGRESS_SAVE_INTERVAL_MS) }
     override fun onPause() { super.onPause(); if (::historyManager.isInitialized) historyManager.saveProgressSnapshot(); wasPlayingBeforePause = player?.isPlaying == true; player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
     override fun onStop() {
-        super.onStop(); dismissActiveTrackDialog(); debugOverlayHandler.removeCallbacks(debugOverlayRunnable); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); seekOverlayHandler.removeCallbacks(seekOverlayRunnable); progressSaveHandler.removeCallbacks(progressSaveRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded()
+        super.onStop(); dismissActiveTrackDialog(); debugOverlay.stop(); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); seekOverlayHandler.removeCallbacks(seekOverlayRunnable); progressSaveHandler.removeCallbacks(progressSaveRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded()
         // T2.1 (H1): retain the paused player across short stops for VOD/Debrid so
         // Home→return resumes instantly instead of a 1-3s cold reconnect. LIVE still
         // releases: on max_connections=1 Xtream servers a retained live connection
