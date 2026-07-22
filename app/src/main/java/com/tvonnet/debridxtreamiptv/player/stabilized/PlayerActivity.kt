@@ -186,13 +186,12 @@ class PlayerActivity : AppCompatActivity() {
     // ── channel-zap debounce (LP-B-1) ───────────────────────────────────────
     // The OSD/index advances on every keypress; the actual tune is coalesced to
     // the LAST target after the user settles (ZAP_DEBOUNCE_MS of no new zap).
-    private val zapDebounceHandler = Handler(Looper.getMainLooper())
-    private var pendingZapTarget: ZapChannel? = null
-    private val zapCommitRunnable = Runnable {
-        val target = pendingZapTarget ?: return@Runnable
-        pendingZapTarget = null
-        tuneToZapChannel(target)
-    }
+    /** P18: LP-B-1 — the OSD advances per keypress, the real connect is debounced. */
+    private val zapDebouncer = PlayerZapDebouncer(
+        handler = Handler(Looper.getMainLooper()),
+        debounceMs = ZAP_DEBOUNCE_MS,
+        onCommit = { target -> tuneToZapChannel(target) }
+    )
 
     // Fail fast on permanently broken sources so app-level fallback kicks in quickly;
     // transient errors back off exponentially with jitter to avoid retry storms.
@@ -244,11 +243,17 @@ class PlayerActivity : AppCompatActivity() {
     private val blackVideoCheckRunnable = Runnable { checkBlackVideoFallback() }
     private var isControllerVisible = false
 
-    private enum class EpgOverlayMode { HIDDEN, COMPACT, EXPANDED }
     private val overlayHandler = Handler(Looper.getMainLooper())
-    private val overlayHideRunnable = Runnable { maybeAutoHideOverlay() }
-    private var epgOverlayMode: EpgOverlayMode = EpgOverlayMode.HIDDEN
-    private var epgOverlayPinned: Boolean = false
+    /** P18: the legacy EPG strip's mode/pin/auto-hide (only used without the Live OSD). */
+    private val epgOverlayUi: PlayerEpgOverlay by lazy {
+        PlayerEpgOverlay(
+            handler = overlayHandler,
+            timeoutMs = OVERLAY_TIMEOUT,
+            overlay = { epgOverlay },
+            isLive = { contentType == ContentType.LIVE_TV },
+            shouldBeVisible = { shouldShowEpgOverlay() }
+        )
+    }
     private var isSwitching = false
     private var layoutDebugOverlay: View? = null
     private var tvDebugInfo: TextView? = null
@@ -980,7 +985,7 @@ class PlayerActivity : AppCompatActivity() {
                     viewModel.toggleBrowser(false)
                     return
                 }
-                if (contentType == ContentType.LIVE_TV && (epgOverlayPinned || epgOverlayMode != EpgOverlayMode.HIDDEN)) {
+                if (contentType == ContentType.LIVE_TV && (epgOverlayUi.isPinned || epgOverlayUi.mode != EpgOverlayMode.HIDDEN)) {
                     hideEpgOverlay()
                     return
                 }
@@ -1013,18 +1018,16 @@ class PlayerActivity : AppCompatActivity() {
         // instant, but DEBOUNCE the real stream connect — only tuneToZapChannel
         // (which resets the reconnect budget + calls performSeamlessSwitch) fires,
         // once, ZAP_DEBOUNCE_MS after the user stops pressing.
-        pendingZapTarget = target
         val osd = liveOsd
         if (osd != null) {
             osd.setChannelNumber((viewModel.zapState.value?.index ?: 0) + 1)
             osd.setFavorites(viewModel.liveFavoriteIds.value, target.streamId)
             osd.showZapOsd()
         } else {
-            val keepPinned = epgOverlayPinned && epgOverlayMode != EpgOverlayMode.HIDDEN
+            val keepPinned = epgOverlayUi.isPinnedUp()
             showEpgOverlay(mode = EpgOverlayMode.COMPACT, pinned = keepPinned)
         }
-        zapDebounceHandler.removeCallbacks(zapCommitRunnable)
-        zapDebounceHandler.postDelayed(zapCommitRunnable, ZAP_DEBOUNCE_MS)
+        zapDebouncer.schedule(target)
     }
 
     /** OK-tune from the surf drawer (Live Player OSD spec §7). */
@@ -1038,8 +1041,7 @@ class PlayerActivity : AppCompatActivity() {
         // This is the single commit point for a tune (debounced zap, drawer OK-tune,
         // resume). Cancel any still-pending debounced zap so a late commit can't
         // fire on top of this one (LP-B-1).
-        zapDebounceHandler.removeCallbacks(zapCommitRunnable)
-        pendingZapTarget = null
+        zapDebouncer.cancel()
 
         currentZapRequestId++
         val reqId = currentZapRequestId
@@ -1070,7 +1072,7 @@ class PlayerActivity : AppCompatActivity() {
             osd.setFavorites(viewModel.liveFavoriteIds.value, target.streamId)
             osd.showZapOsd()
         } else {
-            val keepPinned = epgOverlayPinned && epgOverlayMode != EpgOverlayMode.HIDDEN
+            val keepPinned = epgOverlayUi.isPinnedUp()
             showEpgOverlay(mode = EpgOverlayMode.COMPACT, pinned = keepPinned)
         }
 
@@ -3054,7 +3056,7 @@ class PlayerActivity : AppCompatActivity() {
             "release_player",
             diagnosticsPlaybackFields() + mapOf("releaseReason" to reason)
         )
-        updateLastPlaybackPosition(); timeoutHandler.removeCallbacks(timeoutRunnable); timeoutHandler.removeCallbacks(captureRunnable); reconnectManager.cancelPendingBanner(); retryHandler.removeCallbacksAndMessages(null); overlayHandler.removeCallbacks(overlayHideRunnable); zapDebounceHandler.removeCallbacks(zapCommitRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; stopStallMonitor()
+        updateLastPlaybackPosition(); timeoutHandler.removeCallbacks(timeoutRunnable); timeoutHandler.removeCallbacks(captureRunnable); reconnectManager.cancelPendingBanner(); retryHandler.removeCallbacksAndMessages(null); epgOverlayUi.cancelAutoHide(); zapDebouncer.cancel(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; stopStallMonitor()
         playerListener?.let { player?.removeListener(it) }; playerListener = null
         debugListener?.let { player?.removeListener(it) }; debugListener = null
         qoeTracker?.flushSessionSummary(); qoeTracker = null // LP-D-2: emit session QoE
@@ -3356,7 +3358,7 @@ class PlayerActivity : AppCompatActivity() {
                         return true
                     }
                 }
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { if (contentType == ContentType.LIVE_TV) { if (viewModel.browserState.value.isVisible || liveOsd != null) return super.dispatchKeyEvent(event); if (epgOverlayMode != EpgOverlayMode.HIDDEN && !epgOverlayPinned) hideEpgOverlay() else showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false); return true } }
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { if (contentType == ContentType.LIVE_TV) { if (viewModel.browserState.value.isVisible || liveOsd != null) return super.dispatchKeyEvent(event); if (epgOverlayUi.mode != EpgOverlayMode.HIDDEN && !epgOverlayUi.isPinned) hideEpgOverlay() else showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false); return true } }
                 KeyEvent.KEYCODE_INFO -> {
                     if (contentType == ContentType.LIVE_TV) {
                         liveOsd?.showOsd(focus = true) ?: toggleEpgOverlayPinned()
@@ -3458,17 +3460,28 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) { super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig); this.isInPictureInPictureMode = isInPictureInPictureMode; if (isInPictureInPictureMode) hideUiForPiP() else showUiForNormalMode() }
 
-    private fun updateOverlayVisibility() { if (liveOsd != null) { setOverlayVisible(false); return }; val hasContent = epgOverlay != null; val shouldShow = when (contentType) { ContentType.LIVE_TV -> hasContent && epgOverlayMode != EpgOverlayMode.HIDDEN && !isInPictureInPictureMode; else -> hasContent && isControllerVisible && !isInPictureInPictureMode }; setOverlayVisible(shouldShow) }
+    private fun updateOverlayVisibility() = epgOverlayUi.applyVisibility()
+
+    /** The rule the overlay asks for: the OSD, PiP and the controller all veto it. */
+    private fun shouldShowEpgOverlay(): Boolean {
+        if (liveOsd != null) return false
+        val hasContent = epgOverlay != null
+        return when (contentType) {
+            ContentType.LIVE_TV -> hasContent && epgOverlayUi.mode != EpgOverlayMode.HIDDEN && !isInPictureInPictureMode
+            else -> hasContent && isControllerVisible && !isInPictureInPictureMode
+        }
+    }
     private fun updateVodOverlayVisibility() { setVodOverlayVisible(contentType != ContentType.LIVE_TV && isControllerVisible && !isInPictureInPictureMode) }
 
     private fun setOverlayVisible(visible: Boolean) { val o = epgOverlay ?: return; if (visible) { if (o.isVisible) return; o.alpha = 0f; o.isVisible = true; o.animate().alpha(1f).setDuration(160).start() } else { if (!o.isVisible) return; o.animate().alpha(0f).setDuration(140).withEndAction { o.isVisible = false }.start() } }
     private fun setVodOverlayVisible(visible: Boolean) { val o = vodInfoOverlay ?: return; if (visible) { if (o.isVisible) return; o.alpha = 0f; o.isVisible = true; o.animate().alpha(1f).setDuration(160).start() } else { if (!o.isVisible) return; o.animate().alpha(0f).setDuration(140).withEndAction { o.isVisible = false }.start() } }
 
-    private fun showEpgOverlay(mode: EpgOverlayMode, pinned: Boolean) { if (contentType != ContentType.LIVE_TV) return; epgOverlayMode = if (mode == EpgOverlayMode.HIDDEN) EpgOverlayMode.HIDDEN else EpgOverlayMode.COMPACT; epgOverlayPinned = pinned; applyEpgOverlayMode(); updateOverlayVisibility(); overlayHandler.removeCallbacks(overlayHideRunnable); if (!pinned) overlayHandler.postDelayed(overlayHideRunnable, OVERLAY_TIMEOUT) }
-    private fun hideEpgOverlay() { overlayHandler.removeCallbacks(overlayHideRunnable); epgOverlayPinned = false; epgOverlayMode = EpgOverlayMode.HIDDEN; updateOverlayVisibility() }
-    private fun maybeAutoHideOverlay() { if (contentType == ContentType.LIVE_TV && epgOverlayPinned) return; hideEpgOverlay() }
-    private fun toggleEpgOverlayPinned() { if (epgOverlayMode != EpgOverlayMode.HIDDEN && epgOverlayPinned) hideEpgOverlay() else showEpgOverlay(EpgOverlayMode.COMPACT, pinned = true) }
-    private fun applyEpgOverlayMode() { }
+    private fun showEpgOverlay(mode: EpgOverlayMode, pinned: Boolean) {
+        if (contentType != ContentType.LIVE_TV) return
+        epgOverlayUi.show(mode, pinned)
+    }
+    private fun hideEpgOverlay() = epgOverlayUi.hide()
+    private fun toggleEpgOverlayPinned() = epgOverlayUi.togglePinned()
 
     private fun formatTimeRangeCompact(program: com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity): String = "${timeFormatter.format(Date(program.start))}-${timeFormatter.format(Date(program.stop))}"
 
