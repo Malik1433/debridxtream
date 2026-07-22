@@ -50,6 +50,7 @@ import androidx.media3.ui.PlayerView
 import com.tvonnet.debridxtreamiptv.BuildConfig
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
+import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
 import com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem
 import com.tvonnet.debridxtreamiptv.data.model.RecentLiveChannelItem
 import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
@@ -187,6 +188,31 @@ class PlayerActivity : AppCompatActivity() {
     // ── channel-zap debounce (LP-B-1) ───────────────────────────────────────
     // The OSD/index advances on every keypress; the actual tune is coalesced to
     // the LAST target after the user settles (ZAP_DEBOUNCE_MS of no new zap).
+    /** P19c: the Live channel-browser overlay; tuning stays here. */
+    private val channelBrowser: PlayerChannelBrowser by lazy {
+        PlayerChannelBrowser(this, object : ChannelBrowserHost {
+            override fun currentStreamId(): String? = contentId
+            override fun onChannelSelected(stream: XtreamStream) {
+                val id = stream.stream_id ?: return
+                val serverUrl = baseServerUrl ?: prefs.getServerUrl() ?: ""
+                val newUrl = stream.toLiveStreamUrl(serverUrl, prefs.getUsername().orEmpty(), prefs.getPassword().orEmpty())
+                performSeamlessSwitch(newUrl)
+                contentId = id
+                currentUrl = newUrl
+                channelLogoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon)
+                currentEpgChannelId = stream.epg_channel_id ?: id
+                bindChannelMeta(stream.name)
+                supportActionBar?.title = stream.name
+                viewModel.initLiveZapping(viewModel.browserState.value.selectedCategoryId, id, serverUrl, null)
+                viewModel.observeEpg(stream.epg_channel_id ?: id, id)
+                viewModel.toggleBrowser(false)
+            }
+            override fun onBrowserClosed() {
+                PlayerChannelBrowser.restorePlayerFocus { playerView.requestFocus() }
+            }
+        })
+    }
+
     /** P19b: transport-control wiring (buttons + volume), actions stay here. */
     private val transportButtons: PlayerTransportButtons by lazy {
         PlayerTransportButtons(playerView, object : TransportActions {
@@ -2966,84 +2992,13 @@ class PlayerActivity : AppCompatActivity() {
         finish()
     }
 
-    private lateinit var browserCategoryAdapter: BrowserCategoryAdapter
-    private lateinit var browserChannelAdapter: BrowserChannelAdapter
 
     private fun initBrowserOverlay() {
-        val browserView = findViewById<View>(R.id.view_channel_browser) ?: return
-        val rvCategories = browserView.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_browser_categories)
-        val rvChannels = browserView.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_browser_channels)
-        val pbLoading = browserView.findViewById<View>(R.id.pb_browser_loading)
-        val tvEmpty = browserView.findViewById<View>(R.id.tv_browser_empty)
-        val tvClock = browserView.findViewById<android.widget.TextView>(R.id.tv_browser_clock)
-
-        tvClock.text = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(java.util.Date())
-
-        browserCategoryAdapter = BrowserCategoryAdapter(
-            onCategoryClick = { category -> category.category_id?.let { viewModel.selectBrowserCategory(it) } },
-            onRightPressed = {
-                if (browserChannelAdapter.itemCount > 0) {
-                    rvChannels.post {
-                        val targetIndex = if (contentId != null) {
-                            browserChannelAdapter.currentList.indexOfFirst { it.stream_id == contentId }.coerceAtLeast(0)
-                        } else 0
-                        rvChannels.scrollToPosition(targetIndex)
-                        rvChannels.post {
-                            rvChannels.findViewHolderForAdapterPosition(targetIndex)?.itemView?.requestFocus()
-                                ?: rvChannels.requestFocus()
-                        }
-                    }
-                }
-            }
+        channelBrowser.bind(
+            scope = lifecycleScope,
+            onCategorySelected = { categoryId -> viewModel.selectBrowserCategory(categoryId) },
+            stateFlow = viewModel.browserState
         )
-        rvCategories.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this); rvCategories.adapter = browserCategoryAdapter
-
-        browserChannelAdapter = BrowserChannelAdapter(
-            onChannelClick = { stream ->
-                stream.stream_id?.let { id ->
-                    val serverUrl = baseServerUrl ?: prefs.getServerUrl() ?: ""
-                    val username = prefs.getUsername().orEmpty()
-                    val password = prefs.getPassword().orEmpty()
-                    val newUrl = stream.toLiveStreamUrl(serverUrl, username, password)
-                    performSeamlessSwitch(newUrl)
-                    contentId = id; currentUrl = newUrl; channelLogoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon); currentEpgChannelId = stream.epg_channel_id ?: id
-                    bindChannelMeta(stream.name); supportActionBar?.title = stream.name
-                    viewModel.initLiveZapping(viewModel.browserState.value.selectedCategoryId, id, serverUrl, null)
-                    viewModel.observeEpg(stream.epg_channel_id ?: id, id)
-                    viewModel.toggleBrowser(false)
-                }
-            },
-            onLeftPressedAtZero = {
-                val selectedPos = browserCategoryAdapter.getSelectedPosition().coerceAtLeast(0)
-                rvCategories.scrollToPosition(selectedPos)
-                rvCategories.post {
-                    rvCategories.findViewHolderForAdapterPosition(selectedPos)?.itemView?.requestFocus()
-                        ?: rvCategories.requestFocus()
-                }
-            }
-        )
-        rvChannels.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 4); rvChannels.adapter = browserChannelAdapter
-        
-        lifecycleScope.launch {
-            var wasVisible = false
-            viewModel.browserState.collect { state ->
-                browserView.visibility = if (state.isVisible) View.VISIBLE else View.GONE
-                if (state.isVisible) {
-                    browserCategoryAdapter.submitList(state.categories); browserCategoryAdapter.setSelectedId(state.selectedCategoryId)
-                    browserChannelAdapter.submitList(state.channels) {
-                         if (state.channels.isNotEmpty() && contentId != null) {
-                              val chanIndex = state.channels.indexOfFirst { it.stream_id == contentId }
-                              if (chanIndex != -1) { rvChannels.scrollToPosition(chanIndex); rvChannels.post { rvChannels.findViewHolderForAdapterPosition(chanIndex)?.itemView?.requestFocus() } }
-                         }
-                    }
-                    pbLoading.visibility = if (state.isLoadingChannels) View.VISIBLE else View.GONE
-                    tvEmpty.visibility = if (!state.isLoadingChannels && state.channels.isEmpty()) View.VISIBLE else View.GONE
-                } else if (wasVisible) {
-                    com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.force("PLAYER") { playerView.requestFocus() }
-                }
-                wasVisible = state.isVisible
-            }
-        }
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
