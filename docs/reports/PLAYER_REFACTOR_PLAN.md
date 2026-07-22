@@ -131,7 +131,7 @@ Any phase touching live playback must be re-verified against all four.
 | P15 | `PlayerStallMonitor` — checkForStall, checkVideoRenderProgress, start/stop (**this is the previously BLOCKED Phase 2 scope — re-approve explicitly**) | ~150 | HIGH |
 | P16 | `PlayerErrorRecoveryManager` — handlePlaybackError taxonomy, network recovery, timeout, terminal failure, failure-detail redirect, black-video fallback | ~400 | HIGH |
 | ~~P17~~ | ✅ **DONE (ade3a27)** — `PlayerKeyRouting`: `canZapNow` + `OpenPlayerSurfaces` (the live-zap guard was copy-pasted across FOUR branches — now one, keyed by `zapDirectionFor`), `isControllerTriggerKey`, `vodBackAction`. dispatchKeyEvent itself stayed. New `PlayerKeyRoutingTest` (7 tests). 3775→3771 — the win is four duplicated guards collapsing into one. | ~60 | HIGH |
-| P18 | `PlayerLiveController` — zap, tune, live OSD wiring, EPG overlay modes, seamless switch, channel meta | ~350 | VERY HIGH (live TS landmines) |
+| ~~P18~~ | ✅ **DONE (de0303e)** — scoped to the two self-contained pieces: `PlayerZapDebouncer` (LP-B-1 — one connect for the LAST target) and `PlayerEpgOverlay` (legacy strip: mode/pin/auto-hide + `isEpgOverlayPinnedUp`, which was written out 3×). **tuneToZapChannel's ordering, performSeamlessSwitch, TsExtractor flags, LiveConfiguration, AudioTrack recovery and the shared handoff were NOT touched** — all four landmines are outside the diff. New `PlayerEpgOverlayTest` (8 tests). 3771→3784. | ~90 | VERY HIGH |
 | P19 | `PlayerFactory` — split `initializePlayer` (ExoPlayer build, codec selector, media item, track overrides, frame-rate match) + slim `onCreate` into setup* delegations | ~800 | HIGHEST — do LAST |
 
 ## Realistic target
@@ -246,3 +246,10 @@ delegates. When PlayerActivity drops under 600, remove its `LargeClass` entry fr
   BACK was consumed by the Up Next prompt, its own earlier branch). No FATAL.
 - **Phase order note:** P15 and P16 are the recovery/stall scope that §8 BLOCKED — they need explicit
   owner re-approval, so P17 was taken first. Remaining: **P15, P16, P18 (live, VERY HIGH), P19 (last)**.
+- **P18 — DONE 2026-07-22, commit `de0303e`, pushed.** Device QA on .64: guide → Watch → fullscreen adopts
+  and renders (~2.5–3.2 Mbps); LONG-PRESS DPAD_DOWN produced exactly ONE "Performing seamless switch"
+  (debounce survives the extraction); playback healthy after; BACK handed the player back and the guide's
+  mini preview kept playing with EPG intact; no FATAL. The legacy EPG strip only runs when the cinematic
+  Live OSD is absent (it is active on this device) — unit-tested rather than device-claimed.
+- **Remaining: P15 + P16 (the BLOCKED recovery/stall scope — explicit re-approval required) and P19
+  (`initializePlayer` + `onCreate`, ~800 lines, do LAST).**
