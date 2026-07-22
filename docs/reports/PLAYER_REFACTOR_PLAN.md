@@ -127,7 +127,7 @@ Any phase touching live playback must be re-verified against all four.
 | ~~P11~~ | ✅ **DONE (e9bcf78)** — split into TWO files by responsibility: `PlayerLoaderUi` (cinematic overlay, its 4 views + both animators, `release()` replaces the onDestroy animator pokes) and `PlayerControlChrome` (updatePlayPauseVisibility / setupInteractiveAnimations / updateVolumeIcon, state-free). 3987→3854. | ~220 | MED |
 | ~~P12~~ | ✅ **DONE (66363a5)** — split: `PlayerHandoffFrames` (captureVideoFrame + showAdoptedCoverFrame) and `PlayerExitResults` (3 pure result-Intent builders + `LiveReturnChannel`). **`performBackExit` / `handBackSharedPlayerIfNeeded` stayed** — they sequence the capture→hand-back→finish landmine and drive player/listeners/stall/history; a coordinator would need ~10 callbacks. New `PlayerExitResultsTest` (4 tests). 3854→3793. | ~60 | MED-HIGH |
 | ~~P13~~ | ✅ **DONE (dc1eb20)** — `PlayerSeriesBrowsing`: the browser view decision (was inlined twice), the season-title fallback (three places), the **playlist-hijack guard** (`shouldPlaylistDrivePlayback` — the "select NL/DE → same file" fix, now named + tested) and two small helpers. Episode SWITCHING stayed (it drives history/debrid-resolve/initializePlayer). New `PlayerSeriesBrowsingTest` (6 tests). 3793→3787 — this one was de-duplication, not line count. | ~60 | MED-HIGH |
-| P14 | `PlayerDebridSourceManager` — source profile, fresh direct-debrid resolve, source panel, switchToMovieSource, addon-proxy failure tracking, resolution-state observer | ~300 | HIGH |
+| ~~P14~~ | ✅ **DONE (455d7b3)** — `PlayerDebridSourceState`: `AddonProxyFailureTracker` (replaces 3 loose last-context fields), pure `addonProxyContextKey`, `canFreshResolveDirectDebrid(+DebridLookupIds)`, `debridSeriesLookupId`. Resolution orchestration + the 9-field source profile stayed (collapsing those fields into one identity object is a behaviour-shaped change). New `PlayerDebridSourceStateTest` (8 tests). 3787→3775. | ~70 | HIGH |
 | P15 | `PlayerStallMonitor` — checkForStall, checkVideoRenderProgress, start/stop (**this is the previously BLOCKED Phase 2 scope — re-approve explicitly**) | ~150 | HIGH |
 | P16 | `PlayerErrorRecoveryManager` — handlePlaybackError taxonomy, network recovery, timeout, terminal failure, failure-detail redirect, black-video fallback | ~400 | HIGH |
 | P17 | `PlayerInputController` — dispatchKeyEvent, long-press, smart-focus controller, seek navigation, control focus wiring | ~250 | HIGH (every D-pad path) |
@@ -235,3 +235,8 @@ delegates. When PlayerActivity drops under 600, remove its `LargeClass` entry fr
   to S1:E3, played in 4K, no FATAL. The browser PANEL itself was not visually opened this pass (D-pad kept
   landing on the seek bar); its rendering is unit-tested and the UP NEXT card proves the data path.
 - **Next: P14 (`PlayerDebridSourceManager`, ~300 lines, HIGH) — NOT approved.**
+- **P14 — DONE 2026-07-22, commit `455d7b3`, pushed.** Device QA on .64: debrid series episode plays
+  through the rewritten direct-debrid path (S1:E3 with subtitles), no FATAL. The repeated-failure
+  branches need a flaky proxy to reproduce, so they are unit-tested rather than claimed device-verified.
+- **Remaining: P15 (stall monitor — the previously BLOCKED Phase 2 scope, needs explicit re-approval),
+  P16 (error recovery), P17 (input), P18 (live), P19 (initializePlayer/onCreate). None approved.**
