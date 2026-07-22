@@ -332,5 +332,12 @@ Design decisions that departed from the sketch above (all to keep the move truly
   `diagnosticsFields`/`isAutoReconnectEnabled`/`reResolveDebridUrl`/`maxRetriesConfigured`.
 - detekt: no NEW violations; the 7 controller flags are the SAME giant-method exemptions relocated from
   the Activity (baseline regenerated 355→**349**, i.e. shrank — verified none genuinely new).
+- **Device QA on .64 (commit `396c8f5`)**: debrid resume — CW item launched via `RESUME_PATH: DIRECT`,
+  first frame rendered, progress advanced (1:25:19→1:26:16) so the resume position was honoured and saved;
+  live TS zap — Sky Sports HD (XTREAM) fullscreen, four channel-up zaps each logged `Performing seamless
+  switch` + a fresh `First Frame Render` with no freeze/error; clean BACK exits from both; zero FATAL all
+  session. The recovery error branches (handlePlaybackError/handleTimeout) are dormant in healthy
+  playback — their wiring (onStart→registerNetworkCallback, shared timeout/retry handlers, seamless-switch
+  forwarding) is exercised and green; the 429/terminal branches remain unit-tested (need a failing source).
 
 Then C2 live tuner, C3 debrid coordinator, C4 series, C5 UI binder, C6 input shell, F1 sweep → ~600.
