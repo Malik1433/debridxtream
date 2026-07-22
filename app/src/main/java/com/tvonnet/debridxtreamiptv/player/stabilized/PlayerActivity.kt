@@ -1416,23 +1416,21 @@ class PlayerActivity : AppCompatActivity() {
                     
                     // Sync episode browser if visible
                     if (episodeBrowserController.isVisible()) {
-                        val seasonTitle = seriesTitleExtra ?: "Season ${seasonNumberExtra ?: ""}"
-                        if (state.isLoading) {
-                            episodeBrowserController.setLoading(true)
-                        } else if (state.originalList.isEmpty()) {
-                            episodeBrowserController.showMessage(
-                                state.error ?: "No episodes available",
-                                seasonTitle
-                            )
-                        } else {
-                            episodeBrowserController.setLoading(false)
-                            Log.e("IPTV_EP_LOAD_FIX", "SEND_TO_BROWSER count=${state.originalList.size}")
-                            episodeBrowserController.show(
-                                episodes = state.originalList,
-                                currentEpisodeId = contentId,
-                                seasonTitle = seasonTitle,
-                                fallbackImageUrl = getEpisodeBrowserFallbackImageUrl()
-                            )
+                        val seasonTitle = episodeBrowserSeasonTitle(seriesTitleExtra, seasonNumberExtra)
+                        when (val view = episodeBrowserViewFor(state.isLoading, state.originalList, state.error)) {
+                            is EpisodeBrowserView.Loading -> episodeBrowserController.setLoading(true)
+                            is EpisodeBrowserView.Message ->
+                                episodeBrowserController.showMessage(view.text, seasonTitle)
+                            is EpisodeBrowserView.Episodes -> {
+                                episodeBrowserController.setLoading(false)
+                                Log.e("IPTV_EP_LOAD_FIX", "SEND_TO_BROWSER count=${view.episodes.size}")
+                                episodeBrowserController.show(
+                                    episodes = view.episodes,
+                                    currentEpisodeId = contentId,
+                                    seasonTitle = seasonTitle,
+                                    fallbackImageUrl = getEpisodeBrowserFallbackImageUrl()
+                                )
+                            }
                         }
                     }
 
@@ -1445,14 +1443,15 @@ class PlayerActivity : AppCompatActivity() {
                     // same file"). The intent already started the correct chosen stream
                     // (currentUrl), and next/prev/browser-pick switch episodes explicitly,
                     // so only let the playlist drive playback when nothing is playing yet.
-                    val currentEpId = contentId
-                    if (!state.isLoading && state.currentEpisode != null &&
-                        currentEpId != state.currentEpisode.episodeId &&
-                        currentUrl.isNullOrBlank()
+                    if (shouldPlaylistDrivePlayback(
+                            isLoading = state.isLoading,
+                            playlistEpisodeId = state.currentEpisode?.episodeId,
+                            currentEpisodeId = contentId,
+                            currentUrl = currentUrl,
+                            playbackSource = playbackSource
+                        )
                     ) {
-                         if (playbackSource != PlaybackSource.DEBRID) {
-                             state.currentEpisode?.let { playSeriesEpisode(it) }
-                         }
+                        state.currentEpisode?.let { playSeriesEpisode(it) }
                     }
                 }
             }
@@ -1479,8 +1478,8 @@ class PlayerActivity : AppCompatActivity() {
             "showEpisodeBrowser: episodes=${state?.originalList?.size ?: 0}, contentId=${SensitiveLogRedactor.describeHash(contentId)}"
         )
         
-        val seasonTitle = seriesTitleExtra ?: "Season ${seasonNumberExtra ?: ""}"
-        
+        val seasonTitle = episodeBrowserSeasonTitle(seriesTitleExtra, seasonNumberExtra)
+
         if (state == null) {
             // Show overlay in loading state immediately
             episodeBrowserController.show(emptyList(), contentId, seasonTitle, getEpisodeBrowserFallbackImageUrl())
@@ -1510,33 +1509,28 @@ class PlayerActivity : AppCompatActivity() {
             }
             return
         }
-        if (state.isLoading) {
-            episodeBrowserController.show(emptyList(), contentId, seasonTitle, getEpisodeBrowserFallbackImageUrl())
-            episodeBrowserController.setLoading(true)
-        } else if (state.originalList.isEmpty()) {
-            episodeBrowserController.showMessage(state.error ?: "No episodes available", seasonTitle)
-        } else {
-            Log.e("IPTV_EP_LOAD_FIX", "SEND_TO_BROWSER count=${state.originalList.size}")
-            episodeBrowserController.show(
-                episodes = state.originalList,
-                currentEpisodeId = contentId,
-                seasonTitle = seriesTitleExtra ?: "Season ${seasonNumberExtra ?: ""}",
-                fallbackImageUrl = getEpisodeBrowserFallbackImageUrl()
-            )
+        when (val view = episodeBrowserViewFor(state.isLoading, state.originalList, state.error)) {
+            is EpisodeBrowserView.Loading -> {
+                episodeBrowserController.show(emptyList(), contentId, seasonTitle, getEpisodeBrowserFallbackImageUrl())
+                episodeBrowserController.setLoading(true)
+            }
+            is EpisodeBrowserView.Message -> episodeBrowserController.showMessage(view.text, seasonTitle)
+            is EpisodeBrowserView.Episodes -> {
+                Log.e("IPTV_EP_LOAD_FIX", "SEND_TO_BROWSER count=${view.episodes.size}")
+                episodeBrowserController.show(
+                    episodes = view.episodes,
+                    currentEpisodeId = contentId,
+                    seasonTitle = seasonTitle,
+                    fallbackImageUrl = getEpisodeBrowserFallbackImageUrl()
+                )
+            }
         }
     }
 
-    private fun currentIptvEpisodeIdForPlaylist(): String? {
-        val id = contentId?.takeIf { it.isNotBlank() } ?: return null
-        val currentStreamUrl = currentUrl?.takeIf { it.isNotBlank() }
-        return id.takeUnless { it == currentStreamUrl }
-    }
+    private fun currentIptvEpisodeIdForPlaylist(): String? = iptvPlaylistEpisodeId(contentId, currentUrl)
 
-    private fun getEpisodeBrowserFallbackImageUrl(): String? {
-        return posterUrlExtra
-            ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
-            ?: backdropUrlExtra?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
-    }
+    private fun getEpisodeBrowserFallbackImageUrl(): String? =
+        episodeBrowserFallbackImageUrl(posterUrlExtra, backdropUrlExtra)
 
     private fun onEpisodeSelected(episode: EpisodeEntityV2) {
         episodeBrowserController.hide()
