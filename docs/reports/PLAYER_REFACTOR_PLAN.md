@@ -381,7 +381,7 @@ Design:
 - detekt: the 3 flags (`switchToMovieSource` Cyclomatic, the creds `ComplexCondition`, `bindModernMetadata`
   re-keyed by private→internal) are all pre-existing exemptions relocated/re-keyed; baseline regenerated
   349→**348** (shrank). compile + full tests green.
-- **Device QA .64 (commit `<c3>`):** a debrid CW movie played cleanly (First Frame Render), so the coordinator
+- **Device QA .64 (commit `558da02`):** a debrid CW movie played cleanly (First Frame Render), so the coordinator
   is constructed at player setup and its resolution collector is wired with no crash. The Sources bottom sheet
   itself couldn't be driven blind (the fullscreen player is a secure surface — screencap is white, same as the
   Live case); `switchToMovieSource` is verbatim + compile/test-covered.
