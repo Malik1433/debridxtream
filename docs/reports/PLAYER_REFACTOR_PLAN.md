@@ -120,8 +120,8 @@ Any phase touching live playback must be re-verified against all four.
 | Phase | Extract | ~Lines | Risk |
 |---|---|---|---|
 | ~~P6~~ | ✅ **DONE (495d288)** — `PlayerHelpers.kt`: cleanTitle, cleanLoaderTitle, frameRateMismatch, parseRetryAfterMs, isAudioSinkInitFailure moved verbatim; qoeMode, resolveMediaMimeType, isTerminalDirectHttpPlaybackError parameterised to become state-free. **Not moved** (they read companion consts / the Display / the debrid repo, so forcing them out would have been worse): resolveTimeoutMs, readyStallRequiredStrikes, isDolbyVisionDisplaySupported, requiresAddonProxyPlaybackContext, formatTimeRangeCompact. New `PlayerHelpersTest` (9 tests). 4402→4270. | ~130 | LOW |
-| P7 | `PlayerDiagnosticsFields` — diagnosticsContent/Source/Playback/trackDiagnosticsFields, readStreamHeaders, effectivePlaybackHeadersFor (pass a state snapshot, don't reach into the Activity) | ~150 | LOW-MED |
-| P8 | `PlayerDebugOverlay` — startDebugOverlay, updateDebugOverlay | ~120 | LOW |
+| ~~P7~~ | ✅ **DONE (0235915)** — `PlayerDiagnosticsFields.kt`: readStreamHeaders / diagnosticsContentFields / diagnosticsSourceFields / trackDiagnosticsFields now take state as params. `diagnosticsPlaybackFields` + `effectivePlaybackHeadersFor` stay on the Activity (Context / debrid repo). New `PlayerDiagnosticsFieldsTest` (4 tests, privacy contract). 4270→4206. | ~65 | LOW-MED |
+| ~~P8~~ | ✅ **DONE (995184d)** — `PlayerDebugOverlay` delegate + pure `buildDebugOverlayText(PlayerDebugSnapshot)`; onResume→start(), onStop→stop(). New `PlayerDebugOverlayTest` (3 tests). **Found: `debugEnabled` has no setter anywhere — the overlay is currently unreachable at runtime; left inert on purpose.** 4206→4198. | ~60 | LOW |
 | P9 | `PlayerPipController` + `PlayerXRayController` | ~140 | LOW-MED |
 | P10 | `PlayerReconnectManager` — watchdog baseline, backoff, reconnect budget, network-quality, reconnecting banner, network callback register/unregister | ~200 | MED (live QA) |
 | P11 | `PlayerLoaderUi` — cinematic loader, metadata bind, play/pause visibility, interactive animations, volume icon | ~250 | MED (UI only) |
@@ -157,3 +157,10 @@ success bar**, and treat <500 as aspirational, unlike the data-layer classes.
   Landmines re-checked: no TsExtractor flag change, no LiveConfiguration on TS, tunneling fallback
   untouched, shared-player handoff untouched.
 - **Next: P7 / P8 are the low-risk pair — still NOT approved.** Ask the owner before starting either.
+- **P7 — DONE 2026-07-22, commit `0235915`, pushed.** Device QA on .64: debrid series episode resume
+  through the extracted header path (17:40 → 18:18, network quality FAST ~36 Mbps), no crash. Live not
+  re-run — P7 touches no live code path.
+- **P8 — DONE 2026-07-22, commit `995184d`, pushed.** Device QA on .64: debrid episode playback with
+  subtitles, live TS full player (first frame, 1280x720 @ ~2.6–3.6 Mbps), HOME (onStop) + relaunch, no
+  FATAL. `:app:detekt` green (new guardrail).
+- **Next: P9 (`PlayerPipController` + `PlayerXRayController`) — NOT approved.** Ask the owner first.
