@@ -386,4 +386,27 @@ Design:
   itself couldn't be driven blind (the fullscreen player is a secure surface — screencap is white, same as the
   Live case); `switchToMovieSource` is verbatim + compile/test-covered.
 
-Then C4 series, C5 UI binder, C6 input shell, F1 sweep → ~600.
+### C4 `PlayerSeriesController` — DONE (2946→2686, controller 345 lines)
+Moved verbatim: `observeSeriesPlaylistState` + `setupEpisodeBrowser` + `showEpisodeBrowser` +
+`onEpisodeSelected` (the episode-browser overlay + the seriesPlaylist collector, incl. the P13 playlist-
+hijack guard `shouldPlaylistDrivePlayback`), plus the switch commit points `playSeriesEpisode` /
+`playNextEpisode` / `playPreviousEpisode` and `resolveIptvEpisodeResumeMs` (the IPTV resume lookup with the
+latest-wins `episodeSwitchRequestId` guard).
+
+Design:
+- Same concrete-`PlayerActivity` pattern. **Kept on the Activity** the thin cross-cutting wrappers that have
+  non-series callers: `debridSeriesLookupId` (3 ext callers incl. the SeriesDetail intent + C1's
+  `refreshDirectDebridSourceFromMetadata`), `currentDebridSourceProfile` (6 callers),
+  `currentIptvEpisodeIdForPlaylist`, `isSeriesEpisodePlayback`, `bindModernMetadata` (C6). The controller
+  reaches them through `activity`.
+- `episodeBrowserController` (read from dispatchKeyEvent + PiP, i.e. C6 territory) stays on the Activity and is
+  driven through a get/set bridge; one more Activity helper added (`hideNextEpisodePromptIfInitialized`) for the
+  lateinit-guarded `nextEpisodeManager.hidePrompt()`.
+- detekt: the 2 flags (`playNextEpisode` Cyclomatic, `showEpisodeBrowser` NestedBlockDepth) are pre-existing
+  exemptions relocated; baseline regenerated 348→**348** (net 0). compile + full tests green.
+- **Device QA .64 (commit `<c4>`):** a debrid series episode (Elite Force S1E1) resumed and played cleanly
+  (RESUME_PATH DIRECT type=EPISODE → Stremio scoped-resume 9 streams → First Frame Render), so the series
+  controller + its playlist collector wire up at setup with no crash. Next-episode / episode-browser switching
+  is verbatim + compile/test-covered but not blind-drivable on the secure player surface (same as P13's note).
+
+Then C5 UI binder, C6 input shell, F1 sweep → ~600.
