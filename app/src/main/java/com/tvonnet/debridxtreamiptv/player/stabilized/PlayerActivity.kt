@@ -2065,7 +2065,7 @@ class PlayerActivity : AppCompatActivity() {
                 )
                 // Cover our surface with the guide's last rendered frame until we draw
                 // our own first frame — the hand-off never flashes black.
-                LiveSharedPlayer.takeFrame()?.let { showAdoptedCover(it) }
+                LiveSharedPlayer.takeFrame()?.let { showAdoptedCoverFrame(this@PlayerActivity, it, player, timeoutHandler) }
             } else {
             didPlaybackComplete = false
             hasAppliedIndexOverride = false
@@ -3066,70 +3066,6 @@ class PlayerActivity : AppCompatActivity() {
         return true
     }
 
-    /**
-     * Snapshot the currently displayed video frame (TextureView directly,
-     * SurfaceView via PixelCopy) so the guide can mask its surface warm-up.
-     * Always calls [onDone] (with null on failure) — never blocks the exit.
-     */
-    private fun captureFrameForHandOff(onDone: (android.graphics.Bitmap?) -> Unit) {
-        val v = playerView.videoSurfaceView
-        when (v) {
-            is android.view.TextureView -> onDone(runCatching { v.getBitmap() }.getOrNull())
-            is android.view.SurfaceView -> {
-                val w = v.width
-                val h = v.height
-                if (w <= 0 || h <= 0) { onDone(null); return }
-                val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
-                try {
-                    android.view.PixelCopy.request(v, bitmap, { result ->
-                        onDone(if (result == android.view.PixelCopy.SUCCESS) bitmap else null)
-                    }, android.os.Handler(android.os.Looper.getMainLooper()))
-                } catch (e: Exception) {
-                    onDone(null)
-                }
-            }
-            else -> onDone(null)
-        }
-    }
-
-    /** Bridge frame from the guide, removed as soon as our surface renders. */
-    private fun showAdoptedCover(bitmap: android.graphics.Bitmap) {
-        val cover = android.widget.ImageView(this).apply {
-            setImageBitmap(bitmap)
-            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
-            setBackgroundColor(android.graphics.Color.BLACK)
-        }
-        addContentView(
-            cover,
-            android.view.ViewGroup.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        )
-        var removed = false
-        val remove = {
-            if (!removed) {
-                removed = true
-                cover.animate().alpha(0f).setDuration(150).withEndAction {
-                    (cover.parent as? android.view.ViewGroup)?.removeView(cover)
-                }.start()
-            }
-        }
-        val p = player
-        if (p == null) { remove(); return }
-        val listener = object : Player.Listener {
-            override fun onRenderedFirstFrame() {
-                p.removeListener(this)
-                remove()
-            }
-        }
-        p.addListener(listener)
-        timeoutHandler.postDelayed({
-            p.removeListener(listener)
-            remove()
-        }, 800)
-    }
-
     private fun releasePlayer(reason: String = "unspecified") {
         PlaybackDiagnosticsRecorder.record(
             this,
@@ -3233,8 +3169,8 @@ class PlayerActivity : AppCompatActivity() {
             sharedExitInProgress = true
             // Snapshot the on-screen frame first (async for SurfaceView),
             // then hand the running player back and leave without animation.
-            captureFrameForHandOff { frame ->
-                if (isFinishing || isDestroyed) return@captureFrameForHandOff
+            captureVideoFrame(playerView) { frame ->
+                if (isFinishing || isDestroyed) return@captureVideoFrame
                 handBackSharedPlayerIfNeeded(frame)
                 releasePlayer()
                 finish()
@@ -3569,18 +3505,21 @@ class PlayerActivity : AppCompatActivity() {
         val streamId = contentId?.takeIf { it.isNotBlank() } ?: return
         setResult(
             Activity.RESULT_OK,
-            Intent()
-                .putExtra(EXTRA_LIVE_RETURN_CHANNEL_ID, streamId)
-                .putExtra(EXTRA_LIVE_RETURN_CHANNEL_NAME, tvChannelName?.text?.toString() ?: pendingChannelName)
-                .putExtra(EXTRA_LIVE_RETURN_CHANNEL_LOGO, channelLogoUrl)
-                .putExtra(EXTRA_LIVE_RETURN_EPG_CHANNEL_ID, currentEpgChannelId)
-                .putExtra(EXTRA_LIVE_RETURN_STREAM_URL, currentUrl)
-                .putExtra(EXTRA_LIVE_RETURN_CATEGORY_ID, liveCategoryId)
+            buildLiveReturnIntent(
+                LiveReturnChannel(
+                    channelId = streamId,
+                    channelName = tvChannelName?.text?.toString() ?: pendingChannelName,
+                    channelLogoUrl = channelLogoUrl,
+                    epgChannelId = currentEpgChannelId,
+                    streamUrl = currentUrl,
+                    categoryId = liveCategoryId
+                )
+            )
         )
     }
 
-    private fun setExitResultIfNeeded() { if (exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete) return; val pos = player?.currentPosition ?: lastPlaybackPositionMs; if (manualExit || pos < RETURN_TO_SOURCES_THRESHOLD_MS) { exitResultHandled = true; setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RETURN_TO_SOURCES, true)) } }
-    private fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean { if (!returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || exitResultHandled) return false; exitResultHandled = true; PlaybackDiagnosticsRecorder.record(this, "return_to_sources", diagnosticsPlaybackFields() + mapOf("reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(reason), "autoPlayNext" to autoPlayNext)); setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RETURN_TO_SOURCES, true).putExtra(EXTRA_FAILED_STREAM_ID, debridStreamIdExtra ?: debridInfoHashExtra ?: contentId ?: currentUrl).putExtra(EXTRA_FAIL_REASON, reason).putExtra(EXTRA_AUTO_PLAY_NEXT, autoPlayNext)); releasePlayer("return_to_sources"); PlaybackDiagnosticsRecorder.finishSession(this, "return_to_sources"); finish(); return true }
+    private fun setExitResultIfNeeded() { if (exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete) return; val pos = player?.currentPosition ?: lastPlaybackPositionMs; if (manualExit || pos < RETURN_TO_SOURCES_THRESHOLD_MS) { exitResultHandled = true; setResult(Activity.RESULT_OK, buildReturnToSourcesIntent()) } }
+    private fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean { if (!returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || exitResultHandled) return false; exitResultHandled = true; PlaybackDiagnosticsRecorder.record(this, "return_to_sources", diagnosticsPlaybackFields() + mapOf("reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(reason), "autoPlayNext" to autoPlayNext)); setResult(Activity.RESULT_OK, buildFailedSourceReturnIntent(failedStreamId = debridStreamIdExtra ?: debridInfoHashExtra ?: contentId ?: currentUrl, reason = reason, autoPlayNext = autoPlayNext)); releasePlayer("return_to_sources"); PlaybackDiagnosticsRecorder.finishSession(this, "return_to_sources"); finish(); return true }
     private fun handleTerminalPlaybackFailure(reason: String, preferReturnToSources: Boolean = false) {
         PlaybackDiagnosticsRecorder.record(
             this,
