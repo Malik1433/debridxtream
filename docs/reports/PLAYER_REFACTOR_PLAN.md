@@ -124,7 +124,7 @@ Any phase touching live playback must be re-verified against all four.
 | ~~P8~~ | ✅ **DONE (995184d)** — `PlayerDebugOverlay` delegate + pure `buildDebugOverlayText(PlayerDebugSnapshot)`; onResume→start(), onStop→stop(). New `PlayerDebugOverlayTest` (3 tests). **Found: `debugEnabled` has no setter anywhere — the overlay is currently unreachable at runtime; left inert on purpose.** 4206→4198. | ~60 | LOW |
 | ~~P9~~ | ✅ **DONE (e76fad3)** — `PlayerXRayController` (toggle + animation + metadata/cast rendering + CastAdapter/CastViewHolder), `PlayerPipController` (capability + params + enter only). `hideUiForPiP`/`showUiForNormalMode` stay on the Activity by design — they orchestrate 8 screen collaborators. 4198→4108. | ~90 | LOW-MED |
 | ~~P10~~ | ✅ **DONE (e5e3ecc)** — `PlayerReconnectManager`: the rolling 4-per-60s budget, the delayed "RECONNECTING… (n/4)" banner (via a `ReconnectBannerHost` the Activity implements) and `maybeUpdateNetworkQuality`. **Recovery itself stayed put** — watchdog baseline is read inside `handleTimeout`, network callbacks call `attemptNetworkRecovery`, and Phase 2 is still BLOCKED. New `PlayerReconnectBudgetTest` (4 tests). 4108→3987. | ~120 | MED |
-| P11 | `PlayerLoaderUi` — cinematic loader, metadata bind, play/pause visibility, interactive animations, volume icon | ~250 | MED (UI only) |
+| ~~P11~~ | ✅ **DONE (e9bcf78)** — split into TWO files by responsibility: `PlayerLoaderUi` (cinematic overlay, its 4 views + both animators, `release()` replaces the onDestroy animator pokes) and `PlayerControlChrome` (updatePlayPauseVisibility / setupInteractiveAnimations / updateVolumeIcon, state-free). 3987→3854. | ~220 | MED |
 | P12 | `PlayerExitCoordinator` — performBackExit, exit-result rules, finishWithReturnToSources, shared-player handoff + frame capture + adopted cover | ~200 | MED-HIGH (handoff order is a landmine) |
 | P13 | `PlayerSeriesController` — playlist state, episode browser wiring, play next/prev, IPTV episode resume | ~250 | MED-HIGH |
 | P14 | `PlayerDebridSourceManager` — source profile, fresh direct-debrid resolve, source panel, switchToMovieSource, addon-proxy failure tracking, resolution-state observer | ~300 | HIGH |
@@ -218,3 +218,9 @@ delegates. When PlayerActivity drops under 600, remove its `LargeClass` entry fr
   Mbps); debrid episode playback unaffected; no FATAL. Detekt flagged two issues in the new file
   (LongParameterList, ImplicitDefaultLocale) — **fixed, not baselined**.
 - **Next: P11 (`PlayerLoaderUi`, ~250 lines, MED, UI only) — NOT approved.**
+- **P11 — DONE 2026-07-22, commit `e9bcf78`, pushed.** Device QA on .64: loader renders identically
+  (backdrop + cleaned title + sweeping segment, screenshot), hides on first frame, pause icon and the
+  focus ring/scale animation still correct, live TS channel plays afterwards (~2.5–3.7 Mbps), no FATAL.
+  No unit tests — view/animator code; device QA is the real check.
+- **Next: P12 (`PlayerExitCoordinator`, ~200 lines, MED-HIGH — the shared-player handoff order is a
+  landmine) — NOT approved.**
