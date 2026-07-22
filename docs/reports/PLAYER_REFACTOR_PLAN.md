@@ -423,7 +423,7 @@ Design:
   now-unused `repeatOnLifecycle` import from the Activity (all remaining uses are inside collaborators).
 - detekt: 1 flag (`renderOverlay` Cyclomatic, re-keyed by private→internal) — pre-existing exemption; baseline
   net 0 (**348**). compile + full tests green.
-- **Device QA .64 (commit `<c5>`):** Live TV played and zapped (two seamless switches + fresh first frames),
+- **Device QA .64 (commit `653531c`):** Live TV played and zapped (two seamless switches + fresh first frames),
   which drives both `observeZapState` (channel number) and `observeOverlayState` (EPG/OSD bind) — so the
   collectors wire up at setup with no crash.
 
