@@ -518,7 +518,7 @@ THEN the structural split.** Every phase: verbatim move, own commit + push, dete
 
 | Phase | Extract | Est. after | Risk |
 |---|---|---|---|
-| ~~P20~~ | ✅ **DONE (`<p20>`)** — `PlayerEventListener` (282): the `Player.Listener` object out of `initializePlayer` (READY resets, BUFFERING watchdog, ENDED reconnect, first-frame, track-select). initializePlayer 325→~140. detekt +TooManyFunctions on the Activity (config calls this legitimate for facades) + relocated listener flags → baseline 348→351. Device .64: VOD resume+first-frame + live zap (3 switches). NOTE: the Fire TV screen sleeping made screencaps black + input queue — WAKEUP first. | 2323 | done |
+| ~~P20~~ | ✅ **DONE (`a2edf41`)** — `PlayerEventListener` (282): the `Player.Listener` object out of `initializePlayer` (READY resets, BUFFERING watchdog, ENDED reconnect, first-frame, track-select). initializePlayer 325→~140. detekt +TooManyFunctions on the Activity (config calls this legitimate for facades) + relocated listener flags → baseline 348→351. Device .64: VOD resume+first-frame + live zap (3 switches). NOTE: the Fire TV screen sleeping made screencaps black + input queue — WAKEUP first. | 2323 | done |
 | P21 | `PlayerLiveEpgRenderer` — renderOverlay + setupOverlayViews + bindNextSlot + updateOverlayVisibility + setOverlayVisible + the ~15 EPG views (owns its own findViewById) | ~2130 | MED |
 | P22 | `PlayerStallMonitor` — checkForStall + checkVideoRenderProgress + readyStallRequiredStrikes + stall handler/runnable | ~2010 | MED (live) |
 | P23 | `PlayerMetadataBinder` — bindModernMetadata + the poster/title/subtitle/quality views | ~1930 | LOW |
