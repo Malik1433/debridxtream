@@ -234,15 +234,14 @@ class PlayerActivity : AppCompatActivity() {
     private fun maybeUpdateNetworkQuality() =
         reconnectManager.maybeUpdateNetworkQuality(bandwidthMeter?.bitrateEstimate)
 
-    private var lastDirectAddonProxyTimeoutContext: String? = null
-    private var lastDirectAddonProxyServerErrorContext: String? = null
+    /** P14: remembers which addon-proxy context last failed / already succeeded. */
+    private val addonProxyFailures = AddonProxyFailureTracker()
     private var hasRenderedFirstFrameForCurrentSource = false
     // Black-video fallback: some HW decoders (e.g. MTK on high-bitrate/4K HEVC) play audio
     // but never render video under tunneling. If no frame arrives while audio is playing,
     // reinit once without tunneling.
     private var blackVideoFallbackTried = false
     private val blackVideoCheckRunnable = Runnable { checkBlackVideoFallback() }
-    private var lastSuccessfulDirectAddonProxyPreferenceContext: String? = null
     private var isControllerVisible = false
 
     private enum class EpgOverlayMode { HIDDEN, COMPACT, EXPANDED }
@@ -1561,16 +1560,16 @@ class PlayerActivity : AppCompatActivity() {
         return playbackSource == PlaybackSource.DEBRID && !directDebridPlayback
     }
 
-    private fun canFreshResolveDirectDebrid(): Boolean {
-        return playbackSource == PlaybackSource.DEBRID &&
-            directDebridPlayback &&
-            (
-                tmdbIdExtra?.isNotBlank() == true ||
-                    imdbIdExtra?.isNotBlank() == true ||
-                    contentId?.isNotBlank() == true ||
-                    originalTitle?.isNotBlank() == true
-                )
-    }
+    private fun canFreshResolveDirectDebrid(): Boolean = canFreshResolveDirectDebrid(
+        playbackSource = playbackSource,
+        directDebridPlayback = directDebridPlayback,
+        ids = DebridLookupIds(
+            tmdbId = tmdbIdExtra,
+            imdbId = imdbIdExtra,
+            contentId = contentId,
+            title = originalTitle
+        )
+    )
 
     private fun refreshDirectDebridSourceFromMetadata(reason: String): Boolean {
         if (!canFreshResolveDirectDebrid() || isResolvingDebrid) return false
@@ -1624,13 +1623,12 @@ class PlayerActivity : AppCompatActivity() {
         )
     }
 
-    private fun debridSeriesLookupId(): String {
-        return tmdbIdExtra
-            ?: intent.getStringExtra(EXTRA_SERIES_ID)
-            ?: imdbIdExtra
-            ?: contentId?.substringBefore(':')
-            ?: ""
-    }
+    private fun debridSeriesLookupId(): String = debridSeriesLookupId(
+        tmdbId = tmdbIdExtra,
+        intentSeriesId = intent.getStringExtra(EXTRA_SERIES_ID),
+        imdbId = imdbIdExtra,
+        contentId = contentId
+    )
 
     private fun applyDebridSourceProfile(profile: DebridSourceProfile?) {
         if (profile == null) return
@@ -1942,18 +1940,12 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun directAddonProxyTimeoutContext(url: String): String? {
         if (!requiresAddonProxyPlaybackContext(url)) return null
-        val headersKey = effectivePlaybackHeadersFor(url).orEmpty()
-            .toSortedMap(String.CASE_INSENSITIVE_ORDER)
-            .entries
-            .joinToString("|") { "${it.key.lowercase(Locale.US)}=${it.value}" }
-        return "${url.hashCode()}:${headersKey.hashCode()}"
+        return addonProxyContextKey(url, effectivePlaybackHeadersFor(url))
     }
 
     private fun hasRepeatedDirectAddonProxyTimeout(url: String): Boolean {
         val context = directAddonProxyTimeoutContext(url) ?: return false
-        val repeated = lastDirectAddonProxyTimeoutContext == context
-        lastDirectAddonProxyTimeoutContext = context
-        return repeated
+        return addonProxyFailures.hasRepeatedTimeout(context)
     }
 
     private fun hasRepeatedDirectAddonProxyServerError(error: PlaybackException): Boolean {
@@ -1962,9 +1954,7 @@ class PlayerActivity : AppCompatActivity() {
         if (responseCode !in 500..599) return false
         val url = currentUrl ?: return false
         val context = directAddonProxyTimeoutContext(url) ?: return false
-        val repeated = lastDirectAddonProxyServerErrorContext == context
-        lastDirectAddonProxyServerErrorContext = context
-        return repeated
+        return addonProxyFailures.hasRepeatedServerError(context)
     }
 
     private fun maybeRecordDirectAddonProxySuccess() {
@@ -1978,8 +1968,7 @@ class PlayerActivity : AppCompatActivity() {
         }
         if ((player?.duration ?: 0L) < minimumDurationMs) return
         val context = directAddonProxyTimeoutContext(url) ?: return
-        if (lastSuccessfulDirectAddonProxyPreferenceContext == context) return
-        lastSuccessfulDirectAddonProxyPreferenceContext = context
+        if (!addonProxyFailures.shouldRecordSuccess(context)) return
         SessionSourcePreference.recordFirstFrame(
             provider = debridProviderExtra ?: debridSourceNameExtra,
             sourceType = debridSourceTypeExtra,
@@ -2262,8 +2251,7 @@ class PlayerActivity : AppCompatActivity() {
                         // First playable frame — dissolve the cinematic loader to reveal video.
                         loaderUi.hide()
                         lastBufferingStartMs = 0L
-                        lastDirectAddonProxyTimeoutContext = null
-                        lastDirectAddonProxyServerErrorContext = null
+                        addonProxyFailures.clearFailures()
                         maybeRecordDirectAddonProxySuccess()
                         if (contentType != ContentType.LIVE_TV) {
                             updatePlayPauseVisibility(playerView, player?.playWhenReady == true, isControllerVisible)
