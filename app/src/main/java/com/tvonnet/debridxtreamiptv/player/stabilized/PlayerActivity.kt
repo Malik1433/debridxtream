@@ -112,8 +112,12 @@ class PlayerActivity : AppCompatActivity() {
 
     private val prefs by lazy { CredentialsPreferences(this) }
 
+    /** S1: every mutable screen state lives here; the vars below just delegate. */
+    private val session = PlayerSessionState().apply { timeoutMs = TIMEOUT_MS }
+
+
     private var isInPictureInPictureMode = false
-    private var wasPlayingBeforePiP = true
+    private var wasPlayingBeforePiP: Boolean by session::wasPlayingBeforePiP
 
     /** P9: PiP capability + entry. */
     private val pipController = PlayerPipController(this)
@@ -146,21 +150,21 @@ class PlayerActivity : AppCompatActivity() {
     // True when this session was launched from the Live TV EPG guide with a shared
     // preview player to adopt (seamless mini <-> fullscreen continuity).
     private val sharedLiveSession by lazy { intent.getBooleanExtra(EXTRA_SHARED_LIVE_PLAYER, false) }
-    private var sharedExitInProgress = false
+    private var sharedExitInProgress: Boolean by session::sharedExitInProgress
     private lateinit var watchHistoryPrefs: WatchHistoryPreferences
     internal lateinit var historyManager: PlayerHistoryManager
 
-    private var retryCount = 0
+    private var retryCount: Int by session::retryCount
     private val maxRetries = 5 
-    internal var currentUrl: String? = null
-    private var streamHeaders: Map<String, String>? = null
-    private var subtitleEntries: List<String> = emptyList()
+    internal var currentUrl: String? by session::currentUrl
+    private var streamHeaders: Map<String, String>? by session::streamHeaders
+    private var subtitleEntries: List<String> by session::subtitleEntries
     private var activeTrackDialog: Dialog? = null
-    private var timeoutMs: Long = TIMEOUT_MS
+    private var timeoutMs: Long by session::timeoutMs
     private val timeoutHandler = Handler(Looper.getMainLooper())
     private val timeoutRunnable = Runnable { handleTimeout() }
     private val retryHandler = Handler(Looper.getMainLooper())
-    private var frameRateMatchedForCurrentSource = false
+    private var frameRateMatchedForCurrentSource: Boolean by session::frameRateMatchedForCurrentSource
 
     // ── crash-safe progress heartbeat (VOD) ─────────────────────────────────
     // Streaming-app standard: persist the playback position every ~30s while
@@ -178,8 +182,8 @@ class PlayerActivity : AppCompatActivity() {
     // ── progress-aware buffering watchdog (live) ────────────────────────────
     // Baseline bufferedPosition captured when the timeout watchdog is (re)armed;
     // handleTimeout extends the window while the buffer keeps growing.
-    private var watchdogExtensions = 0
-    private var watchdogBufferedPosAtArm = -1L
+    private var watchdogExtensions: Int by session::watchdogExtensions
+    private var watchdogBufferedPosAtArm: Long by session::watchdogBufferedPosAtArm
     private fun armWatchdogBaseline() {
         watchdogBufferedPosAtArm = player?.bufferedPosition ?: -1L
         watchdogExtensions = 0
@@ -280,11 +284,11 @@ class PlayerActivity : AppCompatActivity() {
 
     /** P14: remembers which addon-proxy context last failed / already succeeded. */
     private val addonProxyFailures = AddonProxyFailureTracker()
-    private var hasRenderedFirstFrameForCurrentSource = false
+    private var hasRenderedFirstFrameForCurrentSource: Boolean by session::hasRenderedFirstFrameForCurrentSource
     // Black-video fallback: some HW decoders (e.g. MTK on high-bitrate/4K HEVC) play audio
     // but never render video under tunneling. If no frame arrives while audio is playing,
     // reinit once without tunneling.
-    private var blackVideoFallbackTried = false
+    private var blackVideoFallbackTried: Boolean by session::blackVideoFallbackTried
     private val blackVideoCheckRunnable = Runnable { checkBlackVideoFallback() }
     private var isControllerVisible = false
 
@@ -299,11 +303,11 @@ class PlayerActivity : AppCompatActivity() {
             shouldBeVisible = { shouldShowEpgOverlay() }
         )
     }
-    private var isSwitching = false
+    private var isSwitching: Boolean by session::isSwitching
     private var layoutDebugOverlay: View? = null
     private var tvDebugInfo: TextView? = null
     private var debugEnabled = false
-    private var switchCount = 0
+    private var switchCount: Int by session::switchCount
     private var debugListener: Player.Listener? = null
     private var playerListener: Player.Listener? = null
     private val captureRunnable = Runnable { captureManualTrackSelection() }
@@ -358,25 +362,25 @@ class PlayerActivity : AppCompatActivity() {
     private val stallHandler = Handler(Looper.getMainLooper())
     /** P15: position-progress strikes (detection only — the reaction stays here). */
     private val stallDetector = PlayerStallDetector()
-    private var lastBufferingStartMs = 0L
+    private var lastBufferingStartMs: Long by session::lastBufferingStartMs
     // Video-freeze watchdog: position keeps advancing with audio when only the
     // video decoder dies (e.g. HEVC GuiExt alloc failures on MTK Fire TVs), so
     // rendered-frame progress is tracked separately from position progress.
     /** P15: rendered-frame progress ("audio plays, video frozen"). */
     private val freezeDetector = VideoFreezeDetector()
-    private var disableTunnelingForSession = false
+    private var disableTunnelingForSession: Boolean by session::disableTunnelingForSession
     // How many times we've recovered from an AudioTrack-allocation failure this
     // source (reset on a clean READY / new source). Bounds the audio-device retry.
-    private var audioSinkRecoveryCount = 0
+    private var audioSinkRecoveryCount: Int by session::audioSinkRecoveryCount
     // Some providers' live TS streams carry backward PTS jumps right after start;
     // the decoder renders the first frame and then drops everything as "late".
     // Re-preparing the same URL resets the timestamp adjuster past the bad region.
-    private var liveFreezeReprepares = 0
-    private var lastFreezeRecoveryUrl: String? = null
-    private var lastFreezeRecoveryAtMs = 0L
+    private var liveFreezeReprepares: Int by session::liveFreezeReprepares
+    private var lastFreezeRecoveryUrl: String? by session::lastFreezeRecoveryUrl
+    private var lastFreezeRecoveryAtMs: Long by session::lastFreezeRecoveryAtMs
     // Provider socket drops surface as STATE_ENDED; reconnect in place, but cap
     // it so an instantly-dropping stream degrades to the error path, not a loop.
-    private var endedReconnects = 0
+    private var endedReconnects: Int by session::endedReconnects
     private var lastEndedReconnectAtMs = 0L
 
     // ── unified reconnect budget (QA fix 2) ─────────────────────────────────
@@ -403,54 +407,54 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    internal var channelLogoUrl: String? = null
-    internal var contentType: ContentType? = null
-    internal var playbackSource: PlaybackSource = PlaybackSource.IPTV
-    internal var directDebridPlayback: Boolean = false
-    internal var contentId: String? = null
-    private var returnToSourcesOnExit: Boolean = false
-    private var didPlaybackComplete: Boolean = false
-    private var manualExit: Boolean = false
-    private var exitResultHandled: Boolean = false
-    private var lastPlaybackPositionMs: Long = 0L
-    internal var posterUrlExtra: String? = null
-    internal var backdropUrlExtra: String? = null
-    internal var tmdbIdExtra: String? = null
-    internal var imdbIdExtra: String? = null
-    internal var seriesTitleExtra: String? = null
-    internal var episodeTitleExtra: String? = null
-    internal var seasonNumberExtra: Int? = null
-    internal var episodeNumberExtra: Int? = null
-    internal var debridInfoHashExtra: String? = null
-    internal var debridMagnetExtra: String? = null
-    internal var debridProviderExtra: String? = null
-    internal var debridSourceTypeExtra: String? = null
-    internal var debridSourceNameExtra: String? = null
-    internal var debridLanguagesExtra: List<String>? = null
-    internal var debridQualityExtra: String? = null
-    internal var debridStreamIdExtra: String? = null
-    internal var debridBingeGroupExtra: String? = null
-    internal var debridFileIdxExtra: Int? = null
-    internal var expiresAtExtra: Long? = null
-    internal var originalTitle: String? = null
-    internal var hasRecordedHistory = false
+    internal var channelLogoUrl: String? by session::channelLogoUrl
+    internal var contentType: ContentType? by session::contentType
+    internal var playbackSource: PlaybackSource by session::playbackSource
+    internal var directDebridPlayback: Boolean by session::directDebridPlayback
+    internal var contentId: String? by session::contentId
+    private var returnToSourcesOnExit: Boolean by session::returnToSourcesOnExit
+    private var didPlaybackComplete: Boolean by session::didPlaybackComplete
+    private var manualExit: Boolean by session::manualExit
+    private var exitResultHandled: Boolean by session::exitResultHandled
+    private var lastPlaybackPositionMs: Long by session::lastPlaybackPositionMs
+    internal var posterUrlExtra: String? by session::posterUrlExtra
+    internal var backdropUrlExtra: String? by session::backdropUrlExtra
+    internal var tmdbIdExtra: String? by session::tmdbIdExtra
+    internal var imdbIdExtra: String? by session::imdbIdExtra
+    internal var seriesTitleExtra: String? by session::seriesTitleExtra
+    internal var episodeTitleExtra: String? by session::episodeTitleExtra
+    internal var seasonNumberExtra: Int? by session::seasonNumberExtra
+    internal var episodeNumberExtra: Int? by session::episodeNumberExtra
+    internal var debridInfoHashExtra: String? by session::debridInfoHashExtra
+    internal var debridMagnetExtra: String? by session::debridMagnetExtra
+    internal var debridProviderExtra: String? by session::debridProviderExtra
+    internal var debridSourceTypeExtra: String? by session::debridSourceTypeExtra
+    internal var debridSourceNameExtra: String? by session::debridSourceNameExtra
+    internal var debridLanguagesExtra: List<String>? by session::debridLanguagesExtra
+    internal var debridQualityExtra: String? by session::debridQualityExtra
+    internal var debridStreamIdExtra: String? by session::debridStreamIdExtra
+    internal var debridBingeGroupExtra: String? by session::debridBingeGroupExtra
+    internal var debridFileIdxExtra: Int? by session::debridFileIdxExtra
+    internal var expiresAtExtra: Long? by session::expiresAtExtra
+    internal var originalTitle: String? by session::originalTitle
+    internal var hasRecordedHistory: Boolean by session::hasRecordedHistory
     private val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
-    private var startPositionMs: Long = 0L
+    private var startPositionMs: Long by session::startPositionMs
     private var hasShownOverlayOnce = false
     private var lastOverlayState: PlayerOverlayUiState? = null
-    internal var pendingChannelName: String? = null
-    internal var currentEpgChannelId: String? = null
-    internal var liveCategoryId: String? = null
-    internal var baseServerUrl: String? = null
+    internal var pendingChannelName: String? by session::pendingChannelName
+    internal var currentEpgChannelId: String? by session::currentEpgChannelId
+    internal var liveCategoryId: String? by session::liveCategoryId
+    internal var baseServerUrl: String? by session::baseServerUrl
     private var liveChannelIds: ArrayList<String>? = null
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
-    private var networkAvailable = true
-    private var isResolvingDebrid = false
-    private var hasAppliedIndexOverride = false
+    private var networkAvailable: Boolean by session::networkAvailable
+    private var isResolvingDebrid: Boolean by session::isResolvingDebrid
+    private var hasAppliedIndexOverride: Boolean by session::hasAppliedIndexOverride
     private lateinit var trackManager: PlayerTrackManager
     private lateinit var episodeBrowserController: EpisodeBrowserController
-    private var currentZapRequestId = 0L
+    private var currentZapRequestId: Long by session::currentZapRequestId
     // Cinematic live OSD (design_handoff Live Player); non-null only for LIVE_TV.
     private var liveOsd: LivePlayerOsdManager? = null
 
@@ -1298,7 +1302,7 @@ class PlayerActivity : AppCompatActivity() {
 
     // Standard TV BACK: armed after 1st BACK hides the controller, so the 2nd BACK exits
     // even if media3 auto-re-shows the controller (e.g. while paused). Disarmed on explicit show.
-    private var backHideArmed = false
+    private var backHideArmed: Boolean by session::backHideArmed
 
     // VOD Player redesign: custom design seek bar (visual only; media3 TimeBar handles scrubbing).
     private var seekOverlay: VodSeekOverlay? = null
