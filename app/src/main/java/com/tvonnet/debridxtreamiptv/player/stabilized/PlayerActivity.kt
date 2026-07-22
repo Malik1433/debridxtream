@@ -17,7 +17,6 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.widget.ImageView
-import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -204,6 +203,13 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     private val inputRouter: PlayerInputRouter by lazy {
         PlayerInputRouter(this, session)
     }
+
+    /** P21: the legacy live EPG overlay strip renderer. */
+    internal val epgRenderer: PlayerLiveEpgRenderer by lazy {
+        PlayerLiveEpgRenderer(this, session)
+    }
+    /** P21: thin forwarder so C5's viewModel binder + setup still call renderOverlay here. */
+    internal fun renderOverlay(state: PlayerOverlayUiState) = epgRenderer.renderOverlay(state)
 
     /** C6 bridges: lateinit-guarded reads the input router needs. */
     internal fun isNextEpisodePromptVisible(): Boolean =
@@ -392,25 +398,10 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         )
     }
 
-    private var epgOverlay: View? = null
+    internal var epgOverlay: View? = null
     private var imgChannelLogo: ImageView? = null
     internal var tvChannelNumber: TextView? = null
     internal var tvChannelName: TextView? = null
-    private var tvNowTitle: TextView? = null
-    private var tvNowTime: TextView? = null
-    private var progressNow: ProgressBar? = null
-    private var tvEpgStatus: TextView? = null
-    private var tvNowCardTime: TextView? = null
-    private var tvNowCardTitle: TextView? = null
-    private var cardNext1: View? = null
-    private var tvNext1Time: TextView? = null
-    private var tvNext1Title: TextView? = null
-    private var cardNext2: View? = null
-    private var tvNext2Time: TextView? = null
-    private var tvNext2Title: TextView? = null
-    private var cardNext3: View? = null
-    private var tvNext3Time: TextView? = null
-    private var tvNext3Title: TextView? = null
 
     private var vodInfoOverlay: View? = null
     private var imgVodArtwork: ImageView? = null
@@ -500,8 +491,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     internal var hasRecordedHistory: Boolean by session::hasRecordedHistory
     private val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
     private var startPositionMs: Long by session::startPositionMs
-    private var hasShownOverlayOnce = false
-    private var lastOverlayState: PlayerOverlayUiState? = null
     internal var pendingChannelName: String? by session::pendingChannelName
     internal var currentEpgChannelId: String? by session::currentEpgChannelId
     internal var liveCategoryId: String? by session::liveCategoryId
@@ -940,9 +929,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         }
 
         if (contentType == ContentType.LIVE_TV) {
-            if (lastOverlayState == null) {
-                lastOverlayState = PlayerOverlayUiState(epgAvailable = false, isSyncing = true, errorMessage = null)
-            }
+            epgRenderer.seedInitialStateIfNeeded()
             if (liveOsd == null) showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false)
         } else {
             playerView.showController()
@@ -1086,24 +1073,10 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         imgChannelLogo = findViewById(R.id.img_channel_logo)
         tvChannelNumber = findViewById(R.id.tv_channel_number)
         tvChannelName = findViewById(R.id.tv_channel_name)
-        tvNowTitle = findViewById(R.id.tv_now_title)
-        tvNowTime = findViewById(R.id.tv_now_time)
-        progressNow = findViewById(R.id.progress_now)
-        tvEpgStatus = findViewById(R.id.tv_epg_status)
-        tvNowCardTime = findViewById(R.id.tv_now_card_time)
-        tvNowCardTitle = findViewById(R.id.tv_now_card_title)
-        cardNext1 = findViewById(R.id.card_next_1)
-        tvNext1Time = findViewById(R.id.tv_next_1_time)
-        tvNext1Title = findViewById(R.id.tv_next_1_title)
-        cardNext2 = findViewById(R.id.card_next_2)
-        tvNext2Time = findViewById(R.id.tv_next_2_time)
-        tvNext2Title = findViewById(R.id.tv_next_2_title)
-        cardNext3 = findViewById(R.id.card_next_3)
-        tvNext3Time = findViewById(R.id.tv_next_3_time)
-        tvNext3Title = findViewById(R.id.tv_next_3_title)
-        
+        epgRenderer.bindViews()
+
         pendingChannelName?.let { bindChannelMeta(it) }
-        lastOverlayState?.let { renderOverlay(it) }
+        epgRenderer.renderLastState()
     }
 
     private lateinit var nextEpisodeManager: PlayerNextEpisodeManager
@@ -1302,64 +1275,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
 
 
 
-
-    internal fun renderOverlay(state: PlayerOverlayUiState) {
-        lastOverlayState = state
-        if (contentType != ContentType.LIVE_TV) return
-        liveOsd?.let { osd ->
-            osd.bindEpg(state.now, state.next ?: state.upcoming.firstOrNull())
-            return
-        }
-        if (epgOverlay == null) return
-
-        val statusText = when {
-            state.isSyncing -> getString(R.string.player_epg_syncing)
-            !state.errorMessage.isNullOrBlank() -> state.errorMessage
-            !state.epgAvailable -> getString(R.string.player_epg_no_guide)
-            else -> null
-        }
-        tvEpgStatus?.text = statusText
-        tvEpgStatus?.isVisible = !statusText.isNullOrBlank()
-
-        val now = state.now
-        tvNowTitle?.text = now?.title ?: getString(R.string.epg_no_info)
-        tvNowTime?.text = now?.let { formatTimeRangeCompact(it) } ?: "--:--"
-        tvNowCardTitle?.text = now?.title ?: getString(R.string.epg_no_info)
-        tvNowCardTime?.text = now?.let { formatTimeRangeCompact(it) } ?: "--:--"
-
-        val progress = now?.let { program ->
-            val duration = (program.stop - program.start).coerceAtLeast(1L)
-            ((System.currentTimeMillis() - program.start)
-                .coerceAtLeast(0)
-                .coerceAtMost(duration)
-                * 100 / duration).toInt()
-        } ?: 0
-        progressNow?.progress = progress
-
-        val nextPrograms = state.upcoming.take(3)
-        bindNextSlot(cardNext1, tvNext1Title, tvNext1Time, nextPrograms.getOrNull(0))
-        bindNextSlot(cardNext2, tvNext2Title, tvNext2Time, nextPrograms.getOrNull(1))
-        bindNextSlot(cardNext3, tvNext3Title, tvNext3Time, nextPrograms.getOrNull(2))
-
-        if (!hasShownOverlayOnce) {
-            showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false)
-            hasShownOverlayOnce = true
-        }
-
-        updateOverlayVisibility()
-    }
-
-    private fun bindNextSlot(container: View?, titleView: TextView?, timeView: TextView?, program: com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity?) {
-        titleView ?: return
-        timeView ?: return
-        if (program == null) {
-            container?.isVisible = false
-            return
-        }
-        container?.isVisible = true
-        timeView.text = formatTimeRangeCompact(program)
-        titleView.text = program.title ?: getString(R.string.epg_no_info)
-    }
 
     internal fun bindChannelMeta(channelName: String?) {
         pendingChannelName = channelName
@@ -2125,7 +2040,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) { super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig); this.isInPictureInPictureMode = isInPictureInPictureMode; if (isInPictureInPictureMode) hideUiForPiP() else showUiForNormalMode() }
 
-    private fun updateOverlayVisibility() = epgOverlayUi.applyVisibility()
+    internal fun updateOverlayVisibility() = epgOverlayUi.applyVisibility()
 
     /** The rule the overlay asks for: the OSD, PiP and the controller all veto it. */
     private fun shouldShowEpgOverlay(): Boolean {
@@ -2148,7 +2063,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     internal fun hideEpgOverlay() = epgOverlayUi.hide()
     internal fun toggleEpgOverlayPinned() = epgOverlayUi.togglePinned()
 
-    private fun formatTimeRangeCompact(program: com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity): String = "${timeFormatter.format(Date(program.start))}-${timeFormatter.format(Date(program.stop))}"
+    internal fun formatTimeRangeCompact(program: com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity): String = "${timeFormatter.format(Date(program.start))}-${timeFormatter.format(Date(program.stop))}"
 
 
 

@@ -100,7 +100,6 @@
     <ID>CyclomaticComplexMethod:MovieSourceConversion.kt$internal fun isDirectStreamUrl(url: String): Boolean</ID>
     <ID>CyclomaticComplexMethod:PlaybackResolver.kt$PlaybackResolver$suspend fun resolve( source: String, streamUrl: String?, isExpired: Boolean, infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectHttpPassthrough: Boolean = true ): ResolutionResult</ID>
     <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$internal fun bindModernMetadata(title: String?)</ID>
-    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$internal fun renderOverlay(state: PlayerOverlayUiState)</ID>
     <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$override fun initializePlayer(streamUrl: String)</ID>
     <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
     <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$override fun refreshDirectDebridSourceFromMetadata(reason: String): Boolean</ID>
@@ -111,6 +110,7 @@
     <ID>CyclomaticComplexMethod:PlayerHelpers.kt$internal fun resolveMediaMimeType( url: String, sourceHints: List&lt;String?&gt;, streamHeaders: Map&lt;String, String&gt;? ): String?</ID>
     <ID>CyclomaticComplexMethod:PlayerHistoryManager.kt$PlayerHistoryManager$fun saveProgressSnapshot()</ID>
     <ID>CyclomaticComplexMethod:PlayerInputRouter.kt$PlayerInputRouter$fun dispatchKeyEvent(event: KeyEvent): Boolean?</ID>
+    <ID>CyclomaticComplexMethod:PlayerLiveEpgRenderer.kt$PlayerLiveEpgRenderer$fun renderOverlay(state: PlayerOverlayUiState)</ID>
     <ID>CyclomaticComplexMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handlePlaybackError(error: PlaybackException)</ID>
     <ID>CyclomaticComplexMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handleTimeout()</ID>
     <ID>CyclomaticComplexMethod:PlayerSeriesController.kt$PlayerSeriesController$fun playNextEpisode()</ID>
