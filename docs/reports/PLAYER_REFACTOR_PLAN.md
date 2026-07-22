@@ -304,3 +304,22 @@ plus a long tail of wiring:
 screen split (a `PlayerScreenCoordinator` owning the delegates, or separate Live/VOD player
 screens) — that is a structural change with a real regression surface, and it needs its own
 plan + approval. Every file CREATED by the steps above stays ≤600 by design.
+
+## Session-state route progress (2026-07-22, evening)
+- **P19b — DONE `6e3f4ff`**: `PlayerTransportButtons` (controller buttons + volume via `TransportActions`). 3665→3584.
+- **P19c — DONE `dd611fe`**: `PlayerChannelBrowser` (+`ChannelBrowserHost`; tuning stays in the Activity). 3584→3539.
+- **S1 — DONE `0258e7e`**: `PlayerSessionState` — all ~63 mutable screen vars in one object; the Activity
+  declares each as `by session::field`, so every call site (Activity + collaborators) compiled unchanged.
+  This is the enabler: new controllers take the session directly, no more 20-callback host interfaces.
+
+### Next: C1 `PlayerRecoveryController` (design settled, not yet executed)
+Move verbatim: `handlePlaybackError` (all reactions), `handleTimeout`, `attemptNetworkRecovery`,
+`handleInitializationError`, `retryBackoffDelayMs`, the timeout/retry Handlers and the network callback
+register/unregister. Constructor: `(activity: Context, session: PlayerSessionState, host: RecoveryHost)`.
+`RecoveryHost` (~14 methods — an interface, so detekt is fine): player()/setPlayer(null)/releasePlayer,
+initializePlayer(url), performSeamlessSwitch(url), canAttemptReconnect(), handleTerminal(reason, prefer),
+finishWithReturnToSources(auto, reason), refreshDirectDebrid(reason): Boolean, canUseDebridResolver(),
+reResolveDebrid(), recordProxyFailure(), hasRepeatedProxyTimeout(url), hasRepeatedProxyServerError(err),
+requiresAddonProxyContext(url), diagnosticsFields(...). All session state reads/writes go through
+`session.` directly — that is the point of S1.
+Then C2 live tuner, C3 debrid coordinator, C4 series, C5 UI binder, C6 input shell, F1 sweep → ~600.
