@@ -3286,13 +3286,13 @@ class PlayerActivity : AppCompatActivity() {
             // controls, 2nd runs the real exit (records history, sets manualExit).
             if (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE) {
                 if (event.action == KeyEvent.ACTION_UP) {
-                    when {
-                        isInPictureInPictureMode -> return super.dispatchKeyEvent(event)
-                        isControllerVisible && !backHideArmed -> {
+                    when (vodBackAction(isInPictureInPictureMode, isControllerVisible, backHideArmed)) {
+                        VodBackAction.PASS_THROUGH -> return super.dispatchKeyEvent(event)
+                        VodBackAction.HIDE_CONTROLLER -> {
                             playerView.hideController()
                             backHideArmed = true
                         }
-                        else -> performBackExit()
+                        VodBackAction.EXIT -> performBackExit()
                     }
                 }
                 return true
@@ -3319,26 +3319,9 @@ class PlayerActivity : AppCompatActivity() {
 
             // Standard Controller triggers
             if (contentType != ContentType.LIVE_TV && playerView.useController && !(::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible) && !playerView.isControllerFullyVisible) {
-                run {
-                    when (event.keyCode) {
-                        KeyEvent.KEYCODE_DPAD_LEFT,
-                        KeyEvent.KEYCODE_DPAD_RIGHT,
-                        KeyEvent.KEYCODE_DPAD_UP,
-                        KeyEvent.KEYCODE_DPAD_DOWN,
-                        KeyEvent.KEYCODE_DPAD_CENTER,
-                        KeyEvent.KEYCODE_ENTER,
-                        KeyEvent.KEYCODE_NUMPAD_ENTER,
-                        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                        KeyEvent.KEYCODE_MEDIA_PLAY,
-                        KeyEvent.KEYCODE_MEDIA_PAUSE,
-                        KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
-                        KeyEvent.KEYCODE_MEDIA_REWIND,
-                        KeyEvent.KEYCODE_MENU -> {
-                            showControllerWithSmartFocus(event)
-                            return true
-                        }
-                        else -> {}
-                    }
+                if (isControllerTriggerKey(event.keyCode)) {
+                    showControllerWithSmartFocus(event)
+                    return true
                 }
             }
 
@@ -3354,11 +3337,24 @@ class PlayerActivity : AppCompatActivity() {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_LEFT -> { if (contentType == ContentType.LIVE_TV && liveOsd == null && !viewModel.browserState.value.isVisible) { viewModel.toggleBrowser(true, viewModel.zapState.value?.categoryId ?: liveCategoryId, contentId); return true } }
                 KeyEvent.KEYCODE_CAPTIONS -> { if (contentType != ContentType.LIVE_TV) { showSubtitleSelection(); return true } }
-                KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_UP -> { if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = +1); return true } }
-                KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_DOWN -> { if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = -1); return true } }
-                KeyEvent.KEYCODE_DPAD_UP -> { if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = +1); return true } }
-                KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible && !surfDrawerOpen && !guideOpen) { zapChannel(direction = -1); return true }
+                KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_UP,
+                KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_DOWN,
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    val direction = zapDirectionFor(event.keyCode)
+                    if (direction != null && canZapNow(
+                            action = event.action,
+                            repeatCount = event.repeatCount,
+                            contentType = contentType,
+                            surfaces = OpenPlayerSurfaces(
+                                isBrowserVisible = viewModel.browserState.value.isVisible,
+                                isSurfDrawerOpen = surfDrawerOpen,
+                                isGuideOpen = guideOpen
+                            )
+                        )
+                    ) {
+                        zapChannel(direction = direction)
+                        return true
+                    }
                 }
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { if (contentType == ContentType.LIVE_TV) { if (viewModel.browserState.value.isVisible || liveOsd != null) return super.dispatchKeyEvent(event); if (epgOverlayMode != EpgOverlayMode.HIDDEN && !epgOverlayPinned) hideEpgOverlay() else showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false); return true } }
                 KeyEvent.KEYCODE_INFO -> {
