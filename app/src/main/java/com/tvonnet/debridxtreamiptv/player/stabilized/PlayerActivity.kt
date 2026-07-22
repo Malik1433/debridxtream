@@ -175,6 +175,16 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     internal val liveTuner: PlayerLiveTuner by lazy {
         PlayerLiveTuner(this, session, timeoutHandler, timeoutRunnable)
     }
+
+    /** C3: debrid source panel + in-place source switch + resolution-state observer. */
+    private val debridCoordinator: PlayerDebridCoordinator by lazy {
+        PlayerDebridCoordinator(this, session)
+    }
+
+    /** C3 bridge: reset the next-episode prompt state, but only once its manager exists. */
+    internal fun resetNextEpisodeStateIfInitialized() {
+        if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.resetState() }
+    }
     private var frameRateMatchedForCurrentSource: Boolean by session::frameRateMatchedForCurrentSource
 
     // ── crash-safe progress heartbeat (VOD) ─────────────────────────────────
@@ -241,7 +251,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
             override fun onNextEpisode() = playNextEpisode()
             override fun onPreviousEpisode() = playPreviousEpisode()
             override fun onEpisodes() = showEpisodeBrowser()
-            override fun onSources() = openMovieSourcePanel()
+            override fun onSources() = debridCoordinator.openMovieSourcePanel()
             override fun isControllerVisible(): Boolean = isControllerVisible
         })
     }
@@ -383,7 +393,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     private var tvVodSubtitle: TextView? = null
 
     /** P11: the cinematic pre-playback loader owns its views + animators. */
-    private val loaderUi = PlayerLoaderUi(hideReconnectBanner = { reconnectManager.hideBanner() })
+    internal val loaderUi = PlayerLoaderUi(hideReconnectBanner = { reconnectManager.hideBanner() })
     private val stallHandler = Handler(Looper.getMainLooper())
     /** P15: position-progress strikes (detection only — the reaction stays here). */
     private val stallDetector = PlayerStallDetector()
@@ -883,7 +893,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
             })
             nextEpisodeManager.setupViews()
             observeSeriesPlaylistState()
-            observeDebridResolutionState()
+            debridCoordinator.observeDebridResolutionState()
             setupEpisodeBrowser()
 
             xrayController.bindToggle()
@@ -1413,7 +1423,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         contentId = contentId
     )
 
-    private fun applyDebridSourceProfile(profile: DebridSourceProfile?) {
+    internal fun applyDebridSourceProfile(profile: DebridSourceProfile?) {
         if (profile == null) return
         debridProviderExtra = profile.provider
         debridSourceTypeExtra = profile.sourceType
@@ -1479,7 +1489,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         return state.progressMs.takeIf { it > 0L } ?: 0L
     }
 
-    private fun bindModernMetadata(title: String?) {
+    internal fun bindModernMetadata(title: String?) {
         val posterView = playerView.findViewById<ImageView>(R.id.iv_player_poster)
         val titleView = playerView.findViewById<TextView>(R.id.tv_player_title)
         val subtitleView = playerView.findViewById<TextView>(R.id.tv_player_subtitle)
@@ -2858,93 +2868,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     }
 
     /**
-     * In-player movie "Sources" panel: fetch the movie's sources and show the same picker
-     * as the detail screen so the user can switch source/language (e.g. Hindi → German)
-     * mid-playback. Picking one relaunches the player on that source at the current position.
-     */
-    private fun openMovieSourcePanel() {
-        if (isFinishing || contentType != ContentType.MOVIE) return
-        val sheet = com.tvonnet.debridxtreamiptv.ui.series.SourceSelectionBottomSheet(
-            onSourceSelected = { source, _ -> switchToMovieSource(source) },
-            contentTitle = originalTitle,
-            backdropUrl = backdropUrlExtra
-        )
-        sheet.show(supportFragmentManager, "player_movie_sources")
-        lifecycleScope.launch {
-            val sources = viewModel.fetchMovieSourcesForPanel(
-                streamId = debridStreamIdExtra ?: contentId,
-                title = originalTitle,
-                imdbId = imdbIdExtra,
-                cleanTitle = cleanLoaderTitle(originalTitle)
-            )
-            if (!sheet.isAdded) return@launch
-            if (sources.isEmpty()) sheet.showError("No other sources found") else sheet.showSources(sources)
-        }
-    }
-
-    /**
-     * Switch the movie to the picked source IN-PLACE (no activity relaunch — relaunching
-     * collapsed the back stack to home). Saves the current position, updates the source
-     * identity, and re-inits: resolver-backed magnet sources go through the debrid
-     * resolution (cinematic loader), direct-http/IPTV sources re-init on the ready URL.
-     * The saved position is restored on the first frame (initializePlayer seeks to it).
-     */
-    private fun switchToMovieSource(source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource) {
-        if (contentType != ContentType.MOVIE || isFinishing) return
-        val stream = source.stream
-        val magnet = stream.direct_source
-        val infoHash = stream.stream_id
-        val isIptv = source.sourceType == "IPTV"
-        val isDirectHttp = !isIptv && magnet?.startsWith("http", ignoreCase = true) == true &&
-            !magnet.endsWith(".torrent", ignoreCase = true)
-        val resolverBacked = !isIptv && !isDirectHttp
-        if (resolverBacked && magnet.isNullOrBlank() && infoHash.isNullOrBlank()) {
-            showToast("Invalid source"); return
-        }
-
-        // Resume the new source from where we are now.
-        startPositionMs = (player?.currentPosition ?: startPositionMs).coerceAtLeast(0L)
-        playbackSource = if (isIptv) PlaybackSource.IPTV else PlaybackSource.DEBRID
-        debridStreamIdExtra = stream.stream_id
-        stream.name?.let { originalTitle = it }
-        // Refresh the on-screen title so the controller shows the source we just switched to,
-        // not the previous one.
-        bindModernMetadata(stream.name ?: originalTitle)
-
-        when {
-            isIptv -> {
-                val prefs = CredentialsPreferences(this)
-                val server = prefs.getServerUrl()?.trimEnd('/')
-                val user = prefs.getUsername()
-                val pass = prefs.getPassword()
-                if (server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank() || stream.stream_id.isNullOrBlank()) {
-                    showToast("Missing credentials"); return
-                }
-                directDebridPlayback = false
-                debridInfoHashExtra = null; debridMagnetExtra = null
-                val ext = stream.container_extension?.takeIf { it.isNotBlank() } ?: "mp4"
-                showCinematicLoader()
-                initializePlayer("$server/movie/$user/$pass/${stream.stream_id}.$ext")
-            }
-            isDirectHttp -> {
-                directDebridPlayback = true
-                debridInfoHashExtra = null; debridMagnetExtra = null
-                showCinematicLoader()
-                initializePlayer(magnet!!)
-            }
-            else -> {
-                // Resolver-backed magnet: set the new identity and let the player resolve it.
-                directDebridPlayback = false
-                debridInfoHashExtra = infoHash
-                debridMagnetExtra = magnet
-                isResolvingDebrid = true
-                showCinematicLoader()
-                viewModel.reResolveDebridUrl(infoHash, magnet, null, null, originalTitle)
-            }
-        }
-    }
-
-    /**
      * If audio is playing (STATE_READY) but no video frame has rendered, the HW decoder is
      * decoding audio while producing no visible video — a known tunneling black-screen on
      * some SoCs (e.g. MTK) for high-bitrate/4K HEVC. Reinit once without tunneling at the
@@ -2998,49 +2921,10 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     }
 
     /** P11 shim: the loader needs the launch extras, so the Activity supplies them. */
-    private fun showCinematicLoader() = loaderUi.show(
+    internal fun showCinematicLoader() = loaderUi.show(
         rawTitle = seriesTitleExtra?.takeIf { it.isNotBlank() } ?: originalTitle,
         backdropUrl = backdropUrlExtra?.takeIf { it.isNotBlank() } ?: posterUrlExtra?.takeIf { it.isNotBlank() }
     )
-
-    private fun observeDebridResolutionState() {
-        lifecycleScope.launch {
-            viewModel.debridResolutionState.collect { state ->
-                when (state) {
-                    is DebridResolutionState.Loading -> { isResolvingDebrid = true; showCinematicLoader() }
-                    is DebridResolutionState.Success -> {
-                        // Keep the loader up through buffering; STATE_READY hides it on first frame.
-                        isResolvingDebrid = false
-                        directDebridPlayback = state.directDebridPlayback
-                        streamHeaders = state.headers
-                        applyDebridSourceProfile(state.sourceProfile)
-                        debridMagnetExtra = state.magnet ?: debridMagnetExtra
-                        if (state.season != null && state.episode != null) {
-                            val isSame = seasonNumberExtra == state.season && episodeNumberExtra == state.episode
-                            seasonNumberExtra = state.season; episodeNumberExtra = state.episode; episodeTitleExtra = state.title
-                            if (!isSame) startPositionMs = 0L
-                            bindModernMetadata("${seriesTitleExtra ?: ""} - S${state.season}:E${state.episode}")
-                            if (state.infoHash != null) debridInfoHashExtra = state.infoHash
-                            if (state.sourceProfile?.streamId != null) debridStreamIdExtra = state.sourceProfile.streamId
-                            hasRecordedHistory = false; if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.resetState() }
-                        }
-                        currentUrl = state.url
-                        if (player == null) {
-                            initializePlayer(state.url)
-                        } else {
-                            liveTuner.performSeamlessSwitch(state.url)
-                        }
-                    }
-                    is DebridResolutionState.Error -> {
-                        loaderUi.hide()
-                        isResolvingDebrid = false
-                        handleTerminalPlaybackFailure("Failed: ${state.message}")
-                    }
-                    is DebridResolutionState.Idle -> { loaderUi.hide(); isResolvingDebrid = false }
-                }
-            }
-        }
-    }
 
     private fun captureManualTrackSelection() {
         val p = player ?: return

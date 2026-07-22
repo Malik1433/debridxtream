@@ -1,0 +1,189 @@
+package com.tvonnet.debridxtreamiptv.player.stabilized
+
+import androidx.lifecycle.lifecycleScope
+import androidx.media3.exoplayer.ExoPlayer
+import com.tvonnet.debridxtreamiptv.data.model.ContentType
+import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
+import kotlinx.coroutines.launch
+
+/**
+ * The debrid source panel + in-place source switch + resolution-state observer
+ * (Phase C3 of the route to ≤600).
+ *
+ * Moved verbatim out of [PlayerActivity]: [openMovieSourcePanel] (the "other
+ * sources" bottom sheet for a movie), [switchToMovieSource] (swap to a picked
+ * source IN-PLACE — no relaunch, resume from the current position) and
+ * [observeDebridResolutionState] (the single collector that turns a
+ * [DebridResolutionState] into a play/switch/terminal reaction).
+ *
+ * State flows through [PlayerSessionState] (S1) — including the debrid identity
+ * fields that used to be loose `var`s on the Activity, which is what makes this
+ * cluster cleanly movable now. Activity collaborators (the loader, metadata bind,
+ * `initializePlayer`, the live tuner's seamless switch) are reached on [activity].
+ */
+internal class PlayerDebridCoordinator(
+    private val activity: PlayerActivity,
+    private val session: PlayerSessionState,
+) {
+
+    private val viewModel get() = activity.viewModel
+    private val loaderUi get() = activity.loaderUi
+    private val liveTuner get() = activity.liveTuner
+    private val lifecycleScope get() = activity.lifecycleScope
+    private val supportFragmentManager get() = activity.supportFragmentManager
+    private val isFinishing get() = activity.isFinishing
+
+    private var player: ExoPlayer?
+        get() = activity.player
+        set(value) { activity.player = value }
+
+    // ── screen state (S1) ──
+    private val contentType: ContentType? by session::contentType
+    private var originalTitle: String? by session::originalTitle
+    private val backdropUrlExtra: String? by session::backdropUrlExtra
+    private var debridStreamIdExtra: String? by session::debridStreamIdExtra
+    private val contentId: String? by session::contentId
+    private val imdbIdExtra: String? by session::imdbIdExtra
+    private var startPositionMs: Long by session::startPositionMs
+    private var playbackSource: PlaybackSource by session::playbackSource
+    private var directDebridPlayback: Boolean by session::directDebridPlayback
+    private var debridInfoHashExtra: String? by session::debridInfoHashExtra
+    private var debridMagnetExtra: String? by session::debridMagnetExtra
+    private var isResolvingDebrid: Boolean by session::isResolvingDebrid
+    private var streamHeaders: Map<String, String>? by session::streamHeaders
+    private var seasonNumberExtra: Int? by session::seasonNumberExtra
+    private var episodeNumberExtra: Int? by session::episodeNumberExtra
+    private var episodeTitleExtra: String? by session::episodeTitleExtra
+    private val seriesTitleExtra: String? by session::seriesTitleExtra
+    private var hasRecordedHistory: Boolean by session::hasRecordedHistory
+    private var currentUrl: String? by session::currentUrl
+
+    // ── forwarders to collaborators kept on the Activity ──
+    private fun showToast(message: String) = activity.showToast(message)
+    private fun showCinematicLoader() = activity.showCinematicLoader()
+    private fun bindModernMetadata(title: String?) = activity.bindModernMetadata(title)
+    private fun applyDebridSourceProfile(profile: DebridSourceProfile?) = activity.applyDebridSourceProfile(profile)
+    private fun handleTerminalPlaybackFailure(reason: String) = activity.handleTerminalPlaybackFailure(reason)
+    private fun initializePlayer(streamUrl: String) = activity.initializePlayer(streamUrl)
+
+    fun openMovieSourcePanel() {
+        if (isFinishing || contentType != ContentType.MOVIE) return
+        val sheet = com.tvonnet.debridxtreamiptv.ui.series.SourceSelectionBottomSheet(
+            onSourceSelected = { source, _ -> switchToMovieSource(source) },
+            contentTitle = originalTitle,
+            backdropUrl = backdropUrlExtra
+        )
+        sheet.show(supportFragmentManager, "player_movie_sources")
+        lifecycleScope.launch {
+            val sources = viewModel.fetchMovieSourcesForPanel(
+                streamId = debridStreamIdExtra ?: contentId,
+                title = originalTitle,
+                imdbId = imdbIdExtra,
+                cleanTitle = cleanLoaderTitle(originalTitle)
+            )
+            if (!sheet.isAdded) return@launch
+            if (sources.isEmpty()) sheet.showError("No other sources found") else sheet.showSources(sources)
+        }
+    }
+
+    /**
+     * Switch the movie to the picked source IN-PLACE (no activity relaunch — relaunching
+     * collapsed the back stack to home). Saves the current position, updates the source
+     * identity, and re-inits: resolver-backed magnet sources go through the debrid
+     * resolution (cinematic loader), direct-http/IPTV sources re-init on the ready URL.
+     * The saved position is restored on the first frame (initializePlayer seeks to it).
+     */
+    private fun switchToMovieSource(source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource) {
+        if (contentType != ContentType.MOVIE || isFinishing) return
+        val stream = source.stream
+        val magnet = stream.direct_source
+        val infoHash = stream.stream_id
+        val isIptv = source.sourceType == "IPTV"
+        val isDirectHttp = !isIptv && magnet?.startsWith("http", ignoreCase = true) == true &&
+            !magnet.endsWith(".torrent", ignoreCase = true)
+        val resolverBacked = !isIptv && !isDirectHttp
+        if (resolverBacked && magnet.isNullOrBlank() && infoHash.isNullOrBlank()) {
+            showToast("Invalid source"); return
+        }
+
+        // Resume the new source from where we are now.
+        startPositionMs = (player?.currentPosition ?: startPositionMs).coerceAtLeast(0L)
+        playbackSource = if (isIptv) PlaybackSource.IPTV else PlaybackSource.DEBRID
+        debridStreamIdExtra = stream.stream_id
+        stream.name?.let { originalTitle = it }
+        // Refresh the on-screen title so the controller shows the source we just switched to,
+        // not the previous one.
+        bindModernMetadata(stream.name ?: originalTitle)
+
+        when {
+            isIptv -> {
+                val prefs = CredentialsPreferences(activity)
+                val server = prefs.getServerUrl()?.trimEnd('/')
+                val user = prefs.getUsername()
+                val pass = prefs.getPassword()
+                if (server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank() || stream.stream_id.isNullOrBlank()) {
+                    showToast("Missing credentials"); return
+                }
+                directDebridPlayback = false
+                debridInfoHashExtra = null; debridMagnetExtra = null
+                val ext = stream.container_extension?.takeIf { it.isNotBlank() } ?: "mp4"
+                showCinematicLoader()
+                initializePlayer("$server/movie/$user/$pass/${stream.stream_id}.$ext")
+            }
+            isDirectHttp -> {
+                directDebridPlayback = true
+                debridInfoHashExtra = null; debridMagnetExtra = null
+                showCinematicLoader()
+                initializePlayer(magnet!!)
+            }
+            else -> {
+                // Resolver-backed magnet: set the new identity and let the player resolve it.
+                directDebridPlayback = false
+                debridInfoHashExtra = infoHash
+                debridMagnetExtra = magnet
+                isResolvingDebrid = true
+                showCinematicLoader()
+                viewModel.reResolveDebridUrl(infoHash, magnet, null, null, originalTitle)
+            }
+        }
+    }
+
+    fun observeDebridResolutionState() {
+        lifecycleScope.launch {
+            viewModel.debridResolutionState.collect { state ->
+                when (state) {
+                    is DebridResolutionState.Loading -> { isResolvingDebrid = true; showCinematicLoader() }
+                    is DebridResolutionState.Success -> {
+                        // Keep the loader up through buffering; STATE_READY hides it on first frame.
+                        isResolvingDebrid = false
+                        directDebridPlayback = state.directDebridPlayback
+                        streamHeaders = state.headers
+                        applyDebridSourceProfile(state.sourceProfile)
+                        debridMagnetExtra = state.magnet ?: debridMagnetExtra
+                        if (state.season != null && state.episode != null) {
+                            val isSame = seasonNumberExtra == state.season && episodeNumberExtra == state.episode
+                            seasonNumberExtra = state.season; episodeNumberExtra = state.episode; episodeTitleExtra = state.title
+                            if (!isSame) startPositionMs = 0L
+                            bindModernMetadata("${seriesTitleExtra ?: ""} - S${state.season}:E${state.episode}")
+                            if (state.infoHash != null) debridInfoHashExtra = state.infoHash
+                            if (state.sourceProfile?.streamId != null) debridStreamIdExtra = state.sourceProfile.streamId
+                            hasRecordedHistory = false; activity.resetNextEpisodeStateIfInitialized()
+                        }
+                        currentUrl = state.url
+                        if (player == null) {
+                            initializePlayer(state.url)
+                        } else {
+                            liveTuner.performSeamlessSwitch(state.url)
+                        }
+                    }
+                    is DebridResolutionState.Error -> {
+                        loaderUi.hide()
+                        isResolvingDebrid = false
+                        handleTerminalPlaybackFailure("Failed: ${state.message}")
+                    }
+                    is DebridResolutionState.Idle -> { loaderUi.hide(); isResolvingDebrid = false }
+                }
+            }
+        }
+    }
+}

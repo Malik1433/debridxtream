@@ -358,10 +358,32 @@ Design:
 - `performSeamlessSwitch`'s 8 callers (channel browser, C1 recovery via `requestSeamlessSwitch`, ENDED /
   freeze reconnect, the resume collector) now call `liveTuner.performSeamlessSwitch`.
 - detekt: clean, no baseline change (none of the moved methods trip a threshold). compile + full tests green.
-- **Device QA .64 (commit `<c2>`):** live TS zap — Sky Sports Cricket HD (XTREAM) fullscreen, four zaps each
+- **Device QA .64 (commit `b84826b`):** live TS zap — Sky Sports Cricket HD (XTREAM) fullscreen, four zaps each
   logged `Performing seamless switch` + a fresh `First Frame Render`; shared handoff — BACK returned to the
   guide with the mini preview still playing live (scoreboard advanced 106→110 runs, not frozen/black); zero
   FATAL. The four live landmines (TS flags, TS LiveConfiguration, first-frame AudioTrack, shared handoff) all
   held.
 
-Then C3 debrid coordinator, C4 series, C5 UI binder, C6 input shell, F1 sweep → ~600.
+### C3 `PlayerDebridCoordinator` — DONE (3062→2946, coordinator 189 lines)
+Moved verbatim: `openMovieSourcePanel` (the in-player "other sources" bottom sheet for a movie),
+`switchToMovieSource` (swap to a picked source IN-PLACE — save position, re-init IPTV/direct-http/resolver-
+backed) and `observeDebridResolutionState` (the single collector that turns a `DebridResolutionState` into
+play / seamless-switch / terminal).
+
+Design:
+- Same concrete-`PlayerActivity` pattern as C2. **The debrid identity fields are all in `PlayerSessionState`
+  now (S1)** — which is exactly why `applyDebridSourceProfile`/`currentDebridSourceProfile` (flagged in P14 as
+  un-extractable while they were 9 loose `var`s) are now trivially session-backed. `applyDebridSourceProfile`
+  is called through the Activity; `currentDebridSourceProfile` **stays** on the Activity (6 non-C3 callers).
+- One helper added on the Activity — `resetNextEpisodeStateIfInitialized()` — because the moved observer's
+  `::nextEpisodeManager.isInitialized` lateinit check can't be expressed from outside the class. 4 members
+  bumped `private`→`internal` (`loaderUi`, `bindModernMetadata`, `showCinematicLoader`, `applyDebridSourceProfile`).
+- detekt: the 3 flags (`switchToMovieSource` Cyclomatic, the creds `ComplexCondition`, `bindModernMetadata`
+  re-keyed by private→internal) are all pre-existing exemptions relocated/re-keyed; baseline regenerated
+  349→**348** (shrank). compile + full tests green.
+- **Device QA .64 (commit `<c3>`):** a debrid CW movie played cleanly (First Frame Render), so the coordinator
+  is constructed at player setup and its resolution collector is wired with no crash. The Sources bottom sheet
+  itself couldn't be driven blind (the fullscreen player is a secure surface — screencap is white, same as the
+  Live case); `switchToMovieSource` is verbatim + compile/test-covered.
+
+Then C4 series, C5 UI binder, C6 input shell, F1 sweep → ~600.
