@@ -130,7 +130,7 @@ Any phase touching live playback must be re-verified against all four.
 | ~~P14~~ | ✅ **DONE (455d7b3)** — `PlayerDebridSourceState`: `AddonProxyFailureTracker` (replaces 3 loose last-context fields), pure `addonProxyContextKey`, `canFreshResolveDirectDebrid(+DebridLookupIds)`, `debridSeriesLookupId`. Resolution orchestration + the 9-field source profile stayed (collapsing those fields into one identity object is a behaviour-shaped change). New `PlayerDebridSourceStateTest` (8 tests). 3787→3775. | ~70 | HIGH |
 | P15 | `PlayerStallMonitor` — checkForStall, checkVideoRenderProgress, start/stop (**this is the previously BLOCKED Phase 2 scope — re-approve explicitly**) | ~150 | HIGH |
 | P16 | `PlayerErrorRecoveryManager` — handlePlaybackError taxonomy, network recovery, timeout, terminal failure, failure-detail redirect, black-video fallback | ~400 | HIGH |
-| P17 | `PlayerInputController` — dispatchKeyEvent, long-press, smart-focus controller, seek navigation, control focus wiring | ~250 | HIGH (every D-pad path) |
+| ~~P17~~ | ✅ **DONE (ade3a27)** — `PlayerKeyRouting`: `canZapNow` + `OpenPlayerSurfaces` (the live-zap guard was copy-pasted across FOUR branches — now one, keyed by `zapDirectionFor`), `isControllerTriggerKey`, `vodBackAction`. dispatchKeyEvent itself stayed. New `PlayerKeyRoutingTest` (7 tests). 3775→3771 — the win is four duplicated guards collapsing into one. | ~60 | HIGH |
 | P18 | `PlayerLiveController` — zap, tune, live OSD wiring, EPG overlay modes, seamless switch, channel meta | ~350 | VERY HIGH (live TS landmines) |
 | P19 | `PlayerFactory` — split `initializePlayer` (ExoPlayer build, codec selector, media item, track overrides, frame-rate match) + slim `onCreate` into setup* delegations | ~800 | HIGHEST — do LAST |
 
@@ -240,3 +240,9 @@ delegates. When PlayerActivity drops under 600, remove its `LargeClass` entry fr
   branches need a flaky proxy to reproduce, so they are unit-tested rather than claimed device-verified.
 - **Remaining: P15 (stall monitor — the previously BLOCKED Phase 2 scope, needs explicit re-approval),
   P16 (error recovery), P17 (input), P18 (live), P19 (initializePlayer/onCreate). None approved.**
+- **P17 — DONE 2026-07-22, commit `ade3a27`, pushed.** Device QA on .64: single DPAD_UP zapped once; a
+  LONG-PRESS DPAD_DOWN produced exactly ONE "Performing seamless switch" (auto-repeat filter holds),
+  playback healthy after; VOD two-step BACK verified (OK → controller, BACK → hide, BACK → exit; an extra
+  BACK was consumed by the Up Next prompt, its own earlier branch). No FATAL.
+- **Phase order note:** P15 and P16 are the recovery/stall scope that §8 BLOCKED — they need explicit
+  owner re-approval, so P17 was taken first. Remaining: **P15, P16, P18 (live, VERY HIGH), P19 (last)**.
