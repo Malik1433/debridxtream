@@ -447,7 +447,7 @@ Design:
 - detekt: the 4 flags (dispatchKeyEvent Long/Cyclomatic/NestedBlockDepth + the standard-controller-trigger
   ComplexCondition, whose `!(nested lateinit check)` became `!activity.isNextEpisodePromptVisible()` — complexity
   actually dropped 5→4) are pre-existing exemptions relocated; baseline net 0 (**348**). compile + full tests green.
-- **Device QA .64 (commit `<c6>`):** live DPAD zap → 3 seamless switches (router→zapChannel); live BACK →
+- **Device QA .64 (commit `e2b4e50`):** live DPAD zap → 3 seamless switches (router→zapChannel); live BACK →
   guide (router returns null → super → shared-player handoff); VOD BACK → clean exit (vodBackAction). No router
   crash. (Separately observed + FLAGGED a pre-existing `LiveTvGuideFragment` binding NPE on fast nav — a posted
   chip-build runnable touches the destroyed view binding; entirely outside this refactor.)
