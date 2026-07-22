@@ -404,7 +404,7 @@ Design:
   lateinit-guarded `nextEpisodeManager.hidePrompt()`.
 - detekt: the 2 flags (`playNextEpisode` Cyclomatic, `showEpisodeBrowser` NestedBlockDepth) are pre-existing
   exemptions relocated; baseline regenerated 348→**348** (net 0). compile + full tests green.
-- **Device QA .64 (commit `<c4>`):** a debrid series episode (Elite Force S1E1) resumed and played cleanly
+- **Device QA .64 (commit `34801cc`):** a debrid series episode (Elite Force S1E1) resumed and played cleanly
   (RESUME_PATH DIRECT type=EPISODE → Stremio scoped-resume 9 streams → First Frame Render), so the series
   controller + its playlist collector wire up at setup with no crash. Next-episode / episode-browser switching
   is verbatim + compile/test-covered but not blind-drivable on the secure player surface (same as P13's note).
