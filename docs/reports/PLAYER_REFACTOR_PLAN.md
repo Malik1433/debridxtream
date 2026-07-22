@@ -128,8 +128,8 @@ Any phase touching live playback must be re-verified against all four.
 | ~~P12~~ | ✅ **DONE (66363a5)** — split: `PlayerHandoffFrames` (captureVideoFrame + showAdoptedCoverFrame) and `PlayerExitResults` (3 pure result-Intent builders + `LiveReturnChannel`). **`performBackExit` / `handBackSharedPlayerIfNeeded` stayed** — they sequence the capture→hand-back→finish landmine and drive player/listeners/stall/history; a coordinator would need ~10 callbacks. New `PlayerExitResultsTest` (4 tests). 3854→3793. | ~60 | MED-HIGH |
 | ~~P13~~ | ✅ **DONE (dc1eb20)** — `PlayerSeriesBrowsing`: the browser view decision (was inlined twice), the season-title fallback (three places), the **playlist-hijack guard** (`shouldPlaylistDrivePlayback` — the "select NL/DE → same file" fix, now named + tested) and two small helpers. Episode SWITCHING stayed (it drives history/debrid-resolve/initializePlayer). New `PlayerSeriesBrowsingTest` (6 tests). 3793→3787 — this one was de-duplication, not line count. | ~60 | MED-HIGH |
 | ~~P14~~ | ✅ **DONE (455d7b3)** — `PlayerDebridSourceState`: `AddonProxyFailureTracker` (replaces 3 loose last-context fields), pure `addonProxyContextKey`, `canFreshResolveDirectDebrid(+DebridLookupIds)`, `debridSeriesLookupId`. Resolution orchestration + the 9-field source profile stayed (collapsing those fields into one identity object is a behaviour-shaped change). New `PlayerDebridSourceStateTest` (8 tests). 3787→3775. | ~70 | HIGH |
-| P15 | `PlayerStallMonitor` — checkForStall, checkVideoRenderProgress, start/stop (**this is the previously BLOCKED Phase 2 scope — re-approve explicitly**) | ~150 | HIGH |
-| P16 | `PlayerErrorRecoveryManager` — handlePlaybackError taxonomy, network recovery, timeout, terminal failure, failure-detail redirect, black-video fallback | ~400 | HIGH |
+| ~~P15~~ | ✅ **DONE (245f116)** — `PlayerStallDetector` (PROGRESSING/IDLE/WARNING/STALLED) + `VideoFreezeDetector`. **Detection only — every reaction stayed** (bounded tunneling-off, live re-prepare, handlePlaybackError). Five loose fields gone. New `PlayerStallDetectorTest` (10 tests). 3784→3773. | ~150 | HIGH |
+| ~~P16~~ | ✅ **DONE (d6c1f59)** — `PlayerErrorClassification`: `isTerminalHttpForNonLive` (the dead-listing fail-fast fix), `isRateLimitCoolOff`, `maxRetriesFor`. **handlePlaybackError keeps every reaction.** New `PlayerErrorClassificationTest` (7 tests). 3773→3766. | ~400 | HIGH |
 | ~~P17~~ | ✅ **DONE (ade3a27)** — `PlayerKeyRouting`: `canZapNow` + `OpenPlayerSurfaces` (the live-zap guard was copy-pasted across FOUR branches — now one, keyed by `zapDirectionFor`), `isControllerTriggerKey`, `vodBackAction`. dispatchKeyEvent itself stayed. New `PlayerKeyRoutingTest` (7 tests). 3775→3771 — the win is four duplicated guards collapsing into one. | ~60 | HIGH |
 | ~~P18~~ | ✅ **DONE (de0303e)** — scoped to the two self-contained pieces: `PlayerZapDebouncer` (LP-B-1 — one connect for the LAST target) and `PlayerEpgOverlay` (legacy strip: mode/pin/auto-hide + `isEpgOverlayPinnedUp`, which was written out 3×). **tuneToZapChannel's ordering, performSeamlessSwitch, TsExtractor flags, LiveConfiguration, AudioTrack recovery and the shared handoff were NOT touched** — all four landmines are outside the diff. New `PlayerEpgOverlayTest` (8 tests). 3771→3784. | ~90 | VERY HIGH |
 | P19 | `PlayerFactory` — split `initializePlayer` (ExoPlayer build, codec selector, media item, track overrides, frame-rate match) + slim `onCreate` into setup* delegations | ~800 | HIGHEST — do LAST |
@@ -253,3 +253,16 @@ delegates. When PlayerActivity drops under 600, remove its `LargeClass` entry fr
   Live OSD is absent (it is active on this device) — unit-tested rather than device-claimed.
 - **Remaining: P15 + P16 (the BLOCKED recovery/stall scope — explicit re-approval required) and P19
   (`initializePlayer` + `onCreate`, ~800 lines, do LAST).**
+
+## §8 UNBLOCKED — 2026-07-22
+The owner explicitly re-approved the stall/recovery scope that §8 had BLOCKED since
+2026-05. Both phases were still scoped to **decision logic only**; every reaction that
+touches the four landmines stayed in `PlayerActivity`.
+- **P15 — DONE, commit `245f116`, pushed.** Device QA on .64: debrid episode played and
+  auto-advanced (871 sources resolved); live TS at ~2.7–3.3 Mbps; the freeze detector fired for real
+  and the Activity's bounded tunneling-off recovery ran, exactly as this device behaved before; no false
+  stall during a long buffering stretch on a weak 2.4 GHz link (a buffering player is IDLE, not stalled).
+- **P16 — DONE, commit `d6c1f59`, pushed.** Device QA on .64: dead |8k| channel → "Reconnect attempt
+  1/4" → "2/4" → clean exit (unchanged); healthy channel then played at ~2.7–3.3 Mbps. The 429 cool-off
+  branch needs a rate-limiting provider, so it is unit-tested only.
+- **Only P19 remains** (`initializePlayer` ~430 + `onCreate` ~380) — NOT approved, and it should stay last.
