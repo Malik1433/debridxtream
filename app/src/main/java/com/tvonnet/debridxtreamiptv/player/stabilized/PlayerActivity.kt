@@ -226,136 +226,13 @@ class PlayerActivity : AppCompatActivity() {
     private fun retryBackoffDelayMs(): Long =
         (1000L shl (retryCount - 1).coerceIn(0, 3)) + (0..400).random()
 
-    // ── unified reconnect budget helpers (QA fix 2 + banner from fix 3) ──────
-    /**
-     * Consult the aggregate reconnect budget BEFORE any recovery subsystem retries.
-     * Returns true and records the attempt (also refreshing the "Reconnecting…"
-     * banner) when we are still under [MAX_RECONNECTS_PER_WINDOW] within the rolling
-     * [RECONNECT_WINDOW_MS]; returns false when the budget is exhausted, in which
-     * case the caller must route to [handleTerminalPlaybackFailure]. The subsystem's
-     * own inner cap still applies on top of this.
-     */
-    private fun canAttemptReconnect(): Boolean {
-        val now = SystemClock.elapsedRealtime()
-        while (reconnectAttemptTimestamps.isNotEmpty() &&
-            now - reconnectAttemptTimestamps.first() > RECONNECT_WINDOW_MS
-        ) {
-            reconnectAttemptTimestamps.removeFirst()
-        }
-        if (reconnectAttemptTimestamps.size >= MAX_RECONNECTS_PER_WINDOW) {
-            Log.i(
-                "PlayerActivity",
-                "Reconnect budget exhausted (${reconnectAttemptTimestamps.size}/$MAX_RECONNECTS_PER_WINDOW in ${RECONNECT_WINDOW_MS}ms) — giving up"
-            )
-            return false
-        }
-        reconnectAttemptTimestamps.addLast(now)
-        Log.i(
-            "PlayerActivity",
-            "Reconnect attempt ${reconnectAttemptTimestamps.size}/$MAX_RECONNECTS_PER_WINDOW"
-        )
-        showReconnectingBanner()
-        return true
-    }
-
-    /** Clear the budget on a genuinely-successful frame/READY or a user zap. */
-    private fun resetReconnectBudget() {
-        reconnectAttemptTimestamps.clear()
-    }
-
-    // ── session-adaptive network quality (QA fix 7) ─────────────────────────
-    /**
-     * Reclassify the saved network quality from ExoPlayer's passive bandwidth
-     * estimate on a rebuffer→READY transition, debounced to at most once per
-     * NETWORK_QUALITY_UPDATE_INTERVAL_MS. Thresholds mirror NetworkQualityManager
-     * (FAST >20Mbps, MODERATE 5-20Mbps, SLOW <5Mbps). The next player build/zap
-     * picks up the new sizing (initializePlayer reads getNetworkQuality()); no live
-     * re-config and — critically — no extra network requests (WAF-safe).
-     */
-    private fun maybeUpdateNetworkQuality() {
-        val estimateBps = bandwidthMeter?.bitrateEstimate ?: return
-        if (estimateBps <= 0L) return
-        val now = SystemClock.elapsedRealtime()
-        if (lastNetworkQualityUpdateMs != 0L &&
-            now - lastNetworkQualityUpdateMs < NETWORK_QUALITY_UPDATE_INTERVAL_MS
-        ) return
-        lastNetworkQualityUpdateMs = now
-        val mbps = estimateBps / 1_000_000.0
-        val quality = when {
-            mbps > 20.0 -> NetworkQuality.FAST
-            mbps > 5.0 -> NetworkQuality.MODERATE
-            else -> NetworkQuality.SLOW
-        }
-        if (quality.name != settingsPreferences.getNetworkQuality()) {
-            settingsPreferences.saveNetworkQuality(quality.name)
-            Log.i(
-                "PlayerActivity",
-                "Session network quality updated to ${quality.name} (~${String.format("%.1f", mbps)} Mbps)"
-            )
-        }
-    }
-
-    // ── "Reconnecting…" banner (QA fix 3) ───────────────────────────────────
-    /**
-     * Show/refresh the persistent reconnect pill with the current unified-budget
-     * count. Called from canAttemptReconnect() so every recovery subsystem shares
-     * one in-place banner (no toast spam). Hidden by hideReconnectingBanner() on the
-     * first rendered frame / READY.
-     */
-    // Delayed presentation: quick re-prepares recover behind the last rendered
-    // frame in well under a second — flashing the pill for those makes the app
-    // FEEL flakier than it is. Only surface the banner when the outage persists
-    // past RECONNECT_BANNER_DELAY_MS; hide cancels a still-pending show.
-    private var reconnectBannerPending = false
-    private val reconnectBannerShowRunnable = Runnable {
-        reconnectBannerPending = false
-        if (!isFinishing && !isDestroyed) showReconnectingBannerNow()
-    }
-
-    private fun showReconnectingBanner() {
-        if (Looper.myLooper() != Looper.getMainLooper()) {
-            timeoutHandler.post { showReconnectingBanner() }
-            return
-        }
-        val banner = reconnectingBanner ?: return
-        if (banner.isVisible) {
-            // Already showing — just refresh the attempt count in place.
-            val n = reconnectAttemptTimestamps.size.coerceAtLeast(1)
-            reconnectingBannerText?.text =
-                getString(R.string.player_reconnecting_banner, n, MAX_RECONNECTS_PER_WINDOW)
-            return
-        }
-        if (!reconnectBannerPending) {
-            reconnectBannerPending = true
-            timeoutHandler.postDelayed(reconnectBannerShowRunnable, RECONNECT_BANNER_DELAY_MS)
-        }
-    }
-
-    private fun showReconnectingBannerNow() {
-        // While the cinematic loader is up, keep the screen clean (no reconnect noise).
-        if (layoutDebridResolving?.isVisible == true) return
-        val banner = reconnectingBanner ?: return
-        val n = reconnectAttemptTimestamps.size.coerceAtLeast(1)
-        reconnectingBannerText?.text =
-            getString(R.string.player_reconnecting_banner, n, MAX_RECONNECTS_PER_WINDOW)
-        if (!banner.isVisible) {
-            banner.alpha = 0f
-            banner.isVisible = true
-            banner.animate().alpha(1f).setDuration(200).start()
-        }
-    }
-
-    private fun hideReconnectingBanner() {
-        if (Looper.myLooper() != Looper.getMainLooper()) {
-            timeoutHandler.post { hideReconnectingBanner() }
-            return
-        }
-        timeoutHandler.removeCallbacks(reconnectBannerShowRunnable)
-        reconnectBannerPending = false
-        val banner = reconnectingBanner ?: return
-        if (!banner.isVisible) return
-        banner.animate().alpha(0f).setDuration(180).withEndAction { banner.isVisible = false }.start()
-    }
+    // P10: thin delegators — the recovery subsystems that call these still live here.
+    private fun canAttemptReconnect(): Boolean = reconnectManager.canAttemptReconnect()
+    private fun resetReconnectBudget() = reconnectManager.resetBudget()
+    private fun showReconnectingBanner() = reconnectManager.showBanner()
+    private fun hideReconnectingBanner() = reconnectManager.hideBanner()
+    private fun maybeUpdateNetworkQuality() =
+        reconnectManager.maybeUpdateNetworkQuality(bandwidthMeter?.bitrateEstimate)
 
     private var lastDirectAddonProxyTimeoutContext: String? = null
     private var lastDirectAddonProxyServerErrorContext: String? = null
@@ -463,10 +340,7 @@ class PlayerActivity : AppCompatActivity() {
     // freeze re-prepare) each keep their own inner cap, but they can fire
     // sequentially and hammer a WAF-protected / max_connections=1 server on a
     // single dead channel. This aggregate budget is the outer ceiling every path
-    // must clear: at most MAX_RECONNECTS_PER_WINDOW attempts inside a rolling
-    // RECONNECT_WINDOW_MS. Reset on a successful READY/first-frame and on a
-    // user-initiated zap. Timestamps are SystemClock.elapsedRealtime().
-    private val reconnectAttemptTimestamps: ArrayDeque<Long> = ArrayDeque()
+    // must clear (see PlayerReconnectManager, which owns the budget itself).
 
     // ── session-adaptive network quality (QA fix 7) ─────────────────────────
     // ExoPlayer's passive bandwidth estimate (no extra network requests — the WAF
@@ -474,7 +348,6 @@ class PlayerActivity : AppCompatActivity() {
     // BUFFERING→READY transition, debounced to at most once per NETWORK_QUALITY_
     // UPDATE_INTERVAL_MS. New sizing applies on the next player build / zap.
     private var bandwidthMeter: DefaultBandwidthMeter? = null
-    private var lastNetworkQualityUpdateMs = 0L
 
     // LP-D-2: per-player QoE analytics listener (TTFF, rebuffers, errors).
     private var qoeTracker: PlaybackQoeTracker? = null
@@ -542,6 +415,22 @@ class PlayerActivity : AppCompatActivity() {
     private var reconnectingBanner: View? = null
     private var reconnectingBannerText: TextView? = null
 
+    /** P10: shared reconnect budget + its "RECONNECTING…" banner + network-quality reclassification. */
+    private val reconnectManager: PlayerReconnectManager by lazy {
+        PlayerReconnectManager(
+            handler = timeoutHandler,
+            host = object : ReconnectBannerHost {
+                override fun bannerView(): View? = reconnectingBanner
+                override fun bannerTextView(): TextView? = reconnectingBannerText
+                override fun bannerLabel(attempt: Int, max: Int): String =
+                    getString(R.string.player_reconnecting_banner, attempt, max)
+                override fun isLoaderVisible(): Boolean = layoutDebridResolving?.isVisible == true
+                override fun isGone(): Boolean = isFinishing || isDestroyed
+            },
+            settingsPreferences = settingsPreferences
+        )
+    }
+
     companion object {
         const val EXTRA_STREAM_URL = "STREAM_URL"
         const val EXTRA_STREAM_HEADERS = "STREAM_HEADERS"
@@ -584,8 +473,6 @@ class PlayerActivity : AppCompatActivity() {
         // Unified reconnect budget (QA fix 2): aggregate ceiling across ALL recovery
         // subsystems so a dead channel can't chain error-retry + ENDED-reconnect +
         // freeze re-prepare into a burst against a WAF/max_connections=1 server.
-        private const val MAX_RECONNECTS_PER_WINDOW = 4
-        private const val RECONNECT_WINDOW_MS = 60_000L
         // Debounce a channel-tune (LP-B-1): only commit to stop()/prepare()/connect
         // ~350ms after the last zap keypress, so holding or spamming channel-up/down
         // updates the OSD instantly but issues ONE provider connection when the user
@@ -598,9 +485,6 @@ class PlayerActivity : AppCompatActivity() {
         // A just-dropped provider socket usually needs a moment before it accepts a
         // new connection — an immediate retry mostly fails and burns a budget slot.
         private const val LIVE_ENDED_RECONNECT_DELAY_MS = 1500L
-        // Show the "Reconnecting…" pill only when the outage persists — sub-second
-        // re-prepares recover behind the last rendered frame and shouldn't flash UI.
-        private const val RECONNECT_BANNER_DELAY_MS = 1200L
         // AudioTrack-allocation recovery (device-verified 2026-07-18, dumpsys
         // media.audio_flinger). Two distinct failures share the "AudioTrack init failed /
         // Cannot create AudioTrack" symptom:
@@ -617,8 +501,6 @@ class PlayerActivity : AppCompatActivity() {
         private const val AUDIO_SINK_COOLOFF_MS = 900L
         // Fixed cool-off for HTTP 429 when the server sends no Retry-After (QA fix 4).
         private const val HTTP_429_COOLOFF_MS = 20_000L
-        // Debounce for session-adaptive network-quality updates (QA fix 7).
-        private const val NETWORK_QUALITY_UPDATE_INTERVAL_MS = 60_000L
         private const val OVERLAY_TIMEOUT = 6000L
         private const val MIN_PROGRESS_TO_TRACK_MS = 15_000L
         private const val MIN_DURATION_TO_TRACK_MS = 60_000L
@@ -3150,7 +3032,7 @@ class PlayerActivity : AppCompatActivity() {
             // the retained branch has to do it too.
             retryHandler.removeCallbacksAndMessages(null)
             timeoutHandler.removeCallbacksAndMessages(null)
-            reconnectBannerPending = false
+            reconnectManager.cancelPendingBanner()
         }
     }
 
@@ -3261,7 +3143,7 @@ class PlayerActivity : AppCompatActivity() {
             "release_player",
             diagnosticsPlaybackFields() + mapOf("releaseReason" to reason)
         )
-        updateLastPlaybackPosition(); timeoutHandler.removeCallbacks(timeoutRunnable); timeoutHandler.removeCallbacks(captureRunnable); timeoutHandler.removeCallbacks(reconnectBannerShowRunnable); reconnectBannerPending = false; retryHandler.removeCallbacksAndMessages(null); overlayHandler.removeCallbacks(overlayHideRunnable); zapDebounceHandler.removeCallbacks(zapCommitRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; stopStallMonitor()
+        updateLastPlaybackPosition(); timeoutHandler.removeCallbacks(timeoutRunnable); timeoutHandler.removeCallbacks(captureRunnable); reconnectManager.cancelPendingBanner(); retryHandler.removeCallbacksAndMessages(null); overlayHandler.removeCallbacks(overlayHideRunnable); zapDebounceHandler.removeCallbacks(zapCommitRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; stopStallMonitor()
         playerListener?.let { player?.removeListener(it) }; playerListener = null
         debugListener?.let { player?.removeListener(it) }; debugListener = null
         qoeTracker?.flushSessionSummary(); qoeTracker = null // LP-D-2: emit session QoE
