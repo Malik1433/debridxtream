@@ -427,4 +427,29 @@ Design:
   which drives both `observeZapState` (channel number) and `observeOverlayState` (EPG/OSD bind) — so the
   collectors wire up at setup with no crash.
 
-Then C6 input shell, F1 sweep → ~600.
+### C6 `PlayerInputRouter` — DONE (2658→2538, router 195 lines)
+Moved the `dispatchKeyEvent` (131-line) + `onKeyLongPress` routing shells. These are Activity overrides that
+call `super`, so they can't move wholesale — the Activity keeps one-line overrides that delegate and fall
+back to super:
+
+    override fun dispatchKeyEvent(event) = inputRouter.dispatchKeyEvent(event) ?: super.dispatchKeyEvent(event)
+
+**The single behaviour-preserving transform** vs. the old body: every `return super.dispatchKeyEvent(event)`
+(pass-through) became `return null`, and the Activity wrapper makes the super call; `return true` (consumed)
+is unchanged. The routing RULES were already pure in `PlayerKeyRouting.kt` (P17) — the router just calls them.
+
+Design:
+- Concrete-`PlayerActivity` again (dispatchKeyEvent touches ~30 collaborators). 8 members bumped
+  `private`→`internal` (isControllerVisible, supportsPictureInPicture, enterPictureInPictureModeInternal,
+  performBackExit, showControllerWithSmartFocus, showSubtitleSelection, hideEpgOverlay, toggleEpgOverlayPinned);
+  2 lateinit-guard helpers added (`isNextEpisodePromptVisible`, `isEpisodeBrowserVisible`) so the router
+  needn't touch `::field.isInitialized`.
+- detekt: the 4 flags (dispatchKeyEvent Long/Cyclomatic/NestedBlockDepth + the standard-controller-trigger
+  ComplexCondition, whose `!(nested lateinit check)` became `!activity.isNextEpisodePromptVisible()` — complexity
+  actually dropped 5→4) are pre-existing exemptions relocated; baseline net 0 (**348**). compile + full tests green.
+- **Device QA .64 (commit `<c6>`):** live DPAD zap → 3 seamless switches (router→zapChannel); live BACK →
+  guide (router returns null → super → shared-player handoff); VOD BACK → clean exit (vodBackAction). No router
+  crash. (Separately observed + FLAGGED a pre-existing `LiveTvGuideFragment` binding NPE on fast nav — a posted
+  chip-build runnable touches the destroyed view binding; entirely outside this refactor.)
+
+Then F1 sweep → ~600.

@@ -199,6 +199,17 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     private val viewModelBinder: PlayerViewModelBinder by lazy {
         PlayerViewModelBinder(this, session)
     }
+
+    /** C6: the D-pad / media-key routing shell (rules live in PlayerKeyRouting). */
+    private val inputRouter: PlayerInputRouter by lazy {
+        PlayerInputRouter(this, session)
+    }
+
+    /** C6 bridges: lateinit-guarded reads the input router needs. */
+    internal fun isNextEpisodePromptVisible(): Boolean =
+        ::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible
+    internal fun isEpisodeBrowserVisible(): Boolean =
+        ::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()
     private var frameRateMatchedForCurrentSource: Boolean by session::frameRateMatchedForCurrentSource
 
     // ── crash-safe progress heartbeat (VOD) ─────────────────────────────────
@@ -339,7 +350,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     // reinit once without tunneling.
     private var blackVideoFallbackTried: Boolean by session::blackVideoFallbackTried
     private val blackVideoCheckRunnable = Runnable { checkBlackVideoFallback() }
-    private var isControllerVisible = false
+    internal var isControllerVisible = false
 
     private val overlayHandler = Handler(Looper.getMainLooper())
     /** P18: the legacy EPG strip's mode/pin/auto-hide (only used without the Live OSD). */
@@ -1047,7 +1058,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         }
     }
 
-    private fun showSubtitleSelection() {
+    internal fun showSubtitleSelection() {
         if (isInPictureInPictureMode) return
         val playerSnapshot = player ?: return
         trackManager.showSubtitleSelection(playerSnapshot, subtitleEntries) { dialog ->
@@ -2215,7 +2226,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
      * Shared by the onBackPressedDispatcher callback (Live/EPG paths) and the VOD dispatchKeyEvent
      * path (which must consume BACK so the media3 controller can't swallow it).
      */
-    private fun performBackExit() {
+    internal fun performBackExit() {
         manualExit = true
         updateLastPlaybackPosition()
         historyManager.recordPlaybackHistoryIfNeeded()
@@ -2246,145 +2257,14 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         )
     }
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        // LP-D-6: per-key logging only in debug builds (was unconditional).
-        if (BuildConfig.DEBUG) {
-            Log.d("PlayerActivity", "dispatchKeyEvent: code=${event.keyCode}, action=${event.action}")
-        }
+    // C6: the routing shell lives in PlayerInputRouter; return null = pass to super.
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+        inputRouter.dispatchKeyEvent(event) ?: super.dispatchKeyEvent(event)
 
-        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
-            // In-player TV Guide: BACK closes the grid instead of exiting.
-            if (liveOsd?.isGuideOpen == true) {
-                if (event.action == KeyEvent.ACTION_UP) liveOsd?.handleGuideBack()
-                return true
-            }
-            // Surf drawer: BACK steps categories→channels→close; else exits (spec §8).
-            if (liveOsd?.isDrawerOpen == true) {
-                if (event.action == KeyEvent.ACTION_UP) liveOsd?.handleDrawerBack()
-                return true
-            }
-            // VOD Player redesign: BACK cancels the "Up Next" auto-play prompt instead of exiting.
-            if (::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible) {
-                if (event.action == KeyEvent.ACTION_UP) nextEpisodeManager.hidePrompt()
-                return true
-            }
-            val isXrayVisible = xrayController.isPanelVisible()
-            val isEpisodeBrowserVisible = ::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()
-            // These two overlays aren't handled by onBackPressedDispatcher, so dismiss them here.
-            if (isXrayVisible || isEpisodeBrowserVisible) {
-                if (event.action == KeyEvent.ACTION_UP) {
-                    if (isEpisodeBrowserVisible) episodeBrowserController.hide()
-                    xrayController.collapse()
-                }
-                return true
-            }
-            // Long-press BACK -> PiP (if supported).
-            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0 && supportsPictureInPicture()) {
-                enterPictureInPictureModeInternal()
-                return true
-            }
-            // VOD (movie/episode): consume BACK here — media3's controller would otherwise swallow it
-            // so onBackPressedDispatcher never runs (the "BACK doesn't exit" bug). 1st press hides the
-            // controls, 2nd runs the real exit (records history, sets manualExit).
-            if (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE) {
-                if (event.action == KeyEvent.ACTION_UP) {
-                    when (vodBackAction(isInPictureInPictureMode, isControllerVisible, backHideArmed)) {
-                        VodBackAction.PASS_THROUGH -> return super.dispatchKeyEvent(event)
-                        VodBackAction.HIDE_CONTROLLER -> {
-                            playerView.hideController()
-                            backHideArmed = true
-                        }
-                        VodBackAction.EXIT -> performBackExit()
-                    }
-                }
-                return true
-            }
-            // LIVE_TV and anything else: fall through to onBackPressedDispatcher, which handles the
-            // channel browser, EPG, and the shared Live TV player hand-off + manualExit / history.
-        }
+    override fun onKeyLongPress(keyCode: Int, event: KeyEvent): Boolean =
+        inputRouter.onKeyLongPress(keyCode, event) ?: super.onKeyLongPress(keyCode, event)
 
-        if (event.action == KeyEvent.ACTION_DOWN) {
-            if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
-                // VOD Player redesign: coverflow panel. Delegate UP/DOWN to the list; LEFT/BACK
-                // close it — restore transport controls when it closes. While it stays open, consume
-                // every key so an unhandled one can't fall through and flash the controller underneath.
-                playerView.hideController()
-                episodeBrowserController.handleKeyEvent(event)
-                if (!episodeBrowserController.isVisible()) {
-                    showControllerWithSmartFocus()
-                }
-                return true
-            }
-
-            // VOD Player redesign: the episodes list opens ONLY via the EPISODES button now
-            // (DPAD_DOWN no longer auto-opens it).
-
-            // Standard Controller triggers
-            if (contentType != ContentType.LIVE_TV && playerView.useController && !(::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible) && !playerView.isControllerFullyVisible) {
-                if (isControllerTriggerKey(event.keyCode)) {
-                    showControllerWithSmartFocus(event)
-                    return true
-                }
-            }
-
-            // Cinematic live OSD routing (spec §8): ◀ drawer, ▶/OK controls row.
-            // Zap keys fall through to the branches below.
-            if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible) {
-                liveOsd?.let { osd -> if (osd.handleKeyEvent(event)) return true }
-            }
-            val surfDrawerOpen = liveOsd?.isDrawerOpen == true
-            // Guide owns the screen while open — never zap the channel underneath it.
-            val guideOpen = liveOsd?.isGuideOpen == true
-
-            when (event.keyCode) {
-                KeyEvent.KEYCODE_DPAD_LEFT -> { if (contentType == ContentType.LIVE_TV && liveOsd == null && !viewModel.browserState.value.isVisible) { viewModel.toggleBrowser(true, viewModel.zapState.value?.categoryId ?: liveCategoryId, contentId); return true } }
-                KeyEvent.KEYCODE_CAPTIONS -> { if (contentType != ContentType.LIVE_TV) { showSubtitleSelection(); return true } }
-                KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_UP,
-                KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_DOWN,
-                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    val direction = zapDirectionFor(event.keyCode)
-                    if (direction != null && canZapNow(
-                            action = event.action,
-                            repeatCount = event.repeatCount,
-                            contentType = contentType,
-                            surfaces = OpenPlayerSurfaces(
-                                isBrowserVisible = viewModel.browserState.value.isVisible,
-                                isSurfDrawerOpen = surfDrawerOpen,
-                                isGuideOpen = guideOpen
-                            )
-                        )
-                    ) {
-                        liveTuner.zapChannel(direction = direction)
-                        return true
-                    }
-                }
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { if (contentType == ContentType.LIVE_TV) { if (viewModel.browserState.value.isVisible || liveOsd != null) return super.dispatchKeyEvent(event); if (epgOverlayUi.mode != EpgOverlayMode.HIDDEN && !epgOverlayUi.isPinned) hideEpgOverlay() else showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false); return true } }
-                KeyEvent.KEYCODE_INFO -> {
-                    if (contentType == ContentType.LIVE_TV) {
-                        liveOsd?.showOsd(focus = true) ?: toggleEpgOverlayPinned()
-                    } else { backHideArmed = false; playerView.showController(); playerView.requestFocus() }
-                    return true
-                }
-                KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_GUIDE -> {
-                    if (contentType == ContentType.LIVE_TV) {
-                        liveOsd?.let {
-                            viewModel.toggleBrowser(true, viewModel.zapState.value?.categoryId ?: liveCategoryId, contentId)
-                        } ?: toggleEpgOverlayPinned()
-                        return true
-                    }
-                    if (playerView.isControllerFullyVisible) { showSubtitleSelection(); return true }
-                }
-            }
-        }
-        return super.dispatchKeyEvent(event)
-    }
-
-    override fun onKeyLongPress(keyCode: Int, event: KeyEvent): Boolean {
-        if (contentType == ContentType.LIVE_TV) { when (keyCode) { KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { liveOsd?.showOsd(focus = true) ?: toggleEpgOverlayPinned(); return true } } }
-        return super.onKeyLongPress(keyCode, event)
-    }
-
-    override fun onUserInteraction() { 
+    override fun onUserInteraction() {
         super.onUserInteraction()
         if (contentType == ContentType.LIVE_TV || isInPictureInPictureMode || !playerView.useController || (::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible)) return
         
@@ -2399,7 +2279,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         }
     }
 
-    private fun showControllerWithSmartFocus(sourceEvent: KeyEvent? = null) {
+    internal fun showControllerWithSmartFocus(sourceEvent: KeyEvent? = null) {
         // Explicit user show re-arms the two-step BACK (1st hide, 2nd exit).
         backHideArmed = false
         playerView.showController()
@@ -2441,10 +2321,10 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         Log.d("PLAYER_SEEK_FOCUS", "focus transport target=${target?.resources?.getResourceEntryName(target.id)}")
     }
 
-    private fun supportsPictureInPicture(): Boolean = pipController.isSupported()
+    internal fun supportsPictureInPicture(): Boolean = pipController.isSupported()
 
     @RequiresApi(Build.VERSION_CODES.O)
-    private fun enterPictureInPictureModeInternal() {
+    internal fun enterPictureInPictureModeInternal() {
         if (!supportsPictureInPicture() || isInPictureInPictureMode) return
         try {
             player?.let { wasPlayingBeforePiP = it.playWhenReady }
@@ -2480,8 +2360,8 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         if (contentType != ContentType.LIVE_TV) return
         epgOverlayUi.show(mode, pinned)
     }
-    private fun hideEpgOverlay() = epgOverlayUi.hide()
-    private fun toggleEpgOverlayPinned() = epgOverlayUi.togglePinned()
+    internal fun hideEpgOverlay() = epgOverlayUi.hide()
+    internal fun toggleEpgOverlayPinned() = epgOverlayUi.togglePinned()
 
     private fun formatTimeRangeCompact(program: com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity): String = "${timeFormatter.format(Date(program.start))}-${timeFormatter.format(Date(program.stop))}"
 

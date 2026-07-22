@@ -15,7 +15,6 @@
     <ID>ComplexCondition:LoginFragment.kt$LoginFragment$!loggedIn &amp;&amp; !server.isNullOrEmpty() &amp;&amp; !user.isNullOrEmpty() &amp;&amp; !pass.isNullOrEmpty()</ID>
     <ID>ComplexCondition:LoginQrOverlayController.kt$LoginQrOverlayController$snapshot != null &amp;&amp; !paired &amp;&amp; (status == "completed" || status == "success")</ID>
     <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$canResolveDebrid &amp;&amp; hasResInfo &amp;&amp; (isDebridUrlMissing || isExpired)</ID>
-    <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$contentType != ContentType.LIVE_TV &amp;&amp; playerView.useController &amp;&amp; !(::nextEpisodeManager.isInitialized &amp;&amp; nextEpisodeManager.isPromptVisible) &amp;&amp; !playerView.isControllerFullyVisible</ID>
     <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$contentType == ContentType.LIVE_TV || isInPictureInPictureMode || !playerView.useController || (::nextEpisodeManager.isInitialized &amp;&amp; nextEpisodeManager.isPromptVisible)</ID>
     <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete</ID>
     <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$isDebridUrlMissing &amp;&amp; !(canResolveDebrid &amp;&amp; hasResInfo) &amp;&amp; !canFreshResolveDirectDebrid</ID>
@@ -23,6 +22,7 @@
     <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity.&lt;no name provided&gt;$responseCode == 400 || responseCode == 401 || responseCode == 403 || responseCode == 404 || responseCode == 405 || responseCode == 410 || responseCode == 416 || responseCode == 451</ID>
     <ID>ComplexCondition:PlayerDebridCoordinator.kt$PlayerDebridCoordinator$server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank() || stream.stream_id.isNullOrBlank()</ID>
     <ID>ComplexCondition:PlayerHistoryManager.kt$PlayerHistoryManager$existing != null &amp;&amp; existing.source != item.source &amp;&amp; existing.currentPosition &gt; 0 &amp;&amp; existing.totalDuration &gt; 0</ID>
+    <ID>ComplexCondition:PlayerInputRouter.kt$PlayerInputRouter$contentType != ContentType.LIVE_TV &amp;&amp; playerView.useController &amp;&amp; !activity.isNextEpisodePromptVisible() &amp;&amp; !playerView.isControllerFullyVisible</ID>
     <ID>ComplexCondition:PlayerRecoveryController.kt$PlayerRecoveryController$canUseDebridResolver() &amp;&amp; !isResolvingDebrid &amp;&amp; retryCount &gt; 1 &amp;&amp; (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())</ID>
     <ID>ComplexCondition:StremioNavigationRouter.kt$StremioNavigationRouter$win != null &amp;&amp; anchor != null &amp;&amp; anchor.width != 0 &amp;&amp; anchor.height != 0</ID>
     <ID>ComplexCondition:WatchedIdentityBuilder.kt$WatchedIdentityBuilder$"token=" in lower || "access_token=" in lower || "username=" in lower || "password=" in lower</ID>
@@ -101,7 +101,6 @@
     <ID>CyclomaticComplexMethod:PlaybackResolver.kt$PlaybackResolver$suspend fun resolve( source: String, streamUrl: String?, isExpired: Boolean, infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectHttpPassthrough: Boolean = true ): ResolutionResult</ID>
     <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$internal fun bindModernMetadata(title: String?)</ID>
     <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$internal fun renderOverlay(state: PlayerOverlayUiState)</ID>
-    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$override fun dispatchKeyEvent(event: KeyEvent): Boolean</ID>
     <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$override fun initializePlayer(streamUrl: String)</ID>
     <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
     <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$override fun refreshDirectDebridSourceFromMetadata(reason: String): Boolean</ID>
@@ -110,6 +109,7 @@
     <ID>CyclomaticComplexMethod:PlayerDebridCoordinator.kt$PlayerDebridCoordinator$private fun switchToMovieSource(source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource)</ID>
     <ID>CyclomaticComplexMethod:PlayerHelpers.kt$internal fun resolveMediaMimeType( url: String, sourceHints: List&lt;String?&gt;, streamHeaders: Map&lt;String, String&gt;? ): String?</ID>
     <ID>CyclomaticComplexMethod:PlayerHistoryManager.kt$PlayerHistoryManager$fun saveProgressSnapshot()</ID>
+    <ID>CyclomaticComplexMethod:PlayerInputRouter.kt$PlayerInputRouter$fun dispatchKeyEvent(event: KeyEvent): Boolean?</ID>
     <ID>CyclomaticComplexMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handlePlaybackError(error: PlaybackException)</ID>
     <ID>CyclomaticComplexMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handleTimeout()</ID>
     <ID>CyclomaticComplexMethod:PlayerSeriesController.kt$PlayerSeriesController$fun playNextEpisode()</ID>
@@ -244,10 +244,10 @@
     <ID>LongMethod:MovieSourceAdapter.kt$MovieSourceAdapter.SourceViewHolder$fun bind(source: MovieSource)</ID>
     <ID>LongMethod:MovieSourceConversion.kt$internal fun convertAddonStreamsToMovieSources( addonStreams: List&lt;AddonStream&gt;, title: String?, cacheStatusByHash: Map&lt;String, DebridCacheStatus&gt; ): List&lt;MovieSource&gt;</ID>
     <ID>LongMethod:PlaybackResolver.kt$PlaybackResolver$suspend fun resolve( source: String, streamUrl: String?, isExpired: Boolean, infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectHttpPassthrough: Boolean = true ): ResolutionResult</ID>
-    <ID>LongMethod:PlayerActivity.kt$PlayerActivity$override fun dispatchKeyEvent(event: KeyEvent): Boolean</ID>
     <ID>LongMethod:PlayerActivity.kt$PlayerActivity$override fun initializePlayer(streamUrl: String)</ID>
     <ID>LongMethod:PlayerActivity.kt$PlayerActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:PlayerActivity.kt$PlayerActivity.&lt;no name provided&gt;$override fun onPlaybackStateChanged(playbackState: Int)</ID>
+    <ID>LongMethod:PlayerInputRouter.kt$PlayerInputRouter$fun dispatchKeyEvent(event: KeyEvent): Boolean?</ID>
     <ID>LongMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handlePlaybackError(error: PlaybackException)</ID>
     <ID>LongMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handleTimeout()</ID>
     <ID>LongMethod:PlayerTrackManager.kt$PlayerTrackManager$private fun showSinglePressTrackSelection( player: Player, title: String, trackType: Int, showDisableOption: Boolean, onDialogReady: (android.app.Dialog) -&gt; Unit )</ID>
@@ -303,9 +303,9 @@
     <ID>NestedBlockDepth:LiveRepository.kt$LiveRepository$suspend fun ensureLiveCategories(): List&lt;XtreamCategory&gt;</ID>
     <ID>NestedBlockDepth:LiveSearchAdapter.kt$LiveSearchAdapter$override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder</ID>
     <ID>NestedBlockDepth:PlaybackResolver.kt$PlaybackResolver$suspend fun resolve( source: String, streamUrl: String?, isExpired: Boolean, infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectHttpPassthrough: Boolean = true ): ResolutionResult</ID>
-    <ID>NestedBlockDepth:PlayerActivity.kt$PlayerActivity$override fun dispatchKeyEvent(event: KeyEvent): Boolean</ID>
     <ID>NestedBlockDepth:PlayerActivity.kt$PlayerActivity$override fun initializePlayer(streamUrl: String)</ID>
     <ID>NestedBlockDepth:PlayerDiagnosticsFields.kt$internal fun trackDiagnosticsFields(tracks: Tracks): Map&lt;String, Any?&gt;</ID>
+    <ID>NestedBlockDepth:PlayerInputRouter.kt$PlayerInputRouter$fun dispatchKeyEvent(event: KeyEvent): Boolean?</ID>
     <ID>NestedBlockDepth:PlayerRecoveryController.kt$PlayerRecoveryController$fun handleTimeout()</ID>
     <ID>NestedBlockDepth:PlayerSeriesController.kt$PlayerSeriesController$fun showEpisodeBrowser()</ID>
     <ID>NestedBlockDepth:PlayerTrackManager.kt$PlayerTrackManager$fun applyTrackIndexOverrides( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
