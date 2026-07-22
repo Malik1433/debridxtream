@@ -2548,24 +2548,17 @@ class PlayerActivity : AppCompatActivity() {
         // below with a cool-off.
         val terminalClientCode =
             (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
-        if (contentType != ContentType.LIVE_TV && terminalClientCode != null) {
-            val terminal4xx = terminalClientCode in setOf(400, 401, 403, 404, 405, 410, 451)
-            // Plain IPTV/Xtream VOD: a 5xx is a dead listing on the panel, not a transient
-            // blip (unlike live TV or debrid CDNs, which keep retrying) — fail fast too.
-            val terminalIptv5xx =
-                playbackSource == PlaybackSource.IPTV && terminalClientCode in 500..599
-            if (terminal4xx || terminalIptv5xx) {
-                handleTerminalPlaybackFailure(errorMessage, preferReturnToSources = true)
-                return
-            }
+        if (isTerminalHttpForNonLive(terminalClientCode, contentType, playbackSource)) {
+            handleTerminalPlaybackFailure(errorMessage, preferReturnToSources = true)
+            return
         }
         // HTTP 429 for plain IPTV/Xtream (QA fix 4): the provider WAF is rate-limiting
         // this IP. Fast-backoff retries only deepen the ban, so cool off — honor a
         // Retry-After header if the server sent one, else a fixed 20s. The direct-
         // debrid path treats 429 as terminal separately (isTerminalDirectHttpPlaybackError).
         val responseCode = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
-        if (responseCode == 429 && !directDebridPlayback) {
-            if (retryCount < (if (contentType == ContentType.LIVE_TV) LIVE_MAX_RETRIES else maxRetries) &&
+        if (isRateLimitCoolOff(responseCode, directDebridPlayback)) {
+            if (retryCount < maxRetriesFor(contentType, LIVE_MAX_RETRIES, maxRetries) &&
                 canAttemptReconnect()
             ) {
                 retryCount++
@@ -2590,7 +2583,7 @@ class PlayerActivity : AppCompatActivity() {
             }
             return
         }
-        if (retryCount < (if (contentType == ContentType.LIVE_TV) LIVE_MAX_RETRIES else maxRetries)) {
+        if (retryCount < maxRetriesFor(contentType, LIVE_MAX_RETRIES, maxRetries)) {
             // Aggregate budget gate (fix 2): even under the per-source retry cap, refuse
             // to reconnect once the rolling window is spent. Records the attempt + shows
             // the banner when allowed.
