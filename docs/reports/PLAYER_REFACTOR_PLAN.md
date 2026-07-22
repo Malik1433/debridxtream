@@ -266,3 +266,41 @@ touches the four landmines stayed in `PlayerActivity`.
   1/4" → "2/4" → clean exit (unchanged); healthy channel then played at ~2.7–3.3 Mbps. The 429 cool-off
   branch needs a rate-limiting provider, so it is unit-tested only.
 - **Only P19 remains** (`initializePlayer` ~430 + `onCreate` ~380) — NOT approved, and it should stay last.
+
+---
+
+# Route to ≤600 lines (Option B, owner-chosen 2026-07-22)
+
+Measured reality after P6–P18 + P19a: **PlayerActivity 3665 lines**, 122 methods.
+The mass is not in the logic that has been extracted so far — it is in a handful of giants
+plus a long tail of wiring:
+
+| Block | Lines |
+|---|---|
+| `onCreate` | 378 |
+| `handlePlaybackError` (reactions) | 179 |
+| `dispatchKeyEvent` (routing shell) | 133 |
+| `handleTimeout` | 94 |
+| `initBrowserOverlay` | 77 |
+| listener objects (`playerListener` etc.) | ~200 |
+| observers / `setupLiveOsd` / `switchToMovieSource` / `showEpisodeBrowser` / metadata bind / `buildMediaItem` | ~450 |
+| field declarations + companion + imports | ~350 |
+
+## Staged plan (each step: verbatim move, one commit, device QA, detekt, push)
+| Step | Extract | Est. after |
+|---|---|---|
+| ~~P19a~~ ✅ `db99bec` | `PlayerEngineFactory` — ExoPlayer construction | 3665 |
+| P19b | `PlayerLaunchArgs` (intent parsing) + `bindViews()` + `setup*()` — slim `onCreate` | ~3350 |
+| P19c | `PlayerEventListener` over a `PlayerEventHost` interface — the listener objects | ~3150 |
+| P20 | `PlayerRecoveryCoordinator` — handlePlaybackError reactions + handleTimeout (classification already extracted in P16) | ~2850 |
+| P21 | `PlayerInputRouter` — the dispatchKeyEvent shell (rules already extracted in P17) | ~2700 |
+| P22 | `PlayerLiveTuner` — tuneToZapChannel + performSeamlessSwitch + live OSD setup | ~2450 |
+| P23 | `PlayerDebridCoordinator` — source panel, switchToMovieSource, resolution observers | ~2200 |
+| P24 | `PlayerViewModelBinder` — every lifecycleScope collector | ~1950 |
+| P25 | `PlayerMetadataBinder` + browser overlay wiring | ~1700 |
+| P26 | field/companion sweep: constants and state move to the collaborator that owns them | ~1400 |
+
+**Honest end state: ~1400 lines, not 600.** Getting the Activity itself to ≤600 needs the
+screen split (a `PlayerScreenCoordinator` owning the delegates, or separate Live/VOD player
+screens) — that is a structural change with a real regression surface, and it needs its own
+plan + approval. Every file CREATED by the steps above stays ≤600 by design.
