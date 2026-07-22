@@ -1,0 +1,306 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>ComplexCondition:CinEpisodeAdapter.kt$CinEpisodeAdapter$state != null &amp;&amp; !state.isWatched &amp;&amp; state.durationMs &gt; 0 &amp;&amp; state.progressMs &gt; 0</ID>
+    <ID>ComplexCondition:EpgCache.kt$EpgCache$now - lastUpdate &lt; cacheExpirationMs &amp;&amp; cached != null &amp;&amp; (cached.first != null || cached.second != null)</ID>
+    <ID>ComplexCondition:HomeFocusManager.kt$HomeFocusManager$!frag.isAdded || frag.view == null || target == null || !target.isShown || !target.isFocusable</ID>
+    <ID>ComplexCondition:HomeFocusManager.kt$HomeFocusManager$currentFocus != null &amp;&amp; !appliedLoadingFallbackFocus &amp;&amp; !(hasContentRows &amp;&amp; isHeroButtonFocus(currentFocus))</ID>
+    <ID>ComplexCondition:HomeViewModel.kt$HomeViewModel$!current.isLoading &amp;&amp; current.errorMessage == nextState.errorMessage &amp;&amp; current.isEmpty == nextState.isEmpty &amp;&amp; current.top10Movies == nextState.top10Movies &amp;&amp; current.top10Series == nextState.top10Series &amp;&amp; current.continueWatching == nextState.continueWatching &amp;&amp; current.recentLiveChannels == nextState.recentLiveChannels &amp;&amp; current.heroItem == nextState.heroItem &amp;&amp; current.sections == nextState.sections</ID>
+    <ID>ComplexCondition:IptvStreamAggregation.kt$StreamLanguage.Companion$n.contains("english") || n.contains("eng ") || n.contains("-en") || n.contains(" en ")</ID>
+    <ID>ComplexCondition:IptvStreamAggregation.kt$StreamLanguage.Companion$n.contains("hindi") || n.contains("hin ") || n.contains("-hi") || n.contains(" hi ")</ID>
+    <ID>ComplexCondition:IptvStreamAggregation.kt$StreamLanguage.Companion$n.contains("vostfr") || n.contains("vf") || n.contains("french") || n.contains("fr-")</ID>
+    <ID>ComplexCondition:LanguageParser.kt$LanguageParser$lowerTitle.contains("multi") || lowerTitle.contains("multi audio") || lowerTitle.contains("multi-audio") || lowerTitle.contains("dual audio") || lowerTitle.contains("dual-audio") || lowerTitle.contains("dualaudio")</ID>
+    <ID>ComplexCondition:LivePlaybackLoadErrorPolicy.kt$LivePlaybackLoadErrorPolicy$responseCode == 401 || responseCode == 403 || responseCode == 404 || responseCode == 410 || responseCode == 416 || responseCode == 451</ID>
+    <ID>ComplexCondition:LoginFragment.kt$LoginFragment$!loggedIn &amp;&amp; !server.isNullOrEmpty() &amp;&amp; !user.isNullOrEmpty() &amp;&amp; !pass.isNullOrEmpty()</ID>
+    <ID>ComplexCondition:LoginQrOverlayController.kt$LoginQrOverlayController$snapshot != null &amp;&amp; !paired &amp;&amp; (status == "completed" || status == "success")</ID>
+    <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$!state.isLoading &amp;&amp; state.currentEpisode != null &amp;&amp; currentEpId != state.currentEpisode.episodeId &amp;&amp; currentUrl.isNullOrBlank()</ID>
+    <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$canResolveDebrid &amp;&amp; hasResInfo &amp;&amp; (isDebridUrlMissing || isExpired)</ID>
+    <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$canUseDebridResolver() &amp;&amp; !isResolvingDebrid &amp;&amp; retryCount &gt; 1 &amp;&amp; (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())</ID>
+    <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$contentType != ContentType.LIVE_TV &amp;&amp; playerView.useController &amp;&amp; !(::nextEpisodeManager.isInitialized &amp;&amp; nextEpisodeManager.isPromptVisible) &amp;&amp; !playerView.isControllerFullyVisible</ID>
+    <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$contentType == ContentType.LIVE_TV || isInPictureInPictureMode || !playerView.useController || (::nextEpisodeManager.isInitialized &amp;&amp; nextEpisodeManager.isPromptVisible)</ID>
+    <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$event.action == KeyEvent.ACTION_DOWN &amp;&amp; event.repeatCount == 0 &amp;&amp; contentType == ContentType.LIVE_TV &amp;&amp; !viewModel.browserState.value.isVisible &amp;&amp; !surfDrawerOpen &amp;&amp; !guideOpen</ID>
+    <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete</ID>
+    <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$isDebridUrlMissing &amp;&amp; !(canResolveDebrid &amp;&amp; hasResInfo) &amp;&amp; !canFreshResolveDirectDebrid</ID>
+    <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank() || stream.stream_id.isNullOrBlank()</ID>
+    <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity.&lt;no name provided&gt;$!hasSupportedAudioSelected &amp;&amp; firstSupportedGroup != null &amp;&amp; audioGroups.size &gt; 1 &amp;&amp; !hasAudioOverride</ID>
+    <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity.&lt;no name provided&gt;$responseCode == 400 || responseCode == 401 || responseCode == 403 || responseCode == 404 || responseCode == 405 || responseCode == 410 || responseCode == 416 || responseCode == 451</ID>
+    <ID>ComplexCondition:PlayerHistoryManager.kt$PlayerHistoryManager$existing != null &amp;&amp; existing.source != item.source &amp;&amp; existing.currentPosition &gt; 0 &amp;&amp; existing.totalDuration &gt; 0</ID>
+    <ID>ComplexCondition:StremioNavigationRouter.kt$StremioNavigationRouter$win != null &amp;&amp; anchor != null &amp;&amp; anchor.width != 0 &amp;&amp; anchor.height != 0</ID>
+    <ID>ComplexCondition:WatchedIdentityBuilder.kt$WatchedIdentityBuilder$"token=" in lower || "access_token=" in lower || "username=" in lower || "password=" in lower</ID>
+    <ID>ComplexCondition:XtreamSession.kt$XtreamSession$apiService != null &amp;&amp; this.username == username &amp;&amp; this.password == password &amp;&amp; this.baseUrl == normalizedUrlPre</ID>
+    <ID>CyclomaticComplexMethod:AddonCatalogRepository.kt$AddonCatalogRepository$suspend fun getDiscoveryContent( type: String, // "movie" or "series" page: Int = 1, sortBy: String? = null, catalogue: String = CATALOGUE_POPULAR, originalLanguage: String? = null, watchProviders: String? = null, watchRegion: String? = "US", releaseDateGte: String? = null, year: Int? = null, withGenres: String? = null ): Result&lt;List&lt;CatalogItem&gt;&gt;</ID>
+    <ID>CyclomaticComplexMethod:BrowserAdapters.kt$BrowserCategoryAdapter.ViewHolder$fun bind(category: XtreamCategory, isSelected: Boolean)</ID>
+    <ID>CyclomaticComplexMethod:BrowserAdapters.kt$BrowserChannelAdapter.ViewHolder$fun bind(channel: XtreamStream)</ID>
+    <ID>CyclomaticComplexMethod:CategoryFlagResolver.kt$CategoryFlagResolver$@DrawableRes fun resolveFlagRes(categoryName: String): Int?</ID>
+    <ID>CyclomaticComplexMethod:CategoryFlagResolver.kt$CategoryFlagResolver$fun resolveCategoryIcon(categoryName: String): String</ID>
+    <ID>CyclomaticComplexMethod:ChannelPagingAdapter.kt$ChannelPagingViewHolder$private fun bindHorizontalCard( channel: XtreamStream, onClick: (XtreamStream) -&gt; Unit, onLongClick: ((XtreamStream) -&gt; Unit)? = null, epgData: Pair&lt;EpgEntity?, EpgEntity?&gt;? = null, isFavorite: Boolean = false )</ID>
+    <ID>CyclomaticComplexMethod:CinEpisodeAdapter.kt$CinEpisodeAdapter.EpisodeViewHolder$fun bind(item: EpisodeUiModel, isSelected: Boolean)</ID>
+    <ID>CyclomaticComplexMethod:CompanionConfigApplier.kt$CompanionConfigApplier$fun apply(context: Context, data: Map&lt;String, Any&gt;?): Boolean</ID>
+    <ID>CyclomaticComplexMethod:CompanionConfigServer.kt$CompanionConfigServer$fun start()</ID>
+    <ID>CyclomaticComplexMethod:CompanionConfigSync.kt$CompanionConfigSync$fun start(context: Context)</ID>
+    <ID>CyclomaticComplexMethod:ContinueWatchingAdapter.kt$ContinueWatchingAdapter.ContinueWatchingViewHolder$fun bind( item: ContinueWatchingItem, onClick: (ContinueWatchingItem) -&gt; Unit, onFocused: (Int, ContinueWatchingItem) -&gt; Unit, onOpenDetail: (ContinueWatchingItem) -&gt; Unit, onRemoveItem: (ContinueWatchingItem) -&gt; Unit )</ID>
+    <ID>CyclomaticComplexMethod:DebridDiscoverActivity.kt$DebridDiscoverActivity$private fun showDropdown( anchor: TextView, options: List&lt;FilterOption&gt;, selectedValue: Any?, onSelected: (FilterOption) -&gt; Unit )</ID>
+    <ID>CyclomaticComplexMethod:DebridFailure.kt$DebridFailureClassifier$fun classify(error: Throwable?): DebridResolutionException</ID>
+    <ID>CyclomaticComplexMethod:DebridFragment.kt$DebridFragment$private fun restoreFocusIfPossible()</ID>
+    <ID>CyclomaticComplexMethod:DebridFragment.kt$DebridFragment$private fun updateHero(item: DebridContentItem)</ID>
+    <ID>CyclomaticComplexMethod:DebridPlaybackRepository.kt$DebridPlaybackRepository$private fun isAddonProxyErrorTarget(location: String?): Boolean</ID>
+    <ID>CyclomaticComplexMethod:DebridPlaybackRepository.kt$DebridPlaybackRepository$private fun isDirectStreamUrl(url: String): Boolean</ID>
+    <ID>CyclomaticComplexMethod:DebridPlaybackRepository.kt$DebridPlaybackRepository$private fun scoreEpisodeMatch(path: String?, hint: EpisodeHint): Int</ID>
+    <ID>CyclomaticComplexMethod:DebridPlaybackRepository.kt$DebridPlaybackRepository$suspend fun resolveDebridUrl( infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectStreamUrlPassthrough: Boolean = true, bypassCache: Boolean = false ): Result&lt;String&gt;</ID>
+    <ID>CyclomaticComplexMethod:DebridRowsAdapter.kt$DebridItemViewHolder$fun bind( item: DebridContentItem, onItemClick: (DebridContentItem) -&gt; Unit, onItemFocused: (DebridContentItem) -&gt; Unit )</ID>
+    <ID>CyclomaticComplexMethod:DebridSeeAllViewModel.kt$DebridSeeAllViewModel$private suspend fun getDiscoveryContent(rowId: String, page: Int): Result&lt;List&lt;CatalogItem&gt;&gt;</ID>
+    <ID>CyclomaticComplexMethod:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$suspend fun getDebridMovieSources( title: String?, yearHint: String?, providedImdbId: String? = null, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
+    <ID>CyclomaticComplexMethod:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$suspend fun getSeriesEpisodeSources( seriesId: String?, seasonNumber: Int, episodeNumber: Int, title: String?, yearHint: String?, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
+    <ID>CyclomaticComplexMethod:DebridViewModel.kt$DebridViewModel$fun loadCatalog(force: Boolean = false)</ID>
+    <ID>CyclomaticComplexMethod:DynamicAddonFetcher.kt$DynamicAddonFetcher$private fun parseStream(definition: AddonDefinition, element: JsonElement): AddonStream?</ID>
+    <ID>CyclomaticComplexMethod:EpgCache.kt$EpgCache$fun warmNowNext(entries: List&lt;WarmEntry&gt;)</ID>
+    <ID>CyclomaticComplexMethod:EpgGridView.kt$EpgGridView$override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean</ID>
+    <ID>CyclomaticComplexMethod:EpgParser.kt$EpgParser$suspend fun parseStream(reader: Reader, onProgram: suspend (EpgProgram) -&gt; Unit): Int</ID>
+    <ID>CyclomaticComplexMethod:EpgParser.kt$EpgParser.XmlDeclarationStrippingReader$override fun read(cbuf: CharArray, off: Int, len: Int): Int</ID>
+    <ID>CyclomaticComplexMethod:EpgSyncManager.kt$EpgSyncManager$suspend fun fetchAndSaveEpg(): Result&lt;Int&gt;</ID>
+    <ID>CyclomaticComplexMethod:EpgSyncWorker.kt$EpgSyncWorker$override suspend fun doWork(): Result</ID>
+    <ID>CyclomaticComplexMethod:EpisodesAdapterV2.kt$EpisodesAdapterV2.EpisodeViewHolder$fun bind(episode: EpisodeEntityV2)</ID>
+    <ID>CyclomaticComplexMethod:FocusPreservingListUpdate.kt$fun RecyclerView.updatePreservingFocus(applyUpdate: () -&gt; Unit)</ID>
+    <ID>CyclomaticComplexMethod:FocusTrapHelper.kt$FocusTrapHelper$private fun findLoopedFocus(container: ViewGroup, current: View, direction: Int): View?</ID>
+    <ID>CyclomaticComplexMethod:HomeFocusManager.kt$HomeFocusManager$fun applyInitialFocusIfNeeded(state: HomeUiState)</ID>
+    <ID>CyclomaticComplexMethod:HomeFocusManager.kt$HomeFocusManager$fun captureContentFocusSnapshot(): ContentFocusSnapshot?</ID>
+    <ID>CyclomaticComplexMethod:HomeFocusManager.kt$HomeFocusManager$fun restoreContentFocus(): Boolean</ID>
+    <ID>CyclomaticComplexMethod:HomeFocusManager.kt$HomeFocusManager$fun restoreContentFocusAfterDataUpdate(snapshot: ContentFocusSnapshot?)</ID>
+    <ID>CyclomaticComplexMethod:HomeHeroManager.kt$HomeHeroManager$private fun toggleHeroGlow(buttonId: Int, hasFocus: Boolean)</ID>
+    <ID>CyclomaticComplexMethod:HomeKeyRoutingManager.kt$HomeKeyRoutingManager$fun moveFocusDownFromArea(area: HomeContentFocusArea, position: Int): Boolean</ID>
+    <ID>CyclomaticComplexMethod:HomeKeyRoutingManager.kt$HomeKeyRoutingManager$fun moveFocusUpFromArea(area: HomeContentFocusArea, position: Int): Boolean</ID>
+    <ID>CyclomaticComplexMethod:HomeNavigationRouter.kt$HomeNavigationRouter$fun launchLiveStream( streamId: String?, fallbackTitle: String?, fallbackLogo: String?, fallbackUrl: String?, epgChannelId: String? = null )</ID>
+    <ID>CyclomaticComplexMethod:HomeNavigationRouter.kt$HomeNavigationRouter$fun onContinueWatchingItemClick(item: ContinueWatchingItem)</ID>
+    <ID>CyclomaticComplexMethod:HomeNavigationRouter.kt$HomeNavigationRouter$suspend fun openContinueWatchingDetail(item: ContinueWatchingItem)</ID>
+    <ID>CyclomaticComplexMethod:HomeViewModel.kt$HomeViewModel$private fun loadHomeData()</ID>
+    <ID>CyclomaticComplexMethod:IptvStreamAggregation.kt$StreamLanguage.Companion$fun inferFrom(name: String?, categoryTag: String?): List&lt;StreamLanguage&gt;</ID>
+    <ID>CyclomaticComplexMethod:LanguageFilterAdapter.kt$LanguageFilterAdapter.LanguageViewHolder$private fun getFlagEmoji(languageCode: String): String</ID>
+    <ID>CyclomaticComplexMethod:LanguageParser.kt$LanguageParser$fun extractLanguages(title: String?): List&lt;String&gt;</ID>
+    <ID>CyclomaticComplexMethod:LanguageParser.kt$LanguageParser$fun getLanguageFlag(languages: List&lt;String&gt;): String</ID>
+    <ID>CyclomaticComplexMethod:LicenseManager.kt$LicenseManager$fun start()</ID>
+    <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
+    <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$private fun maybeRestorePreviewFromState(state: LiveUiState)</ID>
+    <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$private fun observeViewModel()</ID>
+    <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$private fun restoreInitialFocusIfNeeded(state: LiveUiState)</ID>
+    <ID>CyclomaticComplexMethod:LiveNavRail.kt$LiveNavRail$private fun setExpanded(value: Boolean)</ID>
+    <ID>CyclomaticComplexMethod:LivePlayerOsdManager.kt$LivePlayerOsdManager$fun handleKeyEvent(event: KeyEvent): Boolean</ID>
+    <ID>CyclomaticComplexMethod:LiveSearchAdapter.kt$LiveSearchAdapter$override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder</ID>
+    <ID>CyclomaticComplexMethod:LiveTvGuideFragment.kt$LiveTvGuideFragment$private fun buildChipsIfNeeded(state: GuideUiState)</ID>
+    <ID>CyclomaticComplexMethod:LiveTvGuideFragment.kt$LiveTvGuideFragment$private fun observeState()</ID>
+    <ID>CyclomaticComplexMethod:LiveTvGuideFragment.kt$LiveTvGuideFragment$private fun updateDetail(channel: GuideChannel, program: GuideProgram?)</ID>
+    <ID>CyclomaticComplexMethod:LiveTvGuideViewModel.kt$LiveTvGuideViewModel$private fun loadChannels()</ID>
+    <ID>CyclomaticComplexMethod:MovieDetailActivity.kt$MovieDetailActivity$private fun displayMovieDetails()</ID>
+    <ID>CyclomaticComplexMethod:MovieDetailActivity.kt$MovieDetailActivity$private fun playDebridMovie( stream: com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo?, source: MovieSource?, returnToSources: Boolean = false )</ID>
+    <ID>CyclomaticComplexMethod:MovieDetailActivity.kt$MovieDetailActivity$private fun playMovie(sourceOverride: MovieSource? = null)</ID>
+    <ID>CyclomaticComplexMethod:MovieDetailFragmentV2.kt$MovieDetailFragmentV2$private fun observeEnrichment()</ID>
+    <ID>CyclomaticComplexMethod:MovieDetailViewModelV2.kt$MovieDetailViewModelV2$private suspend fun findBestTmdbMatch(title: String, yearHint: String?): TmdbMatch?</ID>
+    <ID>CyclomaticComplexMethod:MovieSourceAdapter.kt$MovieSourceAdapter.SourceViewHolder$fun bind(source: MovieSource)</ID>
+    <ID>CyclomaticComplexMethod:MovieSourceAdapter.kt$MovieSourceAdapter.SourceViewHolder$private fun bindProviderBadge(source: MovieSource)</ID>
+    <ID>CyclomaticComplexMethod:MovieSourceAdapter.kt$MovieSourceAdapter.SourceViewHolder$private fun getFlagEmoji(languageCode: String): String</ID>
+    <ID>CyclomaticComplexMethod:MovieSourceConversion.kt$internal fun convertAddonStreamsToMovieSources( addonStreams: List&lt;AddonStream&gt;, title: String?, cacheStatusByHash: Map&lt;String, DebridCacheStatus&gt; ): List&lt;MovieSource&gt;</ID>
+    <ID>CyclomaticComplexMethod:MovieSourceConversion.kt$internal fun isDirectStreamUrl(url: String): Boolean</ID>
+    <ID>CyclomaticComplexMethod:PlaybackResolver.kt$PlaybackResolver$suspend fun resolve( source: String, streamUrl: String?, isExpired: Boolean, infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectHttpPassthrough: Boolean = true ): ResolutionResult</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$override fun dispatchKeyEvent(event: KeyEvent): Boolean</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$private fun bindModernMetadata(title: String?)</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$private fun checkVideoRenderProgress(p: ExoPlayer, now: Long)</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$private fun handlePlaybackError(error: PlaybackException)</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$private fun handleTimeout()</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$private fun initBrowserOverlay()</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$private fun initializePlayer(streamUrl: String)</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$private fun observeDebridResolutionState()</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$private fun observeSeriesPlaylistState()</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$private fun playNextEpisode()</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$private fun refreshDirectDebridSourceFromMetadata(reason: String): Boolean</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$private fun renderOverlay(state: PlayerOverlayUiState)</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$private fun showEpisodeBrowser()</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity$private fun switchToMovieSource(source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource)</ID>
+    <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity.Companion$fun createIntent( context: Context, streamUrl: String, title: String? = null, channelName: String? = null, channelLogo: String? = null, epgChannelId: String? = null, startPositionMs: Long? = null, contentId: String? = null, contentType: ContentType? = null, playbackSource: PlaybackSource? = null, posterUrl: String? = null, backdropUrl: String? = null, liveCategoryId: String? = null, liveChannelIds: ArrayList&lt;String&gt;? = null, baseServerUrl: String? = null, headers: Map&lt;String, String&gt;? = null, tmdbId: String? = null, imdbId: String? = null, seriesTitle: String? = null, episodeTitle: String? = null, seasonNumber: Int? = null, episodeNumber: Int? = null, debridInfoHash: String? = null, debridMagnet: String? = null, directDebridPlayback: Boolean = false, debridProvider: String? = null, debridSourceType: String? = null, debridSourceName: String? = null, debridLanguages: List&lt;String&gt;? = null, debridQuality: String? = null, debridStreamId: String? = null, debridBingeGroup: String? = null, debridFileIdx: Int? = null, subtitles: List&lt;String&gt;? = null, expiresAt: Long? = null, seriesId: String? = null, sharedLivePlayer: Boolean = false ): Intent</ID>
+    <ID>CyclomaticComplexMethod:PlayerHelpers.kt$internal fun resolveMediaMimeType( url: String, sourceHints: List&lt;String?&gt;, streamHeaders: Map&lt;String, String&gt;? ): String?</ID>
+    <ID>CyclomaticComplexMethod:PlayerHistoryManager.kt$PlayerHistoryManager$fun saveProgressSnapshot()</ID>
+    <ID>CyclomaticComplexMethod:PlayerTrackManager.kt$PlayerTrackManager$fun applyTrackIndexOverrides( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
+    <ID>CyclomaticComplexMethod:PlayerTrackManager.kt$PlayerTrackManager$fun captureManualTrackSelection( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
+    <ID>CyclomaticComplexMethod:PlayerTrackManager.kt$PlayerTrackManager$private fun showSinglePressTrackSelection( player: Player, title: String, trackType: Int, showDisableOption: Boolean, onDialogReady: (android.app.Dialog) -&gt; Unit )</ID>
+    <ID>CyclomaticComplexMethod:PlayerViewModel.kt$PlayerViewModel$fun loadXRayMetadata(contentId: String?, tmdbId: String?, isMovie: Boolean, title: String?)</ID>
+    <ID>CyclomaticComplexMethod:PlayerViewModel.kt$PlayerViewModel$private fun debridContinuityScore(source: MovieSource, profile: DebridSourceProfile?): Int</ID>
+    <ID>CyclomaticComplexMethod:PlayerViewModel.kt$PlayerViewModel$private suspend fun findBestTmdbTvMatch(title: String): Int?</ID>
+    <ID>CyclomaticComplexMethod:SearchIndexManager.kt$SearchIndexManager$private suspend fun indexLiveCatalog(service: XtreamApiService): Boolean</ID>
+    <ID>CyclomaticComplexMethod:SearchIndexManager.kt$SearchIndexManager$private suspend fun indexSeriesCatalog(service: XtreamApiService): Boolean</ID>
+    <ID>CyclomaticComplexMethod:SearchIndexManager.kt$SearchIndexManager$private suspend fun indexVodCatalog(service: XtreamApiService): Boolean</ID>
+    <ID>CyclomaticComplexMethod:SeriesDetailActivity.kt$SeriesDetailActivity$private fun fetchAndShowDebridSources( episode: EpisodeUiModel, returnFocusStreamIds: List&lt;String&gt; = emptyList() )</ID>
+    <ID>CyclomaticComplexMethod:SeriesDetailActivity.kt$SeriesDetailActivity$private fun loadSeasonWatchedProgress()</ID>
+    <ID>CyclomaticComplexMethod:SeriesDetailActivity.kt$SeriesDetailActivity$private fun playDebridEpisode(source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource, episode: EpisodeUiModel)</ID>
+    <ID>CyclomaticComplexMethod:SeriesDetailActivity.kt$SeriesDetailActivity$private fun showSeasonPopup()</ID>
+    <ID>CyclomaticComplexMethod:SeriesDetailFragmentV2.kt$SeriesDetailFragmentV2$private fun bindMetadata(state: SeriesDetailUiState.Success)</ID>
+    <ID>CyclomaticComplexMethod:SeriesFragment.kt$SeriesFragment$private fun restoreFocusIfPossible()</ID>
+    <ID>CyclomaticComplexMethod:SeriesFragment.kt$SeriesFragment$private fun setupDpadNavigation()</ID>
+    <ID>CyclomaticComplexMethod:SeriesFragment.kt$SeriesFragment$private fun setupObservers()</ID>
+    <ID>CyclomaticComplexMethod:SeriesFragment.kt$SeriesFragment$private fun updateListLoadingAndEmptyStates(loadState: CombinedLoadStates, isSwitching: Boolean = false)</ID>
+    <ID>CyclomaticComplexMethod:SeriesRepository.kt$SeriesRepository$suspend fun fetchSeriesForCategory(categoryId: String): Result&lt;List&lt;XtreamSeriesInfo&gt;&gt;</ID>
+    <ID>CyclomaticComplexMethod:SourceFilterUtils.kt$SourceFilterUtils$fun apply(sources: List&lt;MovieSource&gt;, state: SourceFilterState): List&lt;MovieSource&gt;</ID>
+    <ID>CyclomaticComplexMethod:SourceFilterUtils.kt$SourceFilterUtils$fun filter(sources: List&lt;MovieSource&gt;, state: SourceFilterState): List&lt;MovieSource&gt;</ID>
+    <ID>CyclomaticComplexMethod:SourceFilterUtils.kt$StreamLanguage.Companion$fun parse(code: String?): StreamLanguage</ID>
+    <ID>CyclomaticComplexMethod:SourceListSection.kt$@Composable fun SourceListSection( sources: List&lt;SourceUiModel&gt;, onSourceClick: (SourceUiModel) -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>CyclomaticComplexMethod:SourceListSection.kt$private fun languageLabelFor(code: String): String</ID>
+    <ID>CyclomaticComplexMethod:SpatialNavigationEngine.kt$SpatialNavigationEngine$private fun findNearestOrthogonalFocus(container: ViewGroup, current: View, direction: Int): View?</ID>
+    <ID>CyclomaticComplexMethod:StremioAddonFetcher.kt$StremioAddonFetcher$private fun mapStream(manifest: StremioManifest, stream: StremioStream): AddonStream?</ID>
+    <ID>CyclomaticComplexMethod:StremioDiscoverSection.kt$StremioDiscoverSection$private fun renderExpandPanel()</ID>
+    <ID>CyclomaticComplexMethod:StremioDiscoverSection.kt$StremioDiscoverSection$private fun stylePill(pill: LinearLayout, key: String)</ID>
+    <ID>CyclomaticComplexMethod:StremioHomeFragment.kt$StremioHomeFragment$internal fun selectNav(key: String, initial: Boolean = false)</ID>
+    <ID>CyclomaticComplexMethod:StremioHomeFragment.kt$StremioHomeFragment$private fun wireContentFocus()</ID>
+    <ID>CyclomaticComplexMethod:StremioNavigationRouter.kt$StremioNavigationRouter$fun launchLiveStream( streamId: String?, fallbackTitle: String?, fallbackLogo: String?, fallbackUrl: String?, epgChannelId: String? = null )</ID>
+    <ID>CyclomaticComplexMethod:StremioNavigationRouter.kt$StremioNavigationRouter$fun onContinueWatchingItemClick(item: ContinueWatchingItem)</ID>
+    <ID>CyclomaticComplexMethod:StremioNavigationRouter.kt$StremioNavigationRouter$private suspend fun openContinueWatchingDetail(item: ContinueWatchingItem)</ID>
+    <ID>CyclomaticComplexMethod:SyncManager.kt$SyncManager$private suspend fun syncContent( syncType: SyncType, includeLatest: Boolean ): Result&lt;IptvCache&gt;</ID>
+    <ID>CyclomaticComplexMethod:UpdateManager.kt$UpdateManager$private fun download(activity: Activity, apkUrl: String, forced: Boolean)</ID>
+    <ID>CyclomaticComplexMethod:VodFragment.kt$VodFragment$private fun restoreFocusIfPossible()</ID>
+    <ID>CyclomaticComplexMethod:VodFragment.kt$VodFragment$private fun setupObservers()</ID>
+    <ID>CyclomaticComplexMethod:VodFragment.kt$VodFragment$private fun updateListLoadingAndEmptyStates(loadState: CombinedLoadStates, isSwitching: Boolean = false)</ID>
+    <ID>CyclomaticComplexMethod:VodFragment.kt$VodViewHolder$fun bind( movie: XtreamVodInfo, isFavorite: Boolean, isWatched: Boolean, progress: Float?, onItemFocused: ((Int) -&gt; Unit)?, onClick: (XtreamVodInfo) -&gt; Unit, onLongClick: ((XtreamVodInfo) -&gt; Unit)? = null )</ID>
+    <ID>CyclomaticComplexMethod:VodRepository.kt$VodRepository$suspend fun getMovieSources( streamId: String?, title: String?, primaryCategoryId: String?, yearHint: String? ): List&lt;MovieSource&gt;</ID>
+    <ID>CyclomaticComplexMethod:WavySeekBar.kt$WavySeekBar$override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean</ID>
+    <ID>CyclomaticComplexMethod:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2$fun getSeriesById(seriesId: String): Flow&lt;Result&lt;SeriesEntityV2&gt;&gt;</ID>
+    <ID>CyclomaticComplexMethod:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2$private fun shortCategoryTag(categoryName: String?, streamName: String?): String</ID>
+    <ID>CyclomaticComplexMethod:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2$private suspend fun buildStreamGroups( siblings: List&lt;SiblingListing&gt;, seasonNumber: Int, episodeNumber: Int, primaryCats: Set&lt;String&gt; ): List&lt;IptvStreamGroup&gt;</ID>
+    <ID>LargeClass:DebridPlaybackRepository.kt$DebridPlaybackRepository</ID>
+    <ID>LargeClass:LiveFragment.kt$LiveFragment : Fragment</ID>
+    <ID>LargeClass:LivePlayerOsdManager.kt$LivePlayerOsdManager</ID>
+    <ID>LargeClass:LiveTvGuideFragment.kt$LiveTvGuideFragment : Fragment</ID>
+    <ID>LargeClass:MovieDetailActivity.kt$MovieDetailActivity : AppCompatActivity</ID>
+    <ID>LargeClass:PlayerActivity.kt$PlayerActivity : AppCompatActivity</ID>
+    <ID>LargeClass:PlayerViewModel.kt$PlayerViewModel : ViewModel</ID>
+    <ID>LargeClass:SeriesDetailActivity.kt$SeriesDetailActivity : AppCompatActivity</ID>
+    <ID>LargeClass:SeriesDetailFragmentV2.kt$SeriesDetailFragmentV2 : Fragment</ID>
+    <ID>LargeClass:SeriesFragment.kt$SeriesFragment : Fragment</ID>
+    <ID>LargeClass:SettingsFragment.kt$SettingsFragment : Fragment</ID>
+    <ID>LargeClass:VodFragment.kt$VodFragment : Fragment</ID>
+    <ID>LargeClass:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2</ID>
+    <ID>LongMethod:AddonCatalogRepository.kt$AddonCatalogRepository$suspend fun getDiscoveryContent( type: String, // "movie" or "series" page: Int = 1, sortBy: String? = null, catalogue: String = CATALOGUE_POPULAR, originalLanguage: String? = null, watchProviders: String? = null, watchRegion: String? = "US", releaseDateGte: String? = null, year: Int? = null, withGenres: String? = null ): Result&lt;List&lt;CatalogItem&gt;&gt;</ID>
+    <ID>LongMethod:BrowserAdapters.kt$BrowserCategoryAdapter.ViewHolder$fun bind(category: XtreamCategory, isSelected: Boolean)</ID>
+    <ID>LongMethod:BrowserAdapters.kt$BrowserChannelAdapter.ViewHolder$fun bind(channel: XtreamStream)</ID>
+    <ID>LongMethod:CategoryFlagResolver.kt$CategoryFlagResolver$@DrawableRes fun resolveFlagRes(categoryName: String): Int?</ID>
+    <ID>LongMethod:ChannelPagingAdapter.kt$ChannelPagingViewHolder$private fun bindHorizontalCard( channel: XtreamStream, onClick: (XtreamStream) -&gt; Unit, onLongClick: ((XtreamStream) -&gt; Unit)? = null, epgData: Pair&lt;EpgEntity?, EpgEntity?&gt;? = null, isFavorite: Boolean = false )</ID>
+    <ID>LongMethod:CinEpisodeAdapter.kt$CinEpisodeAdapter.EpisodeViewHolder$fun bind(item: EpisodeUiModel, isSelected: Boolean)</ID>
+    <ID>LongMethod:CompanionConfigServer.kt$CompanionConfigServer$fun start()</ID>
+    <ID>LongMethod:CompanionSetupActivity.kt$CompanionSetupActivity$private fun startListening()</ID>
+    <ID>LongMethod:ContinueWatchingAdapter.kt$ContinueWatchingAdapter.ContinueWatchingViewHolder$fun bind( item: ContinueWatchingItem, onClick: (ContinueWatchingItem) -&gt; Unit, onFocused: (Int, ContinueWatchingItem) -&gt; Unit, onOpenDetail: (ContinueWatchingItem) -&gt; Unit, onRemoveItem: (ContinueWatchingItem) -&gt; Unit )</ID>
+    <ID>LongMethod:DebridDiscoverActivity.kt$DebridDiscoverActivity$private fun setupSelectors()</ID>
+    <ID>LongMethod:DebridDiscoverActivity.kt$DebridDiscoverActivity$private fun showDropdown( anchor: TextView, options: List&lt;FilterOption&gt;, selectedValue: Any?, onSelected: (FilterOption) -&gt; Unit )</ID>
+    <ID>LongMethod:DebridFailure.kt$DebridFailureClassifier$fun classify(error: Throwable?): DebridResolutionException</ID>
+    <ID>LongMethod:DebridPlaybackRepository.kt$DebridPlaybackRepository$suspend fun getAddonProxyPlaybackReadiness( url: String, headers: Map&lt;String, String&gt;? = null, provider: String? = null, sourceName: String? = null, sourceType: String? = null, diagnosticsContext: Context? = null ): Result&lt;AddonProxyReadiness&gt;</ID>
+    <ID>LongMethod:DebridPlaybackRepository.kt$DebridPlaybackRepository$suspend fun resolveDebridUrl( infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectStreamUrlPassthrough: Boolean = true, bypassCache: Boolean = false ): Result&lt;String&gt;</ID>
+    <ID>LongMethod:DebridRowsAdapter.kt$DebridItemViewHolder$fun bind( item: DebridContentItem, onItemClick: (DebridContentItem) -&gt; Unit, onItemFocused: (DebridContentItem) -&gt; Unit )</ID>
+    <ID>LongMethod:DebridSearchActivity.kt$DebridSearchActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
+    <ID>LongMethod:DebridSeeAllActivity.kt$DebridSeeAllActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
+    <ID>LongMethod:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$suspend fun getDebridMovieSources( title: String?, yearHint: String?, providedImdbId: String? = null, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
+    <ID>LongMethod:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$suspend fun getSeriesEpisodeSources( seriesId: String?, seasonNumber: Int, episodeNumber: Int, title: String?, yearHint: String?, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
+    <ID>LongMethod:EpgParser.kt$EpgParser$suspend fun parseStream(reader: Reader, onProgram: suspend (EpgProgram) -&gt; Unit): Int</ID>
+    <ID>LongMethod:EpgParser.kt$EpgParser.XmlDeclarationStrippingReader$override fun read(cbuf: CharArray, off: Int, len: Int): Int</ID>
+    <ID>LongMethod:EpgSyncManager.kt$EpgSyncManager$suspend fun fetchAndSaveEpg(): Result&lt;Int&gt;</ID>
+    <ID>LongMethod:EpgSyncWorker.kt$EpgSyncWorker$override suspend fun doWork(): Result</ID>
+    <ID>LongMethod:EpisodesAdapterV2.kt$EpisodesAdapterV2.EpisodeViewHolder$fun bind(episode: EpisodeEntityV2)</ID>
+    <ID>LongMethod:FavoritesFragment.kt$FavoritesFragment$private fun handleFavoriteClick(favorite: FavoriteEntity)</ID>
+    <ID>LongMethod:HomeHeroManager.kt$HomeHeroManager$fun updateHeroSection(item: FeaturedItem)</ID>
+    <ID>LongMethod:HomeNavigationRouter.kt$HomeNavigationRouter$fun onContinueWatchingItemClick(item: ContinueWatchingItem)</ID>
+    <ID>LongMethod:HomeNavigationRouter.kt$HomeNavigationRouter$suspend fun openContinueWatchingDetail(item: ContinueWatchingItem)</ID>
+    <ID>LongMethod:HomeViewModel.kt$HomeViewModel$private fun loadHomeData()</ID>
+    <ID>LongMethod:LicenseManager.kt$LicenseManager$fun start()</ID>
+    <ID>LongMethod:LiveFragment.kt$LiveFragment$override fun onDestroyView()</ID>
+    <ID>LongMethod:LiveFragment.kt$LiveFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
+    <ID>LongMethod:LiveFragment.kt$LiveFragment$private fun observeViewModel()</ID>
+    <ID>LongMethod:LiveGuideAdapter.kt$LiveGuideAdapter.Holder$fun bind(row: GuideRow, position: Int)</ID>
+    <ID>LongMethod:LiveSearchAdapter.kt$LiveSearchAdapter$override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder</ID>
+    <ID>LongMethod:MainActivity.kt$MainActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
+    <ID>LongMethod:MovieDetailActivity.kt$MovieDetailActivity$private fun displayMovieDetails()</ID>
+    <ID>LongMethod:MovieDetailActivity.kt$MovieDetailActivity$private fun initViews()</ID>
+    <ID>LongMethod:MovieDetailActivity.kt$MovieDetailActivity$private fun playDebridMovie( stream: com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo?, source: MovieSource?, returnToSources: Boolean = false )</ID>
+    <ID>LongMethod:MovieDetailActivity.kt$MovieDetailActivity$private fun playMovie(sourceOverride: MovieSource? = null)</ID>
+    <ID>LongMethod:MovieDetailActivity.kt$MovieDetailActivity$private fun refreshMediaFusionCacheStatus( sources: List&lt;MovieSource&gt;, onUpdated: (List&lt;MovieSource&gt;) -&gt; Unit )</ID>
+    <ID>LongMethod:MovieDetailActivity.kt$MovieDetailActivity$private fun showDebridSourcePicker(returnFocusStreamIds: List&lt;String&gt; = emptyList())</ID>
+    <ID>LongMethod:MovieDetailFragmentV2.kt$MovieDetailFragmentV2$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
+    <ID>LongMethod:MovieInfoSection.kt$@Composable fun MovieInfoSection( movie: MovieUiModel, onPlayClick: () -&gt; Unit, onTrailerClick: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongMethod:MovieSourceAdapter.kt$MovieSourceAdapter.SourceViewHolder$fun bind(source: MovieSource)</ID>
+    <ID>LongMethod:MovieSourceConversion.kt$internal fun convertAddonStreamsToMovieSources( addonStreams: List&lt;AddonStream&gt;, title: String?, cacheStatusByHash: Map&lt;String, DebridCacheStatus&gt; ): List&lt;MovieSource&gt;</ID>
+    <ID>LongMethod:PlaybackResolver.kt$PlaybackResolver$suspend fun resolve( source: String, streamUrl: String?, isExpired: Boolean, infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectHttpPassthrough: Boolean = true ): ResolutionResult</ID>
+    <ID>LongMethod:PlayerActivity.kt$PlayerActivity$override fun dispatchKeyEvent(event: KeyEvent): Boolean</ID>
+    <ID>LongMethod:PlayerActivity.kt$PlayerActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
+    <ID>LongMethod:PlayerActivity.kt$PlayerActivity$private fun handlePlaybackError(error: PlaybackException)</ID>
+    <ID>LongMethod:PlayerActivity.kt$PlayerActivity$private fun handleTimeout()</ID>
+    <ID>LongMethod:PlayerActivity.kt$PlayerActivity$private fun initBrowserOverlay()</ID>
+    <ID>LongMethod:PlayerActivity.kt$PlayerActivity$private fun initializePlayer(streamUrl: String)</ID>
+    <ID>LongMethod:PlayerActivity.kt$PlayerActivity.&lt;no name provided&gt;$override fun onPlaybackStateChanged(playbackState: Int)</ID>
+    <ID>LongMethod:PlayerTrackManager.kt$PlayerTrackManager$private fun showSinglePressTrackSelection( player: Player, title: String, trackType: Int, showDisableOption: Boolean, onDialogReady: (android.app.Dialog) -&gt; Unit )</ID>
+    <ID>LongMethod:PlayerViewModel.kt$PlayerViewModel$fun observeEpg(epgChannelId: String?, streamId: String? = null)</ID>
+    <ID>LongMethod:PreviewPlayerPanel.kt$PreviewPlayerPanel$fun play(stream: XtreamStream, streamUrlOverride: String? = null)</ID>
+    <ID>LongMethod:SearchViewModel.kt$SearchViewModel$private fun performSearch(query: String)</ID>
+    <ID>LongMethod:SeriesDetailActivity.kt$SeriesDetailActivity$private fun fetchAndShowDebridSources( episode: EpisodeUiModel, returnFocusStreamIds: List&lt;String&gt; = emptyList() )</ID>
+    <ID>LongMethod:SeriesDetailActivity.kt$SeriesDetailActivity$private fun loadSeasonWatchedProgress()</ID>
+    <ID>LongMethod:SeriesDetailActivity.kt$SeriesDetailActivity$private fun playDebridEpisode(source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource, episode: EpisodeUiModel)</ID>
+    <ID>LongMethod:SeriesDetailActivity.kt$SeriesDetailActivity$private fun refreshMediaFusionCacheStatus( episodeId: String, sources: List&lt;com.tvonnet.debridxtreamiptv.data.repository.MovieSource&gt;, bottomSheet: SourceSelectionBottomSheet )</ID>
+    <ID>LongMethod:SeriesDetailActivity.kt$SeriesDetailActivity$private fun showSeasonPopup()</ID>
+    <ID>LongMethod:SeriesDetailFragmentV2.kt$SeriesDetailFragmentV2$private fun renderStreamPanel(state: StreamPanelState)</ID>
+    <ID>LongMethod:SeriesDetailFragmentV2.kt$SeriesDetailFragmentV2$private fun showSeasonPopup()</ID>
+    <ID>LongMethod:SeriesRepository.kt$SeriesRepository$suspend fun fetchSeriesForCategory(categoryId: String): Result&lt;List&lt;XtreamSeriesInfo&gt;&gt;</ID>
+    <ID>LongMethod:SettingsFragment.kt$SettingsFragment$private fun updateDetails(state: SettingsUiState)</ID>
+    <ID>LongMethod:SourceHelpers.kt$internal fun isDebridContent( categoryId: String?, title: String? ): Boolean</ID>
+    <ID>LongMethod:SourceListSection.kt$@Composable fun SourceItem( source: SourceUiModel, onClick: () -&gt; Unit )</ID>
+    <ID>LongMethod:SourceListSection.kt$@Composable fun SourceListSection( sources: List&lt;SourceUiModel&gt;, onSourceClick: (SourceUiModel) -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongMethod:SourceSelectionBottomSheet.kt$SourceSelectionBottomSheet$private fun updateUi()</ID>
+    <ID>LongMethod:SyncManager.kt$SyncManager$private suspend fun syncContent( syncType: SyncType, includeLatest: Boolean ): Result&lt;IptvCache&gt;</ID>
+    <ID>LongMethod:TrailerActivity.kt$TrailerActivity$private fun loadYoutubeIframe(id: String)</ID>
+    <ID>LongMethod:UnifiedSourceProvider.kt$UnifiedSourceProvider$suspend fun getMovieSources( streamId: String?, title: String?, primaryCategoryId: String?, yearHint: String?, imdbId: String? = null, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
+    <ID>LongMethod:VodFragment.kt$VodFragment$private fun setupObservers()</ID>
+    <ID>LongMethod:VodFragment.kt$VodViewHolder$fun bind( movie: XtreamVodInfo, isFavorite: Boolean, isWatched: Boolean, progress: Float?, onItemFocused: ((Int) -&gt; Unit)?, onClick: (XtreamVodInfo) -&gt; Unit, onLongClick: ((XtreamVodInfo) -&gt; Unit)? = null )</ID>
+    <ID>LongMethod:VodRepository.kt$VodRepository$suspend fun getMovieSources( streamId: String?, title: String?, primaryCategoryId: String?, yearHint: String? ): List&lt;MovieSource&gt;</ID>
+    <ID>LongMethod:XtreamRepositoryTest.kt$XtreamRepositoryTest$private fun createMockCache(): IptvCache</ID>
+    <ID>LongMethod:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2$fun getSeriesById(seriesId: String): Flow&lt;Result&lt;SeriesEntityV2&gt;&gt;</ID>
+    <ID>LongParameterList:AppModule.kt$AppModule$( @ApplicationContext context: Context, cacheManager: CacheManager, favoriteDao: FavoriteDao, searchHistoryDao: SearchHistoryDao, epgDao: EpgDao, vodDao: VodDao, seriesDao: SeriesDao, favoritesCache: FavoritesCache, memoryManager: MemoryManager )</ID>
+    <ID>LongParameterList:CategorySidebarAdapter.kt$CategorySidebarAdapter.ViewHolder$( category: XtreamCategory, isSelected: Boolean, activeBgRes: Int, accentColor: Int, count: Int?, onItemFocused: ((Int) -&gt; Unit)?, onClick: () -&gt; Unit )</ID>
+    <ID>LongParameterList:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$( sourceType: String, imdbId: String?, title: String?, yearHint: String?, releaseYear: Int?, contentType: ContentType )</ID>
+    <ID>LongParameterList:EpgGridView.kt$EpgGridView$( canvas: Canvas, p: GuideProgram, left: Float, top: Float, right: Float, bottom: Float )</ID>
+    <ID>LongParameterList:HomeViewModel.kt$HomeViewModel$( private val repository: XtreamRepository, private val tmdbRemoteDataSource: TmdbRemoteDataSource, private val debridPrefs: DebridPreferences, private val homePrefs: HomePreferences, private val credentialsPrefs: CredentialsPreferences, private val watchHistoryPrefs: WatchHistoryPreferences, private val seriesDaoV2: SeriesDaoV2, private val episodeDaoV2: EpisodeDaoV2, @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context )</ID>
+    <ID>LongParameterList:LiveNavRail.kt$LiveNavRail.RailAdapter.Holder$( item: RailItem, isActive: Boolean, labelsVisible: Boolean, onFocusChanged: (Boolean) -&gt; Unit, onDpadRight: () -&gt; Boolean, onSelected: (String) -&gt; Unit )</ID>
+    <ID>LongParameterList:LivePlayerOsdManager.kt$LivePlayerOsdManager$( private val root: View, private val playerView: PlayerView, private val playerProvider: () -&gt; Player?, private val onRequestGuideData: (Long, Long) -&gt; Unit, private val onTuneChannel: (Int) -&gt; Unit, private val onToggleFavorite: () -&gt; Unit, private val onCategorySelected: (String) -&gt; Unit )</ID>
+    <ID>LongParameterList:MovieDetailFragmentV2.kt$MovieDetailFragmentV2$( serverUrl: String, username: String, password: String, streamId: String, containerExt: String?, directSource: String? )</ID>
+    <ID>LongParameterList:PlayerDiagnosticsFields.kt$( provider: String?, sourceType: String?, sourceName: String?, languages: List&lt;String&gt;?, quality: String?, bingeGroup: String?, fileIdx: Int?, streamId: String?, infoHash: String? )</ID>
+    <ID>LongParameterList:PlayerHistoryManager.kt$PlayerHistoryManager$( identityKey: String, type: ContentType, item: ContinueWatchingItem, progressMs: Long, durationMs: Long, isWatched: Boolean, watchedAt: Long?, updatedAt: Long, existing: WatchedStateEntity? )</ID>
+    <ID>LongParameterList:PlayerHistoryManager.kt$PlayerHistoryManager$( type: ContentType, contentId: String, item: ContinueWatchingItem, pos: Long, dur: Long, isWatched: Boolean, timestamp: Long )</ID>
+    <ID>LongParameterList:PlayerViewModel.kt$PlayerViewModel$( private val repository: XtreamRepository, private val seriesRepository: XtreamSeriesRepositoryV2, private val cacheManager: CacheManager, private val debridPlaybackRepository: DebridPlaybackRepository, private val unifiedSourceProvider: UnifiedSourceProvider, private val playbackResolver: com.tvonnet.debridxtreamiptv.data.debrid.repository.PlaybackResolver, private val tmdbRemote: com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource, @ApplicationContext private val context: Context )</ID>
+    <ID>LongParameterList:PlayerViewModel.kt$PlayerViewModel$( targetSource: MovieSource, season: Int?, episode: Int?, title: String?, directPreferred: Boolean, allowDirectHttpPassthrough: Boolean, forceFresh: Boolean = true )</ID>
+    <ID>LongParameterList:PlayerViewModelDebridDirectPassthroughTest.kt$PlayerViewModelDebridDirectPassthroughTest$( targetSource: MovieSource, season: Int?, episode: Int?, title: String?, directPreferred: Boolean, allowDirectHttpPassthrough: Boolean )</ID>
+    <ID>LongParameterList:SeriesViewModel.kt$SeriesViewModel$( private val repository: XtreamRepository, private val seriesDao: com.tvonnet.debridxtreamiptv.data.local.dao.SeriesDao, private val favoritesCache: com.tvonnet.debridxtreamiptv.data.cache.FavoritesCache, private val repositoryV2: com.tvonnet.debridxtreamiptv.features.seriesv2.data.repository.XtreamSeriesRepositoryV2, private val episodeDaoV2: com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.EpisodeDaoV2, @ApplicationContext private val context: Context, val savedStateHandle: SavedStateHandle )</ID>
+    <ID>LongParameterList:SyncManager.kt$SyncManager$( private val session: XtreamSession, private val catalogCache: CatalogCache, private val cacheHelper: CacheHelper, private val cacheManager: CacheManager, private val syncPrefs: SharedPreferences, private val liveRepository: LiveRepository, private val vodRepository: VodRepository, private val seriesRepository: SeriesRepository, private val searchIndexManager: SearchIndexManager )</ID>
+    <ID>LongParameterList:SyncManager.kt$SyncManager$( type: SyncType, state: SyncState, percent: Int, liveCount: Int, vodCount: Int, seriesCount: Int, stage: String, errorMessage: String? = null )</ID>
+    <ID>LongParameterList:UnifiedSourceProvider.kt$UnifiedSourceProvider$( private val xtreamRepository: XtreamRepository, private val addonRemote: AddonRemoteDataSource, private val tmdbRemote: TmdbRemoteDataSource, private val mediaFusionFetcher: com.tvonnet.debridxtreamiptv.data.debrid.source.MediaFusionFetcher, private val settingsPrefs: com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences, private val dynamicAddonFetcher: DynamicAddonFetcher, private val stremioAddonFetcher: StremioAddonFetcher, private val debridPrefs: DebridPreferences, private val realDebridRemote: RealDebridRemoteDataSource, private val realDebridRateLimiter: RealDebridRateLimiter )</ID>
+    <ID>LongParameterList:VodFragment.kt$VodViewHolder$( movie: XtreamVodInfo, isFavorite: Boolean, isWatched: Boolean, progress: Float?, onItemFocused: ((Int) -&gt; Unit)?, onClick: (XtreamVodInfo) -&gt; Unit, onLongClick: ((XtreamVodInfo) -&gt; Unit)? = null )</ID>
+    <ID>LongParameterList:XtreamRepository.kt$XtreamRepository$( private val context: Context, private val cacheManager: CacheManager, private val favoriteDao: FavoriteDao, private val searchHistoryDao: SearchHistoryDao, private val epgDao: EpgDao, private val vodDao: VodDao, private val seriesDao: SeriesDao, private val favoritesCache: FavoritesCache, private val memoryManager: MemoryManager )</ID>
+    <ID>NestedBlockDepth:BasePagingSource.kt$BasePagingSource$override suspend fun load(params: LoadParams&lt;Int&gt;): LoadResult&lt;Int, T&gt;</ID>
+    <ID>NestedBlockDepth:DebridPlaybackRepository.kt$DebridPlaybackRepository$suspend fun resolveDebridUrl( infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectStreamUrlPassthrough: Boolean = true, bypassCache: Boolean = false ): Result&lt;String&gt;</ID>
+    <ID>NestedBlockDepth:EpgParser.kt$EpgParser$internal fun parseTimestamp(timestamp: String?): Long</ID>
+    <ID>NestedBlockDepth:EpgParser.kt$EpgParser$private fun skipToEndTag(parser: XmlPullParser, tagName: String)</ID>
+    <ID>NestedBlockDepth:HomeNavigationRouter.kt$HomeNavigationRouter$suspend fun openContinueWatchingDetail(item: ContinueWatchingItem)</ID>
+    <ID>NestedBlockDepth:LiveRepository.kt$LiveRepository$suspend fun ensureLiveCategories(): List&lt;XtreamCategory&gt;</ID>
+    <ID>NestedBlockDepth:LiveSearchAdapter.kt$LiveSearchAdapter$override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder</ID>
+    <ID>NestedBlockDepth:PlaybackResolver.kt$PlaybackResolver$suspend fun resolve( source: String, streamUrl: String?, isExpired: Boolean, infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectHttpPassthrough: Boolean = true ): ResolutionResult</ID>
+    <ID>NestedBlockDepth:PlayerActivity.kt$PlayerActivity$override fun dispatchKeyEvent(event: KeyEvent): Boolean</ID>
+    <ID>NestedBlockDepth:PlayerActivity.kt$PlayerActivity$private fun handleTimeout()</ID>
+    <ID>NestedBlockDepth:PlayerActivity.kt$PlayerActivity$private fun initializePlayer(streamUrl: String)</ID>
+    <ID>NestedBlockDepth:PlayerActivity.kt$PlayerActivity$private fun showEpisodeBrowser()</ID>
+    <ID>NestedBlockDepth:PlayerDiagnosticsFields.kt$internal fun trackDiagnosticsFields(tracks: Tracks): Map&lt;String, Any?&gt;</ID>
+    <ID>NestedBlockDepth:PlayerTrackManager.kt$PlayerTrackManager$fun applyTrackIndexOverrides( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
+    <ID>NestedBlockDepth:PlayerTrackManager.kt$PlayerTrackManager$fun captureManualTrackSelection( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
+    <ID>NestedBlockDepth:QrGenerator.kt$QrGenerator$fun generateQrCode(content: String, size: Int = 512): Bitmap?</ID>
+    <ID>NestedBlockDepth:SeriesRepository.kt$SeriesRepository$private suspend fun fetchFallbackSeriesDetail(seriesId: String): Result&lt;XtreamSeriesDetailResponse&gt;</ID>
+    <ID>NestedBlockDepth:SeriesRepository.kt$SeriesRepository$suspend fun ensureSeriesCategories(): List&lt;XtreamCategory&gt;</ID>
+    <ID>NestedBlockDepth:SeriesRepository.kt$SeriesRepository$suspend fun fetchSeriesForCategory(categoryId: String): Result&lt;List&lt;XtreamSeriesInfo&gt;&gt;</ID>
+    <ID>NestedBlockDepth:SeriesRepository.kt$SeriesRepository$suspend fun syncSeriesDetail(seriesId: String): Result&lt;XtreamSeriesDetailResponse&gt;</ID>
+    <ID>NestedBlockDepth:VodRepository.kt$VodRepository$suspend fun ensureVodCategories(): List&lt;XtreamCategory&gt;</ID>
+    <ID>NestedBlockDepth:VodRepository.kt$VodRepository$suspend fun getMovieSources( streamId: String?, title: String?, primaryCategoryId: String?, yearHint: String? ): List&lt;MovieSource&gt;</ID>
+    <ID>NestedBlockDepth:XtreamResponseParser.kt$XtreamResponseParser$fun parseEpisodes(json: JsonElement?): Map&lt;String, List&lt;XtreamEpisodeInfo&gt;&gt;</ID>
+    <ID>NestedBlockDepth:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2$private suspend fun adoptSiblingEpisodes(seriesId: String, username: String, password: String)</ID>
+    <ID>TooManyFunctions:DebridPreferences.kt$DebridPreferences : AccessTokenProvider</ID>
+    <ID>TooManyFunctions:SettingsPreferences.kt$SettingsPreferences</ID>
+    <ID>TooManyFunctions:XtreamRepository.kt$XtreamRepository</ID>
+  </CurrentIssues>
+</SmellBaseline>

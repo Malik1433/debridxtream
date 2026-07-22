@@ -6,6 +6,22 @@ plugins {
     id 'kotlin-parcelize'
     id 'com.google.gms.google-services'
     id 'com.google.firebase.crashlytics'
+    id 'io.gitlab.arturbosch.detekt' version '1.23.7'
+}
+
+// Structural guardrail (god-class prevention). Same philosophy as the lint baseline below:
+// every oversized class that exists TODAY is grandfathered into detekt-baseline.xml, but any NEW
+// violation fails `./gradlew detekt`. Thresholds are the industry defaults (detekt/Clean Code):
+// class 600 lines, method 60, cyclomatic complexity 15, params 6/7 — see config/detekt/detekt.yml.
+// Regenerate the baseline deliberately (only after real refactoring) with: ./gradlew detektBaseline
+detekt {
+    toolVersion = '1.23.7'
+    source.setFrom(files('src/main/java', 'src/test/java'))
+    config.setFrom(files(rootProject.file('config/detekt/detekt.yml')))
+    buildUponDefaultConfig = true
+    baseline = rootProject.file('config/detekt/detekt-baseline.xml')
+    parallel = true
+    ignoreFailures = false
 }
 
 // Release signing + anti-repack config, kept OUT of git (keystore.properties is

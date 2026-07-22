@@ -1,0 +1,84 @@
+# detekt — structural guardrail config
+#
+# Purpose: stop NEW god-classes. This is deliberately NOT a full style linter — every
+# formatting/naming/style ruleset is off so the signal stays 100% actionable. What is left is the
+# size + complexity family, at the industry-standard thresholds:
+#
+#   LargeClass 600        detekt default; Clean Code says ~200 typical / 500 max
+#   LongMethod 60         detekt default (Clean Code is stricter at ~20)
+#   CyclomaticComplexMethod 15   McCabe / detekt default
+#   LongParameterList 6 fn / 7 ctor
+#   NestedBlockDepth 4
+#
+# Existing violations are grandfathered in config/detekt/detekt-baseline.xml, so this only ever
+# fires on NEW code. Run: ./gradlew detekt
+
+build:
+  maxIssues: 0
+
+complexity:
+  active: true
+  LargeClass:
+    active: true
+    threshold: 600
+  LongMethod:
+    active: true
+    threshold: 60
+  LongParameterList:
+    active: true
+    functionThreshold: 6
+    constructorThreshold: 7
+    ignoreDefaultParameters: true
+    ignoreDataClasses: true
+    ignoreAnnotatedParameter: []
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 15
+  NestedBlockDepth:
+    active: true
+    threshold: 4
+  TooManyFunctions:
+    # Deliberately looser than detekt's default of 11: Android Activities/Fragments and the
+    # facade classes we built legitimately expose many small delegating members. The real
+    # god-class signal we care about is LargeClass/LongMethod above.
+    active: true
+    thresholdInFiles: 30
+    thresholdInClasses: 30
+    thresholdInInterfaces: 30
+    thresholdInObjects: 30
+    thresholdInEnums: 30
+    ignoreDeprecated: true
+    ignorePrivate: true
+    ignoreOverridden: true
+  ComplexCondition:
+    active: true
+    threshold: 4
+  LabeledExpression:
+    active: false
+  StringLiteralDuplication:
+    active: false
+  ComplexInterface:
+    active: false
+  MethodOverloading:
+    active: false
+  ReplaceSafeCallChainWithRun:
+    active: false
+
+# Everything below is off on purpose — this config is a structural guardrail, not a style police.
+# Turn any of these on later if you want; each will need its own baseline pass.
+comments:
+  active: false
+style:
+  active: false
+naming:
+  active: false
+exceptions:
+  active: false
+performance:
+  active: false
+potential-bugs:
+  active: false
+coroutines:
+  active: false
+empty-blocks:
+  active: false
