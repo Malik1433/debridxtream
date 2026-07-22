@@ -311,15 +311,14 @@ class PlayerActivity : AppCompatActivity() {
     /** P11: the cinematic pre-playback loader owns its views + animators. */
     private val loaderUi = PlayerLoaderUi(hideReconnectBanner = { reconnectManager.hideBanner() })
     private val stallHandler = Handler(Looper.getMainLooper())
-    private var lastBoundPosition = 0L
-    private var lastProgressCheckMs = 0L
+    /** P15: position-progress strikes (detection only — the reaction stays here). */
+    private val stallDetector = PlayerStallDetector()
     private var lastBufferingStartMs = 0L
-    private var stallStrikeCount = 0
     // Video-freeze watchdog: position keeps advancing with audio when only the
     // video decoder dies (e.g. HEVC GuiExt alloc failures on MTK Fire TVs), so
     // rendered-frame progress is tracked separately from position progress.
-    private var lastRenderedFrameCount = -1
-    private var lastVideoRenderProgressMs = 0L
+    /** P15: rendered-frame progress ("audio plays, video frozen"). */
+    private val freezeDetector = VideoFreezeDetector()
     private var disableTunnelingForSession = false
     // How many times we've recovered from an AudioTrack-allocation failure this
     // source (reset on a clean READY / new source). Bounds the audio-device retry.
@@ -2645,44 +2644,44 @@ class PlayerActivity : AppCompatActivity() {
     private fun checkForStall() {
         val p = player ?: return
         val now = SystemClock.elapsedRealtime()
-        if (p.playWhenReady && p.playbackState == Player.STATE_READY) {
-            val isLowRamDevice = DeviceProfile.isLowRamDevice(this)
-            val stallThresholdMs = if (isLowRamDevice) LOW_RAM_STALL_THRESHOLD_MS else STALL_THRESHOLD_MS
-            val requiredStrikes = readyStallRequiredStrikes(isLowRamDevice)
-            val currentPos = p.currentPosition
-            if (currentPos > lastBoundPosition) {
-                lastBoundPosition = currentPos; lastProgressCheckMs = now; stallStrikeCount = 0
-                checkVideoRenderProgress(p, now)
-                return
-            }
-            if (currentPos > 0 && now - lastProgressCheckMs >= stallThresholdMs) {
-                stallStrikeCount++
-                if (stallStrikeCount >= requiredStrikes) {
-                    PlaybackDiagnosticsRecorder.record(
-                        this,
-                        "stall_triggered",
-                        diagnosticsPlaybackFields() + mapOf(
-                            "positionMs" to currentPos,
-                            "stallThresholdMs" to stallThresholdMs
-                        )
+        val isLowRamDevice = DeviceProfile.isLowRamDevice(this)
+        val stallThresholdMs = if (isLowRamDevice) LOW_RAM_STALL_THRESHOLD_MS else STALL_THRESHOLD_MS
+        val requiredStrikes = readyStallRequiredStrikes(isLowRamDevice)
+        val currentPos = p.currentPosition
+
+        when (
+            stallDetector.onTick(
+                isActivelyPlaying = p.playWhenReady && p.playbackState == Player.STATE_READY,
+                positionMs = currentPos,
+                nowMs = now,
+                thresholdMs = stallThresholdMs,
+                requiredStrikes = requiredStrikes
+            )
+        ) {
+            StallVerdict.PROGRESSING -> checkVideoRenderProgress(p, now)
+            StallVerdict.IDLE -> Unit
+            StallVerdict.WARNING -> PlaybackDiagnosticsRecorder.record(
+                this,
+                "stall_warning",
+                diagnosticsPlaybackFields() + mapOf(
+                    "positionMs" to currentPos,
+                    "stallThresholdMs" to stallThresholdMs,
+                    "stallStrikeCount" to stallDetector.strikeCount,
+                    "requiredStrikes" to requiredStrikes
+                )
+            )
+            StallVerdict.STALLED -> {
+                PlaybackDiagnosticsRecorder.record(
+                    this,
+                    "stall_triggered",
+                    diagnosticsPlaybackFields() + mapOf(
+                        "positionMs" to currentPos,
+                        "stallThresholdMs" to stallThresholdMs
                     )
-                    stallStrikeCount = 0
-                    handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
-                } else {
-                    PlaybackDiagnosticsRecorder.record(
-                        this,
-                        "stall_warning",
-                        diagnosticsPlaybackFields() + mapOf(
-                            "positionMs" to currentPos,
-                            "stallThresholdMs" to stallThresholdMs,
-                            "stallStrikeCount" to stallStrikeCount,
-                            "requiredStrikes" to requiredStrikes
-                        )
-                    )
-                }
-                lastProgressCheckMs = now
+                )
+                handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
             }
-        } else { lastBoundPosition = p.currentPosition; lastProgressCheckMs = now; stallStrikeCount = 0 }
+        }
     }
 
     /**
@@ -2693,19 +2692,13 @@ class PlayerActivity : AppCompatActivity() {
      * this session; repeats fall through to the normal error/retry path.
      */
     private fun checkVideoRenderProgress(p: ExoPlayer, now: Long) {
-        if (p.videoFormat == null) { lastRenderedFrameCount = -1; return }
+        if (p.videoFormat == null) { freezeDetector.onNoVideoFormat(); return }
         val counters = p.videoDecoderCounters ?: return
         counters.ensureUpdated()
         val rendered = counters.renderedOutputBufferCount
-        if (rendered != lastRenderedFrameCount) {
-            lastRenderedFrameCount = rendered
-            lastVideoRenderProgressMs = now
-            return
-        }
-        if (lastVideoRenderProgressMs == 0L) { lastVideoRenderProgressMs = now; return }
         val freezeThresholdMs =
             if (contentType == ContentType.LIVE_TV) LIVE_VIDEO_FREEZE_THRESHOLD_MS else VIDEO_FREEZE_THRESHOLD_MS
-        if (now - lastVideoRenderProgressMs < freezeThresholdMs) return
+        if (!freezeDetector.onTick(rendered, now, freezeThresholdMs)) return
 
         PlaybackDiagnosticsRecorder.record(
             this,
@@ -2716,9 +2709,6 @@ class PlayerActivity : AppCompatActivity() {
                 "tunnelingDisabledRetry" to !disableTunnelingForSession
             )
         )
-        lastVideoRenderProgressMs = now
-        lastRenderedFrameCount = -1
-
         if (contentType == ContentType.LIVE_TV) {
             // Live freeze = usually broken PTS in the provider's TS mux, not the
             // decoder. Re-preparing the same URL restarts the timestamp adjuster
@@ -3116,9 +3106,8 @@ class PlayerActivity : AppCompatActivity() {
 
     // Distance of refreshRate from the nearest integer multiple of frameRate (0 = judder-free).
     private fun startStallMonitor() {
-        lastBoundPosition = player?.currentPosition ?: 0L
-        lastProgressCheckMs = SystemClock.elapsedRealtime(); stallStrikeCount = 0
-        lastRenderedFrameCount = -1; lastVideoRenderProgressMs = 0L
+        stallDetector.reset(player?.currentPosition ?: 0L, SystemClock.elapsedRealtime())
+        freezeDetector.reset()
         stallHandler.removeCallbacks(stallRunnable); stallHandler.postDelayed(stallRunnable, 5000)
     }
 
