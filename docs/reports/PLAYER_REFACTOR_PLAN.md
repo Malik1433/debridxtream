@@ -135,10 +135,11 @@ Any phase touching live playback must be re-verified against all four.
 | P19 | `PlayerFactory` — split `initializePlayer` (ExoPlayer build, codec selector, media item, track overrides, frame-rate match) + slim `onCreate` into setup* delegations | ~800 | HIGHEST — do LAST |
 
 ## Realistic target
-Extracting P6–P18 lands the Activity around **1200–1500 lines**. Only P19 (initializePlayer + onCreate)
-brings it toward **600–800**. Getting an Activity strictly under 500 is not a realistic goal without
-splitting the screen itself (e.g. a PlayerScreenCoordinator owning wiring) — **propose 600–800 as the
-success bar**, and treat <500 as aspirational, unlike the data-layer classes.
+**Target: under 600 lines** — the detekt `LargeClass` threshold, so the file actually CLEARS the
+guardrail instead of staying grandfathered in the baseline. Extracting P6-P18 lands the Activity around
+1200-1500; P19 is what closes the gap, and to reach <600 it must split `initializePlayer` + `onCreate`
+across **two** delegates (e.g. `PlayerFactory` for the ExoPlayer build and a `PlayerScreenCoordinator`
+for onCreate wiring), not one. <500 is not a realistic goal for an Activity and is not the bar here.
 
 ## Per-phase definition of done
 1. Extract verbatim into a `player/stabilized/Player*.kt` delegate (constructor takes only what it needs).
@@ -183,10 +184,9 @@ Reducing those long methods is worthwhile, but as its own separate, separately-Q
 relocation has shipped and been device-verified.
 
 ## Note on the line target vs the guardrail
-detekt's `LargeClass` threshold is 600. The 600-800 success bar above means PlayerActivity would still
-carry a baselined LargeClass entry at the end. That is acceptable (it stays grandfathered), but if you
-want the file to actually clear the guardrail rather than stay baselined, the real target is **<600**,
-which realistically needs P19 to split `initializePlayer` + `onCreate` across two delegates, not one.
+Target is **<600** (detekt `LargeClass`). Owner decision 2026-07-22: match the guardrail exactly rather
+than settle for a grandfathered entry — so P19 splits `initializePlayer` + `onCreate` across two
+delegates. When PlayerActivity drops under 600, remove its `LargeClass` entry from the baseline.
 
 ## Phase execution log
 - **P6 — DONE 2026-07-22, commit `495d288`, pushed.** Device QA on 192.168.178.64: debrid series

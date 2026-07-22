@@ -64,21 +64,68 @@ complexity:
   ReplaceSafeCallChainWithRun:
     active: false
 
-# Everything below is off on purpose — this config is a structural guardrail, not a style police.
-# Turn any of these on later if you want; each will need its own baseline pass.
+# ── Runtime-correctness rules ────────────────────────────────────────────────────────────────────
+# Chosen by MEASURING each candidate against this codebase first, not by copying a template. Every
+# rule below is either (a) zero findings today = a free guard that keeps it at zero, or (b) tied to a
+# bug class this app actually shipped. Rules that fired a lot but carry no runtime benefit here were
+# deliberately REJECTED and are listed at the bottom with the reason.
+
+coroutines:
+  active: true
+  GlobalCoroutineUsage:      # 0 today. Detached scopes leaked before (EPG parse outlived its caller).
+    active: true
+  SleepInsteadOfDelay:       # 0 today. Thread.sleep in a coroutine blocks a pooled thread.
+    active: true
+  RedundantSuspendModifier:  # 0 today.
+    active: true
+  SuspendFunWithFlowReturnType:  # 0 today.
+    active: true
+  InjectDispatcher:
+    active: false            # needs type resolution to be meaningful; would be a false-zero here.
+
+exceptions:
+  active: true
+  SwallowedException:        # 47 baselined. This is the class that broke cooperative cancellation
+    active: true             # (CancellationException caught and turned into Result.Error).
+  ReturnFromFinally:
+    active: true
+  RethrowCaughtException:
+    active: true
+  PrintStackTrace:           # 2 baselined — should be Log.e so it reaches Crashlytics.
+    active: true
+  TooGenericExceptionCaught:
+    active: false            # REJECTED: 252 hits. catch(Exception) is deliberate resilience in the
+                             # playback/network paths here; forcing specific types is churn, not safety.
+
+potential-bugs:
+  active: true
+  ExplicitGarbageCollectionCall:  # 1 baselined. System.gc() causes frame drops — an audit finding.
+    active: true                  # NOTE: MemoryManager's call is deliberate under heap pressure;
+                                  # baselined on purpose, do not blind-remove it.
+  ImplicitDefaultLocale:     # 31 baselined. Real bug class for this app's DE/HI users:
+    active: true             # "%.1f".format(x) yields "1,5" in a comma-decimal locale.
+  DontDowncastCollectionTypes:
+    active: true
+  UnconditionalJumpStatementInLoop:
+    active: true
+  LateinitUsage:
+    active: false            # REJECTED: 299 hits. lateinit is idiomatic Android (views, injected deps).
+
+performance:
+  active: true
+  SpreadOperator:            # 2 baselined.
+    active: true
+  UnnecessaryTemporaryInstantiation:
+    active: true
+  ArrayPrimitive:
+    active: true
+
+# Off on purpose — style police, not correctness. Each would need its own baseline pass.
 comments:
   active: false
 style:
   active: false
 naming:
-  active: false
-exceptions:
-  active: false
-performance:
-  active: false
-potential-bugs:
-  active: false
-coroutines:
   active: false
 empty-blocks:
   active: false

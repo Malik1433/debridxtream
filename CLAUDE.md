@@ -44,6 +44,29 @@ first, improve it in a separate, separately-verified commit.
 - Prefer the pattern already used in that package (e.g. `player/stabilized/` uses `Player*Manager` /
   `*Controller` delegates; the data layer uses a thin facade over domain collaborators).
 
+## Runtime quality (no linter catches these — they caused real incidents here)
+
+Apply these while touching a file; don't leave them for a later pass.
+
+- **Never do heavy work on the main thread.** Multi-MB Gson parse, disk/prefs I/O and network must be
+  inside `withContext(Dispatchers.IO)`. A `suspend` modifier alone guarantees nothing. This is the root
+  cause of the app's "loading/jank" complaints.
+- **Bound every network call.** Wrap with `withTimeoutOrNull(...)`; an unbounded stage once parked the
+  sync screen for 90-180s. A timeout must degrade to cached/empty, never hang.
+- **Structured concurrency.** Never `GlobalScope` or a detached `CoroutineScope`; launch as a child of
+  the caller/lifecycle. **Always rethrow `CancellationException`** — swallowing it breaks cooperative
+  cancellation (detekt's `SwallowedException` covers part of this).
+- **Never let a failed refresh destroy good data.** Empty/failed fetch must not overwrite a populated
+  cache or table (see the sync all-empty guard and the EPG generational replace).
+- **Room migrations are never destructive.** `fallbackToDestructiveMigration` in release silently wipes
+  watch progress and favourites. Add a real migration + a migration test.
+- **State shared across coroutines must be thread-safe** — `ConcurrentHashMap` / `@Volatile`, not plain
+  `mutableMapOf` (that risked `ConcurrentModificationException` here).
+- **Lifecycle hygiene in UI:** collect flows with `repeatOnLifecycle`, and unregister every listener /
+  callback you register (an unremoved memory callback leaked LiveFragment).
+- **This is an Android TV app:** every interactive element must be D-pad reachable and must not steal
+  focus on data refresh. Verify focus behaviour on the device, not in an emulator screenshot.
+
 ## Agent Comms — Reality-Based Coordination
 
 **Tool-availability asymmetry:** `SendMessage` works **lead↔subagent** and lead↔lead, but **NOT subagent↔subagent**. Subagents spawned via the `Agent` tool are stateless one-shot workers — they have no inbox, cannot wait for events, and `SendMessage`/`TaskUpdate` are typically not in their tool allowlists. The `hive-mind_*` MCP tools provide coordination **metadata** (registry, consensus state) but do NOT grant subagents communication channels. Patterns that assume peer messaging will silently fail — agents either abort cleanly or run open-loop with stale assumptions. (See ruvnet/ruflo#2028 for the diagnosis.)
