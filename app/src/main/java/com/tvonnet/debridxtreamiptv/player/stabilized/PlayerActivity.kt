@@ -304,12 +304,8 @@ class PlayerActivity : AppCompatActivity() {
     private var tvVodTitle: TextView? = null
     private var tvVodSubtitle: TextView? = null
 
-    private var layoutDebridResolving: View? = null
-    private var tvResolvingStatus: TextView? = null
-    private var ivResolvingBg: ImageView? = null
-    private var resolvingPulse: android.animation.ObjectAnimator? = null
-    private var loaderBarSeg: View? = null
-    private var loaderGlide: android.animation.ObjectAnimator? = null
+    /** P11: the cinematic pre-playback loader owns its views + animators. */
+    private val loaderUi = PlayerLoaderUi(hideReconnectBanner = { reconnectManager.hideBanner() })
     private val stallHandler = Handler(Looper.getMainLooper())
     private var lastBoundPosition = 0L
     private var lastProgressCheckMs = 0L
@@ -424,7 +420,7 @@ class PlayerActivity : AppCompatActivity() {
                 override fun bannerTextView(): TextView? = reconnectingBannerText
                 override fun bannerLabel(attempt: Int, max: Int): String =
                     getString(R.string.player_reconnecting_banner, attempt, max)
-                override fun isLoaderVisible(): Boolean = layoutDebridResolving?.isVisible == true
+                override fun isLoaderVisible(): Boolean = loaderUi.isVisible()
                 override fun isGone(): Boolean = isFinishing || isDestroyed
             },
             settingsPreferences = settingsPreferences
@@ -642,10 +638,7 @@ class PlayerActivity : AppCompatActivity() {
 
         playerView = findViewById(R.id.player_view)
         applySystemCaptionStyle()
-        layoutDebridResolving = findViewById(R.id.layout_debrid_resolving)
-        tvResolvingStatus = findViewById(R.id.tv_resolving_status)
-        ivResolvingBg = findViewById(R.id.iv_resolving_bg)
-        loaderBarSeg = findViewById(R.id.loader_bar_seg)
+        loaderUi.bind(this)
         layoutDebugOverlay = findViewById(R.id.layout_debug_overlay)
         tvDebugInfo = findViewById(R.id.tv_debug_info)
         reconnectingBanner = findViewById(R.id.reconnecting_banner)
@@ -775,11 +768,11 @@ class PlayerActivity : AppCompatActivity() {
 
             playerView.findViewById<View>(R.id.exo_play)?.setOnClickListener {
                 player?.play()
-                updatePlayPauseVisibility(true)
+                updatePlayPauseVisibility(playerView, true, isControllerVisible)
             }
             playerView.findViewById<View>(R.id.exo_pause)?.setOnClickListener {
                 player?.pause()
-                updatePlayPauseVisibility(false)
+                updatePlayPauseVisibility(playerView, false, isControllerVisible)
             }
             playerView.findViewById<View>(R.id.exo_rew)?.setOnClickListener {
                 player?.seekBack()
@@ -788,9 +781,9 @@ class PlayerActivity : AppCompatActivity() {
                 player?.seekForward()
             }
             
-            player?.let { updatePlayPauseVisibility(it.isPlaying) }
+            player?.let { updatePlayPauseVisibility(playerView, it.isPlaying, isControllerVisible) }
             bindModernMetadata(streamTitle)
-            setupInteractiveAnimations()
+            setupInteractiveAnimations(playerView)
             setupSeekOverlay()
 
             val btnNext = playerView.findViewById<View>(R.id.btn_next_episode)
@@ -2273,13 +2266,13 @@ class PlayerActivity : AppCompatActivity() {
                         resetReconnectBudget()
                         hideReconnectingBanner()
                         // First playable frame — dissolve the cinematic loader to reveal video.
-                        hideCinematicLoader()
+                        loaderUi.hide()
                         lastBufferingStartMs = 0L
                         lastDirectAddonProxyTimeoutContext = null
                         lastDirectAddonProxyServerErrorContext = null
                         maybeRecordDirectAddonProxySuccess()
                         if (contentType != ContentType.LIVE_TV) {
-                            updatePlayPauseVisibility(player?.playWhenReady == true)
+                            updatePlayPauseVisibility(playerView, player?.playWhenReady == true, isControllerVisible)
                             backHideArmed = false
                             playerView.showController()
                         }
@@ -2354,7 +2347,7 @@ class PlayerActivity : AppCompatActivity() {
                 }
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                     if (contentType != ContentType.LIVE_TV) {
-                        updatePlayPauseVisibility(playWhenReady)
+                        updatePlayPauseVisibility(playerView, playWhenReady, isControllerVisible)
                     } else if (playWhenReady) {
                         maybeSnapToLiveEdge()
                     }
@@ -3211,7 +3204,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun stopStallMonitor() = stallHandler.removeCallbacks(stallRunnable)
 
-    override fun onDestroy() { super.onDestroy(); resolvingPulse?.cancel(); resolvingPulse = null; loaderGlide?.cancel(); loaderGlide = null; dismissActiveTrackDialog(); liveOsd?.release(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_destroy"); PlaybackDiagnosticsRecorder.finishSession(this, "activity_destroyed") }
+    override fun onDestroy() { super.onDestroy(); loaderUi.release(); dismissActiveTrackDialog(); liveOsd?.release(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_destroy"); PlaybackDiagnosticsRecorder.finishSession(this, "activity_destroyed") }
 
     private fun resolveTimeoutMs(url: String): Long = when {
         url.lowercase().contains("mediafusion.elfhosted.com") -> MEDIAFUSION_TIMEOUT_MS
@@ -3796,108 +3789,11 @@ class PlayerActivity : AppCompatActivity() {
         false
     }
 
-    private fun updatePlayPauseVisibility(isPlaying: Boolean) {
-        val play = playerView.findViewById<View>(R.id.exo_play)
-        val pause = playerView.findViewById<View>(R.id.exo_pause)
-        
-        // Fix focus hijacking: synchronously shift focus BEFORE hiding the currently focused view
-        if (isControllerVisible) {
-            if (isPlaying && play?.isFocused == true) {
-                pause?.isVisible = true
-                pause?.requestFocus()
-            } else if (!isPlaying && pause?.isFocused == true) {
-                play?.isVisible = true
-                play?.requestFocus()
-            }
-        }
-        
-        play?.isVisible = !isPlaying
-        pause?.isVisible = isPlaying
-    }
-
-    /**
-     * Stremio-style cinematic loader: shows the backdrop/poster behind the zooming title
-     * with only a subtle progress hint, hiding the technical resolve/retry noise. Stays up
-     * until the first video frame renders (STATE_READY) or a terminal failure surfaces.
-     */
-    private fun showCinematicLoader() {
-        val overlay = layoutDebridResolving ?: return
-        val rawTitle = seriesTitleExtra?.takeIf { it.isNotBlank() } ?: originalTitle
-        tvResolvingStatus?.text = cleanLoaderTitle(rawTitle)
-        val bg = backdropUrlExtra?.takeIf { it.isNotBlank() } ?: posterUrlExtra?.takeIf { it.isNotBlank() }
-        ivResolvingBg?.let { iv ->
-            if (bg != null) Glide.with(iv).load(bg).centerCrop().into(iv) else iv.setImageDrawable(null)
-        }
-        overlay.isVisible = true
-        overlay.alpha = 1f
-        tvResolvingStatus?.let { t ->
-            resolvingPulse?.cancel()
-            t.animate().cancel()
-            // Smooth cinematic entrance: fade + gentle settle-in (no jarring zoom).
-            t.alpha = 0f; t.scaleX = 0.95f; t.scaleY = 0.95f
-            t.animate()
-                .alpha(1f).scaleX(1f).scaleY(1f)
-                .setDuration(620)
-                .setInterpolator(android.view.animation.DecelerateInterpolator(1.4f))
-                .withEndAction {
-                    if (layoutDebridResolving?.isVisible != true) return@withEndAction
-                    // Clearly-felt yet smooth "breath": the whole word scales + dims as one
-                    // unit. A hardware layer rasterises the text once so scaling is a bitmap
-                    // transform — buttery smooth, and the glyphs never re-blur/float apart.
-                    t.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-                    resolvingPulse = android.animation.ObjectAnimator.ofPropertyValuesHolder(
-                        t,
-                        android.animation.PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.05f),
-                        android.animation.PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.05f),
-                        android.animation.PropertyValuesHolder.ofFloat(View.ALPHA, 1f, 0.86f)
-                    ).apply {
-                        duration = 1700
-                        repeatCount = android.animation.ValueAnimator.INFINITE
-                        repeatMode = android.animation.ValueAnimator.REVERSE
-                        interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-                        start()
-                    }
-                }
-                .start()
-        }
-        // Clean indeterminate loader: a soft cyan segment sweeps smoothly back and forth
-        // WITHIN the track (never off the edges, no jump-back) for a polished, contained look.
-        loaderBarSeg?.let { seg ->
-            loaderGlide?.cancel()
-            seg.translationX = 0f
-            seg.post {
-                // Travel = track width - segment width, so the segment stays fully inside.
-                val track = (seg.parent as? View)?.width ?: return@post
-                val travel = (track - seg.width).coerceAtLeast(0).toFloat()
-                loaderGlide = android.animation.ObjectAnimator.ofFloat(
-                    seg, View.TRANSLATION_X, 0f, travel
-                ).apply {
-                    duration = 1050
-                    repeatCount = android.animation.ValueAnimator.INFINITE
-                    repeatMode = android.animation.ValueAnimator.REVERSE
-                    interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-                    start()
-                }
-            }
-        }
-        hideReconnectingBanner()
-    }
-
-    private fun hideCinematicLoader() {
-        resolvingPulse?.cancel(); resolvingPulse = null
-        loaderGlide?.cancel(); loaderGlide = null
-        tvResolvingStatus?.let {
-            it.animate().cancel()
-            it.setLayerType(View.LAYER_TYPE_NONE, null)
-            it.scaleX = 1f; it.scaleY = 1f; it.alpha = 1f
-        }
-        val overlay = layoutDebridResolving ?: return
-        if (!overlay.isVisible) return
-        overlay.animate().alpha(0f).setDuration(220).withEndAction {
-            overlay.isVisible = false
-            overlay.alpha = 1f
-        }.start()
-    }
+    /** P11 shim: the loader needs the launch extras, so the Activity supplies them. */
+    private fun showCinematicLoader() = loaderUi.show(
+        rawTitle = seriesTitleExtra?.takeIf { it.isNotBlank() } ?: originalTitle,
+        backdropUrl = backdropUrlExtra?.takeIf { it.isNotBlank() } ?: posterUrlExtra?.takeIf { it.isNotBlank() }
+    )
 
     private fun observeDebridResolutionState() {
         lifecycleScope.launch {
@@ -3928,11 +3824,11 @@ class PlayerActivity : AppCompatActivity() {
                         }
                     }
                     is DebridResolutionState.Error -> {
-                        hideCinematicLoader()
+                        loaderUi.hide()
                         isResolvingDebrid = false
                         handleTerminalPlaybackFailure("Failed: ${state.message}")
                     }
-                    is DebridResolutionState.Idle -> { hideCinematicLoader(); isResolvingDebrid = false }
+                    is DebridResolutionState.Idle -> { loaderUi.hide(); isResolvingDebrid = false }
                 }
             }
         }
@@ -3953,38 +3849,6 @@ class PlayerActivity : AppCompatActivity() {
         val p = player ?: return
         val seriesId = intent.getStringExtra(EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
         trackManager.applyTrackIndexOverrides(p, debridInfoHashExtra, seriesId)
-    }
-
-    private fun setupInteractiveAnimations() {
-        listOf(
-            R.id.exo_rew,
-            R.id.exo_play,
-            R.id.exo_pause,
-            R.id.exo_ffwd,
-            R.id.btn_aspect_ratio,
-            R.id.btn_next_episode,
-            R.id.btn_player_audio,
-            R.id.btn_player_language,
-            R.id.btn_player_subtitles,
-            R.id.layout_xray_toggle,
-            R.id.btn_player_volume,
-            R.id.volume_progress
-        ).forEach { id ->
-            playerView.findViewById<View>(id)?.let { v ->
-                v.alpha = 0.7f; v.scaleX = 1f; v.scaleY = 1f
-                v.setOnFocusChangeListener { view, f -> if (f) { view.animate().scaleX(1.15f).scaleY(1.15f).alpha(1f).setDuration(200).start() } else view.animate().scaleX(1f).scaleY(1f).alpha(0.7f).setDuration(200).start() }
-                v.setOnTouchListener { view, e -> when (e.action) { android.view.MotionEvent.ACTION_DOWN -> view.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).start(); android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> view.animate().scaleX(if (view.hasFocus()) 1.15f else 1f).scaleY(if (view.hasFocus()) 1.15f else 1f).setDuration(100).start() }; false }
-            }
-        }
-    }
-
-    private fun updateVolumeIcon(progress: Int, maxVolume: Int, btnVolume: android.widget.ImageButton?) {
-        if (btnVolume == null) return
-        if (progress == 0) {
-            btnVolume.setImageResource(R.drawable.ic_player_volume_off)
-        } else {
-            btnVolume.setImageResource(R.drawable.ic_player_volume)
-        }
     }
 
 }
