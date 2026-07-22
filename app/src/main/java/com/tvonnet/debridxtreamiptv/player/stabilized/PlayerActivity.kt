@@ -3,12 +3,9 @@ package com.tvonnet.debridxtreamiptv.player.stabilized
 import android.app.Activity
 import android.app.ActivityManager
 import android.app.Dialog
-import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
-import android.content.pm.PackageManager
-import android.graphics.Rect
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Build
@@ -17,7 +14,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
-import android.util.Rational
 import android.view.KeyEvent
 import android.view.View
 import android.widget.ImageView
@@ -116,6 +112,31 @@ class PlayerActivity : AppCompatActivity() {
 
     private var isInPictureInPictureMode = false
     private var wasPlayingBeforePiP = true
+
+    /** P9: PiP capability + entry. */
+    private val pipController = PlayerPipController(this)
+
+    /** P9: the in-player X-Ray panel (toggle, animation, metadata/cast rendering). */
+    private val xrayController: PlayerXRayController by lazy {
+        PlayerXRayController(
+            activity = this,
+            playerView = playerView,
+            isSeriesPlayback = { isSeriesEpisodePlayback() },
+            // Guards stay exactly as they were before P9: nothing happens while the
+            // episode browser has not been initialised yet.
+            showEpisodeBrowserIfHidden = {
+                if (::episodeBrowserController.isInitialized && !episodeBrowserController.isVisible()) {
+                    showEpisodeBrowser()
+                }
+            },
+            hideEpisodeBrowserIfVisible = {
+                if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
+                    episodeBrowserController.hide()
+                }
+            },
+            fallbackTitle = { originalTitle }
+        )
+    }
 
     internal var player: ExoPlayer? = null
     private lateinit var playerView: PlayerView
@@ -1017,13 +1038,7 @@ class PlayerActivity : AppCompatActivity() {
                 }
             }
 
-            val xrayToggle = playerView.findViewById<View>(R.id.layout_xray_toggle)
-            val xraySwitch = playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)
-            xrayToggle?.setOnClickListener {
-                val isChecked = !(xraySwitch?.isChecked ?: false)
-                xraySwitch?.isChecked = isChecked
-                toggleXRayPanel(isChecked)
-            }
+            xrayController.bindToggle()
 
             if (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE || contentType == ContentType.SERIES) {
                 viewModel.loadXRayMetadata(
@@ -1034,7 +1049,11 @@ class PlayerActivity : AppCompatActivity() {
                 )
             }
 
-            observeXRayMetadata()
+            lifecycleScope.launch {
+                lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                    viewModel.xrayMetadata.collect { state -> xrayController.render(state) }
+                }
+            }
         }
 
         if (canFreshResolveDirectDebrid && isExpired) {
@@ -3454,15 +3473,13 @@ class PlayerActivity : AppCompatActivity() {
                 if (event.action == KeyEvent.ACTION_UP) nextEpisodeManager.hidePrompt()
                 return true
             }
-            val xray = findViewById<View>(R.id.view_xray_panel)
-            val isXrayVisible = xray != null && xray.visibility == View.VISIBLE
+            val isXrayVisible = xrayController.isPanelVisible()
             val isEpisodeBrowserVisible = ::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()
             // These two overlays aren't handled by onBackPressedDispatcher, so dismiss them here.
             if (isXrayVisible || isEpisodeBrowserVisible) {
                 if (event.action == KeyEvent.ACTION_UP) {
                     if (isEpisodeBrowserVisible) episodeBrowserController.hide()
-                    playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false
-                    toggleXRayPanel(false)
+                    xrayController.collapse()
                 }
                 return true
             }
@@ -3633,22 +3650,21 @@ class PlayerActivity : AppCompatActivity() {
         Log.d("PLAYER_SEEK_FOCUS", "focus transport target=${target?.resources?.getResourceEntryName(target.id)}")
     }
 
-    private fun supportsPictureInPicture(): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE) || packageManager.hasSystemFeature("android.software.picture_in_picture") else false
+    private fun supportsPictureInPicture(): Boolean = pipController.isSupported()
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun enterPictureInPictureModeInternal() {
         if (!supportsPictureInPicture() || isInPictureInPictureMode) return
         try {
             player?.let { wasPlayingBeforePiP = it.playWhenReady }
-            val params = PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9)).setSourceRectHint(Rect(0, 0, playerView.width, playerView.height)).build()
-            if (enterPictureInPictureMode(params)) hideUiForPiP() else showToast("PiP not available")
+            if (pipController.enter(playerView.width, playerView.height)) hideUiForPiP() else showToast("PiP not available")
         } catch (e: Exception) { showToast("PiP failed") }
     }
 
     // NOTE: snapshot (non-latching) — the old recordPlaybackHistoryIfNeeded() here latched
     // hasRecordedHistory on PiP entry, so everything watched IN PiP was never saved and
     // resume went back to the PiP-entry position.
-    private fun hideUiForPiP() { playerView.hideController(); if (::episodeBrowserController.isInitialized) episodeBrowserController.hide(); playerView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switch_xray)?.isChecked = false; toggleXRayPanel(false); epgOverlay?.isVisible = false; vodInfoOverlay?.isVisible = false; liveOsd?.hideForPip(); supportActionBar?.hide(); historyManager.saveProgressSnapshot() }
+    private fun hideUiForPiP() { playerView.hideController(); if (::episodeBrowserController.isInitialized) episodeBrowserController.hide(); xrayController.collapse(); epgOverlay?.isVisible = false; vodInfoOverlay?.isVisible = false; liveOsd?.hideForPip(); supportActionBar?.hide(); historyManager.saveProgressSnapshot() }
     private fun showUiForNormalMode() { if (!isInPictureInPictureMode) { supportActionBar?.show(); liveOsd?.show(); if (contentType == ContentType.LIVE_TV) updateOverlayVisibility() else updateVodOverlayVisibility() } }
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) { super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig); this.isInPictureInPictureMode = isInPictureInPictureMode; if (isInPictureInPictureMode) hideUiForPiP() else showUiForNormalMode() }
@@ -4089,110 +4105,4 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun toggleXRayPanel(show: Boolean) {
-        val xrayPanel = findViewById<View>(R.id.view_xray_panel) ?: return
-        val isSeries = isSeriesEpisodePlayback()
-
-        if (show) {
-            xrayPanel.bringToFront()
-            xrayPanel.visibility = View.VISIBLE
-            xrayPanel.translationX = -xrayPanel.width.toFloat()
-            xrayPanel.animate()
-                .translationX(0f)
-                .setDuration(300)
-                .start()
-
-            if (isSeries) {
-                if (::episodeBrowserController.isInitialized && !episodeBrowserController.isVisible()) {
-                    showEpisodeBrowser()
-                }
-            } else {
-                val rvCast = xrayPanel.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_xray_cast)
-                rvCast?.post { rvCast.requestFocus() }
-            }
-        } else {
-            xrayPanel.animate()
-                .translationX(-xrayPanel.width.toFloat())
-                .setDuration(300)
-                .withEndAction { xrayPanel.visibility = View.GONE }
-                .start()
-
-            if (isSeries) {
-                if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
-                    episodeBrowserController.hide()
-                }
-            }
-        }
-    }
-
-    private fun observeXRayMetadata() {
-        lifecycleScope.launch {
-            lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                viewModel.xrayMetadata.collect { state ->
-                    val xrayPanel = findViewById<View>(R.id.view_xray_panel) ?: return@collect
-                    if (state == null) {
-                        xrayPanel.findViewById<TextView>(R.id.tv_xray_title)?.text = originalTitle
-                        xrayPanel.findViewById<TextView>(R.id.tv_xray_plot)?.text = ""
-                        xrayPanel.findViewById<TextView>(R.id.tv_xray_meta)?.text = ""
-                        xrayPanel.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_xray_cast)?.adapter = null
-                        return@collect
-                    }
-
-                    xrayPanel.findViewById<TextView>(R.id.tv_xray_title)?.text = state.title
-                    xrayPanel.findViewById<TextView>(R.id.tv_xray_plot)?.text = state.overview ?: "No description available."
-                    xrayPanel.findViewById<TextView>(R.id.tv_xray_meta)?.text = state.meta ?: ""
-                    
-                    val castTitle = xrayPanel.findViewById<TextView>(R.id.tv_xray_cast_title)
-                    val rvCast = xrayPanel.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_xray_cast)
-                    
-                    if (state.cast.isEmpty()) {
-                        castTitle?.visibility = View.GONE
-                        rvCast?.visibility = View.GONE
-                    } else {
-                        castTitle?.visibility = View.VISIBLE
-                        rvCast?.visibility = View.VISIBLE
-                        rvCast?.adapter = CastAdapter(state.cast)
-                    }
-                }
-            }
-        }
-    }
-
-    private class CastAdapter(
-        private val items: List<com.tvonnet.debridxtreamiptv.player.stabilized.XRayCastMember>
-    ) : androidx.recyclerview.widget.RecyclerView.Adapter<CastViewHolder>() {
-        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): CastViewHolder {
-            val view = android.view.LayoutInflater.from(parent.context)
-                .inflate(R.layout.item_player_cast, parent, false)
-            return CastViewHolder(view)
-        }
-        override fun onBindViewHolder(holder: CastViewHolder, position: Int) {
-            holder.bind(items[position])
-        }
-        override fun getItemCount(): Int = items.size
-    }
-
-    private class CastViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
-        private val ivAvatar: android.widget.ImageView = view.findViewById(R.id.iv_cast_avatar)
-        private val tvName: TextView = view.findViewById(R.id.tv_cast_name)
-        private val tvCharacter: TextView = view.findViewById(R.id.tv_cast_character)
-        
-        init {
-            itemView.setOnFocusChangeListener { v, hasFocus ->
-                v.scaleX = if (hasFocus) 1.1f else 1.0f
-                v.scaleY = if (hasFocus) 1.1f else 1.0f
-            }
-        }
-
-        fun bind(item: com.tvonnet.debridxtreamiptv.player.stabilized.XRayCastMember) {
-            tvName.text = item.name
-            tvCharacter.text = item.character
-            Glide.with(ivAvatar)
-                .load(item.avatarUrl)
-                .placeholder(R.drawable.ic_person_placeholder)
-                .error(R.drawable.ic_person_placeholder)
-                .circleCrop()
-                .into(ivAvatar)
-        }
-    }
 }
