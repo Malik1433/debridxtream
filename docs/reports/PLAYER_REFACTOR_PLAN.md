@@ -543,6 +543,14 @@ proven pattern, each device-verified):
   (series/movie/episode D-pad chains) + `installControllerSeekNavigation` + `showControllerWithSmartFocus`.
   Seek loop is lifecycle-tied → exposes `onStart`/`onStop` the Activity forwards; a
   `showControllerWithSmartFocus` forwarder keeps C6 unchanged. detekt clean. **PlayerActivity 1901→1788.**
+- **P26c DONE `bfa3324`** — `PlayerExitController` (~150): the exit-with-result / terminal-failure cluster —
+  `setLiveExitResultIfNeeded` + `setExitResultIfNeeded` (the `finish()` override forwards to them),
+  `finishWithReturnToSources` + `handleTerminalPlaybackFailure` (the two `RecoveryHost` members the Activity
+  keeps as thin `override` forwarders) + `redirectToFailureDetail`. **`performBackExit` /
+  `handBackSharedPlayerIfNeeded` (the shared-handoff landmine) deliberately stayed on the Activity** — only the
+  result/failure paths moved. `RETURN_TO_SOURCES_THRESHOLD_MS` moved with its only reader; `releasePlayer` +
+  `diagnosticsPlaybackFields` bumped private→internal; 3 now-unused imports dropped. Baseline 1:1 re-key of one
+  relocated ComplexCondition (net 351). detekt clean, installed .64+.35. **PlayerActivity 1788→1717.**
 
 **Honest note:** P26 (Activity→Fragment) is the real risk cliff — Fire TV lifecycle, PiP is Activity-scoped,
 `onBackPressedDispatcher`, and the shared player all change ownership. It is done as ONE behaviour-preserving
