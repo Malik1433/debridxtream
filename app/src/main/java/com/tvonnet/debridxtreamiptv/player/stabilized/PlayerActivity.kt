@@ -230,6 +230,13 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     private val trackSelectionUi: PlayerTrackSelectionUi by lazy {
         PlayerTrackSelectionUi(this, session)
     }
+
+    /** P26b: VOD transport-controller focus + the custom seek-bar overlay. */
+    internal val vodControls: PlayerVodControlsUi by lazy {
+        PlayerVodControlsUi(this, session)
+    }
+    internal fun showControllerWithSmartFocus(sourceEvent: KeyEvent? = null) =
+        vodControls.showControllerWithSmartFocus(sourceEvent)
     internal fun showAudioSelection() = trackSelectionUi.showAudioSelection()
     internal fun showSubtitleSelection() = trackSelectionUi.showSubtitleSelection()
     internal fun showAspectSelection() = trackSelectionUi.showAspectSelection()
@@ -794,14 +801,14 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
             player?.let { updatePlayPauseVisibility(playerView, it.isPlaying, isControllerVisible) }
             bindModernMetadata(streamTitle)
             setupInteractiveAnimations(playerView)
-            setupSeekOverlay()
+            vodControls.setupSeekOverlay()
 
             val isSeriesControls = contentType == ContentType.SERIES || contentType == ContentType.EPISODE
             transportButtons.bind(isSeriesControls, isMovie = contentType == ContentType.MOVIE)
             transportButtons.bindVolume(getSystemService(Context.AUDIO_SERVICE) as? AudioManager)
             // VOD Player redesign: explicit horizontal focus chain so play/pause visibility
             // swaps never trap focus (both exo_play & exo_pause share the same L/R links).
-            wireControlFocus(isSeriesControls)
+            vodControls.wireControlFocus(isSeriesControls)
 
             nextEpisodeManager = PlayerNextEpisodeManager(this, playerView, object : PlayerNextEpisodeManager.Delegate {
                 override fun isPlaybackEligibleForPrompt(): Boolean {
@@ -976,50 +983,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     private var backHideArmed: Boolean by session::backHideArmed
 
     // VOD Player redesign: custom design seek bar (visual only; media3 TimeBar handles scrubbing).
-    private var seekOverlay: VodSeekOverlay? = null
-    private val seekOverlayHandler = Handler(Looper.getMainLooper())
-    private val seekOverlayRunnable = object : Runnable {
-        override fun run() {
-            updateSeekOverlay()
-            seekOverlayHandler.postDelayed(this, 500)
-        }
-    }
-
-    private fun updateSeekOverlay() {
-        val p = player ?: return
-        val dur = p.duration
-        if (dur > 0L) {
-            seekOverlay?.setProgress(p.currentPosition.toFloat() / dur)
-            seekOverlay?.setBuffered(p.bufferedPosition.toFloat() / dur)
-        } else {
-            seekOverlay?.setProgress(0f)
-            seekOverlay?.setBuffered(0f)
-        }
-    }
-
-    private fun setupSeekOverlay() {
-        seekOverlay = playerView.findViewById(R.id.vod_seek_overlay)
-        // Install the DPAD-DOWN → play/pause seek-nav handler up front so the seek bar never
-        // dead-ends onto the GONE exo_play even before the first showControllerWithSmartFocus().
-        installControllerSeekNavigation()
-        val timeBar = playerView.findViewById<androidx.media3.ui.DefaultTimeBar>(R.id.exo_progress)
-        timeBar?.addListener(object : androidx.media3.ui.TimeBar.OnScrubListener {
-            override fun onScrubStart(timeBar: androidx.media3.ui.TimeBar, position: Long) {
-                seekOverlay?.setFocusedVisual(true)
-            }
-            override fun onScrubMove(timeBar: androidx.media3.ui.TimeBar, position: Long) {
-                val dur = player?.duration ?: 0L
-                if (dur > 0L) seekOverlay?.setProgress(position.toFloat() / dur)
-            }
-            override fun onScrubStop(timeBar: androidx.media3.ui.TimeBar, position: Long, canceled: Boolean) {
-                seekOverlay?.setFocusedVisual(false)
-                updateSeekOverlay()
-            }
-        })
-        timeBar?.setOnFocusChangeListener { _, focused -> seekOverlay?.setFocusedVisual(focused) }
-        seekOverlayHandler.removeCallbacks(seekOverlayRunnable)
-        seekOverlayHandler.post(seekOverlayRunnable)
-    }
 
 
 
@@ -1388,41 +1351,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
      * VOD Player redesign: wire explicit L/R DPAD focus across the transport row so navigation
      * never dead-ends — critical because exo_play/exo_pause overlap and swap visibility.
      */
-    private fun wireControlFocus(isSeries: Boolean) {
-        fun link(id: Int, leftId: Int, rightId: Int) {
-            playerView.findViewById<View>(id)?.apply {
-                nextFocusLeftId = leftId
-                nextFocusRightId = rightId
-            }
-        }
-        if (isSeries) {
-            link(R.id.exo_rew, R.id.exo_rew, R.id.btn_prev_episode)
-            link(R.id.btn_prev_episode, R.id.exo_rew, R.id.exo_play)
-            link(R.id.exo_play, R.id.btn_prev_episode, R.id.btn_next_episode)
-            link(R.id.exo_pause, R.id.btn_prev_episode, R.id.btn_next_episode)
-            link(R.id.btn_next_episode, R.id.exo_play, R.id.exo_ffwd)
-            link(R.id.exo_ffwd, R.id.btn_next_episode, R.id.btn_episodes)
-            link(R.id.btn_episodes, R.id.exo_ffwd, R.id.btn_player_audio)
-            link(R.id.btn_player_audio, R.id.btn_episodes, R.id.btn_player_subtitles)
-        } else if (contentType == ContentType.MOVIE) {
-            // Movies: the Sources button sits between fast-forward and the audio button,
-            // so the focus chain must route through it (it was being skipped).
-            link(R.id.exo_rew, R.id.exo_rew, R.id.exo_play)
-            link(R.id.exo_play, R.id.exo_rew, R.id.exo_ffwd)
-            link(R.id.exo_pause, R.id.exo_rew, R.id.exo_ffwd)
-            link(R.id.exo_ffwd, R.id.exo_play, R.id.btn_player_sources)
-            link(R.id.btn_player_sources, R.id.exo_ffwd, R.id.btn_player_audio)
-            link(R.id.btn_player_audio, R.id.btn_player_sources, R.id.btn_player_subtitles)
-        } else {
-            link(R.id.exo_rew, R.id.exo_rew, R.id.exo_play)
-            link(R.id.exo_play, R.id.exo_rew, R.id.exo_ffwd)
-            link(R.id.exo_pause, R.id.exo_rew, R.id.exo_ffwd)
-            link(R.id.exo_ffwd, R.id.exo_play, R.id.btn_player_audio)
-            link(R.id.btn_player_audio, R.id.exo_ffwd, R.id.btn_player_subtitles)
-        }
-        link(R.id.btn_player_subtitles, R.id.btn_player_audio, R.id.btn_aspect_ratio)
-        link(R.id.btn_aspect_ratio, R.id.btn_player_subtitles, R.id.btn_aspect_ratio)
-    }
 
     /** VOD Player redesign: styled aspect-ratio selection popup (design ASPECT MENU). */
 
@@ -1445,10 +1373,10 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     // Re-arm history for the new foreground segment: onStop's exit-save latches
     // hasRecordedHistory=true, and without this reset a Home→return session would
     // silently skip both the 30s progress heartbeat and the final exit save.
-    override fun onStart() { super.onStart(); hasRecordedHistory = false; recovery.registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() }; if (seekOverlay != null) { seekOverlayHandler.removeCallbacks(seekOverlayRunnable); seekOverlayHandler.post(seekOverlayRunnable) }; progressSaveHandler.removeCallbacks(progressSaveRunnable); progressSaveHandler.postDelayed(progressSaveRunnable, PROGRESS_SAVE_INTERVAL_MS) }
+    override fun onStart() { super.onStart(); hasRecordedHistory = false; recovery.registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() }; vodControls.onStart(); progressSaveHandler.removeCallbacks(progressSaveRunnable); progressSaveHandler.postDelayed(progressSaveRunnable, PROGRESS_SAVE_INTERVAL_MS) }
     override fun onPause() { super.onPause(); if (::historyManager.isInitialized) historyManager.saveProgressSnapshot(); wasPlayingBeforePause = player?.isPlaying == true; player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
     override fun onStop() {
-        super.onStop(); dismissActiveTrackDialog(); debugOverlay.stop(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor(); seekOverlayHandler.removeCallbacks(seekOverlayRunnable); progressSaveHandler.removeCallbacks(progressSaveRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; recovery.unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded()
+        super.onStop(); dismissActiveTrackDialog(); debugOverlay.stop(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor(); vodControls.onStop(); progressSaveHandler.removeCallbacks(progressSaveRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; recovery.unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded()
         // T2.1 (H1): retain the paused player across short stops for VOD/Debrid so
         // Home→return resumes instantly instead of a 1-3s cold reconnect. LIVE still
         // releases: on max_connections=1 Xtream servers a retained live connection
@@ -1642,47 +1570,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         }
     }
 
-    internal fun showControllerWithSmartFocus(sourceEvent: KeyEvent? = null) {
-        // Explicit user show re-arms the two-step BACK (1st hide, 2nd exit).
-        backHideArmed = false
-        playerView.showController()
-        installControllerSeekNavigation()
-        val keyCode = sourceEvent?.keyCode
-        val wantsToSeek = keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
-        Log.d("PLAYER_SEEK_FOCUS", "show controller focus key=$keyCode wantsToSeek=$wantsToSeek")
-        
-        playerView.postDelayed({
-            if (wantsToSeek) {
-                val seekBar = playerView.findViewById<View>(R.id.exo_progress)
-                seekBar?.requestFocus()
-                if (sourceEvent?.action == KeyEvent.ACTION_DOWN) {
-                    seekBar?.dispatchKeyEvent(sourceEvent)
-                    seekBar?.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode ?: KeyEvent.KEYCODE_UNKNOWN))
-                }
-            } else {
-                focusVisiblePlayPause()
-            }
-        }, 50L)
-    }
-
-    private fun installControllerSeekNavigation() {
-        val seekBar = playerView.findViewById<View>(R.id.exo_progress) ?: return
-        seekBar.setOnKeyListener { _, keyCode, event ->
-            if (event.action != KeyEvent.ACTION_DOWN || keyCode != KeyEvent.KEYCODE_DPAD_DOWN) {
-                return@setOnKeyListener false
-            }
-            focusVisiblePlayPause()
-            true
-        }
-    }
-
-    private fun focusVisiblePlayPause() {
-        val target = playerView.findViewById<View>(R.id.exo_pause)?.takeIf { it.isVisible }
-            ?: playerView.findViewById<View>(R.id.exo_play)?.takeIf { it.isVisible }
-            ?: playerView.findViewById<View>(R.id.exo_rew)
-        target?.requestFocus()
-        Log.d("PLAYER_SEEK_FOCUS", "focus transport target=${target?.resources?.getResourceEntryName(target.id)}")
-    }
 
     internal fun supportsPictureInPicture(): Boolean = pipController.isSupported()
 
