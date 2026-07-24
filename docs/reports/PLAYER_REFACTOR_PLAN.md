@@ -533,6 +533,13 @@ THEN the structural split.** Every phase: verbatim move, own commit + push, dete
 LiveConfiguration, first-frame AudioTrack, shared-player hand-off order — plus, for the fragment stages,
 PiP entry and the 2-step VOD BACK. Any red → stop, do not baseline over it.
 
+**Owner chose (2026-07-24) to shrink the Activity further with more safe extractions BEFORE the fragment
+split**, so the eventual PlayerScreenFragment is smaller / easier to split. Extra Stage-1 extractions (same
+proven pattern, each device-verified):
+- **P26a DONE `325c67f`** — `PlayerTrackSelectionUi` (122): showAudio/Subtitle/AspectSelection + cycleResizeMode
+  + the managed track-dialog slot. Thin Activity forwarders keep transport-button + C6 + lifecycle callers
+  unchanged. detekt clean. **PlayerActivity 1982→1901.**
+
 **Honest note:** P26 (Activity→Fragment) is the real risk cliff — Fire TV lifecycle, PiP is Activity-scoped,
 `onBackPressedDispatcher`, and the shared player all change ownership. It is done as ONE behaviour-preserving
 move (no Live/VOD split yet) so a regression is bisectable before the split in P27/P28.
