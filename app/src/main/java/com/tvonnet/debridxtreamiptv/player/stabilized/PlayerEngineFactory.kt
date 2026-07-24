@@ -204,8 +204,11 @@ internal class PlayerEngineFactory(
                     .build()
             )
             .setTrackSelector(trackSelector)
-            .setSeekForwardIncrementMs(15000)
-            .setSeekBackIncrementMs(15000)
+            // Skip buttons = 10s fine step (streaming standard: Netflix/Disney/AppleTV skip
+            // is 10s). The seek BAR is the "fast" control — it accelerates on hold, see
+            // PlayerVodControlsUi.installControllerSeekNavigation.
+            .setSeekForwardIncrementMs(10000)
+            .setSeekBackIncrementMs(10000)
             .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)

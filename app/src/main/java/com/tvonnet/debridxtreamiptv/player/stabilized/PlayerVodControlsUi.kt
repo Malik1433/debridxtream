@@ -89,14 +89,32 @@ internal class PlayerVodControlsUi(
     }
 
     private fun installControllerSeekNavigation() {
-        val seekBar = playerView.findViewById<View>(R.id.exo_progress) ?: return
+        val seekBar = playerView.findViewById<androidx.media3.ui.DefaultTimeBar>(R.id.exo_progress) ?: return
         seekBar.setOnKeyListener { _, keyCode, event ->
-            if (event.action != KeyEvent.ACTION_DOWN || keyCode != KeyEvent.KEYCODE_DPAD_DOWN) {
-                return@setOnKeyListener false
+            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_DOWN -> { focusVisiblePlayPause(); true }
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    // Netflix/YouTube-style acceleration on the seek BAR: a single tap nudges
+                    // ~10s; HOLDING LEFT/RIGHT ramps the per-press step (30s → 1m → 2m) so the
+                    // whole timeline is reachable fast. The DefaultTimeBar accumulates the scrub
+                    // preview across the held presses and commits ONE seek on release, so this
+                    // stays smooth (no per-press seek churn). repeatCount resets to 0 on release,
+                    // so the next discrete tap is a fine 10s step again.
+                    seekBar.setKeyTimeIncrement(acceleratedSeekStepMs(event.repeatCount))
+                    false
+                }
+                else -> false
             }
-            focusVisiblePlayPause()
-            true
         }
+    }
+
+    /** Per-press seek step that ramps up while LEFT/RIGHT is held on the seek bar. */
+    private fun acceleratedSeekStepMs(repeatCount: Int): Long = when {
+        repeatCount < 2 -> 10_000L    // tap / first presses — fine
+        repeatCount < 6 -> 30_000L    // short hold
+        repeatCount < 12 -> 60_000L   // longer hold — 1 min
+        else -> 120_000L              // sustained hold — 2 min, fast traverse
     }
 
     fun wireControlFocus(isSeries: Boolean) {
