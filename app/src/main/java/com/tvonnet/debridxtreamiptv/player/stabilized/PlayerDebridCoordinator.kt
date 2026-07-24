@@ -182,7 +182,16 @@ internal class PlayerDebridCoordinator(
         lifecycleScope.launch {
             viewModel.debridResolutionState.collect { state ->
                 when (state) {
-                    is DebridResolutionState.Loading -> { isResolvingDebrid = true; showCinematicLoader() }
+                    is DebridResolutionState.Loading -> {
+                        isResolvingDebrid = true
+                        // Kill the OLD episode's audio the instant a switch starts resolving, so it
+                        // doesn't keep playing (audibly) behind the loading screen during the async
+                        // debrid resolve. Surface-safe: only the volume changes — no pause/stop/
+                        // rebuild (those tripped the tunnel surface race, see the black-video fix).
+                        // The Success path builds a FRESH player (volume defaults to 1); Idle restores.
+                        player?.volume = 0f
+                        showCinematicLoader()
+                    }
                     is DebridResolutionState.Success -> {
                         // Keep the loader up through buffering; STATE_READY hides it on first frame.
                         isResolvingDebrid = false
@@ -207,7 +216,7 @@ internal class PlayerDebridCoordinator(
                         isResolvingDebrid = false
                         handleTerminalPlaybackFailure("Failed: ${state.message}")
                     }
-                    is DebridResolutionState.Idle -> { loaderUi.hide(); isResolvingDebrid = false }
+                    is DebridResolutionState.Idle -> { loaderUi.hide(); isResolvingDebrid = false; player?.volume = 1f }
                 }
             }
         }
