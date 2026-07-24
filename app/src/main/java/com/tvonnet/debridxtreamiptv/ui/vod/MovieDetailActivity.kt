@@ -206,7 +206,13 @@ class MovieDetailActivity : AppCompatActivity() {
             }
             val allowAutoPlayNext = autoPlayNext && !openedFromPlaybackFailure &&
                 autoFallbackAttempts < MAX_AUTO_FALLBACK_ATTEMPTS
-            notifyDebridFailure(failReason, allowAutoPlayNext)
+            // Only a REAL failure carries a failed-stream-id / reason / auto-play flag
+            // (buildFailedSourceReturnIntent). A plain manual BACK or <60s exit
+            // (buildReturnToSourcesIntent) carries none of these — showing "Playback
+            // failed: source could not be played" there was a false alarm.
+            if (!failedStreamId.isNullOrBlank() || !failReason.isNullOrBlank() || autoPlayNext) {
+                notifyDebridFailure(failReason, allowAutoPlayNext)
+            }
             if (allowAutoPlayNext && !failedStreamId.isNullOrBlank()) {
                 autoFallbackAttempts++
                 autoPlayNextDebridSource(failedStreamId)
