@@ -6,6 +6,7 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import androidx.core.view.isVisible
+import androidx.media3.exoplayer.SeekParameters
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 
@@ -27,6 +28,10 @@ internal class PlayerVodControlsUi(
 ) {
 
     private var seekOverlay: VodSeekOverlay? = null
+    // True between scrub-start and scrub-stop so the 2 Hz refresh loop below doesn't
+    // overwrite the live scrub preview with the (not-yet-sought) current position —
+    // which was the "bar jumps forward then snaps back to where it was" flicker.
+    private var isScrubbing = false
     private val seekOverlayHandler = Handler(Looper.getMainLooper())
     private val seekOverlayRunnable = object : Runnable {
         override fun run() {
@@ -49,6 +54,7 @@ internal class PlayerVodControlsUi(
     fun onStop() = seekOverlayHandler.removeCallbacks(seekOverlayRunnable)
 
     private fun updateSeekOverlay() {
+        if (isScrubbing) return
         val p = player ?: return
         val dur = p.duration
         if (dur > 0L) {
@@ -72,6 +78,7 @@ internal class PlayerVodControlsUi(
         timeBar?.setKeyTimeIncrement(10_000L)
         timeBar?.addListener(object : androidx.media3.ui.TimeBar.OnScrubListener {
             override fun onScrubStart(timeBar: androidx.media3.ui.TimeBar, position: Long) {
+                isScrubbing = true
                 seekOverlay?.setFocusedVisual(true)
             }
             override fun onScrubMove(timeBar: androidx.media3.ui.TimeBar, position: Long) {
@@ -79,7 +86,12 @@ internal class PlayerVodControlsUi(
                 if (dur > 0L) seekOverlay?.setProgress(position.toFloat() / dur)
             }
             override fun onScrubStop(timeBar: androidx.media3.ui.TimeBar, position: Long, canceled: Boolean) {
+                isScrubbing = false
                 seekOverlay?.setFocusedVisual(false)
+                // Show the committed target immediately (media3 masks currentPosition to the
+                // seek target), so the bar lands where the user scrubbed instead of snapping back.
+                val dur = player?.duration ?: 0L
+                if (!canceled && dur > 0L) seekOverlay?.setProgress(position.toFloat() / dur)
                 updateSeekOverlay()
             }
         })
@@ -95,6 +107,17 @@ internal class PlayerVodControlsUi(
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_DOWN -> { focusVisiblePlayPause(); true }
                 KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    // Directional sync-point (fix "seek jumps forward then snaps back to where it
+                    // was"): the DefaultTimeBar commits its scrub via player.seekTo, which uses the
+                    // engine default SeekParameters.CLOSEST_SYNC — that snaps to the nearest keyframe
+                    // on EITHER side, so a forward scrub can resolve to a keyframe at/behind the
+                    // start and the position appears to return. Force the direction so RIGHT always
+                    // lands on a sync point ahead and LEFT always behind. Persists until the bar
+                    // commits (~1s after release).
+                    player?.setSeekParameters(
+                        if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) SeekParameters.NEXT_SYNC
+                        else SeekParameters.PREVIOUS_SYNC
+                    )
                     // Netflix/YouTube-style acceleration on the seek BAR: a single tap nudges
                     // ~10s; HOLDING LEFT/RIGHT ramps the per-press step (30s → 1m → 2m) so the
                     // whole timeline is reachable fast. The DefaultTimeBar accumulates the scrub
