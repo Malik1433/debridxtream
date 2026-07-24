@@ -539,6 +539,10 @@ proven pattern, each device-verified):
 - **P26a DONE `325c67f`** — `PlayerTrackSelectionUi` (122): showAudio/Subtitle/AspectSelection + cycleResizeMode
   + the managed track-dialog slot. Thin Activity forwarders keep transport-button + C6 + lifecycle callers
   unchanged. detekt clean. **PlayerActivity 1982→1901.**
+- **P26b DONE `66cae35`** — `PlayerVodControlsUi` (164): the 2 Hz seek-overlay loop + `wireControlFocus`
+  (series/movie/episode D-pad chains) + `installControllerSeekNavigation` + `showControllerWithSmartFocus`.
+  Seek loop is lifecycle-tied → exposes `onStart`/`onStop` the Activity forwards; a
+  `showControllerWithSmartFocus` forwarder keeps C6 unchanged. detekt clean. **PlayerActivity 1901→1788.**
 
 **Honest note:** P26 (Activity→Fragment) is the real risk cliff — Fire TV lifecycle, PiP is Activity-scoped,
 `onBackPressedDispatcher`, and the shared player all change ownership. It is done as ONE behaviour-preserving
