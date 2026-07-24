@@ -314,8 +314,15 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
             override fun onAspectRatio() = showAspectSelection()
             override fun onPlay() { player?.play() }
             override fun onPause() { player?.pause() }
-            override fun onRewind() { player?.seekBack() }
-            override fun onForward() { player?.seekForward() }
+            // Directional sync-point seeks (fix rapid-FF/RW jitter): the engine default
+            // SeekParameters.CLOSEST_SYNC snaps to the nearest keyframe on EITHER side, so a
+            // forward press could land on a keyframe BEHIND the target ("goes forward then jumps
+            // back") and rapid presses thrash. Force forward → NEXT_SYNC (never lands before the
+            // target) and back → PREVIOUS_SYNC (never lands after) so repeated seeks move
+            // monotonically while staying keyframe-fast. Each press sets its own direction before
+            // seeking, so consecutive FF/RW presses are always resolved consistently.
+            override fun onRewind() { player?.let { it.setSeekParameters(SeekParameters.PREVIOUS_SYNC); it.seekBack() } }
+            override fun onForward() { player?.let { it.setSeekParameters(SeekParameters.NEXT_SYNC); it.seekForward() } }
             override fun onNextEpisode() = seriesController.playNextEpisode()
             override fun onPreviousEpisode() = seriesController.playPreviousEpisode()
             override fun onEpisodes() = seriesController.showEpisodeBrowser()
