@@ -19,8 +19,16 @@ class PlayerNextEpisodeManager(
     private val delegate: Delegate
 ) {
     companion object {
-        /** VOD Player redesign: auto-play countdown window (design = 30s). */
-        private const val COUNTDOWN_MS = 30000L
+        // When the "Next Episode" option appears: ~90s before the end (the typical end-credits
+        // window). Netflix/Prime use per-title CREDIT MARKERS to know exactly when credits start;
+        // debrid/Xtream give us no such marker, so this fixed lead is the closest safe proxy —
+        // early enough to catch credits, not so early it appears mid-content.
+        private const val NEXT_EP_LEAD_MS = 90_000L
+        // The auto-advance countdown runs down the ACTUAL time left, so it fires exactly at the
+        // episode end and NEVER cuts content short (the old code auto-advanced on a fixed 30s
+        // timer from an 87% trigger — up to ~6 min early). Floor keeps a short grace if the
+        // prompt appears right at the end (e.g. STATE_ENDED safety net).
+        private const val MIN_COUNTDOWN_MS = 5_000L
     }
 
     interface Delegate {
@@ -159,12 +167,9 @@ class PlayerNextEpisodeManager(
         val duration = p.duration
         if (duration <= 0L || duration == androidx.media3.common.C.TIME_UNSET) return // live / unknown
 
-        // Streaming standard (Netflix/Prime): the auto-play countdown lives in the FINAL
-        // COUNTDOWN_MS so it finishes right at the episode end. The old rule fired at the
-        // earlier of 87%-or-(end-30s), i.e. always 87% for a normal-length episode — for a
-        // 45-min episode that is ~6 minutes early, so the "Next episode" number/countdown
-        // came up long before the episode ended (and could auto-advance mid-episode).
-        val triggerPos = (duration - COUNTDOWN_MS).coerceIn(0L, duration - 1)
+        // Show the option ~NEXT_EP_LEAD_MS before the end (credits window); the countdown then
+        // runs down the real remaining time so auto-advance lands at the true episode end.
+        val triggerPos = (duration - NEXT_EP_LEAD_MS).coerceIn(0L, duration - 1)
 
         // Already past the trigger (e.g. resumed near the end) — prompt now instead of scheduling.
         if (p.currentPosition >= triggerPos) {
@@ -205,9 +210,9 @@ class PlayerNextEpisodeManager(
         if (duration <= 0L) return
 
         val remaining = duration - position
-        // Match scheduleNextEpisodeTrigger: only inside the final COUNTDOWN_MS window, so the
-        // prompt never appears minutes before the episode actually ends.
-        val showPrompt = remaining <= COUNTDOWN_MS
+        // Match scheduleNextEpisodeTrigger: the option appears inside the final NEXT_EP_LEAD_MS
+        // (credits window), never minutes before the episode actually ends.
+        val showPrompt = remaining <= NEXT_EP_LEAD_MS
 
         if (showPrompt && !nextPromptShownForThisEpisode && !isNextPromptVisible) {
             val nextEp = delegate.getNextEpisode()
@@ -242,13 +247,19 @@ class PlayerNextEpisodeManager(
             }
         }
         delegate.onNextEpisodePromptShown(nextEp)
-        
+
+        // Auto-advance lands at the TRUE episode end: the countdown length = the real time left,
+        // so it never cuts content. Floored so a prompt that appears right at the end still gives
+        // a brief grace; capped at the lead so it can't run absurdly long on a bad duration.
+        val remainingToEnd = (delegate.getPlayerDuration() - delegate.getPlayerCurrentPosition())
+        val countdownMs = remainingToEnd.coerceIn(MIN_COUNTDOWN_MS, NEXT_EP_LEAD_MS)
+
         nextEpisodeTimer?.cancel()
-        nextEpisodeTimer = object : CountDownTimer(COUNTDOWN_MS, 1000) {
+        nextEpisodeTimer = object : CountDownTimer(countdownMs, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 val sec = (millisUntilFinished / 1000).toInt()
                 tvCountdownSeconds?.text = sec.toString()
-                val progress = ((COUNTDOWN_MS - millisUntilFinished) / (COUNTDOWN_MS / 100.0)).toInt()
+                val progress = ((countdownMs - millisUntilFinished) / (countdownMs / 100.0)).toInt()
                 nextEpisodeOverlay?.findViewById<ProgressBar>(R.id.progress_countdown)?.progress = progress
             }
             override fun onFinish() {
