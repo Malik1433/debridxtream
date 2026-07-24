@@ -221,6 +221,15 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         PlayerMetadataBinder(this, session)
     }
     internal fun bindModernMetadata(title: String?) = metadataBinder.bindModernMetadata(title)
+
+    /** P24: builds the ExoPlayer MediaItem (owns the TS-vs-HLS LiveConfiguration gate). */
+    private val mediaItemFactory: PlayerMediaItemFactory by lazy {
+        PlayerMediaItemFactory(this, session)
+    }
+    internal fun buildMediaItem(url: String) = mediaItemFactory.buildMediaItem(url)
+    /** P24: the factory needs the mimeHint variant of the diagnostics fields. */
+    internal fun diagnosticsFieldsWithMime(url: String?, mimeHint: String?) =
+        diagnosticsPlaybackFields(url = url, mimeHint = mimeHint)
     /** P21: thin forwarder so C5's viewModel binder + setup still call renderOverlay here. */
     internal fun renderOverlay(state: PlayerOverlayUiState) = epgRenderer.renderOverlay(state)
 
@@ -496,7 +505,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     private var liveChannelIds: ArrayList<String>? = null
     private var isResolvingDebrid: Boolean by session::isResolvingDebrid
     private var hasAppliedIndexOverride: Boolean by session::hasAppliedIndexOverride
-    private lateinit var trackManager: PlayerTrackManager
+    internal lateinit var trackManager: PlayerTrackManager
     internal lateinit var episodeBrowserController: EpisodeBrowserController
     private var currentZapRequestId: Long by session::currentZapRequestId
     // Cinematic live OSD (design_handoff Live Player); non-null only for LIVE_TV.
@@ -947,49 +956,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     }
 
     private data class ParsedSubtitle(val url: String, val language: String?)
-
-    internal fun buildMediaItem(url: String): MediaItem {
-        val subtitleConfigs = trackManager.buildSubtitleConfigurations(subtitleEntries)
-        val builder = MediaItem.Builder().setUri(url)
-        val mimeHint = resolveMediaMimeType(
-            url,
-            listOf(
-                url,
-                debridProviderExtra,
-                debridSourceTypeExtra,
-                debridSourceNameExtra,
-                debridQualityExtra,
-                originalTitle
-            ),
-            streamHeaders
-        )
-        mimeHint?.let { builder.setMimeType(it) }
-        // LiveConfiguration ONLY for HLS/DASH. On raw TS it flips the item to
-        // "live window" mode and the live-offset control seeks an unseekable
-        // stream ~200ms after the first frame — an endless flush/reload loop
-        // that froze every .ts channel on the first frame (device-diagnosed).
-        if (contentType == ContentType.LIVE_TV &&
-            (mimeHint == MimeTypes.APPLICATION_M3U8 || mimeHint == MimeTypes.APPLICATION_MPD)
-        ) {
-            builder.setLiveConfiguration(
-                MediaItem.LiveConfiguration.Builder()
-                    .setMinPlaybackSpeed(0.97f)
-                    .setMaxPlaybackSpeed(1.03f)
-                    .build()
-            )
-        }
-        if (subtitleConfigs.isNotEmpty()) {
-            builder.setSubtitleConfigurations(subtitleConfigs)
-        }
-        PlaybackDiagnosticsRecorder.record(
-            this,
-            "media_item_built",
-            diagnosticsPlaybackFields(url, mimeHint = mimeHint) + mapOf(
-                "subtitleConfigCount" to subtitleConfigs.size
-            )
-        )
-        return builder.build()
-    }
 
     private fun showAudioSelection() {
         if (isInPictureInPictureMode) return
