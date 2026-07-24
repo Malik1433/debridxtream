@@ -705,38 +705,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         reconnectingBanner = findViewById(R.id.reconnecting_banner)
         reconnectingBannerText = findViewById(R.id.reconnecting_banner_text)
 
-        val contentTypeString = intent.getStringExtra(EXTRA_CONTENT_TYPE)
-        contentType = contentTypeString?.let { runCatching { ContentType.valueOf(it) }.getOrNull() }
-        Log.d("PlayerActivity", "onCreate: contentTypeString=$contentTypeString, contentType=$contentType, contentId=${SensitiveLogRedactor.describeHash(contentId)}")
-        playbackSource = intent.getStringExtra(EXTRA_PLAYBACK_SOURCE)
-            ?.let { runCatching { PlaybackSource.valueOf(it) }.getOrNull() }
-            ?: PlaybackSource.IPTV
-        directDebridPlayback = intent.getBooleanExtra(EXTRA_DIRECT_DEBRID_PLAYBACK, false)
-        contentId = intent.getStringExtra(EXTRA_CONTENT_ID) ?: intent.getStringExtra(EXTRA_STREAM_URL)
-        returnToSourcesOnExit = intent.getBooleanExtra(EXTRA_RETURN_TO_SOURCES, false)
-        currentEpgChannelId = intent.getStringExtra(EXTRA_EPG_CHANNEL_ID)
-            ?.takeIf { it.isNotBlank() }
-            ?: contentId?.takeIf { it.isNotBlank() }
-        posterUrlExtra = intent.getStringExtra(EXTRA_POSTER_URL)
-        backdropUrlExtra = intent.getStringExtra(EXTRA_BACKDROP_URL)
-        tmdbIdExtra = intent.getStringExtra(EXTRA_TMDB_ID)
-        imdbIdExtra = intent.getStringExtra(EXTRA_IMDB_ID)
-        seriesTitleExtra = intent.getStringExtra(EXTRA_SERIES_TITLE)
-        episodeTitleExtra = intent.getStringExtra(EXTRA_EPISODE_TITLE)
-        seasonNumberExtra = intent.getIntExtra(EXTRA_SEASON_NUM, -1).takeIf { it >= 0 }
-        episodeNumberExtra = intent.getIntExtra(EXTRA_EPISODE_NUM, -1).takeIf { it >= 0 }
-        debridInfoHashExtra = intent.getStringExtra(EXTRA_DEBRID_INFOHASH)
-        debridMagnetExtra = intent.getStringExtra(EXTRA_DEBRID_MAGNET)
-            ?: intent.getStringExtra("DEBRID_MAGNET")
-        debridProviderExtra = intent.getStringExtra(EXTRA_DEBRID_PROVIDER)
-        debridSourceTypeExtra = intent.getStringExtra(EXTRA_DEBRID_SOURCE_TYPE)
-        debridSourceNameExtra = intent.getStringExtra(EXTRA_DEBRID_SOURCE_NAME)
-        debridLanguagesExtra = intent.getStringArrayListExtra(EXTRA_DEBRID_LANGUAGES)
-        debridQualityExtra = intent.getStringExtra(EXTRA_DEBRID_QUALITY)
-        debridStreamIdExtra = intent.getStringExtra(EXTRA_DEBRID_STREAM_ID)
-        debridBingeGroupExtra = intent.getStringExtra(EXTRA_DEBRID_BINGE_GROUP)
-        debridFileIdxExtra = intent.getIntExtra(EXTRA_DEBRID_FILE_IDX, -1).takeIf { it >= 0 }
-        expiresAtExtra = intent.getLongExtra(EXTRA_EXPIRES_AT, -1L).takeIf { it > 0 }
+        PlayerLaunchArgs.readInto(this, session)
 
         val streamUrl = intent.getStringExtra(EXTRA_STREAM_URL)
         val streamTitle = intent.getStringExtra(EXTRA_STREAM_TITLE)
