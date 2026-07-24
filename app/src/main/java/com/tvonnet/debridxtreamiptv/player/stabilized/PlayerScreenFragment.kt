@@ -694,6 +694,14 @@ class PlayerScreenFragment : Fragment(), PlayerRecoveryController.RecoveryHost {
             playerView.useController = true
             playerView.controllerAutoShow = true
             playerView.controllerHideOnTouch = true
+            // Black-video-on-episode-switch fix: a mid-stream episode switch calls player.stop()
+            // (inside performSeamlessSwitch), which makes PlayerView drop the "shutter" (a black
+            // view) over the surface until a new frame renders. On this Amlogic HW path the
+            // shutter could stay black even though the new codec was already rendering frames
+            // (logcat: "Got First Frame Render" + a resolution change, yet a black screen). Keep
+            // the last frame across the reset instead of the black shutter — the new video simply
+            // replaces it. VOD only; LIVE has its own zap backdrop.
+            playerView.setKeepContentOnPlayerReset(true)
             playerView.setControllerVisibilityListener(object : PlayerView.ControllerVisibilityListener {
                 override fun onVisibilityChanged(visibility: Int) {
                     isControllerVisible = visibility == View.VISIBLE
