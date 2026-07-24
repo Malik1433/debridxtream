@@ -159,9 +159,12 @@ class PlayerNextEpisodeManager(
         val duration = p.duration
         if (duration <= 0L || duration == androidx.media3.common.C.TIME_UNSET) return // live / unknown
 
-        val percentPos = (duration * 0.87).toLong()
-        val remainingPos = duration - COUNTDOWN_MS
-        val triggerPos = maxOf(0L, minOf(percentPos, remainingPos)).coerceAtMost(duration - 1)
+        // Streaming standard (Netflix/Prime): the auto-play countdown lives in the FINAL
+        // COUNTDOWN_MS so it finishes right at the episode end. The old rule fired at the
+        // earlier of 87%-or-(end-30s), i.e. always 87% for a normal-length episode — for a
+        // 45-min episode that is ~6 minutes early, so the "Next episode" number/countdown
+        // came up long before the episode ended (and could auto-advance mid-episode).
+        val triggerPos = (duration - COUNTDOWN_MS).coerceIn(0L, duration - 1)
 
         // Already past the trigger (e.g. resumed near the end) — prompt now instead of scheduling.
         if (p.currentPosition >= triggerPos) {
@@ -202,11 +205,10 @@ class PlayerNextEpisodeManager(
         if (duration <= 0L) return
 
         val remaining = duration - position
-        val percentThresholdMs = (duration * 0.87).toLong()
-        val timeThresholdMs = 30000L
-        
-        val showPrompt = position >= percentThresholdMs || remaining < timeThresholdMs
-        
+        // Match scheduleNextEpisodeTrigger: only inside the final COUNTDOWN_MS window, so the
+        // prompt never appears minutes before the episode actually ends.
+        val showPrompt = remaining <= COUNTDOWN_MS
+
         if (showPrompt && !nextPromptShownForThisEpisode && !isNextPromptVisible) {
             val nextEp = delegate.getNextEpisode()
             if (nextEp != null) {
