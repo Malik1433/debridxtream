@@ -156,7 +156,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     internal var currentUrl: String? by session::currentUrl
     private var streamHeaders: Map<String, String>? by session::streamHeaders
     private var subtitleEntries: List<String> by session::subtitleEntries
-    private var activeTrackDialog: Dialog? = null
     private var timeoutMs: Long by session::timeoutMs
     internal val timeoutHandler = Handler(Looper.getMainLooper())
     internal val timeoutRunnable = Runnable { recovery.handleTimeout() }
@@ -226,6 +225,15 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     private val mediaItemFactory: PlayerMediaItemFactory by lazy {
         PlayerMediaItemFactory(this, session)
     }
+
+    /** P26a: audio/subtitle/aspect track pickers + the single managed-dialog slot. */
+    private val trackSelectionUi: PlayerTrackSelectionUi by lazy {
+        PlayerTrackSelectionUi(this, session)
+    }
+    internal fun showAudioSelection() = trackSelectionUi.showAudioSelection()
+    internal fun showSubtitleSelection() = trackSelectionUi.showSubtitleSelection()
+    internal fun showAspectSelection() = trackSelectionUi.showAspectSelection()
+    internal fun dismissActiveTrackDialog() = trackSelectionUi.dismissActiveTrackDialog()
     internal fun buildMediaItem(url: String) = mediaItemFactory.buildMediaItem(url)
     /** P24: the factory needs the mimeHint variant of the diagnostics fields. */
     internal fun diagnosticsFieldsWithMime(url: String?, mimeHint: String?) =
@@ -926,22 +934,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
 
     private data class ParsedSubtitle(val url: String, val language: String?)
 
-    private fun showAudioSelection() {
-        if (isInPictureInPictureMode) return
-        val playerSnapshot = player ?: return
-        trackManager.showAudioSelection(playerSnapshot) { dialog ->
-            showManagedTrackDialog(dialog, R.id.btn_player_audio)
-        }
-    }
-
-    internal fun showSubtitleSelection() {
-        if (isInPictureInPictureMode) return
-        val playerSnapshot = player ?: return
-        trackManager.showSubtitleSelection(playerSnapshot, subtitleEntries) { dialog ->
-            showManagedTrackDialog(dialog, R.id.btn_player_subtitles)
-        }
-    }
-
     // Mi1 dead-code sweep (T3.1): showLanguageSelection / applyDebridLanguagePreference /
     // showVideoSelection removed — no callers (btn_player_language routes to
     // showAudioSelection; video quality is ABR-managed).
@@ -964,25 +956,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         }
     }
 
-    private fun showManagedTrackDialog(dialog: Dialog, anchorViewId: Int? = null) {
-        dismissActiveTrackDialog()
-        activeTrackDialog = dialog
-        dialog.setOnDismissListener {
-            if (activeTrackDialog === dialog) {
-                activeTrackDialog = null
-            }
-            anchorViewId?.let { id ->
-                playerView.findViewById<View>(id)?.requestFocus()
-            }
-        }
-        dialog.show()
-    }
-
-    private fun dismissActiveTrackDialog() {
-        activeTrackDialog?.setOnDismissListener(null)
-        activeTrackDialog?.dismiss()
-        activeTrackDialog = null
-    }
 
     private fun setupOverlayViews() {
         if (epgOverlay != null) return
@@ -1452,60 +1425,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     }
 
     /** VOD Player redesign: styled aspect-ratio selection popup (design ASPECT MENU). */
-    private fun showAspectSelection() {
-        if (isInPictureInPictureMode) return
-        val modes = listOf(
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT to "Fit",
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL to "Stretch",
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM to "Zoom",
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH to "Fixed Width",
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT to "Fixed Height"
-        )
-        val labels = modes.map { it.second }
-        val current = modes.indexOfFirst { it.first == playerView.resizeMode }.coerceAtLeast(0)
-        lateinit var dialog: androidx.appcompat.app.AlertDialog
-        val adapter = TrackSelectionAdapter(labels, current) { which ->
-            val mode = modes[which].first
-            playerView.resizeMode = mode
-            updateAspectLabel(mode)
-            dialog.dismiss()
-        }
-        dialog = androidx.appcompat.app.AlertDialog.Builder(this, R.style.Theme_DebridXtream_CinematicDialog)
-            .setTitle("Aspect Ratio")
-            .setAdapter(adapter, adapter.asDialogClickListener())
-            .create()
-        showManagedTrackDialog(dialog, R.id.btn_aspect_ratio)
-    }
-
-    private fun updateAspectLabel(mode: Int) {
-        val label = when (mode) {
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL -> "FILL"
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> "ZOOM"
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH -> "W·FIT"
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT -> "H·FIT"
-            else -> "FIT"
-        }
-        playerView.findViewById<TextView>(R.id.tv_aspect_label)?.text = label
-    }
-
-    private fun cycleResizeMode() {
-        val nextMode = when (playerView.resizeMode) {
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT
-            else -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-        }
-        playerView.resizeMode = nextMode
-        showToast("Resize Mode: ${when(nextMode) {
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT -> "Fit"
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL -> "Stretch"
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> "Zoom"
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH -> "Fixed Width"
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT -> "Fixed Height"
-            else -> "Fit"
-        }}")
-    }
 
     // T2.1/M7: restore playback for the retained-player path (pause-without-release
     // cycles: Home→return on VOD/Debrid, system dialogs, multi-window transitions).
