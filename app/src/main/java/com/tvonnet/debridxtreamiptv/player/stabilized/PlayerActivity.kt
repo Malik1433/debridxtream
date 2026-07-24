@@ -1,6 +1,5 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
-import android.app.Activity
 import android.app.ActivityManager
 import android.app.Dialog
 import android.content.Context
@@ -81,8 +80,6 @@ import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.DataSink
 import androidx.media3.datasource.FileDataSource
-import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
-import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
 
 @UnstableApi
 @AndroidEntryPoint
@@ -234,6 +231,11 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     /** P26b: VOD transport-controller focus + the custom seek-bar overlay. */
     internal val vodControls: PlayerVodControlsUi by lazy {
         PlayerVodControlsUi(this, session)
+    }
+
+    /** P26c: exit-with-result / terminal-failure cluster (shared handoff stays here). */
+    internal val exitController: PlayerExitController by lazy {
+        PlayerExitController(this, session)
     }
     internal fun showControllerWithSmartFocus(sourceEvent: KeyEvent? = null) =
         vodControls.showControllerWithSmartFocus(sourceEvent)
@@ -598,7 +600,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         private const val MIN_DURATION_TO_TRACK_MS = 60_000L
         private const val MIN_CREDIBLE_MOVIE_DURATION_MS = 30 * 60_000L
         private const val MIN_CREDIBLE_EPISODE_DURATION_MS = 5 * 60_000L
-        private const val RETURN_TO_SOURCES_THRESHOLD_MS = 60_000L
         private const val COMPLETION_THRESHOLD_RATIO = 0.95f
         const val EXTRA_SERIES_ID = "EXTRA_SERIES_ID"
         const val EXTRA_SEASON_NUM = "EXTRA_SEASON_NUM"
@@ -1119,7 +1120,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         }
     }
 
-    private fun diagnosticsPlaybackFields(
+    internal fun diagnosticsPlaybackFields(
         url: String? = currentUrl,
         headers: Map<String, String>? = effectivePlaybackHeadersFor(url),
         retry: Int? = retryCount,
@@ -1439,7 +1440,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         return true
     }
 
-    private fun releasePlayer(reason: String = "unspecified") {
+    internal fun releasePlayer(reason: String = "unspecified") {
         PlaybackDiagnosticsRecorder.record(
             this,
             "release_player",
@@ -1513,8 +1514,8 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     }
 
     override fun finish() {
-        setLiveExitResultIfNeeded()
-        setExitResultIfNeeded()
+        exitController.setLiveExitResultIfNeeded()
+        exitController.setExitResultIfNeeded()
         super.finish()
     }
 
@@ -1628,93 +1629,14 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
 
 
     private fun updateLastPlaybackPosition() { lastPlaybackPositionMs = player?.currentPosition ?: lastPlaybackPositionMs }
-    private fun setLiveExitResultIfNeeded() {
-        if (contentType != ContentType.LIVE_TV || exitResultHandled) return
-        val streamId = contentId?.takeIf { it.isNotBlank() } ?: return
-        setResult(
-            Activity.RESULT_OK,
-            buildLiveReturnIntent(
-                LiveReturnChannel(
-                    channelId = streamId,
-                    channelName = tvChannelName?.text?.toString() ?: pendingChannelName,
-                    channelLogoUrl = channelLogoUrl,
-                    epgChannelId = currentEpgChannelId,
-                    streamUrl = currentUrl,
-                    categoryId = liveCategoryId
-                )
-            )
-        )
-    }
+    // P26c: the exit-with-result / terminal-failure cluster now lives in PlayerExitController.
+    // finish() and these two C1 RecoveryHost members forward to it; the shared-player handoff
+    // (performBackExit / handBackSharedPlayerIfNeeded) deliberately stays in the Activity.
+    override fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean =
+        exitController.finishWithReturnToSources(autoPlayNext, reason)
 
-    private fun setExitResultIfNeeded() { if (exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete) return; val pos = player?.currentPosition ?: lastPlaybackPositionMs; if (manualExit || pos < RETURN_TO_SOURCES_THRESHOLD_MS) { exitResultHandled = true; setResult(Activity.RESULT_OK, buildReturnToSourcesIntent()) } }
-    override fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean { if (!returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || exitResultHandled) return false; exitResultHandled = true; PlaybackDiagnosticsRecorder.record(this, "return_to_sources", diagnosticsPlaybackFields() + mapOf("reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(reason), "autoPlayNext" to autoPlayNext)); setResult(Activity.RESULT_OK, buildFailedSourceReturnIntent(failedStreamId = debridStreamIdExtra ?: debridInfoHashExtra ?: contentId ?: currentUrl, reason = reason, autoPlayNext = autoPlayNext)); releasePlayer("return_to_sources"); PlaybackDiagnosticsRecorder.finishSession(this, "return_to_sources"); finish(); return true }
-    override fun handleTerminalPlaybackFailure(reason: String, preferReturnToSources: Boolean) {
-        PlaybackDiagnosticsRecorder.record(
-            this,
-            "terminal_failure",
-            diagnosticsPlaybackFields() + mapOf(
-                "reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(reason),
-                "httpStatusCode" to PlaybackDiagnosticsRecorder.httpStatusCode(reason)
-            )
-        )
-        // autoPlayNext=true: the detail screens auto-try the next ranked source
-        // (capped there) instead of dropping the user at the picker.
-        if (preferReturnToSources && finishWithReturnToSources(autoPlayNext = true, reason = reason)) {
-            return
-        }
-        val redirected = redirectToFailureDetail(reason)
-        if (redirected) {
-            return
-        }
-        if (!finishWithReturnToSources(autoPlayNext = true, reason = reason)) {
-            val isHttpError = reason.contains("HTTP", ignoreCase = true)
-            showError(
-                when {
-                    contentType == ContentType.LIVE_TV ->
-                        "Channel stream is broken at the provider\n\nTry another channel or source"
-                    reason.contains("timeout", ignoreCase = true) ->
-                        "Connection timeout\n\nStream is too slow or unavailable"
-                    // Plain IPTV/Xtream dead listing (405/404/5xx): the provider simply
-                    // doesn't have this file — steer the user to a debrid source.
-                    playbackSource == PlaybackSource.IPTV && isHttpError ->
-                        "This IPTV listing isn't available from your provider\n\nTry a debrid source or another listing"
-                    else -> "Playback failed\n\n$reason"
-                }
-            )
-            Handler(Looper.getMainLooper()).postDelayed({ finish() }, 3000)
-        }
-    }
-    private fun redirectToFailureDetail(reason: String): Boolean {
-        if (playbackSource != PlaybackSource.DEBRID || contentType == ContentType.LIVE_TV || isFinishing) return false
-        val detailIntent = when (contentType) {
-            ContentType.MOVIE -> Intent(this, MovieDetailActivity::class.java).apply {
-                putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, tmdbIdExtra ?: contentId ?: debridStreamIdExtra ?: debridInfoHashExtra)
-                putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, originalTitle)
-                putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, posterUrlExtra)
-                putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, backdropUrlExtra)
-                putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
-            }
-            ContentType.SERIES, ContentType.EPISODE -> Intent(this, SeriesDetailActivity::class.java).apply {
-                putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, debridSeriesLookupId())
-                putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, seriesTitleExtra ?: originalTitle)
-                putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, posterUrlExtra)
-                putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, backdropUrlExtra)
-                // This redirect only runs for DEBRID playback (guarded at the top of the method),
-                // so open the detail screen in debrid mode — without this it loaded as Xtream and
-                // showed "No episodes" for debrid content.
-                putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
-            }
-            null, ContentType.LIVE_TV -> null
-        } ?: return false
-
-        detailIntent.putExtra(EXTRA_OPENED_FROM_PLAYBACK_FAILURE, true)
-        detailIntent.putExtra(EXTRA_FAIL_REASON, reason)
-        releasePlayer("failure_detail_redirect")
-        PlaybackDiagnosticsRecorder.finishSession(this, "failure_detail_redirect")
-        startActivity(detailIntent)
-        finish()
-        return true
-    }
+    override fun handleTerminalPlaybackFailure(reason: String, preferReturnToSources: Boolean) =
+        exitController.handleTerminalPlaybackFailure(reason, preferReturnToSources)
 
     /**
      * If audio is playing (STATE_READY) but no video frame has rendered, the HW decoder is

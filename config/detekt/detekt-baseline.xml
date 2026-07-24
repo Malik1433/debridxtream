@@ -16,11 +16,11 @@
     <ID>ComplexCondition:LoginQrOverlayController.kt$LoginQrOverlayController$snapshot != null &amp;&amp; !paired &amp;&amp; (status == "completed" || status == "success")</ID>
     <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$canResolveDebrid &amp;&amp; hasResInfo &amp;&amp; (isDebridUrlMissing || isExpired)</ID>
     <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$contentType == ContentType.LIVE_TV || isInPictureInPictureMode || !playerView.useController || (::nextEpisodeManager.isInitialized &amp;&amp; nextEpisodeManager.isPromptVisible)</ID>
-    <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete</ID>
     <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity$isDebridUrlMissing &amp;&amp; !(canResolveDebrid &amp;&amp; hasResInfo) &amp;&amp; !canFreshResolveDirectDebrid</ID>
     <ID>ComplexCondition:PlayerActivity.kt$PlayerActivity.&lt;no name provided&gt;$responseCode == 400 || responseCode == 401 || responseCode == 403 || responseCode == 404 || responseCode == 405 || responseCode == 410 || responseCode == 416 || responseCode == 451</ID>
     <ID>ComplexCondition:PlayerDebridCoordinator.kt$PlayerDebridCoordinator$server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank() || stream.stream_id.isNullOrBlank()</ID>
     <ID>ComplexCondition:PlayerEventListener.kt$PlayerEventListener$!hasSupportedAudioSelected &amp;&amp; firstSupportedGroup != null &amp;&amp; audioGroups.size &gt; 1 &amp;&amp; !hasAudioOverride</ID>
+    <ID>ComplexCondition:PlayerExitController.kt$PlayerExitController$exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete</ID>
     <ID>ComplexCondition:PlayerHistoryManager.kt$PlayerHistoryManager$existing != null &amp;&amp; existing.source != item.source &amp;&amp; existing.currentPosition &gt; 0 &amp;&amp; existing.totalDuration &gt; 0</ID>
     <ID>ComplexCondition:PlayerInputRouter.kt$PlayerInputRouter$contentType != ContentType.LIVE_TV &amp;&amp; playerView.useController &amp;&amp; !activity.isNextEpisodePromptVisible() &amp;&amp; !playerView.isControllerFullyVisible</ID>
     <ID>ComplexCondition:PlayerRecoveryController.kt$PlayerRecoveryController$canUseDebridResolver() &amp;&amp; !isResolvingDebrid &amp;&amp; retryCount &gt; 1 &amp;&amp; (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())</ID>
