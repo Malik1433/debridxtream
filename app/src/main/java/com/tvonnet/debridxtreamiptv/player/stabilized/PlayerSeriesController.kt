@@ -40,6 +40,19 @@ internal class PlayerSeriesController(
     private val lifecycleScope get() = activity.lifecycleScope
     private val intent get() = activity.intent
     private val supportActionBar get() = activity.supportActionBar
+    private val player get() = activity.player
+
+    /**
+     * Kill the current episode's audio/video the instant the user commits to a debrid switch and
+     * raise the cinematic loader, so the OLD episode does not keep playing (audibly) behind the
+     * async next-episode resolve. The resolver's Success path builds a fresh player for the new
+     * episode; setting isResolvingDebrid also stops onResume from audibly resuming the old stream.
+     */
+    private fun beginDebridEpisodeSwitch() {
+        player?.pause()
+        isResolvingDebrid = true
+        activity.showCinematicLoader()
+    }
 
     private var episodeBrowserController: EpisodeBrowserController
         get() = activity.episodeBrowserController
@@ -210,7 +223,7 @@ internal class PlayerSeriesController(
             contentId = episode.episodeId
             episodeNumberExtra = episode.episodeNumber
             episodeTitleExtra = episode.title
-            isResolvingDebrid = true
+            beginDebridEpisodeSwitch()
             viewModel.loadNextDebridEpisode(
                 seriesId = debridSeriesLookupId(),
                 targetSeason = seasonNumberExtra ?: 1,
@@ -295,6 +308,7 @@ internal class PlayerSeriesController(
                       currentEpisode + 1
                   }
 
+                  beginDebridEpisodeSwitch()
                   viewModel.loadNextDebridEpisode(
                       seriesId = tmdbId,
                       targetSeason = targetSeason,
@@ -327,6 +341,7 @@ internal class PlayerSeriesController(
                 val targetSeason = prevEp?.seasonNumber ?: currentSeason
                 val targetEpisode = prevEp?.episodeNumber ?: (currentEpisode - 1).coerceAtLeast(1)
 
+                beginDebridEpisodeSwitch()
                 viewModel.loadNextDebridEpisode(
                     seriesId = tmdbId,
                     targetSeason = targetSeason,
