@@ -57,6 +57,7 @@ internal class PlayerDebridCoordinator(
     private val seriesTitleExtra: String? by session::seriesTitleExtra
     private var hasRecordedHistory: Boolean by session::hasRecordedHistory
     private var currentUrl: String? by session::currentUrl
+    private var disableTunnelingForSession: Boolean by session::disableTunnelingForSession
 
     // ── forwarders to collaborators kept on the Activity ──
     private fun showToast(message: String) = activity.showToast(message)
@@ -148,6 +149,35 @@ internal class PlayerDebridCoordinator(
         }
     }
 
+    /**
+     * How a freshly-resolved URL starts playing.
+     *
+     * ROOT CAUSE (Amlogic "gazelle" / Fire TV 4K Max): 4K HEVC decodes in TUNNELED mode — the
+     * video is composited on a hardware plane BEHIND the app window and the SurfaceView only
+     * punches a transparent hole for it; the app never receives the frames. A mid-stream VOD
+     * switch that REUSES the player (performSeamlessSwitch = stop→prepare on the SAME surface)
+     * tears the tunnel session down and rebuilds it on that same surface while the previous one
+     * was still live. On this SoC the HW video plane is then NOT re-shown, so the screen stays
+     * BLACK even though the new decoder is decoding (logcat: "Got First Frame Render" + bitrate
+     * flowing, yet black). Auto-advance works because it switches from the ENDED state, where the
+     * tunnel session is already terminal and the new one establishes cleanly.
+     *
+     * Fix: a mid-stream VOD switch rebuilds the player with TUNNELING OFF. A non-tunneled decoder
+     * renders into the app SurfaceView normally — the same proven path checkBlackVideoFallback
+     * uses for the 4K "audio plays, video black" case (device-verified) — and
+     * keepContentOnPlayerReset covers the surface reset. Cold start and the LIVE zap keep tunneling.
+     */
+    private fun startOrSwitchToResolvedUrl(url: String) {
+        when {
+            player == null -> initializePlayer(url)
+            contentType == ContentType.LIVE_TV -> liveTuner.performSeamlessSwitch(url)
+            else -> {
+                disableTunnelingForSession = true
+                initializePlayer(url)
+            }
+        }
+    }
+
     fun observeDebridResolutionState() {
         lifecycleScope.launch {
             viewModel.debridResolutionState.collect { state ->
@@ -170,11 +200,7 @@ internal class PlayerDebridCoordinator(
                             hasRecordedHistory = false; activity.resetNextEpisodeStateIfInitialized()
                         }
                         currentUrl = state.url
-                        if (player == null) {
-                            initializePlayer(state.url)
-                        } else {
-                            liveTuner.performSeamlessSwitch(state.url)
-                        }
+                        startOrSwitchToResolvedUrl(state.url)
                     }
                     is DebridResolutionState.Error -> {
                         loaderUi.hide()
