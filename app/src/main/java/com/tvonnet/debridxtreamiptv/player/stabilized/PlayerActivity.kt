@@ -208,6 +208,13 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     internal val epgRenderer: PlayerLiveEpgRenderer by lazy {
         PlayerLiveEpgRenderer(this, session)
     }
+
+    /** P22: the stall + video-freeze watchdog. */
+    internal val stallMonitor: PlayerStallMonitor by lazy {
+        PlayerStallMonitor(this, session)
+    }
+    internal fun startStallMonitor() = stallMonitor.startStallMonitor()
+    internal fun stopStallMonitor() = stallMonitor.stopStallMonitor()
     /** P21: thin forwarder so C5's viewModel binder + setup still call renderOverlay here. */
     internal fun renderOverlay(state: PlayerOverlayUiState) = epgRenderer.renderOverlay(state)
 
@@ -410,15 +417,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
 
     /** P11: the cinematic pre-playback loader owns its views + animators. */
     internal val loaderUi = PlayerLoaderUi(hideReconnectBanner = { reconnectManager.hideBanner() })
-    private val stallHandler = Handler(Looper.getMainLooper())
-    /** P15: position-progress strikes (detection only — the reaction stays here). */
-    private val stallDetector = PlayerStallDetector()
     private var lastBufferingStartMs: Long by session::lastBufferingStartMs
-    // Video-freeze watchdog: position keeps advancing with audio when only the
-    // video decoder dies (e.g. HEVC GuiExt alloc failures on MTK Fire TVs), so
-    // rendered-frame progress is tracked separately from position progress.
-    /** P15: rendered-frame progress ("audio plays, video frozen"). */
-    private val freezeDetector = VideoFreezeDetector()
     private var disableTunnelingForSession: Boolean by session::disableTunnelingForSession
     // How many times we've recovered from an AudioTrack-allocation failure this
     // source (reset on a clean READY / new source). Bounds the audio-device retry.
@@ -450,13 +449,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
 
     // LP-D-2: per-player QoE analytics listener (TTFF, rebuffers, errors).
     internal var qoeTracker: PlaybackQoeTracker? = null
-
-    private val stallRunnable = object : Runnable {
-        override fun run() {
-            checkForStall()
-            stallHandler.postDelayed(this, 3000)
-        }
-    }
 
     internal var channelLogoUrl: String? by session::channelLogoUrl
     internal var contentType: ContentType? by session::contentType
@@ -553,10 +545,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         private const val MEDIAFUSION_TIMEOUT_MS = 35000L
         // Live viewers zap away from dead streams fast — detect failure fast too.
         private const val LIVE_TIMEOUT_MS = 12000L
-        private const val VIDEO_FREEZE_THRESHOLD_MS = 8000L
-        // Live viewers zap within seconds — catch a frozen first frame fast.
-        private const val LIVE_VIDEO_FREEZE_THRESHOLD_MS = 4000L
-        private const val MAX_LIVE_FREEZE_REPREPARES = 2
         // Unified reconnect budget (QA fix 2): aggregate ceiling across ALL recovery
         // subsystems so a dead channel can't chain error-retry + ENDED-reconnect +
         // freeze re-prepare into a burst against a WAF/max_connections=1 server.
@@ -575,18 +563,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         private const val MIN_CREDIBLE_EPISODE_DURATION_MS = 5 * 60_000L
         private const val RETURN_TO_SOURCES_THRESHOLD_MS = 60_000L
         private const val COMPLETION_THRESHOLD_RATIO = 0.95f
-        private const val STALL_THRESHOLD_MS = 12000L
-        private const val LOW_RAM_STALL_THRESHOLD_MS = 15000L
-        private const val LOW_RAM_STALL_STRIKES = 2
-        // M3 parity: IPTV VOD gets the same multi-strike tolerance as Debrid so a
-        // single transiently-slow 12s window no longer forces a full teardown.
-        private const val NON_DEBRID_READY_STALL_STRIKES = 3
-        // Live recovers faster than VOD (frozen live edge), but no single-strike
-        // hair-trigger either.
-        private const val LIVE_READY_STALL_STRIKES = 2
-        private const val DEBRID_READY_STALL_STRIKES = 3
-        private const val DIRECT_DEBRID_READY_STALL_STRIKES = 4
-        private const val DIRECT_DEBRID_LOW_RAM_STALL_STRIKES = 3
         const val EXTRA_SERIES_ID = "EXTRA_SERIES_ID"
         const val EXTRA_SEASON_NUM = "EXTRA_SEASON_NUM"
         const val EXTRA_EPISODE_NUM = "EXTRA_EPISODE_NUM"
@@ -1532,125 +1508,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         }
     }
 
-    private fun checkForStall() {
-        val p = player ?: return
-        val now = SystemClock.elapsedRealtime()
-        val isLowRamDevice = DeviceProfile.isLowRamDevice(this)
-        val stallThresholdMs = if (isLowRamDevice) LOW_RAM_STALL_THRESHOLD_MS else STALL_THRESHOLD_MS
-        val requiredStrikes = readyStallRequiredStrikes(isLowRamDevice)
-        val currentPos = p.currentPosition
-
-        when (
-            stallDetector.onTick(
-                isActivelyPlaying = p.playWhenReady && p.playbackState == Player.STATE_READY,
-                positionMs = currentPos,
-                nowMs = now,
-                thresholdMs = stallThresholdMs,
-                requiredStrikes = requiredStrikes
-            )
-        ) {
-            StallVerdict.PROGRESSING -> checkVideoRenderProgress(p, now)
-            StallVerdict.IDLE -> Unit
-            StallVerdict.WARNING -> PlaybackDiagnosticsRecorder.record(
-                this,
-                "stall_warning",
-                diagnosticsPlaybackFields() + mapOf(
-                    "positionMs" to currentPos,
-                    "stallThresholdMs" to stallThresholdMs,
-                    "stallStrikeCount" to stallDetector.strikeCount,
-                    "requiredStrikes" to requiredStrikes
-                )
-            )
-            StallVerdict.STALLED -> {
-                PlaybackDiagnosticsRecorder.record(
-                    this,
-                    "stall_triggered",
-                    diagnosticsPlaybackFields() + mapOf(
-                        "positionMs" to currentPos,
-                        "stallThresholdMs" to stallThresholdMs
-                    )
-                )
-                recovery.handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
-            }
-        }
-    }
-
-    /**
-     * Detects "audio plays, video frozen": playback position advances but the video
-     * decoder stops producing rendered frames (seen on MTK Fire TV HEVC live channels
-     * — GuiExt alloc errors leave the tunneled decoder outputting nothing). First
-     * occurrence re-initializes the player with tunneling disabled for the rest of
-     * this session; repeats fall through to the normal error/retry path.
-     */
-    private fun checkVideoRenderProgress(p: ExoPlayer, now: Long) {
-        if (p.videoFormat == null) { freezeDetector.onNoVideoFormat(); return }
-        val counters = p.videoDecoderCounters ?: return
-        counters.ensureUpdated()
-        val rendered = counters.renderedOutputBufferCount
-        val freezeThresholdMs =
-            if (contentType == ContentType.LIVE_TV) LIVE_VIDEO_FREEZE_THRESHOLD_MS else VIDEO_FREEZE_THRESHOLD_MS
-        if (!freezeDetector.onTick(rendered, now, freezeThresholdMs)) return
-
-        PlaybackDiagnosticsRecorder.record(
-            this,
-            "video_freeze_detected",
-            diagnosticsPlaybackFields() + mapOf(
-                "positionMs" to p.currentPosition,
-                "renderedFrames" to rendered,
-                "tunnelingDisabledRetry" to !disableTunnelingForSession
-            )
-        )
-        if (contentType == ContentType.LIVE_TV) {
-            // Live freeze = usually broken PTS in the provider's TS mux, not the
-            // decoder. Re-preparing the same URL restarts the timestamp adjuster
-            // from the current live data, past the discontinuity.
-            if (currentUrl != lastFreezeRecoveryUrl || now - lastFreezeRecoveryAtMs > 60_000L) {
-                liveFreezeReprepares = 0
-                lastFreezeRecoveryUrl = currentUrl
-            }
-            // Inner cap (liveFreezeReprepares) AND the aggregate budget (fix 2) must
-            // both allow it; canAttemptReconnect() records the attempt + shows the
-            // banner (fix 3) only when it returns true.
-            if (liveFreezeReprepares < MAX_LIVE_FREEZE_REPREPARES && canAttemptReconnect()) {
-                liveFreezeReprepares++
-                lastFreezeRecoveryAtMs = now
-                Log.i(
-                    "PlayerActivity",
-                    "Live video frozen (rendered=$rendered) — re-preparing stream, attempt $liveFreezeReprepares/$MAX_LIVE_FREEZE_REPREPARES"
-                )
-                currentUrl?.let { liveTuner.performSeamlessSwitch(it) }
-            } else {
-                recovery.handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
-            }
-            return
-        }
-
-        if (!disableTunnelingForSession) {
-            disableTunnelingForSession = true
-            Log.w("PlayerActivity", "Video frozen while audio playing — reinitializing without tunneling")
-            showToast("Recovering video...")
-            if (contentType != ContentType.LIVE_TV && p.currentPosition > 1000L) startPositionMs = p.currentPosition
-            player?.release(); player = null
-            retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, 250L)
-        } else {
-            recovery.handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
-        }
-    }
-
-    private fun readyStallRequiredStrikes(isLowRamDevice: Boolean): Int {
-        if (playbackSource != PlaybackSource.DEBRID) {
-            return when {
-                contentType == ContentType.LIVE_TV -> LIVE_READY_STALL_STRIKES
-                isLowRamDevice -> LOW_RAM_STALL_STRIKES
-                else -> NON_DEBRID_READY_STALL_STRIKES
-            }
-        }
-        if (directDebridPlayback) {
-            return if (isLowRamDevice) DIRECT_DEBRID_LOW_RAM_STALL_STRIKES else DIRECT_DEBRID_READY_STALL_STRIKES
-        }
-        return DEBRID_READY_STALL_STRIKES
-    }
-
 
 
     // Mi1: showSupportQr removed — never called (terminal failures route through
@@ -1777,7 +1634,7 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     override fun onStart() { super.onStart(); hasRecordedHistory = false; recovery.registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() }; if (seekOverlay != null) { seekOverlayHandler.removeCallbacks(seekOverlayRunnable); seekOverlayHandler.post(seekOverlayRunnable) }; progressSaveHandler.removeCallbacks(progressSaveRunnable); progressSaveHandler.postDelayed(progressSaveRunnable, PROGRESS_SAVE_INTERVAL_MS) }
     override fun onPause() { super.onPause(); if (::historyManager.isInitialized) historyManager.saveProgressSnapshot(); wasPlayingBeforePause = player?.isPlaying == true; player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
     override fun onStop() {
-        super.onStop(); dismissActiveTrackDialog(); debugOverlay.stop(); timeoutHandler.removeCallbacks(timeoutRunnable); stallHandler.removeCallbacks(stallRunnable); seekOverlayHandler.removeCallbacks(seekOverlayRunnable); progressSaveHandler.removeCallbacks(progressSaveRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; recovery.unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded()
+        super.onStop(); dismissActiveTrackDialog(); debugOverlay.stop(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor(); seekOverlayHandler.removeCallbacks(seekOverlayRunnable); progressSaveHandler.removeCallbacks(progressSaveRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; recovery.unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded()
         // T2.1 (H1): retain the paused player across short stops for VOD/Debrid so
         // Home→return resumes instantly instead of a 1-3s cold reconnect. LIVE still
         // releases: on max_connections=1 Xtream servers a retained live connection
@@ -1897,14 +1754,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         }
     }
 
-    // Distance of refreshRate from the nearest integer multiple of frameRate (0 = judder-free).
-    internal fun startStallMonitor() {
-        stallDetector.reset(player?.currentPosition ?: 0L, SystemClock.elapsedRealtime())
-        freezeDetector.reset()
-        stallHandler.removeCallbacks(stallRunnable); stallHandler.postDelayed(stallRunnable, 5000)
-    }
-
-    private fun stopStallMonitor() = stallHandler.removeCallbacks(stallRunnable)
 
     override fun onDestroy() { super.onDestroy(); loaderUi.release(); dismissActiveTrackDialog(); liveOsd?.release(); historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_destroy"); PlaybackDiagnosticsRecorder.finishSession(this, "activity_destroyed") }
 
