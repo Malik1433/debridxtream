@@ -27,7 +27,7 @@ import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
  * move here.
  */
 internal class PlayerExitController(
-    private val activity: PlayerActivity,
+    private val activity: PlayerScreenFragment,
     private val session: PlayerSessionState,
 ) {
 
@@ -74,11 +74,11 @@ internal class PlayerExitController(
 
     fun setExitResultIfNeeded() { if (exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete) return; val pos = player?.currentPosition ?: lastPlaybackPositionMs; if (manualExit || pos < RETURN_TO_SOURCES_THRESHOLD_MS) { exitResultHandled = true; activity.setResult(Activity.RESULT_OK, buildReturnToSourcesIntent()) } }
 
-    fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean { if (!returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || exitResultHandled) return false; exitResultHandled = true; PlaybackDiagnosticsRecorder.record(activity, "return_to_sources", activity.diagnosticsPlaybackFields() + mapOf("reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(reason), "autoPlayNext" to autoPlayNext)); activity.setResult(Activity.RESULT_OK, buildFailedSourceReturnIntent(failedStreamId = debridStreamIdExtra ?: debridInfoHashExtra ?: contentId ?: currentUrl, reason = reason, autoPlayNext = autoPlayNext)); activity.releasePlayer("return_to_sources"); PlaybackDiagnosticsRecorder.finishSession(activity, "return_to_sources"); activity.finish(); return true }
+    fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean { if (!returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || exitResultHandled) return false; exitResultHandled = true; PlaybackDiagnosticsRecorder.record(activity.requireContext(), "return_to_sources", activity.diagnosticsPlaybackFields() + mapOf("reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(reason), "autoPlayNext" to autoPlayNext)); activity.setResult(Activity.RESULT_OK, buildFailedSourceReturnIntent(failedStreamId = debridStreamIdExtra ?: debridInfoHashExtra ?: contentId ?: currentUrl, reason = reason, autoPlayNext = autoPlayNext)); activity.releasePlayer("return_to_sources"); PlaybackDiagnosticsRecorder.finishSession(activity.requireContext(), "return_to_sources"); activity.finish(); return true }
 
     fun handleTerminalPlaybackFailure(reason: String, preferReturnToSources: Boolean) {
         PlaybackDiagnosticsRecorder.record(
-            activity,
+            activity.requireContext(),
             "terminal_failure",
             activity.diagnosticsPlaybackFields() + mapOf(
                 "reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(reason),
@@ -116,14 +116,14 @@ internal class PlayerExitController(
     private fun redirectToFailureDetail(reason: String): Boolean {
         if (playbackSource != PlaybackSource.DEBRID || contentType == ContentType.LIVE_TV || activity.isFinishing) return false
         val detailIntent = when (contentType) {
-            ContentType.MOVIE -> Intent(activity, MovieDetailActivity::class.java).apply {
+            ContentType.MOVIE -> Intent(activity.requireContext(), MovieDetailActivity::class.java).apply {
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, tmdbIdExtra ?: contentId ?: debridStreamIdExtra ?: debridInfoHashExtra)
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, originalTitle)
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, posterUrlExtra)
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, backdropUrlExtra)
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
             }
-            ContentType.SERIES, ContentType.EPISODE -> Intent(activity, SeriesDetailActivity::class.java).apply {
+            ContentType.SERIES, ContentType.EPISODE -> Intent(activity.requireContext(), SeriesDetailActivity::class.java).apply {
                 putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, activity.debridSeriesLookupId())
                 putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, seriesTitleExtra ?: originalTitle)
                 putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, posterUrlExtra)
@@ -139,7 +139,7 @@ internal class PlayerExitController(
         detailIntent.putExtra(PlayerActivity.EXTRA_OPENED_FROM_PLAYBACK_FAILURE, true)
         detailIntent.putExtra(PlayerActivity.EXTRA_FAIL_REASON, reason)
         activity.releasePlayer("failure_detail_redirect")
-        PlaybackDiagnosticsRecorder.finishSession(activity, "failure_detail_redirect")
+        PlaybackDiagnosticsRecorder.finishSession(activity.requireContext(), "failure_detail_redirect")
         activity.startActivity(detailIntent)
         activity.finish()
         return true

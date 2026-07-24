@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
  * `initializePlayer`, the live tuner's seamless switch) are reached on [activity].
  */
 internal class PlayerDebridCoordinator(
-    private val activity: PlayerActivity,
+    private val activity: PlayerScreenFragment,
     private val session: PlayerSessionState,
 ) {
 
@@ -117,7 +117,7 @@ internal class PlayerDebridCoordinator(
 
         when {
             isIptv -> {
-                val prefs = CredentialsPreferences(activity)
+                val prefs = CredentialsPreferences(activity.requireContext())
                 val server = prefs.getServerUrl()?.trimEnd('/')
                 val user = prefs.getUsername()
                 val pass = prefs.getPassword()

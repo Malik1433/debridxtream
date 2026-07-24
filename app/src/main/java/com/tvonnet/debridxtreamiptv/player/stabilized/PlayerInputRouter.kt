@@ -21,7 +21,7 @@ import com.tvonnet.debridxtreamiptv.data.model.ContentType
  * The classification rules themselves already live in `PlayerKeyRouting.kt` (P17).
  */
 internal class PlayerInputRouter(
-    private val activity: PlayerActivity,
+    private val activity: PlayerScreenFragment,
     private val session: PlayerSessionState,
 ) {
 

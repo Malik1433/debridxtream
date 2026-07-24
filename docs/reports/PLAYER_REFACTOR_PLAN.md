@@ -555,3 +555,45 @@ proven pattern, each device-verified):
 **Honest note:** P26 (Activity→Fragment) is the real risk cliff — Fire TV lifecycle, PiP is Activity-scoped,
 `onBackPressedDispatcher`, and the shared player all change ownership. It is done as ONE behaviour-preserving
 move (no Live/VOD split yet) so a regression is bisectable before the split in P27/P28.
+
+### P26 DONE (fresh session 2026-07-24) — Activity→Fragment split
+**`PlayerScreenFragment` (1620) holds the whole player body; `PlayerActivity` (201) is now a thin host.**
+PlayerActivity **1717 → 201** (well under the ≤600 guardrail — the Activity clears `LargeClass` outright).
+
+Design (kept the whole change compile-clean + behaviour-preserving; **device QA still pending**):
+- **PlayerActivity stays the launched Activity** — it keeps the companion (all `EXTRA_*` keys + the 38-param
+  `createIntent`), the manifest entry (singleTop, PiP, taskAffinity) and the `setResult`/finish contract. So
+  **all 14 external callers + the two detail-screen `startActivityForResult` return paths are byte-unchanged**
+  (nothing outside the package references the player except via `createIntent` / `EXTRA_*`). It hosts the
+  fragment in `android.R.id.content` (`replace(...).commitNow()` when `savedInstanceState == null`) and
+  forwards the five Activity-only callbacks the platform won't deliver to a Fragment: `finish()`
+  (→ `onHostFinishing()` runs the exit-result setters BEFORE `super.finish()`), `dispatchKeyEvent` /
+  `onKeyLongPress` (→ `hostDispatchKeyEvent`/`hostKeyLongPress`, null = pass to super), `onUserInteraction`,
+  `onPictureInPictureModeChanged`, `onTrimMemory`.
+- **The Fragment exposes compatibility forwarders** (`intent`, `supportActionBar`, `isFinishing`,
+  `isDestroyed`, `window`, `setResult`, `finish`, `getSystemService`, `findViewById`,
+  `overridePendingTransition`, `supportFragmentManager`) so all 15 `activity: PlayerActivity` collaborators
+  needed only a **ctor type flip → `PlayerScreenFragment`**; their bodies compiled 1:1. The only real
+  collaborator edits were the true-**Context** sites → `activity.requireContext()` (PlayerExitController ×6:
+  `record`/`finishSession`/`Intent`; a handful of `record(activity,…)` in EventListener/MediaItemFactory/
+  StallMonitor; `CredentialsPreferences`/`isLowRamDevice`/`AlertDialog.Builder`). `isInPictureInPictureMode`
+  bumped private→internal (Activity's public `isInPictureInPictureMode` no longer inherited).
+- **Lifecycle mapping:** `onCreate`+`setContentView` → `onCreateView` (inflates `activity_player`) +
+  `onViewCreated`; `this`-as-Context → `requireContext()`; `this`-as-Activity (EngineFactory/QoeTracker/
+  NextEpisodeManager/ChannelBrowser/Recovery ctor + `showAdoptedCoverFrame`) → `requireContext()`/
+  `requireActivity()`; `onBackPressedDispatcher.addCallback(this,…)` → `requireActivity()…addCallback(
+  viewLifecycleOwner,…)`; `windowManager`/`display` → `requireActivity().…`. `onTrimMemory` became
+  `onHostTrimMemory` (Fragment has no such callback). ExoPlayer/PlayerView lifecycle, the four landmines,
+  the shared-player hand-off (`performBackExit`/`handBackSharedPlayerIfNeeded`) and PiP all moved verbatim.
+- **Constants:** impl consts moved to the Fragment's private companion; `HTTP_429_COOLOFF_MS` moved to
+  `PlayerRecoveryController`'s companion (its owner per F1) + a private copy for the Fragment's media3 policy;
+  3 genuinely-dead consts (`MIN_PROGRESS_TO_TRACK_MS`/`MIN_DURATION_TO_TRACK_MS`/`COMPLETION_THRESHOLD_RATIO`,
+  unused in the Activity) dropped.
+- **Verification:** `compileDebugKotlin` ✅, full `:app:testDebugUnitTest` ✅, `:app:detekt` ✅. Baseline
+  **351 → 351 (net 0)** — pure relocation (PlayerActivity 13 baselined entries → 1, i.e. only `createIntent`'s
+  param-list; the other 12 re-keyed to `PlayerScreenFragment`: onViewCreated/initializePlayer/LargeClass/
+  TooManyFunctions/ComplexCondition×4/SwallowedException×2/refreshDirectDebrid).
+- **PENDING: device QA on a rebooted Fire TV** (the landmine gate — TS flags, TS LiveConfiguration,
+  first-frame AudioTrack, shared hand-off — PLUS PiP entry + 2-step VOD BACK + return-to-sources result +
+  live-return result). Not blind-drivable on the secure surface, so this needs the owner's real playback pass
+  before P26 is "accepted" and before P27/P28.

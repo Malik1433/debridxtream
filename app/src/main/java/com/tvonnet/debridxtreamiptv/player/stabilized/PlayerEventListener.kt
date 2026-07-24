@@ -23,7 +23,7 @@ import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
  * in `initializePlayer`) so `onTracksChanged` never re-reads prefs from disk.
  */
 internal class PlayerEventListener(
-    private val activity: PlayerActivity,
+    private val activity: PlayerScreenFragment,
     private val session: PlayerSessionState,
     private val isSoftwareAudioEnabled: Boolean,
 ) : Player.Listener {
@@ -86,7 +86,7 @@ internal class PlayerEventListener(
 
     override fun onPlaybackStateChanged(playbackState: Int) {
         PlaybackDiagnosticsRecorder.record(
-            activity,
+            activity.requireContext(),
             "player_state_changed",
             diagnosticsPlaybackFields() + mapOf(
                 "playerState" to PlaybackDiagnosticsRecorder.playerStateName(playbackState),
@@ -216,7 +216,7 @@ internal class PlayerEventListener(
         hideReconnectingBanner()
         maybeRecordDirectAddonProxySuccess()
         PlaybackDiagnosticsRecorder.record(
-            activity,
+            activity.requireContext(),
             "first_frame_rendered",
             diagnosticsPlaybackFields() + mapOf("positionMs" to (player?.currentPosition ?: 0L))
         )
@@ -228,7 +228,7 @@ internal class PlayerEventListener(
 
     override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
         PlaybackDiagnosticsRecorder.record(
-            activity,
+            activity.requireContext(),
             "track_discovery",
             diagnosticsPlaybackFields() + trackDiagnosticsFields(tracks)
         )

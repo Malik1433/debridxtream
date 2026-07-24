@@ -32,7 +32,7 @@ import java.util.Locale
  * views/viewModel/prefs for a narrow interface to buy anything).
  */
 internal class PlayerLiveTuner(
-    private val activity: PlayerActivity,
+    private val activity: PlayerScreenFragment,
     private val session: PlayerSessionState,
     private val timeoutHandler: Handler,
     private val timeoutRunnable: Runnable,

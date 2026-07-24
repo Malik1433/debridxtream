@@ -23,7 +23,7 @@ import com.tvonnet.debridxtreamiptv.util.DeviceProfile
  * the recovery controller / live tuner via [activity]. Bodies are byte-identical.
  */
 internal class PlayerStallMonitor(
-    private val activity: PlayerActivity,
+    private val activity: PlayerScreenFragment,
     private val session: PlayerSessionState,
 ) {
 
@@ -72,7 +72,7 @@ internal class PlayerStallMonitor(
     private fun checkForStall() {
         val p = player ?: return
         val now = SystemClock.elapsedRealtime()
-        val isLowRamDevice = DeviceProfile.isLowRamDevice(activity)
+        val isLowRamDevice = DeviceProfile.isLowRamDevice(activity.requireContext())
         val stallThresholdMs = if (isLowRamDevice) LOW_RAM_STALL_THRESHOLD_MS else STALL_THRESHOLD_MS
         val requiredStrikes = readyStallRequiredStrikes(isLowRamDevice)
         val currentPos = p.currentPosition
@@ -89,7 +89,7 @@ internal class PlayerStallMonitor(
             StallVerdict.PROGRESSING -> checkVideoRenderProgress(p, now)
             StallVerdict.IDLE -> Unit
             StallVerdict.WARNING -> PlaybackDiagnosticsRecorder.record(
-                activity,
+                activity.requireContext(),
                 "stall_warning",
                 diagnosticsPlaybackFields() + mapOf(
                     "positionMs" to currentPos,
@@ -100,7 +100,7 @@ internal class PlayerStallMonitor(
             )
             StallVerdict.STALLED -> {
                 PlaybackDiagnosticsRecorder.record(
-                    activity,
+                    activity.requireContext(),
                     "stall_triggered",
                     diagnosticsPlaybackFields() + mapOf(
                         "positionMs" to currentPos,
@@ -129,7 +129,7 @@ internal class PlayerStallMonitor(
         if (!freezeDetector.onTick(rendered, now, freezeThresholdMs)) return
 
         PlaybackDiagnosticsRecorder.record(
-            activity,
+            activity.requireContext(),
             "video_freeze_detected",
             diagnosticsPlaybackFields() + mapOf(
                 "positionMs" to p.currentPosition,

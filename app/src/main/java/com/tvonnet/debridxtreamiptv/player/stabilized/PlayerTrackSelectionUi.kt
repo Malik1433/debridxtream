@@ -16,7 +16,7 @@ import com.tvonnet.debridxtreamiptv.R
  * D-pad focus to its anchor button on dismiss. Bodies are byte-identical.
  */
 internal class PlayerTrackSelectionUi(
-    private val activity: PlayerActivity,
+    private val activity: PlayerScreenFragment,
     private val session: PlayerSessionState,
 ) {
 
@@ -63,7 +63,7 @@ internal class PlayerTrackSelectionUi(
             updateAspectLabel(mode)
             dialog.dismiss()
         }
-        dialog = androidx.appcompat.app.AlertDialog.Builder(activity, R.style.Theme_DebridXtream_CinematicDialog)
+        dialog = androidx.appcompat.app.AlertDialog.Builder(activity.requireContext(), R.style.Theme_DebridXtream_CinematicDialog)
             .setTitle("Aspect Ratio")
             .setAdapter(adapter, adapter.asDialogClickListener())
             .create()

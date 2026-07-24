@@ -15,7 +15,7 @@ import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
  * The gate is byte-identical; state via [session], the track manager via [activity].
  */
 internal class PlayerMediaItemFactory(
-    private val activity: PlayerActivity,
+    private val activity: PlayerScreenFragment,
     private val session: PlayerSessionState,
 ) {
 
@@ -67,7 +67,7 @@ internal class PlayerMediaItemFactory(
             builder.setSubtitleConfigurations(subtitleConfigs)
         }
         PlaybackDiagnosticsRecorder.record(
-            activity,
+            activity.requireContext(),
             "media_item_built",
             diagnosticsPlaybackFields(url, mimeHint = mimeHint) + mapOf(
                 "subtitleConfigCount" to subtitleConfigs.size
