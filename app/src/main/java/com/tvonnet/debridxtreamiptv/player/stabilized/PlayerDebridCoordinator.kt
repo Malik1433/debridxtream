@@ -148,6 +148,22 @@ internal class PlayerDebridCoordinator(
         }
     }
 
+    /**
+     * Start (or switch to) a freshly-resolved debrid URL. [performSeamlessSwitch] is the LIVE-TV
+     * zap optimisation: it REUSES the existing player and deliberately never re-binds the video
+     * surface ("Surface detachment race" on Android TV). Reusing that surface across a VOD episode
+     * change (a different file / codec / resolution) leaves the video renderer BLACK while audio
+     * plays. So VOD/movie/episode switches take the same clean full rebuild as a normal cold play
+     * (which renders video correctly); only LIVE keeps the seamless zap.
+     */
+    private fun startOrSwitchToResolvedUrl(url: String) {
+        if (player == null || contentType != ContentType.LIVE_TV) {
+            initializePlayer(url)
+        } else {
+            liveTuner.performSeamlessSwitch(url)
+        }
+    }
+
     fun observeDebridResolutionState() {
         lifecycleScope.launch {
             viewModel.debridResolutionState.collect { state ->
@@ -170,11 +186,7 @@ internal class PlayerDebridCoordinator(
                             hasRecordedHistory = false; activity.resetNextEpisodeStateIfInitialized()
                         }
                         currentUrl = state.url
-                        if (player == null) {
-                            initializePlayer(state.url)
-                        } else {
-                            liveTuner.performSeamlessSwitch(state.url)
-                        }
+                        startOrSwitchToResolvedUrl(state.url)
                     }
                     is DebridResolutionState.Error -> {
                         loaderUi.hide()
