@@ -215,6 +215,12 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
     }
     internal fun startStallMonitor() = stallMonitor.startStallMonitor()
     internal fun stopStallMonitor() = stallMonitor.stopStallMonitor()
+
+    /** P23: VOD title/poster/subtitle/quality chrome binder. */
+    private val metadataBinder: PlayerMetadataBinder by lazy {
+        PlayerMetadataBinder(this, session)
+    }
+    internal fun bindModernMetadata(title: String?) = metadataBinder.bindModernMetadata(title)
     /** P21: thin forwarder so C5's viewModel binder + setup still call renderOverlay here. */
     internal fun renderOverlay(state: PlayerOverlayUiState) = epgRenderer.renderOverlay(state)
 
@@ -1201,52 +1207,6 @@ class PlayerActivity : AppCompatActivity(), PlayerRecoveryController.RecoveryHos
         val result = contentType == ContentType.SERIES || contentType == ContentType.EPISODE || !seriesTitleExtra.isNullOrBlank()
         Log.d("PlayerActivity", "isSeriesEpisodePlayback: contentType=$contentType, seriesTitle=$seriesTitleExtra -> result=$result")
         return result
-    }
-
-    internal fun bindModernMetadata(title: String?) {
-        val posterView = playerView.findViewById<ImageView>(R.id.iv_player_poster)
-        val titleView = playerView.findViewById<TextView>(R.id.tv_player_title)
-        val subtitleView = playerView.findViewById<TextView>(R.id.tv_player_subtitle)
-        val qualityView = playerView.findViewById<TextView>(R.id.tv_player_quality)
-
-        posterView?.let { GlideUtils.loadMoviePoster(it, posterUrlExtra) }
-        
-        val displayTitle = if (playbackSource == PlaybackSource.DEBRID) {
-            cleanTitle(title ?: getString(R.string.app_name))
-        } else {
-            title ?: getString(R.string.app_name)
-        }
-        
-        titleView?.text = displayTitle
-        
-        val contentLabel = when (contentType) {
-            ContentType.MOVIE -> getString(R.string.label_movie)
-            ContentType.SERIES -> getString(R.string.label_series)
-            ContentType.EPISODE -> getString(R.string.label_episode)
-            else -> getString(R.string.label_video)
-        }
-        val sourceLabel = when (playbackSource) {
-            PlaybackSource.DEBRID -> getString(R.string.label_debrid)
-            PlaybackSource.IPTV -> getString(R.string.label_iptv)
-        }
-        
-        val subtitle = if (contentType == ContentType.EPISODE || contentType == ContentType.SERIES) {
-            val season = seasonNumberExtra
-            val episode = episodeNumberExtra
-            if (season != null && episode != null) {
-                "S${season} • E${episode} • $sourceLabel"
-            } else {
-                "$contentLabel • $sourceLabel"
-            }
-        } else {
-            "$contentLabel • $sourceLabel"
-        }
-        
-        subtitleView?.text = subtitle
-        qualityView?.apply {
-            text = debridQualityExtra
-            isVisible = !debridQualityExtra.isNullOrBlank()
-        }
     }
 
 
