@@ -66,6 +66,10 @@ internal class PlayerVodControlsUi(
         // dead-ends onto the GONE exo_play even before the first showControllerWithSmartFocus().
         installControllerSeekNavigation()
         val timeBar = playerView.findViewById<androidx.media3.ui.DefaultTimeBar>(R.id.exo_progress)
+        // Fixed 10s-per-press D-pad seek on the bar. media3's default is duration/20 per
+        // LEFT/RIGHT — ~6 MINUTES per press on a 2h movie, which is the "seek jumps way too
+        // far forward/back" instability. A constant 10s step makes repeated presses predictable.
+        timeBar?.setKeyTimeIncrement(10_000L)
         timeBar?.addListener(object : androidx.media3.ui.TimeBar.OnScrubListener {
             override fun onScrubStart(timeBar: androidx.media3.ui.TimeBar, position: Long) {
                 seekOverlay?.setFocusedVisual(true)
