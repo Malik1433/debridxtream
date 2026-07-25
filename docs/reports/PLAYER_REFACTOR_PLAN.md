@@ -527,6 +527,7 @@ THEN the structural split.** Every phase: verbatim move, own commit + push, dete
 | — | *Stage 1 done: Activity ~1650, six new ≤600 collaborators.* | | |
 | P26 | **Activity → single `PlayerScreenFragment` + thin host Activity.** Behaviour-preserving move of the whole body into ONE fragment; Activity keeps only intent→fragment + PiP/config forwarding. Re-verify the FOUR landmines + shared-player hand-off + PiP + 2-step BACK. | Activity ~140, Fragment ~1500 | HIGH |
 | P27 | Split `PlayerScreenFragment` → `BasePlayerFragment` + `LivePlayerFragment` (move the `contentType==LIVE_TV` branches down) | Base ~800, Live ~500 | HIGH (live) |
+| ~~P27-a~~ | ✅ **DONE + MERGED (`f85af19`)** — behaviour-preserving foundation: `PlayerScreenFragment` → `open BasePlayerFragment` + empty `LivePlayerFragment`/`VodPlayerFragment` subclasses (both `@AndroidEntryPoint`); thin host picks by `EXTRA_CONTENT_TYPE`. 15 collaborators re-typed. Base still branches on contentType internally → runtime identical (no reduction yet). compile+tests+detekt green, baseline 351→351. Device .64: live+VOD+series verified. (An AudioFlinger track-saturation freeze during QA was a device-firmware issue, NOT the refactor — the pre-refactor build froze identically.) | 1620 | done |
 | P28 | Split out `VodPlayerFragment` (movie/episode branches) → Base ≤600 | Base ≤600, Vod ~450 | HIGH (VOD) |
 
 **Landmine gate (unchanged, re-checked every live/VOD-touching phase):** TS extractor flags, TS
