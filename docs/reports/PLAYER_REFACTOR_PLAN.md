@@ -616,3 +616,54 @@ Design (kept the whole change compile-clean + behaviour-preserving; **device QA 
   first-frame AudioTrack, shared hand-off — PLUS PiP entry + 2-step VOD BACK + return-to-sources result +
   live-return result). Not blind-drivable on the secure surface, so this needs the owner's real playback pass
   before P26 is "accepted" and before P27/P28.
+
+---
+
+## Base → ≤600 roadmap (2026-07-25, after P28-a — base 1481)
+
+Written at the owner's request. The fragment split (P27/P28-a) is delivered; the base can no longer
+shrink via open hooks (see the **INFLECTION POINT** note above). This section maps what is left and gives a
+realistic phased plan to approach the ≤600 guardrail via **shared-scaffolding extraction into collaborators**
+(the P20–P26 pattern), with honest risk + a floor analysis.
+
+### What's actually in the 1481-line base (measured)
+
+| Bucket | ~lines | Movable? |
+|---|---|---|
+| imports | 80 | no (grows/shrinks with what's extracted) |
+| 21 collaborator `by lazy` fields (+ kdoc) | ~75 | no — siblings read `activity.<field>` |
+| 61 `by session::` state delegates | ~61 | no — shared mutable state, read by collaborators |
+| companion consts + host/Activity bridges + class scaffold | ~90 | no |
+| 49 `override fun` (Fragment lifecycle + RecoveryHost + host callbacks) | ~150 | mostly no (thin glue) |
+| `onViewCreated` orchestration (what's left after P27/P28-a) | ~113 | partly (small) |
+| **`debugSnapshot()`** + diagnostics + network-quality | ~200 | **YES — clean** |
+| **direct-debrid / addon-proxy** cluster | ~130 | **YES — medium** |
+| **display / codec** cluster (frame-rate match, DV, codec selector, black-video fallback) | ~90 | **YES — medium** |
+| **`initializePlayer`** engine-build cold-init | ~87 | YES — **high risk** |
+| remaining shared playback glue (seek, history hooks, recovery wiring, PiP) | ~200 | hard / high-risk |
+
+**Structural floor:** imports + fields + delegates + companion + lifecycle/host glue ≈ **430–550 lines that
+cannot leave** (collaborators reach back into them). So even after extracting *all* playback logic, the base
+bottoms out around **~550–650**. **≤600 is at/below that floor** — reachable only by extracting essentially
+everything (including the high-risk cold-init/recovery/lifecycle) and accepting some artificial collaborators.
+
+### Proposed phases (each: verbatim move → own collaborator → compile+tests+detekt → device QA via
+### diagnostics jsonl → commit+push, one phase per commit)
+
+| Phase | Extract → new collaborator | ~after | Risk | Notes |
+|---|---|---|---|---|
+| **S1** | `PlayerDebugReporter` — `debugSnapshot()` (116) + `diagnosticsPlaybackFields` (36) + `maybeUpdateNetworkQuality` (38) + debug listener/overlay wiring | ~1280 | **LOW** | debug/diagnostics only, off the playback-critical path — safest first win |
+| **S2** | `PlayerDirectDebridResolver` — `refreshDirectDebridSourceFromMetadata` (37) + `reResolveDebridUrl` + `recordDirectAddonProxyFailure` (18) + `maybeRecordDirectAddonProxySuccess` (21) + `requiresAddonProxyPlaybackContext` + `directAddonProxyTimeoutContext` + `canFreshResolveDirectDebrid` | ~1150 | **MED** | debrid-resume correctness; QA = Debrid movie/episode resume + expired-source path |
+| **S3** | `PlayerDisplayTuner` — `maybeMatchDisplayFrameRate` (32) + `isDolbyVisionDisplaySupported` + `dolbyVisionAwareCodecSelector` + `checkBlackVideoFallback` (26) + `captureManualTrackSelection` | ~1060 | **MED** | touches the black-video landmine + DV/codec; QA = 4K DV + mid-stream switch |
+| **S4** | `PlayerInitializer` — the `initializePlayer` engine-build cold-init block (~87) | ~975 | **HIGH** | cold-init hot path; landmine gate (TS flags, LiveConfiguration, first-frame AudioTrack) |
+| **S5+** | lifecycle/PiP/recovery-glue consolidation | 975→~800 | **HIGH** | diminishing returns, thin glue, hits the structural floor |
+
+### Honest recommendation
+
+- **S1–S3 are worth doing** — real reduction (~420 lines → base ~1060), mostly LOW/MED risk, same proven
+  pattern, each device-verifiable. This is the safe, high-value part.
+- **S4–S5 push into HIGH risk for shrinking returns** and run into the ~550–650 structural floor. Strict
+  **≤600 is likely not achievable without over-fragmenting** the cold-init/recovery/lifecycle core into
+  artificial collaborators — a net readability *loss*.
+- **Suggested target reset:** aim for **base ~950–1000 via S1–S3** and treat ≤600 as aspirational, OR raise
+  the detekt `LargeClass` guardrail for this file to a realistic number. Decide before starting S1.
