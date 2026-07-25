@@ -54,7 +54,7 @@ class SeriesSeasonUi(
     private val onPlayEpisode: (EpisodeUiModel) -> Unit,
 ) {
     private val seasonsAdapter: SeriesSeasonAdapter
-    private val cinEpisodeAdapter: CinEpisodeAdapter
+    private lateinit var cinEpisodeAdapter: CinEpisodeAdapter
 
     var currentDetail: XtreamSeriesDetailResponse? = null
         private set
