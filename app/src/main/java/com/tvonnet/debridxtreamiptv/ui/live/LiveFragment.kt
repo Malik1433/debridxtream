@@ -53,7 +53,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.ConcurrentHashMap
@@ -111,11 +110,8 @@ class LiveFragment : Fragment() {
     private var previewPlayerPanel: PreviewPlayerPanel? = null
     
     private val previewTimeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
-    private val topBarTimeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
-    private var tvHeaderCategory: TextView? = null
-    private var tvHeaderChannelCount: TextView? = null
-    private var tvHeaderClock: TextView? = null
-    private var clockJob: Job? = null
+    /** LF-1: top-bar header + minute clock (owns the 3 header views + clock job). */
+    private var headerController: LiveHeaderController? = null
     private var sidebarCategoryAdapter: SidebarCategoryAdapter? = null
 
     // v2: nav rail, the inline channel-search pill, and the Program Guide strip.
@@ -235,9 +231,6 @@ class LiveFragment : Fragment() {
         rvChannels = view.findViewById<RecyclerView>(R.id.rv_channels_horizontal)
             ?: error("Missing rv_channels_horizontal in fragment_live_3column")
         tvEmptyState = view.findViewById(R.id.tv_empty_state)
-        tvHeaderCategory = view.findViewById(R.id.tv_category_name)
-        tvHeaderChannelCount = view.findViewById(R.id.tv_channel_count)
-        tvHeaderClock = view.findViewById(R.id.tv_header_clock)
         chipSearch = view.findViewById(R.id.chip_search)
         etChannelSearch = view.findViewById(R.id.et_channel_search)
         tvSearchLabel = view.findViewById(R.id.tv_search_label)
@@ -250,7 +243,14 @@ class LiveFragment : Fragment() {
         llLoadingState = view.findViewById(R.id.ll_loading_state)
         tvLoadingMessage = view.findViewById(R.id.tv_loading_message)
 
-        startHeaderClock()
+        headerController = LiveHeaderController(
+            fragment = this,
+            tvHeaderCategory = view.findViewById(R.id.tv_category_name),
+            tvHeaderChannelCount = view.findViewById(R.id.tv_channel_count),
+            tvHeaderClock = view.findViewById(R.id.tv_header_clock),
+            favoritesCount = { favoritesCount },
+        )
+        headerController?.startHeaderClock()
         setupNavRail(view)
         setupSearchPill()
         setupEpgStrip()
@@ -439,7 +439,7 @@ class LiveFragment : Fragment() {
             favoritesJob?.cancel()
             epgUpdatesJob?.cancel()
             previewEpgRetryJob?.cancel()
-            clockJob?.cancel()
+            headerController?.cancel()
             guideEpgJob?.cancel()
             searchDebounceJob?.cancel()
             quickJumpJob?.cancel()
@@ -453,7 +453,7 @@ class LiveFragment : Fragment() {
             favoritesJob = null
             epgUpdatesJob = null
             previewEpgRetryJob = null
-            clockJob = null
+            headerController = null
             guideEpgJob = null
             searchDebounceJob = null
             quickJumpJob = null
@@ -484,9 +484,6 @@ class LiveFragment : Fragment() {
         // previewPlayerPanel is nulled, so we rely on LifecycleOwner cleaning up observers
         
         // Null out view references removed from variables list
-        tvHeaderCategory = null
-        tvHeaderChannelCount = null
-        tvHeaderClock = null
         chipSearch = null
         etChannelSearch = null
         tvSearchLabel = null
@@ -531,7 +528,7 @@ class LiveFragment : Fragment() {
                             state.categoryChannelCounts + (FAVORITES_CATEGORY_ID to favoritesCount)
                         )
                         if (state.selectedCategoryId == FAVORITES_CATEGORY_ID) {
-                            updateHeaderInfo(state)
+                            headerController?.updateHeaderInfo(state)
                         }
                     }
                 }
@@ -836,7 +833,7 @@ class LiveFragment : Fragment() {
             hideEmptyState()
         }
 
-        updateHeaderInfo(state)
+        headerController?.updateHeaderInfo(state)
         restoreInitialFocusIfNeeded(state)
 
         // Channels are now handled by PagingAdapter
@@ -1472,27 +1469,6 @@ class LiveFragment : Fragment() {
     }
 
     /** v2's header is just a clock — the old top bar's weather/profile/search chrome is gone. */
-    private fun startHeaderClock() {
-        clockJob?.cancel()
-        clockJob = viewLifecycleOwner.lifecycleScope.launch {
-            // Phase 4: only tick while the fragment is at least STARTED — the clock was updating
-            // the (invisible) header text every minute even while STOPPED. repeatOnLifecycle
-            // cancels the loop on STOP and restarts it (with a fresh time) on re-START.
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                while (isActive) {
-                    tvHeaderClock?.text = topBarTimeFormatter.format(Date())
-                    delay(millisUntilNextMinute())
-                }
-            }
-        }
-    }
-
-    private fun millisUntilNextMinute(): Long {
-        val now = System.currentTimeMillis()
-        val remainder = now % 60_000L
-        return if (remainder == 0L) 60_000L else 60_000L - remainder
-    }
-
     private fun setupNavRail(view: View) {
         navRail = LiveNavRail(
             host = this,
@@ -1623,28 +1599,6 @@ class LiveFragment : Fragment() {
                     rvEpgStrip?.updatePreservingFocus { epgStripAdapter?.submitList(programs) }
                 }
             }
-        }
-    }
-
-    /** v2 list header: "<CATEGORY> CHANNELS" plus an "N LIVE" pill. */
-    private fun updateHeaderInfo(state: LiveUiState) {
-        if (state.selectedCategoryId == FAVORITES_CATEGORY_ID) {
-            tvHeaderCategory?.text =
-                getString(R.string.livev2_category_channels_format, getString(R.string.favorites))
-            tvHeaderChannelCount?.text = getString(R.string.livev2_channel_count_format, favoritesCount)
-            return
-        }
-
-        val selectedCategory = state.categories.firstOrNull { it.category_id == state.selectedCategoryId }
-        val categoryName = selectedCategory?.category_name?.takeIf { it.isNotBlank() }
-            ?: getString(R.string.live_category_placeholder)
-        tvHeaderCategory?.text = getString(R.string.livev2_category_channels_format, categoryName)
-
-        val selectedId = state.selectedCategoryId
-        val knownCount = selectedId?.let { id -> state.categoryChannelCounts[id] }
-        tvHeaderChannelCount?.text = when {
-            knownCount != null -> getString(R.string.livev2_channel_count_format, knownCount)
-            else -> getString(R.string.live_channel_count_placeholder)
         }
     }
 
