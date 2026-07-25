@@ -626,47 +626,6 @@ class MovieDetailActivity : AppCompatActivity() {
         }
     }
 
-    /** Formats a millisecond duration as a clock: "1:12:34" / "12:34". */
-    private fun formatResumeTime(milliseconds: Long): String {
-        val totalSeconds = milliseconds.coerceAtLeast(0L) / 1000L
-        val hours = totalSeconds / 3600
-        val minutes = (totalSeconds % 3600) / 60
-        val seconds = totalSeconds % 60
-        return if (hours > 0) {
-            String.format(java.util.Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
-        } else {
-            String.format(java.util.Locale.US, "%d:%02d", minutes, seconds)
-        }
-    }
-
-    /** Picks a content/age certification, preferring US then GB, else the first available. */
-    private fun extractCertification(
-        releaseDates: com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbReleaseDatesResponse?
-    ): String? {
-        val results = releaseDates?.results ?: return null
-        fun certFor(country: String): String? = results
-            .firstOrNull { it.countryCode.equals(country, ignoreCase = true) }
-            ?.releaseDates
-            ?.mapNotNull { it.certification?.trim() }
-            ?.firstOrNull { it.isNotBlank() }
-        return certFor("US")
-            ?: certFor("GB")
-            ?: results.flatMap { it.releaseDates ?: emptyList() }
-                .mapNotNull { it.certification?.trim() }
-                .firstOrNull { it.isNotBlank() }
-    }
-
-    private fun formatDurationCompact(duration: String): String {
-        val seconds = duration.toLongOrNull()
-        return if (seconds != null) {
-            val hours = seconds / 3600
-            val minutes = (seconds % 3600) / 60
-            if (hours > 0) "${hours}H ${minutes}M" else "${minutes}M"
-        } else {
-            duration
-        }
-    }
-
     private fun displayRating(rating: Double) {
         val stars = (rating / 2.0).coerceAtLeast(0.0).toInt().coerceAtMost(5)
         val starString = "★".repeat(stars) + "☆".repeat(5 - stars)
@@ -1024,16 +983,6 @@ class MovieDetailActivity : AppCompatActivity() {
         // Update quality badge
         tvQualityBadge.text = bestQuality.uppercase()
         tvQualityBadge.visibility = View.VISIBLE
-    }
-
-    private fun formatSizeLabel(sizeBytes: Long): String {
-        val gb = 1024.0 * 1024.0 * 1024.0
-        val mb = 1024.0 * 1024.0
-        return if (sizeBytes >= gb) {
-            String.format(java.util.Locale.US, "%.1f GB", sizeBytes / gb)
-        } else {
-            String.format(java.util.Locale.US, "%.0f MB", sizeBytes / mb)
-        }
     }
 
     private fun setupClickListeners() {
