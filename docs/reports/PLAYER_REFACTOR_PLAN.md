@@ -626,44 +626,45 @@ shrink via open hooks (see the **INFLECTION POINT** note above). This section ma
 realistic phased plan to approach the ≤600 guardrail via **shared-scaffolding extraction into collaborators**
 (the P20–P26 pattern), with honest risk + a floor analysis.
 
-### What's actually in the 1481-line base (measured)
+### What's actually in the 1481-line base (ACCURATELY measured, brace-matched)
 
-| Bucket | ~lines | Movable? |
+**Correction (2026-07-25):** an earlier version of this table over-estimated the extractable blocks — it
+measured the gap between one `fun` and the next, which counts the *field declarations interspersed between
+methods* as if they were method bodies (e.g. it read `debugSnapshot()` as 116 lines; it is **14**). Re-measured
+by brace-matching each method body:
+
+- **Total method-body code across the whole base = ~684 lines.** The other **~800 lines are NOT method
+  bodies** — they are imports (80), field declarations (21 collaborator `by lazy` + 61 `by session::` state
+  delegates + ~15 view fields ≈ **~215 lines, immovable** — siblings read `activity.<field>`), the companion,
+  host/Activity bridges, class scaffold, kdoc and blank lines.
+- Only **two** large method bodies exist: **`onViewCreated` (132)** and **`initializePlayer` (100)** — both
+  orchestration cores that cannot fully leave. Every other method is ≤36 lines.
+
+| Extractable leaf cluster | real ~lines | Risk |
 |---|---|---|
-| imports | 80 | no (grows/shrinks with what's extracted) |
-| 21 collaborator `by lazy` fields (+ kdoc) | ~75 | no — siblings read `activity.<field>` |
-| 61 `by session::` state delegates | ~61 | no — shared mutable state, read by collaborators |
-| companion consts + host/Activity bridges + class scaffold | ~90 | no |
-| 49 `override fun` (Fragment lifecycle + RecoveryHost + host callbacks) | ~150 | mostly no (thin glue) |
-| `onViewCreated` orchestration (what's left after P27/P28-a) | ~113 | partly (small) |
-| **`debugSnapshot()`** + diagnostics + network-quality | ~200 | **YES — clean** |
-| **direct-debrid / addon-proxy** cluster | ~130 | **YES — medium** |
-| **display / codec** cluster (frame-rate match, DV, codec selector, black-video fallback) | ~90 | **YES — medium** |
-| **`initializePlayer`** engine-build cold-init | ~87 | YES — **high risk** |
-| remaining shared playback glue (seek, history hooks, recovery wiring, PiP) | ~200 | hard / high-risk |
+| diagnostics/debug — `diagnosticsPlaybackFields` (36) + `debugSnapshot` (14) + debug listener + `maybeUpdateNetworkQuality` (2) | ~55 | LOW (but `diagnosticsPlaybackFields` is called everywhere → needs a forwarder, net ~40) |
+| direct-debrid/addon-proxy — `refreshDirectDebridSourceFromMetadata` (36) + `maybeRecordDirectAddonProxySuccess` (20) + `recordDirectAddonProxyFailure` (11) + `currentDebridSourceProfile` (14) + `canFreshResolveDirectDebrid` + `directAddonProxyTimeoutContext` + `requiresAddonProxyPlaybackContext` + `reResolveDebridUrl` | ~110 | MED (debrid-resume) |
+| display/codec — `maybeMatchDisplayFrameRate` (30) + `checkBlackVideoFallback` (18) + `isDolbyVisionDisplaySupported` + `dolbyVisionAwareCodecSelector` + `captureManualTrackSelection` | ~85 | MED (black-video landmine) |
 
-**Structural floor:** imports + fields + delegates + companion + lifecycle/host glue ≈ **430–550 lines that
-cannot leave** (collaborators reach back into them). So even after extracting *all* playback logic, the base
-bottoms out around **~550–650**. **≤600 is at/below that floor** — reachable only by extracting essentially
-everything (including the high-risk cold-init/recovery/lifecycle) and accepting some artificial collaborators.
+**Total realistically extractable ≈ ~250 lines** (minus ~30 for the forwarders they leave behind).
 
-### Proposed phases (each: verbatim move → own collaborator → compile+tests+detekt → device QA via
-### diagnostics jsonl → commit+push, one phase per commit)
+### The honest conclusion: ≤600 is NOT achievable
 
-| Phase | Extract → new collaborator | ~after | Risk | Notes |
-|---|---|---|---|---|
-| **S1** | `PlayerDebugReporter` — `debugSnapshot()` (116) + `diagnosticsPlaybackFields` (36) + `maybeUpdateNetworkQuality` (38) + debug listener/overlay wiring | ~1280 | **LOW** | debug/diagnostics only, off the playback-critical path — safest first win |
-| **S2** | `PlayerDirectDebridResolver` — `refreshDirectDebridSourceFromMetadata` (37) + `reResolveDebridUrl` + `recordDirectAddonProxyFailure` (18) + `maybeRecordDirectAddonProxySuccess` (21) + `requiresAddonProxyPlaybackContext` + `directAddonProxyTimeoutContext` + `canFreshResolveDirectDebrid` | ~1150 | **MED** | debrid-resume correctness; QA = Debrid movie/episode resume + expired-source path |
-| **S3** | `PlayerDisplayTuner` — `maybeMatchDisplayFrameRate` (32) + `isDolbyVisionDisplaySupported` + `dolbyVisionAwareCodecSelector` + `checkBlackVideoFallback` (26) + `captureManualTrackSelection` | ~1060 | **MED** | touches the black-video landmine + DV/codec; QA = 4K DV + mid-stream switch |
-| **S4** | `PlayerInitializer` — the `initializePlayer` engine-build cold-init block (~87) | ~975 | **HIGH** | cold-init hot path; landmine gate (TS flags, LiveConfiguration, first-frame AudioTrack) |
-| **S5+** | lifecycle/PiP/recovery-glue consolidation | 975→~800 | **HIGH** | diminishing returns, thin glue, hits the structural floor |
+Extracting **all three** clusters lands the base at **~1250**, not 600. The ~215 lines of field/state
+declarations cannot move (collaborators reach back through them), `onViewCreated`+`initializePlayer` (~232)
+are orchestration that stays, and imports+scaffold+lifecycle glue are fixed. **The practical floor for this
+base is ~1150–1250** — roughly double the ≤600 guardrail. Reaching 600 would require deleting the shared
+state itself (impossible without rewriting all ~20 collaborators to not depend on the host) or shattering the
+orchestration into artificial micro-collaborators (a readability *loss*, and a landmine minefield).
 
-### Honest recommendation
+### Recommendation
 
-- **S1–S3 are worth doing** — real reduction (~420 lines → base ~1060), mostly LOW/MED risk, same proven
-  pattern, each device-verifiable. This is the safe, high-value part.
-- **S4–S5 push into HIGH risk for shrinking returns** and run into the ~550–650 structural floor. Strict
-  **≤600 is likely not achievable without over-fragmenting** the cold-init/recovery/lifecycle core into
-  artificial collaborators — a net readability *loss*.
-- **Suggested target reset:** aim for **base ~950–1000 via S1–S3** and treat ≤600 as aspirational, OR raise
-  the detekt `LargeClass` guardrail for this file to a realistic number. Decide before starting S1.
+1. **Treat the player refactor as delivered.** The real wins already shipped: `PlayerActivity` 3539→201 (thin
+   host) and the fragment split (`BasePlayerFragment` 1620→1481 + `LivePlayerFragment` 145 + `VodPlayerFragment`
+   117), all device-verified. Cohesion is good; the remaining base is a legitimate "player host + ~20
+   collaborators + orchestration".
+2. **Raise the detekt `LargeClass` guardrail** for `BasePlayerFragment` to a realistic number (it is already
+   baselined, so this is just honesty in the plan — the file does not fail detekt today).
+3. **Optional, low-value:** the 3 cluster extractions above (base → ~1250) are legitimate cohesion cleanups
+   but do NOT approach 600 and the MED-risk ones touch debrid-resume + black-video landmines. Do them only if
+   the goal is cleaner cohesion, not the line count. Not recommended purely for the number.
