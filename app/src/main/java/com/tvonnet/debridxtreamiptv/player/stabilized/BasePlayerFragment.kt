@@ -3,7 +3,6 @@ package com.tvonnet.debridxtreamiptv.player.stabilized
 import android.app.ActivityManager
 import android.app.Dialog
 import android.content.Context
-import android.media.AudioManager
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
@@ -192,7 +191,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     }
 
     /** C3: debrid source panel + in-place source switch + resolution-state observer. */
-    private val debridCoordinator: PlayerDebridCoordinator by lazy {
+    internal val debridCoordinator: PlayerDebridCoordinator by lazy {
         PlayerDebridCoordinator(this, session)
     }
 
@@ -330,7 +329,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     }
 
     /** P19b: transport-control wiring (buttons + volume), actions stay here. */
-    private val transportButtons: PlayerTransportButtons by lazy {
+    internal val transportButtons: PlayerTransportButtons by lazy {
         PlayerTransportButtons(playerView, object : TransportActions {
             override fun onAudioSelection() = showAudioSelection()
             override fun onSubtitleSelection() = showSubtitleSelection()
@@ -626,6 +625,11 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     // absent.
     /** Live BACK: dismiss the OSD drawer / channel browser / EPG overlay in priority order. */
     protected open fun handleLiveBack(): Boolean = false
+    // P28-a: the VOD (movie/episode/series) counterpart of the live setup hooks — controller
+    // config + transport buttons + next-episode manager + series/debrid/x-ray wiring. Overridden
+    // only by VodPlayerFragment; a LIVE instance never reaches it (it takes the LIVE_TV branch).
+    /** VOD playback chrome + collaborators (the old `contentType != LIVE_TV` onViewCreated block). */
+    protected open fun setupVodPlayback(streamTitle: String?) {}
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -704,97 +708,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         if (contentType == ContentType.LIVE_TV) {
             observeLiveEpgAndState()
         } else {
-            playerView.useController = true
-            playerView.controllerAutoShow = true
-            playerView.controllerHideOnTouch = true
-            // Black-video-on-episode-switch fix: a mid-stream episode switch calls player.stop()
-            // (inside performSeamlessSwitch), which makes PlayerView drop the "shutter" (a black
-            // view) over the surface until a new frame renders. On this Amlogic HW path the
-            // shutter could stay black even though the new codec was already rendering frames
-            // (logcat: "Got First Frame Render" + a resolution change, yet a black screen). Keep
-            // the last frame across the reset instead of the black shutter — the new video simply
-            // replaces it. VOD only; LIVE has its own zap backdrop.
-            playerView.setKeepContentOnPlayerReset(true)
-            playerView.setControllerVisibilityListener(object : PlayerView.ControllerVisibilityListener {
-                override fun onVisibilityChanged(visibility: Int) {
-                    isControllerVisible = visibility == View.VISIBLE
-                    if (!isControllerVisible) {
-                        playerView.requestFocus()
-                    }
-                }
-            })
-            
-            player?.let { updatePlayPauseVisibility(playerView, it.isPlaying, isControllerVisible) }
-            bindModernMetadata(streamTitle)
-            setupInteractiveAnimations(playerView)
-            vodControls.setupSeekOverlay()
-
-            val isSeriesControls = contentType == ContentType.SERIES || contentType == ContentType.EPISODE
-            transportButtons.bind(isSeriesControls, isMovie = contentType == ContentType.MOVIE)
-            transportButtons.bindVolume(getSystemService(Context.AUDIO_SERVICE) as? AudioManager)
-            // VOD Player redesign: explicit horizontal focus chain so play/pause visibility
-            // swaps never trap focus (both exo_play & exo_pause share the same L/R links).
-            vodControls.wireControlFocus(isSeriesControls)
-
-            nextEpisodeManager = PlayerNextEpisodeManager(requireActivity(), playerView, object : PlayerNextEpisodeManager.Delegate {
-                override fun isPlaybackEligibleForPrompt(): Boolean {
-                    return contentType == ContentType.SERIES || contentType == ContentType.EPISODE
-                }
-                override fun getPlayerDuration(): Long = player?.duration ?: 0L
-                override fun getPlayerCurrentPosition(): Long = player?.currentPosition ?: 0L
-                override fun isPlayerPlaying(): Boolean = player?.isPlaying ?: false
-                override fun getPlayer(): ExoPlayer? = player
-                override fun getSeriesFallbackPosterUrl(): String? =
-                    posterUrlExtra?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
-                        ?: backdropUrlExtra?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
-                override fun getNextEpisode(): com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2? {
-                    val state = viewModel.seriesPlaylistState.value
-                    return if (state?.hasNext == true) {
-                        state.originalList.getOrNull(state.currentIndex + 1)
-                    } else null
-                }
-                override fun onPlayNextEpisodeRequested() {
-                    seriesController.playNextEpisode()
-                }
-                override fun onNextEpisodePromptShown(nextEpisode: com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2) {
-                    if (playbackSource != PlaybackSource.DEBRID || contentType != ContentType.EPISODE) return
-                    val currentSeason = seasonNumberExtra ?: return
-                    val currentEpisode = episodeNumberExtra ?: return
-                    val tmdbId = debridSeriesLookupId().takeIf { it.isNotBlank() } ?: return
-                    val targetSeason = nextEpisode.seasonNumber.takeIf { it >= currentSeason } ?: currentSeason
-                    val targetEpisode = when {
-                        nextEpisode.seasonNumber == currentSeason && nextEpisode.episodeNumber > currentEpisode ->
-                            nextEpisode.episodeNumber
-                        nextEpisode.seasonNumber > currentSeason -> nextEpisode.episodeNumber
-                        else -> currentEpisode + 1
-                    }
-                    viewModel.preResolveNextDebridEpisode(
-                        seriesId = tmdbId,
-                        targetSeason = targetSeason,
-                        targetEpisode = targetEpisode,
-                        seriesTitle = seriesTitleExtra,
-                        infoHash = debridInfoHashExtra ?: debridStreamIdExtra,
-                        sourceProfile = currentDebridSourceProfile()
-                    )
-                }
-            })
-            nextEpisodeManager.setupViews()
-            seriesController.observeSeriesPlaylistState()
-            debridCoordinator.observeDebridResolutionState()
-            seriesController.setupEpisodeBrowser()
-
-            xrayController.bindToggle()
-
-            if (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE || contentType == ContentType.SERIES) {
-                viewModel.loadXRayMetadata(
-                    contentId = contentId,
-                    tmdbId = tmdbIdExtra ?: imdbIdExtra,
-                    isMovie = contentType == ContentType.MOVIE,
-                    title = originalTitle
-                )
-            }
-
-            viewModelBinder.observeXrayMetadata()
+            setupVodPlayback(streamTitle)
         }
 
         if (canFreshResolveDirectDebrid && isExpired) {
@@ -887,7 +801,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         epgRenderer.renderLastState()
     }
 
-    private lateinit var nextEpisodeManager: PlayerNextEpisodeManager
+    internal lateinit var nextEpisodeManager: PlayerNextEpisodeManager
 
     // Standard TV BACK: armed after 1st BACK hides the controller, so the 2nd BACK exits
     // even if media3 auto-re-shows the controller (e.g. while paused). Disarmed on explicit show.
