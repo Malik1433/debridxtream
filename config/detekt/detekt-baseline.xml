@@ -79,8 +79,8 @@
     <ID>CyclomaticComplexMethod:LanguageParser.kt$LanguageParser$fun extractLanguages(title: String?): List&lt;String&gt;</ID>
     <ID>CyclomaticComplexMethod:LanguageParser.kt$LanguageParser$fun getLanguageFlag(languages: List&lt;String&gt;): String</ID>
     <ID>CyclomaticComplexMethod:LicenseManager.kt$LicenseManager$fun start()</ID>
+    <ID>CyclomaticComplexMethod:LiveEpgPreviewController.kt$LiveEpgPreviewController$fun maybeRestorePreviewFromState(state: LiveUiState)</ID>
     <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
-    <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$private fun maybeRestorePreviewFromState(state: LiveUiState)</ID>
     <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$private fun observeViewModel()</ID>
     <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$private fun restoreInitialFocusIfNeeded(state: LiveUiState)</ID>
     <ID>CyclomaticComplexMethod:LiveNavRail.kt$LiveNavRail$private fun setExpanded(value: Boolean)</ID>
@@ -278,6 +278,7 @@
     <ID>LongParameterList:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$( sourceType: String, imdbId: String?, title: String?, yearHint: String?, releaseYear: Int?, contentType: ContentType )</ID>
     <ID>LongParameterList:EpgGridView.kt$EpgGridView$( canvas: Canvas, p: GuideProgram, left: Float, top: Float, right: Float, bottom: Float )</ID>
     <ID>LongParameterList:HomeViewModel.kt$HomeViewModel$( private val repository: XtreamRepository, private val tmdbRemoteDataSource: TmdbRemoteDataSource, private val debridPrefs: DebridPreferences, private val homePrefs: HomePreferences, private val credentialsPrefs: CredentialsPreferences, private val watchHistoryPrefs: WatchHistoryPreferences, private val seriesDaoV2: SeriesDaoV2, private val episodeDaoV2: EpisodeDaoV2, @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context )</ID>
+    <ID>LongParameterList:LiveEpgPreviewController.kt$LiveEpgPreviewController$( private val fragment: Fragment, private val viewModel: LiveViewModel, private val repository: XtreamRepository, private val rvChannels: RecyclerView, private val rvEpgStrip: RecyclerView?, private val tvEpgStripSubtitle: TextView?, private val channelPagingAdapter: ChannelPagingAdapter, private val previewPanel: () -&gt; PreviewPlayerPanel?, private val onFocusChannel: (Int) -&gt; Unit, private val onUpdateFavoriteButton: (XtreamStream?) -&gt; Unit, private val isPreviewRestored: () -&gt; Boolean, private val markPreviewRestored: () -&gt; Unit, )</ID>
     <ID>LongParameterList:LiveNavRail.kt$LiveNavRail.RailAdapter.Holder$( item: RailItem, isActive: Boolean, labelsVisible: Boolean, onFocusChanged: (Boolean) -&gt; Unit, onDpadRight: () -&gt; Boolean, onSelected: (String) -&gt; Unit )</ID>
     <ID>LongParameterList:LivePlayerOsdManager.kt$LivePlayerOsdManager$( private val root: View, private val playerView: PlayerView, private val playerProvider: () -&gt; Player?, private val onRequestGuideData: (Long, Long) -&gt; Unit, private val onTuneChannel: (Int) -&gt; Unit, private val onToggleFavorite: () -&gt; Unit, private val onCategorySelected: (String) -&gt; Unit )</ID>
     <ID>LongParameterList:LiveSearchController.kt$LiveSearchController$( private val fragment: Fragment, private val viewModel: LiveViewModel, private val chipSearch: View?, private val etChannelSearch: EditText?, private val tvSearchLabel: TextView?, private val onChipQueryChanged: (String) -&gt; Unit, private val chipQueryIsNotEmpty: () -&gt; Boolean, private val onFocusDownToChannels: () -&gt; Unit, )</ID>
@@ -339,6 +340,7 @@
     <ID>SwallowedException:EpgSyncWorker.kt$EpgSyncWorker$e: kotlinx.coroutines.CancellationException</ID>
     <ID>SwallowedException:GlobalCrashHandler.kt$GlobalCrashHandler$e: Exception</ID>
     <ID>SwallowedException:HomeScreenModels.kt$e: Exception</ID>
+    <ID>SwallowedException:LiveEpgPreviewController.kt$LiveEpgPreviewController$e: CancellationException</ID>
     <ID>SwallowedException:LiveFragment.kt$LiveFragment$e: CancellationException</ID>
     <ID>SwallowedException:LoginFragment.kt$LoginFragment$e: Exception</ID>
     <ID>SwallowedException:MovieDetailViewModelV2.kt$MovieDetailViewModelV2$e: Exception</ID>

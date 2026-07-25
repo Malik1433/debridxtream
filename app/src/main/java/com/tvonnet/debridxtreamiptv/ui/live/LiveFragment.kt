@@ -34,7 +34,6 @@ import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
 import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
 import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
-import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.favorites.FavoritesFragment
@@ -45,7 +44,6 @@ import com.tvonnet.debridxtreamiptv.util.FAVORITES_CATEGORY_ID
 import com.tvonnet.debridxtreamiptv.util.GlideUtils
 import com.tvonnet.debridxtreamiptv.utils.RecyclerViewAnimations
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
-import com.tvonnet.debridxtreamiptv.utils.updatePreservingFocus
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
@@ -76,10 +74,6 @@ class LiveFragment : Fragment() {
         // Quick-jump timings: commit a typed number after a pause; flash the type-ahead letter.
         private const val QUICK_JUMP_COMMIT_MS = 900L
         private const val QUICK_JUMP_LETTER_MS = 700L
-        // EPG batch-warm window: rows above/below the viewport to prefetch, and the count to
-        // warm before the list has been laid out (initial load).
-        private const val EPG_WARM_BUFFER = 6
-        private const val EPG_WARM_INITIAL_COUNT = 15
     }
 
     @Inject
@@ -113,10 +107,8 @@ class LiveFragment : Fragment() {
     private var navRail: LiveNavRail? = null
     /** LF-2: the inline channel-search pill (owns the search views + debounce job). */
     private var searchController: LiveSearchController? = null
-    private var rvEpgStrip: RecyclerView? = null
-    private var tvEpgStripSubtitle: TextView? = null
-    private var guideEpgJob: Job? = null
-    private var epgStripAdapter: LiveEpgStripAdapter? = null
+    /** LF-3: EPG preview + Program-Guide strip + now/next warm (owns the EPG jobs + guide adapter). */
+    private var epgController: LiveEpgPreviewController? = null
     // Quick-jump: number-zap (type a channel number) + A–Z type-ahead (press a letter).
     private var tvQuickJump: TextView? = null
     private val quickJumpBuffer = StringBuilder()
@@ -132,13 +124,7 @@ class LiveFragment : Fragment() {
     private var pagedChannelsJob: Job? = null
     private var loadStateJob: Job? = null
     private var navigationJob: Job? = null
-    private var epgPrimeJob: Job? = null
     private var favoritesJob: Job? = null
-    private var epgUpdatesJob: Job? = null
-    private var previewEpgRetryJob: Job? = null
-
-    private var currentPreviewEpgKey: String? = null
-    private var currentPreviewStreamId: String? = null
 
     private val favoriteStreamIds = ConcurrentHashMap.newKeySet<String>()
     private var favoritesCount: Int = 0
@@ -149,7 +135,6 @@ class LiveFragment : Fragment() {
     // other Live theme.
     private var categoryChipQuery: String = ""
     private var pendingChannelFocusPosition: Int? = null
-    private var lastEpgWarmupSignature: String? = null
 
     private val livePlayerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -224,8 +209,6 @@ class LiveFragment : Fragment() {
         rvChannels = view.findViewById<RecyclerView>(R.id.rv_channels_horizontal)
             ?: error("Missing rv_channels_horizontal in fragment_live_3column")
         tvEmptyState = view.findViewById(R.id.tv_empty_state)
-        rvEpgStrip = view.findViewById(R.id.rv_epg_strip)
-        tvEpgStripSubtitle = view.findViewById(R.id.tv_epg_strip_subtitle)
         tvQuickJump = view.findViewById(R.id.tv_quick_jump)
         btnWatch = view.findViewById(R.id.btn_fullscreen)
 
@@ -253,8 +236,22 @@ class LiveFragment : Fragment() {
             onFocusDownToChannels = { focusChannelItem(0) },
         )
         searchController?.setup()
-        setupEpgStrip()
-        
+        epgController = LiveEpgPreviewController(
+            fragment = this,
+            viewModel = viewModel,
+            repository = repository,
+            rvChannels = rvChannels,
+            rvEpgStrip = view.findViewById(R.id.rv_epg_strip),
+            tvEpgStripSubtitle = view.findViewById(R.id.tv_epg_strip_subtitle),
+            channelPagingAdapter = channelPagingAdapter,
+            previewPanel = { previewPlayerPanel },
+            onFocusChannel = { position -> focusChannelItem(position) },
+            onUpdateFavoriteButton = { stream -> updateFavoriteButtonState(stream) },
+            isPreviewRestored = { didRestorePreviewForThisView },
+            markPreviewRestored = { didRestorePreviewForThisView = true },
+        )
+        epgController?.setupEpgStrip()
+
         // Initialize PreviewPlayerPanel
         previewPlayerPanel = PreviewPlayerPanel(
             requireContext(),
@@ -354,7 +351,7 @@ class LiveFragment : Fragment() {
         // one DB query per visible window rather than a get_short_epg call per row).
         rvChannels.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                if (newState == RecyclerView.SCROLL_STATE_IDLE) warmVisibleEpgCache()
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) epgController?.warmVisibleEpgCache()
             }
         })
 
@@ -392,8 +389,8 @@ class LiveFragment : Fragment() {
         // Observe ViewModel state
         observeViewModel()
         observeFavorites()
-        observeEpgUpdates()
-        primeEpgData()
+        epgController?.observeEpgUpdates()
+        epgController?.primeEpgData()
     }
 
     override fun onResume() {
@@ -407,7 +404,7 @@ class LiveFragment : Fragment() {
             blockCategoryFocusForReturnRestore()
             restoreFocusGrid()
         }
-        maybeRestorePreviewFromState(state)
+        epgController?.maybeRestorePreviewFromState(state)
         restoreChannelFocusIfNeeded()
         lastChannelLoadStates?.let { renderChannelLoadState(it) }
         viewModel.onEvent(LiveEvent.ConsumeReturnFromFullscreen)
@@ -435,13 +432,10 @@ class LiveFragment : Fragment() {
             pagedChannelsJob?.cancel()
             loadStateJob?.cancel()
             navigationJob?.cancel()
-            epgPrimeJob?.cancel()
             favoritesJob?.cancel()
-            epgUpdatesJob?.cancel()
-            previewEpgRetryJob?.cancel()
             headerController?.cancel()
-            guideEpgJob?.cancel()
             searchController?.cancel()
+            epgController?.cancel()
             quickJumpJob?.cancel()
 
             // Clear job references
@@ -449,13 +443,10 @@ class LiveFragment : Fragment() {
             pagedChannelsJob = null
             loadStateJob = null
             navigationJob = null
-            epgPrimeJob = null
             favoritesJob = null
-            epgUpdatesJob = null
-            previewEpgRetryJob = null
             headerController = null
-            guideEpgJob = null
             searchController = null
+            epgController = null
             quickJumpJob = null
             quickJumpBuffer.setLength(0)
             tvQuickJump = null
@@ -484,7 +475,6 @@ class LiveFragment : Fragment() {
         // previewPlayerPanel is nulled, so we rely on LifecycleOwner cleaning up observers
         
         // Null out view references removed from variables list
-        tvEpgStripSubtitle = null
         btnWatch = null
 
         try {
@@ -498,9 +488,6 @@ class LiveFragment : Fragment() {
         try {
             rvChannels.adapter = null
             rvCategories.adapter = null
-            rvEpgStrip?.adapter = null
-            rvEpgStrip = null
-            epgStripAdapter = null
             sidebarCategoryAdapter = null
             categoryAdapterSet = false
             favoriteStreamIds.clear()
@@ -537,78 +524,6 @@ class LiveFragment : Fragment() {
         }
     }
 
-    private fun observeEpgUpdates() {
-        epgUpdatesJob = viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                    EpgCache.updates.collect { channelKey ->
-                        notifyEpgUpdated(channelKey)
-                        if (channelKey == currentPreviewEpgKey) {
-                            val (now, next) = EpgCache.getEpgData(channelKey, currentPreviewStreamId)
-                            if (now != null || next != null) {
-                                previewPlayerPanel?.updateEpg(now, next)
-                            }
-                        }
-                    }
-                }
-            } catch (e: CancellationException) {
-                android.util.Log.d("LiveFragment", "EPG updates observation cancelled")
-            } catch (e: Exception) {
-                android.util.Log.e("LiveFragment", "Error observing EPG updates", e)
-            }
-        }
-    }
-
-    private fun updatePreviewEpg(stream: XtreamStream) {
-        val epgKey = stream.epg_channel_id?.takeIf { it.isNotBlank() } ?: stream.stream_id?.toString()
-        val streamId = stream.stream_id?.toString()
-        currentPreviewEpgKey = epgKey
-        currentPreviewStreamId = streamId
-        previewEpgRetryJob?.cancel()
-
-        // v2: the Program Guide strip follows whichever channel is previewing.
-        updateGuideStripHeader(stream)
-        viewModel.loadGuideEpg(epgKey)
-
-        if (epgKey.isNullOrBlank()) {
-            previewPlayerPanel?.updateEpg(null, null)
-            return
-        }
-
-        // Prime EPG fetch; if cache miss, EpgCache will refresh in background.
-        val (now, next) = EpgCache.getEpgData(epgKey, streamId)
-        if (now != null || next != null) {
-            previewPlayerPanel?.updateEpg(now, next)
-            return
-        }
-
-        // Avoid leaving "Syncing TV guide" forever: retry briefly, then show "no guide" placeholder.
-        previewEpgRetryJob = viewLifecycleOwner.lifecycleScope.launch {
-            repeat(10) {
-                delay(700)
-                val (retryNow, retryNext) = EpgCache.getEpgData(epgKey, streamId)
-                if (retryNow != null || retryNext != null) {
-                    previewPlayerPanel?.updateEpg(retryNow, retryNext)
-                    return@launch
-                }
-            }
-            // Still nothing: switch to "no EPG" state.
-            previewPlayerPanel?.updateEpg(null, null)
-        }
-    }
-
-    private fun notifyEpgUpdated(channelKey: String) {
-        // Update only items that match the updated key; no animations (rvChannels.itemAnimator = null).
-        val items = channelPagingAdapter.snapshot().items
-        if (items.isEmpty()) return
-        items.forEachIndexed { index, stream ->
-            val key = stream.epg_channel_id?.takeIf { it.isNotBlank() } ?: stream.stream_id?.toString()
-            if (key == channelKey) {
-                channelPagingAdapter.notifyItemChanged(index)
-            }
-        }
-    }
-    
     /**
      * Observe ViewModel StateFlow and navigation events with proper lifecycle management
      * Uses repeatOnLifecycle to prevent JobCancellationException issues
@@ -706,22 +621,6 @@ class LiveFragment : Fragment() {
                 android.util.Log.d("LiveFragment", "Navigation events observation cancelled")
             } catch (e: Exception) {
                 android.util.Log.e("LiveFragment", "Error observing navigation events", e)
-            }
-        }
-    }
-
-    private fun primeEpgData() {
-        epgPrimeJob = viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                // Avoid full XMLTV sync here (too heavy on many TV devices). We use short-EPG on-demand via EpgCache.
-                withContext(Dispatchers.IO) {
-                    runCatching { repository.clearOldEpg() }
-                    runCatching { EpgCache.cleanupStaleEntries() }
-                }
-            } catch (e: CancellationException) {
-                android.util.Log.d("LiveFragment", "EPG priming cancelled")
-            } catch (e: Exception) {
-                android.util.Log.e("LiveFragment", "Error priming EPG data", e)
             }
         }
     }
@@ -929,39 +828,6 @@ class LiveFragment : Fragment() {
         }
     }
 
-    /**
-     * Batch-warm now/next EPG for the currently visible window (+buffer) in one shot. Replaces
-     * the old per-row fetch that fired a get_short_epg HTTP call per channel and only ever
-     * covered the first 12. Re-runs as the list settles on a new window (see the scroll listener).
-     */
-    private fun warmVisibleEpgCache() {
-        if (!isAdded) return
-        val items = channelPagingAdapter.snapshot().items
-        if (items.isEmpty()) return
-
-        val lm = rvChannels.layoutManager as? LinearLayoutManager
-        val firstVisible = lm?.findFirstVisibleItemPosition() ?: 0
-        val lastVisible = lm?.findLastVisibleItemPosition() ?: -1
-        val start = (firstVisible - EPG_WARM_BUFFER).coerceAtLeast(0)
-        val end = (if (lastVisible >= 0) lastVisible + EPG_WARM_BUFFER else EPG_WARM_INITIAL_COUNT)
-            .coerceAtMost(items.size - 1)
-        if (end < start) return
-
-        val entries = (start..end).mapNotNull { i ->
-            val stream = items.getOrNull(i) ?: return@mapNotNull null
-            val epgId = stream.epg_channel_id?.takeIf { it.isNotBlank() }
-            val streamId = stream.stream_id
-            val cacheKey = epgId ?: streamId ?: return@mapNotNull null
-            EpgCache.WarmEntry(cacheKey = cacheKey, epgChannelId = epgId, streamId = streamId)
-        }
-        if (entries.isEmpty()) return
-
-        val signature = "${viewModel.uiState.value.selectedCategoryId.orEmpty()}:$start-$end"
-        if (signature == lastEpgWarmupSignature) return
-        lastEpgWarmupSignature = signature
-        EpgCache.warmNowNext(entries)
-    }
-
     private fun moveChannelFocusBy(delta: Int): Boolean {
         val itemCount = channelPagingAdapter.itemCount
         if (itemCount <= 0) return true
@@ -1098,54 +964,6 @@ class LiveFragment : Fragment() {
         return holder.bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }
     }
 
-    private fun maybeRestorePreviewFromState(state: LiveUiState) {
-        if (didRestorePreviewForThisView) return
-        if (!state.restoreFromFullscreenPending) return
-
-        val historyItem = runCatching {
-            WatchHistoryPreferences(requireContext()).getRecentLiveChannelsList().firstOrNull()
-        }.getOrNull()
-        val historyStreamId = historyItem?.channelId?.takeIf { it.isNotBlank() }
-        val streamId = historyStreamId ?: state.lastPlayedChannelId ?: return
-        val resolvedName = historyItem?.channelName?.takeIf { it.isNotBlank() } ?: state.lastPlayedChannelName
-        val resolvedLogo = historyItem?.channelLogo ?: state.lastPlayedChannelLogo
-        val resolvedEpgId = historyItem?.epgChannelId ?: state.lastPlayedEpgChannelId
-        val restoredStream = XtreamStream(
-            num = null,
-            name = resolvedName,
-            stream_type = "live",
-            stream_id = streamId,
-            stream_icon = resolvedLogo,
-            epg_channel_id = resolvedEpgId,
-            added = null,
-            category_id = state.selectedCategoryId,
-            category_ids = null,
-            container_extension = null,
-            custom_sid = null,
-            direct_source = null,
-            tv_archive = null,
-            tv_archive_duration = null
-        )
-
-        val sameStream = previewPlayerPanel?.getCurrentStream()?.stream_id == streamId
-        val isPlaying = previewPlayerPanel?.isPlaying() == true
-        if (!sameStream || !isPlaying) {
-            previewPlayerPanel?.play(restoredStream)
-        }
-        updatePreviewEpg(restoredStream)
-        updateFavoriteButtonState(restoredStream)
-        val shouldSyncHistory = historyItem != null && historyStreamId != null && (
-            historyStreamId != state.lastPlayedChannelId ||
-                (historyItem.channelName.isNotBlank() && historyItem.channelName != state.lastPlayedChannelName) ||
-                (historyItem.channelLogo != null && historyItem.channelLogo != state.lastPlayedChannelLogo) ||
-                (!historyItem.epgChannelId.isNullOrBlank() && historyItem.epgChannelId != state.lastPlayedEpgChannelId)
-            )
-        if (shouldSyncHistory) {
-            viewModel.onEvent(LiveEvent.RememberPreviewStream(restoredStream))
-        }
-        didRestorePreviewForThisView = true
-    }
-    
     /**
      * Navigate to PlayerActivity to play a stream
      * In 3-column: 1st click = preview, 2nd click = fullscreen
@@ -1158,7 +976,7 @@ class LiveFragment : Fragment() {
         } else {
             // First click: play in preview
             previewPlayerPanel?.play(stream)
-            updatePreviewEpg(stream)
+            epgController?.updatePreviewEpg(stream)
             viewModel.onEvent(LiveEvent.RememberPreviewStream(stream))
             updateFavoriteButtonState(stream)
         }
@@ -1245,7 +1063,7 @@ class LiveFragment : Fragment() {
 
         didRestorePreviewForThisView = true
         previewPlayerPanel?.play(returnedStream, streamUrl)
-        updatePreviewEpg(returnedStream)
+        epgController?.updatePreviewEpg(returnedStream)
         updateFavoriteButtonState(returnedStream)
         viewModel.onEvent(LiveEvent.RememberPreviewStream(returnedStream))
 
@@ -1395,7 +1213,7 @@ class LiveFragment : Fragment() {
                     showEmptyState(getString(R.string.live_no_channels))
                 } else {
                     hideEmptyState()
-                    warmVisibleEpgCache()
+                    epgController?.warmVisibleEpgCache()
                     restoreChannelFocusIfNeeded()
                 }
             }
@@ -1492,52 +1310,6 @@ class LiveFragment : Fragment() {
         return holder.bindingAdapterPosition == 0
     }
 
-    private fun setupEpgStrip() {
-        epgStripAdapter = LiveEpgStripAdapter(
-            onProgramClick = { program ->
-                // Tapping a guide card just surfaces its synopsis — the strip is informational.
-                val details = listOfNotNull(
-                    program.title?.takeIf { it.isNotBlank() },
-                    program.description?.takeIf { it.isNotBlank() }
-                ).joinToString("\n").ifBlank { getString(R.string.player_epg_no_guide) }
-                Toast.makeText(requireContext(), details, Toast.LENGTH_LONG).show()
-            },
-            onKey = { position, keyCode, event ->
-                if (event.action == KeyEvent.ACTION_DOWN &&
-                    keyCode == KeyEvent.KEYCODE_DPAD_LEFT &&
-                    position == 0
-                ) {
-                    focusChannelItem(viewModel.uiState.value.lastFocusedChannelPosition ?: 0)
-                    true
-                } else {
-                    false
-                }
-            }
-        )
-        rvEpgStrip?.apply {
-            layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-            itemAnimator = null
-            adapter = epgStripAdapter
-            isFocusable = false
-        }
-
-        guideEpgJob = viewLifecycleOwner.lifecycleScope.launch {
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.guideEpg.collect { programs ->
-                    // Refreshing a list under the D-pad is this app's classic focus thief.
-                    rvEpgStrip?.updatePreservingFocus { epgStripAdapter?.submitList(programs) }
-                }
-            }
-        }
-    }
-
-    private fun updateGuideStripHeader(stream: XtreamStream?) {
-        val name = stream?.name?.takeIf { it.isNotBlank() }
-            ?: getString(R.string.player_epg_channel_unknown)
-        tvEpgStripSubtitle?.text = getString(R.string.livev2_guide_subtitle_format, name)
-    }
-
-    
     private fun updateFavoriteButtonState(stream: XtreamStream?) {
         if (stream?.stream_id.isNullOrBlank()) {
              previewPlayerPanel?.setFavoriteState(false) // Or disable?
