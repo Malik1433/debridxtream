@@ -106,3 +106,19 @@ correct. No crash; no focus theft on refresh; no `.ts` freeze.
   Behaviour byte-identical. LiveFragment **~1665→1639**. Removed 3 now-unused imports (EditText/TextWatcher/
   Editable). Clean build green. Baseline 354→355 (+1 = the 8-param collaborator ctor `LongParameterList`
   only). Device .64 launch-stability + owner eyes-on QA PENDING.
+- **LF-3 DONE (`7f0586b`)** — `LiveEpgPreviewController` (297 lines): the EPG-preview + Program-Guide-strip
+  domain moved verbatim — `observeEpgUpdates`/`updatePreviewEpg`/`notifyEpgUpdated`/`primeEpgData`/
+  `warmVisibleEpgCache`/`setupEpgStrip`/`updateGuideStripHeader`/`maybeRestorePreviewFromState` + the EPG
+  jobs/keys/guide adapter/warm-signature + the `EPG_WARM_*` constants. Reaches back to the Fragment
+  (which keeps the shared preview/paging/focus state) via getters/callbacks: `previewPanel()`,
+  `onFocusChannel` (LF-6), `onUpdateFavoriteButton` (LF-5) and the return-restore flag
+  `isPreviewRestored`/`markPreviewRestored` (shared with LF-7's `handleLivePlayerResult`).
+  `updatePreviewEpg` is called by the Fragment's play/return paths. Constructed fresh in `onViewCreated`,
+  cancelled + nulled in `onDestroyView`. Behaviour byte-identical. LiveFragment **1639→1411** (−228).
+  Removed now-unused `WatchHistoryPreferences` + `updatePreservingFocus` imports. Clean build + unit tests
+  + detekt green. Baseline 355→357 (+2): the collaborator-ctor `LongParameterList` (accepted, as LF-2) and
+  one relocated `SwallowedException(CancellationException)` per-file key (verbatim, already an app-wide
+  tolerated pattern; LiveFragment still has the same swallow so its key stayed); the relocated
+  `CyclomaticComplexMethod` for `maybeRestorePreviewFromState` is net-zero. No genuinely-new violation
+  baselined. Device .64 launch-stability + owner eyes-on Live QA PENDING. **Next: LF-4** (category list +
+  chips + category-focus → `LiveCategoryController`).
