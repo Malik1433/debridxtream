@@ -3,13 +3,10 @@ package com.tvonnet.debridxtreamiptv.ui.live
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -83,8 +80,6 @@ class LiveFragment : Fragment() {
         // warm before the list has been laid out (initial load).
         private const val EPG_WARM_BUFFER = 6
         private const val EPG_WARM_INITIAL_COUNT = 15
-        /** Keystrokes on a TV remote arrive slowly; don't re-query the pager on every one. */
-        private const val SEARCH_DEBOUNCE_MS = 300L
     }
 
     @Inject
@@ -116,10 +111,8 @@ class LiveFragment : Fragment() {
 
     // v2: nav rail, the inline channel-search pill, and the Program Guide strip.
     private var navRail: LiveNavRail? = null
-    private var chipSearch: View? = null
-    private var etChannelSearch: EditText? = null
-    private var tvSearchLabel: TextView? = null
-    private var searchDebounceJob: Job? = null
+    /** LF-2: the inline channel-search pill (owns the search views + debounce job). */
+    private var searchController: LiveSearchController? = null
     private var rvEpgStrip: RecyclerView? = null
     private var tvEpgStripSubtitle: TextView? = null
     private var guideEpgJob: Job? = null
@@ -231,9 +224,6 @@ class LiveFragment : Fragment() {
         rvChannels = view.findViewById<RecyclerView>(R.id.rv_channels_horizontal)
             ?: error("Missing rv_channels_horizontal in fragment_live_3column")
         tvEmptyState = view.findViewById(R.id.tv_empty_state)
-        chipSearch = view.findViewById(R.id.chip_search)
-        etChannelSearch = view.findViewById(R.id.et_channel_search)
-        tvSearchLabel = view.findViewById(R.id.tv_search_label)
         rvEpgStrip = view.findViewById(R.id.rv_epg_strip)
         tvEpgStripSubtitle = view.findViewById(R.id.tv_epg_strip_subtitle)
         tvQuickJump = view.findViewById(R.id.tv_quick_jump)
@@ -252,7 +242,17 @@ class LiveFragment : Fragment() {
         )
         headerController?.startHeaderClock()
         setupNavRail(view)
-        setupSearchPill()
+        searchController = LiveSearchController(
+            fragment = this,
+            viewModel = viewModel,
+            chipSearch = view.findViewById(R.id.chip_search),
+            etChannelSearch = view.findViewById(R.id.et_channel_search),
+            tvSearchLabel = view.findViewById(R.id.tv_search_label),
+            onChipQueryChanged = { q -> categoryChipQuery = q; refreshCategoryChips() },
+            chipQueryIsNotEmpty = { categoryChipQuery.isNotEmpty() },
+            onFocusDownToChannels = { focusChannelItem(0) },
+        )
+        searchController?.setup()
         setupEpgStrip()
         
         // Initialize PreviewPlayerPanel
@@ -441,7 +441,7 @@ class LiveFragment : Fragment() {
             previewEpgRetryJob?.cancel()
             headerController?.cancel()
             guideEpgJob?.cancel()
-            searchDebounceJob?.cancel()
+            searchController?.cancel()
             quickJumpJob?.cancel()
 
             // Clear job references
@@ -455,7 +455,7 @@ class LiveFragment : Fragment() {
             previewEpgRetryJob = null
             headerController = null
             guideEpgJob = null
-            searchDebounceJob = null
+            searchController = null
             quickJumpJob = null
             quickJumpBuffer.setLength(0)
             tvQuickJump = null
@@ -484,9 +484,6 @@ class LiveFragment : Fragment() {
         // previewPlayerPanel is nulled, so we rely on LifecycleOwner cleaning up observers
         
         // Null out view references removed from variables list
-        chipSearch = null
-        etChannelSearch = null
-        tvSearchLabel = null
         tvEpgStripSubtitle = null
         btnWatch = null
 
@@ -811,7 +808,7 @@ class LiveFragment : Fragment() {
 
     private fun handleCategoryClick(categoryId: String) {
         // Switching category clears any active channel search, as in the design.
-        if (etChannelSearch?.text?.isNotEmpty() == true) toggleSearchPill(open = false)
+        searchController?.collapseIfHasText()
         viewModel.onEvent(LiveEvent.SelectCategory(categoryId))
     }
     
@@ -1493,74 +1490,6 @@ class LiveFragment : Fragment() {
         val focused = rvCategories.findFocus() ?: return false
         val holder = rvCategories.findContainingViewHolder(focused) ?: return false
         return holder.bindingAdapterPosition == 0
-    }
-
-    /**
-     * The design's pill expands in place into a channel-name field. It drives the ViewModel's
-     * existing SearchChannels path, which re-queries the paging source for the current category.
-     */
-    private fun setupSearchPill() {
-        chipSearch?.setOnClickListener { toggleSearchPill(open = etChannelSearch?.isVisible != true) }
-
-        etChannelSearch?.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(s: Editable?) {
-                val query = s?.toString().orEmpty()
-                // Filter the category chip strip immediately (cheap, local), and debounce the
-                // channel query (hits the paging source + global index).
-                categoryChipQuery = query
-                refreshCategoryChips()
-                searchDebounceJob?.cancel()
-                searchDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
-                    delay(SEARCH_DEBOUNCE_MS)
-                    viewModel.onEvent(LiveEvent.SearchChannels(query))
-                }
-            }
-        })
-
-        // BACK closes the field rather than leaving the screen while typing.
-        etChannelSearch?.setOnKeyListener { _, keyCode, event ->
-            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-            when (keyCode) {
-                KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
-                    toggleSearchPill(open = false)
-                    true
-                }
-                KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    focusChannelItem(0)
-                    true
-                }
-                else -> false
-            }
-        }
-    }
-
-    private fun toggleSearchPill(open: Boolean) {
-        val field = etChannelSearch ?: return
-        chipSearch?.isActivated = open
-        tvSearchLabel?.isVisible = !open
-        field.isVisible = open
-
-        if (open) {
-            field.requestFocus()
-            val imm = requireContext()
-                .getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
-                    as? android.view.inputmethod.InputMethodManager
-            imm?.showSoftInput(field, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-        } else {
-            searchDebounceJob?.cancel()
-            if (field.text.isNotEmpty()) {
-                field.setText("")
-                viewModel.onEvent(LiveEvent.ClearSearch)
-            }
-            // Restore the full category chip strip when search closes.
-            if (categoryChipQuery.isNotEmpty()) {
-                categoryChipQuery = ""
-                refreshCategoryChips()
-            }
-            chipSearch?.requestFocus()
-        }
     }
 
     private fun setupEpgStrip() {
