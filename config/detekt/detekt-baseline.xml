@@ -2,6 +2,10 @@
 <SmellBaseline>
   <ManuallySuppressedIssues></ManuallySuppressedIssues>
   <CurrentIssues>
+    <ID>ComplexCondition:BasePlayerFragment.kt$BasePlayerFragment$canResolveDebrid &amp;&amp; hasResInfo &amp;&amp; (isDebridUrlMissing || isExpired)</ID>
+    <ID>ComplexCondition:BasePlayerFragment.kt$BasePlayerFragment$contentType == ContentType.LIVE_TV || isInPictureInPictureMode || !playerView.useController || (::nextEpisodeManager.isInitialized &amp;&amp; nextEpisodeManager.isPromptVisible)</ID>
+    <ID>ComplexCondition:BasePlayerFragment.kt$BasePlayerFragment$isDebridUrlMissing &amp;&amp; !(canResolveDebrid &amp;&amp; hasResInfo) &amp;&amp; !canFreshResolveDirectDebrid</ID>
+    <ID>ComplexCondition:BasePlayerFragment.kt$BasePlayerFragment.&lt;no name provided&gt;$responseCode == 400 || responseCode == 401 || responseCode == 403 || responseCode == 404 || responseCode == 405 || responseCode == 410 || responseCode == 416 || responseCode == 451</ID>
     <ID>ComplexCondition:CinEpisodeAdapter.kt$CinEpisodeAdapter$state != null &amp;&amp; !state.isWatched &amp;&amp; state.durationMs &gt; 0 &amp;&amp; state.progressMs &gt; 0</ID>
     <ID>ComplexCondition:EpgCache.kt$EpgCache$now - lastUpdate &lt; cacheExpirationMs &amp;&amp; cached != null &amp;&amp; (cached.first != null || cached.second != null)</ID>
     <ID>ComplexCondition:HomeFocusManager.kt$HomeFocusManager$!frag.isAdded || frag.view == null || target == null || !target.isShown || !target.isFocusable</ID>
@@ -20,14 +24,13 @@
     <ID>ComplexCondition:PlayerHistoryManager.kt$PlayerHistoryManager$existing != null &amp;&amp; existing.source != item.source &amp;&amp; existing.currentPosition &gt; 0 &amp;&amp; existing.totalDuration &gt; 0</ID>
     <ID>ComplexCondition:PlayerInputRouter.kt$PlayerInputRouter$contentType != ContentType.LIVE_TV &amp;&amp; playerView.useController &amp;&amp; !activity.isNextEpisodePromptVisible() &amp;&amp; !playerView.isControllerFullyVisible</ID>
     <ID>ComplexCondition:PlayerRecoveryController.kt$PlayerRecoveryController$canUseDebridResolver() &amp;&amp; !isResolvingDebrid &amp;&amp; retryCount &gt; 1 &amp;&amp; (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())</ID>
-    <ID>ComplexCondition:PlayerScreenFragment.kt$PlayerScreenFragment$canResolveDebrid &amp;&amp; hasResInfo &amp;&amp; (isDebridUrlMissing || isExpired)</ID>
-    <ID>ComplexCondition:PlayerScreenFragment.kt$PlayerScreenFragment$contentType == ContentType.LIVE_TV || isInPictureInPictureMode || !playerView.useController || (::nextEpisodeManager.isInitialized &amp;&amp; nextEpisodeManager.isPromptVisible)</ID>
-    <ID>ComplexCondition:PlayerScreenFragment.kt$PlayerScreenFragment$isDebridUrlMissing &amp;&amp; !(canResolveDebrid &amp;&amp; hasResInfo) &amp;&amp; !canFreshResolveDirectDebrid</ID>
-    <ID>ComplexCondition:PlayerScreenFragment.kt$PlayerScreenFragment.&lt;no name provided&gt;$responseCode == 400 || responseCode == 401 || responseCode == 403 || responseCode == 404 || responseCode == 405 || responseCode == 410 || responseCode == 416 || responseCode == 451</ID>
     <ID>ComplexCondition:StremioNavigationRouter.kt$StremioNavigationRouter$win != null &amp;&amp; anchor != null &amp;&amp; anchor.width != 0 &amp;&amp; anchor.height != 0</ID>
     <ID>ComplexCondition:WatchedIdentityBuilder.kt$WatchedIdentityBuilder$"token=" in lower || "access_token=" in lower || "username=" in lower || "password=" in lower</ID>
     <ID>ComplexCondition:XtreamSession.kt$XtreamSession$apiService != null &amp;&amp; this.username == username &amp;&amp; this.password == password &amp;&amp; this.baseUrl == normalizedUrlPre</ID>
     <ID>CyclomaticComplexMethod:AddonCatalogRepository.kt$AddonCatalogRepository$suspend fun getDiscoveryContent( type: String, // "movie" or "series" page: Int = 1, sortBy: String? = null, catalogue: String = CATALOGUE_POPULAR, originalLanguage: String? = null, watchProviders: String? = null, watchRegion: String? = "US", releaseDateGte: String? = null, year: Int? = null, withGenres: String? = null ): Result&lt;List&lt;CatalogItem&gt;&gt;</ID>
+    <ID>CyclomaticComplexMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun initializePlayer(streamUrl: String)</ID>
+    <ID>CyclomaticComplexMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
+    <ID>CyclomaticComplexMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun refreshDirectDebridSourceFromMetadata(reason: String): Boolean</ID>
     <ID>CyclomaticComplexMethod:BrowserAdapters.kt$BrowserCategoryAdapter.ViewHolder$fun bind(category: XtreamCategory, isSelected: Boolean)</ID>
     <ID>CyclomaticComplexMethod:BrowserAdapters.kt$BrowserChannelAdapter.ViewHolder$fun bind(channel: XtreamStream)</ID>
     <ID>CyclomaticComplexMethod:CategoryFlagResolver.kt$CategoryFlagResolver$@DrawableRes fun resolveFlagRes(categoryName: String): Int?</ID>
@@ -109,9 +112,6 @@
     <ID>CyclomaticComplexMethod:PlayerMetadataBinder.kt$PlayerMetadataBinder$fun bindModernMetadata(title: String?)</ID>
     <ID>CyclomaticComplexMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handlePlaybackError(error: PlaybackException)</ID>
     <ID>CyclomaticComplexMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handleTimeout()</ID>
-    <ID>CyclomaticComplexMethod:PlayerScreenFragment.kt$PlayerScreenFragment$override fun initializePlayer(streamUrl: String)</ID>
-    <ID>CyclomaticComplexMethod:PlayerScreenFragment.kt$PlayerScreenFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
-    <ID>CyclomaticComplexMethod:PlayerScreenFragment.kt$PlayerScreenFragment$override fun refreshDirectDebridSourceFromMetadata(reason: String): Boolean</ID>
     <ID>CyclomaticComplexMethod:PlayerSeriesController.kt$PlayerSeriesController$fun playNextEpisode()</ID>
     <ID>CyclomaticComplexMethod:PlayerStallMonitor.kt$PlayerStallMonitor$private fun checkVideoRenderProgress(p: ExoPlayer, now: Long)</ID>
     <ID>CyclomaticComplexMethod:PlayerTrackManager.kt$PlayerTrackManager$fun applyTrackIndexOverrides( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
@@ -185,12 +185,12 @@
     <ID>ImplicitDefaultLocale:SimilarMoviesAdapter.kt$SimilarMoviesAdapter.ViewHolder$String.format("%.1f", it)</ID>
     <ID>ImplicitDefaultLocale:StremioDiscoverSection.kt$StremioDiscoverSection$String.format("%02d", i + 1)</ID>
     <ID>ImplicitDefaultLocale:StremioHomeFragment.kt$StremioHomeFragment$String.format("%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))</ID>
+    <ID>LargeClass:BasePlayerFragment.kt$BasePlayerFragment : FragmentRecoveryHost</ID>
     <ID>LargeClass:DebridPlaybackRepository.kt$DebridPlaybackRepository</ID>
     <ID>LargeClass:LiveFragment.kt$LiveFragment : Fragment</ID>
     <ID>LargeClass:LivePlayerOsdManager.kt$LivePlayerOsdManager</ID>
     <ID>LargeClass:LiveTvGuideFragment.kt$LiveTvGuideFragment : Fragment</ID>
     <ID>LargeClass:MovieDetailActivity.kt$MovieDetailActivity : AppCompatActivity</ID>
-    <ID>LargeClass:PlayerScreenFragment.kt$PlayerScreenFragment : FragmentRecoveryHost</ID>
     <ID>LargeClass:PlayerViewModel.kt$PlayerViewModel : ViewModel</ID>
     <ID>LargeClass:SeriesDetailActivity.kt$SeriesDetailActivity : AppCompatActivity</ID>
     <ID>LargeClass:SeriesDetailFragmentV2.kt$SeriesDetailFragmentV2 : Fragment</ID>
@@ -199,6 +199,8 @@
     <ID>LargeClass:VodFragment.kt$VodFragment : Fragment</ID>
     <ID>LargeClass:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2</ID>
     <ID>LongMethod:AddonCatalogRepository.kt$AddonCatalogRepository$suspend fun getDiscoveryContent( type: String, // "movie" or "series" page: Int = 1, sortBy: String? = null, catalogue: String = CATALOGUE_POPULAR, originalLanguage: String? = null, watchProviders: String? = null, watchRegion: String? = "US", releaseDateGte: String? = null, year: Int? = null, withGenres: String? = null ): Result&lt;List&lt;CatalogItem&gt;&gt;</ID>
+    <ID>LongMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun initializePlayer(streamUrl: String)</ID>
+    <ID>LongMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:BrowserAdapters.kt$BrowserCategoryAdapter.ViewHolder$fun bind(category: XtreamCategory, isSelected: Boolean)</ID>
     <ID>LongMethod:BrowserAdapters.kt$BrowserChannelAdapter.ViewHolder$fun bind(channel: XtreamStream)</ID>
     <ID>LongMethod:CategoryFlagResolver.kt$CategoryFlagResolver$@DrawableRes fun resolveFlagRes(categoryName: String): Int?</ID>
@@ -249,8 +251,6 @@
     <ID>LongMethod:PlayerInputRouter.kt$PlayerInputRouter$fun dispatchKeyEvent(event: KeyEvent): Boolean?</ID>
     <ID>LongMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handlePlaybackError(error: PlaybackException)</ID>
     <ID>LongMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handleTimeout()</ID>
-    <ID>LongMethod:PlayerScreenFragment.kt$PlayerScreenFragment$override fun initializePlayer(streamUrl: String)</ID>
-    <ID>LongMethod:PlayerScreenFragment.kt$PlayerScreenFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:PlayerTrackManager.kt$PlayerTrackManager$private fun showSinglePressTrackSelection( player: Player, title: String, trackType: Int, showDisableOption: Boolean, onDialogReady: (android.app.Dialog) -&gt; Unit )</ID>
     <ID>LongMethod:PlayerViewModel.kt$PlayerViewModel$fun observeEpg(epgChannelId: String?, streamId: String? = null)</ID>
     <ID>LongMethod:PreviewPlayerPanel.kt$PreviewPlayerPanel$fun play(stream: XtreamStream, streamUrlOverride: String? = null)</ID>
@@ -327,6 +327,7 @@
     <ID>SpreadOperator:EpgParser.kt$EpgParser.XmlDeclarationStrippingReader$('&lt;', '?', *probe.copyOf(read3))</ID>
     <ID>SwallowedException:AddonCatalogRepository.kt$AddonCatalogRepository$e: Exception</ID>
     <ID>SwallowedException:AddonMappers.kt$AddonStreamMapper$e: Exception</ID>
+    <ID>SwallowedException:BasePlayerFragment.kt$BasePlayerFragment$e: Exception</ID>
     <ID>SwallowedException:ChannelPagingSource.kt$ChannelPagingSource$e: Exception</ID>
     <ID>SwallowedException:DebridCacheVerifier.kt$DebridCacheVerifier$e: Exception</ID>
     <ID>SwallowedException:DebridViewModel.kt$DebridViewModel$e: Exception</ID>
@@ -341,7 +342,6 @@
     <ID>SwallowedException:PlayerDebugOverlay.kt$PlayerDebugOverlay$e: Exception</ID>
     <ID>SwallowedException:PlayerNextEpisodeManager.kt$PlayerNextEpisodeManager$e: Exception</ID>
     <ID>SwallowedException:PlayerRecoveryController.kt$PlayerRecoveryController$e: Exception</ID>
-    <ID>SwallowedException:PlayerScreenFragment.kt$PlayerScreenFragment$e: Exception</ID>
     <ID>SwallowedException:PlayerViewModel.kt$PlayerViewModel$e: Exception</ID>
     <ID>SwallowedException:ReleaseInfo.kt$ReleaseInfo$e: Exception</ID>
     <ID>SwallowedException:SearchIndexManager.kt$SearchIndexManager$e: Exception</ID>
@@ -349,8 +349,8 @@
     <ID>SwallowedException:SeriesDetailActivity.kt$SeriesDetailActivity$e: Exception</ID>
     <ID>SwallowedException:SettingsFragment.kt$SettingsFragment$e: Exception</ID>
     <ID>SwallowedException:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2$e: Exception</ID>
+    <ID>TooManyFunctions:BasePlayerFragment.kt$BasePlayerFragment : FragmentRecoveryHost</ID>
     <ID>TooManyFunctions:DebridPreferences.kt$DebridPreferences : AccessTokenProvider</ID>
-    <ID>TooManyFunctions:PlayerScreenFragment.kt$PlayerScreenFragment : FragmentRecoveryHost</ID>
     <ID>TooManyFunctions:SettingsPreferences.kt$SettingsPreferences</ID>
     <ID>TooManyFunctions:XtreamRepository.kt$XtreamRepository</ID>
   </CurrentIssues>

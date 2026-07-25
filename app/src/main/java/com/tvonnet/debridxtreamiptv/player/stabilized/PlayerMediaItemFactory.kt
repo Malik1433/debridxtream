@@ -15,7 +15,7 @@ import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
  * The gate is byte-identical; state via [session], the track manager via [activity].
  */
 internal class PlayerMediaItemFactory(
-    private val activity: PlayerScreenFragment,
+    private val activity: BasePlayerFragment,
     private val session: PlayerSessionState,
 ) {
 

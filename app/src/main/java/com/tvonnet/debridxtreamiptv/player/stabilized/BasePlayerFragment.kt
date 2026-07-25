@@ -86,7 +86,7 @@ import androidx.media3.datasource.FileDataSource
 
 @UnstableApi
 @AndroidEntryPoint
-class PlayerScreenFragment : Fragment(), PlayerRecoveryController.RecoveryHost {
+open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHost {
 
     // ── Activity/Context bridges (P26 fragment split) ───────────────────────
     // The player logic + its 15 collaborators were written against a concrete

@@ -23,7 +23,7 @@ import com.tvonnet.debridxtreamiptv.data.model.ContentType
  * Bodies are byte-identical.
  */
 internal class PlayerVodControlsUi(
-    private val activity: PlayerScreenFragment,
+    private val activity: BasePlayerFragment,
     private val session: PlayerSessionState,
 ) {
 

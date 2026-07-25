@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
  * Activity; this binder only owns the flow subscriptions.
  */
 internal class PlayerViewModelBinder(
-    private val activity: PlayerScreenFragment,
+    private val activity: BasePlayerFragment,
     private val session: PlayerSessionState,
 ) {
 

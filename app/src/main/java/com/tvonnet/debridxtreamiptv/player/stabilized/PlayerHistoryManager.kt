@@ -22,7 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class PlayerHistoryManager(
-    private val activity: PlayerScreenFragment,
+    private val activity: BasePlayerFragment,
     private val watchHistoryPrefs: WatchHistoryPreferences,
     private val viewModel: PlayerViewModel,
     private val watchedStateRepository: WatchedStateRepository

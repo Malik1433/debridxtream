@@ -475,7 +475,7 @@ internal class PlayerRecoveryController(
         const val AUDIO_SINK_COOLOFF_MS = 900L
         const val NETWORK_RECOVERY_BUFFER_MS = 5000L
         // Fixed cool-off for HTTP 429 when the server sends no Retry-After (QA fix 4).
-        // The media3 playbackLoadErrorPolicy (in PlayerScreenFragment) applies the same
+        // The media3 playbackLoadErrorPolicy (in BasePlayerFragment) applies the same
         // value at the load-error layer; this is the app-level reconnect cool-off.
         const val HTTP_429_COOLOFF_MS = 20_000L
     }

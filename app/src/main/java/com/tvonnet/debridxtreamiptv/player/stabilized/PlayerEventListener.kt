@@ -23,7 +23,7 @@ import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
  * in `initializePlayer`) so `onTracksChanged` never re-reads prefs from disk.
  */
 internal class PlayerEventListener(
-    private val activity: PlayerScreenFragment,
+    private val activity: BasePlayerFragment,
     private val session: PlayerSessionState,
     private val isSoftwareAudioEnabled: Boolean,
 ) : Player.Listener {

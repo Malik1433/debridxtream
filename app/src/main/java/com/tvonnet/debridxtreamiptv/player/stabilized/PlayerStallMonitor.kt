@@ -23,7 +23,7 @@ import com.tvonnet.debridxtreamiptv.util.DeviceProfile
  * the recovery controller / live tuner via [activity]. Bodies are byte-identical.
  */
 internal class PlayerStallMonitor(
-    private val activity: PlayerScreenFragment,
+    private val activity: BasePlayerFragment,
     private val session: PlayerSessionState,
 ) {
 

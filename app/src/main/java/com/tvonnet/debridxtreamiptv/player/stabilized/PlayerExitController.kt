@@ -27,7 +27,7 @@ import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
  * move here.
  */
 internal class PlayerExitController(
-    private val activity: PlayerScreenFragment,
+    private val activity: BasePlayerFragment,
     private val session: PlayerSessionState,
 ) {
 

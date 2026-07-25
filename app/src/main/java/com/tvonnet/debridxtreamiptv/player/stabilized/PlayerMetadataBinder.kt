@@ -16,7 +16,7 @@ import com.tvonnet.debridxtreamiptv.util.GlideUtils
  * call (they were never stored as fields). Body is byte-identical.
  */
 internal class PlayerMetadataBinder(
-    private val activity: PlayerScreenFragment,
+    private val activity: BasePlayerFragment,
     private val session: PlayerSessionState,
 ) {
 

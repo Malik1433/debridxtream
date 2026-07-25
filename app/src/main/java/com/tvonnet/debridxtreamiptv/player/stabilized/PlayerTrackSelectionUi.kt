@@ -16,7 +16,7 @@ import com.tvonnet.debridxtreamiptv.R
  * D-pad focus to its anchor button on dismiss. Bodies are byte-identical.
  */
 internal class PlayerTrackSelectionUi(
-    private val activity: PlayerScreenFragment,
+    private val activity: BasePlayerFragment,
     private val session: PlayerSessionState,
 ) {
 

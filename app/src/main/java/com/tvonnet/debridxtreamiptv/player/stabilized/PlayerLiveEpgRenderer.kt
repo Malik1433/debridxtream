@@ -20,7 +20,7 @@ import com.tvonnet.debridxtreamiptv.data.model.ContentType
  * the renderer reaches them through [activity]. Bodies are byte-identical.
  */
 internal class PlayerLiveEpgRenderer(
-    private val activity: PlayerScreenFragment,
+    private val activity: BasePlayerFragment,
     private val session: PlayerSessionState,
 ) {
 

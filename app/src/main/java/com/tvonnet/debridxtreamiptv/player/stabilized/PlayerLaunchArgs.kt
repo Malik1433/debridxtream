@@ -16,7 +16,7 @@ import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 internal object PlayerLaunchArgs {
 
     /** Populate the session identity fields from the launch intent. */
-    fun readInto(activity: PlayerScreenFragment, session: PlayerSessionState) = with(session) {
+    fun readInto(activity: BasePlayerFragment, session: PlayerSessionState) = with(session) {
         val intent = activity.intent
         val contentTypeString = intent.getStringExtra(PlayerActivity.EXTRA_CONTENT_TYPE)
         contentType = contentTypeString?.let { runCatching { ContentType.valueOf(it) }.getOrNull() }

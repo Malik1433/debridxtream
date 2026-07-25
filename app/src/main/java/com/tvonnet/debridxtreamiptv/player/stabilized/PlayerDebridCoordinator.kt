@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
  * `initializePlayer`, the live tuner's seamless switch) are reached on [activity].
  */
 internal class PlayerDebridCoordinator(
-    private val activity: PlayerScreenFragment,
+    private val activity: BasePlayerFragment,
     private val session: PlayerSessionState,
 ) {
 

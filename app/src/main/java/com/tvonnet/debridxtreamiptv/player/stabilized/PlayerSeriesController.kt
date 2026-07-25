@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
  * `bindModernMetadata` — stay on the Activity and are reached through it.
  */
 internal class PlayerSeriesController(
-    private val activity: PlayerScreenFragment,
+    private val activity: BasePlayerFragment,
     private val session: PlayerSessionState,
 ) {
 

@@ -15,7 +15,7 @@ import dagger.hilt.android.AndroidEntryPoint
  *
  * All player logic — the ExoPlayer + PlayerView lifecycle, the 20+ Player* collaborators,
  * error/timeout/exit/history, live tuning, debrid coordination — lives in
- * [PlayerScreenFragment]. This Activity remains ONLY:
+ * a [BasePlayerFragment] subclass ([LivePlayerFragment] / [VodPlayerFragment]). This Activity remains ONLY:
  *  - the launch contract (`createIntent` + the `EXTRA_*` keys every caller / detail screen
  *    and the return-result builders reference), so nothing outside this package changed;
  *  - the manifest entry (singleTop, PiP-capable, taskAffinity) that owns the task; and
@@ -28,14 +28,19 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class PlayerActivity : AppCompatActivity() {
 
-    private val screen: PlayerScreenFragment?
-        get() = supportFragmentManager.findFragmentById(android.R.id.content) as? PlayerScreenFragment
+    private val screen: BasePlayerFragment?
+        get() = supportFragmentManager.findFragmentById(android.R.id.content) as? BasePlayerFragment
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {
+            // P27: pick the Live vs VOD player screen by content type. Both currently subclass
+            // BasePlayerFragment (which still holds the shared + branch logic); the split moves
+            // the mode-specific logic down into each subclass.
+            val isLive = intent.getStringExtra(EXTRA_CONTENT_TYPE) == ContentType.LIVE_TV.name
+            val fragment: BasePlayerFragment = if (isLive) LivePlayerFragment() else VodPlayerFragment()
             supportFragmentManager.beginTransaction()
-                .replace(android.R.id.content, PlayerScreenFragment())
+                .replace(android.R.id.content, fragment)
                 .commitNow()
         }
     }
