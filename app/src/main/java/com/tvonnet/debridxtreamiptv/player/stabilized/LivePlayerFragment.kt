@@ -48,4 +48,19 @@ class LivePlayerFragment : BasePlayerFragment() {
         epgRenderer.seedInitialStateIfNeeded()
         if (liveOsd == null) showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false)
     }
+
+    // P27-c: live-only BACK. Same priority order as the old inline branch; the
+    // `contentType == LIVE_TV` guard is implicit here (this subclass is only hosted for live).
+    override fun handleLiveBack(): Boolean {
+        if (liveOsd?.handleDrawerBack() == true) return true
+        if (viewModel.browserState.value.isVisible) {
+            viewModel.toggleBrowser(false)
+            return true
+        }
+        if (epgOverlayUi.isPinned || epgOverlayUi.mode != EpgOverlayMode.HIDDEN) {
+            hideEpgOverlay()
+            return true
+        }
+        return false
+    }
 }

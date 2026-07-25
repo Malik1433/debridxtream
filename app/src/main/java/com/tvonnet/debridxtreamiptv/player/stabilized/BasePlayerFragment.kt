@@ -620,6 +620,13 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     protected open fun startLiveZappingAndBrowser() {}
     /** Seed the legacy EPG strip + show the compact overlay when no cinematic OSD. */
     protected open fun seedLiveEpgOverlay() {}
+    // P27-c: the live-only BACK branch. Returns true if the press was consumed by a live
+    // dismissable (OSD drawer → channel browser → EPG overlay); a VOD instance runs the
+    // base default (false) so BACK falls straight through to the VOD-controller/exit logic —
+    // identical to the old inline checks, which were already no-ops when liveOsd/browser were
+    // absent.
+    /** Live BACK: dismiss the OSD drawer / channel browser / EPG overlay in priority order. */
+    protected open fun handleLiveBack(): Boolean = false
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -825,15 +832,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
 
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (liveOsd?.handleDrawerBack() == true) {
-                    return
-                }
-                if (viewModel.browserState.value.isVisible) {
-                    viewModel.toggleBrowser(false)
-                    return
-                }
-                if (contentType == ContentType.LIVE_TV && (epgOverlayUi.isPinned || epgOverlayUi.mode != EpgOverlayMode.HIDDEN)) {
-                    hideEpgOverlay()
+                if (handleLiveBack()) {
                     return
                 }
                 if (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE) {
