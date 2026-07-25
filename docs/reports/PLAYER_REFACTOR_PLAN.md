@@ -535,6 +535,19 @@ THEN the structural split.** Every phase: verbatim move, own commit + push, dete
 | P28 | Split out `VodPlayerFragment` (movie/episode branches) → Base ≤600 | Base ≤600, Vod ~450 | HIGH (VOD) |
 | ~~P28-a~~ | ✅ **DONE (`70032b3`)** — the ~92-line `contentType != LIVE_TV` else-branch of onViewCreated (controller config + keep-content-on-reset + controller-visibility listener + transport buttons + seek overlay + the `PlayerNextEpisodeManager` delegate + series/debrid observers + x-ray wiring) moved into `VodPlayerFragment.setupVodPlayback(streamTitle)` behind `protected open fun setupVodPlayback(streamTitle: String?)` (base default empty). onViewCreated now dispatches `if (LIVE_TV) observeLiveEpgAndState() else setupVodPlayback(streamTitle)`. Bumped private→internal: transportButtons, debridCoordinator, nextEpisodeManager; dropped the now-unused base AudioManager import. compile+tests+detekt green, baseline untouched. **Device-verified .64 via diagnostics jsonl:** a Debrid movie launches via VodPlayerFragment with `player_initialize_started`+`media_item_built`+`player_prepare_called`+`track_discovery/selected`+`first_frame_rendered` (4K decode) — setupVodPlayback runs to completion (it precedes initializePlayer, so a throw would have blocked player_initialize_started), zero app exceptions. Base 1567→1481, Vod 16→117. Pushed. | 1481 | done |
 
+**INFLECTION POINT (2026-07-25, after P28-a — base 1481).** The cohesive *fragment-split* work is
+essentially complete: every live-only body (setup/zap-init/back/shared-adopt+hand-off) is in
+`LivePlayerFragment` (145) and the big VOD setup block is in `VodPlayerFragment` (117). What remains
+`contentType`-branched in the base is now **small guards inside genuinely-shared methods** (onStart/onStop
+lifecycle, PiP hide/show, history, seek, cinematic-loader) — splitting those means slicing *shared* landmine
+methods for a few lines each, which violates the cohesion rule and adds risk for little gain. **So the base
+is no longer shrinkable by the fragment split.** Getting from 1481 → ≤600 now needs a *different* strategy:
+extract more **shared playback scaffolding** into collaborators (the `initializePlayer` engine-build block,
+the lifecycle cluster, PiP, history/seek) — the P20–P26 collaborator pattern, not open hooks. That is a
+fresh, riskier multi-phase plan (touches the cold-init hot path + recovery + lifecycle landmines) and should
+be scoped deliberately. **Recommendation:** treat the fragment split as delivered; open a new "shared-
+scaffolding extraction" plan for the ≤600 goal.
+
 **Landmine gate (unchanged, re-checked every live/VOD-touching phase):** TS extractor flags, TS
 LiveConfiguration, first-frame AudioTrack, shared-player hand-off order — plus, for the fragment stages,
 PiP entry and the 2-step VOD BACK. Any red → stop, do not baseline over it.
