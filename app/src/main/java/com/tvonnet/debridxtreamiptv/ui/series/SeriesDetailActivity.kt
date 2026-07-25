@@ -555,24 +555,6 @@ class SeriesDetailActivity : AppCompatActivity() {
         )
     }
 
-    private fun displayRating(rating: Double) {
-        tvRatingPercentage.text = String.format("%.1f", rating)
-    }
-
-    private fun buildGenreYearText(genre: String?, releaseDate: String?): String {
-        val year = releaseDate?.takeIf { it.isNotBlank() }?.let {
-            if (it.length >= 4) it.substring(0, 4) else it
-        }
-
-        return when {
-            !genre.isNullOrBlank() && !year.isNullOrBlank() ->
-                getString(R.string.movie_detail_genre_and_year, genre, year)
-            !genre.isNullOrBlank() -> genre
-            !year.isNullOrBlank() -> year
-            else -> getString(R.string.movie_detail_not_available)
-        }
-    }
-
     private fun loadSeriesDetail() {
         val id = seriesId ?: return
 
@@ -1000,7 +982,9 @@ class SeriesDetailActivity : AppCompatActivity() {
 
         displaySeriesInfo()
 
-        val fallbackDetail = buildFallbackDetail(seriesInfo)
+        val fallbackDetail = buildFallbackSeriesDetail(seriesInfo) {
+            getString(R.string.series_detail_season_name, it)
+        }
         if (fallbackDetail != null) {
             currentDetail = fallbackDetail
             buildSeasonList(fallbackDetail)
@@ -1010,63 +994,6 @@ class SeriesDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun buildFallbackDetail(seriesInfo: XtreamSeriesInfo): XtreamSeriesDetailResponse? {
-        val originalEpisodes = seriesInfo.episodes ?: return null
-
-        val grouped = mutableMapOf<String, MutableList<XtreamEpisodeInfo>>()
-        originalEpisodes.forEach { (seasonKeyRaw, episodeList) ->
-            val normalizedKey = seasonKeyRaw.takeIf { it.isNotBlank() }
-                ?: episodeList.firstOrNull()?.season?.takeIf { it > 0 }?.toString()
-                ?: "1"
-            val bucket = grouped.getOrPut(normalizedKey) { mutableListOf() }
-            bucket.addAll(episodeList)
-        }
-
-        if (grouped.isEmpty()) {
-            return null
-        }
-
-        grouped.values.forEach { list ->
-            list.sortWith(compareBy<XtreamEpisodeInfo>({ it.episode_num ?: Int.MAX_VALUE }, { it.title ?: "" }))
-        }
-
-        val seasonKeys = grouped.keys.sortedWith(compareBy { it.toIntOrNull() ?: Int.MAX_VALUE })
-        val seasons = seasonKeys.mapIndexed { index, key ->
-            val seasonNumber = key.toIntOrNull() ?: (index + 1)
-            XtreamSeasonInfo(
-                season_number = key,
-                name = getString(R.string.series_detail_season_name, seasonNumber),
-                overview = null,
-                air_date = null,
-                cover = null
-            )
-        }
-
-        val normalizedEpisodes = seasonKeys.associateWith { seasonKey ->
-            grouped[seasonKey]?.toList() ?: emptyList()
-        }
-
-        val detailInfo = XtreamSeriesDetailInfo(
-            name = seriesInfo.name,
-            series_id = seriesInfo.series_id,
-            plot = seriesInfo.plot,
-            cast = seriesInfo.cast,
-            director = seriesInfo.director,
-            genre = seriesInfo.genre,
-            releaseDate = seriesInfo.releaseDate,
-            rating = seriesInfo.rating,
-            rating_5based = seriesInfo.rating_5based,
-            cover = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(seriesInfo.cover),
-            backdrop_path = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(seriesInfo.cover),
-            youtube_trailer = null
-        )
-
-        return XtreamSeriesDetailResponse(
-            info = detailInfo,
-            episodes = normalizedEpisodes,
-            seasons = seasons
-        )
-    }
 
     /**
      * Resume button: play the in-progress episode directly instead of re-opening
