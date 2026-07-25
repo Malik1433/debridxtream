@@ -44,7 +44,6 @@ import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
-import com.tvonnet.debridxtreamiptv.ui.trailer.TrailerValueParser
 import com.tvonnet.debridxtreamiptv.data.local.entity.toXtreamSeasonInfo
 import com.tvonnet.debridxtreamiptv.data.local.entity.toXtreamEpisodeInfo
 import dagger.hilt.android.AndroidEntryPoint
@@ -162,8 +161,8 @@ class SeriesDetailActivity : AppCompatActivity() {
     private var seriesGenre: String? = null
     private var seriesReleaseDate: String? = null
     private var seriesRating: String? = null
-    private var seriesTrailerUrl: String? = null
-    private var isTrailerLookupInProgress: Boolean = false
+    /** SD-1: trailer resolution + "Watch Trailer" button state. */
+    private lateinit var trailerController: SeriesTrailerController
 
     private var currentDetail: XtreamSeriesDetailResponse? = null
     private var selectedSeasonKey: String? = null
@@ -230,7 +229,7 @@ class SeriesDetailActivity : AppCompatActivity() {
         setupAdapters()
         getSeriesDataFromIntent()
         openedFromPlaybackFailure = intent.getBooleanExtra(PlayerActivity.EXTRA_OPENED_FROM_PLAYBACK_FAILURE, false)
-        updateTrailerButtonState()
+        trailerController.refreshButtonState()
         
         displaySeriesInfo()
         updateFavoriteState()
@@ -285,6 +284,8 @@ class SeriesDetailActivity : AppCompatActivity() {
         rvEpisodes.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         rvEpisodes.setHasFixedSize(true)
 
+        trailerController = SeriesTrailerController(this, tmdbRemoteDataSource, btnWatchTrailer) { seriesId }
+
         setupFocusAnimations()
     }
 
@@ -332,7 +333,7 @@ class SeriesDetailActivity : AppCompatActivity() {
             seriesReleaseDate = data.getStringExtra(EXTRA_SERIES_RELEASE_DATE)
             seriesReleaseDate = data.getStringExtra(EXTRA_SERIES_RELEASE_DATE)
             seriesRating = data.getStringExtra(EXTRA_SERIES_RATING)
-            seriesTrailerUrl = data.getStringExtra(EXTRA_SERIES_TRAILER)
+            trailerController.setTrailerUrl(data.getStringExtra(EXTRA_SERIES_TRAILER))
             isDebridContent = data.getBooleanExtra(EXTRA_IS_DEBRID, false)
         }
 
@@ -358,7 +359,7 @@ class SeriesDetailActivity : AppCompatActivity() {
         }
 
         btnWatchTrailer.setOnClickListener {
-            launchTrailer()
+            trailerController.launch()
         }
 
         btnAddFavorite.setOnClickListener {
@@ -685,12 +686,12 @@ class SeriesDetailActivity : AppCompatActivity() {
         seriesGenre = info.genre ?: seriesGenre
         seriesReleaseDate = info.releaseDate ?: seriesReleaseDate
         seriesRating = info.rating ?: seriesRating
-        seriesTrailerUrl = info.youtube_trailer ?: seriesTrailerUrl
+        trailerController.mergeTrailerUrl(info.youtube_trailer)
         seriesCover = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(info.cover) ?: seriesCover
         seriesBackdrop = info.backdropPathString ?: seriesBackdrop
 
         displaySeriesInfo()
-        updateTrailerButtonState()
+        trailerController.refreshButtonState()
     }
     private fun buildSeasonList(detail: XtreamSeriesDetailResponse) {
         val seasonItems = when {
@@ -1929,62 +1930,6 @@ class SeriesDetailActivity : AppCompatActivity() {
             btnAddFavorite.setImageResource(R.drawable.ic_favorite_border)
             btnAddFavorite.imageTintList = resources.getColorStateList(R.color.cin_detail_focus_text, theme)
         }
-    }
-
-    private fun launchTrailer() {
-        val trailerUrl = seriesTrailerUrl
-        if (!trailerUrl.isNullOrBlank() && TrailerValueParser.parse(trailerUrl) != null) {
-            startActivity(com.tvonnet.debridxtreamiptv.ui.trailer.TrailerActivity.createIntent(this, trailerUrl))
-            return
-        }
-
-        if (isTrailerLookupInProgress) return
-
-        val tmdbId = seriesId?.toIntOrNull()
-        if (tmdbId == null) {
-            Toast.makeText(this, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
-            updateTrailerButtonState()
-            return
-        }
-
-        lifecycleScope.launch {
-            isTrailerLookupInProgress = true
-            btnWatchTrailer.isEnabled = false
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    tmdbRemoteDataSource.getSeriesDetails(tmdbId)
-                }
-                
-                result.onSuccess { details ->
-                    val trailer = details.videos?.results?.firstOrNull { 
-                        it.site?.lowercase() == "youtube" && it.type?.lowercase() == "trailer" 
-                    } ?: details.videos?.results?.firstOrNull { 
-                        it.site?.lowercase() == "youtube" 
-                    }
-                    
-                    if (trailer?.key != null) {
-                        seriesTrailerUrl = trailer.key
-                        startActivity(com.tvonnet.debridxtreamiptv.ui.trailer.TrailerActivity.createIntent(this@SeriesDetailActivity, trailer.key))
-                    } else {
-                        Toast.makeText(this@SeriesDetailActivity, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
-                    }
-                }.onFailure {
-                    Toast.makeText(this@SeriesDetailActivity, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(this@SeriesDetailActivity, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
-            } finally {
-                isTrailerLookupInProgress = false
-                updateTrailerButtonState()
-            }
-        }
-    }
-
-    private fun updateTrailerButtonState() {
-        if (!::btnWatchTrailer.isInitialized) return
-        val canResolveTrailer = TrailerValueParser.parse(seriesTrailerUrl) != null || seriesId?.toIntOrNull() != null
-        btnWatchTrailer.isEnabled = canResolveTrailer && !isTrailerLookupInProgress
-        btnWatchTrailer.alpha = if (canResolveTrailer && !isTrailerLookupInProgress) 1.0f else 0.45f
     }
 
     private fun showLoading(show: Boolean) {

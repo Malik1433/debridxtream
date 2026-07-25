@@ -34,4 +34,4 @@ auto-advance → trailer → favorite toggle. No crash; playback reaches first f
 playback-diagnostics JSONL, same as the player audit).
 
 ## Progress
-- *(none yet — SD-1 starting)*
+- **SD-1 DONE (device-verified .64)** — `SeriesTrailerController` (launchTrailer + updateTrailerButtonState + trailer state). Activity constructs it in initViews, forwards the url (intent→setTrailerUrl / series-info→mergeTrailerUrl) + button clicks (launch) + refreshes (refreshButtonState). Fixed a relocated SwallowedException by logging the trailer-lookup failure. compile+tests+detekt green. SeriesDetailActivity **2041→1986**. Device: the Debrid series-detail screen opens + renders (info/seasons/episodes/Trailer button wired), zero crash.
