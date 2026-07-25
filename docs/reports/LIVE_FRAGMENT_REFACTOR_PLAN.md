@@ -87,7 +87,7 @@ correct. No crash; no focus theft on refresh; no `.ts` freeze.
 - **Plan drafted (`1143e1a`).** Phase order LF-1..LF-7, risk-ascending. One phase per commit,
   clean-verify + device QA each. LF-6 and LF-7 are the HIGH-risk gates (TV focus + Live playback
   landmines) — flag before starting each.
-- **LF-1 DONE (`<pending-commit>`)** — `LiveHeaderController` (~90 lines): top-bar minute clock
+- **LF-1 DONE (`7b0e8e0`)** — `LiveHeaderController` (~90 lines): top-bar minute clock
   (`startHeaderClock`/`millisUntilNextMinute` + `clockJob` + `topBarTimeFormatter` + `tv_header_clock`)
   and the "<CATEGORY> CHANNELS" / "N LIVE" title+count row (`updateHeaderInfo` + `tv_category_name`/
   `tv_channel_count`). Reads the live favourites count via a getter (stays in the Fragment). Constructed
