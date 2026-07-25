@@ -96,7 +96,7 @@ correct. No crash; no focus theft on refresh; no `.ts` freeze.
   byte-identical (verbatim; `this`/field refs → `fragment`/passed views/getter). LiveFragment
   **1756→~1665**. Removed the now-unused `java.util.Date` import. Clean build green; **no baseline change**
   (5-param ctor, short methods). Device .64 launch-stability + owner eyes-on QA PENDING.
-- **LF-2 DONE (`<pending-commit>`)** — `LiveSearchController` (~130 lines): the inline channel-search
+- **LF-2 DONE (`2ebe4da`)** — `LiveSearchController` (~130 lines): the inline channel-search
   pill (`setupSearchPill`→`setup` + `toggleSearchPill`→`toggle` + `SEARCH_DEBOUNCE_MS` + `searchDebounceJob`
   + the 3 search views). Drives the ViewModel's SearchChannels/ClearSearch path (debounced) and filters
   the category chip strip — that chip state (`categoryChipQuery`/`refreshCategoryChips`, LF-4's) STAYS in
