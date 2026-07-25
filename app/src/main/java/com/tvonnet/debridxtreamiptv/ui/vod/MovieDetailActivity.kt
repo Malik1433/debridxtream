@@ -26,8 +26,6 @@ import com.tvonnet.debridxtreamiptv.data.Result
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.AddonProxyReadiness
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo
-import com.tvonnet.debridxtreamiptv.data.onSuccess
-import com.tvonnet.debridxtreamiptv.data.onFailure
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
 import com.tvonnet.debridxtreamiptv.data.omdb.OmdbClient
@@ -44,7 +42,6 @@ import com.tvonnet.debridxtreamiptv.ui.sources.SizeFilterAdapter
 import com.tvonnet.debridxtreamiptv.ui.sources.SizeFilterOption
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterState
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
-import com.tvonnet.debridxtreamiptv.ui.trailer.TrailerValueParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -165,10 +162,9 @@ class MovieDetailActivity : AppCompatActivity() {
     private var movieDuration: String? = null
     private var movieContainer: String? = null
     private var movieBackdrop: String? = null
-    private var movieTrailerUrl: String? = null
     private var movieAgeRating: String? = null
-    private var hasTrailer: Boolean = false
-    private var isTrailerLookupInProgress: Boolean = false
+    /** MD-1: trailer resolve + hover-preview + Trailer button state. */
+    private lateinit var movieTrailerController: MovieTrailerController
     private var movieCategoryId: String? = null
     private var selectedSource: MovieSource? = null
     private var sourcesLoadJob: Job? = null
@@ -263,7 +259,7 @@ class MovieDetailActivity : AppCompatActivity() {
                 Toast.LENGTH_LONG
             ).show()
         }
-        updateTrailerButtonState()
+        movieTrailerController.refreshButtonState()
         displayMovieDetails()
         configureTabs()
         loadFavoriteState()
@@ -324,15 +320,15 @@ class MovieDetailActivity : AppCompatActivity() {
                             }
                             // Cache a trailer key so the Trailer button dwell-preview
                             // and enabled state work without a second lookup.
-                            if (movieTrailerUrl.isNullOrBlank()) {
+                            if (movieTrailerController.trailerUrl.isNullOrBlank()) {
                                 val key = details.videos?.results?.firstOrNull {
                                     it.site?.lowercase() == "youtube" && it.type?.lowercase() == "trailer"
                                 }?.key ?: details.videos?.results?.firstOrNull {
                                     it.site?.lowercase() == "youtube"
                                 }?.key
-                                if (!key.isNullOrBlank()) movieTrailerUrl = key
+                                if (!key.isNullOrBlank()) movieTrailerController.setTrailerUrl(key)
                             }
-                            updateTrailerButtonState()
+                            movieTrailerController.refreshButtonState()
 
                             displayMovieDetails()
                             refreshResumeState()
@@ -430,6 +426,15 @@ class MovieDetailActivity : AppCompatActivity() {
             adapter = similarAdapter
         }
 
+        movieTrailerController = MovieTrailerController(
+            activity = this,
+            tmdbRemoteDataSource = tmdbRemoteDataSource,
+            button = btnTrailer,
+            backdrop = ivBackdrop,
+            movieId = { movieId },
+            movieBackdrop = { movieBackdrop }
+        )
+
         setupClickListeners()
         setupFocusAnimations()
 
@@ -495,7 +500,7 @@ class MovieDetailActivity : AppCompatActivity() {
         movieDuration = intent.getStringExtra(EXTRA_MOVIE_DURATION)
         movieContainer = intent.getStringExtra(EXTRA_MOVIE_CONTAINER)
         movieBackdrop = intent.getStringExtra(EXTRA_MOVIE_BACKDROP)
-        movieTrailerUrl = intent.getStringExtra(EXTRA_MOVIE_TRAILER)
+        movieTrailerController.setTrailerUrl(intent.getStringExtra(EXTRA_MOVIE_TRAILER))
         movieCategoryId = intent.getStringExtra(EXTRA_MOVIE_CATEGORY_ID)
         movieSourceRail = intent.getStringExtra(EXTRA_SOURCE_RAIL)
         isDebridMovie = movieCategoryId == "debrid"
@@ -660,11 +665,6 @@ class MovieDetailActivity : AppCompatActivity() {
         } else {
             duration
         }
-    }
-
-    private fun hasTmdbTrailer(): Boolean {
-        // We'll check this once we have TMDB details
-        return false // Placeholder, will be improved
     }
 
     private fun displayRating(rating: Double) {
@@ -1053,7 +1053,7 @@ class MovieDetailActivity : AppCompatActivity() {
             }
         }
         btnTrailer.setOnClickListener {
-            launchTrailer()
+            movieTrailerController.launch()
         }
         btnFavorite.setOnClickListener {
             toggleFavorite()
@@ -1084,44 +1084,8 @@ class MovieDetailActivity : AppCompatActivity() {
                         .start()
                 }
                 if (v.id == R.id.btn_trailer) {
-                    if (hasFocus) scheduleTrailerPreview() else cancelTrailerPreview()
+                    if (hasFocus) movieTrailerController.schedulePreview() else movieTrailerController.cancelPreview()
                 }
-            }
-        }
-    }
-
-    private val trailerPreviewHandler = android.os.Handler(android.os.Looper.getMainLooper())
-    private var trailerPreviewRunnable: Runnable? = null
-    private var trailerPreviewShown = false
-
-    /** After a 2.5s dwell on the Trailer button, crossfade the backdrop to the
-     * trailer's YouTube thumbnail as a lightweight preview. */
-    private fun scheduleTrailerPreview() {
-        cancelTrailerPreview()
-        val key = TrailerValueParser.parse(movieTrailerUrl)?.youtubeId ?: return
-        val runnable = Runnable {
-            Glide.with(this)
-                .load("https://img.youtube.com/vi/$key/hqdefault.jpg")
-                .centerCrop()
-                .transition(com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade(500))
-                .into(ivBackdrop)
-            trailerPreviewShown = true
-        }
-        trailerPreviewRunnable = runnable
-        trailerPreviewHandler.postDelayed(runnable, 2500L)
-    }
-
-    private fun cancelTrailerPreview() {
-        trailerPreviewRunnable?.let { trailerPreviewHandler.removeCallbacks(it) }
-        trailerPreviewRunnable = null
-        if (trailerPreviewShown) {
-            trailerPreviewShown = false
-            if (!movieBackdrop.isNullOrBlank()) {
-                Glide.with(this)
-                    .load(movieBackdrop)
-                    .centerCrop()
-                    .transition(com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade(400))
-                    .into(ivBackdrop)
             }
         }
     }
@@ -1196,62 +1160,6 @@ class MovieDetailActivity : AppCompatActivity() {
         currentStream()?.container_extension ?: movieContainer
 
     private fun currentStreamTitle(): String? = currentStream()?.name ?: movieName
-
-    private fun launchTrailer() {
-        val trailerUrl = movieTrailerUrl
-        if (!trailerUrl.isNullOrBlank() && TrailerValueParser.parse(trailerUrl) != null) {
-            startActivity(com.tvonnet.debridxtreamiptv.ui.trailer.TrailerActivity.createIntent(this, trailerUrl))
-            return
-        }
-
-        if (isTrailerLookupInProgress) return
-
-        val tmdbId = movieId?.toIntOrNull()
-        if (tmdbId == null) {
-            Toast.makeText(this, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
-            updateTrailerButtonState()
-            return
-        }
-
-        lifecycleScope.launch {
-            isTrailerLookupInProgress = true
-            btnTrailer.isEnabled = false
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    tmdbRemoteDataSource.getMovieDetails(tmdbId)
-                }
-
-                result.onSuccess { details ->
-                    val trailer = details.videos?.results?.firstOrNull {
-                        it.site?.lowercase() == "youtube" && it.type?.lowercase() == "trailer"
-                    } ?: details.videos?.results?.firstOrNull {
-                        it.site?.lowercase() == "youtube"
-                    }
-
-                    if (trailer?.key != null) {
-                        movieTrailerUrl = trailer.key
-                        startActivity(com.tvonnet.debridxtreamiptv.ui.trailer.TrailerActivity.createIntent(this@MovieDetailActivity, trailer.key))
-                    } else {
-                        Toast.makeText(this@MovieDetailActivity, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
-                    }
-                }.onFailure {
-                    Toast.makeText(this@MovieDetailActivity, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
-                }
-            } catch (_: Exception) {
-                Toast.makeText(this@MovieDetailActivity, R.string.movie_detail_trailer_unavailable, Toast.LENGTH_SHORT).show()
-            } finally {
-                isTrailerLookupInProgress = false
-                updateTrailerButtonState()
-            }
-        }
-    }
-
-    private fun updateTrailerButtonState() {
-        if (!::btnTrailer.isInitialized) return
-        val canResolveTrailer = TrailerValueParser.parse(movieTrailerUrl) != null || movieId?.toIntOrNull() != null
-        btnTrailer.isEnabled = canResolveTrailer && !isTrailerLookupInProgress
-        btnTrailer.alpha = if (canResolveTrailer) 0.85f else 0.45f
-    }
 
     private fun playMovie(sourceOverride: MovieSource? = null) {
         val stream = sourceOverride?.stream ?: currentStream()
@@ -1880,7 +1788,7 @@ class MovieDetailActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        cancelTrailerPreview()
+        movieTrailerController.cancelPreview()
     }
 
     override fun onDestroy() {
