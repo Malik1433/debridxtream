@@ -28,7 +28,6 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
-import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -277,7 +276,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         ::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible
     internal fun isEpisodeBrowserVisible(): Boolean =
         ::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()
-    private var frameRateMatchedForCurrentSource: Boolean by session::frameRateMatchedForCurrentSource
+    internal var frameRateMatchedForCurrentSource: Boolean by session::frameRateMatchedForCurrentSource
 
     // ── crash-safe progress heartbeat (VOD) ─────────────────────────────────
     // Streaming-app standard: persist the playback position every ~30s while
@@ -418,7 +417,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
 
     /** P14: remembers which addon-proxy context last failed / already succeeded. */
     internal val addonProxyFailures = AddonProxyFailureTracker()
-    private var hasRenderedFirstFrameForCurrentSource: Boolean by session::hasRenderedFirstFrameForCurrentSource
+    internal var hasRenderedFirstFrameForCurrentSource: Boolean by session::hasRenderedFirstFrameForCurrentSource
     // Black-video fallback: some HW decoders (e.g. MTK on high-bitrate/4K HEVC) play audio
     // but never render video under tunneling. If no frame arrives while audio is playing,
     // reinit once without tunneling.
@@ -517,7 +516,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     internal var directDebridPlayback: Boolean by session::directDebridPlayback
     internal var contentId: String? by session::contentId
     private var returnToSourcesOnExit: Boolean by session::returnToSourcesOnExit
-    private var didPlaybackComplete: Boolean by session::didPlaybackComplete
+    internal var didPlaybackComplete: Boolean by session::didPlaybackComplete
     private var manualExit: Boolean by session::manualExit
     private var exitResultHandled: Boolean by session::exitResultHandled
     private var lastPlaybackPositionMs: Long by session::lastPlaybackPositionMs
@@ -550,7 +549,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     internal var baseServerUrl: String? by session::baseServerUrl
     internal var liveChannelIds: ArrayList<String>? = null
     private var isResolvingDebrid: Boolean by session::isResolvingDebrid
-    private var hasAppliedIndexOverride: Boolean by session::hasAppliedIndexOverride
+    internal var hasAppliedIndexOverride: Boolean by session::hasAppliedIndexOverride
     internal lateinit var trackManager: PlayerTrackManager
     internal lateinit var episodeBrowserController: EpisodeBrowserController
     private var currentZapRequestId: Long by session::currentZapRequestId
@@ -1112,6 +1111,14 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         )
     }
 
+    /**
+     * P27-e: if this is a shared live session launched from the EPG guide, adopt the guide's
+     * running preview player (assign it + take audio focus + cover with its last frame) and
+     * return true so [initializePlayer] skips cold init. Overridden only by [LivePlayerFragment];
+     * the base default returns false (VOD / non-shared always cold-inits).
+     */
+    protected open fun adoptSharedLivePlayerIfPresent(streamUrl: String): Boolean = false
+
     override fun initializePlayer(streamUrl: String) {
         if (isFinishing || isDestroyed) {
             Log.w("PlayerActivity", "initializePlayer aborted: Activity is finishing or destroyed")
@@ -1128,50 +1135,12 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
             // re-read prefs from disk on the UI thread on every player init.
             val isSoftwareAudioEnabled = settingsPreferences.isSoftwareAudioEnabled()
 
-            // Warm hand-off from the Live TV EPG guide (LP-ADOPT). The guide's preview
-            // player is now built with the SAME tuned engine as a cold start (see
-            // PreviewPlayerPanel: ffmpeg SW-audio renderer, low-RAM LoadControl/OOM
-            // guard, 429 cool-off LoadErrorHandlingPolicy), so we ADOPT the
-            // already-running instance instead of reconnecting. That keeps the single
-            // provider connection (no release→reconnect → no 403 storm on
-            // max_connections=1 accounts) while fullscreen still runs a fully tuned
-            // player. We only take over audio focus (the muted preview deliberately
-            // never held it) and cover our surface with the guide's last frame until we
-            // render our own — the hand-off never reconnects or flashes black.
-            val adoptedShared = if (sharedLiveSession && contentType == ContentType.LIVE_TV) {
-                LiveSharedPlayer.adopt(streamUrl)
-            } else {
-                null
-            }
-            if (adoptedShared != null) {
-                didPlaybackComplete = false
-                hasAppliedIndexOverride = false
-                timeoutHandler.removeCallbacks(timeoutRunnable)
-                hasRenderedFirstFrameForCurrentSource = true
-                frameRateMatchedForCurrentSource = false
-                player = adoptedShared.also {
-                    playerView.player = it
-                    it.volume = 1f
-                    // The preview built the player muted with NO audio-focus handling
-                    // (browsing the guide must not duck other apps). Fullscreen owns
-                    // audio now — take over focus at runtime.
-                    it.setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(C.USAGE_MEDIA)
-                            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                            .build(),
-                        /* handleAudioFocus= */ true
-                    )
-                }
-                PlaybackDiagnosticsRecorder.record(
-                    requireContext(),
-                    "player_adopted_shared_tuned",
-                    diagnosticsPlaybackFields(streamUrl, null)
-                )
-                // Cover our surface with the guide's last rendered frame until we draw
-                // our own first frame — the hand-off never flashes black.
-                LiveSharedPlayer.takeFrame()?.let { showAdoptedCoverFrame(requireActivity(), it, player, timeoutHandler) }
-            } else {
+            // P27-e: warm hand-off from the Live TV EPG guide (LP-ADOPT) — adopt the guide's
+            // already-running preview player instead of reconnecting. Live-only; the whole
+            // block lives in LivePlayerFragment.adoptSharedLivePlayerIfPresent (base default
+            // false → a VOD/non-shared launch always takes the cold-init path below). When it
+            // adopts, it has fully set up the player, so we skip cold init entirely.
+            if (!adoptSharedLivePlayerIfPresent(streamUrl)) {
             didPlaybackComplete = false
             hasAppliedIndexOverride = false
             timeoutHandler.removeCallbacks(timeoutRunnable)

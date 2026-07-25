@@ -1,5 +1,7 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 import dagger.hilt.android.AndroidEntryPoint
@@ -81,6 +83,43 @@ class LivePlayerFragment : BasePlayerFragment() {
             finish()
             overridePendingTransition(0, 0)
         }
+        return true
+    }
+
+    // P27-e: warm hand-off from the Live TV EPG guide (LP-ADOPT). The guide's preview player
+    // is built with the SAME tuned engine as a cold start (PreviewPlayerPanel: ffmpeg SW-audio
+    // renderer, low-RAM LoadControl/OOM guard, 429 cool-off policy), so we ADOPT the already-
+    // running instance instead of reconnecting — keeps the single provider connection (no
+    // release→reconnect → no 403 storm on max_connections=1 accounts) while fullscreen still
+    // runs a fully tuned player. We only take over audio focus (the muted preview never held it)
+    // and cover our surface with the guide's last frame until we render our own — never black.
+    override fun adoptSharedLivePlayerIfPresent(streamUrl: String): Boolean {
+        val adopted = (if (sharedLiveSession) LiveSharedPlayer.adopt(streamUrl) else null) ?: return false
+        didPlaybackComplete = false
+        hasAppliedIndexOverride = false
+        timeoutHandler.removeCallbacks(timeoutRunnable)
+        hasRenderedFirstFrameForCurrentSource = true
+        frameRateMatchedForCurrentSource = false
+        player = adopted.also {
+            playerView.player = it
+            it.volume = 1f
+            // The preview built the player muted with NO audio-focus handling (browsing the
+            // guide must not duck other apps). Fullscreen owns audio now — take focus at runtime.
+            it.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                    .build(),
+                /* handleAudioFocus= */ true
+            )
+        }
+        PlaybackDiagnosticsRecorder.record(
+            requireContext(),
+            "player_adopted_shared_tuned",
+            diagnosticsPlaybackFields(streamUrl, null)
+        )
+        // Cover our surface with the guide's last rendered frame until we draw our own.
+        LiveSharedPlayer.takeFrame()?.let { showAdoptedCoverFrame(requireActivity(), it, player, timeoutHandler) }
         return true
     }
 
