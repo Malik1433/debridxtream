@@ -383,6 +383,20 @@ class MovieDebridSourceController(
         return streamIds
     }
 
+    /**
+     * The bare UnifiedSourceProvider movie-source fetch (same args as [loadMovieSources]'s inner
+     * call). MD-4's auto-failover uses it to re-fetch when the in-memory [debridSources] is empty.
+     * Suspends; call inside `withContext(Dispatchers.IO)` at the call site as before.
+     */
+    suspend fun fetchMovieSourcesFromProvider(): List<MovieSource> =
+        unifiedSourceProvider.getMovieSources(
+            streamId = movieId(),
+            title = movieName(),
+            primaryCategoryId = movieCategoryId(),
+            yearHint = movieYear(),
+            imdbId = currentImdbId()
+        )
+
     fun updateRdSummary(sources: List<MovieSource>) {
         if (sources.isEmpty()) {
             layoutRdSummary.visibility = View.GONE
