@@ -213,7 +213,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     }
 
     /** C5: the remaining lifecycle-scoped viewModel→UI subscriptions. */
-    private val viewModelBinder: PlayerViewModelBinder by lazy {
+    internal val viewModelBinder: PlayerViewModelBinder by lazy {
         PlayerViewModelBinder(this, session)
     }
 
@@ -548,7 +548,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     internal var currentEpgChannelId: String? by session::currentEpgChannelId
     internal var liveCategoryId: String? by session::liveCategoryId
     internal var baseServerUrl: String? by session::baseServerUrl
-    private var liveChannelIds: ArrayList<String>? = null
+    internal var liveChannelIds: ArrayList<String>? = null
     private var isResolvingDebrid: Boolean by session::isResolvingDebrid
     private var hasAppliedIndexOverride: Boolean by session::hasAppliedIndexOverride
     internal lateinit var trackManager: PlayerTrackManager
@@ -605,6 +605,22 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         savedInstanceState: Bundle?
     ): View = inflater.inflate(R.layout.activity_player, container, false)
 
+    // ── P27-b: live-mode setup + zap-init hooks ─────────────────────────────
+    // The live-only branches of onViewCreated were moved verbatim into these open
+    // hooks; only LivePlayerFragment overrides them, so a VOD instance runs the
+    // empty base impls (identical to the old `contentType != LIVE_TV` path). The
+    // live collaborator fields (liveTuner/liveOsd/epgRenderer/channelBrowser/
+    // zapDebouncer) still live in the base — they are referenced by shared paths
+    // (recovery/stall/PiP/overlay/lifecycle) and move down in a later P27 step.
+    /** Live overlay chrome: OSD views, live OSD manager, channel meta, zap backdrop. */
+    protected open fun setupLiveOverlayChrome(channelName: String?) {}
+    /** Live EPG + overlay/zap viewModel subscriptions (also disables the VOD controller). */
+    protected open fun observeLiveEpgAndState() {}
+    /** Live zapping init + the channel-browser overlay. */
+    protected open fun startLiveZappingAndBrowser() {}
+    /** Seed the legacy EPG strip + show the compact overlay when no cinematic OSD. */
+    protected open fun seedLiveEpgOverlay() {}
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -656,11 +672,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         pendingChannelName = channelName
 
         if (contentType == ContentType.LIVE_TV) {
-            setupOverlayViews()
-            liveTuner.setupLiveOsd()
-            bindChannelMeta(channelName)
-            // Backdrop covers the black surface until the first frame renders.
-            liveOsd?.showZapBackdrop()
+            setupLiveOverlayChrome(channelName)
         } else {
             // New Redesign: We use the Controller's Top Bar instead of a separate VOD overlay
         }
@@ -684,12 +696,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         }
 
         if (contentType == ContentType.LIVE_TV) {
-            playerView.useController = false
-            val epgChannelId = currentEpgChannelId
-            val streamIdForEpg = contentId?.takeIf { it.toLongOrNull() != null }
-            viewModel.observeEpg(epgChannelId, streamIdForEpg)
-            viewModelBinder.observeOverlayState()
-            viewModelBinder.observeZapState()
+            observeLiveEpgAndState()
         } else {
             playerView.useController = true
             playerView.controllerAutoShow = true
@@ -807,18 +814,11 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         supportActionBar?.title = streamTitle ?: "Playing"
 
         if (contentType == ContentType.LIVE_TV) {
-            viewModel.initLiveZapping(
-                categoryId = liveCategoryId,
-                currentStreamId = contentId,
-                baseServerUrl = baseServerUrl ?: prefs.getServerUrl(),
-                orderedStreamIds = liveChannelIds
-            )
-            initBrowserOverlay()
+            startLiveZappingAndBrowser()
         }
 
         if (contentType == ContentType.LIVE_TV) {
-            epgRenderer.seedInitialStateIfNeeded()
-            if (liveOsd == null) showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false)
+            seedLiveEpgOverlay()
         } else {
             playerView.showController()
         }
@@ -877,7 +877,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     }
 
 
-    private fun setupOverlayViews() {
+    internal fun setupOverlayViews() {
         if (epgOverlay != null) return
         epgOverlay = findViewById(R.id.epg_overlay)
         imgChannelLogo = findViewById(R.id.img_channel_logo)
@@ -1460,7 +1460,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     }
 
 
-    private fun initBrowserOverlay() {
+    internal fun initBrowserOverlay() {
         channelBrowser.bind(
             scope = lifecycleScope,
             onCategorySelected = { categoryId -> viewModel.selectBrowserCategory(categoryId) },
