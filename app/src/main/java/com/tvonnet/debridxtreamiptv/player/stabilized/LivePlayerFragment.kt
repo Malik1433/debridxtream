@@ -1,6 +1,7 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
 import androidx.media3.common.util.UnstableApi
+import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
@@ -62,5 +63,44 @@ class LivePlayerFragment : BasePlayerFragment() {
             return true
         }
         return false
+    }
+
+    // P27-d: live+shared exit. Hand the running player back to the EPG guide's mini
+    // preview instead of releasing it (seamless shrink-to-mini). Verbatim from the base;
+    // `contentType == LIVE_TV` is implicit for this subclass.
+    override fun performLiveSharedExitIfNeeded(): Boolean {
+        if (!(sharedLiveSession && player != null)) return false
+        if (sharedExitInProgress) return true
+        sharedExitInProgress = true
+        // Snapshot the on-screen frame first (async for SurfaceView), then hand the
+        // running player back and leave without animation.
+        captureVideoFrame(playerView) { frame ->
+            if (isFinishing || isDestroyed) return@captureVideoFrame
+            handBackSharedPlayerIfNeeded(frame)
+            releasePlayer()
+            finish()
+            overridePendingTransition(0, 0)
+        }
+        return true
+    }
+
+    private fun handBackSharedPlayerIfNeeded(frame: android.graphics.Bitmap? = null): Boolean {
+        if (!sharedLiveSession) return false
+        val p = player ?: return false
+        playerListener?.let { p.removeListener(it) }
+        playerListener = null
+        debugListener?.let { p.removeListener(it) }
+        debugListener = null
+        stopStallMonitor()
+        timeoutHandler.removeCallbacks(timeoutRunnable)
+        playerView.player = null
+        player = null
+        LiveSharedPlayer.offer(p, currentUrl, contentId, frame)
+        PlaybackDiagnosticsRecorder.record(
+            requireContext(),
+            "player_handed_back_shared",
+            diagnosticsPlaybackFields()
+        )
+        return true
     }
 }

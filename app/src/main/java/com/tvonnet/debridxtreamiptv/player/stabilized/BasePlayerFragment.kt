@@ -165,8 +165,8 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
 
     // True when this session was launched from the Live TV EPG guide with a shared
     // preview player to adopt (seamless mini <-> fullscreen continuity).
-    private val sharedLiveSession by lazy { intent.getBooleanExtra(PlayerActivity.EXTRA_SHARED_LIVE_PLAYER, false) }
-    private var sharedExitInProgress: Boolean by session::sharedExitInProgress
+    internal val sharedLiveSession by lazy { intent.getBooleanExtra(PlayerActivity.EXTRA_SHARED_LIVE_PLAYER, false) }
+    internal var sharedExitInProgress: Boolean by session::sharedExitInProgress
     private lateinit var watchHistoryPrefs: WatchHistoryPreferences
     internal lateinit var historyManager: PlayerHistoryManager
 
@@ -442,8 +442,8 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     private var tvDebugInfo: TextView? = null
     private var debugEnabled = false
     private var switchCount: Int by session::switchCount
-    private var debugListener: Player.Listener? = null
-    private var playerListener: Player.Listener? = null
+    internal var debugListener: Player.Listener? = null
+    internal var playerListener: Player.Listener? = null
     internal val captureRunnable = Runnable { captureManualTrackSelection() }
     /** P8: the 1 Hz developer overlay; it renders only while [debugSnapshot] returns non-null. */
     private val debugOverlay = PlayerDebugOverlay(
@@ -1319,32 +1319,6 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         }
     }
 
-    /**
-     * Live TV sessions launched from the EPG guide share one ExoPlayer with the
-     * guide's mini preview. On exit, hand the running player back to the guide
-     * (via [LiveSharedPlayer]) instead of releasing it, so playback continues
-     * seamlessly through the shrink-to-mini transition.
-     */
-    private fun handBackSharedPlayerIfNeeded(frame: android.graphics.Bitmap? = null): Boolean {
-        if (!sharedLiveSession || contentType != ContentType.LIVE_TV) return false
-        val p = player ?: return false
-        playerListener?.let { p.removeListener(it) }
-        playerListener = null
-        debugListener?.let { p.removeListener(it) }
-        debugListener = null
-        stopStallMonitor()
-        timeoutHandler.removeCallbacks(timeoutRunnable)
-        playerView.player = null
-        player = null
-        LiveSharedPlayer.offer(p, currentUrl, contentId, frame)
-        PlaybackDiagnosticsRecorder.record(
-            requireContext(),
-            "player_handed_back_shared",
-            diagnosticsPlaybackFields()
-        )
-        return true
-    }
-
     internal fun releasePlayer(reason: String = "unspecified") {
         PlaybackDiagnosticsRecorder.record(
             requireContext(),
@@ -1436,24 +1410,20 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
      * Shared by the onBackPressedDispatcher callback (Live/EPG paths) and the VOD dispatchKeyEvent
      * path (which must consume BACK so the media3 controller can't swallow it).
      */
+    /**
+     * P27-d: the live+shared exit path — hand the running player back to the EPG guide's
+     * mini preview instead of releasing it, so playback continues through the shrink-to-mini
+     * transition. Overridden only by [LivePlayerFragment]; the base default returns false so a
+     * VOD instance takes the plain releasePlayer→finish path below (byte-identical to the old
+     * `sharedLiveSession && LIVE_TV && player != null` guard, which was never true off live).
+     */
+    protected open fun performLiveSharedExitIfNeeded(): Boolean = false
+
     internal fun performBackExit() {
         manualExit = true
         updateLastPlaybackPosition()
         historyManager.recordPlaybackHistoryIfNeeded()
-        if (sharedLiveSession && contentType == ContentType.LIVE_TV && player != null) {
-            if (sharedExitInProgress) return
-            sharedExitInProgress = true
-            // Snapshot the on-screen frame first (async for SurfaceView),
-            // then hand the running player back and leave without animation.
-            captureVideoFrame(playerView) { frame ->
-                if (isFinishing || isDestroyed) return@captureVideoFrame
-                handBackSharedPlayerIfNeeded(frame)
-                releasePlayer()
-                finish()
-                overridePendingTransition(0, 0)
-            }
-            return
-        }
+        if (performLiveSharedExitIfNeeded()) return
         releasePlayer()
         finish()
     }
@@ -1540,8 +1510,9 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
 
     private fun updateLastPlaybackPosition() { lastPlaybackPositionMs = player?.currentPosition ?: lastPlaybackPositionMs }
     // P26c: the exit-with-result / terminal-failure cluster now lives in PlayerExitController.
-    // finish() and these two C1 RecoveryHost members forward to it; the shared-player handoff
-    // (performBackExit / handBackSharedPlayerIfNeeded) deliberately stays in the Activity.
+    // finish() and these two C1 RecoveryHost members forward to it. `performBackExit` stays here
+    // (shared), but its live+shared hand-back moved to LivePlayerFragment in P27-d
+    // (`performLiveSharedExitIfNeeded` / `handBackSharedPlayerIfNeeded`).
     override fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean =
         exitController.finishWithReturnToSources(autoPlayNext, reason)
 
