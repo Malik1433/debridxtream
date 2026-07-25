@@ -23,7 +23,6 @@ import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
-import com.tvonnet.debridxtreamiptv.data.omdb.OmdbClient
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
@@ -145,6 +144,8 @@ class MovieDetailActivity : AppCompatActivity() {
     private lateinit var movieDebridSources: MovieDebridSourceController
     /** MD-4: Debrid playback launch + resume + source-failover (reads source state via [movieDebridSources]). */
     private lateinit var moviePlayback: MovieDebridPlaybackController
+    /** MD-5: TMDB details + OMDb ratings + similar-movies enrichment (writes metadata fields back). */
+    private lateinit var movieMetadata: MovieMetadataController
     private var movieCategoryId: String? = null
     private var isDebridMovie: Boolean = false
     private var currentImdbId: String? = null
@@ -204,7 +205,7 @@ class MovieDetailActivity : AppCompatActivity() {
         if (movieCategoryId == "debrid" && movieId != null) {
             val id = movieId!!.toIntOrNull()
             if (id != null) {
-                fetchTmdbDetails(movieId!!)
+                movieMetadata.fetchTmdbDetails(movieId!!)
             } else {
                 // ID is likely an InfoHash from History
                 android.util.Log.d("MovieDetailActivity", "Detected Debrid Hash ID: ${SensitiveLogRedactor.describeHash(movieId)}")
@@ -212,75 +213,6 @@ class MovieDetailActivity : AppCompatActivity() {
             }
         } else {
             movieDebridSources.loadMovieSources(null)
-        }
-    }
-
-    private fun fetchTmdbDetails(tmdbId: String) {
-        lifecycleScope.launch {
-            var imdbId: String? = null
-            try {
-                // Check if it's a valid integer ID
-                val id = tmdbId.toIntOrNull()
-                
-                if (id != null) {
-                    val result = withContext(Dispatchers.IO) {
-                        tmdbRemoteDataSource.getMovieDetails(id)
-                    }
-                    
-                    when (result) {
-                        is com.tvonnet.debridxtreamiptv.data.Result.Success -> {
-                            val details = result.data
-                            imdbId = details.imdbId
-                            currentImdbId = imdbId
-                            loadExternalRatings()
-
-                            moviePlot = details.overview
-                            movieRating = details.voteAverage?.toString()
-                            movieYear = details.releaseDate?.take(4)
-                            movieDuration = details.runtime?.let { (it * 60).toString() }
-                            movieGenre = details.genres?.joinToString(", ") { it.name ?: "" }
-                            movieDirector = details.credits?.crew
-                                ?.firstOrNull { it.job?.equals("Director", ignoreCase = true) == true }
-                                ?.name
-                            movieAgeRating = extractCertification(details.releaseDates)
-
-                            val castList = details.credits?.cast
-                            if (!castList.isNullOrEmpty()) {
-                                castAdapter.submitList(castList.take(5))
-                                tvCastTitle.visibility = View.VISIBLE
-                                rvCast.visibility = View.VISIBLE
-                            } else {
-                                tvCastTitle.visibility = View.GONE
-                                rvCast.visibility = View.GONE
-                            }
-                            // Cache a trailer key so the Trailer button dwell-preview
-                            // and enabled state work without a second lookup.
-                            if (movieTrailerController.trailerUrl.isNullOrBlank()) {
-                                val key = details.videos?.results?.firstOrNull {
-                                    it.site?.lowercase() == "youtube" && it.type?.lowercase() == "trailer"
-                                }?.key ?: details.videos?.results?.firstOrNull {
-                                    it.site?.lowercase() == "youtube"
-                                }?.key
-                                if (!key.isNullOrBlank()) movieTrailerController.setTrailerUrl(key)
-                            }
-                            movieTrailerController.refreshButtonState()
-
-                            displayMovieDetails()
-                            refreshResumeState()
-                            loadSimilarMovies(id)
-                        }
-                        is com.tvonnet.debridxtreamiptv.data.Result.Error -> {
-                            android.util.Log.e("MovieDetailActivity", "Failed to fetch TMDB details", result.exception)
-                        }
-                        else -> {}
-                    }
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("MovieDetailActivity", "Error fetching details", e)
-            } finally {
-                // Always load sources, even if details fetch failed
-                movieDebridSources.loadMovieSources(imdbId)
-            }
         }
     }
 
@@ -424,6 +356,36 @@ class MovieDetailActivity : AppCompatActivity() {
             layoutManager = LinearLayoutManager(this@MovieDetailActivity, LinearLayoutManager.HORIZONTAL, false)
             adapter = castAdapter
         }
+
+        movieMetadata = MovieMetadataController(
+            activity = this,
+            tmdbRemoteDataSource = tmdbRemoteDataSource,
+            trailerController = movieTrailerController,
+            castAdapter = castAdapter,
+            tvCastTitle = tvCastTitle,
+            rvCast = rvCast,
+            tvImdbRating = tvImdbRating,
+            badgeImdb = badgeImdb,
+            tvRtRating = tvRtRating,
+            badgeRt = badgeRt,
+            tvAgeRating = tvAgeRating,
+            layoutMetadataRow = layoutMetadataRow,
+            similarAdapter = similarAdapter,
+            layoutSimilarRow = layoutSimilarRow,
+            movieName = { movieName },
+            currentImdbId = { currentImdbId },
+            setCurrentImdbId = { currentImdbId = it },
+            movieAgeRating = { movieAgeRating },
+            setMovieAgeRating = { movieAgeRating = it },
+            setMoviePlot = { moviePlot = it },
+            setMovieRating = { movieRating = it },
+            setMovieYear = { movieYear = it },
+            setMovieDuration = { movieDuration = it },
+            setMovieGenre = { movieGenre = it },
+            setMovieDirector = { movieDirector = it },
+            onMetadataApplied = { displayMovieDetails(); refreshResumeState() },
+            onFetchComplete = { movieDebridSources.loadMovieSources(it) }
+        )
     }
 
 
@@ -590,58 +552,6 @@ class MovieDetailActivity : AppCompatActivity() {
 
     private fun configureTabs() {
     }
-
-    /** Fetches IMDb + Rotten Tomatoes scores from OMDb and shows them in the ratings row. */
-    private fun loadExternalRatings() {
-        val imdb = currentImdbId ?: return
-        lifecycleScope.launch {
-            val ratings = OmdbClient.fetchRatings(imdb) ?: return@launch
-            ratings.imdbRating?.let {
-                tvImdbRating.text = it
-                badgeImdb.visibility = View.VISIBLE
-            }
-            ratings.rottenTomatoes?.let {
-                tvRtRating.text = it
-                badgeRt.visibility = View.VISIBLE
-            }
-            // OMDb age rating as a fallback when TMDB certification is missing.
-            if (movieAgeRating.isNullOrBlank() && !ratings.rated.isNullOrBlank()) {
-                movieAgeRating = ratings.rated
-                tvAgeRating.text = ratings.rated
-                tvAgeRating.visibility = View.VISIBLE
-                layoutMetadataRow.visibility = View.VISIBLE
-            }
-        }
-    }
-
-    private fun loadSimilarMovies(tmdbId: Int) {
-        lifecycleScope.launch {
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    tmdbRemoteDataSource.getMovieRecommendations(tmdbId)
-                }
-                when (result) {
-                    is com.tvonnet.debridxtreamiptv.data.Result.Success -> {
-                        val movies = result.data.results?.take(6) ?: emptyList()
-                        if (movies.isNotEmpty()) {
-                            similarAdapter.submitList(movies)
-                            val title = movieName?.trim()
-                            findViewById<TextView>(R.id.header_similar).text =
-                                if (!title.isNullOrBlank()) {
-                                    "BECAUSE YOU WATCHED ${title.uppercase(java.util.Locale.getDefault())}"
-                                } else {
-                                    "SIMILAR MOVIES"
-                                }
-                            layoutSimilarRow.visibility = View.VISIBLE
-                        }
-                    }
-                    else -> {}
-                }
-            } catch (_: Exception) {}
-        }
-    }
-
-
 
     private fun setupClickListeners() {
         btnPlay.setOnClickListener {
