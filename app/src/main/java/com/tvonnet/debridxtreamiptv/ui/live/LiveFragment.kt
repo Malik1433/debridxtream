@@ -7,14 +7,12 @@ import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.core.view.isVisible
 import androidx.core.app.ActivityOptionsCompat
 import androidx.paging.CombinedLoadStates
 import androidx.paging.LoadState
@@ -64,14 +62,6 @@ import com.bumptech.glide.Glide
 @AndroidEntryPoint
 class LiveFragment : Fragment() {
 
-    companion object {
-        // Enforced 3-column layout
-        private const val CHANNEL_FOCUS_RETRY_COUNT = 3
-        private const val CHANNEL_FOCUS_RETRY_DELAY_MS = 50L
-        // Quick-jump timings: commit a typed number after a pause; flash the type-ahead letter.
-        private const val QUICK_JUMP_COMMIT_MS = 900L
-        private const val QUICK_JUMP_LETTER_MS = 700L
-    }
 
     @Inject
     lateinit var repository: XtreamRepository
@@ -109,10 +99,8 @@ class LiveFragment : Fragment() {
     private var categoryController: LiveCategoryController? = null
     /** LF-5: favourites bus + toggles + preview favourite button (owns the favourite set + count). */
     private var favoritesController: LiveFavoritesController? = null
-    // Quick-jump: number-zap (type a channel number) + A–Z type-ahead (press a letter).
-    private var tvQuickJump: TextView? = null
-    private val quickJumpBuffer = StringBuilder()
-    private var quickJumpJob: Job? = null
+    /** LF-6: channel-grid focus + quick-jump (D-pad; owns pending-focus + quick-jump state). */
+    private var channelFocusController: LiveChannelFocusController? = null
     private var btnWatch: View? = null
     private var didRestoreFocusForThisView = false
     private var didRestorePreviewForThisView = false
@@ -125,7 +113,6 @@ class LiveFragment : Fragment() {
     private var navigationJob: Job? = null
 
     private var lastUiState: LiveUiState? = null
-    private var pendingChannelFocusPosition: Int? = null
 
     private val livePlayerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -167,13 +154,13 @@ class LiveFragment : Fragment() {
                 stream.stream_id?.let { viewModel.onEvent(LiveEvent.RememberChannelFocus(it, position)) }
             },
             onChannelKey = { position, keyCode, event ->
-                handleChannelItemKey(position, keyCode, event)
+                channelFocusController?.handleChannelItemKey(position, keyCode, event) == true
             }
         ).apply {
             registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
-                override fun onChanged() = restoreFocusGrid()
-                override fun onItemRangeInserted(p0: Int, p1: Int) = restoreFocusGrid()
-                override fun onItemRangeRemoved(p0: Int, p1: Int) = restoreFocusGrid()
+                override fun onChanged() { channelFocusController?.restoreFocusGrid() }
+                override fun onItemRangeInserted(p0: Int, p1: Int) { channelFocusController?.restoreFocusGrid() }
+                override fun onItemRangeRemoved(p0: Int, p1: Int) { channelFocusController?.restoreFocusGrid() }
             })
         }
     }
@@ -197,7 +184,6 @@ class LiveFragment : Fragment() {
         rvChannels = view.findViewById<RecyclerView>(R.id.rv_channels_horizontal)
             ?: error("Missing rv_channels_horizontal in fragment_live_3column")
         tvEmptyState = view.findViewById(R.id.tv_empty_state)
-        tvQuickJump = view.findViewById(R.id.tv_quick_jump)
         btnWatch = view.findViewById(R.id.btn_fullscreen)
 
         // Loading/empty overlays for channels list
@@ -221,7 +207,7 @@ class LiveFragment : Fragment() {
             tvSearchLabel = view.findViewById(R.id.tv_search_label),
             onChipQueryChanged = { q -> categoryController?.onChipQueryChanged(q) },
             chipQueryIsNotEmpty = { categoryController?.chipQueryIsNotEmpty() == true },
-            onFocusDownToChannels = { focusChannelItem(0) },
+            onFocusDownToChannels = { channelFocusController?.focusChannelItem(0) },
         )
         searchController?.setup()
         categoryController = LiveCategoryController(
@@ -249,6 +235,19 @@ class LiveFragment : Fragment() {
                 }
             },
         )
+        channelFocusController = LiveChannelFocusController(
+            fragment = this,
+            viewModel = viewModel,
+            rvChannels = rvChannels,
+            channelPagingAdapter = channelPagingAdapter,
+            tvQuickJump = view.findViewById(R.id.tv_quick_jump),
+            onFocusNavRail = { focusNavRail() },
+            onFocusCategoryStrip = { categoryController?.focusCategoryStrip() == true },
+            onFocusWatch = { btnWatch?.requestFocus() == true },
+            onUnblockCategoryFocus = { categoryController?.unblockCategoryFocusAfterRestore() },
+            isFocusRestored = { didRestoreFocusForThisView },
+            markFocusRestored = { didRestoreFocusForThisView = true },
+        )
         epgController = LiveEpgPreviewController(
             fragment = this,
             viewModel = viewModel,
@@ -258,7 +257,7 @@ class LiveFragment : Fragment() {
             tvEpgStripSubtitle = view.findViewById(R.id.tv_epg_strip_subtitle),
             channelPagingAdapter = channelPagingAdapter,
             previewPanel = { previewPlayerPanel },
-            onFocusChannel = { position -> focusChannelItem(position) },
+            onFocusChannel = { position -> channelFocusController?.focusChannelItem(position) },
             onUpdateFavoriteButton = { stream -> favoritesController?.updateFavoriteButtonState(stream) },
             isPreviewRestored = { didRestorePreviewForThisView },
             markPreviewRestored = { didRestorePreviewForThisView = true },
@@ -304,7 +303,7 @@ class LiveFragment : Fragment() {
             if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    focusChannelItem(viewModel.uiState.value.lastFocusedChannelPosition ?: 0)
+                    channelFocusController?.focusChannelItem(viewModel.uiState.value.lastFocusedChannelPosition ?: 0)
                     true
                 }
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
@@ -324,10 +323,10 @@ class LiveFragment : Fragment() {
 
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> {
-                    if (isFirstChannelFocused()) (categoryController?.focusCategoryStrip() == true) else moveChannelFocusBy(delta = -1)
+                    if (channelFocusController?.isFirstChannelFocused() == true) (categoryController?.focusCategoryStrip() == true) else (channelFocusController?.moveChannelFocusBy(delta = -1) == true)
                 }
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    moveChannelFocusBy(delta = 1)
+                    channelFocusController?.moveChannelFocusBy(delta = 1) == true
                 }
                 KeyEvent.KEYCODE_DPAD_LEFT -> focusNavRail()
                 KeyEvent.KEYCODE_DPAD_RIGHT -> {
@@ -401,10 +400,10 @@ class LiveFragment : Fragment() {
         if (state.restoreFromFullscreenPending) {
             didRestoreFocusForThisView = false
             categoryController?.blockCategoryFocusForReturnRestore()
-            restoreFocusGrid()
+            channelFocusController?.restoreFocusGrid()
         }
         epgController?.maybeRestorePreviewFromState(state)
-        restoreChannelFocusIfNeeded()
+        channelFocusController?.restoreChannelFocusIfNeeded()
         lastChannelLoadStates?.let { renderChannelLoadState(it) }
         viewModel.onEvent(LiveEvent.ConsumeReturnFromFullscreen)
     }
@@ -436,7 +435,7 @@ class LiveFragment : Fragment() {
             epgController?.cancel()
             categoryController?.clear()
             favoritesController?.clear()
-            quickJumpJob?.cancel()
+            channelFocusController?.clear()
 
             // Clear job references
             uiStateJob = null
@@ -448,9 +447,7 @@ class LiveFragment : Fragment() {
             epgController = null
             categoryController = null
             favoritesController = null
-            quickJumpJob = null
-            quickJumpBuffer.setLength(0)
-            tvQuickJump = null
+            channelFocusController = null
         } catch (e: Exception) {
             android.util.Log.e("LiveFragment", "Error cancelling coroutines", e)
         }
@@ -667,189 +664,6 @@ class LiveFragment : Fragment() {
         }
     }
 
-    private fun restoreFocusGrid() {
-        if (didRestoreFocusForThisView) return
-        val state = viewModel.uiState.value
-        val position = state.lastFocusedChannelPosition ?: 0
-        focusChannelItem(position, markRestored = true)
-    }
-
-    private fun focusChannelItem(
-        position: Int,
-        markRestored: Boolean = false,
-        attempt: Int = 0
-    ) {
-        if (!isAdded || channelPagingAdapter.itemCount <= 0) return
-        val safePosition = position.coerceIn(0, channelPagingAdapter.itemCount - 1)
-        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("LIVE_GRID") {
-            rvChannels.post {
-                if (!isAdded) {
-                    com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
-                    return@post
-                }
-                rvChannels.scrollToPosition(safePosition)
-                rvChannels.postDelayed({
-                    if (!isAdded) {
-                        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
-                        return@postDelayed
-                    }
-                    try {
-                        val itemView = rvChannels.findViewHolderForAdapterPosition(safePosition)?.itemView
-                        val focused = itemView?.requestFocus() == true
-                        if (focused) {
-                            pendingChannelFocusPosition = null
-                            if (markRestored) didRestoreFocusForThisView = true
-                            categoryController?.unblockCategoryFocusAfterRestore()
-                        } else if (attempt < CHANNEL_FOCUS_RETRY_COUNT) {
-                            focusChannelItem(safePosition, markRestored, attempt + 1)
-                        } else {
-                            pendingChannelFocusPosition = null
-                            categoryController?.unblockCategoryFocusAfterRestore()
-                        }
-                    } finally {
-                        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
-                    }
-                }, CHANNEL_FOCUS_RETRY_DELAY_MS)
-            }
-        }
-    }
-
-    private fun moveChannelFocusBy(delta: Int): Boolean {
-        val itemCount = channelPagingAdapter.itemCount
-        if (itemCount <= 0) return true
-
-        val currentPosition = currentFocusedChannelPosition()
-            ?: viewModel.uiState.value.lastFocusedChannelPosition
-            ?: (rvChannels.layoutManager as? LinearLayoutManager)?.findFirstVisibleItemPosition()
-            ?: 0
-        if (currentPosition == RecyclerView.NO_POSITION) return true
-
-        val basePosition = pendingChannelFocusPosition ?: currentPosition
-        val targetPosition = (basePosition + delta).coerceIn(0, itemCount - 1)
-        if (targetPosition == basePosition) return true
-
-        pendingChannelFocusPosition = targetPosition
-        focusChannelItem(targetPosition)
-        return true
-    }
-
-    private fun handleChannelItemKey(position: Int, keyCode: Int, event: KeyEvent): Boolean {
-        if (event.action != KeyEvent.ACTION_DOWN) return false
-        return when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP -> {
-                if (position == 0) {
-                    pendingChannelFocusPosition = null
-                    categoryController?.focusCategoryStrip() == true
-                } else {
-                    moveChannelFocusFrom(position, delta = -1)
-                }
-            }
-            KeyEvent.KEYCODE_DPAD_DOWN -> moveChannelFocusFrom(position, delta = 1)
-            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                pendingChannelFocusPosition = null
-                focusNavRail()
-            }
-            KeyEvent.KEYCODE_DPAD_RIGHT -> btnWatch?.requestFocus() == true
-            in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 ->
-                onQuickJumpDigit(position, keyCode - KeyEvent.KEYCODE_0)
-            in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z ->
-                onQuickJumpLetter(position, ('a' + (keyCode - KeyEvent.KEYCODE_A)))
-            else -> false
-        }
-    }
-
-    // ── Quick-jump: number-zap + A–Z type-ahead ──────────────────────────────
-    // Both need a remote/keyboard with number or letter keys; on a plain D-pad they're inert.
-
-    /** Digits accumulate into a channel number; after a short pause we jump to that row. */
-    private fun onQuickJumpDigit(fromPosition: Int, digit: Int): Boolean {
-        val itemCount = channelPagingAdapter.itemCount
-        if (itemCount <= 0) return true
-        if (quickJumpBuffer.isEmpty() && digit == 0) return true // ignore leading zeros
-        if (quickJumpBuffer.length >= 4) quickJumpBuffer.setLength(0)
-        quickJumpBuffer.append(digit)
-        showQuickJumpHud(quickJumpBuffer.toString())
-        quickJumpJob?.cancel()
-        quickJumpJob = viewLifecycleOwner.lifecycleScope.launch {
-            delay(QUICK_JUMP_COMMIT_MS)
-            commitNumberJump()
-        }
-        return true
-    }
-
-    private fun commitNumberJump() {
-        val number = quickJumpBuffer.toString().toIntOrNull()
-        quickJumpBuffer.setLength(0)
-        hideQuickJumpHud()
-        if (number == null) return
-        val target = (number - 1).coerceIn(0, channelPagingAdapter.itemCount - 1)
-        pendingChannelFocusPosition = target
-        focusChannelItem(target)
-    }
-
-    /** Type-ahead: jump to the next channel whose cleaned name starts with [letter], wrapping. */
-    private fun onQuickJumpLetter(fromPosition: Int, letter: Char): Boolean {
-        // A letter ends any pending number entry.
-        quickJumpJob?.cancel()
-        quickJumpBuffer.setLength(0)
-
-        val items = channelPagingAdapter.snapshot().items
-        if (items.isEmpty()) return true
-        val size = items.size
-        // Scan forward from the row after the current one, wrapping around.
-        for (offset in 1..size) {
-            val idx = (fromPosition + offset) % size
-            if (channelFirstLetter(items[idx].name) == letter) {
-                showQuickJumpHud(letter.uppercase())
-                quickJumpJob?.cancel()
-                quickJumpJob = viewLifecycleOwner.lifecycleScope.launch {
-                    delay(QUICK_JUMP_LETTER_MS)
-                    hideQuickJumpHud()
-                }
-                pendingChannelFocusPosition = idx
-                focusChannelItem(idx)
-                return true
-            }
-        }
-        return true
-    }
-
-    /** First alphabetic character of a channel name, provider tags (e.g. "|UK|") stripped. */
-    private fun channelFirstLetter(name: String?): Char? =
-        com.tvonnet.debridxtreamiptv.util.MediaTitleCleaner.clean(name)
-            .firstOrNull { it.isLetter() }
-            ?.lowercaseChar()
-
-    private fun showQuickJumpHud(text: String) {
-        tvQuickJump?.apply {
-            this.text = text
-            isVisible = true
-        }
-    }
-
-    private fun hideQuickJumpHud() {
-        tvQuickJump?.isVisible = false
-    }
-
-    private fun moveChannelFocusFrom(position: Int, delta: Int): Boolean {
-        val itemCount = channelPagingAdapter.itemCount
-        if (itemCount <= 0) return true
-
-        val basePosition = pendingChannelFocusPosition ?: position
-        val targetPosition = (basePosition + delta).coerceIn(0, itemCount - 1)
-        if (targetPosition == basePosition) return true
-
-        pendingChannelFocusPosition = targetPosition
-        focusChannelItem(targetPosition)
-        return true
-    }
-
-    private fun currentFocusedChannelPosition(): Int? {
-        val focused = rvChannels.findFocus() ?: return null
-        val holder = rvChannels.findContainingViewHolder(focused) ?: return null
-        return holder.bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }
-    }
-
     /**
      * Navigate to PlayerActivity to play a stream
      * In 3-column: 1st click = preview, 2nd click = fullscreen
@@ -955,9 +769,9 @@ class LiveFragment : Fragment() {
 
         val index = channelPagingAdapter.snapshot().items.indexOfFirst { it.stream_id == streamId }
         if (index >= 0) {
-            focusChannelItem(index, markRestored = true)
+            channelFocusController?.focusChannelItem(index, markRestored = true)
         } else {
-            restoreChannelFocusIfNeeded()
+            channelFocusController?.restoreChannelFocusIfNeeded()
         }
     }
 
@@ -983,18 +797,6 @@ class LiveFragment : Fragment() {
         snapshotIds.forEach { merged.add(it) }
         currentStreamId?.let { merged.add(it) }
         return ArrayList(merged)
-    }
-
-    private fun restoreChannelFocusIfNeeded() {
-        if (didRestoreFocusForThisView) return
-        val state = viewModel.uiState.value
-        if (state.lastFocusArea != LiveFocusArea.CHANNELS) return
-
-        val targetStreamId = state.lastFocusedChannelId ?: state.lastPlayedChannelId ?: return
-        val index = channelPagingAdapter.snapshot().items.indexOfFirst { it.stream_id == targetStreamId }
-        if (index < 0) return
-
-        focusChannelItem(index, markRestored = true)
     }
 
 
@@ -1057,7 +859,7 @@ class LiveFragment : Fragment() {
                 } else {
                     hideEmptyState()
                     epgController?.warmVisibleEpgCache()
-                    restoreChannelFocusIfNeeded()
+                    channelFocusController?.restoreChannelFocusIfNeeded()
                 }
             }
         }
@@ -1080,14 +882,12 @@ class LiveFragment : Fragment() {
             host = this,
             root = view,
             onDpadRight = {
-                focusChannelItem(viewModel.uiState.value.lastFocusedChannelPosition ?: 0)
+                channelFocusController?.focusChannelItem(viewModel.uiState.value.lastFocusedChannelPosition ?: 0)
                 true
             }
         ).also { it.setup() }
     }
 
     private fun focusNavRail(): Boolean = navRail?.focusActiveItem() == true
-
-    private fun isFirstChannelFocused(): Boolean = currentFocusedChannelPosition() == 0
 
 }
