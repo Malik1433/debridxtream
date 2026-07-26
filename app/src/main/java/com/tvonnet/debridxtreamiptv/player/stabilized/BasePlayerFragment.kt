@@ -1157,12 +1157,19 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         super.onResume(); debugOverlay.start()
         val p = player
         if (p == null) {
-            if (!isResolvingDebrid) currentUrl?.let { initializePlayer(it) }
+            if (PlayerRetentionPolicy.shouldColdStartOnResume(hasPlayer = false, isResolvingDebrid = isResolvingDebrid)) {
+                currentUrl?.let { initializePlayer(it) }
+            }
         } else {
             startStallMonitor()
             // QA fix: don't audibly resume a stale stream underneath an in-flight
             // debrid re-resolve — the resolver's Success switch takes over playback.
-            if (wasPlayingBeforePause && !isResolvingDebrid) { p.play(); wasPlayingBeforePause = false }
+            if (PlayerRetentionPolicy.shouldResumePlaybackOnResume(
+                    hasPlayer = true,
+                    wasPlayingBeforePause = wasPlayingBeforePause,
+                    isResolvingDebrid = isResolvingDebrid
+                )
+            ) { p.play(); wasPlayingBeforePause = false }
         }
     }
     // Re-arm history for the new foreground segment: onStop's exit-save latches
@@ -1177,7 +1184,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         // releases: on max_connections=1 Xtream servers a retained live connection
         // would hold the account's only slot while backgrounded (and a live stream
         // has no resume value anyway — it re-tunes to the live edge).
-        if (contentType == ContentType.LIVE_TV || isFinishing) {
+        if (PlayerRetentionPolicy.shouldReleaseOnStop(contentType, isFinishing)) {
             releasePlayer("on_stop")
         } else {
             // QA fix: the retained path must fully disarm every recovery source, or a
@@ -1196,8 +1203,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     // updateLastPlaybackPosition in releasePlayer); onResume rebuilds from currentUrl.
     /** P26: the host Activity forwards its onTrimMemory here (Fragment has no such callback). */
     fun onHostTrimMemory(level: Int) {
-        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND &&
-            player != null && contentType != ContentType.LIVE_TV) {
+        if (PlayerRetentionPolicy.shouldReleaseOnTrimMemory(level, player != null, contentType)) {
             releasePlayer("trim_memory_$level")
         }
     }
