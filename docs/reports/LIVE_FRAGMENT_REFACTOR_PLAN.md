@@ -172,6 +172,31 @@ correct. No crash; no focus theft on refresh; no `.ts` freeze.
   but **MANDATORY interactive D-pad QA (up/down nav, number/letter quick-jump, no focus theft on refresh,
   fullscreen-return focus restore, grid↔chip↔rail↔Watch escapes) = OWNER EYES-ON, PENDING.**
 
-**LiveFragment 1756 → 893 so far (−49%, out of LargeClass).** **Next: LF-7** — the final **HIGH-risk gate**
-(playback launch + return-restore → `LivePlaybackLauncher`; the `max_connections=1`
-`releasePlayer()`-before-`launch` landmine). **Owner wants to be flagged before starting LF-7.**
+- **LF-7 DONE (`64ed833`)** — `LivePlaybackLauncher` (187 lines): the final phase + 2nd HIGH-risk gate.
+  Fullscreen playback launch + return-restore moved verbatim — `navigateToPlayer` (1st-click-preview /
+  2nd-click-fullscreen), `launchFullscreen`, `handleLivePlayerResult`, `resolveLiveChannelIds`. Two
+  load-bearing invariants preserved verbatim: (1) the `ActivityResultLauncher` STAYS registered in the
+  Fragment (field-initializer timing before STARTED) — only its body delegates to the controller, `launch`
+  passed as the `onLaunch` lambda; (2) `launchFullscreen` keeps `previewPanel().releasePlayer()`
+  **synchronously before** `onLaunch()` (the `max_connections=1` release-before-launch landmine, not
+  reordered). Sibling work via callbacks: `onUpdatePreviewEpg` (LF-3), `onUpdateFavoriteButton` (LF-5),
+  `onFocusChannelAt`/`onRestoreChannelFocus` (LF-6), `markPreviewRestored`. 11-param ctor. LiveFragment
+  **893→764**. Removed 7 now-unused imports (+ a few long-dead ones). Clean build + unit tests + detekt
+  green. Baseline 359→359 (**net zero**: the ctor LPL is offset by **LiveFragment DROPPING OUT OF
+  `LargeClass`** — the decomposition's headline goal). Device .35+.64 launch-stable, no crash — **MANDATORY
+  interactive QA (2nd-click first-frame fullscreen + BACK-restore with no double live connection / no
+  first-frame freeze) = OWNER EYES-ON, PENDING.**
+
+## ✅ DECOMPOSITION COMPLETE
+
+**LiveFragment 1756 → 764 (−56%), no longer a `LargeClass`.** The Live-browse domain now lives in **7
+focused collaborators**, each with one reason to change and each < 600 lines:
+`LiveHeaderController` (LF-1) · `LiveSearchController` (LF-2) · `LiveEpgPreviewController` (LF-3) ·
+`LiveCategoryController` (LF-4) · `LiveFavoritesController` (LF-5) · `LiveChannelFocusController` (LF-6) ·
+`LivePlaybackLauncher` (LF-7). All 7 phases pushed, clean-verified (build + unit tests + detekt) and
+device launch-stable on both TVs. **This was the last of the original god-classes** (see
+[[phase-7-god-class-decomposition]]) — the god-class backlog is now clear.
+
+**Remaining owner action:** interactive on-TV QA of the two HIGH-risk gates (LF-6 D-pad focus/quick-jump;
+LF-7 fullscreen first-frame + BACK-restore) — these cannot be autonomously driven on the secure Live
+surface.
