@@ -70,13 +70,39 @@ phase depend on the owner's eyes and makes sessions slow — so the test net com
   efficiently` asserts wall-clock `< 100ms`. It fails under build load and passes in isolation (seen
   2026-07-26). A timing assertion in a unit test is flaky by construction — replace it with a
   complexity/behavioural assertion (e.g. lookup is index-backed, not a full scan) rather than a stopwatch.
-- **B1** — Fix the instrumented-test runner path (`connectedDebugAndroidTest` fails with a local JDK
-  glitch; the working route is `assembleDebugAndroidTest` + `adb install` + `am instrument`, already
-  proven for the Room migration test). Script it so it is one command.
-- **B2** — Instrumented tests for the flows that keep breaking and currently need the owner's eyes:
-  Live browse → preview → fullscreen hand-off → return restore; channel D-pad focus + quick-jump;
-  VOD/Series resume; Room migrations. Target E4 ≥ 15.
-- **B3** — Unit tests for every collaborator extracted so far (Live LF-1..LF-7, Movie/Series detail).
+- **B1** — Make running instrumented tests one command. **Do not waste time on
+  `connectedDebugAndroidTest`** — on this machine it dies inside Gradle's UTP with
+  `Cannot run program "C:\Program Files\Java\bin\java": CreateProcess error=1920`. That is a local
+  JDK-path glitch, not a test problem. The route below is **already device-proven** (Room migration
+  test → `OK (2 tests)`, 2026-07-21); wrap it in `scripts/run_instrumented.sh`:
+
+  ```bash
+  ./gradlew :app:assembleDebugAndroidTest
+  ADB="C:/Users/Malik/AppData/Local/Android/Sdk/platform-tools/adb.exe"
+  "$ADB" -s 192.168.178.64:5555 install -r app/build/outputs/apk/debug/app-debug.apk
+  "$ADB" -s 192.168.178.64:5555 install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+  "$ADB" -s 192.168.178.64:5555 shell am instrument -w -r \
+      -e class <fully.qualified.TestClass> \
+      com.debridxtream.tv.test/androidx.test.runner.AndroidJUnitRunner
+  ```
+- **B2** — Instrumented tests for the flows that keep breaking and currently need the owner's eyes.
+  Priority order (highest pain first):
+  1. **Live fullscreen hand-off** — `LiveSharedPlayer.offer/adopt` round-trip: a player parked on the
+     way in is adopted (never a fresh reconnect), and adopted back on return. This is the path that
+     produced the reload + freeze incidents and it is currently only checked by eyeballing the TV and
+     grepping `LIVE_HANDOFF` logs.
+  2. **Channel D-pad focus + quick-jump** (`LiveChannelFocusController`) — up/down movement, number-zap,
+     A–Z type-ahead, and *no focus theft on refresh*.
+  3. **Resume** — VOD/Series/in-player positions (the `createIntent` `startPositionMs` trap).
+  4. **Room migrations** — extend the existing migration test to cover every version bump.
+  - **Caveat to design around:** the Live surface is secure, so a test cannot screenshot it. Assert on
+    *state* (which player instance is attached, focus position, adopted-vs-fresh) rather than pixels.
+  - Target E4 ≥ 15.
+- **B3** — Unit tests for every collaborator extracted so far: Live LF-1..LF-7
+  (`LiveHeaderController`, `LiveSearchController`, `LiveEpgPreviewController`, `LiveCategoryController`,
+  `LiveFavoritesController`, `LiveChannelFocusController`, `LivePlaybackLauncher`) and the Movie/Series
+  detail collaborators. These were extracted verbatim with **no tests written**, which is precisely why
+  Tier C cannot start first.
 - *Exit:* E4 ≥ 15, E5 ≥ 80, and a refactor can be trusted without a full manual pass.
 
 ### Tier C — the remaining god-classes *(safe once B exists)*
