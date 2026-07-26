@@ -139,4 +139,22 @@ correct. No crash; no focus theft on refresh; no `.ts` freeze.
   that were unreferenced project-wide + the now-unused `XtreamCategory` import → LiveFragment.kt
   **1273→1188**; no baseline change (dead classes had no entries). Clean build + unit tests + detekt green.
   **Device-verified 2026-07-26** (both .35 + .64 launch-stable, no crash). Interactive Live category/chip/
-  D-pad-focus QA = owner eyes-on. **Next: LF-5** (favorites → `LiveFavoritesController`).
+  D-pad-focus QA = owner eyes-on.
+- **LF-5 DONE (`ff58f15`)** — `LiveFavoritesController` (156 lines): the favourites domain moved verbatim —
+  `observeFavorites` (bus over `repository.getFavoritesByType("live")`) + `handleFavoriteLongPress` +
+  `togglePreviewFavorite` (was the preview panel's inline `onFavoriteClick` body) + `toggleFavorite` +
+  `notifyFavoriteChanged` + `updateFavoriteButtonState` + fields `favoriteStreamIds` (thread-safe set,
+  read O(1) by the paging adapter's `favoriteChecker` via `isFavorite`) + `favoritesCount`. The controller
+  does NOT hold the sibling header/category controllers — on change it emits `onFavoritesChanged(count)` and
+  the Fragment re-pokes the LF-4 chip counts + LF-1 header (orchestration glue stays in the Fragment);
+  `favoritesCount` is a getter read by LF-1 + LF-4. Paging-adapter `favoriteChecker`/`onChannelLongClick`,
+  preview `onFavoriteClick`, and LF-3's `onUpdateFavoriteButton` all route through it. Behaviour
+  byte-identical. 5-param ctor (no LPL). LiveFragment **1188→1093** (−95). Removed now-unused `Toast` +
+  `ConcurrentHashMap` imports. Clean build + unit tests + detekt green. Baseline 358→358 (**net zero**: the
+  relocated `SwallowedException(CancellationException)` per-file key is offset by `onDestroyView` dropping
+  out of `LongMethod` now the favourites cleanup moved out). **Device-verified 2026-07-26** (both .35 + .64
+  launch-stable, no crash).
+
+**LiveFragment 1756 → 1093 so far (−38%).** **Next: LF-6** — the first **HIGH-risk gate** (channel-grid
+focus + quick-jump, TV D-pad → `LiveChannelFocusController`). **Owner wants to be flagged before starting
+LF-6/LF-7**; each needs owner eyes-on device QA.
