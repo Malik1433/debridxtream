@@ -726,4 +726,41 @@
         android:layout_marginStart="10dp"
         android:layout_marginBottom="10dp" />
 
+    <!-- Fullscreen zoom bridge (Part B): a full-size, normally-GONE container that GROWS the preview to
+         fullscreen on the way in and SHRINKS back on return, so the transition zooms smoothly with no
+         black flash. Driven by LiveFullscreenZoom, which scales/translates it (pivot 0,0) onto the preview
+         tile. The bridge PLAYER renders the live stream during the grow (TextureView keeps drawing through
+         View transforms → the zoom shows LIVE video, not a frozen frame); the cover ImageView masks the
+         one hand-off surface switch and carries the return-shrink frame. -->
+    <FrameLayout
+        android:id="@+id/live_fullscreen_bridge"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/black"
+        android:focusable="false"
+        android:alpha="0.004"
+        android:elevation="24dp">
+
+        <!-- keep_content_on_player_reset + transparent shutter: detaching/attaching the player must not
+             blank this view (that would flash black through the hand-off). -->
+        <androidx.media3.ui.PlayerView
+            android:id="@+id/live_fullscreen_bridge_player"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:focusable="false"
+            app:resize_mode="zoom"
+            app:surface_type="texture_view"
+            app:keep_content_on_player_reset="true"
+            app:shutter_background_color="@android:color/transparent"
+            app:use_controller="false" />
+
+        <ImageView
+            android:id="@+id/live_fullscreen_bridge_cover"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitXY"
+            android:visibility="gone"
+            android:importantForAccessibility="no" />
+    </FrameLayout>
+
 </FrameLayout>

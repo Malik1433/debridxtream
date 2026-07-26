@@ -90,8 +90,10 @@ class LiveFragment : Fragment() {
     private var favoritesController: LiveFavoritesController? = null
     /** LF-6: channel-grid focus + quick-jump (D-pad; owns pending-focus + quick-jump state). */
     private var channelFocusController: LiveChannelFocusController? = null
-    /** LF-7: fullscreen playback launch + return-restore (release-before-launch landmine lives here). */
+    /** LF-7: fullscreen playback launch + return-restore (shared-player hand-off lives here). */
     private var playbackLauncher: LivePlaybackLauncher? = null
+    /** Part B: the smooth grow/shrink zoom for the classic fullscreen transition. */
+    private var liveZoom: LiveFullscreenZoom? = null
     private var btnWatch: View? = null
     private var didRestoreFocusForThisView = false
     private var didRestorePreviewForThisView = false
@@ -239,12 +241,24 @@ class LiveFragment : Fragment() {
             isFocusRestored = { didRestoreFocusForThisView },
             markFocusRestored = { didRestoreFocusForThisView = true },
         )
+        liveZoom = run {
+            val container = view.findViewById<View>(R.id.live_fullscreen_bridge) ?: return@run null
+            val bridgePlayer = view.findViewById<androidx.media3.ui.PlayerView>(R.id.live_fullscreen_bridge_player)
+                ?: return@run null
+            val cover = view.findViewById<android.widget.ImageView>(R.id.live_fullscreen_bridge_cover) ?: return@run null
+            val tile = view.findViewById<View>(R.id.preview_video_container) ?: return@run null
+            LiveFullscreenZoom(root = view, tile = tile, container = container, bridgePlayer = bridgePlayer, cover = cover)
+        }
+        // Park the zoom bridge invisibly over the preview tile from the start: its TextureView surface
+        // must already exist when we hand the player over, otherwise the video stalls during the grow.
+        liveZoom?.prewarm()
         playbackLauncher = LivePlaybackLauncher(
             fragment = this,
             viewModel = viewModel,
             repository = repository,
             channelPagingAdapter = channelPagingAdapter,
             previewPanel = { previewPlayerPanel },
+            zoom = liveZoom,
             onLaunch = { intent, options -> livePlayerLauncher.launch(intent, options) },
             onUpdatePreviewEpg = { stream -> epgController?.updatePreviewEpg(stream) },
             onUpdateFavoriteButton = { stream -> favoritesController?.updateFavoriteButtonState(stream) },
@@ -410,6 +424,13 @@ class LiveFragment : Fragment() {
         channelFocusController?.restoreChannelFocusIfNeeded()
         lastChannelLoadStates?.let { renderChannelLoadState(it) }
         viewModel.onEvent(LiveEvent.ConsumeReturnFromFullscreen)
+
+        if (state.restoreFromFullscreenPending) {
+            // Safety net: on a normal return the result path shrinks the zoom bridge away (~300ms). If an
+            // abnormal fullscreen exit ever skips that, make sure the bridge can't stay stuck covering the
+            // screen — clear it well after any legitimate shrink would have finished.
+            view?.postDelayed({ liveZoom?.hide() }, 2500)
+        }
     }
     
     override fun onPause() {
@@ -453,6 +474,8 @@ class LiveFragment : Fragment() {
             favoritesController = null
             channelFocusController = null
             playbackLauncher = null
+            liveZoom?.hide()
+            liveZoom = null
         } catch (e: Exception) {
             android.util.Log.e("LiveFragment", "Error cancelling coroutines", e)
         }
