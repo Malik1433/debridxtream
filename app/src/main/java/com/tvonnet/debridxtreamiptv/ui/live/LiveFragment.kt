@@ -1,7 +1,5 @@
 package com.tvonnet.debridxtreamiptv.ui.live
 
-import android.app.Activity
-import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -13,25 +11,16 @@ import androidx.fragment.app.commit
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.core.app.ActivityOptionsCompat
 import androidx.paging.CombinedLoadStates
 import androidx.paging.LoadState
-import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.SimpleItemAnimator
-import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
 import okhttp3.OkHttpClient
 import com.tvonnet.debridxtreamiptv.BuildConfig
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity
-import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
-import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
-import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
-import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.favorites.FavoritesFragment
 import com.tvonnet.debridxtreamiptv.ui.search.SearchFragment
 import com.tvonnet.debridxtreamiptv.ui.settings.SettingsFragment
@@ -101,6 +90,8 @@ class LiveFragment : Fragment() {
     private var favoritesController: LiveFavoritesController? = null
     /** LF-6: channel-grid focus + quick-jump (D-pad; owns pending-focus + quick-jump state). */
     private var channelFocusController: LiveChannelFocusController? = null
+    /** LF-7: fullscreen playback launch + return-restore (release-before-launch landmine lives here). */
+    private var playbackLauncher: LivePlaybackLauncher? = null
     private var btnWatch: View? = null
     private var didRestoreFocusForThisView = false
     private var didRestorePreviewForThisView = false
@@ -117,7 +108,7 @@ class LiveFragment : Fragment() {
     private val livePlayerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        handleLivePlayerResult(result.resultCode, result.data)
+        playbackLauncher?.handleLivePlayerResult(result.resultCode, result.data)
     }
 
     // Paging adapter for channels
@@ -248,6 +239,19 @@ class LiveFragment : Fragment() {
             isFocusRestored = { didRestoreFocusForThisView },
             markFocusRestored = { didRestoreFocusForThisView = true },
         )
+        playbackLauncher = LivePlaybackLauncher(
+            fragment = this,
+            viewModel = viewModel,
+            repository = repository,
+            channelPagingAdapter = channelPagingAdapter,
+            previewPanel = { previewPlayerPanel },
+            onLaunch = { intent, options -> livePlayerLauncher.launch(intent, options) },
+            onUpdatePreviewEpg = { stream -> epgController?.updatePreviewEpg(stream) },
+            onUpdateFavoriteButton = { stream -> favoritesController?.updateFavoriteButtonState(stream) },
+            onFocusChannelAt = { index -> channelFocusController?.focusChannelItem(index, markRestored = true) },
+            onRestoreChannelFocus = { channelFocusController?.restoreChannelFocusIfNeeded() },
+            markPreviewRestored = { didRestorePreviewForThisView = true },
+        )
         epgController = LiveEpgPreviewController(
             fragment = this,
             viewModel = viewModel,
@@ -269,7 +273,7 @@ class LiveFragment : Fragment() {
             requireContext(),
             view,
             okHttpClient,
-            onFullscreenClick = { stream -> launchFullscreen(stream) },
+            onFullscreenClick = { stream -> playbackLauncher?.launchFullscreen(stream) },
             onFavoriteClick = { stream -> favoritesController?.togglePreviewFavorite(stream) }
         )
         viewLifecycleOwner.lifecycle.addObserver(previewPlayerPanel!!)
@@ -448,6 +452,7 @@ class LiveFragment : Fragment() {
             categoryController = null
             favoritesController = null
             channelFocusController = null
+            playbackLauncher = null
         } catch (e: Exception) {
             android.util.Log.e("LiveFragment", "Error cancelling coroutines", e)
         }
@@ -578,7 +583,7 @@ class LiveFragment : Fragment() {
                     viewModel.navigationEvent.collect { stream ->
                         try {
                             if (isAdded && stream != null) {
-                                navigateToPlayer(stream)
+                                playbackLauncher?.navigateToPlayer(stream)
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("LiveFragment", "Error navigating to player", e)
@@ -664,140 +669,6 @@ class LiveFragment : Fragment() {
         }
     }
 
-    /**
-     * Navigate to PlayerActivity to play a stream
-     * In 3-column: 1st click = preview, 2nd click = fullscreen
-     */
-    private fun navigateToPlayer(stream: XtreamStream) {
-        // In 3-column: 1st click = preview, 2nd click = fullscreen
-        if (previewPlayerPanel?.getCurrentStream()?.stream_id == stream.stream_id && previewPlayerPanel?.isPlaying() == true) {
-            // Second click: go fullscreen
-            launchFullscreen(stream)
-        } else {
-            // First click: play in preview
-            previewPlayerPanel?.play(stream)
-            epgController?.updatePreviewEpg(stream)
-            viewModel.onEvent(LiveEvent.RememberPreviewStream(stream))
-            favoritesController?.updateFavoriteButtonState(stream)
-        }
-    }
-    
-    /**
-     * Launch fullscreen player
-     */
-    private fun launchFullscreen(stream: XtreamStream) {
-        viewModel.onEvent(LiveEvent.RememberFullscreenLaunch(stream))
-        viewLifecycleOwner.lifecycleScope.launch {
-            val credentialsPrefs = CredentialsPreferences(requireContext())
-            val serverUrl = credentialsPrefs.getServerUrl() ?: return@launch
-            val username = credentialsPrefs.getUsername() ?: return@launch
-            val password = credentialsPrefs.getPassword() ?: return@launch
-            val categoryId = stream.category_id ?: viewModel.uiState.value.selectedCategoryId
-            val streamUrl = stream.toLiveStreamUrl(serverUrl, username, password)
-            val channelIds = resolveLiveChannelIds(categoryId, stream.stream_id)
-
-            val intent = PlayerActivity.createIntent(
-                context = requireContext(),
-                streamUrl = streamUrl,
-                title = stream.name ?: getString(R.string.player_epg_channel_unknown),
-                channelName = stream.name,
-                channelLogo = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
-                epgChannelId = stream.epg_channel_id?.takeIf { it.isNotBlank() } ?: stream.stream_id?.toString(),
-                contentId = stream.stream_id ?: streamUrl,
-                contentType = ContentType.LIVE_TV,
-                posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
-                liveCategoryId = categoryId,
-                liveChannelIds = channelIds.takeIf { it.isNotEmpty() },
-                baseServerUrl = serverUrl
-            )
-            val options = ActivityOptionsCompat.makeCustomAnimation(
-                requireContext(),
-                R.anim.fade_in,
-                R.anim.fade_out
-            )
-            // Tear down the preview's live connection synchronously BEFORE PlayerActivity
-            // opens its own. The account is max_connections=1 — lifecycle pause only
-            // pauses the preview player, it does not close the socket, so without this
-            // the fullscreen session and the (still-connected) preview would be two
-            // simultaneous live connections and the server rejects the second. The
-            // classic screen's preview is muted/secondary, so a reconnect on return is
-            // acceptable (unlike the guide's shared-player hand-off).
-            previewPlayerPanel?.releasePlayer()
-            livePlayerLauncher.launch(intent, options)
-        }
-    }
-
-    private fun handleLivePlayerResult(resultCode: Int, data: Intent?) {
-        if (resultCode != Activity.RESULT_OK || data == null) return
-
-        val streamId = data.getStringExtra(PlayerActivity.EXTRA_LIVE_RETURN_CHANNEL_ID)
-            ?.takeIf { it.isNotBlank() }
-            ?: return
-        val streamUrl = data.getStringExtra(PlayerActivity.EXTRA_LIVE_RETURN_STREAM_URL)
-            ?.takeIf { it.isNotBlank() }
-        val channelName = data.getStringExtra(PlayerActivity.EXTRA_LIVE_RETURN_CHANNEL_NAME)
-            ?.takeIf { it.isNotBlank() }
-        val logoUrl = data.getStringExtra(PlayerActivity.EXTRA_LIVE_RETURN_CHANNEL_LOGO)
-            ?.takeIf { it.isNotBlank() }
-        val epgChannelId = data.getStringExtra(PlayerActivity.EXTRA_LIVE_RETURN_EPG_CHANNEL_ID)
-            ?.takeIf { it.isNotBlank() }
-        val categoryId = data.getStringExtra(PlayerActivity.EXTRA_LIVE_RETURN_CATEGORY_ID)
-            ?: viewModel.uiState.value.selectedCategoryId
-
-        val returnedStream = XtreamStream(
-            num = null,
-            name = channelName,
-            stream_type = "live",
-            stream_id = streamId,
-            stream_icon = logoUrl,
-            epg_channel_id = epgChannelId,
-            added = null,
-            category_id = categoryId,
-            category_ids = null,
-            container_extension = null,
-            custom_sid = null,
-            direct_source = streamUrl,
-            tv_archive = null,
-            tv_archive_duration = null
-        )
-
-        didRestorePreviewForThisView = true
-        previewPlayerPanel?.play(returnedStream, streamUrl)
-        epgController?.updatePreviewEpg(returnedStream)
-        favoritesController?.updateFavoriteButtonState(returnedStream)
-        viewModel.onEvent(LiveEvent.RememberPreviewStream(returnedStream))
-
-        val index = channelPagingAdapter.snapshot().items.indexOfFirst { it.stream_id == streamId }
-        if (index >= 0) {
-            channelFocusController?.focusChannelItem(index, markRestored = true)
-        } else {
-            channelFocusController?.restoreChannelFocusIfNeeded()
-        }
-    }
-
-    private suspend fun resolveLiveChannelIds(
-        categoryId: String?,
-        currentStreamId: String?
-    ): ArrayList<String> {
-        val snapshotIds = channelPagingAdapter.snapshot().items.mapNotNull { it.stream_id }.distinct()
-        val cachedIds = if (!categoryId.isNullOrBlank() && categoryId != FAVORITES_CATEGORY_ID) {
-            withContext(Dispatchers.IO) {
-                repository.getCachedLiveStreams(categoryId)
-                    ?.mapNotNull { it.stream_id }
-                    .orEmpty()
-            }
-        } else {
-            emptyList()
-        }
-
-        val merged = linkedSetOf<String>()
-        if (cachedIds.isNotEmpty()) {
-            cachedIds.forEach { merged.add(it) }
-        }
-        snapshotIds.forEach { merged.add(it) }
-        currentStreamId?.let { merged.add(it) }
-        return ArrayList(merged)
-    }
 
 
 
