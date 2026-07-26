@@ -11,6 +11,11 @@ A Claude Flow powered project
 
 ## DebridXtream Mandatory Project Rules
 
+> **SOURCE OF TRUTH: `CLAUDE.md` at the repo root.** Where this file and `CLAUDE.md` disagree,
+> `CLAUDE.md` wins. The engineering rules that actually govern this repo (code structure/decomposition,
+> runtime-quality rules, detekt baseline discipline, device-QA reality) live there and in
+> `docs/reports/WORLD_CLASS_ROADMAP.md`. This file only adds agent-harness conventions on top.
+
 ### Pre-Task Context
 - Before every task, read the relevant report and history files for the module being changed.
 - Always check `docs/reports/APP_SUCCESS_PATTERNS.md`, `docs/reports/APP_FAILED_PATTERNS.md`, and `docs/reports/DO_NOT_REPEAT.md` when behavior may repeat prior successes or failures.
@@ -19,7 +24,10 @@ A Claude Flow powered project
 - For Home work, read `docs/reports/HOME_MODULE_REPORT.md`, `docs/reports/HOME_SUCCESS_HISTORY.md`, and `docs/reports/HOME_FAILED_ATTEMPTS.md`.
 
 ### Change Discipline
-- **CRITICAL**: MUST ALWAYS use Swarm Orchestration (parallel subagents) for all task implementations. Do not execute coding tasks sequentially yourself.
+- Use swarm/parallel subagents ONLY when the work is genuinely independent and multi-file (see the
+  "When to Swarm" table in `CLAUDE.md`). Single-file edits, small fixes and anything touching the
+  playback/Live path are done sequentially, one verified phase at a time — that is how this repo's
+  risky paths are kept stable. (The old "MUST ALWAYS swarm everything" rule was wrong and is retired.)
 - Do not create duplicate files, components, layouts, routes, adapters, or controllers.
 - Prefer modifying the existing active implementation over adding parallel implementations.
 - Preserve working behavior unless the task explicitly asks to change it.
@@ -30,12 +38,21 @@ A Claude Flow powered project
 - For code changes, final validation must include a clean `assembleDebug` whenever feasible: `.\gradlew.bat clean assembleDebug --no-daemon`.
 - If clean assemble is too expensive or blocked, document the blocker and run the strongest targeted Gradle validation available.
 - Do not claim PASS from compile/build only when behavior is user-facing. Real functional QA is required for user-facing behavior.
-- Device QA must include `192.168.0.84:5555` and `192.168.0.21:5555` when requested.
+- Device QA runs on the Fire TVs at `192.168.178.35:5555` (primary) and `192.168.178.64:5555`.
+  adb is NOT on PATH: `C:\Users\Malik\AppData\Local\Android\Sdk\platform-tools\adb.exe`.
+  (Any doc still saying `192.168.0.84` / `192.168.0.21` is outdated — those hosts do not exist.)
+- The Live/player surface is secure: `screencap` is black and `adb shell input` is a no-op, so an agent
+  can install + launch + read logcat, but interactive playback/focus QA needs the owner's eyes on the TV.
 
 ### Report And History Updates
-- Every task must update the module report, module success history, module failed attempts, `APP_SUCCESS_PATTERNS.md`, `APP_FAILED_PATTERNS.md`, and `DO_NOT_REPEAT.md` when relevant.
-- No task is complete until relevant reports and histories are updated.
+- Update `docs/reports/WORLD_CLASS_ROADMAP.md` (the live ledger) whenever a phase lands, and the
+  specific plan doc for the work in hand. Record durable, non-obvious lessons as memory entries.
+- The per-module `*_MODULE_REPORT` / `*_SUCCESS_HISTORY` / `*_FAILED_ATTEMPTS` / `DO_NOT_REPEAT` files
+  are HISTORICAL (last maintained mid-2026). Read them for prior art; only update one if you actually
+  worked in that module and learned something that belongs there. Do not treat them as a required
+  checklist — that rule was not being followed and made "done" ambiguous.
 - Report files live under `docs/reports/`; do not scatter task reports into the repository root.
+- Stale docs from earlier eras are archived under `docs/archive/` — do not follow them as instructions.
 
 ### Module-Specific Guardrails
 - Player tasks: never change global DPAD behavior without a source/content guard.
