@@ -449,4 +449,6 @@ Carried from hard-won incidents; every phase must respect them.
 
 | 2026-07-26 | **C1** — `SettingsFragment` 790 → 301 (−62%), out of `LargeClass`; 3 collaborators + 9 unit tests; ~130 lines of dead scraper-registry UI deleted | **303** | **9** | 0 | 17 | `1d03aba` |
 
+| 2026-07-27 | **C2** — `VodFragment` 1301 → 625 (−52%), out of `LargeClass`; 4 collaborators (adapter, focus, list-state, overlays); 2 new LongParameterList fixed not baselined | **301** | **8** | 0 | 17 | `0307344` |
+
 *(Append one row per landed phase. The three numeric columns may never increase.)*
