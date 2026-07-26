@@ -363,6 +363,6 @@ Carried from hard-won incidents; every phase must respect them.
 
 | 2026-07-26 | **B3 — TIER B COMPLETE** — 3 pure decision objects out of LF-3/4/6 + tests (35), plus 81 tests over the untested shared pure code; fixed a blank category badge | 305 | 10 | 0 | 17 | `267d5ae` |
 
-| 2026-07-26 | **C1** — `SettingsFragment` 790 → 301 (−62%), out of `LargeClass`; 3 collaborators + 9 unit tests; ~130 lines of dead scraper-registry UI deleted | **303** | **9** | 0 | 17 | *(this)* |
+| 2026-07-26 | **C1** — `SettingsFragment` 790 → 301 (−62%), out of `LargeClass`; 3 collaborators + 9 unit tests; ~130 lines of dead scraper-registry UI deleted | **303** | **9** | 0 | 17 | `1d03aba` |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
