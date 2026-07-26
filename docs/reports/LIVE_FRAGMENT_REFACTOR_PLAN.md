@@ -155,6 +155,23 @@ correct. No crash; no focus theft on refresh; no `.ts` freeze.
   out of `LongMethod` now the favourites cleanup moved out). **Device-verified 2026-07-26** (both .35 + .64
   launch-stable, no crash).
 
-**LiveFragment 1756 → 1093 so far (−38%).** **Next: LF-6** — the first **HIGH-risk gate** (channel-grid
-focus + quick-jump, TV D-pad → `LiveChannelFocusController`). **Owner wants to be flagged before starting
-LF-6/LF-7**; each needs owner eyes-on device QA.
+- **LF-6 DONE (`7327bb4`)** — `LiveChannelFocusController` (257 lines): the HIGH-risk channel-grid focus +
+  quick-jump domain moved verbatim — `focusChannelItem` (FocusCoordinator gate + retry dance),
+  `restoreFocusGrid`, `restoreChannelFocusIfNeeded`, `moveChannelFocusBy`/`From`, `handleChannelItemKey`,
+  `currentFocusedChannelPosition`, `isFirstChannelFocused`, both quick-jump modes (number-zap + A–Z
+  type-ahead + HUD) + the transient state (`pendingChannelFocusPosition`, quick-jump buffer/job,
+  `tvQuickJump`) + `CHANNEL_FOCUS_RETRY_*`/`QUICK_JUMP_*`. The shared `didRestoreFocusForThisView` flag
+  STAYS in the Fragment (also gates category-focus restore + lifecycle-reset) — accessed via
+  `isFocusRestored`/`markFocusRestored`. Grid escapes go back through callbacks: `onFocusNavRail`,
+  `onFocusCategoryStrip` (LF-4), `onFocusWatch` (fullscreen button), `onUnblockCategoryFocus` (LF-4). Every
+  `focusChannelItem` entry point (nav-rail, chip strip, EPG onKey via LF-3, search down via LF-2, adapter
+  data-observer/onChannelKey, onResume, handleLivePlayerResult, renderChannelLoadState) routes through it.
+  Behaviour byte-identical. 11-param ctor. LiveFragment **1093→893** (−200) — now under the ≤900 target.
+  Removed now-unused `TextView`+`isVisible` imports + the emptied companion object. Clean build + unit
+  tests + detekt green. Baseline 358→359 (+1 = ctor LPL only). Device .35+.64 launch-stable, no crash —
+  but **MANDATORY interactive D-pad QA (up/down nav, number/letter quick-jump, no focus theft on refresh,
+  fullscreen-return focus restore, grid↔chip↔rail↔Watch escapes) = OWNER EYES-ON, PENDING.**
+
+**LiveFragment 1756 → 893 so far (−49%, out of LargeClass).** **Next: LF-7** — the final **HIGH-risk gate**
+(playback launch + return-restore → `LivePlaybackLauncher`; the `max_connections=1`
+`releasePlayer()`-before-`launch` landmine). **Owner wants to be flagged before starting LF-7.**
