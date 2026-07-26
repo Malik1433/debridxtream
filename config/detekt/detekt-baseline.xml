@@ -15,7 +15,6 @@
     <ID>ComplexCondition:IptvStreamAggregation.kt$StreamLanguage.Companion$n.contains("hindi") || n.contains("hin ") || n.contains("-hi") || n.contains(" hi ")</ID>
     <ID>ComplexCondition:IptvStreamAggregation.kt$StreamLanguage.Companion$n.contains("vostfr") || n.contains("vf") || n.contains("french") || n.contains("fr-")</ID>
     <ID>ComplexCondition:LanguageParser.kt$LanguageParser$lowerTitle.contains("multi") || lowerTitle.contains("multi audio") || lowerTitle.contains("multi-audio") || lowerTitle.contains("dual audio") || lowerTitle.contains("dual-audio") || lowerTitle.contains("dualaudio")</ID>
-    <ID>ComplexCondition:LivePlaybackLoadErrorPolicy.kt$LivePlaybackLoadErrorPolicy$responseCode == 401 || responseCode == 403 || responseCode == 404 || responseCode == 410 || responseCode == 416 || responseCode == 451</ID>
     <ID>ComplexCondition:LoginFragment.kt$LoginFragment$!loggedIn &amp;&amp; !server.isNullOrEmpty() &amp;&amp; !user.isNullOrEmpty() &amp;&amp; !pass.isNullOrEmpty()</ID>
     <ID>ComplexCondition:LoginQrOverlayController.kt$LoginQrOverlayController$snapshot != null &amp;&amp; !paired &amp;&amp; (status == "completed" || status == "success")</ID>
     <ID>ComplexCondition:PlayerDebridCoordinator.kt$PlayerDebridCoordinator$server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank() || stream.stream_id.isNullOrBlank()</ID>
@@ -164,7 +163,6 @@
     <ID>LargeClass:PlayerViewModel.kt$PlayerViewModel : ViewModel</ID>
     <ID>LargeClass:SeriesDetailFragmentV2.kt$SeriesDetailFragmentV2 : Fragment</ID>
     <ID>LargeClass:SeriesFragment.kt$SeriesFragment : Fragment</ID>
-    <ID>LargeClass:SettingsFragment.kt$SettingsFragment : Fragment</ID>
     <ID>LargeClass:VodFragment.kt$VodFragment : Fragment</ID>
     <ID>LargeClass:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2</ID>
     <ID>LongMethod:AddonCatalogRepository.kt$AddonCatalogRepository$suspend fun getDiscoveryContent( type: String, // "movie" or "series" page: Int = 1, sortBy: String? = null, catalogue: String = CATALOGUE_POPULAR, originalLanguage: String? = null, watchProviders: String? = null, watchRegion: String? = "US", releaseDateGte: String? = null, year: Int? = null, withGenres: String? = null ): Result&lt;List&lt;CatalogItem&gt;&gt;</ID>

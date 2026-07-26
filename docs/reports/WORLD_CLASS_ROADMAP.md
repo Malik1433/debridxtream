@@ -19,11 +19,11 @@ The app is "world-class" for this project's purposes when **all** of these are t
 
 | # | Criterion | Today | Target |
 |---|---|---:|---:|
-| E1 | detekt suppressions (`config/detekt/detekt-baseline.xml`) | **359** | **0** |
-| E2 | `LargeClass` violations | **10** | **0** |
+| E1 | detekt suppressions (`config/detekt/detekt-baseline.xml`) | **303** | **0** |
+| E2 | `LargeClass` violations | **9** | **0** |
 | E3 | `SwallowedException` (errors silently hidden) | **0 ✅ MET** | **0** |
 | E4 | Instrumented (on-device) tests — **counted as test methods**, `run_instrumented.sh` reports it | **17 ✅ MET** (3 classes) | **≥ 15** covering Live/Player/VOD/Series core flows |
-| E5 | Unit test files | **80 ✅ MET** | ≥ 80, with every new collaborator tested |
+| E5 | Unit test files | **81 ✅ MET** | ≥ 80, with every new collaborator tested |
 | E6 | Crash-free playback landmines re-verified after each phase | ad hoc | scripted device checklist |
 | E7 | Open P1 findings from the 2026-07-19 audits | 12 P1 | 0 |
 | E8 | Stale/contradictory docs at repo root | 0 ✅ | 0 |
@@ -230,7 +230,7 @@ one domain per commit).
 
 | Phase | File | Lines | Risk |
 |---|---|---:|---|
-| C1 | `SettingsFragment.kt` | 787 | low |
+| ~~C1~~ ✅ | `SettingsFragment.kt` | ~~787~~ **301** | done 2026-07-26 |
 | C2 | `VodFragment.kt` | 1301 | low-med |
 | C3 | `SeriesFragment.kt` | 1096 | low-med |
 | C4 | `SeriesDetailFragmentV2.kt` | 843 | med |
@@ -240,6 +240,31 @@ one domain per commit).
 | C8 | `LivePlayerOsdManager.kt` | 1174 | high (player) |
 | C9 | `BasePlayerFragment.kt` | 1481 | high (player) |
 | C10 | `PlayerViewModel.kt` | 1555 | high (player) |
+
+
+**C1 done 2026-07-26.** `SettingsFragment` 790 → **301** lines (−62%), out of `LargeClass`:
+- `SettingsOptionLabels` (pure, 9 unit tests) — the value/label vocabulary and the per-selector
+  defaults, which are *not* uniform: audio language and engine fall back to the first option, EPG
+  interval / zoom / density to the second. Also the Stremio manifest-URL rule (https or stremio://,
+  must contain manifest.json) — plain http is refused so addon traffic is not sent in the clear.
+- `SettingsSelectorDialogs` — every chooser plus the Stremio addon manage/add dialogs and the legacy
+  Real-Debrid logout.
+- `SettingsMaintenanceActions` — the actions that touch app data: force refresh, EPG sync, clear
+  cache, Home category selection, and account logout (whose *order* — caches and history on IO,
+  credentials last, navigate only after — is the part worth having in one reviewable place).
+
+⚠️ **Dead code deleted, not relocated:** the whole scraper-registry cluster
+(`showRegistrySelector`, `showCustomRegistryInput`, `showManageScraperSourcesDialog`,
+`showAddScraperSourceInput`, `getRegistryName` — ~130 lines) had **no caller**; the only registry UI
+reachable today is the Stremio addon list. **Nothing user-facing is lost:** registry URLs are still
+configured through the phone-companion pairing flow (`CompanionConfigServer`,
+`RemotePairingManager` → `DebridPreferences.add/removeAddonRegistryUrl`), which is presumably why
+the TV-side dialogs were abandoned. Only `SettingsViewModel`'s three wrapper methods are now
+unreferenced — left in place, flagged here. The deleted UI is in git history at `1bd1c45`.
+
+*Baseline effect:* 305 → **303** (LargeClass 10 → 9). The second removed entry was a stale
+`ComplexCondition` on `LivePlaybackLoadErrorPolicy` that no longer fires at all — the regeneration
+surfaced it. Ceilings lowered to match in the same commit.
 
 - *Exit:* E2 = 0; each new collaborator < 600 lines and unit-tested.
 
@@ -337,5 +362,7 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-07-26 | **B2.3-B2.5** - resume identity/store/intent (24 unit), non-destructive migrations + next-bump guard (4 instr + 4 unit), retained-player policy extracted + pinned (12 unit) | 305 | 10 | 0 | **17** | `46c2799` `12758ea` `240b828` |
 
 | 2026-07-26 | **B3 — TIER B COMPLETE** — 3 pure decision objects out of LF-3/4/6 + tests (35), plus 81 tests over the untested shared pure code; fixed a blank category badge | 305 | 10 | 0 | 17 | `267d5ae` |
+
+| 2026-07-26 | **C1** — `SettingsFragment` 790 → 301 (−62%), out of `LargeClass`; 3 collaborators + 9 unit tests; ~130 lines of dead scraper-registry UI deleted | **303** | **9** | 0 | 17 | *(this)* |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
