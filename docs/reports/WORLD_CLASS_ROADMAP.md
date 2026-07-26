@@ -23,7 +23,7 @@ The app is "world-class" for this project's purposes when **all** of these are t
 | E2 | `LargeClass` violations | **10** | **0** |
 | E3 | `SwallowedException` (errors silently hidden) | **0 ✅ MET** | **0** |
 | E4 | Instrumented (on-device) tests — **counted as test methods**, `run_instrumented.sh` reports it | **15 ✅ MET** (3 classes) | **≥ 15** covering Live/Player/VOD/Series core flows |
-| E5 | Unit test files | 59 | ≥ 80, with every new collaborator tested |
+| E5 | Unit test files | **71** | ≥ 80, with every new collaborator tested |
 | E6 | Crash-free playback landmines re-verified after each phase | ad hoc | scripted device checklist |
 | E7 | Open P1 findings from the 2026-07-19 audits | 12 P1 | 0 |
 | E8 | Stale/contradictory docs at repo root | 0 ✅ | 0 |
@@ -137,21 +137,54 @@ phase depend on the owner's eyes and makes sessions slow — so the test net com
 
      *Not covered:* number-zap / A–Z type-ahead in `LiveChannelFocusController` still need the Live
      DI graph to instantiate; the pure decisions inside it are a B3 extraction candidate.
-  3. **Resume** — VOD/Series/in-player positions (the `createIntent` `startPositionMs` trap).
-  4. **Room migrations** — extend the existing migration test to cover every version bump.
+  3. **Resume** — ✅ **DONE 2026-07-26.** 24 unit tests over the two places resume actually breaks:
+     - *Identity* (`WatchHistoryKeyTest`, 11): the same show from Xtream ("EN| Breaking Bad 4K",
+       numeric series id) and from a Debrid addon (clean title, TMDB id) must collapse to ONE
+       Continue-Watching key, or the user sees it twice and resumes the wrong copy. Plus the
+       fallback ladder (title → seriesId → tmdb → imdb → contentId), the year-strip guard that
+       keeps films literally named "1917"/"2012", and the one-shot removal suppression.
+     - *The store* (`WatchHistoryPreferencesTest`, +6 → 8): overwrite-in-place and re-ordering,
+       cross-source merge end-to-end, the 20-item cap, the movie resume-bar lookup (contentId /
+       tmdb / imdb / provider-tagged title, and it must ignore a same-named series), and a corrupt
+       store reading as empty **without wiping** the stored value.
+     - *The trap itself* (`PlayerResumeIntentTest`, 5): a position survives `createIntent`; absent
+       means start-from-zero; an episode carries its series identity with it; a Debrid resume
+       carries the hash/magnet/file-index a re-resolve needs; a live launch carries the hand-off
+       flag and no position. *Honest limit:* a test cannot see which **call site** forgot the
+       argument — only that the transport works.
+  4. **Room migrations** — ✅ **DONE 2026-07-26.**
+     - On device (`MigrationTest`, 2 → 4): a populated v14 database reopened through the production
+       migration container **keeps watch progress and favourites** (the `fallbackToDestructiveMigration`
+       fear, made concrete); and a database stamped below the v4 floor **throws instead of being
+       silently wiped**.
+     - On the JVM (`DatabaseMigrationChainTest`, 4): every migration is a single step, the chain has
+       no gaps or duplicates, the floor is v4, and — the one that matters for the next bump — the
+       chain must reach the version Room's **exported schema** says the database ships at. Bump
+       `@Database(version = 15)` without writing *and registering* `MIGRATION_14_15` and this goes
+       red in milliseconds, long before a device is involved. (`@Database` is BINARY-retained so it
+       cannot be read reflectively; the exported schema JSON is generated from it and cannot drift.)
   5. **Retained-player memory behaviour (the "OOM soak")** — the T2.1 retained player keeps a paused
      ExoPlayer (codec + buffers + socket) alive across `onStop` for VOD/Debrid so Home→return is
      instant; on a 1GB Fire TV that is exactly how an app gets OOM-killed. This cannot be a pure
      function — it only shows up across a *duration* and three collaborating places
      (`BasePlayerFragment.onStop` retained branch, `onHostTrimMemory`, and the `!isResolvingDebrid`
-     play-restore). Make it an instrumented test that drives the lifecycle instead of a manual soak:
-     - background→foreground the player ~30× and assert the player is retained (not re-created) and
-       heap does not grow monotonically across cycles;
-     - fire `onHostTrimMemory(TRIM_MEMORY_BACKGROUND)` and assert the retained player IS released
-       (and that LIVE was already released at `onStop`, for `max_connections=1`);
-     - assert `retryHandler`/`timeoutHandler` are purged on the retained path — a backgrounded error
-       must never re-init playback **with audio**.
-     Until that lands this is the ONE genuinely device-only item (see the status table below).
+     play-restore).
+
+     ✅ **MOSTLY DONE 2026-07-26.** The premise above ("this cannot be a pure function") was only
+     two-thirds true. The three collaborating places were three *decisions*, so they were lifted
+     into `PlayerRetentionPolicy` (a pure object, behaviour-identical — `BasePlayerFragment` now
+     delegates) and pinned by `PlayerRetentionPolicyTest`, **12 unit tests**: LIVE always releases
+     at `onStop` (a retained live socket holds the only slot on `max_connections=1`); VOD/EPISODE
+     are retained; a finishing session releases; `TRIM_MEMORY_BACKGROUND`+ ends the retention while
+     routine `UI_HIDDEN`/`RUNNING_CRITICAL` must not (that would make every Home→return a cold
+     reconnect); trim never touches LIVE, which was already released; an in-flight Debrid re-resolve
+     owns playback, so resume neither cold-starts nor un-pauses under it; and the two resume paths
+     are proven mutually exclusive across every flag combination.
+
+     ⏳ **What is still genuinely device-only:** the *duration* question — does the heap stay flat
+     across hours of background/foreground churn. That is a soak, not a decision, and **Tier G1 is
+     the intended answer** (the diagnostics recorder already samples memory; the analyzer turns a
+     pulled JSONL into a growth curve). Do not re-plan it as a unit test.
   - **Caveat to design around:** the Live surface is secure, so a test cannot screenshot it. Assert on
     *state* (which player instance is attached, focus position, adopted-vs-fresh) rather than pixels.
   - Target E4 ≥ 15.
@@ -201,7 +234,7 @@ one domain per commit).
 |---|---|
 | Series final-episode END (T1.5 ghost-advance + prompt) | ✅ **CLOSED by test** (`PlayerEndedActionTest`, 7 green) — see `74710de` |
 | Live 429-storm soak (`max_connections=1`) | ✅ **CLOSED by test** (`LiveRetryDelayTest`, 7 green): fail-fast codes never retry, 429 always cools off ≥20s and honours a clamped `Retry-After` |
-| Retained-player background OOM soak | ⏳ **Genuinely still device-only.** It is a *duration* test (hours of background/foreground churn under memory pressure); the logic is spread across `onStop` handler purge, `onTrimMemory` release and the `!isResolvingDebrid` play-restore guard, which need Robolectric/instrumented lifecycle driving — a **B2 candidate**, not something a pure function can freeze. |
+| Retained-player background OOM soak | 🟡 **Half closed by test (B2.5).** The *decisions* — release-on-stop, the trim bound, the resolve-aware resume — are now `PlayerRetentionPolicy` + `PlayerRetentionPolicyTest` (12 green). Only the *duration* half is still device-only, and **Tier G1 owns it** (diagnostics memory samples → growth curve), not a manual soak. |
 | Install/verify on device `.35` | ⏳ Blocked: `.35` is powered off / off-network (connect times out). Owner action. |
 
 **Rule learned here:** when a QA item cannot be driven on the device, first ask whether the *decision*
@@ -271,5 +304,7 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-07-26 | **B0 + B1** — flaky stopwatch test replaced by 2 behavioural tests (mutation-checked); `scripts/run_instrumented.sh` makes the on-device suite one command | 305 | 10 | 0 | 1 | `f1e2a07` |
 | 2026-07-26 | **B2.1** — `LiveSharedPlayerHandoffTest`: the Live fullscreen hand-off contract, 8 tests green on `.64`, 3 injected regressions caught | 305 | 10 | 0 | **10** | `90c84ed` |
 | 2026-07-26 | **B2.2** — focus net: 5 instrumented (`FocusPreservingListUpdateTest`) + 9 unit (`FocusCoordinatorTest`); **found + fixed** the `post{}`-before-layout bug that made the CC-1 fallback dead code | 305 | 10 | 0 | **15 ✅** | `0c6644e` |
+
+| 2026-07-26 | **B2.3-B2.5** - resume identity/store/intent (24 unit), non-destructive migrations + next-bump guard (4 instr + 4 unit), retained-player policy extracted + pinned (12 unit) | 305 | 10 | 0 | **17** | `46c2799` `12758ea` `240b828` |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
