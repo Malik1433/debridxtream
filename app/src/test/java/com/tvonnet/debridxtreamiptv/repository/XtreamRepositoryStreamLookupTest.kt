@@ -36,13 +36,14 @@ class XtreamRepositoryStreamLookupTest {
     private lateinit var repository: XtreamRepository
     private lateinit var context: Context
     private lateinit var cacheHelper: CacheHelper
-    
+    private lateinit var cacheManager: com.tvonnet.debridxtreamiptv.data.cache.CacheManager
+
     @Before
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
         cacheHelper = CacheHelper(context)
         val memoryManager = io.mockk.mockk<com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager>(relaxed = true)
-        val cacheManager = mockk<com.tvonnet.debridxtreamiptv.data.cache.CacheManager>(relaxed = true)
+        cacheManager = mockk<com.tvonnet.debridxtreamiptv.data.cache.CacheManager>(relaxed = true)
         val favoriteDao = mockk<com.tvonnet.debridxtreamiptv.data.local.dao.FavoriteDao>(relaxed = true)
         val searchHistoryDao = mockk<com.tvonnet.debridxtreamiptv.data.local.dao.SearchHistoryDao>(relaxed = true)
         val epgDao = mockk<com.tvonnet.debridxtreamiptv.data.local.dao.EpgDao>(relaxed = true)
@@ -514,31 +515,60 @@ class XtreamRepositoryStreamLookupTest {
     }
     
     @Test
-    fun `stream lookup handles large cache efficiently`() {
-        // Given: Large cache with 1000 streams
+    fun `large cache lookup is served from memory, never a re-parse or a Room round-trip`() {
+        // Roadmap B0. This test used to assert wall-clock `< 100ms`. That is flaky by construction:
+        // it passes in isolation and fails under build load, so it reported the machine, not the
+        // code. What the stopwatch was actually guarding is the property asserted below — once the
+        // catalog is warm, a lookup must not re-read/re-parse the multi-MB iptv_cache.json, and a
+        // hit must not fall through to Room. (The scan itself is a linear `find` over an in-memory
+        // list, which is cheap at catalog size; the disk parse is the part that ever hurt.)
         val streams = (1..1000).map { i ->
             createLiveStream(streamId = "stream_$i", name = "Channel $i")
         }
-        
-        val cache = IptvCache(
-            timestamp = System.currentTimeMillis(),
-            live = LiveCacheData(emptyList(), streams),
-            vod = null,
-            series = null,
-            epg = null
+
+        cacheHelper.writeCache(
+            IptvCache(
+                timestamp = System.currentTimeMillis(),
+                live = LiveCacheData(emptyList(), streams),
+                vod = null,
+                series = null,
+                epg = null
+            )
         )
-        
-        cacheHelper.writeCache(cache)
-        
-        // When: Looking up stream
-        val startTime = System.currentTimeMillis()
-        val result = runBlocking { repository.getLiveStreamById("stream_500") }
-        val endTime = System.currentTimeMillis()
-        
-        // Then: Found and reasonably fast (< 100ms)
-        assertNotNull(result)
-        assertEquals("Channel 500", result?.name)
-        assert((endTime - startTime) < 100) { "Lookup took ${endTime - startTime}ms" }
+
+        // First lookup warms the repository's in-memory catalog.
+        assertEquals("Channel 500", runBlocking { repository.getLiveStreamById("stream_500") }?.name)
+
+        // Now take away every other source of truth: the file is gone and the process-wide snapshot
+        // is dropped. From here, a lookup that re-reads or re-parses can only return null.
+        assert(File(context.filesDir, "iptv_cache.json").delete())
+        cacheHelper.clearMemorySnapshot()
+
+        assertEquals("Channel 1", runBlocking { repository.getLiveStreamById("stream_1") }?.name)
+        assertEquals("Channel 500", runBlocking { repository.getLiveStreamById("stream_500") }?.name)
+        assertEquals("Channel 1000", runBlocking { repository.getLiveStreamById("stream_1000") }?.name)
+
+        // And a cache hit must never reach the Room fallback.
+        coVerify(exactly = 0) { cacheManager.getChannelById(any()) }
+    }
+
+    @Test
+    fun `lookup miss falls back to Room exactly once`() {
+        // The other half of the contract the stopwatch never covered: a miss is allowed to consult
+        // Room, but only once per lookup — a retry loop here would be a per-call DB round-trip.
+        cacheHelper.writeCache(
+            IptvCache(
+                timestamp = System.currentTimeMillis(),
+                live = LiveCacheData(emptyList(), listOf(createLiveStream(streamId = "stream_1"))),
+                vod = null,
+                series = null,
+                epg = null
+            )
+        )
+
+        assertNull(runBlocking { repository.getLiveStreamById("stream_absent") })
+
+        coVerify(exactly = 1) { cacheManager.getChannelById("stream_absent") }
     }
 
     @Test

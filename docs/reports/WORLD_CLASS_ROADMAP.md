@@ -66,25 +66,36 @@ phase depend on the owner's eyes and makes sessions slow — so the test net com
   All four rule ceilings are now zero, so none of these classes of defect can be reintroduced.
 
 ### Tier B — the test net *(the multiplier)*
-- **B0** — **Known flaky test:** `XtreamRepositoryStreamLookupTest > stream lookup handles large cache
-  efficiently` asserts wall-clock `< 100ms`. It fails under build load and passes in isolation (seen
-  2026-07-26). A timing assertion in a unit test is flaky by construction — replace it with a
-  complexity/behavioural assertion (e.g. lookup is index-backed, not a full scan) rather than a stopwatch.
-- **B1** — Make running instrumented tests one command. **Do not waste time on
-  `connectedDebugAndroidTest`** — on this machine it dies inside Gradle's UTP with
-  `Cannot run program "C:\Program Files\Java\bin\java": CreateProcess error=1920`. That is a local
-  JDK-path glitch, not a test problem. The route below is **already device-proven** (Room migration
-  test → `OK (2 tests)`, 2026-07-21); wrap it in `scripts/run_instrumented.sh`:
+- **B0** — ✅ **DONE 2026-07-26.** The flaky `stream lookup handles large cache efficiently` (wall-clock
+  `< 100ms`) is gone. It is replaced by two behavioural tests that freeze what the stopwatch was really
+  guarding: `large cache lookup is served from memory, never a re-parse or a Room round-trip` (warm the
+  catalog, then delete the cache file **and** drop the process-wide snapshot — any lookup that re-reads
+  or re-parses can now only return null) and `lookup miss falls back to Room exactly once`.
+  *Note for the record:* the plan guessed "assert the lookup is index-backed". It is not — it is a
+  linear `find` over an in-memory list, which is cheap at catalog size. The multi-MB Gson **re-parse**
+  was the only thing that ever made this slow, so that is what the test pins. The new test was
+  mutation-checked: removing the memoization in `LiveRepository.getLiveStreamById` makes it fail.
+- **B1** — ✅ **DONE 2026-07-26** — `scripts/run_instrumented.sh`. Running the on-device suite is now
+  one command:
 
   ```bash
-  ./gradlew :app:assembleDebugAndroidTest
-  ADB="C:/Users/Malik/AppData/Local/Android/Sdk/platform-tools/adb.exe"
-  "$ADB" -s 192.168.178.64:5555 install -r app/build/outputs/apk/debug/app-debug.apk
-  "$ADB" -s 192.168.178.64:5555 install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-  "$ADB" -s 192.168.178.64:5555 shell am instrument -w -r \
-      -e class <fully.qualified.TestClass> \
-      com.debridxtream.tv.test/androidx.test.runner.AndroidJUnitRunner
+  ./scripts/run_instrumented.sh                        # everything
+  ./scripts/run_instrumented.sh MigrationTest          # a class (short name is expanded)
+  ./scripts/run_instrumented.sh MigrationTest#migrate  # one method
+  ./scripts/run_instrumented.sh -s 192.168.178.35:5555 -n   # other device, skip the build
   ```
+
+  It assembles both APKs, connects/installs, drives `AndroidJUnitRunner` over adb, and — the part
+  that matters — **derives a real verdict**, because `am instrument` exits 0 even when tests fail:
+  a crash (`shortMsg=`), `FAILURES!!!`, a missing result line, or `OK (0 tests)` (the mistyped-filter
+  silent-green trap) all exit non-zero. Output is kept at `app/build/instrumented/last-run.txt`.
+  Device-proven the same day: `MigrationTest` → `OK (2 tests)` on `.64`, and both failure paths
+  were exercised.
+
+  **Do not waste time on `./gradlew :app:connectedDebugAndroidTest`** — on this machine it dies
+  inside Gradle's UTP with `Cannot run program "C:\Program Files\Java\bin\java": CreateProcess
+  error=1920`, a local JDK-path glitch rather than a test problem. That is precisely why this
+  script exists.
 - **B2** — Instrumented tests for the flows that keep breaking and currently need the owner's eyes.
   Priority order (highest pain first):
   1. **Live fullscreen hand-off** — `LiveSharedPlayer.offer/adopt` round-trip: a player parked on the
@@ -223,6 +234,7 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-07-26 | Baseline measured (start) | 359 | 10 | 26 | 1 | `f429283` |
 | 2026-07-26 | **A1 (part 1)** — 7 files de-swallowed; found+fixed 3 real `\${…}` escaped-interpolation bugs | **352** | 10 | **19** | 1 | `977b267` |
 | 2026-07-26 | **A1 COMPLETE** — remaining 29 sites across 20 files; **E3 met** | **333** | 10 | **0** ✅ | 1 | `4683429` |
-| 2026-07-26 | **TIER A COMPLETE** — A2 (PrintStackTrace ×2, `System.gc()`) + A3 (`ImplicitDefaultLocale` ×25) | **305** | 10 | 0 | 1 | *(this)* |
+| 2026-07-26 | **TIER A COMPLETE** — A2 (PrintStackTrace ×2, `System.gc()`) + A3 (`ImplicitDefaultLocale` ×25) | **305** | 10 | 0 | 1 | `78f1bfe` |
+| 2026-07-26 | **B0 + B1** — flaky stopwatch test replaced by 2 behavioural tests (mutation-checked); `scripts/run_instrumented.sh` makes the on-device suite one command | 305 | 10 | 0 | 1 | *(this)* |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
