@@ -108,8 +108,7 @@ class LiveChannelFocusController(
         if (currentPosition == RecyclerView.NO_POSITION) return true
 
         val basePosition = pendingChannelFocusPosition ?: currentPosition
-        val targetPosition = (basePosition + delta).coerceIn(0, itemCount - 1)
-        if (targetPosition == basePosition) return true
+        val targetPosition = LiveChannelQuickJump.targetFor(basePosition, delta, itemCount) ?: return true
 
         pendingChannelFocusPosition = targetPosition
         focusChannelItem(targetPosition)
@@ -148,9 +147,9 @@ class LiveChannelFocusController(
     private fun onQuickJumpDigit(fromPosition: Int, digit: Int): Boolean {
         val itemCount = channelPagingAdapter.itemCount
         if (itemCount <= 0) return true
-        if (quickJumpBuffer.isEmpty() && digit == 0) return true // ignore leading zeros
-        if (quickJumpBuffer.length >= 4) quickJumpBuffer.setLength(0)
-        quickJumpBuffer.append(digit)
+        val next = LiveChannelQuickJump.appendDigit(quickJumpBuffer.toString(), digit) ?: return true
+        quickJumpBuffer.setLength(0)
+        quickJumpBuffer.append(next)
         showQuickJumpHud(quickJumpBuffer.toString())
         quickJumpJob?.cancel()
         quickJumpJob = fragment.viewLifecycleOwner.lifecycleScope.launch {
@@ -165,7 +164,7 @@ class LiveChannelFocusController(
         quickJumpBuffer.setLength(0)
         hideQuickJumpHud()
         if (number == null) return
-        val target = (number - 1).coerceIn(0, channelPagingAdapter.itemCount - 1)
+        val target = LiveChannelQuickJump.positionForNumber(number, channelPagingAdapter.itemCount) ?: return
         pendingChannelFocusPosition = target
         focusChannelItem(target)
     }
@@ -178,30 +177,20 @@ class LiveChannelFocusController(
 
         val items = channelPagingAdapter.snapshot().items
         if (items.isEmpty()) return true
-        val size = items.size
         // Scan forward from the row after the current one, wrapping around.
-        for (offset in 1..size) {
-            val idx = (fromPosition + offset) % size
-            if (channelFirstLetter(items[idx].name) == letter) {
-                showQuickJumpHud(letter.uppercase())
-                quickJumpJob?.cancel()
-                quickJumpJob = fragment.viewLifecycleOwner.lifecycleScope.launch {
-                    delay(QUICK_JUMP_LETTER_MS)
-                    hideQuickJumpHud()
-                }
-                pendingChannelFocusPosition = idx
-                focusChannelItem(idx)
-                return true
-            }
+        val idx = LiveChannelQuickJump.nextIndexStartingWith(items.map { it.name }, fromPosition, letter)
+            ?: return true
+
+        showQuickJumpHud(letter.uppercase())
+        quickJumpJob?.cancel()
+        quickJumpJob = fragment.viewLifecycleOwner.lifecycleScope.launch {
+            delay(QUICK_JUMP_LETTER_MS)
+            hideQuickJumpHud()
         }
+        pendingChannelFocusPosition = idx
+        focusChannelItem(idx)
         return true
     }
-
-    /** First alphabetic character of a channel name, provider tags (e.g. "|UK|") stripped. */
-    private fun channelFirstLetter(name: String?): Char? =
-        com.tvonnet.debridxtreamiptv.util.MediaTitleCleaner.clean(name)
-            .firstOrNull { it.isLetter() }
-            ?.lowercaseChar()
 
     private fun showQuickJumpHud(text: String) {
         tvQuickJump?.apply {
@@ -219,8 +208,7 @@ class LiveChannelFocusController(
         if (itemCount <= 0) return true
 
         val basePosition = pendingChannelFocusPosition ?: position
-        val targetPosition = (basePosition + delta).coerceIn(0, itemCount - 1)
-        if (targetPosition == basePosition) return true
+        val targetPosition = LiveChannelQuickJump.targetFor(basePosition, delta, itemCount) ?: return true
 
         pendingChannelFocusPosition = targetPosition
         focusChannelItem(targetPosition)

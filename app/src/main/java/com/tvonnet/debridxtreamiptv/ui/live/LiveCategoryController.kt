@@ -53,29 +53,16 @@ class LiveCategoryController(
      * Favourites first, then every provider category. v2 shows them all in the chip strip — the
      * search pill filters channels now, not this list.
      */
-    private fun buildDisplayCategories(state: LiveUiState): List<XtreamCategory> {
-        val favorites = XtreamCategory(
-            category_id = FAVORITES_CATEGORY_ID,
-            category_name = fragment.getString(R.string.favorites),
-            parent_id = null
-        )
-        val filtered = state.categories.filterNot { it.category_id == FAVORITES_CATEGORY_ID }
-        return listOf(favorites) + filtered
-    }
+    private fun buildDisplayCategories(state: LiveUiState): List<XtreamCategory> =
+        LiveCategoryChips.buildDisplayCategories(fragment.getString(R.string.favorites), state.categories)
 
     /**
      * While the search pill has a query, keep only categories whose name matches it so the
      * chip strip becomes a category-search result. Favorites is dropped from the filtered
      * view (it isn't a real category to jump into by name). Empty query → the full list.
      */
-    private fun applyCategoryChipFilter(all: List<XtreamCategory>): List<XtreamCategory> {
-        val q = categoryChipQuery.trim()
-        if (q.isEmpty()) return all
-        return all.filter { cat ->
-            cat.category_id != FAVORITES_CATEGORY_ID &&
-                cat.category_name?.contains(q, ignoreCase = true) == true
-        }
-    }
+    private fun applyCategoryChipFilter(all: List<XtreamCategory>): List<XtreamCategory> =
+        LiveCategoryChips.applyChipFilter(all, categoryChipQuery)
 
     /** The LF-2 search pill changed its query: re-filter the chip strip immediately. */
     fun onChipQueryChanged(query: String) {
@@ -166,13 +153,12 @@ class LiveCategoryController(
     fun focusSelectedCategoryItem(attempt: Int = 0): Boolean {
         if (!fragment.isAdded || displayCategories.isEmpty()) return false
         val state = viewModel.uiState.value
-        val targetId = state.selectedCategoryId ?: state.lastFocusedCategoryId
-        val targetPosition = targetId
-            ?.let { id -> displayCategories.indexOfFirst { it.category_id == id } }
-            ?.takeIf { it >= 0 }
-            ?: state.lastFocusedCategoryPosition
-                ?.takeIf { it in displayCategories.indices }
-            ?: 0
+        val targetPosition = LiveCategoryChips.focusPositionFor(
+            displayCategories = displayCategories,
+            selectedCategoryId = state.selectedCategoryId,
+            lastFocusedCategoryId = state.lastFocusedCategoryId,
+            lastFocusedCategoryPosition = state.lastFocusedCategoryPosition
+        ) ?: return false
 
         rvCategories.scrollToPosition(targetPosition)
         rvCategories.postDelayed({

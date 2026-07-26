@@ -114,6 +114,10 @@ object CategoryFlagResolver {
                 .firstOrNull()
                 ?.take(2)
                 ?.uppercase(Locale.getDefault())
+                // `firstOrNull` on a blank name yields "" rather than null, so the elvis below
+                // never fired and the badge came back blank — breaking this function's one
+                // promise, that the caller always has something to render.
+                ?.takeIf { it.isNotBlank() }
                 ?: "#"
         }
     }

@@ -256,12 +256,6 @@ class LivePlaybackLauncher(
             emptyList()
         }
 
-        val merged = linkedSetOf<String>()
-        if (cachedIds.isNotEmpty()) {
-            cachedIds.forEach { merged.add(it) }
-        }
-        snapshotIds.forEach { merged.add(it) }
-        currentStreamId?.let { merged.add(it) }
-        return ArrayList(merged)
+        return LiveZapList.merge(cachedIds, snapshotIds, currentStreamId)
     }
 }
