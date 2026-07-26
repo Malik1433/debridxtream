@@ -1,0 +1,12 @@
+# Technical-debt ratchet ledger.
+#
+# These are CEILINGS, not targets: they may only ever be LOWERED.
+# scripts/check_debt_ratchet.sh fails the build if the real counts exceed them.
+# When a phase reduces a number, lower it here in the SAME commit — that is what locks the gain in.
+#
+# See docs/reports/WORLD_CLASS_ROADMAP.md (§1 exit criteria, §5 ledger).
+#
+# key=max_allowed
+TOTAL=359
+LargeClass=10
+SwallowedException=26
