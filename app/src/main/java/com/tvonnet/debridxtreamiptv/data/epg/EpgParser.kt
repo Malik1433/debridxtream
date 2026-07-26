@@ -55,7 +55,9 @@ object EpgParser {
             memoryManager.requestGarbageCollection()
             emptyMap()
         } catch (e: CancellationException) {
-            Log.i(TAG, "EPG parsing cancelled due to memory pressure")
+            // Deliberately NOT rethrown: under heap pressure the parse is cancelled on purpose and we
+            // degrade to "no EPG this round" (the generational replace keeps the existing rows).
+            Log.i(TAG, "EPG parsing cancelled due to memory pressure", e)
             emptyMap()
         } catch (e: Exception) {
             Log.e(TAG, "EPG parsing failed", e)
@@ -71,7 +73,8 @@ object EpgParser {
             memoryManager.requestGarbageCollection()
             emptyMap()
         } catch (e: CancellationException) {
-            Log.i(TAG, "EPG parsing cancelled due to memory pressure")
+            // See parseString(): cancellation here is the intentional heap-pressure abort, not a bug.
+            Log.i(TAG, "EPG parsing cancelled due to memory pressure", e)
             emptyMap()
         } catch (e: Exception) {
             Log.e(TAG, "EPG parsing failed", e)
@@ -204,7 +207,8 @@ object EpgParser {
                 Log.e(TAG, "EPG parsing failed due to memory constraints", e)
                 memoryManager.requestGarbageCollection()
             } catch (e: CancellationException) {
-                Log.i(TAG, "EPG parsing cancelled")
+                // Intentional heap-pressure abort (see parseString) — degrade, don't crash the sync.
+                Log.i(TAG, "EPG parsing cancelled", e)
             } catch (e: Exception) {
                 Log.e(TAG, "EPG parsing failed", e)
             }
@@ -213,7 +217,8 @@ object EpgParser {
         try {
             parsingJob?.join()
         } catch (e: CancellationException) {
-            Log.i(TAG, "EPG parsing join cancelled")
+            Log.i(TAG, "EPG parsing join cancelled", e)
+            throw e // our own caller was cancelled — propagate
         }
 
         return programCount

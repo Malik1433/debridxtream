@@ -83,6 +83,7 @@ class LiveEpgPreviewController(
                 }
             } catch (e: CancellationException) {
                 android.util.Log.d("LiveFragment", "EPG updates observation cancelled")
+                throw e // cooperative cancellation — never swallow
             } catch (e: Exception) {
                 android.util.Log.e("LiveFragment", "Error observing EPG updates", e)
             }
@@ -149,6 +150,7 @@ class LiveEpgPreviewController(
                 }
             } catch (e: CancellationException) {
                 android.util.Log.d("LiveFragment", "EPG priming cancelled")
+                throw e // cooperative cancellation — never swallow
             } catch (e: Exception) {
                 android.util.Log.e("LiveFragment", "Error priming EPG data", e)
             }

@@ -123,7 +123,9 @@ class EpgSyncWorker @AssistedInject constructor(
                 }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
-            Log.w(TAG, "EPG Sync cancelled")
+            // WorkManager stopped us (or the heap-pressure abort fired) — report success so the job is
+            // not retried in a loop; the next scheduled run picks it up.
+            Log.w(TAG, "EPG Sync cancelled", e)
             Result.success()
         } catch (e: Exception) {
             Log.e(TAG, "EPG Sync exception", e)

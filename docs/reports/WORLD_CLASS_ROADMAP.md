@@ -132,5 +132,6 @@ Carried from hard-won incidents; every phase must respect them.
 | Date | Phase | Baseline | LargeClass | Swallowed | Instr. tests | Commit |
 |---|---|---:|---:|---:|---:|---|
 | 2026-07-26 | Baseline measured (start) | 359 | 10 | 26 | 1 | `f429283` |
+| 2026-07-26 | **A1 (part 1)** — 7 files de-swallowed; found+fixed 3 real `\${…}` escaped-interpolation bugs | **352** | 10 | **19** | 1 | *(this)* |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*

@@ -60,6 +60,7 @@ class ChannelPagingSource(
         return try {
             repository.searchLive(searchQuery)
         } catch (e: Exception) {
+            android.util.Log.w("ChannelPagingSource", "Global channel search failed for '$searchQuery'", e)
             emptyList()
         }
     }

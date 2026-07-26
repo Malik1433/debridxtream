@@ -57,6 +57,7 @@ class LiveFavoritesController(
                 }
             } catch (e: CancellationException) {
                 android.util.Log.d("LiveFragment", "Favorites observation cancelled")
+                throw e // cooperative cancellation — never swallow
             } catch (e: Exception) {
                 android.util.Log.e("LiveFragment", "Error observing favorites", e)
             }

@@ -541,6 +541,7 @@ class LiveFragment : Fragment() {
                 }
             } catch (e: CancellationException) {
                 android.util.Log.d("LiveFragment", "UI state observation cancelled")
+                throw e // cooperative cancellation — never swallow
             } catch (e: Exception) {
                 android.util.Log.e("LiveFragment", "Error observing UI state", e)
                 if (isAdded) {
@@ -564,6 +565,7 @@ class LiveFragment : Fragment() {
                 }
             } catch (e: CancellationException) {
                 android.util.Log.d("LiveFragment", "Paged channels observation cancelled")
+                throw e // cooperative cancellation — never swallow
             } catch (e: Exception) {
                 android.util.Log.e("LiveFragment", "Error observing paged channels", e)
                 if (isAdded) {
@@ -591,6 +593,7 @@ class LiveFragment : Fragment() {
                 }
             } catch (e: CancellationException) {
                 android.util.Log.d("LiveFragment", "Load state observation cancelled")
+                throw e // cooperative cancellation — never swallow
             } catch (e: Exception) {
                 android.util.Log.e("LiveFragment", "Error observing load state", e)
                 if (isAdded) {
@@ -615,6 +618,7 @@ class LiveFragment : Fragment() {
                 }
             } catch (e: CancellationException) {
                 android.util.Log.d("LiveFragment", "Navigation events observation cancelled")
+                throw e // cooperative cancellation — never swallow
             } catch (e: Exception) {
                 android.util.Log.e("LiveFragment", "Error observing navigation events", e)
             }

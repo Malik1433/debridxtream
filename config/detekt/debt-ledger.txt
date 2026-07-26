@@ -7,6 +7,6 @@
 # See docs/reports/WORLD_CLASS_ROADMAP.md (§1 exit criteria, §5 ledger).
 #
 # key=max_allowed
-TOTAL=359
+TOTAL=352
 LargeClass=10
-SwallowedException=26
+SwallowedException=19

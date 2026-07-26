@@ -639,7 +639,8 @@ class SettingsFragment : Fragment() {
                     Toast.makeText(requireContext(), "Refresh failed. Please try again.", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Error: \${e.message}", Toast.LENGTH_LONG).show()
+                android.util.Log.e("SettingsFragment", "IPTV refresh failed", e)
+                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -650,12 +651,13 @@ class SettingsFragment : Fragment() {
             try {
                 val result = repository.fetchAndSaveEpg()
                 if (result is com.tvonnet.debridxtreamiptv.data.Result.Success) {
-                    Toast.makeText(requireContext(), "EPG synced: \${result.data} programs", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "EPG synced: ${result.data} programs", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(requireContext(), "EPG sync failed. Please try again.", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Error: \${e.message}", Toast.LENGTH_LONG).show()
+                android.util.Log.e("SettingsFragment", "EPG sync failed", e)
+                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -669,6 +671,7 @@ class SettingsFragment : Fragment() {
                     requireContext().cacheDir.deleteRecursively()
                     Toast.makeText(requireContext(), "Cache cleared", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
+                    android.util.Log.e("SettingsFragment", "Clear cache failed", e)
                     Toast.makeText(requireContext(), "Failed to clear cache", Toast.LENGTH_SHORT).show()
                 }
             }
