@@ -1,5 +1,6 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
+import androidx.media3.common.C
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.datasource.HttpDataSource
@@ -195,3 +196,29 @@ internal fun endedActionFor(
     isNextPromptVisible -> EndedAction.COMPLETE_AND_KEEP_PROMPT
     else -> EndedAction.COMPLETE_AND_FINISH
 }
+
+/**
+ * Retry delay for a live/VOD load error, as a pure function of the HTTP response.
+ *
+ * Extracted from [LivePlaybackLoadErrorPolicy] so the rules that protect a `max_connections=1`
+ * provider are provable in a unit test instead of only by a long 429-storm soak on the TV:
+ *  - permanently-broken sources fail fast, so app-level fallback runs instead of retrying a dead URL;
+ *  - a 429 (provider WAF rate-limit) cools off HARD — standard fast backoff only deepens the ban —
+ *    honouring `Retry-After` when the provider sends one, clamped to a sane 1s..60s;
+ *  - everything else gets capped exponential backoff (jitter is added by the caller).
+ *
+ * @param retryAfterSec the parsed `Retry-After` header in seconds, or null when absent/unparseable.
+ * @return the delay in ms, or [C.TIME_UNSET] to mean "do not retry".
+ */
+internal fun liveRetryDelayMsFor(responseCode: Int?, retryAfterSec: Long?, errorCount: Int): Long {
+    if (responseCode in FAIL_FAST_RESPONSE_CODES) return C.TIME_UNSET
+    if (responseCode == 429) {
+        return retryAfterSec?.let { (it * 1000L).coerceIn(1000L, 60_000L) } ?: HTTP_429_COOLOFF_MS
+    }
+    return 1000L shl (errorCount - 1).coerceIn(0, 3)
+}
+
+internal const val HTTP_429_COOLOFF_MS = 20_000L
+
+/** Permanently-broken sources: retrying these only delays the app-level fallback. */
+private val FAIL_FAST_RESPONSE_CODES = setOf(401, 403, 404, 410, 416, 451)

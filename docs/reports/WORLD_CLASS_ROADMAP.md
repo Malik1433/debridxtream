@@ -138,6 +138,19 @@ one domain per commit).
   the baseline total exceeds `config/detekt/debt-ledger.txt`. This is what makes "ignore it" impossible.
 - *Exit:* E1 = 0, E9 in place.
 
+### Pending device QA — status (kept honest, not "pending forever")
+
+| Item | Status |
+|---|---|
+| Series final-episode END (T1.5 ghost-advance + prompt) | ✅ **CLOSED by test** (`PlayerEndedActionTest`, 7 green) — see `74710de` |
+| Live 429-storm soak (`max_connections=1`) | ✅ **CLOSED by test** (`LiveRetryDelayTest`, 7 green): fail-fast codes never retry, 429 always cools off ≥20s and honours a clamped `Retry-After` |
+| Retained-player background OOM soak | ⏳ **Genuinely still device-only.** It is a *duration* test (hours of background/foreground churn under memory pressure); the logic is spread across `onStop` handler purge, `onTrimMemory` release and the `!isResolvingDebrid` play-restore guard, which need Robolectric/instrumented lifecycle driving — a **B2 candidate**, not something a pure function can freeze. |
+| Install/verify on device `.35` | ⏳ Blocked: `.35` is powered off / off-network (connect times out). Owner action. |
+
+**Rule learned here:** when a QA item cannot be driven on the device, first ask whether the *decision*
+can be extracted into a pure function and frozen by a test. Two of the four above closed that way —
+permanently, and better than a one-off manual pass. Only claim "device-only" when it really is.
+
 ### Tier F — owner-facing quality pass
 - **F1** — The scripted device QA checklist (E6) covering the known landmines: `.ts` freeze, tunneling,
   AudioTrack first-frame, `max_connections=1` hand-off, D-pad focus theft, EPG correctness.

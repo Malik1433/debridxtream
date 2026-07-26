@@ -24,26 +24,20 @@ import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
  */
 class LivePlaybackLoadErrorPolicy : DefaultLoadErrorHandlingPolicy() {
     override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
-        val responseCode =
-            (loadErrorInfo.exception as? HttpDataSource.InvalidResponseCodeException)?.responseCode
-        if (responseCode == 401 || responseCode == 403 || responseCode == 404 ||
-            responseCode == 410 || responseCode == 416 || responseCode == 451
-        ) {
-            return C.TIME_UNSET
-        }
-        if (responseCode == 429) {
-            val headers =
-                (loadErrorInfo.exception as? HttpDataSource.InvalidResponseCodeException)?.headerFields
-            val retryAfterSec = headers?.entries
-                ?.firstOrNull { it.key?.equals("Retry-After", ignoreCase = true) == true }
-                ?.value?.firstOrNull()?.trim()?.toLongOrNull()
-            return retryAfterSec?.let { (it * 1000L).coerceIn(1000L, 60_000L) } ?: HTTP_429_COOLOFF_MS
-        }
-        val exponentialMs = 1000L shl (loadErrorInfo.errorCount - 1).coerceIn(0, 3)
-        return exponentialMs + (0..400).random()
-    }
+        val http = loadErrorInfo.exception as? HttpDataSource.InvalidResponseCodeException
+        val retryAfterSec = http?.headerFields?.entries
+            ?.firstOrNull { it.key?.equals("Retry-After", ignoreCase = true) == true }
+            ?.value?.firstOrNull()?.trim()?.toLongOrNull()
 
-    companion object {
-        private const val HTTP_429_COOLOFF_MS = 20_000L
+        // The decision itself is a pure function so the max_connections=1 protections (fail-fast on a
+        // dead source, hard cool-off on 429) are unit-tested — see LiveRetryDelayTest.
+        val delayMs = liveRetryDelayMsFor(http?.responseCode, retryAfterSec, loadErrorInfo.errorCount)
+
+        // Jitter only the exponential-backoff case; never smear a fail-fast or a cool-off.
+        return if (delayMs == C.TIME_UNSET || http?.responseCode == 429) {
+            delayMs
+        } else {
+            delayMs + (0..400).random()
+        }
     }
 }
