@@ -20,9 +20,6 @@ object SettingsOptionLabels {
         "Multilingual (MULTI)", "No preference (ALL)"
     )
 
-    val engineValues = arrayOf("exo", "vlc", "mx")
-    val engineLabels = arrayOf("ExoPlayer (Default)", "VLC Player", "MX Player")
-
     val epgIntervalValues = arrayOf("3", "6", "12", "24")
     val epgIntervalLabels = arrayOf("Every 3 hours", "Every 6 hours", "Every 12 hours", "Every 24 hours")
 
@@ -40,19 +37,6 @@ object SettingsOptionLabels {
         audioLangValues.indexOf(code.uppercase()).takeIf { it != -1 } ?: 0
 
     fun audioLangName(code: String): String = audioLangLabels[audioLangIndex(code)]
-
-    fun engineIndex(value: String): Int = engineValues.indexOf(value).takeIf { it != -1 } ?: 0
-
-    /**
-     * Note the deliberate difference from the picker: an unknown engine *summarises* as the bare
-     * "ExoPlayer" while the picker checks "ExoPlayer (Default)". Kept as it shipped.
-     */
-    fun engineName(value: String): String = when (value) {
-        "exo" -> "ExoPlayer (Default)"
-        "vlc" -> "VLC Player"
-        "mx" -> "MX Player"
-        else -> "ExoPlayer"
-    }
 
     /** EPG interval defaults to the SECOND option (6 hours), not the first. */
     fun epgIntervalIndex(hours: String): Int =

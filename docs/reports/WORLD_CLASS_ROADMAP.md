@@ -266,6 +266,35 @@ unreferenced — left in place, flagged here. The deleted UI is in git history a
 `ComplexCondition` on `LivePlaybackLoadErrorPolicy` that no longer fires at all — the regeneration
 surfaced it. Ceilings lowered to match in the same commit.
 
+
+**C1-follow-up (owner-requested, 2026-07-26): Settings made real and readable.**
+
+*Reality audit — four controls did nothing at all.* Their preferences were written and never read:
+- **Player Engine** (ExoPlayer / VLC / MX) — there is no VLC or MX integration; the app always
+  builds an ExoPlayer.
+- **Tunneling Mode (AFR)** — tunneling is on by default and only ever disabled *per session* by the
+  freeze/stall/debrid recovery paths (`disableTunnelingForSession`). The pref was never consulted.
+- **Card Animation** — no reader anywhere.
+- **Auto-Play Next Episode** — removed as a *control*, but note the **feature runs regardless**:
+  auto-advance and the next-episode prompt are not gated by any preference. If a real switch is
+  wanted, that is a small change in the player (`endedActionFor` + `PlayerNextEpisodeManager`), not
+  in Settings. Flagged rather than silently wired.
+
+*Structure — grouped the way a viewer looks for things:* `PLAYBACK` (audio language, smart audio
+fallback) · `LIVE_TV` (layout, resume last channel, guide zoom/density/genre colours, guide
+auto-update + interval + update now) · `HOME` · `ADDONS` · `DATA` (refresh catalog, clear cache) ·
+`ABOUT` · `ACCOUNT`. EPG sync moved next to the guide it feeds; catalog refresh sits with storage.
+`Account` is now a real panel (signed-in user + provider host + Sign Out) instead of a rail entry
+that fired a destructive dialog the moment it was selected. The duplicated version footer is gone —
+version lives in the rail header and in About.
+
+*Readability — the screen was built at design-px/2, giving 5–8sp text and 32dp rows.* That is
+unreadable at TV distance, so the whole screen was rescaled together (bumping only the font would
+clip the rows): body **19sp**, category titles **18sp**, secondary **12–16sp**, detail rows
+**74dp**, category rows **54dp**, icon tiles **34–38dp**, and the toggle pill 26×14 → 56×30dp with
+the adapter's hard-coded dot geometry moved to named constants that track the layout. All seven
+categories now fit on a 1080p panel without scrolling. Device-verified with screenshots on `.64`.
+
 - *Exit:* E2 = 0; each new collaborator < 600 lines and unit-tested.
 
 ### Tier D — finish the open audit findings

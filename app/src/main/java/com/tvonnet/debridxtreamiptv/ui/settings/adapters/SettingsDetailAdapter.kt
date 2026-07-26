@@ -34,6 +34,16 @@ sealed class SettingItem(val id: String) {
         val description: String,
         val onClick: () -> Unit
     ) : SettingItem(key)
+
+    /**
+     * A read-only fact (version, signed-in user). It renders like a value row but takes no focus
+     * and shows no chevron — on a D-pad, a row you can land on but cannot act on is a dead end.
+     */
+    data class Info(
+        val key: String,
+        val title: String,
+        val value: String
+    ) : SettingItem(key)
 }
 
 /** Detail rows — rebuilt to "Settings Screen.dc.html": accent icon tile, custom toggle pill, value/chevron. */
@@ -53,17 +63,15 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
         private fun tint(accent: Int, alpha: Int) = (accent and 0x00FFFFFF) or (alpha shl 24)
 
         fun iconFor(key: String): Int = when (key) {
-            "autoplay" -> R.drawable.ic_play
-            "logout_account", "sign_out" -> R.drawable.ic_logout
-            "software_audio", "audio" -> R.drawable.ic_player_volume
+            "logout_account" -> R.drawable.ic_logout
+            "software_audio" -> R.drawable.ic_player_volume
             "preferred_audio_lang" -> R.drawable.ic_player_language
-            "subtitles" -> R.drawable.ic_player_subtitles
             "live_tv_style", "resume_last_live", "epg_zoom", "epg_density", "epg_genre_tint",
-            "epg_auto_sync", "epg_sync_interval", "epg_sync_now", "refresh_iptv", "home_custom_live" -> R.drawable.ic_live_tv
-            "scale", "home_custom_movie", "home_custom_series" -> R.drawable.ic_movie
-            "home_custom_movie_row" -> R.drawable.ic_home
+            "epg_auto_sync", "epg_sync_interval", "epg_sync_now", "home_custom_live" -> R.drawable.ic_live_tv
+            "home_custom_movie", "home_custom_series" -> R.drawable.ic_movie
             "manage_stremio_addons", "manage_debrid" -> R.drawable.ic_weather_cloud
-            "version" -> R.drawable.ic_person
+            "refresh_iptv", "clear_cache" -> R.drawable.ic_settings
+            "version", "build", "account_user", "account_server" -> R.drawable.ic_person
             else -> R.drawable.ic_settings
         }
     }
@@ -88,6 +96,7 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
             is SelectionViewHolder -> when (item) {
                 is SettingItem.Selection -> holder.bindSelection(item, accent)
                 is SettingItem.Action -> holder.bindAction(item, accent)
+                is SettingItem.Info -> holder.bindInfo(item, accent)
                 else -> {}
             }
         }
@@ -95,11 +104,13 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
 
     // ── shared row styling ──
     private object RowStyle {
+        // Radii/strokes scale with the 10-foot row sizes in the layouts; a 5dp corner on a 74dp
+        // row reads as a square from the sofa, and a 1px focus stroke is invisible.
         fun rowBg(root: View, focused: Boolean): GradientDrawable {
             val d = root.resources.displayMetrics.density
             return GradientDrawable().apply {
-                cornerRadius = 5f * d
-                if (focused) { setColor(0x0F00F0FF); setStroke((1 * d).toInt(), 0x3800F0FF) }
+                cornerRadius = 10f * d
+                if (focused) { setColor(0x1400F0FF); setStroke((2 * d).toInt(), 0x5C00F0FF) }
                 else { setColor(0x660C111B.toInt()); setStroke((1 * d).toInt(), 0x0AFFFFFF) }
             }
         }
@@ -107,7 +118,7 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
         fun iconTile(icon: View, accent: Int) {
             val d = icon.resources.displayMetrics.density
             icon.background = GradientDrawable().apply {
-                cornerRadius = 4f * d
+                cornerRadius = 9f * d
                 setColor(tint(accent, 0x14))
                 setStroke((1 * d).toInt(), tint(accent, 0x2E))
             }
@@ -138,7 +149,7 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
 
         private fun styleToggle(on: Boolean, accent: Int) {
             binding.vTogglePill.background = GradientDrawable().apply {
-                cornerRadius = 7f * d
+                cornerRadius = PILL_HEIGHT_DP / 2f * d
                 setColor(if (on) tint(accent, 0x40) else 0x0FFFFFFF)
                 setStroke((1 * d).toInt(), if (on) tint(accent, 0x66) else 0x1AFFFFFF)
             }
@@ -146,7 +157,16 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
                 shape = GradientDrawable.OVAL
                 setColor(if (on) accent else 0xFF475569.toInt())
             }
-            binding.vToggleDot.translationX = if (on) 14 * d else 2 * d
+            // Geometry must track item_settings_toggle.xml: the dot slides between the two insets.
+            binding.vToggleDot.translationX =
+                if (on) (PILL_WIDTH_DP - DOT_SIZE_DP - PILL_INSET_DP) * d else PILL_INSET_DP * d
+        }
+
+        private companion object {
+            const val PILL_WIDTH_DP = 56f
+            const val PILL_HEIGHT_DP = 30f
+            const val DOT_SIZE_DP = 22f
+            const val PILL_INSET_DP = 4f
         }
     }
 
@@ -160,6 +180,11 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
             RowStyle.iconTile(binding.ivIcon, accent)
             binding.root.background = RowStyle.rowBg(binding.root, false)
             binding.root.setOnFocusChangeListener { v, has -> v.background = RowStyle.rowBg(v, has) }
+            // Rows are recycled between actionable and read-only kinds — restore the default.
+            binding.root.isFocusable = true
+            binding.root.isFocusableInTouchMode = true
+            binding.root.isClickable = true
+            binding.ivChevron.isVisible = true
         }
 
         fun bindSelection(item: SettingItem.Selection, accent: Int) {
@@ -177,6 +202,20 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
             binding.tvDescription.text = item.description
             binding.tvStatus.isVisible = false
             binding.root.setOnClickListener { item.onClick() }
+        }
+
+        fun bindInfo(item: SettingItem.Info, accent: Int) {
+            common(item.key, item.title, accent)
+            binding.tvDescription.isVisible = false
+            binding.tvStatus.isVisible = true
+            binding.tvStatus.text = item.value
+            binding.tvStatus.setTextColor(0xFF94A3B8.toInt())
+            binding.ivChevron.isVisible = false
+            binding.root.setOnClickListener(null)
+            binding.root.isFocusable = false
+            binding.root.isFocusableInTouchMode = false
+            binding.root.isClickable = false
+            binding.root.background = RowStyle.rowBg(binding.root, false)
         }
     }
 }

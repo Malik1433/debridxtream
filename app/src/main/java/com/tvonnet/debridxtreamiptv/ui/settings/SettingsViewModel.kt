@@ -15,11 +15,9 @@ import androidx.preference.PreferenceManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 data class SettingsUiState(
-    val playerEngine: String = "exo",
-    val isTunnelingEnabled: Boolean = false,
-    val isAutoPlayEnabled: Boolean = true,
-    val isUiScaleEnabled: Boolean = true,
-    val selectedCategory: SettingCategory = SettingCategory.GENERAL,
+    val selectedCategory: SettingCategory = SettingCategory.PLAYBACK,
+    val accountUsername: String? = null,
+    val accountServer: String? = null,
     val isDebridAuthenticated: Boolean = false,
     val addonRegistryUrl: String = "",
     val addonRegistryUrls: Set<String> = emptySet(),
@@ -35,8 +33,13 @@ data class SettingsUiState(
     val resumeLastLive: Boolean = false
 )
 
+/**
+ * The settings rail, in the order it is shown. Grouped the way a viewer looks for things — what
+ * plays, what Live TV does, what Home shows, where sources come from, the data on the box, and the
+ * account — rather than by which class happens to own the preference.
+ */
 enum class SettingCategory {
-    GENERAL, IPTV_EPG, HOME, PLAYER, VISUALS, DEBRID, ABOUT, LOGOUT
+    PLAYBACK, LIVE_TV, HOME, ADDONS, DATA, ABOUT, ACCOUNT
 }
 
 @HiltViewModel
@@ -60,10 +63,8 @@ class SettingsViewModel @Inject constructor(
         val credentialsPrefs = com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences(context)
         _uiState.update {
             it.copy(
-                playerEngine = prefs.getPlayerEngine(),
-                isTunnelingEnabled = prefs.isTunnelingModeEnabled(),
-                isAutoPlayEnabled = prefs.isAutoPlayNextEnabled(),
-                isUiScaleEnabled = prefs.isUiScaleAnimationEnabled(),
+                accountUsername = credentialsPrefs.getUsername(),
+                accountServer = credentialsPrefs.getServerUrl(),
                 isDebridAuthenticated = prefs.getRealDebridToken() != null,
                 addonRegistryUrl = prefs.getAddonRegistryUrl(),
                 addonRegistryUrls = prefs.getAddonRegistryUrls(),
@@ -90,30 +91,10 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(selectedCategory = category) }
     }
 
-    fun setPlayerEngine(engine: String) {
-        prefs.savePlayerEngine(engine)
-        _uiState.update { it.copy(playerEngine = engine) }
-    }
-
-    fun toggleTunneling(enabled: Boolean) {
-        prefs.setTunnelingMode(enabled)
-        _uiState.update { it.copy(isTunnelingEnabled = enabled) }
-    }
-
-    fun toggleAutoPlay(enabled: Boolean) {
-        prefs.setAutoPlayNext(enabled)
-        _uiState.update { it.copy(isAutoPlayEnabled = enabled) }
-    }
-
     fun toggleSoftwareAudio(enabled: Boolean) {
         val audioPrefs = com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(context)
         audioPrefs.saveSoftwareAudioEnabled(enabled)
         _uiState.update { it.copy(isSoftwareAudioEnabled = enabled) }
-    }
-
-    fun toggleUiScale(enabled: Boolean) {
-        prefs.setUiScaleAnimation(enabled)
-        _uiState.update { it.copy(isUiScaleEnabled = enabled) }
     }
 
     // ── Live TV EPG guide appearance ────────────────────────────────────

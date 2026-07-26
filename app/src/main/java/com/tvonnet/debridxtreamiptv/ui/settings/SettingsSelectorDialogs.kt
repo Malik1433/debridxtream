@@ -34,19 +34,6 @@ class SettingsSelectorDialogs(
             .show()
     }
 
-    fun showEngineSelector(current: String) {
-        AlertDialog.Builder(context)
-            .setTitle("Select Player Engine")
-            .setSingleChoiceItems(
-                SettingsOptionLabels.engineLabels,
-                SettingsOptionLabels.engineIndex(current)
-            ) { dialog, which ->
-                viewModel.setPlayerEngine(SettingsOptionLabels.engineValues[which])
-                dialog.dismiss()
-            }
-            .show()
-    }
-
     fun showEpgIntervalSelector(current: String) {
         AlertDialog.Builder(context)
             .setTitle("Select EPG Sync Interval")

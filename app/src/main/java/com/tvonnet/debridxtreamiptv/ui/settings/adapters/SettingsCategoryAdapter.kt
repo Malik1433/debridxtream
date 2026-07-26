@@ -19,8 +19,8 @@ class SettingsCategoryAdapter(
     data class CatMeta(val title: String, val sub: String, val accent: Int, val iconRes: Int)
 
     private val categories = SettingCategory.values()
-        .filter { showDebridCategory || it != SettingCategory.DEBRID }
-    private var selectedCategory = SettingCategory.GENERAL
+        .filter { showDebridCategory || it != SettingCategory.ADDONS }
+    private var selectedCategory = SettingCategory.PLAYBACK
 
     init { setHasStableIds(true) }
 
@@ -103,25 +103,23 @@ class SettingsCategoryAdapter(
         private fun tint(accent: Int, alpha: Int) = (accent and 0x00FFFFFF) or (alpha shl 24)
 
         fun metaFor(c: SettingCategory): CatMeta = when (c) {
-            SettingCategory.GENERAL -> CatMeta("General", "AUTOPLAY · ACCOUNT", 0xFF00F0FF.toInt(), R.drawable.ic_settings)
-            SettingCategory.PLAYER -> CatMeta("Player", "ENGINE · AUDIO · SUBS", 0xFFFF3366.toInt(), R.drawable.ic_play)
-            SettingCategory.VISUALS -> CatMeta("Visuals", "LAYOUT · GUIDE · CARDS", 0xFFA78BFA.toInt(), R.drawable.ic_movie)
-            SettingCategory.IPTV_EPG -> CatMeta("IPTV & EPG", "REFRESH · EPG · CACHE", 0xFF00FF88.toInt(), R.drawable.ic_live_tv)
+            SettingCategory.PLAYBACK -> CatMeta("Playback", "AUDIO · LANGUAGE", 0xFFFF3366.toInt(), R.drawable.ic_play)
+            SettingCategory.LIVE_TV -> CatMeta("Live TV", "LAYOUT · TV GUIDE", 0xFF00FF88.toInt(), R.drawable.ic_live_tv)
             SettingCategory.HOME -> CatMeta("Home Screen", "MOVIE · SERIES · LIVE", 0xFFFFAA00.toInt(), R.drawable.ic_home)
-            SettingCategory.DEBRID -> CatMeta("Stremio Addons", "ADDONS · FALLBACK", 0xFF00F0FF.toInt(), R.drawable.ic_weather_cloud)
+            SettingCategory.ADDONS -> CatMeta("Addons", "STREMIO · DEBRID", 0xFF00F0FF.toInt(), R.drawable.ic_weather_cloud)
+            SettingCategory.DATA -> CatMeta("Data & Storage", "REFRESH · CACHE", 0xFFA78BFA.toInt(), R.drawable.ic_settings)
             SettingCategory.ABOUT -> CatMeta("About", "VERSION · BUILD", 0xFF64748B.toInt(), R.drawable.ic_person)
-            SettingCategory.LOGOUT -> CatMeta("Logout", "SIGN OUT", 0xFFFF3355.toInt(), R.drawable.ic_logout)
+            SettingCategory.ACCOUNT -> CatMeta("Account", "SIGN OUT", 0xFFFF3355.toInt(), R.drawable.ic_logout)
         }
 
         fun descFor(c: SettingCategory): String = when (c) {
-            SettingCategory.GENERAL -> "General playback and account options"
-            SettingCategory.PLAYER -> "Player engine, audio tracks and language"
-            SettingCategory.VISUALS -> "Live TV layout, guide and card animation"
-            SettingCategory.IPTV_EPG -> "Refresh data, EPG sync and cached TV data"
+            SettingCategory.PLAYBACK -> "How audio is chosen when something plays"
+            SettingCategory.LIVE_TV -> "Live TV layout and the TV guide"
             SettingCategory.HOME -> "Choose which category rows appear on Home"
-            SettingCategory.DEBRID -> "Manage Stremio addons and Real-Debrid fallback"
+            SettingCategory.ADDONS -> "Where Debrid sources are fetched from"
+            SettingCategory.DATA -> "Refresh the catalog and free up storage"
             SettingCategory.ABOUT -> "App version and build information"
-            SettingCategory.LOGOUT -> "Sign out of this account"
+            SettingCategory.ACCOUNT -> "The provider account this box is signed in to"
         }
     }
 }

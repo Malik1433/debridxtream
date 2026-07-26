@@ -62,8 +62,8 @@ class SettingsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // Version lives here and in About; the old duplicate footer block is gone.
         binding.tvSettingsVersion.text = "DEBRIDXTREAM · v${BuildConfig.VERSION_NAME}"
-        binding.tvSettingsBuild.text = "BUILD ${BuildConfig.VERSION_NAME}"
 
         dialogs = SettingsSelectorDialogs(this, viewModel)
         actions = SettingsMaintenanceActions(this, viewModel, repository, cacheManager, cacheHelper)
@@ -76,12 +76,10 @@ class SettingsFragment : Fragment() {
         // Categories (Left) — NORMAL (IPTV-only) devices don't get the Stremio Addons category.
         categoryAdapter = SettingsCategoryAdapter(
             onCategorySelected = { category ->
-                if (category == SettingCategory.LOGOUT) {
-                    actions.showAccountLogoutConfirmation()
-                } else {
-                    viewModel.selectCategory(category)
-                    categoryAdapter.setSelectedCategory(category)
-                }
+                // Every rail item just opens its panel. Selecting a category must never fire a
+                // destructive dialog - "Logout" used to do exactly that straight from the rail.
+                viewModel.selectCategory(category)
+                categoryAdapter.setSelectedCategory(category)
             },
             showDebridCategory = com.tvonnet.debridxtreamiptv.data.licensing.Entitlements
                 .isDebridAllowed(requireContext())
@@ -121,50 +119,22 @@ class SettingsFragment : Fragment() {
         detailAdapter.accent = meta.accent
 
         val items = when (state.selectedCategory) {
-            SettingCategory.GENERAL -> listOf(
-                SettingItem.Toggle(
-                    key = "autoplay",
-                    title = "Auto-Play Next Episode",
-                    description = "Automatically start next episode when current one ends",
-                    isChecked = state.isAutoPlayEnabled,
-                    onToggle = { viewModel.toggleAutoPlay(it) }
-                ),
-                SettingItem.Action(
-                    key = "logout_account",
-                    title = "Logout",
-                    description = "Sign out of this account",
-                    onClick = { actions.showAccountLogoutConfirmation() }
-                )
-            )
-            SettingCategory.PLAYER -> listOf(
-                SettingItem.Selection(
-                    key = "engine",
-                    title = "Player Engine",
-                    currentValue = SettingsOptionLabels.engineName(state.playerEngine),
-                    onClick = { dialogs.showEngineSelector(state.playerEngine) }
-                ),
-                SettingItem.Toggle(
-                    key = "tunneling",
-                    title = "Tunneling Mode (AFR)",
-                    description = "May improve smooth playback on some TVs (Experimental)",
-                    isChecked = state.isTunnelingEnabled,
-                    onToggle = { viewModel.toggleTunneling(it) }
-                ),
-                SettingItem.Toggle(
-                    key = "software_audio",
-                    title = "Smart Audio Fallback",
-                    description = "Automatically switch tracks if the main audio format (like AC3/EAC3) is unsupported",
-                    isChecked = state.isSoftwareAudioEnabled,
-                    onToggle = { viewModel.toggleSoftwareAudio(it) }
-                ),
+            SettingCategory.PLAYBACK -> listOf(
                 SettingItem.Selection(
                     key = "preferred_audio_lang",
                     title = "Preferred Audio Language",
                     currentValue = SettingsOptionLabels.audioLangName(state.preferredAudioLang),
                     onClick = { dialogs.showPreferredAudioLangSelector(state.preferredAudioLang) }
+                ),
+                SettingItem.Toggle(
+                    key = "software_audio",
+                    title = "Smart Audio Fallback",
+                    description = "Switch tracks automatically when the main audio format (AC3/EAC3) is not supported",
+                    isChecked = state.isSoftwareAudioEnabled,
+                    onToggle = { viewModel.toggleSoftwareAudio(it) }
                 )
             )
-            SettingCategory.VISUALS -> listOf(
+            SettingCategory.LIVE_TV -> listOf(
                 SettingItem.Selection(
                     key = "live_tv_style",
                     title = "Live TV Layout",
@@ -174,7 +144,7 @@ class SettingsFragment : Fragment() {
                 SettingItem.Toggle(
                     key = "resume_last_live",
                     title = "Resume Last Channel",
-                    description = "Open Live TV on the last channel you watched instead of the first",
+                    description = "Open Live TV on the channel you watched last instead of the first",
                     isChecked = state.resumeLastLive,
                     onToggle = { viewModel.toggleResumeLastLive(it) }
                 ),
@@ -192,83 +162,70 @@ class SettingsFragment : Fragment() {
                 ),
                 SettingItem.Toggle(
                     key = "epg_genre_tint",
-                    title = "TV Guide Genre Colors",
-                    description = "Tint channels and programs by genre in the new Live TV guide",
+                    title = "TV Guide Genre Colours",
+                    description = "Tint channels and programmes by genre in the TV guide",
                     isChecked = state.epgGenreTint,
                     onToggle = { viewModel.toggleEpgGenreTint(it) }
                 ),
                 SettingItem.Toggle(
-                    key = "scale",
-                    title = "Card Animation",
-                    description = "Scale and glow effect when focusing on items",
-                    isChecked = state.isUiScaleEnabled,
-                    onToggle = { viewModel.toggleUiScale(it) }
-                )
-            )
-            SettingCategory.IPTV_EPG -> listOf(
-                SettingItem.Action(
-                    key = "refresh_iptv",
-                    title = "Refresh IPTV Data",
-                    description = "Force update live channels, movies, and series",
-                    onClick = { actions.refreshIptvData() }
-                ),
-                SettingItem.Toggle(
                     key = "epg_auto_sync",
-                    title = "Auto EPG Sync",
-                    description = "Automatically refresh EPG in background",
+                    title = "Auto-Update TV Guide",
+                    description = "Refresh the guide in the background",
                     isChecked = state.isEpgAutoSyncEnabled,
                     onToggle = { viewModel.toggleEpgAutoSync(it) }
                 ),
                 SettingItem.Selection(
                     key = "epg_sync_interval",
-                    title = "EPG Sync Interval",
+                    title = "Guide Update Interval",
                     currentValue = SettingsOptionLabels.epgIntervalName(state.epgSyncIntervalHours),
                     onClick = { dialogs.showEpgIntervalSelector(state.epgSyncIntervalHours) }
                 ),
                 SettingItem.Action(
                     key = "epg_sync_now",
-                    title = "Sync EPG Now",
-                    description = "Manually fetch EPG TV guide data",
+                    title = "Update TV Guide Now",
+                    description = "Fetch guide data immediately",
                     onClick = { actions.syncEpgNow() }
-                ),
-                SettingItem.Action(
-                    key = "clear_cache",
-                    title = "Clear Cached TV Data",
-                    description = "Wipe temporary storage to resolve issues",
-                    onClick = { actions.showClearCacheDialog() }
                 )
             )
             SettingCategory.HOME -> listOf(
                 SettingItem.Action(
                     key = "home_custom_movie",
-                    title = "Customize Movie Rows",
-                    description = "Select categories to show on Home",
+                    title = "Movie Rows",
+                    description = "Choose which movie categories appear on Home",
                     onClick = { actions.showCategorySelector("movie") }
                 ),
                 SettingItem.Action(
                     key = "home_custom_series",
-                    title = "Customize Series Rows",
-                    description = "Select categories to show on Home",
+                    title = "Series Rows",
+                    description = "Choose which series categories appear on Home",
                     onClick = { actions.showCategorySelector("series") }
                 ),
                 SettingItem.Action(
                     key = "home_custom_live",
-                    title = "Customize Live TV Rows",
-                    description = "Select categories to show on Home",
+                    title = "Live TV Rows",
+                    description = "Choose which channel categories appear on Home",
                     onClick = { actions.showCategorySelector("live") }
                 )
             )
-            SettingCategory.DEBRID -> listOf(
+            SettingCategory.ADDONS -> listOf(
                 SettingItem.Action(
                     key = "manage_stremio_addons",
-                    title = "Manage Custom Stremio Addons",
-                    description = "${state.stremioAddonUrls.size} addon(s) active - primary addon path",
+                    title = "Stremio Addons",
+                    description = if (state.stremioAddonUrls.isEmpty()) {
+                        "No addons configured - sources come from the built-in list"
+                    } else {
+                        "${state.stremioAddonUrls.size} addon(s) active"
+                    },
                     onClick = { dialogs.showManageStremioAddonsDialog(state.stremioAddonUrls) }
                 ),
                 SettingItem.Action(
                     key = "manage_debrid",
-                    title = "Legacy Real-Debrid Fallback",
-                    description = if (state.isDebridAuthenticated) "Status: Authorized (raw magnet fallback only)" else "Optional legacy raw magnet fallback",
+                    title = "Real-Debrid Fallback",
+                    description = if (state.isDebridAuthenticated) {
+                        "Authorised - used only for raw magnet links"
+                    } else {
+                        "Not connected - optional raw magnet fallback"
+                    },
                     onClick = {
                         if (state.isDebridAuthenticated) {
                             dialogs.showDebridLogoutConfirmation()
@@ -281,18 +238,46 @@ class SettingsFragment : Fragment() {
                     }
                 )
             )
-            SettingCategory.ABOUT -> listOf(
+            SettingCategory.DATA -> listOf(
                 SettingItem.Action(
-                    key = "version",
-                    title = "Version",
-                    description = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-                    onClick = {}
+                    key = "refresh_iptv",
+                    title = "Refresh Channels & Catalog",
+                    description = "Fetch live channels, movies and series from the provider again",
+                    onClick = { actions.refreshIptvData() }
+                ),
+                SettingItem.Action(
+                    key = "clear_cache",
+                    title = "Clear Cached Data",
+                    description = "Free up storage - the catalog is downloaded again next time",
+                    onClick = { actions.showClearCacheDialog() }
                 )
             )
-            SettingCategory.LOGOUT -> emptyList()
+            SettingCategory.ABOUT -> listOf(
+                SettingItem.Info(key = "version", title = "App Version", value = BuildConfig.VERSION_NAME),
+                SettingItem.Info(key = "build", title = "Build", value = BuildConfig.VERSION_CODE.toString())
+            )
+            SettingCategory.ACCOUNT -> listOfNotNull(
+                state.accountUsername?.takeIf { it.isNotBlank() }?.let { user ->
+                    SettingItem.Info(key = "account_user", title = "Signed in as", value = user)
+                },
+                state.accountServer?.takeIf { it.isNotBlank() }?.let { server ->
+                    SettingItem.Info(key = "account_server", title = "Provider", value = serverHost(server))
+                },
+                SettingItem.Action(
+                    key = "logout_account",
+                    title = "Sign Out",
+                    description = "Sign out of this provider account on this device",
+                    onClick = { actions.showAccountLogoutConfirmation() }
+                )
+            )
         }
         detailAdapter.submitList(items)
     }
+
+    /** Providers are configured by URL; the host alone is what identifies one to a viewer. */
+    private fun serverHost(serverUrl: String): String =
+        runCatching { android.net.Uri.parse(serverUrl).host }.getOrNull()?.takeIf { it.isNotBlank() }
+            ?: serverUrl.removePrefix("http://").removePrefix("https://").substringBefore('/')
 
     override fun onDestroyView() {
         super.onDestroyView()

@@ -4,28 +4,28 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/cat_root"
     android:layout_width="match_parent"
-    android:layout_height="32dp"
+    android:layout_height="54dp"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingEnd="10dp"
-    android:layout_marginBottom="2dp"
+    android:paddingEnd="18dp"
+    android:layout_marginBottom="3dp"
     android:focusable="true"
     android:focusableInTouchMode="true"
     android:clickable="true">
 
     <View
         android:id="@+id/v_cat_bar"
-        android:layout_width="2dp"
-        android:layout_height="16dp"
-        android:layout_marginEnd="8dp" />
+        android:layout_width="4dp"
+        android:layout_height="30dp"
+        android:layout_marginEnd="14dp" />
 
     <ImageView
         android:id="@+id/iv_icon"
-        android:layout_width="19dp"
-        android:layout_height="19dp"
-        android:padding="3dp"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:padding="7dp"
         android:scaleType="fitCenter"
-        android:layout_marginEnd="10dp"
+        android:layout_marginEnd="16dp"
         android:src="@drawable/ic_settings" />
 
     <LinearLayout
@@ -39,7 +39,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/outfit_semibold"
-            android:textSize="8sp"
+            android:textSize="18sp"
             android:textColor="#F1F5F9"
             android:maxLines="1"
             android:ellipsize="end"
@@ -49,9 +49,9 @@
             android:id="@+id/tv_sub"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
+            android:layout_marginTop="3dp"
             android:fontFamily="@font/share_tech_mono"
-            android:textSize="5sp"
+            android:textSize="12sp"
             android:textColor="#3D4F60"
             android:letterSpacing="0.08"
             android:maxLines="1"
@@ -60,8 +60,8 @@
 
     <ImageView
         android:id="@+id/iv_arrow"
-        android:layout_width="8dp"
-        android:layout_height="8dp"
+        android:layout_width="17dp"
+        android:layout_height="17dp"
         android:src="@drawable/ic_arrow_right"
         app:tint="#3D4F60" />
 </LinearLayout>

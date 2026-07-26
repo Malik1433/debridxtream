@@ -10,16 +10,15 @@ import org.junit.Test
  *
  * Every selector on that screen answers two questions from a stored string: which radio row starts
  * checked, and what does the summary line read. Each one carried its own default, and they are not
- * the same default — audio language and player engine fall back to the FIRST option, while EPG
- * interval, timeline zoom and row density fall back to the SECOND (the "standard" middle). Getting
- * one wrong shows the user a setting they do not have, so the defaults are pinned individually.
+ * the same default — audio language falls back to the FIRST option, while EPG interval, timeline
+ * zoom and row density fall back to the SECOND (the "standard" middle). Getting one wrong shows the
+ * user a setting they do not have, so the defaults are pinned individually.
  */
 class SettingsOptionLabelsTest {
 
     @Test
     fun `every value list lines up with its label list`() {
         assertEquals(SettingsOptionLabels.audioLangValues.size, SettingsOptionLabels.audioLangLabels.size)
-        assertEquals(SettingsOptionLabels.engineValues.size, SettingsOptionLabels.engineLabels.size)
         assertEquals(SettingsOptionLabels.epgIntervalValues.size, SettingsOptionLabels.epgIntervalLabels.size)
         assertEquals(SettingsOptionLabels.liveTvStyleValues.size, SettingsOptionLabels.liveTvStyleLabels.size)
         assertEquals(SettingsOptionLabels.epgZoomValues.size, SettingsOptionLabels.epgZoomLabels.size)
@@ -32,24 +31,6 @@ class SettingsOptionLabelsTest {
         assertEquals("No preference (ALL)", SettingsOptionLabels.audioLangName("ALL"))
         assertEquals("English (EN)", SettingsOptionLabels.audioLangName("klingon"))
         assertEquals(0, SettingsOptionLabels.audioLangIndex(""))
-    }
-
-    @Test
-    fun `player engine defaults to the first option`() {
-        assertEquals("VLC Player", SettingsOptionLabels.engineName("vlc"))
-        assertEquals(2, SettingsOptionLabels.engineIndex("mx"))
-        assertEquals(0, SettingsOptionLabels.engineIndex("something-else"))
-    }
-
-    /**
-     * Deliberate quirk kept from the original: an unrecognised engine *summarises* as the bare
-     * "ExoPlayer" while the picker checks "ExoPlayer (Default)". Recorded so a future tidy-up is a
-     * decision rather than an accident.
-     */
-    @Test
-    fun `an unknown engine summarises differently from how it is checked`() {
-        assertEquals("ExoPlayer", SettingsOptionLabels.engineName("garbage"))
-        assertEquals("ExoPlayer (Default)", SettingsOptionLabels.engineLabels[SettingsOptionLabels.engineIndex("garbage")])
     }
 
     @Test
