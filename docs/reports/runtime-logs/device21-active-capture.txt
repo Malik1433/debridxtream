@@ -1,3 +1,0 @@
-pid=19348
-log=E:\running project baxkups\lmsd working but loading issues\debxtrem\docs\reports\runtime-logs\device21-trailer-test-20260603-161610.log
-started=2026-06-03T16:16:12.8357236+02:00

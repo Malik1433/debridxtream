@@ -106,3 +106,66 @@ app/build/
 
 # Release signing + anti-repack (never commit the real one)
 keystore.properties
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Debug / QA scratch output — NEVER commit this.
+# 2026-07-26: ~180MB of it had accumulated in the repo root and artifacts/ (build logs, logcat
+# dumps, QA screenshots + uiautomator XML, local DBs, one-off scripts). Keep scratch work in the
+# session scratchpad or docs/reports/ with a real name; anything matching the patterns below is
+# assumed to be throwaway. `scripts/check_repo_hygiene.sh` fails the build if any reappear.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Build / compile / test console dumps
+build_log*.txt
+build_output*.txt
+assemble-*.out.txt
+compile-*.out.txt
+compile-*.err.txt
+compile_test_output*.txt
+kapt_log*.txt
+*-test.out.txt
+
+# Device logs
+logcat*.txt
+*_logs.txt
+*_logcat.txt
+app_log*.txt
+filtered_logcat*.txt
+
+# Device QA captures (screenshots + uiautomator dumps)
+qa*.png
+qa*.xml
+view_*.xml
+window_*.xml
+*_dump.xml
+
+# Local databases / agent runtime state
+*.sqlite
+*.db
+agentdb.rvf*
+ruvector.db
+
+# One-off scratch scripts, patches and diffs
+fix_*.py
+fix2_*.xml
+*.patch
+*.diff
+
+# Legacy evidence folder (kept in git history; do not re-add)
+/artifacts/
+
+# Scratch / diagnostic working directories (kept in git history; do not re-add)
+/temp_diagnostics/
+/temp_qa/
+/.codex-temp/
+/logs/
+/docs/reports/runtime-logs/
+
+# Agent runtime state (config is tracked; state, metrics and pids are not)
+/.swarm/
+.claude-flow/metrics/
+.claude-flow/swarm/
+.claude-flow/system/
+.claude-flow/security/
+.claude-flow/daemon.pid
+.claude-flow/daemon-state.json

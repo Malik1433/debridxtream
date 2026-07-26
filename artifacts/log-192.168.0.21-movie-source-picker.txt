@@ -1,2 +1,0 @@
-05-31 13:13:46.104 E/UnifiedSourceProvider( 9917): ?? Final conversion: 14 valid MovieSource objects
-05-31 13:13:46.104 E/UnifiedSourceProvider( 9917): ?? Success rate: 100% (14/14) sources converted
