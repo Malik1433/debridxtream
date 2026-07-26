@@ -49,6 +49,9 @@ object LiveSharedPlayer {
         Log.i(TAG, "offer: id=$id frame=${frameBitmap != null}")
     }
 
+    /** True while a player is parked awaiting adoption (i.e. a hand-off is in flight). */
+    fun isParked(): Boolean = player != null
+
     /** One-shot: the hand-off frame snapshot (cleared on take). */
     fun takeFrame(): Bitmap? {
         val f = frame

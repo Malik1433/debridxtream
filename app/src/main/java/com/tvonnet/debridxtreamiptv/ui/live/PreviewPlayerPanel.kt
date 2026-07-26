@@ -334,6 +334,14 @@ class PreviewPlayerPanel(
         return p
     }
 
+    /**
+     * Snapshot the last rendered frame of the preview's TextureView-backed [PlayerView]. Used as the
+     * hand-off cover so the fullscreen surface warm-up (and the return adopt) never flashes black.
+     * Capture this BEFORE [detachPlayer].
+     */
+    fun captureFrame(): android.graphics.Bitmap? =
+        runCatching { (previewPlayerView?.videoSurfaceView as? android.view.TextureView)?.getBitmap() }.getOrNull()
+
     /** Adopts an already-playing player (e.g. handed back from the fullscreen session). */
     fun adoptPlayer(p: ExoPlayer, stream: XtreamStream) {
         if (previewPlayer !== p) previewPlayer?.release()

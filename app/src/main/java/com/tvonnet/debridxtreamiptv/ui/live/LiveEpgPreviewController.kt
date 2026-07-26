@@ -191,6 +191,14 @@ class LiveEpgPreviewController(
     fun maybeRestorePreviewFromState(state: LiveUiState) {
         if (isPreviewRestored()) return
         if (!state.restoreFromFullscreenPending) return
+        // Shared-player hand-off return (LP-CLASSIC): the fullscreen session parked its running player
+        // in LiveSharedPlayer and set RESULT_OK, so LivePlaybackLauncher.handleLivePlayerResult will
+        // ADOPT it authoritatively. Do NOT reconnect a fresh preview here — this method racing the
+        // result callback was the occasional "reload on return". Defer; the result path restores it.
+        if (com.tvonnet.debridxtreamiptv.player.stabilized.LiveSharedPlayer.isParked()) {
+            android.util.Log.i("LIVE_HANDOFF", "maybeRestore: deferring to result adopt (player parked)")
+            return
+        }
 
         val historyItem = runCatching {
             WatchHistoryPreferences(fragment.requireContext()).getRecentLiveChannelsList().firstOrNull()

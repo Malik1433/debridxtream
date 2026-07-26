@@ -11,6 +11,7 @@ import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
 import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
+import com.tvonnet.debridxtreamiptv.player.stabilized.LiveSharedPlayer
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.util.FAVORITES_CATEGORY_ID
 import kotlinx.coroutines.Dispatchers
@@ -22,19 +23,21 @@ import kotlinx.coroutines.withContext
  * two-click model ([navigateToPlayer]: 1st click previews, 2nd click goes fullscreen), the fullscreen
  * launch itself ([launchFullscreen]) and the restore-on-return ([handleLivePlayerResult]).
  *
- * TWO LOAD-BEARING INVARIANTS carried over verbatim:
+ * INVARIANTS:
  *  - The `ActivityResultLauncher` STAYS REGISTERED IN THE FRAGMENT (its field-initializer timing before
  *    STARTED is load-bearing). Only its *body* is delegated here — the Fragment forwards results to
  *    [handleLivePlayerResult] and passes its `launch` as [onLaunch].
- *  - In [launchFullscreen] the preview's live socket is torn down **synchronously before** the launch:
- *    `previewPanel().releasePlayer()` runs immediately before [onLaunch]. The account is
- *    `max_connections=1`; a lifecycle pause only pauses the preview player, it does NOT close the socket,
- *    so a still-connected preview + the fullscreen session would be two live connections and the server
- *    rejects the second. Do NOT reorder these two calls.
+ *  - SHARED-PLAYER HAND-OFF (max_connections=1 safe): [launchFullscreen] does NOT release the preview and
+ *    let fullscreen reconnect. It hands the RUNNING player to [LiveSharedPlayer] (`detachPlayer` + `offer`)
+ *    with a last-frame snapshot cover, and launches with `sharedLivePlayer = true`; PlayerActivity ADOPTS
+ *    that exact player (same provider socket, no reconnect — there is never a moment with two open
+ *    connections). [handleLivePlayerResult] adopts the player back (`adoptPlayer`) so the channel does not
+ *    reload on the way back either. Falls back to a fresh preview if nothing was handed off/back. This
+ *    mirrors the EPG guide's proven hand-off ([LiveSharedPlayer]).
  *
  * Sibling work goes back through callbacks: [onUpdatePreviewEpg] (LF-3), [onUpdateFavoriteButton] (LF-5),
  * [onFocusChannelAt] / [onRestoreChannelFocus] (LF-6) and [markPreviewRestored] (the Fragment's shared
- * preview-restore flag). Behaviour byte-identical; only `this`/field refs were rebound.
+ * preview-restore flag).
  */
 class LivePlaybackLauncher(
     private val fragment: Fragment,
@@ -82,6 +85,22 @@ class LivePlaybackLauncher(
             val streamUrl = stream.toLiveStreamUrl(serverUrl, username, password)
             val channelIds = resolveLiveChannelIds(categoryId, stream.stream_id)
 
+            // Shared-player hand-off (LP-CLASSIC): instead of releasing the preview and letting
+            // PlayerActivity reconnect from scratch, hand the RUNNING player over — the SAME provider
+            // socket travels to fullscreen (adopted, no reconnect), so max_connections=1 is never
+            // violated (there is never a moment with two open connections) and the channel does not
+            // reload on the way in. A snapshot of the last preview frame covers the fullscreen surface
+            // warm-up so the switch is never black. Mirrors the EPG guide's proven hand-off. If there
+            // is no preview player to hand off, PlayerActivity cold-starts (sharedLivePlayer = false).
+            val panel = previewPanel()
+            val handoffFrame = panel?.captureFrame()
+            val handoffPlayer = panel?.detachPlayer()
+            val shared = handoffPlayer != null
+            if (handoffPlayer != null) {
+                LiveSharedPlayer.offer(handoffPlayer, streamUrl, stream.stream_id, handoffFrame)
+            }
+            android.util.Log.i("LIVE_HANDOFF", "launchFullscreen: shared=$shared (handoff=${handoffPlayer != null}) id=${stream.stream_id}")
+
             val intent = PlayerActivity.createIntent(
                 context = fragment.requireContext(),
                 streamUrl = streamUrl,
@@ -94,21 +113,14 @@ class LivePlaybackLauncher(
                 posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
                 liveCategoryId = categoryId,
                 liveChannelIds = channelIds.takeIf { it.isNotEmpty() },
-                baseServerUrl = serverUrl
+                baseServerUrl = serverUrl,
+                sharedLivePlayer = shared
             )
             val options = ActivityOptionsCompat.makeCustomAnimation(
                 fragment.requireContext(),
                 R.anim.fade_in,
                 R.anim.fade_out
             )
-            // Tear down the preview's live connection synchronously BEFORE PlayerActivity
-            // opens its own. The account is max_connections=1 — lifecycle pause only
-            // pauses the preview player, it does not close the socket, so without this
-            // the fullscreen session and the (still-connected) preview would be two
-            // simultaneous live connections and the server rejects the second. The
-            // classic screen's preview is muted/secondary, so a reconnect on return is
-            // acceptable (unlike the guide's shared-player hand-off).
-            previewPanel()?.releasePlayer()
             onLaunch(intent, options)
         }
     }
@@ -148,7 +160,18 @@ class LivePlaybackLauncher(
         )
 
         markPreviewRestored()
-        previewPanel()?.play(returnedStream, streamUrl)
+        // Adopt the running player back from fullscreen (no reconnect / reload on the way back).
+        // takeFrame() is drained to clear the retained snapshot; the zoom-shrink cover (Part B) will
+        // consume it. If nothing was handed back (cold exit / error), fall back to a fresh preview.
+        LiveSharedPlayer.takeFrame()
+        val adopted = LiveSharedPlayer.adopt()
+        if (adopted != null) {
+            android.util.Log.i("LIVE_HANDOFF", "handleLivePlayerResult: ADOPTED back (no reload) id=$streamId")
+            previewPanel()?.adoptPlayer(adopted, returnedStream)
+        } else {
+            android.util.Log.i("LIVE_HANDOFF", "handleLivePlayerResult: no parked player -> FRESH play (reload) id=$streamId")
+            previewPanel()?.play(returnedStream, streamUrl)
+        }
         onUpdatePreviewEpg(returnedStream)
         onUpdateFavoriteButton(returnedStream)
         viewModel.onEvent(LiveEvent.RememberPreviewStream(returnedStream))
