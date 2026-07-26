@@ -226,7 +226,6 @@
     <ID>LongMethod:HomeNavigationRouter.kt$HomeNavigationRouter$suspend fun openContinueWatchingDetail(item: ContinueWatchingItem)</ID>
     <ID>LongMethod:HomeViewModel.kt$HomeViewModel$private fun loadHomeData()</ID>
     <ID>LongMethod:LicenseManager.kt$LicenseManager$fun start()</ID>
-    <ID>LongMethod:LiveFragment.kt$LiveFragment$override fun onDestroyView()</ID>
     <ID>LongMethod:LiveFragment.kt$LiveFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:LiveFragment.kt$LiveFragment$private fun observeViewModel()</ID>
     <ID>LongMethod:LiveGuideAdapter.kt$LiveGuideAdapter.Holder$fun bind(row: GuideRow, position: Int)</ID>
@@ -342,6 +341,7 @@
     <ID>SwallowedException:GlobalCrashHandler.kt$GlobalCrashHandler$e: Exception</ID>
     <ID>SwallowedException:HomeScreenModels.kt$e: Exception</ID>
     <ID>SwallowedException:LiveEpgPreviewController.kt$LiveEpgPreviewController$e: CancellationException</ID>
+    <ID>SwallowedException:LiveFavoritesController.kt$LiveFavoritesController$e: CancellationException</ID>
     <ID>SwallowedException:LiveFragment.kt$LiveFragment$e: CancellationException</ID>
     <ID>SwallowedException:LoginFragment.kt$LoginFragment$e: Exception</ID>
     <ID>SwallowedException:MovieDetailViewModelV2.kt$MovieDetailViewModelV2$e: Exception</ID>

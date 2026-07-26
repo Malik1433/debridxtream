@@ -8,7 +8,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
@@ -49,7 +48,6 @@ import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.CancellationException
@@ -109,6 +107,8 @@ class LiveFragment : Fragment() {
     private var epgController: LiveEpgPreviewController? = null
     /** LF-4: category list + chip strip + category-focus (owns the sidebar adapter + chip query). */
     private var categoryController: LiveCategoryController? = null
+    /** LF-5: favourites bus + toggles + preview favourite button (owns the favourite set + count). */
+    private var favoritesController: LiveFavoritesController? = null
     // Quick-jump: number-zap (type a channel number) + A–Z type-ahead (press a letter).
     private var tvQuickJump: TextView? = null
     private val quickJumpBuffer = StringBuilder()
@@ -123,10 +123,7 @@ class LiveFragment : Fragment() {
     private var pagedChannelsJob: Job? = null
     private var loadStateJob: Job? = null
     private var navigationJob: Job? = null
-    private var favoritesJob: Job? = null
 
-    private val favoriteStreamIds = ConcurrentHashMap.newKeySet<String>()
-    private var favoritesCount: Int = 0
     private var lastUiState: LiveUiState? = null
     private var pendingChannelFocusPosition: Int? = null
 
@@ -143,7 +140,7 @@ class LiveFragment : Fragment() {
                 viewModel.onEvent(LiveEvent.PlayChannel(stream))
             },
             onChannelLongClick = { stream ->
-                handleFavoriteLongPress(stream)
+                favoritesController?.handleFavoriteLongPress(stream)
             },
             epgProvider = { stream ->
                 // Phase 2.5: Use optimized EPG cache system
@@ -164,7 +161,7 @@ class LiveFragment : Fragment() {
             },
             favoriteChecker = { streamId ->
                 // O(1) fast lookup; avoids main-thread blocking in bind()
-                favoriteStreamIds.contains(streamId)
+                favoritesController?.isFavorite(streamId) == true
             },
             onChannelFocused = { stream, position ->
                 stream.stream_id?.let { viewModel.onEvent(LiveEvent.RememberChannelFocus(it, position)) }
@@ -212,7 +209,7 @@ class LiveFragment : Fragment() {
             tvHeaderCategory = view.findViewById(R.id.tv_category_name),
             tvHeaderChannelCount = view.findViewById(R.id.tv_channel_count),
             tvHeaderClock = view.findViewById(R.id.tv_header_clock),
-            favoritesCount = { favoritesCount },
+            favoritesCount = { favoritesController?.favoritesCount ?: 0 },
         )
         headerController?.startHeaderClock()
         setupNavRail(view)
@@ -231,11 +228,26 @@ class LiveFragment : Fragment() {
             fragment = this,
             rvCategories = rvCategories,
             viewModel = viewModel,
-            favoritesCount = { favoritesCount },
+            favoritesCount = { favoritesController?.favoritesCount ?: 0 },
             lastUiState = { lastUiState },
             onBeforeCategorySelect = { searchController?.collapseIfHasText() },
             onShowEmptyState = { message -> showEmptyState(message) },
             onShowLoading = { message -> showLoading(message) },
+        )
+        favoritesController = LiveFavoritesController(
+            fragment = this,
+            repository = repository,
+            channelPagingAdapter = channelPagingAdapter,
+            previewPanel = { previewPlayerPanel },
+            onFavoritesChanged = { count ->
+                val state = viewModel.uiState.value
+                categoryController?.updateChannelCounts(
+                    state.categoryChannelCounts + (FAVORITES_CATEGORY_ID to count)
+                )
+                if (state.selectedCategoryId == FAVORITES_CATEGORY_ID) {
+                    headerController?.updateHeaderInfo(state)
+                }
+            },
         )
         epgController = LiveEpgPreviewController(
             fragment = this,
@@ -247,7 +259,7 @@ class LiveFragment : Fragment() {
             channelPagingAdapter = channelPagingAdapter,
             previewPanel = { previewPlayerPanel },
             onFocusChannel = { position -> focusChannelItem(position) },
-            onUpdateFavoriteButton = { stream -> updateFavoriteButtonState(stream) },
+            onUpdateFavoriteButton = { stream -> favoritesController?.updateFavoriteButtonState(stream) },
             isPreviewRestored = { didRestorePreviewForThisView },
             markPreviewRestored = { didRestorePreviewForThisView = true },
         )
@@ -259,21 +271,7 @@ class LiveFragment : Fragment() {
             view,
             okHttpClient,
             onFullscreenClick = { stream -> launchFullscreen(stream) },
-            onFavoriteClick = { stream ->
-                viewLifecycleOwner.lifecycleScope.launch {
-                    try {
-                        val nowFavorite = toggleFavorite(stream)
-                        previewPlayerPanel?.setFavoriteState(nowFavorite)
-                        Toast.makeText(
-                            requireContext(),
-                            getString(if (nowFavorite) R.string.favorite_added else R.string.favorite_removed),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    } catch (e: Exception) {
-                        Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
+            onFavoriteClick = { stream -> favoritesController?.togglePreviewFavorite(stream) }
         )
         viewLifecycleOwner.lifecycle.addObserver(previewPlayerPanel!!)
         
@@ -389,7 +387,7 @@ class LiveFragment : Fragment() {
 
         // Observe ViewModel state
         observeViewModel()
-        observeFavorites()
+        favoritesController?.observeFavorites()
         epgController?.observeEpgUpdates()
         epgController?.primeEpgData()
     }
@@ -433,11 +431,11 @@ class LiveFragment : Fragment() {
             pagedChannelsJob?.cancel()
             loadStateJob?.cancel()
             navigationJob?.cancel()
-            favoritesJob?.cancel()
             headerController?.cancel()
             searchController?.cancel()
             epgController?.cancel()
             categoryController?.clear()
+            favoritesController?.clear()
             quickJumpJob?.cancel()
 
             // Clear job references
@@ -445,11 +443,11 @@ class LiveFragment : Fragment() {
             pagedChannelsJob = null
             loadStateJob = null
             navigationJob = null
-            favoritesJob = null
             headerController = null
             searchController = null
             epgController = null
             categoryController = null
+            favoritesController = null
             quickJumpJob = null
             quickJumpBuffer.setLength(0)
             tvQuickJump = null
@@ -491,36 +489,9 @@ class LiveFragment : Fragment() {
         try {
             rvChannels.adapter = null
             rvCategories.adapter = null
-            favoriteStreamIds.clear()
-            favoritesCount = 0
             lastUiState = null
         } catch (e: Exception) {
             android.util.Log.e("LiveFragment", "Error clearing adapters", e)
-        }
-    }
-
-    private fun observeFavorites() {
-        favoritesJob = viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                    repository.getFavoritesByType("live").collect { favorites ->
-                        favoriteStreamIds.clear()
-                        favorites.forEach { favoriteStreamIds.add(it.streamId) }
-                        favoritesCount = favorites.size
-                        val state = viewModel.uiState.value
-                        categoryController?.updateChannelCounts(
-                            state.categoryChannelCounts + (FAVORITES_CATEGORY_ID to favoritesCount)
-                        )
-                        if (state.selectedCategoryId == FAVORITES_CATEGORY_ID) {
-                            headerController?.updateHeaderInfo(state)
-                        }
-                    }
-                }
-            } catch (e: CancellationException) {
-                android.util.Log.d("LiveFragment", "Favorites observation cancelled")
-            } catch (e: Exception) {
-                android.util.Log.e("LiveFragment", "Error observing favorites", e)
-            }
         }
     }
 
@@ -893,7 +864,7 @@ class LiveFragment : Fragment() {
             previewPlayerPanel?.play(stream)
             epgController?.updatePreviewEpg(stream)
             viewModel.onEvent(LiveEvent.RememberPreviewStream(stream))
-            updateFavoriteButtonState(stream)
+            favoritesController?.updateFavoriteButtonState(stream)
         }
     }
     
@@ -979,7 +950,7 @@ class LiveFragment : Fragment() {
         didRestorePreviewForThisView = true
         previewPlayerPanel?.play(returnedStream, streamUrl)
         epgController?.updatePreviewEpg(returnedStream)
-        updateFavoriteButtonState(returnedStream)
+        favoritesController?.updateFavoriteButtonState(returnedStream)
         viewModel.onEvent(LiveEvent.RememberPreviewStream(returnedStream))
 
         val index = channelPagingAdapter.snapshot().items.indexOfFirst { it.stream_id == streamId }
@@ -1103,58 +1074,6 @@ class LiveFragment : Fragment() {
         }
     }
     
-    /**
-     * Handle long press on channel for favorites
-     * Week 10: Add/Remove favorites functionality
-     */
-    private fun handleFavoriteLongPress(channel: XtreamStream) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                val nowFavorite = toggleFavorite(channel)
-                channel.stream_id?.let { streamId ->
-                    if (nowFavorite) favoriteStreamIds.add(streamId) else favoriteStreamIds.remove(streamId)
-                    notifyFavoriteChanged(streamId)
-                }
-                Toast.makeText(
-                    requireContext(),
-                    getString(if (nowFavorite) R.string.favorite_added else R.string.favorite_removed),
-                    Toast.LENGTH_SHORT
-                ).show()
-                if (previewPlayerPanel?.getCurrentStream()?.stream_id == channel.stream_id) {
-                     previewPlayerPanel?.setFavoriteState(nowFavorite)
-                }
-            } catch (e: Exception) {
-                Toast.makeText(
-                    requireContext(),
-                    "Error: ${e.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-    }
-
-    private suspend fun toggleFavorite(channel: XtreamStream): Boolean {
-        val streamId = channel.stream_id ?: return false
-        val displayName = channel.name ?: getString(R.string.player_epg_channel_unknown)
-        return withContext(Dispatchers.IO) {
-            val isFavorite = repository.isFavorite(streamId)
-            if (isFavorite) {
-                repository.removeFavorite(streamId)
-                false
-            } else {
-                repository.addFavorite(streamId, "live", displayName, channel.stream_icon)
-                true
-            }
-        }
-    }
-
-    private fun notifyFavoriteChanged(streamId: String) {
-        val index = channelPagingAdapter.snapshot().items.indexOfFirst { it.stream_id == streamId }
-        if (index >= 0) {
-            channelPagingAdapter.notifyItemChanged(index)
-        }
-    }
-
     /** v2's header is just a clock — the old top bar's weather/profile/search chrome is gone. */
     private fun setupNavRail(view: View) {
         navRail = LiveNavRail(
@@ -1170,19 +1089,5 @@ class LiveFragment : Fragment() {
     private fun focusNavRail(): Boolean = navRail?.focusActiveItem() == true
 
     private fun isFirstChannelFocused(): Boolean = currentFocusedChannelPosition() == 0
-
-    private fun updateFavoriteButtonState(stream: XtreamStream?) {
-        if (stream?.stream_id.isNullOrBlank()) {
-             previewPlayerPanel?.setFavoriteState(false) // Or disable?
-             return 
-        }
-        val streamId = stream!!.stream_id!!
-        viewLifecycleOwner.lifecycleScope.launch {
-            val isFavorite = withContext(Dispatchers.IO) {
-                repository.isFavorite(streamId)
-            }
-            previewPlayerPanel?.setFavoriteState(isFavorite)
-        }
-    }
 
 }
