@@ -314,6 +314,18 @@ per screen:
 - Device-verified on `.64`: both the audio picker and the expiry warning render as dark glass with
   a cyan accent.
 
+
+**Instant-apply everywhere in Settings (owner-requested, 2026-07-27).** Every control in Settings
+writes on change — toggles and pickers already did; `CategorySelectionDialog` was the one exception,
+with Save/Cancel buttons sitting *below* a list that can run to hundreds of provider categories. To
+tick one box the user had to walk the whole list down to Save. It now writes each tick straight to
+`HomePreferences`, keeps a live "N selected" count in the title, and BACK is the way out
+(`setCancelable(true)`). Home is notified once on dismiss rather than after every tick.
+Recycling bug fixed in passing: the row's `OnCheckedChangeListener` was not detached before rebind,
+so `isChecked` on a recycled view fired a toggle for whichever category previously occupied it.
+The list is also TV-sized now (18sp rows, cyan boxes, a visible focus ring — it had none).
+Device-verified on `.64`: tick two → title reads 2 selected → BACK → reopen → still ticked.
+
 - *Exit:* E2 = 0; each new collaborator < 600 lines and unit-tested.
 
 ### Tier D — finish the open audit findings

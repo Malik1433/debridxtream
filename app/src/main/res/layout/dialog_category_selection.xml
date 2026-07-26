@@ -1,20 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Home row categories. Instant-apply: ticking a row saves it there and then, so there is no
+     Save/Cancel pair to walk down to on a list that can be hundreds of categories long. BACK
+     closes. Sized for a 10-foot UI like the rest of Settings. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="500dp"
-    android:layout_height="600dp"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="640dp"
+    android:layout_height="620dp"
     android:orientation="vertical"
-    android:background="@drawable/tv_dialog_background"
-    android:padding="24dp">
+    android:background="@android:color/transparent"
+    android:paddingStart="32dp"
+    android:paddingEnd="24dp"
+    android:paddingTop="28dp"
+    android:paddingBottom="20dp">
 
     <TextView
         android:id="@+id/tv_dialog_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fontFamily="sans-serif-medium"
+        android:fontFamily="@font/outfit_semibold"
         android:text="Select Categories"
-        android:textColor="@color/white"
-        android:textSize="20sp"
-        android:layout_marginBottom="16dp" />
+        android:textColor="#F1F5F9"
+        android:textSize="22sp" />
+
+    <TextView
+        android:id="@+id/tv_dialog_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="14dp"
+        android:fontFamily="@font/share_tech_mono"
+        android:textColor="#94A3B8"
+        android:textSize="13sp"
+        android:letterSpacing="0.06"
+        tools:ignore="HardcodedText"
+        android:text="SAVED AS YOU GO · PRESS BACK WHEN DONE" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_categories"
@@ -23,32 +42,5 @@
         android:layout_weight="1"
         android:clipToPadding="false"
         android:paddingBottom="8dp" />
-
-    <LinearLayout
-        android:id="@+id/layout_buttons"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="end"
-        android:paddingTop="16dp">
-
-        <Button
-            android:id="@+id/btn_cancel"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:text="Cancel"
-            android:textColor="@color/white_opacity_70" />
-
-        <Button
-            android:id="@+id/btn_save"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:backgroundTint="@color/brand_orange"
-            android:text="Save"
-            android:textColor="@color/white" />
-
-    </LinearLayout>
 
 </LinearLayout>
