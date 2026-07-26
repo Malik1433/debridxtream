@@ -95,6 +95,19 @@ phase depend on the owner's eyes and makes sessions slow — so the test net com
      A–Z type-ahead, and *no focus theft on refresh*.
   3. **Resume** — VOD/Series/in-player positions (the `createIntent` `startPositionMs` trap).
   4. **Room migrations** — extend the existing migration test to cover every version bump.
+  5. **Retained-player memory behaviour (the "OOM soak")** — the T2.1 retained player keeps a paused
+     ExoPlayer (codec + buffers + socket) alive across `onStop` for VOD/Debrid so Home→return is
+     instant; on a 1GB Fire TV that is exactly how an app gets OOM-killed. This cannot be a pure
+     function — it only shows up across a *duration* and three collaborating places
+     (`BasePlayerFragment.onStop` retained branch, `onHostTrimMemory`, and the `!isResolvingDebrid`
+     play-restore). Make it an instrumented test that drives the lifecycle instead of a manual soak:
+     - background→foreground the player ~30× and assert the player is retained (not re-created) and
+       heap does not grow monotonically across cycles;
+     - fire `onHostTrimMemory(TRIM_MEMORY_BACKGROUND)` and assert the retained player IS released
+       (and that LIVE was already released at `onStop`, for `max_connections=1`);
+     - assert `retryHandler`/`timeoutHandler` are purged on the retained path — a backgrounded error
+       must never re-init playback **with audio**.
+     Until that lands this is the ONE genuinely device-only item (see the status table below).
   - **Caveat to design around:** the Live surface is secure, so a test cannot screenshot it. Assert on
     *state* (which player instance is attached, focus position, adopted-vs-fresh) rather than pixels.
   - Target E4 ≥ 15.
@@ -150,6 +163,37 @@ one domain per commit).
 **Rule learned here:** when a QA item cannot be driven on the device, first ask whether the *decision*
 can be extracted into a pure function and frozen by a test. Two of the four above closed that way —
 permanently, and better than a one-off manual pass. Only claim "device-only" when it really is.
+
+### Tier G — observability: let the app tell us what it did *(owner-requested 2026-07-26)*
+
+> *"app chale to jo bhi error ya crash ho, app ka mukammal behaviour record kare; kuch din baad wo
+> record nikaal kar dekhein app ne kahan kya kiya, aur jo ghalat ho use fix karein — aur ye real users
+> ke liye bhi."*
+
+**Most of this already exists — the gap is reach, not invention.** Do not rebuild it:
+
+| Piece | Today | Gap |
+|---|---|---|
+| `debug/PlaybackDiagnosticsRecorder` | Rich JSONL session log, **41 call sites**, per-event schema, salted hashing of identifiers | `isEnabled()` = `BuildConfig.DEBUG` **and** a `.enabled` marker file → dev-only, and the file must be pulled by adb |
+| `FirebaseCrashlytics` | Wired in `GlobalCrashHandler` (crashes) + `PlaybackQoeTracker` (QoE) — **already reaches real users** | Carries crashes/metrics, not the behavioural timeline |
+| `SensitiveLogRedactor` | Redacts stream URLs/credentials | Must be applied to anything uploaded |
+
+- **G1 — make it usable for OUR debugging (low risk, do first).** Keep the DEBUG gate, add: size cap +
+  rotation (a 3-hour session must not fill the stick), a `finishSession` summary event, and
+  `scripts/analyze_diagnostics.sh` that turns a pulled JSONL into a readable timeline + anomaly list
+  (repeated reconnects, 429s, stalls, memory growth). **This also answers the OOM soak** — the memory
+  samples land in the same log.
+- **G2 — reach release builds, opt-in.** Route a *summary* (not the raw timeline) into Crashlytics
+  custom keys + non-fatals, which already ship. Sampled, redacted, bounded.
+- **G3 — real-user telemetry. NEEDS OWNER DECISIONS, do not start without them:** an explicit
+  **consent** screen (this app holds provider credentials — silent behavioural upload is not
+  acceptable and may be unlawful), what is collected vs never collected, sampling rate, retention
+  period, and where it lands (Firebase is already in the project for licensing). Cheap and honest
+  first step: a Settings toggle "Send diagnostics", default OFF, plus a "Share diagnostics" button
+  that lets a user hand over one session file on request.
+
+*Sequencing note:* G1 pays for itself immediately (it is how we would diagnose the next "why did it
+reload?" without a live session). G3 is a product/legal decision, not a coding task.
 
 ### Tier F — owner-facing quality pass
 - **F1** — The scripted device QA checklist (E6) covering the known landmines: `.ts` freeze, tunneling,
