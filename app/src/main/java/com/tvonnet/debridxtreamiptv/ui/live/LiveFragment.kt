@@ -101,7 +101,6 @@ class LiveFragment : Fragment() {
     private val previewTimeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
     /** LF-1: top-bar header + minute clock (owns the 3 header views + clock job). */
     private var headerController: LiveHeaderController? = null
-    private var sidebarCategoryAdapter: SidebarCategoryAdapter? = null
 
     // v2: nav rail, the inline channel-search pill, and the Program Guide strip.
     private var navRail: LiveNavRail? = null
@@ -109,6 +108,8 @@ class LiveFragment : Fragment() {
     private var searchController: LiveSearchController? = null
     /** LF-3: EPG preview + Program-Guide strip + now/next warm (owns the EPG jobs + guide adapter). */
     private var epgController: LiveEpgPreviewController? = null
+    /** LF-4: category list + chip strip + category-focus (owns the sidebar adapter + chip query). */
+    private var categoryController: LiveCategoryController? = null
     // Quick-jump: number-zap (type a channel number) + A–Z type-ahead (press a letter).
     private var tvQuickJump: TextView? = null
     private val quickJumpBuffer = StringBuilder()
@@ -116,7 +117,6 @@ class LiveFragment : Fragment() {
     private var btnWatch: View? = null
     private var didRestoreFocusForThisView = false
     private var didRestorePreviewForThisView = false
-    private var categoriesFocusBlockedForRestore = false
     private var lastChannelLoadStates: CombinedLoadStates? = null
 
     // Fragment scope coroutines - managed properly
@@ -128,12 +128,7 @@ class LiveFragment : Fragment() {
 
     private val favoriteStreamIds = ConcurrentHashMap.newKeySet<String>()
     private var favoritesCount: Int = 0
-    private var displayCategories: List<XtreamCategory> = emptyList()
     private var lastUiState: LiveUiState? = null
-    // v2 search: while a query is active the top category chip strip filters to matching
-    // categories (channels already search globally), so search surfaces both — like the
-    // other Live theme.
-    private var categoryChipQuery: String = ""
     private var pendingChannelFocusPosition: Int? = null
 
     private val livePlayerLauncher = registerForActivityResult(
@@ -186,10 +181,7 @@ class LiveFragment : Fragment() {
             })
         }
     }
-    
-    // Track if category adapter is already set
-    private var categoryAdapterSet = false
-    
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -231,11 +223,21 @@ class LiveFragment : Fragment() {
             chipSearch = view.findViewById(R.id.chip_search),
             etChannelSearch = view.findViewById(R.id.et_channel_search),
             tvSearchLabel = view.findViewById(R.id.tv_search_label),
-            onChipQueryChanged = { q -> categoryChipQuery = q; refreshCategoryChips() },
-            chipQueryIsNotEmpty = { categoryChipQuery.isNotEmpty() },
+            onChipQueryChanged = { q -> categoryController?.onChipQueryChanged(q) },
+            chipQueryIsNotEmpty = { categoryController?.chipQueryIsNotEmpty() == true },
             onFocusDownToChannels = { focusChannelItem(0) },
         )
         searchController?.setup()
+        categoryController = LiveCategoryController(
+            fragment = this,
+            rvCategories = rvCategories,
+            viewModel = viewModel,
+            favoritesCount = { favoritesCount },
+            lastUiState = { lastUiState },
+            onBeforeCategorySelect = { searchController?.collapseIfHasText() },
+            onShowEmptyState = { message -> showEmptyState(message) },
+            onShowLoading = { message -> showLoading(message) },
+        )
         epgController = LiveEpgPreviewController(
             fragment = this,
             viewModel = viewModel,
@@ -309,7 +311,7 @@ class LiveFragment : Fragment() {
                     true
                 }
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    if (isFirstCategoryFocused()) focusNavRail() else false
+                    if (categoryController?.isFirstCategoryFocused() == true) focusNavRail() else false
                 }
                 KeyEvent.KEYCODE_DPAD_UP -> true // nothing above the strip
                 else -> false
@@ -325,7 +327,7 @@ class LiveFragment : Fragment() {
 
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> {
-                    if (isFirstChannelFocused()) focusCategoryStrip() else moveChannelFocusBy(delta = -1)
+                    if (isFirstChannelFocused()) (categoryController?.focusCategoryStrip() == true) else moveChannelFocusBy(delta = -1)
                 }
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
                     moveChannelFocusBy(delta = 1)
@@ -401,7 +403,7 @@ class LiveFragment : Fragment() {
         }
         if (state.restoreFromFullscreenPending) {
             didRestoreFocusForThisView = false
-            blockCategoryFocusForReturnRestore()
+            categoryController?.blockCategoryFocusForReturnRestore()
             restoreFocusGrid()
         }
         epgController?.maybeRestorePreviewFromState(state)
@@ -436,6 +438,7 @@ class LiveFragment : Fragment() {
             headerController?.cancel()
             searchController?.cancel()
             epgController?.cancel()
+            categoryController?.clear()
             quickJumpJob?.cancel()
 
             // Clear job references
@@ -447,6 +450,7 @@ class LiveFragment : Fragment() {
             headerController = null
             searchController = null
             epgController = null
+            categoryController = null
             quickJumpJob = null
             quickJumpBuffer.setLength(0)
             tvQuickJump = null
@@ -488,10 +492,7 @@ class LiveFragment : Fragment() {
         try {
             rvChannels.adapter = null
             rvCategories.adapter = null
-            sidebarCategoryAdapter = null
-            categoryAdapterSet = false
             favoriteStreamIds.clear()
-            displayCategories = emptyList()
             favoritesCount = 0
             lastUiState = null
         } catch (e: Exception) {
@@ -508,7 +509,7 @@ class LiveFragment : Fragment() {
                         favorites.forEach { favoriteStreamIds.add(it.streamId) }
                         favoritesCount = favorites.size
                         val state = viewModel.uiState.value
-                        sidebarCategoryAdapter?.updateChannelCounts(
+                        categoryController?.updateChannelCounts(
                             state.categoryChannelCounts + (FAVORITES_CATEGORY_ID to favoritesCount)
                         )
                         if (state.selectedCategoryId == FAVORITES_CATEGORY_ID) {
@@ -626,92 +627,6 @@ class LiveFragment : Fragment() {
     }
 
     /**
-     * Favourites first, then every provider category. v2 shows them all in the chip strip — the
-     * search pill filters channels now, not this list.
-     */
-    private fun buildDisplayCategories(state: LiveUiState): List<XtreamCategory> {
-        val favorites = XtreamCategory(
-            category_id = FAVORITES_CATEGORY_ID,
-            category_name = getString(R.string.favorites),
-            parent_id = null
-        )
-        val filtered = state.categories.filterNot { it.category_id == FAVORITES_CATEGORY_ID }
-        return listOf(favorites) + filtered
-    }
-
-    /**
-     * While the search pill has a query, keep only categories whose name matches it so the
-     * chip strip becomes a category-search result. Favorites is dropped from the filtered
-     * view (it isn't a real category to jump into by name). Empty query → the full list.
-     */
-    private fun applyCategoryChipFilter(all: List<XtreamCategory>): List<XtreamCategory> {
-        val q = categoryChipQuery.trim()
-        if (q.isEmpty()) return all
-        return all.filter { cat ->
-            cat.category_id != FAVORITES_CATEGORY_ID &&
-                cat.category_name?.contains(q, ignoreCase = true) == true
-        }
-    }
-
-    /** Re-filter the chip strip when the search query changes (channels are handled separately). */
-    private fun refreshCategoryChips() {
-        if (categoryAdapterSet) {
-            updateCategoryList(lastUiState ?: viewModel.uiState.value)
-        }
-    }
-
-    private fun updateCategoryList(state: LiveUiState) {
-        val categories = applyCategoryChipFilter(buildDisplayCategories(state))
-        val listChanged = categories != displayCategories
-        if (listChanged) {
-            displayCategories = categories
-        }
-        val counts = state.categoryChannelCounts + (FAVORITES_CATEGORY_ID to favoritesCount)
-
-        if (categories.isNotEmpty() && !categoryAdapterSet) {
-            try {
-                val categoryAdapter = SidebarCategoryAdapter(
-                    categories = categories,
-                    channelCounts = counts,
-                    initialSelectedCategoryId = state.selectedCategoryId,
-                    onCategoryClick = { categoryId ->
-                        handleCategoryClick(categoryId)
-                    },
-                    onCategoryFocused = { categoryId, position ->
-                        viewModel.onEvent(LiveEvent.RememberCategoryFocus(categoryId, position))
-                    }
-                )
-
-                rvCategories.adapter = categoryAdapter
-                sidebarCategoryAdapter = categoryAdapter
-                categoryAdapterSet = true
-                android.util.Log.d(
-                    "LiveFragment",
-                    "Category adapter set successfully with ${categories.size} categories"
-                )
-            } catch (e: Exception) {
-                android.util.Log.e("LiveFragment", "Error setting category adapter", e)
-                showEmptyState("Error loading categories: ${e.message}")
-            }
-        } else if (categoryAdapterSet && listChanged) {
-            sidebarCategoryAdapter?.updateCategories(categories, state.selectedCategoryId)
-        } else if (categories.isEmpty() && state.isLoadingCategories && state.error == null) {
-            showLoading(getString(R.string.live_loading_categories))
-        }
-
-        if (categoryAdapterSet) {
-            sidebarCategoryAdapter?.setSelectedCategory(state.selectedCategoryId)
-            sidebarCategoryAdapter?.updateChannelCounts(counts)
-        }
-    }
-
-    private fun handleCategoryClick(categoryId: String) {
-        // Switching category clears any active channel search, as in the design.
-        searchController?.collapseIfHasText()
-        viewModel.onEvent(LiveEvent.SelectCategory(categoryId))
-    }
-    
-    /**
      * Render UI based on state from ViewModel
      * Phase 2.2: Enhanced category loading with fallback handling
      */
@@ -719,7 +634,7 @@ class LiveFragment : Fragment() {
         android.util.Log.d("LiveFragment", "renderState: categories=${state.categories.size}, error=${state.error}")
         lastUiState = state
 
-        updateCategoryList(state)
+        categoryController?.updateCategoryList(state)
 
         // Handle error state
         if (state.error != null) {
@@ -738,11 +653,12 @@ class LiveFragment : Fragment() {
 
     private fun restoreInitialFocusIfNeeded(state: LiveUiState) {
         if (didRestoreFocusForThisView) return
-        if (displayCategories.isEmpty() || !categoryAdapterSet) return
+        val cc = categoryController ?: return
+        if (cc.displayCategories.isEmpty() || !cc.categoryAdapterSet) return
 
         val categoryIdToReveal = state.lastFocusedCategoryId ?: state.selectedCategoryId
         if (!categoryIdToReveal.isNullOrBlank()) {
-            val positionById = displayCategories.indexOfFirst { it.category_id == categoryIdToReveal }
+            val positionById = cc.displayCategories.indexOfFirst { it.category_id == categoryIdToReveal }
             val position = if (positionById >= 0) positionById else state.lastFocusedCategoryPosition ?: -1
             if (position >= 0) rvCategories.scrollToPosition(position)
         }
@@ -750,7 +666,7 @@ class LiveFragment : Fragment() {
         if (state.lastFocusArea == LiveFocusArea.CATEGORIES) {
             val focusCategoryId = state.lastFocusedCategoryId ?: state.selectedCategoryId
             if (!focusCategoryId.isNullOrBlank()) {
-                val positionById = displayCategories.indexOfFirst { it.category_id == focusCategoryId }
+                val positionById = cc.displayCategories.indexOfFirst { it.category_id == focusCategoryId }
                 val position = if (positionById >= 0) positionById else state.lastFocusedCategoryPosition ?: -1
                 if (position >= 0) {
                     com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("LIVE_GRID") {
@@ -772,7 +688,7 @@ class LiveFragment : Fragment() {
             com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("LIVE_GRID") {
                 rvCategories.post {
                     try {
-                        didRestoreFocusForThisView = focusSelectedCategoryItem()
+                        didRestoreFocusForThisView = cc.focusSelectedCategoryItem()
                     } finally {
                         com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
                     }
@@ -813,12 +729,12 @@ class LiveFragment : Fragment() {
                         if (focused) {
                             pendingChannelFocusPosition = null
                             if (markRestored) didRestoreFocusForThisView = true
-                            unblockCategoryFocusAfterRestore()
+                            categoryController?.unblockCategoryFocusAfterRestore()
                         } else if (attempt < CHANNEL_FOCUS_RETRY_COUNT) {
                             focusChannelItem(safePosition, markRestored, attempt + 1)
                         } else {
                             pendingChannelFocusPosition = null
-                            unblockCategoryFocusAfterRestore()
+                            categoryController?.unblockCategoryFocusAfterRestore()
                         }
                     } finally {
                         com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
@@ -853,7 +769,7 @@ class LiveFragment : Fragment() {
             KeyEvent.KEYCODE_DPAD_UP -> {
                 if (position == 0) {
                     pendingChannelFocusPosition = null
-                    focusCategoryStrip()
+                    categoryController?.focusCategoryStrip() == true
                 } else {
                     moveChannelFocusFrom(position, delta = -1)
                 }
@@ -1111,49 +1027,6 @@ class LiveFragment : Fragment() {
         focusChannelItem(index, markRestored = true)
     }
 
-    private fun blockCategoryFocusForReturnRestore() {
-        if (categoriesFocusBlockedForRestore) return
-        categoriesFocusBlockedForRestore = true
-        rvCategories.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
-        rvCategories.isFocusable = false
-    }
-
-    private fun unblockCategoryFocusAfterRestore() {
-        if (!categoriesFocusBlockedForRestore) return
-        categoriesFocusBlockedForRestore = false
-        rvCategories.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
-        rvCategories.isFocusable = false
-        rvCategories.isFocusableInTouchMode = false
-    }
-
-    private fun focusSelectedCategoryItem(attempt: Int = 0): Boolean {
-        if (!isAdded || displayCategories.isEmpty()) return false
-        val state = viewModel.uiState.value
-        val targetId = state.selectedCategoryId ?: state.lastFocusedCategoryId
-        val targetPosition = targetId
-            ?.let { id -> displayCategories.indexOfFirst { it.category_id == id } }
-            ?.takeIf { it >= 0 }
-            ?: state.lastFocusedCategoryPosition
-                ?.takeIf { it in displayCategories.indices }
-            ?: 0
-
-        rvCategories.scrollToPosition(targetPosition)
-        rvCategories.postDelayed({
-            if (!isAdded) return@postDelayed
-            try {
-                val itemView = rvCategories.findViewHolderForAdapterPosition(targetPosition)?.itemView
-                val focused = itemView?.requestFocus() == true
-                if (!focused && attempt < CHANNEL_FOCUS_RETRY_COUNT) {
-                    focusSelectedCategoryItem(attempt + 1)
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("LiveFragment", "Error requesting category focus", e)
-            }
-        }, CHANNEL_FOCUS_RETRY_DELAY_MS)
-        return true
-    }
-    
-
 
 
     
@@ -1297,18 +1170,7 @@ class LiveFragment : Fragment() {
 
     private fun focusNavRail(): Boolean = navRail?.focusActiveItem() == true
 
-    private fun focusCategoryStrip(): Boolean {
-        rvCategories.post { focusSelectedCategoryItem() }
-        return true
-    }
-
     private fun isFirstChannelFocused(): Boolean = currentFocusedChannelPosition() == 0
-
-    private fun isFirstCategoryFocused(): Boolean {
-        val focused = rvCategories.findFocus() ?: return false
-        val holder = rvCategories.findContainingViewHolder(focused) ?: return false
-        return holder.bindingAdapterPosition == 0
-    }
 
     private fun updateFavoriteButtonState(stream: XtreamStream?) {
         if (stream?.stream_id.isNullOrBlank()) {
