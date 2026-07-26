@@ -120,5 +120,23 @@ correct. No crash; no focus theft on refresh; no `.ts` freeze.
   one relocated `SwallowedException(CancellationException)` per-file key (verbatim, already an app-wide
   tolerated pattern; LiveFragment still has the same swallow so its key stayed); the relocated
   `CyclomaticComplexMethod` for `maybeRestorePreviewFromState` is net-zero. No genuinely-new violation
-  baselined. Device .64 launch-stability + owner eyes-on Live QA PENDING. **Next: LF-4** (category list +
-  chips + category-focus → `LiveCategoryController`).
+  baselined. **Device-verified 2026-07-26** (both .35 + .64 launch-stable, no crash; owner Live QA OK).
+- **LF-4 DONE (`38b4e19`)** — `LiveCategoryController` (210 lines): the category list + chip strip +
+  category-focus domain moved verbatim — `buildDisplayCategories`/`applyCategoryChipFilter`/
+  `refreshCategoryChips`/`updateCategoryList`/`handleCategoryClick`/`focusSelectedCategoryItem`/
+  `focusCategoryStrip`/`isFirstCategoryFocused`/`blockCategoryFocusForReturnRestore`/
+  `unblockCategoryFocusAfterRestore` + fields `sidebarCategoryAdapter`/`displayCategories`/
+  `categoryChipQuery`/`categoryAdapterSet`/`categoriesFocusBlockedForRestore`. The Fragment keeps the
+  render spine + favourites count and reaches the controller via callbacks: `favoritesCount` (LF-5),
+  `lastUiState`, `onBeforeCategorySelect` (collapse the LF-2 pill on switch), `onShowEmptyState`/
+  `onShowLoading`; the LF-2 search pokes `onChipQueryChanged`/`chipQueryIsNotEmpty`, `observeFavorites`
+  (LF-5) pokes `updateChannelCounts`, the LF-6 channel-focus path pokes `unblockCategoryFocusAfterRestore`,
+  `onResume` pokes `blockCategoryFocusForReturnRestore`, and the Fragment's `restoreInitialFocusIfNeeded`
+  reads `displayCategories`/`categoryAdapterSet` + calls `focusSelectedCategoryItem`. Behaviour
+  byte-identical. LiveFragment **1411→1273** (−138). Baseline 357→358 (+1 = the collaborator-ctor
+  `LongParameterList` only, as LF-2). **Follow-up `3e19bf5`** deleted the 4 dead top-level adapter classes
+  (`CategoryAdapter`/`CategoryViewHolder`/`CategoryAdapterNew`/`CategoryViewHolderNew` + `getCategoryIcon`)
+  that were unreferenced project-wide + the now-unused `XtreamCategory` import → LiveFragment.kt
+  **1273→1188**; no baseline change (dead classes had no entries). Clean build + unit tests + detekt green.
+  **Device-verified 2026-07-26** (both .35 + .64 launch-stable, no crash). Interactive Live category/chip/
+  D-pad-focus QA = owner eyes-on. **Next: LF-5** (favorites → `LiveFavoritesController`).
