@@ -46,7 +46,7 @@ fun MovieInfoSection(
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = String.format("%.1f", movie.rating),
+                text = String.format(java.util.Locale.US, "%.1f", movie.rating),
                 color = Color.White,
                 fontWeight = FontWeight.Bold
             )

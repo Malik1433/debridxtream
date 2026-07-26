@@ -95,7 +95,7 @@ class RecoveryActivity : Activity() {
             val prefs = getSharedPreferences("app_stability", Context.MODE_PRIVATE)
             prefs.edit().putInt("startup_crash_count", 0).apply()
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("RecoveryActivity", "Recovery cleanup failed", e)
         }
     }
 

@@ -57,7 +57,7 @@ class CompanionSetupActivity : AppCompatActivity() {
             binding.ivQrCode.setImageBitmap(bitmap)
             binding.pbLoading.visibility = View.GONE
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("CompanionSetup", "QR code generation failed", e)
             Toast.makeText(this, "Error generating QR code", Toast.LENGTH_SHORT).show()
         }
     }

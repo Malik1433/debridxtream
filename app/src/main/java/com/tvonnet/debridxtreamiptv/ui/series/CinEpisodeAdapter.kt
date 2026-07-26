@@ -127,7 +127,7 @@ class CinEpisodeAdapter(
         }
 
         fun bind(item: EpisodeUiModel, isSelected: Boolean) {
-            tvEpNum.text = "E${String.format("%02d", item.episodeNumber ?: 0)}"
+            tvEpNum.text = "E${String.format(java.util.Locale.US, "%02d", item.episodeNumber ?: 0)}"
             tvTitle.text = item.title
 
             val durationMin = item.durationMinutes

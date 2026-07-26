@@ -135,7 +135,7 @@ class HomeFragment : Fragment() {
         val hour = cal.get(Calendar.HOUR).let { if (it == 0) 12 else it }
         val min = cal.get(Calendar.MINUTE)
         val amPm = if (cal.get(Calendar.AM_PM) == Calendar.AM) "AM" else "PM"
-        tvClock.text = String.format("%d:%02d %s", hour, min, amPm)
+        tvClock.text = String.format(java.util.Locale.US, "%d:%02d %s", hour, min, amPm)
     }
     
     internal fun isRvContinueWatchingInitialized() = ::rvContinueWatching.isInitialized

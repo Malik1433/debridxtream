@@ -445,7 +445,7 @@ class SeriesDetailFragmentV2 : Fragment() {
         val rating = s.rating?.toDoubleOrNull()
         if (rating != null && rating > 0) {
             binding.layoutRating.visibility = View.VISIBLE
-            binding.tvRatingPercentage.text = String.format("%.1f", rating)
+            binding.tvRatingPercentage.text = String.format(java.util.Locale.US, "%.1f", rating)
         } else {
             binding.layoutRating.visibility = View.GONE
         }

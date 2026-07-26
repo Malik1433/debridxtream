@@ -316,7 +316,7 @@ class ContinueWatchingAdapter(
                 seasonNumber != null &&
                 episodeNumber != null
             ) {
-                val episodeLabel = String.format("S%02dE%02d", seasonNumber, episodeNumber)
+                val episodeLabel = String.format(java.util.Locale.US, "S%02dE%02d", seasonNumber, episodeNumber)
                 "$baseTitle - $episodeLabel"
             } else {
                 baseTitle

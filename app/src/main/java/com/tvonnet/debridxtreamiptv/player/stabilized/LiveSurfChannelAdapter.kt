@@ -78,7 +78,7 @@ class LiveSurfChannelAdapter(
             catBar.setBackgroundColor(categoryColor)
             catBar.alpha = if (isPlaying) 1f else 0.5f
 
-            num.text = String.format("%03d", position + 1)
+            num.text = String.format(java.util.Locale.US, "%03d", position + 1)
             num.setTextColor(
                 ContextCompat.getColor(ctx, if (isPlaying) R.color.neon_cyan else R.color.live_osd_text_faint)
             )

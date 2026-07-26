@@ -277,8 +277,16 @@ class MemoryManager private constructor(private val context: Context) {
     }
 
     /**
-     * Request garbage collection with cooldown
+     * Request garbage collection with cooldown.
+     *
+     * An explicit `System.gc()` is normally an anti-pattern, and it is only a *hint* to the runtime.
+     * It is kept deliberately here: this app runs on 1GB Fire TV sticks and this is called from the
+     * OOM/heap-pressure recovery paths (e.g. [com.tvonnet.debridxtreamiptv.data.epg.EpgParser] after a
+     * multi-MB XMLTV parse blows up), where nudging the collector before retrying measurably reduces
+     * repeat OOMs. The 5s cooldown stops it becoming a hot loop. Suppressed at the call site rather
+     * than hidden in the detekt baseline so the justification travels with the code.
      */
+    @Suppress("ExplicitGarbageCollectionCall")
     fun requestGarbageCollection() {
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastGcTime.get() > 5000) { // 5 second cooldown

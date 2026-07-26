@@ -358,7 +358,7 @@ class SeriesDetailActivity : AppCompatActivity() {
         tvTitle.text = seriesName ?: getString(R.string.series_detail_title_placeholder)
 
         val ratingValue = seriesRating?.toDoubleOrNull() ?: 0.0
-        tvRatingPercentage.text = String.format("%.1f", ratingValue)
+        tvRatingPercentage.text = String.format(java.util.Locale.US, "%.1f", ratingValue)
 
         // Year
         val year = seriesReleaseDate?.takeIf { it.isNotBlank() }?.take(4)

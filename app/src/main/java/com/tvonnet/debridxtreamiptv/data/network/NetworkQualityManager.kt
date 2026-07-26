@@ -69,7 +69,7 @@ class NetworkQualityManager @Inject constructor(
             // 8 Mb / (ms / 1000) = 8000 / ms
             val speedMbps = 8000.0 / safeDuration
             
-            Log.i(TAG, "Speed test result: ${durationMs}ms ~ ${String.format("%.2f", speedMbps)} Mbps")
+            Log.i(TAG, "Speed test result: ${durationMs}ms ~ ${String.format(java.util.Locale.US, "%.2f", speedMbps)} Mbps")
 
             return@withContext when {
                 speedMbps > 20.0 -> NetworkQuality.FAST

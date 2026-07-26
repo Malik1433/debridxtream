@@ -308,7 +308,7 @@ class StremioHomeFragment : Fragment() {
     private fun tickClock() {
         val tv = view?.findViewById<TextView>(R.id.nav_clock) ?: return
         val cal = Calendar.getInstance()
-        tv.text = String.format("%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
+        tv.text = String.format(java.util.Locale.US, "%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
     }
 
     private fun applyGradients(view: View) {

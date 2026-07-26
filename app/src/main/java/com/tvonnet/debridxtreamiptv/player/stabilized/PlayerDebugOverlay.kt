@@ -46,6 +46,7 @@ internal fun buildDebugOverlayText(snapshot: PlayerDebugSnapshot): String {
 }
 
 private fun formatClock(millis: Long): String = String.format(
+    java.util.Locale.US,
     "%02d:%02d",
     TimeUnit.MILLISECONDS.toMinutes(millis),
     TimeUnit.MILLISECONDS.toSeconds(millis) -

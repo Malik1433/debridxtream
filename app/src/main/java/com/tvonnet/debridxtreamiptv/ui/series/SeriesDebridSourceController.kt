@@ -346,8 +346,8 @@ class SeriesDebridSourceController(
 
     private fun formatSizeLabel(bytes: Long): String {
         return when {
-            bytes >= 1_073_741_824L -> String.format("%.1f GB", bytes / 1_073_741_824.0)
-            bytes >= 1_048_576L -> String.format("%.0f MB", bytes / 1_048_576.0)
+            bytes >= 1_073_741_824L -> String.format(java.util.Locale.US, "%.1f GB", bytes / 1_073_741_824.0)
+            bytes >= 1_048_576L -> String.format(java.util.Locale.US, "%.0f MB", bytes / 1_048_576.0)
             else -> "${bytes / 1024} KB"
         }
     }

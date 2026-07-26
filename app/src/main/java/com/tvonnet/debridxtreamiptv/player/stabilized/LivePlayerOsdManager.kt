@@ -282,7 +282,7 @@ class LivePlayerOsdManager(
     }
 
     fun setChannelNumber(number: Int?) {
-        val text = number?.let { String.format("%03d", it) } ?: "---"
+        val text = number?.let { String.format(java.util.Locale.US, "%03d", it) } ?: "---"
         bugNumber.text = text
         zapNumber.text = text
     }
@@ -429,7 +429,7 @@ class LivePlayerOsdManager(
             val e = surfEpg[ch.streamId]
             OnAirRow(
                 name = ch.name,
-                num = String.format("%03d", idx + 1),
+                num = String.format(java.util.Locale.US, "%03d", idx + 1),
                 nowTitle = e?.title,
                 logoUrl = ch.logoUrl,
                 isActive = off == 0,
@@ -817,7 +817,7 @@ class LivePlayerOsdManager(
             if (endMs - cursor >= GUIDE_MIN_FILLER_MS) shows.add(filler(cursor, endMs))
             GuideRow(
                 name = ch.name,
-                num = String.format("%03d", idx + 1),
+                num = String.format(java.util.Locale.US, "%03d", idx + 1),
                 logoUrl = ch.logoUrl,
                 isActiveChannel = idx == zapIndex,
                 nowLineFrac = nowFrac,

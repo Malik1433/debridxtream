@@ -468,7 +468,7 @@ class SeriesSeasonUi(
         layoutResume.visibility = View.VISIBLE
         val seasonNum = selectedSeasonKey?.toIntOrNull() ?: 1
         val epNum = episode.episodeNumber ?: 1
-        tvResumeLabel.text = "CONTINUE · S${String.format("%02d", seasonNum)} · E${String.format("%02d", epNum)}"
+        tvResumeLabel.text = "CONTINUE · S${String.format(java.util.Locale.US, "%02d", seasonNum)} · E${String.format(java.util.Locale.US, "%02d", epNum)}"
         tvResumeRight.text = "$pct% · ${minsLeft}M LEFT"
         tvResumeEpTitle.text = episode.title
         vResumeProgress.post {
@@ -484,7 +484,7 @@ class SeriesSeasonUi(
         val ep = selectedEpisode
         val seasonNum = selectedSeasonKey?.toIntOrNull() ?: 1
         val epNum = ep?.episodeNumber ?: 1
-        val epLabel = "S${String.format("%02d", seasonNum)} · E${String.format("%02d", epNum)}"
+        val epLabel = "S${String.format(java.util.Locale.US, "%02d", seasonNum)} · E${String.format(java.util.Locale.US, "%02d", epNum)}"
         val hasResume = ep != null && !episodeWatched.contains(ep.id) &&
             (episodeProgress.containsKey(ep.id) || (ep.resumePosition > 0 && !ep.isWatched))
         btnWatchNow.text = if (hasResume) "Resume $epLabel" else "Play $epLabel"

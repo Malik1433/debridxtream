@@ -436,7 +436,7 @@ class MovieDetailActivity : AppCompatActivity() {
         tvRatingPercentage.visibility = if (hasRating) View.VISIBLE else View.GONE
         tvRatingStars.visibility = View.GONE
         if (hasRating) {
-            tvRatingPercentage.text = String.format("%.1f", rating)
+            tvRatingPercentage.text = String.format(java.util.Locale.US, "%.1f", rating)
         }
 
         // Year

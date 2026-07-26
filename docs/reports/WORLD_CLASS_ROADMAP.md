@@ -61,9 +61,15 @@ phase depend on the owner's eyes and makes sessions slow — so the test net com
 - **A2** — `PrintStackTrace` ×2 → proper logging; `ExplicitGarbageCollectionCall` ×1 → removed.
 - **A3** — `ImplicitDefaultLocale` ×25: locale-dependent `String.format`/`toUpperCase` on a TV that ships
   to multiple regions is a real correctness bug, not style.
-- *Exit:* baseline 359 → ~305, E3 = 0.
+- ✅ **DONE 2026-07-26.** Baseline 359 → **305**; `SwallowedException`, `PrintStackTrace`,
+  `ExplicitGarbageCollectionCall` and `ImplicitDefaultLocale` are all **0** and pinned in the ratchet.
+  All four rule ceilings are now zero, so none of these classes of defect can be reintroduced.
 
 ### Tier B — the test net *(the multiplier)*
+- **B0** — **Known flaky test:** `XtreamRepositoryStreamLookupTest > stream lookup handles large cache
+  efficiently` asserts wall-clock `< 100ms`. It fails under build load and passes in isolation (seen
+  2026-07-26). A timing assertion in a unit test is flaky by construction — replace it with a
+  complexity/behavioural assertion (e.g. lookup is index-backed, not a full scan) rather than a stopwatch.
 - **B1** — Fix the instrumented-test runner path (`connectedDebugAndroidTest` fails with a local JDK
   glitch; the working route is `assembleDebugAndroidTest` + `adb install` + `am instrument`, already
   proven for the Room migration test). Script it so it is one command.
@@ -133,6 +139,7 @@ Carried from hard-won incidents; every phase must respect them.
 |---|---|---:|---:|---:|---:|---|
 | 2026-07-26 | Baseline measured (start) | 359 | 10 | 26 | 1 | `f429283` |
 | 2026-07-26 | **A1 (part 1)** — 7 files de-swallowed; found+fixed 3 real `\${…}` escaped-interpolation bugs | **352** | 10 | **19** | 1 | `977b267` |
-| 2026-07-26 | **A1 COMPLETE** — remaining 29 sites across 20 files; **E3 met** | **333** | 10 | **0** ✅ | 1 | *(this)* |
+| 2026-07-26 | **A1 COMPLETE** — remaining 29 sites across 20 files; **E3 met** | **333** | 10 | **0** ✅ | 1 | `4683429` |
+| 2026-07-26 | **TIER A COMPLETE** — A2 (PrintStackTrace ×2, `System.gc()`) + A3 (`ImplicitDefaultLocale` ×25) | **305** | 10 | 0 | 1 | *(this)* |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*

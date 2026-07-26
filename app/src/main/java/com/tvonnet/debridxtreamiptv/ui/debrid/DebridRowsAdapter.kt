@@ -239,7 +239,7 @@ class DebridItemViewHolder(
         
         // Consolidate metadata (S01E01 / Year)
         val episodeLabel = if (item.seasonNumber != null && item.episodeNumber != null) {
-            String.format("S%02dE%02d", item.seasonNumber, item.episodeNumber)
+            String.format(java.util.Locale.US, "S%02dE%02d", item.seasonNumber, item.episodeNumber)
         } else null
 
         val subtitle = when {
@@ -404,9 +404,9 @@ class DebridItemViewHolder(
         val minutes = (totalSeconds % 3600) / 60
         val seconds = totalSeconds % 60
         return if (hours > 0) {
-            String.format("%d:%02d:%02d", hours, minutes, seconds)
+            String.format(java.util.Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
         } else {
-            String.format("%d:%02d", minutes, seconds)
+            String.format(java.util.Locale.US, "%d:%02d", minutes, seconds)
         }
     }
 }

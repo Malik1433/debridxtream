@@ -157,32 +157,6 @@
     <ID>CyclomaticComplexMethod:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2$fun getSeriesById(seriesId: String): Flow&lt;Result&lt;SeriesEntityV2&gt;&gt;</ID>
     <ID>CyclomaticComplexMethod:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2$private fun shortCategoryTag(categoryName: String?, streamName: String?): String</ID>
     <ID>CyclomaticComplexMethod:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2$private suspend fun buildStreamGroups( siblings: List&lt;SiblingListing&gt;, seasonNumber: Int, episodeNumber: Int, primaryCats: Set&lt;String&gt; ): List&lt;IptvStreamGroup&gt;</ID>
-    <ID>ExplicitGarbageCollectionCall:MemoryManager.kt$MemoryManager$gc()</ID>
-    <ID>ImplicitDefaultLocale:CinEpisodeAdapter.kt$CinEpisodeAdapter.EpisodeViewHolder$String.format("%02d", item.episodeNumber ?: 0)</ID>
-    <ID>ImplicitDefaultLocale:ContinueWatchingAdapter.kt$ContinueWatchingAdapter.ContinueWatchingViewHolder$String.format("S%02dE%02d", seasonNumber, episodeNumber)</ID>
-    <ID>ImplicitDefaultLocale:DebridRowsAdapter.kt$DebridItemViewHolder$String.format("%d:%02d", minutes, seconds)</ID>
-    <ID>ImplicitDefaultLocale:DebridRowsAdapter.kt$DebridItemViewHolder$String.format("%d:%02d:%02d", hours, minutes, seconds)</ID>
-    <ID>ImplicitDefaultLocale:DebridRowsAdapter.kt$DebridItemViewHolder$String.format("S%02dE%02d", item.seasonNumber, item.episodeNumber)</ID>
-    <ID>ImplicitDefaultLocale:HomeFragment.kt$HomeFragment$String.format("%d:%02d %s", hour, min, amPm)</ID>
-    <ID>ImplicitDefaultLocale:HomeScreenModels.kt$ContinueWatchingItem$String.format("%d:%02d", minutes, seconds)</ID>
-    <ID>ImplicitDefaultLocale:HomeScreenModels.kt$ContinueWatchingItem$String.format("%d:%02d:%02d", hours, minutes, seconds)</ID>
-    <ID>ImplicitDefaultLocale:HomeScreenModels.kt$String.format("%.1f", it)</ID>
-    <ID>ImplicitDefaultLocale:LivePlayerOsdManager.kt$LivePlayerOsdManager$String.format("%03d", idx + 1)</ID>
-    <ID>ImplicitDefaultLocale:LivePlayerOsdManager.kt$LivePlayerOsdManager$String.format("%03d", it)</ID>
-    <ID>ImplicitDefaultLocale:LiveSurfChannelAdapter.kt$LiveSurfChannelAdapter.Holder$String.format("%03d", position + 1)</ID>
-    <ID>ImplicitDefaultLocale:MovieDetailActivity.kt$MovieDetailActivity$String.format("%.1f", rating)</ID>
-    <ID>ImplicitDefaultLocale:MovieInfoSection.kt$String.format("%.1f", movie.rating)</ID>
-    <ID>ImplicitDefaultLocale:NetworkQualityManager.kt$NetworkQualityManager$String.format("%.2f", speedMbps)</ID>
-    <ID>ImplicitDefaultLocale:PlayerDebugOverlay.kt$String.format( "%02d:%02d", TimeUnit.MILLISECONDS.toMinutes(millis), TimeUnit.MILLISECONDS.toSeconds(millis) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(millis)) )</ID>
-    <ID>ImplicitDefaultLocale:SeriesDebridSourceController.kt$SeriesDebridSourceController$String.format("%.0f MB", bytes / 1_048_576.0)</ID>
-    <ID>ImplicitDefaultLocale:SeriesDebridSourceController.kt$SeriesDebridSourceController$String.format("%.1f GB", bytes / 1_073_741_824.0)</ID>
-    <ID>ImplicitDefaultLocale:SeriesDetailActivity.kt$SeriesDetailActivity$String.format("%.1f", ratingValue)</ID>
-    <ID>ImplicitDefaultLocale:SeriesDetailFragmentV2.kt$SeriesDetailFragmentV2$String.format("%.1f", rating)</ID>
-    <ID>ImplicitDefaultLocale:SeriesSeasonUi.kt$SeriesSeasonUi$String.format("%02d", epNum)</ID>
-    <ID>ImplicitDefaultLocale:SeriesSeasonUi.kt$SeriesSeasonUi$String.format("%02d", seasonNum)</ID>
-    <ID>ImplicitDefaultLocale:SimilarMoviesAdapter.kt$SimilarMoviesAdapter.ViewHolder$String.format("%.1f", it)</ID>
-    <ID>ImplicitDefaultLocale:StremioDiscoverSection.kt$StremioDiscoverSection$String.format("%02d", i + 1)</ID>
-    <ID>ImplicitDefaultLocale:StremioHomeFragment.kt$StremioHomeFragment$String.format("%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))</ID>
     <ID>LargeClass:BasePlayerFragment.kt$BasePlayerFragment : FragmentRecoveryHost</ID>
     <ID>LargeClass:DebridPlaybackRepository.kt$DebridPlaybackRepository</ID>
     <ID>LargeClass:LivePlayerOsdManager.kt$LivePlayerOsdManager</ID>
@@ -327,8 +301,6 @@
     <ID>NestedBlockDepth:VodRepository.kt$VodRepository$suspend fun getMovieSources( streamId: String?, title: String?, primaryCategoryId: String?, yearHint: String? ): List&lt;MovieSource&gt;</ID>
     <ID>NestedBlockDepth:XtreamResponseParser.kt$XtreamResponseParser$fun parseEpisodes(json: JsonElement?): Map&lt;String, List&lt;XtreamEpisodeInfo&gt;&gt;</ID>
     <ID>NestedBlockDepth:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2$private suspend fun adoptSiblingEpisodes(seriesId: String, username: String, password: String)</ID>
-    <ID>PrintStackTrace:CompanionSetupActivity.kt$CompanionSetupActivity$e</ID>
-    <ID>PrintStackTrace:RecoveryActivity.kt$RecoveryActivity$e</ID>
     <ID>SpreadOperator:AppModule.kt$AppModule$(*DatabaseMigrations.getAllMigrations())</ID>
     <ID>SpreadOperator:EpgParser.kt$EpgParser.XmlDeclarationStrippingReader$('&lt;', '?', *probe.copyOf(read3))</ID>
     <ID>TooManyFunctions:BasePlayerFragment.kt$BasePlayerFragment : FragmentRecoveryHost</ID>

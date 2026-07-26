@@ -34,7 +34,7 @@ class SimilarMoviesAdapter(
 
         fun bind(movie: TmdbMovie) {
             val year = movie.releaseDate?.take(4) ?: ""
-            val rating = movie.voteAverage?.let { String.format("%.1f", it) } ?: ""
+            val rating = movie.voteAverage?.let { String.format(java.util.Locale.US, "%.1f", it) } ?: ""
             tvTitle.text = buildString {
                 if (year.isNotBlank()) append(year)
                 if (rating.isNotBlank()) {

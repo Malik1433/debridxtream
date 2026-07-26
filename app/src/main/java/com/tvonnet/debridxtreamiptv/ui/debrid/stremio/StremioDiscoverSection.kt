@@ -88,7 +88,7 @@ internal class StremioDiscoverSection(
         )
         val rows = items.take(10).mapIndexed { i, item ->
             StremioTop10Row(
-                rank = String.format("%02d", i + 1), rankColor = colors[i.coerceAtMost(9)],
+                rank = String.format(java.util.Locale.US, "%02d", i + 1), rankColor = colors[i.coerceAtMost(9)],
                 title = item.title,
                 meta = if (ReleaseInfo.isUpcoming(item.releaseDate)) ReleaseInfo.metaLabel(item.year, item.releaseDate)
                        else listOfNotNull(item.year, item.rating?.let { "⭐$it" }).joinToString(" · "),

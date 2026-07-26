@@ -61,9 +61,9 @@ data class ContinueWatchingItem(
         val seconds = totalSeconds % 60
         
         return if (hours > 0) {
-            String.format("%d:%02d:%02d", hours, minutes, seconds)
+            String.format(java.util.Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
         } else {
-            String.format("%d:%02d", minutes, seconds)
+            String.format(java.util.Locale.US, "%d:%02d", minutes, seconds)
         }
     }
 }
@@ -321,7 +321,7 @@ fun TmdbMovie.toFeaturedItem(): FeaturedItem {
         backdropUrl = TmdbImageUrl.getBackdropUrl(backdropPath, size = TmdbImageUrl.BACKDROP_SIZE_ORIGINAL),
         posterUrl = TmdbImageUrl.getPosterUrl(posterPath, size = TmdbImageUrl.POSTER_SIZE_W500),
         description = overview,
-        rating = voteAverage?.let { String.format("%.1f", it) },
+        rating = voteAverage?.let { String.format(java.util.Locale.US, "%.1f", it) },
         streamUrl = null, // TMDB items always use debrid bridge
         sourceType = SourceType.TMDB
     )
@@ -335,7 +335,7 @@ fun TmdbTvShow.toFeaturedItem(): FeaturedItem {
         backdropUrl = TmdbImageUrl.getBackdropUrl(backdropPath, size = TmdbImageUrl.BACKDROP_SIZE_ORIGINAL),
         posterUrl = TmdbImageUrl.getPosterUrl(posterPath, size = TmdbImageUrl.POSTER_SIZE_W500),
         description = overview,
-        rating = voteAverage?.let { String.format("%.1f", it) },
+        rating = voteAverage?.let { String.format(java.util.Locale.US, "%.1f", it) },
         streamUrl = null, // TMDB items always use debrid bridge
         sourceType = SourceType.TMDB
     )
