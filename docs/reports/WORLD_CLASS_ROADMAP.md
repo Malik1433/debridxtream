@@ -22,7 +22,7 @@ The app is "world-class" for this project's purposes when **all** of these are t
 | E1 | detekt suppressions (`config/detekt/detekt-baseline.xml`) | **359** | **0** |
 | E2 | `LargeClass` violations | **10** | **0** |
 | E3 | `SwallowedException` (errors silently hidden) | **0 ✅ MET** | **0** |
-| E4 | Instrumented (on-device) tests | **1** | **≥ 15** covering Live/Player/VOD/Series core flows |
+| E4 | Instrumented (on-device) tests — **counted as test methods**, `run_instrumented.sh` reports it | **10** (2 classes) | **≥ 15** covering Live/Player/VOD/Series core flows |
 | E5 | Unit test files | 59 | ≥ 80, with every new collaborator tested |
 | E6 | Crash-free playback landmines re-verified after each phase | ad hoc | scripted device checklist |
 | E7 | Open P1 findings from the 2026-07-19 audits | 12 P1 | 0 |
@@ -98,10 +98,21 @@ phase depend on the owner's eyes and makes sessions slow — so the test net com
   script exists.
 - **B2** — Instrumented tests for the flows that keep breaking and currently need the owner's eyes.
   Priority order (highest pain first):
-  1. **Live fullscreen hand-off** — `LiveSharedPlayer.offer/adopt` round-trip: a player parked on the
-     way in is adopted (never a fresh reconnect), and adopted back on return. This is the path that
-     produced the reload + freeze incidents and it is currently only checked by eyeballing the TV and
-     grepping `LIVE_HANDOFF` logs.
+  1. **Live fullscreen hand-off** — ✅ **DONE 2026-07-26** — `LiveSharedPlayerHandoffTest`, **8 tests
+     green on `.64`** — the whole instrumented suite is now `OK (10 tests)`, up from 2. The
+     `offer`/`adopt` contract is now frozen: the parked instance is
+     handed over *unchanged and un-released* (identity-asserted — a fresh reconnect fails the test);
+     a mismatched url is refused **without orphaning** the player; the no-arg return-path adopt takes
+     whatever is parked; the cover frame **survives adopt** and is one-shot (the rejected LP-C-4
+     black-flash regression); replacing a parked player releases the old one (never two provider
+     sockets) while re-offering the *same* instance must not; and an offer nobody adopts is killed by
+     the 8s failsafe so audio cannot keep playing behind the UI. Release is observed via ExoPlayer's
+     own `AnalyticsListener.onPlayerReleased`, not inferred.
+     Mutation-checked with three injected regressions (clear-frame-on-adopt, drop the
+     `player !== p` guard, null the player on url mismatch) — all three turned the suite red.
+     **Lesson:** the first version of the test *silently passed* the middle mutant, because
+     `onPlayerReleased` is posted to the main looper and a bare "is it released?" read races it.
+     Negative assertions ("still alive") must wait out the callback window — see `assertStillAlive`.
   2. **Channel D-pad focus + quick-jump** (`LiveChannelFocusController`) — up/down movement, number-zap,
      A–Z type-ahead, and *no focus theft on refresh*.
   3. **Resume** — VOD/Series/in-player positions (the `createIntent` `startPositionMs` trap).
@@ -236,5 +247,6 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-07-26 | **A1 COMPLETE** — remaining 29 sites across 20 files; **E3 met** | **333** | 10 | **0** ✅ | 1 | `4683429` |
 | 2026-07-26 | **TIER A COMPLETE** — A2 (PrintStackTrace ×2, `System.gc()`) + A3 (`ImplicitDefaultLocale` ×25) | **305** | 10 | 0 | 1 | `78f1bfe` |
 | 2026-07-26 | **B0 + B1** — flaky stopwatch test replaced by 2 behavioural tests (mutation-checked); `scripts/run_instrumented.sh` makes the on-device suite one command | 305 | 10 | 0 | 1 | `f1e2a07` |
+| 2026-07-26 | **B2.1** — `LiveSharedPlayerHandoffTest`: the Live fullscreen hand-off contract, 8 tests green on `.64`, 3 injected regressions caught | 305 | 10 | 0 | **10** | *(this)* |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
