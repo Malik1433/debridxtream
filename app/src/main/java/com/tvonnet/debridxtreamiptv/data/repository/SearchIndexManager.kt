@@ -129,6 +129,7 @@ internal class SearchIndexManager(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                Log.w(TAG, "Search index: catalog fetch failed (${e.javaClass.simpleName}) — falling back", e)
                 emptyList()
             }
             if (full.isNotEmpty()) {
@@ -143,6 +144,7 @@ internal class SearchIndexManager(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                Log.w(TAG, "Search index: catalog fetch failed (${e.javaClass.simpleName}) — falling back", e)
                 emptyList()
             }
             if (categories.isEmpty()) return false
@@ -157,6 +159,7 @@ internal class SearchIndexManager(
                     throw e
                 } catch (e: Exception) {
                     failures++
+                    Log.w(TAG, "Search index: category $catId fetch failed (${e.javaClass.simpleName})", e)
                     emptyList()
                 }
                 if (streams.isNotEmpty()) {
@@ -189,6 +192,7 @@ internal class SearchIndexManager(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                Log.w(TAG, "Search index: catalog fetch failed (${e.javaClass.simpleName}) — falling back", e)
                 emptyList()
             }
             if (full.isNotEmpty()) {
@@ -202,6 +206,7 @@ internal class SearchIndexManager(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                Log.w(TAG, "Search index: catalog fetch failed (${e.javaClass.simpleName}) — falling back", e)
                 emptyList()
             }
             if (categories.isEmpty()) return false
@@ -216,6 +221,7 @@ internal class SearchIndexManager(
                     throw e
                 } catch (e: Exception) {
                     failures++
+                    Log.w(TAG, "Search index: category $catId fetch failed (${e.javaClass.simpleName})", e)
                     emptyList()
                 }
                 if (streams.isNotEmpty()) {
@@ -243,6 +249,7 @@ internal class SearchIndexManager(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                Log.w(TAG, "Search index: catalog fetch failed (${e.javaClass.simpleName}) — falling back", e)
                 emptyList()
             }
             if (full.isNotEmpty()) {
@@ -258,6 +265,7 @@ internal class SearchIndexManager(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                Log.w(TAG, "Search index: catalog fetch failed (${e.javaClass.simpleName}) — falling back", e)
                 emptyList()
             }
             if (categories.isEmpty()) return false
@@ -272,6 +280,7 @@ internal class SearchIndexManager(
                     throw e
                 } catch (e: Exception) {
                     failures++
+                    Log.w(TAG, "Search index: category $catId fetch failed (${e.javaClass.simpleName})", e)
                     emptyList()
                 }
                 if (streams.isNotEmpty()) {

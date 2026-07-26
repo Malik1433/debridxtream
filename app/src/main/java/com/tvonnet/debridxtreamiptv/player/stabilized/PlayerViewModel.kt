@@ -1545,6 +1545,7 @@ class PlayerViewModel @Inject constructor(
                     isLoadingChannels = false
                 )
             } catch (e: Exception) {
+                  android.util.Log.w("PlayerViewModel", "Channel browser load failed", e)
                   _browserState.value = _browserState.value.copy(
                     isLoadingChannels = false,
                     channels = emptyList()

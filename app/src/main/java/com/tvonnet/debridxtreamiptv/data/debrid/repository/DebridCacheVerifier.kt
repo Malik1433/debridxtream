@@ -84,7 +84,7 @@ internal class DebridCacheVerifier(
             }
         } catch (e: Exception) {
             coroutineContext.ensureActive()
-            Log.w(TAG, "RD cache verification incomplete after timeout; keeping ${verified.size}/${hashes.size} resolved, rest stay unknown")
+            Log.w(TAG, "RD cache verification incomplete after timeout; keeping ${verified.size}/${hashes.size} resolved, rest stay unknown", e)
         }
         verified.toMap()
     }

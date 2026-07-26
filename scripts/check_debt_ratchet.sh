@@ -18,8 +18,10 @@ ledger="$repo_root/config/detekt/debt-ledger.txt"
 [ -f "$ledger" ]   || { echo "ratchet: missing $ledger" >&2; exit 2; }
 
 # Count all suppressions, and per-rule counts.
+# NOTE: both must tolerate a count of ZERO — `grep` exits 1 when it matches nothing, which under
+# `set -euo pipefail` would abort the script exactly when a rule reaches 0 (i.e. on success).
 count_total() { grep -c "<ID>" "$baseline" || true; }
-count_rule()  { grep -o "<ID>$1:" "$baseline" | wc -l | tr -d ' '; }
+count_rule()  { { grep -o "<ID>$1:" "$baseline" || true; } | wc -l | tr -d ' '; }
 
 status=0
 lowered=0

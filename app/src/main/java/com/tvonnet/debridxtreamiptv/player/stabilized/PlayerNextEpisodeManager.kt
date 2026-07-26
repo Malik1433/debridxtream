@@ -276,6 +276,8 @@ class PlayerNextEpisodeManager(
                     try {
                         btnPlayNext?.requestFocus()
                     } catch (e: Exception) {
+                        // Focus can fail if the view is already detached — non-fatal, but not silent.
+                        android.util.Log.w("PlayerNextEpisodeManager", "Next-episode focus failed", e)
                     }
                 }
             }

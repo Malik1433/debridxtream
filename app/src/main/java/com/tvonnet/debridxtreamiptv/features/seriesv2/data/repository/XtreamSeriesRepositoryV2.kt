@@ -199,7 +199,8 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
             genre = info.genre,
             releaseDate = info.releaseDate,
             rating = info.rating,
-            rating5based = try { info.rating_5based?.toDouble() } catch(e: Exception) { null },
+            // rating_5based is already Double? — the old try/catch could never fire.
+            rating5based = info.rating_5based,
             backdropPath = backdropPathList,
             youtubeTrailer = info.youtube_trailer,
             episodeRunTime = null,
@@ -821,7 +822,8 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Sibling also dead / parse error — try the next.
+                // Sibling also dead / parse error — try the next, but record which one failed.
+                android.util.Log.w("XtreamSeriesRepositoryV2", "Sibling series lookup failed", e)
             }
         }
         android.util.Log.w("SeriesRepoV2", "adoptSiblingEpisodes: no sibling of $seriesId had episodes")

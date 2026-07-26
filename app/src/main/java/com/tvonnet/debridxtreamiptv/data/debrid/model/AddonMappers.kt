@@ -42,11 +42,8 @@ object AddonStreamMapper {
 
         return AddonStream(
             source = AddonSourceType.MEDIA_FUSION,
-            title = try {
-                source.behaviorHints?.filename
-            } catch (e: Exception) {
-                null
-            } ?: source.title ?: source.name,
+            title = runCatching { source.behaviorHints?.filename }.getOrNull()
+                ?: source.title ?: source.name,
 
             url = source.url?.let { originalUrl ->
                 val processed = originalUrl.replace("stremio://", "https://")

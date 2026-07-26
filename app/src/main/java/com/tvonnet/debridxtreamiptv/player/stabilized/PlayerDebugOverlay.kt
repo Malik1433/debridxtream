@@ -82,7 +82,8 @@ internal class PlayerDebugOverlay(
         try {
             target()?.text = buildDebugOverlayText(current)
         } catch (e: Exception) {
-            // The overlay must never take playback down with it.
+            // The overlay must never take playback down with it — but log why it failed.
+            android.util.Log.w("PlayerDebugOverlay", "Debug overlay update failed", e)
         }
         return true
     }

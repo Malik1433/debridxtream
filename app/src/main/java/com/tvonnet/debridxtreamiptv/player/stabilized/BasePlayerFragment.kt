@@ -1349,7 +1349,10 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         try {
             player?.let { wasPlayingBeforePiP = it.playWhenReady }
             if (pipController.enter(playerView.width, playerView.height)) hideUiForPiP() else showToast("PiP not available")
-        } catch (e: Exception) { showToast("PiP failed") }
+        } catch (e: Exception) {
+            Log.w("PlayerActivity", "Enter PiP failed", e)
+            showToast("PiP failed")
+        }
     }
 
     // NOTE: snapshot (non-latching) — the old recordPlaybackHistoryIfNeeded() here latched
@@ -1452,6 +1455,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         (disp?.hdrCapabilities?.supportedHdrTypes ?: IntArray(0))
             .any { it == android.view.Display.HdrCapabilities.HDR_TYPE_DOLBY_VISION }
     } catch (e: Exception) {
+        Log.w("PlayerActivity", "Dolby Vision capability query failed; assuming unsupported", e)
         false
     }
 

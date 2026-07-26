@@ -66,7 +66,9 @@ class GlobalCrashHandler(private val context: Context) : Thread.UncaughtExceptio
             exitLogic()
 
         } catch (e: Exception) {
-            // Fallback to default if restart fails
+            // Fallback to default if restart fails. Logged first — losing the reason the crash
+            // handler itself failed makes crash reports impossible to interpret.
+            android.util.Log.e("GlobalCrashHandler", "Crash-restart path failed", e)
             defaultHandler?.uncaughtException(thread, throwable)
         }
     }

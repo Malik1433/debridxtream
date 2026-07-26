@@ -171,7 +171,14 @@ internal class PlayerRecoveryController(
 
     fun unregisterNetworkCallback() {
         val callback = networkCallback ?: return
-        try { connectivityManager?.unregisterNetworkCallback(callback) } catch (e: Exception) { } finally { networkCallback = null }
+        try {
+            connectivityManager?.unregisterNetworkCallback(callback)
+        } catch (e: Exception) {
+            // Already unregistered (framework throws IllegalArgumentException) — harmless, but logged.
+            Log.w("PlayerActivity", "unregisterNetworkCallback failed", e)
+        } finally {
+            networkCallback = null
+        }
     }
 
     fun handlePlaybackError(error: PlaybackException) {

@@ -217,6 +217,7 @@ class MovieDetailViewModelV2 @Inject constructor(
             tmdbRemoteDataSource.getMovieRecommendations(tmdbMovieId)
                 .getOrNull()?.results?.take(6) ?: emptyList()
         } catch (e: Exception) {
+            android.util.Log.w("MovieDetailViewModelV2", "TMDB recommendations failed", e)
             emptyList()
         }
     }

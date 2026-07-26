@@ -16,7 +16,8 @@ internal object ReleaseInfo {
     private fun parse(releaseDate: String?): Date? {
         val s = releaseDate?.trim().orEmpty()
         if (s.length < 10) return null
-        return try { IN.parse(s.substring(0, 10)) } catch (e: Exception) { null }
+        // Unparseable dates are expected (providers send junk); runCatching keeps that explicit.
+        return runCatching { IN.parse(s.substring(0, 10)) }.getOrNull()
     }
 
     fun isUpcoming(releaseDate: String?): Boolean {

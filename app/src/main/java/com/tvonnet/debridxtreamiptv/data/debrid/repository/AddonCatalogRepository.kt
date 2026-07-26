@@ -337,6 +337,7 @@ class AddonCatalogRepository @Inject constructor(
                     )
                 }
         } catch (e: Exception) {
+            android.util.Log.w("AddonCatalogRepository", "Addon catalog fetch/parse failed", e)
             emptyList()
         }
     }

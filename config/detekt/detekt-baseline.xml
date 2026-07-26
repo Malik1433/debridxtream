@@ -331,25 +331,6 @@
     <ID>PrintStackTrace:RecoveryActivity.kt$RecoveryActivity$e</ID>
     <ID>SpreadOperator:AppModule.kt$AppModule$(*DatabaseMigrations.getAllMigrations())</ID>
     <ID>SpreadOperator:EpgParser.kt$EpgParser.XmlDeclarationStrippingReader$('&lt;', '?', *probe.copyOf(read3))</ID>
-    <ID>SwallowedException:AddonCatalogRepository.kt$AddonCatalogRepository$e: Exception</ID>
-    <ID>SwallowedException:AddonMappers.kt$AddonStreamMapper$e: Exception</ID>
-    <ID>SwallowedException:BasePlayerFragment.kt$BasePlayerFragment$e: Exception</ID>
-    <ID>SwallowedException:DebridCacheVerifier.kt$DebridCacheVerifier$e: Exception</ID>
-    <ID>SwallowedException:DebridViewModel.kt$DebridViewModel$e: Exception</ID>
-    <ID>SwallowedException:GlobalCrashHandler.kt$GlobalCrashHandler$e: Exception</ID>
-    <ID>SwallowedException:HomeScreenModels.kt$e: Exception</ID>
-    <ID>SwallowedException:LoginFragment.kt$LoginFragment$e: Exception</ID>
-    <ID>SwallowedException:MovieDetailViewModelV2.kt$MovieDetailViewModelV2$e: Exception</ID>
-    <ID>SwallowedException:OmdbClient.kt$OmdbClient$e: Exception</ID>
-    <ID>SwallowedException:PlayerDebugOverlay.kt$PlayerDebugOverlay$e: Exception</ID>
-    <ID>SwallowedException:PlayerNextEpisodeManager.kt$PlayerNextEpisodeManager$e: Exception</ID>
-    <ID>SwallowedException:PlayerRecoveryController.kt$PlayerRecoveryController$e: Exception</ID>
-    <ID>SwallowedException:PlayerViewModel.kt$PlayerViewModel$e: Exception</ID>
-    <ID>SwallowedException:ReleaseInfo.kt$ReleaseInfo$e: Exception</ID>
-    <ID>SwallowedException:SearchIndexManager.kt$SearchIndexManager$e: Exception</ID>
-    <ID>SwallowedException:SearchViewModel.kt$SearchViewModel$e: Exception</ID>
-    <ID>SwallowedException:SeriesDetailActivity.kt$SeriesDetailActivity$e: Exception</ID>
-    <ID>SwallowedException:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2$e: Exception</ID>
     <ID>TooManyFunctions:BasePlayerFragment.kt$BasePlayerFragment : FragmentRecoveryHost</ID>
     <ID>TooManyFunctions:DebridPreferences.kt$DebridPreferences : AccessTokenProvider</ID>
     <ID>TooManyFunctions:SettingsPreferences.kt$SettingsPreferences</ID>

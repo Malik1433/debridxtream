@@ -179,7 +179,8 @@ class DebridViewModel @Inject constructor(
                 
                 _genres.value = allGenres.sortedBy { it.name }
             } catch (e: Exception) {
-                // Ignore genre load errors
+                // Non-fatal: the screen works without genres, but don't hide why they're missing.
+                android.util.Log.w("DebridViewModel", "Genre load failed", e)
             }
         }
     }

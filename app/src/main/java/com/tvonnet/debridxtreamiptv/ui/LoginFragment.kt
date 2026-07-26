@@ -428,6 +428,7 @@ class LoginFragment : Fragment() {
                     showError("Login failed. Please check your server address and credentials.")
                 }
             } catch (e: Exception) {
+                android.util.Log.e("LoginFragment", "Login failed", e)
                 setLoading(false)
                 showError("Login error. Please check your connection and try again.")
             }

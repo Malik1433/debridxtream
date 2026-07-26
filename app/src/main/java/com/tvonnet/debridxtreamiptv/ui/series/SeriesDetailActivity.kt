@@ -574,7 +574,8 @@ class SeriesDetailActivity : AppCompatActivity() {
                 val isFavorite = repository.isFavorite(streamId)
                 updateFavoriteButton(isFavorite)
             } catch (e: Exception) {
-                // Ignore and leave default state
+                // Non-fatal: leave the default button state, but don't hide the cause.
+                android.util.Log.w("SeriesDetailActivity", "Favorite state lookup failed", e)
             }
         }
     }

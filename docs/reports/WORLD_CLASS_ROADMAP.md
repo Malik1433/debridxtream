@@ -21,7 +21,7 @@ The app is "world-class" for this project's purposes when **all** of these are t
 |---|---|---:|---:|
 | E1 | detekt suppressions (`config/detekt/detekt-baseline.xml`) | **359** | **0** |
 | E2 | `LargeClass` violations | **10** | **0** |
-| E3 | `SwallowedException` (errors silently hidden) | **26** | **0** |
+| E3 | `SwallowedException` (errors silently hidden) | **0 ✅ MET** | **0** |
 | E4 | Instrumented (on-device) tests | **1** | **≥ 15** covering Live/Player/VOD/Series core flows |
 | E5 | Unit test files | 59 | ≥ 80, with every new collaborator tested |
 | E6 | Crash-free playback landmines re-verified after each phase | ad hoc | scripted device checklist |
@@ -132,6 +132,7 @@ Carried from hard-won incidents; every phase must respect them.
 | Date | Phase | Baseline | LargeClass | Swallowed | Instr. tests | Commit |
 |---|---|---:|---:|---:|---:|---|
 | 2026-07-26 | Baseline measured (start) | 359 | 10 | 26 | 1 | `f429283` |
-| 2026-07-26 | **A1 (part 1)** — 7 files de-swallowed; found+fixed 3 real `\${…}` escaped-interpolation bugs | **352** | 10 | **19** | 1 | *(this)* |
+| 2026-07-26 | **A1 (part 1)** — 7 files de-swallowed; found+fixed 3 real `\${…}` escaped-interpolation bugs | **352** | 10 | **19** | 1 | `977b267` |
+| 2026-07-26 | **A1 COMPLETE** — remaining 29 sites across 20 files; **E3 met** | **333** | 10 | **0** ✅ | 1 | *(this)* |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*

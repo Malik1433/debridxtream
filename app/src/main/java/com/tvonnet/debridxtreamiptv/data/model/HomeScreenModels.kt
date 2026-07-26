@@ -278,7 +278,7 @@ fun XtreamSeriesInfo.toFavoriteItem(serverUrl: String, addedTimestamp: Long): Fa
 
 fun XtreamVodInfo.toNewAddedItem(serverUrl: String, username: String, password: String): NewAddedItem {
     val streamUrl = "$serverUrl/movie/$username/$password/${stream_id ?: ""}.${container_extension ?: "mp4"}"
-    val addedTime = try { added?.toLong() ?: 0L } catch (e: Exception) { 0L }
+    val addedTime = added?.toLongOrNull() ?: 0L
     val absoluteIcon = stream_icon.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
     val absoluteCover = cover.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
     

@@ -60,6 +60,7 @@ object OmdbClient {
                 )
             }
         } catch (e: Exception) {
+            android.util.Log.w("OmdbClient", "OMDb lookup failed", e)
             null
         }
     }

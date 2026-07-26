@@ -247,6 +247,7 @@ class SearchViewModel @Inject constructor(
                 }
 
             } catch (e: Exception) {
+                android.util.Log.e("SearchViewModel", "Search failed", e)
                 updateState {
                     copy(
                         isSearching = false,
