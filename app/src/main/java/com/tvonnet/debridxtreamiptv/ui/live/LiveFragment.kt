@@ -30,7 +30,6 @@ import com.tvonnet.debridxtreamiptv.BuildConfig
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
-import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
 import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
 import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
@@ -1186,88 +1185,4 @@ class LiveFragment : Fragment() {
         }
     }
 
-}
-
-// Simple category adapter
-class CategoryAdapter(
-    private val categories: List<XtreamCategory>,
-    private val onCategoryClick: (String) -> Unit
-) : RecyclerView.Adapter<CategoryViewHolder>() {
-    
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CategoryViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_category_chip, parent, false)
-        return CategoryViewHolder(view)
-    }
-    
-    override fun onBindViewHolder(holder: CategoryViewHolder, position: Int) {
-        holder.bind(categories[position], onCategoryClick)
-    }
-    
-    override fun getItemCount() = categories.size
-}
-
-class CategoryViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-    private val tvCategoryName = itemView.findViewById<android.widget.TextView>(R.id.tv_category_name)
-    
-    fun bind(category: XtreamCategory, onClick: (String) -> Unit) {
-        tvCategoryName.text = category.category_name ?: "Unknown"
-        itemView.setOnClickListener {
-            category.category_id?.let { onClick(it) }
-        }
-    }
-}
-
-// Enhanced category adapter with icons for new design
-class CategoryAdapterNew(
-    private val categories: List<XtreamCategory>,
-    private val onCategoryClick: (String) -> Unit
-) : RecyclerView.Adapter<CategoryViewHolderNew>() {
-    
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CategoryViewHolderNew {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_category_pill_new, parent, false)
-        return CategoryViewHolderNew(view)
-    }
-    
-    override fun onBindViewHolder(holder: CategoryViewHolderNew, position: Int) {
-        holder.bind(categories[position], onCategoryClick)
-    }
-    
-    override fun getItemCount() = categories.size
-}
-
-class CategoryViewHolderNew(itemView: View) : RecyclerView.ViewHolder(itemView) {
-    private val tvCategoryName = itemView.findViewById<android.widget.TextView>(R.id.tv_category_name)
-    private val tvCategoryIcon = itemView.findViewById<android.widget.TextView>(R.id.tv_category_icon)
-    
-    fun bind(category: XtreamCategory, onClick: (String) -> Unit) {
-        val categoryName = category.category_name ?: "Unknown"
-        tvCategoryName.text = categoryName
-        
-        // Set icon based on category name
-        tvCategoryIcon.text = getCategoryIcon(categoryName)
-        
-        itemView.setOnClickListener {
-            category.category_id?.let { onClick(it) }
-        }
-    }
-    
-    private fun getCategoryIcon(categoryName: String): String {
-        return when {
-            categoryName.contains("sport", ignoreCase = true) -> "🏆"
-            categoryName.contains("news", ignoreCase = true) -> "📰"
-            categoryName.contains("movie", ignoreCase = true) || 
-            categoryName.contains("film", ignoreCase = true) -> "🎬"
-            categoryName.contains("entertainment", ignoreCase = true) ||
-            categoryName.contains("show", ignoreCase = true) -> "🎭"
-            categoryName.contains("music", ignoreCase = true) -> "🎵"
-            categoryName.contains("kids", ignoreCase = true) ||
-            categoryName.contains("child", ignoreCase = true) -> "🧸"
-            categoryName.contains("doc", ignoreCase = true) -> "📚"
-            categoryName.contains("relig", ignoreCase = true) -> "🕌"
-            categoryName.contains("edu", ignoreCase = true) -> "🎓"
-            else -> "📺"
-        }
-    }
 }
