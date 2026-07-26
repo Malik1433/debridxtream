@@ -50,6 +50,23 @@ while IFS='=' read -r key max; do
   fi
 done < "$ledger"
 
+# --- Source-level checks -------------------------------------------------------------------------
+# The baseline only counts what detekt actually reports, and detekt's own rules have blind spots:
+# on 2026-07-26 three real `e.printStackTrace()` calls in PlayerViewModel.kt were NOT flagged by the
+# PrintStackTrace rule (verified with --rerun-tasks and the rule un-baselined), so a "0" in the
+# baseline did not mean zero in the code. These greps measure the SOURCE, not detekt's opinion.
+src_dir="$repo_root/app/src/main/java"
+if [ -d "$src_dir" ]; then
+  pst="$({ grep -rn --include=*.kt "printStackTrace()" "$src_dir" || true; } | wc -l | tr -d ' ')"
+  if [ "$pst" -gt 0 ]; then
+    echo "RATCHET FAIL: printStackTrace() found in $pst place(s) — use a logger so it reaches Crashlytics." >&2
+    { grep -rn --include=*.kt "printStackTrace()" "$src_dir" || true; } | sed 's/^/    /' >&2
+    status=1
+  else
+    echo "ratchet: printStackTrace() in source = 0"
+  fi
+fi
+
 if [ "$status" -ne 0 ]; then
   echo "" >&2
   echo "Debt ratchet failed. See docs/reports/WORLD_CLASS_ROADMAP.md §1." >&2

@@ -161,3 +161,37 @@ internal fun cleanLoaderTitle(raw: String?): String {
     if (cut != null && cut.range.first >= 2) t = t.substring(0, cut.range.first).trim()
     return t.trim(' ', '-', '·', ':').ifBlank { base }
 }
+
+/**
+ * What STATE_ENDED means for a VOD/series session, once the live-TV and mid-stream-drop cases have
+ * already been handled by the caller.
+ *
+ * Extracted from [PlayerEventListener] so the T1.5 episode-continuity rules are provable in a unit
+ * test instead of only on a TV:
+ *  - `99d10b9` — advance ONLY when the playlist actually `hasNext`. The final episode of a series must
+ *    never fire a "ghost" load for an episode that does not exist.
+ *  - `a969022` — while a next-episode Debrid resolve is already in flight, do NOT advance again
+ *    (double-advance skips an episode) and do NOT finish() (that killed the activity mid-resolve).
+ */
+internal enum class EndedAction {
+    /** A next-episode resolve is in flight — leave it alone. */
+    WAIT_FOR_RESOLVE,
+    /** There is a next episode: auto-advance. */
+    ADVANCE_TO_NEXT,
+    /** Session is over, but the next-episode prompt is on screen — mark complete, keep the activity. */
+    COMPLETE_AND_KEEP_PROMPT,
+    /** Session is over and nothing is holding the screen — mark complete and finish. */
+    COMPLETE_AND_FINISH,
+}
+
+internal fun endedActionFor(
+    isSeriesLike: Boolean,
+    isResolvingDebrid: Boolean,
+    hasNext: Boolean,
+    isNextPromptVisible: Boolean,
+): EndedAction = when {
+    isSeriesLike && isResolvingDebrid -> EndedAction.WAIT_FOR_RESOLVE
+    isSeriesLike && hasNext -> EndedAction.ADVANCE_TO_NEXT
+    isNextPromptVisible -> EndedAction.COMPLETE_AND_KEEP_PROMPT
+    else -> EndedAction.COMPLETE_AND_FINISH
+}

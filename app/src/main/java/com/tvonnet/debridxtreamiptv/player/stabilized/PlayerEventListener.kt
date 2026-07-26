@@ -184,18 +184,30 @@ internal class PlayerEventListener(
                       currentUrl?.let { liveTuner.performSeamlessSwitch(it) }
                       return
                  }
-                 if (contentType == ContentType.SERIES || contentType == ContentType.EPISODE) {
-                      // A next-episode resolve is already in flight (countdown/prompt
-                      // path fired first) — never double-advance or finish() under it.
-                      if (isResolvingDebrid) return
-                      val state = viewModel.seriesPlaylistState.value
-                      if (state?.hasNext == true) {
+                 // T1.5 episode continuity. The decision itself is a pure function so it can be
+                 // unit-tested (see endedActionFor / PlayerEndedActionTest): advance ONLY on a real
+                 // hasNext (no ghost load past the final episode), and never double-advance or
+                 // finish() while a next-episode resolve is still in flight.
+                 val isSeriesLike = contentType == ContentType.SERIES || contentType == ContentType.EPISODE
+                 when (
+                      endedActionFor(
+                           isSeriesLike = isSeriesLike,
+                           isResolvingDebrid = isResolvingDebrid,
+                           hasNext = viewModel.seriesPlaylistState.value?.hasNext == true,
+                           isNextPromptVisible = activity.isNextEpisodePromptVisible(),
+                      )
+                 ) {
+                      EndedAction.WAIT_FOR_RESOLVE -> return
+                      EndedAction.ADVANCE_TO_NEXT -> {
                            seriesController.playNextEpisode()
                            return
                       }
+                      EndedAction.COMPLETE_AND_KEEP_PROMPT -> didPlaybackComplete = true
+                      EndedAction.COMPLETE_AND_FINISH -> {
+                           didPlaybackComplete = true
+                           activity.finish()
+                      }
                  }
-                 didPlaybackComplete = true
-                 if (!activity.isNextEpisodePromptVisible()) activity.finish()
             }
         }
     }

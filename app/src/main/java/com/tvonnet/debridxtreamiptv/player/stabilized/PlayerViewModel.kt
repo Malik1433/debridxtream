@@ -439,7 +439,7 @@ class PlayerViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.e("PlayerViewModel", "Series playlist load failed", e)
             }
         }
     }
@@ -1023,7 +1023,7 @@ class PlayerViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.e("PlayerViewModel", "Episode metadata load failed", e)
             }
         }
     }
@@ -1166,7 +1166,7 @@ class PlayerViewModel @Inject constructor(
             try {
                 repository.updateEpisodePlaybackStatus(contentId, isWatched, resumePosition, duration)
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.e("PlayerViewModel", "Playback status update failed", e)
             }
         }
     }
