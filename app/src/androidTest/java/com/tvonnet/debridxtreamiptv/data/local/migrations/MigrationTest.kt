@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.tvonnet.debridxtreamiptv.data.local.AppDatabase
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -66,7 +67,109 @@ class MigrationTest {
         }
     }
 
+    /**
+     * Roadmap B2.4 — the rule this whole file exists for: **opening an existing user database must
+     * never wipe user data.** `fallbackToDestructiveMigration` silently deletes watch progress and
+     * favourites, and it looked harmless right up until it shipped. Here a real v14 database is
+     * populated with the two things a user would actually mourn, closed, and reopened through the
+     * production migration container.
+     */
+    @Test
+    @Throws(IOException::class)
+    fun reopeningAPopulatedDatabaseKeepsWatchProgressAndFavourites() {
+        helper.createDatabase(TEST_DB, 14).apply {
+            execSQL(
+                "INSERT INTO watched_state " +
+                    "(identity_key, content_type, source, is_watched, progress_ms, duration_ms, " +
+                    "watched_at, updated_at) " +
+                    "VALUES ('movie:inception', 'MOVIE', 'xtream', 0, 1845000, 8880000, NULL, 1)"
+            )
+            execSQL(
+                "INSERT INTO favorites (streamId, type, addedAt, name, iconUrl) " +
+                    "VALUES ('9911', 'live', 1, 'BBC News HD', NULL)"
+            )
+            close()
+        }
+
+        val db = openWithProductionMigrations(TEST_DB)
+        try {
+            assertEquals(14, db.openHelper.readableDatabase.version)
+
+            db.openHelper.readableDatabase.query(
+                "SELECT progress_ms FROM watched_state WHERE identity_key = 'movie:inception'"
+            ).use { cursor ->
+                assertTrue("watch progress must survive reopening the database", cursor.moveToFirst())
+                assertEquals(1_845_000L, cursor.getLong(0))
+            }
+            db.openHelper.readableDatabase.query(
+                "SELECT name FROM favorites WHERE streamId = '9911'"
+            ).use { cursor ->
+                assertTrue("favourites must survive reopening the database", cursor.moveToFirst())
+                assertEquals("BBC News HD", cursor.getString(0))
+            }
+        } finally {
+            db.close()
+            deleteTestDb(TEST_DB)
+        }
+    }
+
+    /**
+     * The other half of "never destructive": a database stamped BELOW the v4 migration floor has no
+     * path forward. Room must fail loudly so the problem is visible, rather than quietly recreating
+     * the file and taking the user's history with it.
+     */
+    @Test
+    @Throws(IOException::class)
+    fun aDatabaseBelowTheMigrationFloorFailsLoudlyInsteadOfBeingWiped() {
+        helper.createDatabase(TEST_DB, 14).apply {
+            execSQL(
+                "INSERT INTO watched_state " +
+                    "(identity_key, content_type, source, is_watched, progress_ms, duration_ms, " +
+                    "watched_at, updated_at) " +
+                    "VALUES ('movie:inception', 'MOVIE', 'xtream', 0, 1845000, 8880000, NULL, 1)"
+            )
+            // Pre-floor stamp: there is no MIGRATION_3_4, so nothing can carry this forward.
+            execSQL("PRAGMA user_version = 3")
+            close()
+        }
+
+        val db = openWithProductionMigrations(TEST_DB)
+        try {
+            var failedLoudly = false
+            try {
+                db.openHelper.readableDatabase.version
+            } catch (e: IllegalStateException) {
+                failedLoudly = true
+            }
+            assertTrue(
+                "a missing migration must throw — a silent destructive fallback would delete the" +
+                    " user's watch progress and favourites",
+                failedLoudly
+            )
+        } finally {
+            runCatching { db.close() }
+            deleteTestDb(TEST_DB)
+        }
+    }
+
+    private fun openWithProductionMigrations(name: String): AppDatabase =
+        Room.databaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            AppDatabase::class.java,
+            name
+        )
+            .addMigrations(*DatabaseMigrations.getAllMigrations())
+            .build()
+
+    private fun deleteTestDb(name: String) {
+        ApplicationProvider.getApplicationContext<android.content.Context>().deleteDatabase(name)
+    }
+
     // ── Forward-looking scaffold (uncomment + adapt when you bump to v15) ─────────────────────────
+    // The chain itself (every bump has a registered migration) is guarded on the JVM side by
+    // DatabaseMigrationChainTest, which fails the moment @Database(version=…) moves ahead of
+    // getAllMigrations().
+    //
     // @Test
     // @Throws(IOException::class)
     // fun migrate14To15() {
