@@ -19,8 +19,8 @@ The app is "world-class" for this project's purposes when **all** of these are t
 
 | # | Criterion | Today | Target |
 |---|---|---:|---:|
-| E1 | detekt suppressions (`config/detekt/detekt-baseline.xml`) | **303** | **0** |
-| E2 | `LargeClass` violations | **9** | **0** |
+| E1 | detekt suppressions (`config/detekt/detekt-baseline.xml`) | **301** | **0** |
+| E2 | `LargeClass` violations | **8** | **0** |
 | E3 | `SwallowedException` (errors silently hidden) | **0 ✅ MET** | **0** |
 | E4 | Instrumented (on-device) tests — **counted as test methods**, `run_instrumented.sh` reports it | **17 ✅ MET** (3 classes) | **≥ 15** covering Live/Player/VOD/Series core flows |
 | E5 | Unit test files | **81 ✅ MET** | ≥ 80, with every new collaborator tested |
@@ -231,7 +231,7 @@ one domain per commit).
 | Phase | File | Lines | Risk |
 |---|---|---:|---|
 | ~~C1~~ ✅ | `SettingsFragment.kt` | ~~787~~ **301** | done 2026-07-26 |
-| C2 | `VodFragment.kt` | 1301 | low-med |
+| ~~C2~~ ✅ | `VodFragment.kt` | ~~1301~~ **625** | done 2026-07-27 |
 | C3 | `SeriesFragment.kt` | 1096 | low-med |
 | C4 | `SeriesDetailFragmentV2.kt` | 843 | med |
 | C5 | `XtreamSeriesRepositoryV2.kt` | 925 | med |
@@ -325,6 +325,30 @@ Recycling bug fixed in passing: the row's `OnCheckedChangeListener` was not deta
 so `isChecked` on a recycled view fired a toggle for whichever category previously occupied it.
 The list is also TV-sized now (18sp rows, cyan boxes, a visible focus ring — it had none).
 Device-verified on `.64`: tick two → title reads 2 selected → BACK → reopen → still ticked.
+
+
+**C2 done 2026-07-27.** `VodFragment` 1301 → **625** lines, out of `LargeClass`. Split by what each
+part is responsible for, bodies moved verbatim:
+- `VodAdapter.kt` — the card adapter/diff/view-holder were already top-level classes just sharing
+  the fragment's file; they are the grid's *cards*, not the screen.
+- `VodFocusController` (+ `VodGridViews`) — the D-pad map and focus memory, the most
+  regression-prone part of this screen. Keeps the two easily-confused jobs apart in code:
+  `restoreFocusIfPossible` (came back to the screen, armed only from `onPause`/saved state) versus
+  `reassertGridFocus` (data changed *under* a user already in the grid, and refuses to act
+  otherwise — CC-1).
+- `VodListStateUi` (+ `VodListStateViews`) — skeleton / empty / Retry. The subtle rules now live in
+  one place: a skeleton may only replace an EMPTY grid, and "empty" needs the ViewModel *and* all
+  three Paging load states to agree, or the screen flashes "No movies" mid-load.
+- `VodOverlayController` — favourite/watched/progress badges and the long-press menu, including the
+  two performance rules that were learned the hard way (B-12 lifecycle-scoped collectors, B-7
+  payload rebinds instead of `notifyDataSetChanged`).
+
+*Ratchet:* baseline 303 → **301**, LargeClass 9 → **8**, ceilings lowered in the same commit. One of
+the two removed entries is a real improvement rather than a relocation: splitting
+`restoreFocusIfPossible` into per-target helpers dropped it below the complexity threshold. Four
+entries were re-keyed by the file move (`VodViewHolder.bind` ×3, `updateListLoadingAndEmptyStates`).
+Two genuinely-new `LongParameterList` violations appeared on the new constructors and were **fixed,
+not baselined**, by grouping the view references into `VodGridViews` / `VodListStateViews`.
 
 - *Exit:* E2 = 0; each new collaborator < 600 lines and unit-tested.
 

@@ -147,10 +147,9 @@
     <ID>CyclomaticComplexMethod:StremioNavigationRouter.kt$StremioNavigationRouter$private suspend fun openContinueWatchingDetail(item: ContinueWatchingItem)</ID>
     <ID>CyclomaticComplexMethod:SyncManager.kt$SyncManager$private suspend fun syncContent( syncType: SyncType, includeLatest: Boolean ): Result&lt;IptvCache&gt;</ID>
     <ID>CyclomaticComplexMethod:UpdateManager.kt$UpdateManager$private fun download(activity: Activity, apkUrl: String, forced: Boolean)</ID>
-    <ID>CyclomaticComplexMethod:VodFragment.kt$VodFragment$private fun restoreFocusIfPossible()</ID>
+    <ID>CyclomaticComplexMethod:VodAdapter.kt$VodViewHolder$fun bind( movie: XtreamVodInfo, isFavorite: Boolean, isWatched: Boolean, progress: Float?, onItemFocused: ((Int) -&gt; Unit)?, onClick: (XtreamVodInfo) -&gt; Unit, onLongClick: ((XtreamVodInfo) -&gt; Unit)? = null )</ID>
     <ID>CyclomaticComplexMethod:VodFragment.kt$VodFragment$private fun setupObservers()</ID>
-    <ID>CyclomaticComplexMethod:VodFragment.kt$VodFragment$private fun updateListLoadingAndEmptyStates(loadState: CombinedLoadStates, isSwitching: Boolean = false)</ID>
-    <ID>CyclomaticComplexMethod:VodFragment.kt$VodViewHolder$fun bind( movie: XtreamVodInfo, isFavorite: Boolean, isWatched: Boolean, progress: Float?, onItemFocused: ((Int) -&gt; Unit)?, onClick: (XtreamVodInfo) -&gt; Unit, onLongClick: ((XtreamVodInfo) -&gt; Unit)? = null )</ID>
+    <ID>CyclomaticComplexMethod:VodListStateUi.kt$VodListStateUi$fun updateListLoadingAndEmptyStates(loadState: CombinedLoadStates, isSwitching: Boolean = false)</ID>
     <ID>CyclomaticComplexMethod:VodRepository.kt$VodRepository$suspend fun getMovieSources( streamId: String?, title: String?, primaryCategoryId: String?, yearHint: String? ): List&lt;MovieSource&gt;</ID>
     <ID>CyclomaticComplexMethod:WavySeekBar.kt$WavySeekBar$override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean</ID>
     <ID>CyclomaticComplexMethod:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2$fun getSeriesById(seriesId: String): Flow&lt;Result&lt;SeriesEntityV2&gt;&gt;</ID>
@@ -163,7 +162,6 @@
     <ID>LargeClass:PlayerViewModel.kt$PlayerViewModel : ViewModel</ID>
     <ID>LargeClass:SeriesDetailFragmentV2.kt$SeriesDetailFragmentV2 : Fragment</ID>
     <ID>LargeClass:SeriesFragment.kt$SeriesFragment : Fragment</ID>
-    <ID>LargeClass:VodFragment.kt$VodFragment : Fragment</ID>
     <ID>LargeClass:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2</ID>
     <ID>LongMethod:AddonCatalogRepository.kt$AddonCatalogRepository$suspend fun getDiscoveryContent( type: String, // "movie" or "series" page: Int = 1, sortBy: String? = null, catalogue: String = CATALOGUE_POPULAR, originalLanguage: String? = null, watchProviders: String? = null, watchRegion: String? = "US", releaseDateGte: String? = null, year: Int? = null, withGenres: String? = null ): Result&lt;List&lt;CatalogItem&gt;&gt;</ID>
     <ID>LongMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun initializePlayer(streamUrl: String)</ID>
@@ -238,8 +236,8 @@
     <ID>LongMethod:SyncManager.kt$SyncManager$private suspend fun syncContent( syncType: SyncType, includeLatest: Boolean ): Result&lt;IptvCache&gt;</ID>
     <ID>LongMethod:TrailerActivity.kt$TrailerActivity$private fun loadYoutubeIframe(id: String)</ID>
     <ID>LongMethod:UnifiedSourceProvider.kt$UnifiedSourceProvider$suspend fun getMovieSources( streamId: String?, title: String?, primaryCategoryId: String?, yearHint: String?, imdbId: String? = null, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
+    <ID>LongMethod:VodAdapter.kt$VodViewHolder$fun bind( movie: XtreamVodInfo, isFavorite: Boolean, isWatched: Boolean, progress: Float?, onItemFocused: ((Int) -&gt; Unit)?, onClick: (XtreamVodInfo) -&gt; Unit, onLongClick: ((XtreamVodInfo) -&gt; Unit)? = null )</ID>
     <ID>LongMethod:VodFragment.kt$VodFragment$private fun setupObservers()</ID>
-    <ID>LongMethod:VodFragment.kt$VodViewHolder$fun bind( movie: XtreamVodInfo, isFavorite: Boolean, isWatched: Boolean, progress: Float?, onItemFocused: ((Int) -&gt; Unit)?, onClick: (XtreamVodInfo) -&gt; Unit, onLongClick: ((XtreamVodInfo) -&gt; Unit)? = null )</ID>
     <ID>LongMethod:VodRepository.kt$VodRepository$suspend fun getMovieSources( streamId: String?, title: String?, primaryCategoryId: String?, yearHint: String? ): List&lt;MovieSource&gt;</ID>
     <ID>LongMethod:XtreamRepositoryTest.kt$XtreamRepositoryTest$private fun createMockCache(): IptvCache</ID>
     <ID>LongMethod:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2$fun getSeriesById(seriesId: String): Flow&lt;Result&lt;SeriesEntityV2&gt;&gt;</ID>
@@ -272,7 +270,7 @@
     <ID>LongParameterList:SyncManager.kt$SyncManager$( private val session: XtreamSession, private val catalogCache: CatalogCache, private val cacheHelper: CacheHelper, private val cacheManager: CacheManager, private val syncPrefs: SharedPreferences, private val liveRepository: LiveRepository, private val vodRepository: VodRepository, private val seriesRepository: SeriesRepository, private val searchIndexManager: SearchIndexManager )</ID>
     <ID>LongParameterList:SyncManager.kt$SyncManager$( type: SyncType, state: SyncState, percent: Int, liveCount: Int, vodCount: Int, seriesCount: Int, stage: String, errorMessage: String? = null )</ID>
     <ID>LongParameterList:UnifiedSourceProvider.kt$UnifiedSourceProvider$( private val xtreamRepository: XtreamRepository, private val addonRemote: AddonRemoteDataSource, private val tmdbRemote: TmdbRemoteDataSource, private val mediaFusionFetcher: com.tvonnet.debridxtreamiptv.data.debrid.source.MediaFusionFetcher, private val settingsPrefs: com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences, private val dynamicAddonFetcher: DynamicAddonFetcher, private val stremioAddonFetcher: StremioAddonFetcher, private val debridPrefs: DebridPreferences, private val realDebridRemote: RealDebridRemoteDataSource, private val realDebridRateLimiter: RealDebridRateLimiter )</ID>
-    <ID>LongParameterList:VodFragment.kt$VodViewHolder$( movie: XtreamVodInfo, isFavorite: Boolean, isWatched: Boolean, progress: Float?, onItemFocused: ((Int) -&gt; Unit)?, onClick: (XtreamVodInfo) -&gt; Unit, onLongClick: ((XtreamVodInfo) -&gt; Unit)? = null )</ID>
+    <ID>LongParameterList:VodAdapter.kt$VodViewHolder$( movie: XtreamVodInfo, isFavorite: Boolean, isWatched: Boolean, progress: Float?, onItemFocused: ((Int) -&gt; Unit)?, onClick: (XtreamVodInfo) -&gt; Unit, onLongClick: ((XtreamVodInfo) -&gt; Unit)? = null )</ID>
     <ID>LongParameterList:XtreamRepository.kt$XtreamRepository$( private val context: Context, private val cacheManager: CacheManager, private val favoriteDao: FavoriteDao, private val searchHistoryDao: SearchHistoryDao, private val epgDao: EpgDao, private val vodDao: VodDao, private val seriesDao: SeriesDao, private val favoritesCache: FavoritesCache, private val memoryManager: MemoryManager )</ID>
     <ID>NestedBlockDepth:BasePagingSource.kt$BasePagingSource$override suspend fun load(params: LoadParams&lt;Int&gt;): LoadResult&lt;Int, T&gt;</ID>
     <ID>NestedBlockDepth:DebridPlaybackRepository.kt$DebridPlaybackRepository$suspend fun resolveDebridUrl( infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectStreamUrlPassthrough: Boolean = true, bypassCache: Boolean = false ): Result&lt;String&gt;</ID>
