@@ -22,7 +22,7 @@ The app is "world-class" for this project's purposes when **all** of these are t
 | E1 | detekt suppressions (`config/detekt/detekt-baseline.xml`) | **359** | **0** |
 | E2 | `LargeClass` violations | **10** | **0** |
 | E3 | `SwallowedException` (errors silently hidden) | **0 ✅ MET** | **0** |
-| E4 | Instrumented (on-device) tests — **counted as test methods**, `run_instrumented.sh` reports it | **10** (2 classes) | **≥ 15** covering Live/Player/VOD/Series core flows |
+| E4 | Instrumented (on-device) tests — **counted as test methods**, `run_instrumented.sh` reports it | **15 ✅ MET** (3 classes) | **≥ 15** covering Live/Player/VOD/Series core flows |
 | E5 | Unit test files | 59 | ≥ 80, with every new collaborator tested |
 | E6 | Crash-free playback landmines re-verified after each phase | ad hoc | scripted device checklist |
 | E7 | Open P1 findings from the 2026-07-19 audits | 12 P1 | 0 |
@@ -113,8 +113,30 @@ phase depend on the owner's eyes and makes sessions slow — so the test net com
      **Lesson:** the first version of the test *silently passed* the middle mutant, because
      `onPlayerReleased` is posted to the main looper and a bare "is it released?" read races it.
      Negative assertions ("still alive") must wait out the callback window — see `assertStillAlive`.
-  2. **Channel D-pad focus + quick-jump** (`LiveChannelFocusController`) — up/down movement, number-zap,
-     A–Z type-ahead, and *no focus theft on refresh*.
+  2. **D-pad focus** — ✅ **DONE 2026-07-26.** Split into the two things that actually break:
+     - *No focus theft on refresh* (CC-1, the dominant defect class): `FocusPreservingListUpdateTest`,
+       **5 instrumented tests** on a real window (`FocusTestActivity`, debug source set). Pins: a
+       refresh while the user is outside the list moves nothing; focus follows the **item** (stable
+       id) when a refresh reorders; the focused item vanishing falls back to the nearest surviving
+       row; an emptied list invents no focus; a full rebind keeps the item focused.
+     - *The focus-ownership gate*: `FocusCoordinatorTest`, 9 unit tests — a second owner is blocked,
+       the same owner is re-entrant, a stale `release` cannot unlock someone else, `force` overrides,
+       and a **throwing action never strands the lock** (nothing here times out, so a stranded lock
+       would freeze focus for the whole session).
+
+     ⚠️ **These tests found a real bug and it is fixed in the same commit.** `updatePreservingFocus`
+     did its restore in a bare `post {}`, which for the common synchronous `notifyDataSetChanged()`
+     runs *before* the layout pass: the removed row was still attached, the "focus is already inside"
+     guard read true, the helper bailed — and the framework then dropped focus to row 0. The
+     documented "nearest surviving row" fallback therefore never fired, i.e. the helper did not
+     prevent the very jump it exists for. Now the restore runs on `OneShotPreDrawListener` (after
+     layout) and the blanket guard is replaced by "is focus already on the *target* item?", so
+     RecyclerView's own recovery is respected when it is right and corrected when it is wrong.
+     Affects the 6 call sites (Series streams/episodes, Live OSD surf list ×2, Live EPG strip,
+     Search results) — **worth an eyes-on pass next time the owner is at the TV.**
+
+     *Not covered:* number-zap / A–Z type-ahead in `LiveChannelFocusController` still need the Live
+     DI graph to instantiate; the pure decisions inside it are a B3 extraction candidate.
   3. **Resume** — VOD/Series/in-player positions (the `createIntent` `startPositionMs` trap).
   4. **Room migrations** — extend the existing migration test to cover every version bump.
   5. **Retained-player memory behaviour (the "OOM soak")** — the T2.1 retained player keeps a paused
@@ -248,5 +270,6 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-07-26 | **TIER A COMPLETE** — A2 (PrintStackTrace ×2, `System.gc()`) + A3 (`ImplicitDefaultLocale` ×25) | **305** | 10 | 0 | 1 | `78f1bfe` |
 | 2026-07-26 | **B0 + B1** — flaky stopwatch test replaced by 2 behavioural tests (mutation-checked); `scripts/run_instrumented.sh` makes the on-device suite one command | 305 | 10 | 0 | 1 | `f1e2a07` |
 | 2026-07-26 | **B2.1** — `LiveSharedPlayerHandoffTest`: the Live fullscreen hand-off contract, 8 tests green on `.64`, 3 injected regressions caught | 305 | 10 | 0 | **10** | `90c84ed` |
+| 2026-07-26 | **B2.2** — focus net: 5 instrumented (`FocusPreservingListUpdateTest`) + 9 unit (`FocusCoordinatorTest`); **found + fixed** the `post{}`-before-layout bug that made the CC-1 fallback dead code | 305 | 10 | 0 | **15 ✅** | *(this)* |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*

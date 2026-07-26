@@ -1,6 +1,7 @@
 package com.tvonnet.debridxtreamiptv.utils
 
 import android.view.View
+import androidx.core.view.OneShotPreDrawListener
 import androidx.recyclerview.widget.RecyclerView
 
 /**
@@ -52,12 +53,17 @@ fun RecyclerView.updatePreservingFocus(applyUpdate: () -> Unit) {
 
     // User was elsewhere (sidebar, chips, another list) — never steal focus or scroll.
     if (!hadFocus) return
+    if (focusedId == RecyclerView.NO_ID && focusedIndex == RecyclerView.NO_POSITION) return
 
-    post {
-        val a = adapter ?: return@post
+    // MUST run after the layout pass, not on a bare post(). Device-proven (B2.2): for the common
+    // synchronous notifyDataSetChanged() the posted runnable lands BEFORE the traversal, so the
+    // removed row is still attached, "focus is already inside" reads true, we bail — and the
+    // framework then drops focus to row 0. That is exactly the CC-1 jump this helper exists to
+    // prevent, so the restore has to wait for the new layout.
+    OneShotPreDrawListener.add(this) {
+        val a = adapter ?: return@add
         val count = a.itemCount
-        if (count <= 0) return@post                 // nothing to focus; leave as-is
-        if (isFocusInsideThis()) return@post          // RecyclerView already recovered focus
+        if (count <= 0) return@add                  // nothing to focus; leave as-is
 
         var target = RecyclerView.NO_POSITION
         if (focusedId != RecyclerView.NO_ID && a.hasStableIds()) {
@@ -68,11 +74,21 @@ fun RecyclerView.updatePreservingFocus(applyUpdate: () -> Unit) {
             }
         }
         if (target == RecyclerView.NO_POSITION) {
-            if (focusedIndex == RecyclerView.NO_POSITION) return@post
+            if (focusedIndex == RecyclerView.NO_POSITION) return@add
             target = focusedIndex.coerceIn(0, count - 1) // focused item vanished → nearest surviving row
         }
+        // Only correct focus when it is not already on the right item — when RecyclerView's own
+        // recovery got it right there is nothing to do, and we must not fight it.
+        if (isFocusOnItemAt(target)) return@add
         focusItemAt(target)
     }
+}
+
+/** True when the currently focused view is (inside) the item at [position]. */
+private fun RecyclerView.isFocusOnItemAt(position: Int): Boolean {
+    val focused = findFocus() ?: return false
+    val item = findContainingItemView(focused) ?: return false
+    return getChildAdapterPosition(item) == position
 }
 
 /** True if the current focus lives inside this RecyclerView's view subtree. */
