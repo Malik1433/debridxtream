@@ -456,7 +456,7 @@ class HomeFragment : Fragment() {
         } else {
             "Your IPTV subscription expires on $expiryDate — only $daysLeft day${if (daysLeft == 1) "" else "s"} left.\n\nPlease contact your provider to renew in time."
         }
-        android.app.AlertDialog.Builder(ctx)
+        androidx.appcompat.app.AlertDialog.Builder(ctx)
             .setCustomTitle(title)
             .setMessage(message)
             .setPositiveButton("OK", null)

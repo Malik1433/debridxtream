@@ -114,7 +114,7 @@ class FavoritesFragment : Fragment() {
     private fun setupClearButton() {
         btnClearAll.setOnClickListener {
             // Show confirmation dialog
-            android.app.AlertDialog.Builder(requireContext())
+            androidx.appcompat.app.AlertDialog.Builder(requireContext())
                 .setTitle("Clear All Favorites")
                 .setMessage("Are you sure you want to remove all favorites?")
                 .setPositiveButton("Yes") { _, _ ->

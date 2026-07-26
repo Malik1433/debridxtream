@@ -259,4 +259,71 @@
         <item name="windowNoTitle">true</item>
     </style>
 
+    <!-- ========== APP-WIDE ALERT DIALOG ==========
+         Every AlertDialog in the app used to inherit the platform default: a light grey sheet with
+         black text dropped on top of a near-black UI. These two themes are wired into AppTheme via
+         alertDialogTheme / android:alertDialogTheme, so EVERY dialog picks them up without touching
+         a single call site (18 files build dialogs).
+
+         Two are needed because the app builds dialogs both ways: androidx.appcompat.app.AlertDialog
+         resolves `alertDialogTheme`, while android.app.AlertDialog resolves `android:alertDialogTheme`
+         and can only accept a framework-parented theme. Same surface, same accent, both dark.
+
+         Sizes are set for a 10-foot UI: platform defaults are phone-sized and unreadable on a TV. -->
+    <style name="Theme.DebridXtream.Dialog.Alert" parent="Theme.MaterialComponents.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/bg_dialog_cinematic</item>
+        <item name="android:windowMinWidthMajor">50%</item>
+        <item name="android:windowMinWidthMinor">60%</item>
+        <item name="colorPrimary">@color/neon_cyan</item>
+        <item name="colorAccent">@color/neon_cyan</item>
+        <item name="colorControlActivated">@color/neon_cyan</item>
+        <item name="colorControlNormal">#64748B</item>
+        <item name="colorSurface">#FA070914</item>
+        <item name="colorOnSurface">#F1F5F9</item>
+        <item name="android:textColorPrimary">#F1F5F9</item>
+        <item name="android:textColorSecondary">#94A3B8</item>
+        <item name="android:textColorAlertDialogListItem">#F1F5F9</item>
+        <item name="android:windowTitleStyle">@style/TextAppearance.DebridXtream.DialogTitle</item>
+        <item name="android:textAppearanceMedium">@style/TextAppearance.DebridXtream.DialogItem</item>
+        <item name="android:textAppearanceLarge">@style/TextAppearance.DebridXtream.DialogTitle</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.DebridXtream.DialogButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.DebridXtream.DialogButton</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.DebridXtream.DialogButton</item>
+    </style>
+
+    <style name="Theme.DebridXtream.Dialog.Alert.Framework" parent="@android:style/Theme.Material.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/bg_dialog_cinematic</item>
+        <item name="android:windowMinWidthMajor">50%</item>
+        <item name="android:windowMinWidthMinor">60%</item>
+        <item name="android:colorAccent">@color/neon_cyan</item>
+        <item name="android:colorControlActivated">@color/neon_cyan</item>
+        <item name="android:colorControlNormal">#64748B</item>
+        <item name="android:textColorPrimary">#F1F5F9</item>
+        <item name="android:textColorSecondary">#94A3B8</item>
+        <item name="android:textColorAlertDialogListItem">#F1F5F9</item>
+        <item name="android:windowTitleStyle">@style/TextAppearance.DebridXtream.DialogTitle</item>
+        <item name="android:textAppearanceMedium">@style/TextAppearance.DebridXtream.DialogItem</item>
+        <item name="android:textAppearanceLarge">@style/TextAppearance.DebridXtream.DialogTitle</item>
+        <item name="android:buttonBarPositiveButtonStyle">@style/Widget.DebridXtream.DialogButton</item>
+        <item name="android:buttonBarNegativeButtonStyle">@style/Widget.DebridXtream.DialogButton</item>
+        <item name="android:buttonBarNeutralButtonStyle">@style/Widget.DebridXtream.DialogButton</item>
+    </style>
+
+    <style name="TextAppearance.DebridXtream.DialogTitle" parent="TextAppearance.AppCompat.Title">
+        <item name="android:textColor">#F1F5F9</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:fontFamily">@font/outfit_semibold</item>
+    </style>
+
+    <style name="TextAppearance.DebridXtream.DialogItem" parent="TextAppearance.AppCompat.Medium">
+        <item name="android:textColor">#F1F5F9</item>
+        <item name="android:textSize">18sp</item>
+    </style>
+
+    <style name="Widget.DebridXtream.DialogButton" parent="Widget.AppCompat.Button.Borderless.Colored">
+        <item name="android:textColor">@color/neon_cyan</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:fontFamily">@font/outfit_semibold</item>
+    </style>
+
 </resources>

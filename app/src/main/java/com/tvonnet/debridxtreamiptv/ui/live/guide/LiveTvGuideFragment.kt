@@ -546,7 +546,7 @@ class LiveTvGuideFragment : Fragment() {
     private fun showSearchDialog() {
         val ctx = requireContext()
         val dialogView = LayoutInflater.from(ctx).inflate(R.layout.dialog_live_guide_search, null)
-        val dialog = android.app.AlertDialog.Builder(ctx).setView(dialogView).create()
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(ctx).setView(dialogView).create()
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         val etSearch = dialogView.findViewById<android.widget.EditText>(R.id.et_guide_search)

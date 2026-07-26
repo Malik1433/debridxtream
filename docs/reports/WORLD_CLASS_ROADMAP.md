@@ -295,6 +295,25 @@ clip the rows): body **19sp**, category titles **18sp**, secondary **12–16sp**
 the adapter's hard-coded dot geometry moved to named constants that track the layout. All seven
 categories now fit on a 1080p panel without scrolling. Device-verified with screenshots on `.64`.
 
+
+**Dialog theming (owner-requested, 2026-07-26): every AlertDialog now matches the app.**
+The Preferred-Audio picker rendered as the platform's light-grey sheet with black text on a
+near-black UI, because `AppTheme` never declared a dialog theme. Fixed once, globally, rather than
+per screen:
+- `Theme.DebridXtream.Dialog.Alert` (+ a framework-parented twin) wired into `AppTheme` via
+  `alertDialogTheme` / `android:alertDialogTheme` / `dialogTheme`. Surface is the existing
+  `bg_dialog_cinematic` glass the player menus already use, accent `neon_cyan`, text `#F1F5F9`,
+  and 10-foot sizes (title 22sp, list items 18sp, buttons 17sp) — the platform defaults are
+  phone-sized.
+- **The theme alone was not enough.** Nine files built dialogs with the *framework*
+  `android.app.AlertDialog`, which on Fire OS keeps the vendor's own light styling (the
+  "SUBSCRIPTION EXPIRING SOON" sheet was still grey with a gold button after the theme landed).
+  All nine now use `androidx.appcompat.app.AlertDialog`, so the app has exactly one dialog look and
+  one place to change it: Home, Favorites, VOD, Live guide, Series/Episode adapters, the episode
+  browser and the updater.
+- Device-verified on `.64`: both the audio picker and the expiry warning render as dark glass with
+  a cyan accent.
+
 - *Exit:* E2 = 0; each new collaborator < 600 lines and unit-tested.
 
 ### Tier D — finish the open audit findings

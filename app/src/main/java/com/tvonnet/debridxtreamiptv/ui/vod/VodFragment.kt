@@ -970,7 +970,7 @@ class VodFragment : Fragment() {
         val favoriteText = if (isFavorite) "Remove from Favorites" else "Add to Favorites"
         val watchedText = if (isWatched) "Mark as Unwatched" else "Mark as Watched"
 
-        android.app.AlertDialog.Builder(requireContext())
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle(movie.name)
             .setItems(arrayOf(favoriteText, watchedText)) { _, which ->
                 if (which == 0) {

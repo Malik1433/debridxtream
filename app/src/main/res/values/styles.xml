@@ -8,6 +8,12 @@
         <item name="colorAccent">@color/cin_gold_500</item>
         <item name="android:windowBackground">@color/background_dark</item>
         <item name="preferenceTheme">@style/PreferenceThemeOverlay.v14.Material</item>
+        <!-- Dialogs used to fall back to the platform light sheet on a near-black app. Wiring both
+             attributes here fixes every dialog in the app at once (appcompat and framework). -->
+        <item name="alertDialogTheme">@style/Theme.DebridXtream.Dialog.Alert</item>
+        <item name="android:alertDialogTheme">@style/Theme.DebridXtream.Dialog.Alert.Framework</item>
+        <item name="dialogTheme">@style/Theme.DebridXtream.Dialog.Alert</item>
+        <item name="android:dialogTheme">@style/Theme.DebridXtream.Dialog.Alert.Framework</item>
     </style>
 
     <!-- Global Focus Styling -->

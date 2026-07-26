@@ -96,7 +96,7 @@ class EpisodesAdapterV2(
                     if (identityKey != null) {
                         val isWatched = watchedKeys.contains(identityKey)
                         val title = if (isWatched) "Mark as Unwatched" else "Mark as Watched"
-                        android.app.AlertDialog.Builder(context)
+                        androidx.appcompat.app.AlertDialog.Builder(context)
                             .setTitle(item.title)
                             .setItems(arrayOf(title)) { _, _ ->
                                 val entryPoint = dagger.hilt.android.EntryPointAccessors.fromApplication(
