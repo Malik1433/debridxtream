@@ -22,8 +22,8 @@ The app is "world-class" for this project's purposes when **all** of these are t
 | E1 | detekt suppressions (`config/detekt/detekt-baseline.xml`) | **359** | **0** |
 | E2 | `LargeClass` violations | **10** | **0** |
 | E3 | `SwallowedException` (errors silently hidden) | **0 ✅ MET** | **0** |
-| E4 | Instrumented (on-device) tests — **counted as test methods**, `run_instrumented.sh` reports it | **15 ✅ MET** (3 classes) | **≥ 15** covering Live/Player/VOD/Series core flows |
-| E5 | Unit test files | **71** | ≥ 80, with every new collaborator tested |
+| E4 | Instrumented (on-device) tests — **counted as test methods**, `run_instrumented.sh` reports it | **17 ✅ MET** (3 classes) | **≥ 15** covering Live/Player/VOD/Series core flows |
+| E5 | Unit test files | **80 ✅ MET** | ≥ 80, with every new collaborator tested |
 | E6 | Crash-free playback landmines re-verified after each phase | ad hoc | scripted device checklist |
 | E7 | Open P1 findings from the 2026-07-19 audits | 12 P1 | 0 |
 | E8 | Stale/contradictory docs at repo root | 0 ✅ | 0 |
@@ -65,7 +65,7 @@ phase depend on the owner's eyes and makes sessions slow — so the test net com
   `ExplicitGarbageCollectionCall` and `ImplicitDefaultLocale` are all **0** and pinned in the ratchet.
   All four rule ceilings are now zero, so none of these classes of defect can be reintroduced.
 
-### Tier B — the test net *(the multiplier)*
+### Tier B — the test net *(the multiplier)* — ✅ **COMPLETE 2026-07-26**
 - **B0** — ✅ **DONE 2026-07-26.** The flaky `stream lookup handles large cache efficiently` (wall-clock
   `< 100ms`) is gone. It is replaced by two behavioural tests that freeze what the stopwatch was really
   guarding: `large cache lookup is served from memory, never a re-parse or a Room round-trip` (warm the
@@ -188,12 +188,41 @@ phase depend on the owner's eyes and makes sessions slow — so the test net com
   - **Caveat to design around:** the Live surface is secure, so a test cannot screenshot it. Assert on
     *state* (which player instance is attached, focus position, adopted-vs-fresh) rather than pixels.
   - Target E4 ≥ 15.
-- **B3** — Unit tests for every collaborator extracted so far: Live LF-1..LF-7
-  (`LiveHeaderController`, `LiveSearchController`, `LiveEpgPreviewController`, `LiveCategoryController`,
-  `LiveFavoritesController`, `LiveChannelFocusController`, `LivePlaybackLauncher`) and the Movie/Series
-  detail collaborators. These were extracted verbatim with **no tests written**, which is precisely why
-  Tier C cannot start first.
-- *Exit:* E4 ≥ 15, E5 ≥ 80, and a refactor can be trusted without a full manual pass.
+- **B3** — ✅ **DONE 2026-07-26.** Unit tests for the extracted collaborators — **but by testing what
+  they decide, not by instantiating them.**
+
+  Most of LF-1..LF-7 is view wiring (a Fragment, a RecyclerView, an EditText, the FocusCoordinator
+  gate); a "unit test" of that is a tautology dressed as coverage. What *does* break is the logic
+  buried inside, so three pure decision objects were extracted verbatim (the controllers delegate,
+  no behaviour change) and pinned:
+  - `LiveChannelQuickJump` (from LF-6) — 16 tests: D-pad steps counted from the **pending** row so a
+    held DOWN is not swallowed, ends absorb instead of wrapping, number-zap buffering (leading zero
+    ignored, a 5th digit restarts), 1-based channel → 0-based position, and A–Z type-ahead that
+    advances on a repeat press and wraps. Documents the real quirk that a bare "4K " prefix is part
+    of the name (only *piped* tags are stripped), so "4K Sky" type-aheads under K.
+  - `LiveCategoryChips` (from LF-4) — 13 tests: Favourites first and never duplicated by a
+    provider's own favourites category, search filtering that drops Favourites, and the
+    focus-target ladder (selected → last focused → remembered position if still in range → first),
+    which is what makes returning from fullscreen land on the right chip.
+  - `LiveZapList` (from LF-3) — 6 tests: the fullscreen channel-up/down order is the provider's
+    cached order, adapter-only channels are appended not dropped, and the launching channel is
+    always present (a zap list missing it makes the first press jump elsewhere).
+
+  Detail-page collaborators: the source logic they own was already covered (`SourceSorterTest`,
+  `SourceFilterUtilsCacheSemanticsTest`, `TrailerValueParserTest`); the rest is view binding.
+
+  The same pass covered the shared pure code these all sit on, none of which had a test:
+  `MediaTitleCleaner` (8), `EpgEntity.deOverlap` — the guide's overlap invariant (8),
+  `EpgEntity` now/next/ended window (5), `SensitiveLogRedactor` (11 — this is what stands between
+  provider credentials and a Tier G upload), `CategoryFlagResolver` (9), icon-URL resolution +
+  missing-image detection (7), the Xtream stream-URL builders (6), `ContentEnricher` (8),
+  `WatchedIdentityBuilder` (12 — including that URLs, magnets, tokens and info-hashes must never
+  become a database key), and `DeviceProfile` (7).
+
+  **Found and fixed while writing them:** `CategoryFlagResolver.resolveCategoryIcon` returned a
+  blank badge for a blank category name — `firstOrNull` on a blank string yields `""`, not null, so
+  the `?: "#"` fallback never fired, breaking the function's one documented promise.
+- *Exit:* ✅ E4 = 17 (≥ 15), ✅ E5 = 80 (≥ 80). Refactors now have a net under them.
 
 ### Tier C — the remaining god-classes *(safe once B exists)*
 Ordered by risk, lowest first. Same playbook as the completed LiveFragment work (verbatim relocation,
@@ -306,5 +335,7 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-07-26 | **B2.2** — focus net: 5 instrumented (`FocusPreservingListUpdateTest`) + 9 unit (`FocusCoordinatorTest`); **found + fixed** the `post{}`-before-layout bug that made the CC-1 fallback dead code | 305 | 10 | 0 | **15 ✅** | `0c6644e` |
 
 | 2026-07-26 | **B2.3-B2.5** - resume identity/store/intent (24 unit), non-destructive migrations + next-bump guard (4 instr + 4 unit), retained-player policy extracted + pinned (12 unit) | 305 | 10 | 0 | **17** | `46c2799` `12758ea` `240b828` |
+
+| 2026-07-26 | **B3 — TIER B COMPLETE** — 3 pure decision objects out of LF-3/4/6 + tests (35), plus 81 tests over the untested shared pure code; fixed a blank category badge | 305 | 10 | 0 | 17 | `267d5ae` |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
