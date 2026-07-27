@@ -235,7 +235,7 @@ one domain per commit).
 | ~~C3~~ ✅ | `SeriesFragment.kt` | ~~1096~~ **563** | done 2026-07-27 |
 | ~~C4~~ ✅ | `SeriesDetailFragmentV2.kt` | ~~843~~ **311** | done 2026-07-27 |
 | ~~C5~~ ✅ | `XtreamSeriesRepositoryV2.kt` | ~~927~~ **239** | done 2026-07-27 |
-| C6 | `DebridPlaybackRepository.kt` | 801 | med |
+| ~~C6~~ ✅ | `DebridPlaybackRepository.kt` | ~~801~~ **88** | done 2026-07-27 |
 | C7 | `LiveTvGuideFragment.kt` | 866 | med-high (guide playback hand-off) |
 | C8 | `LivePlayerOsdManager.kt` | 1174 | high (player) |
 | C9 | `BasePlayerFragment.kt` | 1481 | high (player) |
@@ -461,6 +461,56 @@ the fail-open branch to drop failed rows turns the suite red. On-device suite is
 `CancellationException` (pre-existing). Fixing it changes cancellation behaviour on the episode-load
 hot path, so it belongs in its own commit, not in a relocation.
 
+
+**C6 done 2026-07-27.** `DebridPlaybackRepository` 801 → **88** lines (−89%), out of `LargeClass`.
+Second data-layer phase; the file held two unrelated jobs that are now separate:
+- `DebridLinkResolver` — magnet/infoHash → playable URL: add-magnet → poll → select file →
+  unrestrict, plus the 15-minute resolution cache, the rate limiter and the one-shot re-add for when
+  Real-Debrid remembers an earlier partial file selection.
+- `AddonProxyReadinessProbe` — "will this proxy URL actually play right now", answered
+  READY / UNCERTAIN / TERMINAL. The three-way answer is the point and must never collapse to a
+  boolean: TERMINAL means advance to the next source, **UNCERTAIN means try anyway** (a probe that
+  could not complete says nothing about the stream, and treating it as failure would drop working
+  sources on every network hiccup).
+- `DebridUrlRules` (pure, **13 unit tests**) — proxy detection, the terminal-status set, the
+  redirect-error markers, direct-stream detection and source-key identity.
+- `TorrentFileMatcher` (pure, **17 unit tests**) — which file in a season pack is the wanted
+  episode, and which resolved link to play.
+
+*Why those two got tests first:* they carry the fixes from the 2026-07-16 empty-sources audit, and
+each has a failure mode that is invisible until a user hits it. The error-marker list is now pinned
+as data — missing one spelling hands the player an error page to buffer on forever, which is
+exactly the "picked a source, got an endless spinner" symptom. So are A2 (`.m4v` must count as video
+in *both* `isDirectStreamUrl` and `isVideoFile`, or a `.m4v`-only torrent stalls in
+`waiting_files_selection`), A3 (an unmatched hinted torrent falls back to the largest selected video
+instead of failing with "episode not found"), and the rule that the source key is the **full**
+string so two magnets sharing a prefix cannot collapse onto one rate-limit entry.
+
+*Ratchet:* baseline 288 → **280**, LargeClass 5 → **4**. All eight removed entries are real wins,
+none re-keyed: `LargeClass` gone; `resolveDebridUrl` dropped under `LongMethod`,
+`CyclomaticComplexMethod` and `NestedBlockDepth` once the preflight became named helpers and the
+poll loop became `pollUntilReady` + `onTorrentDownloaded`; `getAddonProxyPlaybackReadiness` dropped
+under `LongMethod` once diagnostics became one `record(...)`; and `isDirectStreamUrl`,
+`isAddonProxyErrorTarget` and `scoreEpisodeMatch` all dropped under complexity by becoming
+table-driven or split by pattern family. Three fresh `LongParameterList` hits were **fixed, not
+baselined** (`ProbeSubject` and `TorrentContext` group the fields that always travel together).
+
+⚠ *Dead code deleted, not relocated:* `isAddonProxyPlaybackReady` had no caller anywhere. It was a
+wrapper that collapsed the three-way readiness to a Boolean — precisely the distinction the rest of
+the code depends on — so it is gone rather than carried forward. `getAddonProxyPlaybackReadiness` is
+what every caller already uses.
+
+⚠ *Gap found while writing the tests, deliberately NOT fixed here:* the sample/trailer/extras
+exclusion in `scoreEpisodeMatch` runs on `substringAfterLast('/')`, so it only sees the **filename**.
+A release that puts featurettes in an `extras/` **folder** with episode-style names still scores 100
+and can outrank the real episode. That is pinned by a test documenting the current behaviour;
+changing it is a behaviour change and belongs in its own commit.
+
+*Device verification (`.64`):* full instrumented suite **OK (32 tests)**, app launch-stable, zero
+exceptions. Trap worth remembering — the first run showed 5 `FocusPreservingListUpdateTest` failures
+("timed out waiting: rows should be laid out") that had nothing to do with the change: the TV had
+gone to sleep (`mWakefulness=Asleep`). `input keyevent KEYCODE_WAKEUP` first, then re-run.
+
 - *Exit:* E2 = 0; each new collaborator < 600 lines and unit-tested.
 
 ### Tier D — finish the open audit findings
@@ -567,5 +617,7 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-07-27 | **C4** — `SeriesDetailFragmentV2` 843 → 311 (−63%), out of `LargeClass`; 5 collaborators + a shared page-state holder; all 4 dropped baseline entries were real complexity wins, not relocations | **294** | **6** | 0 | 17 | `e0fcbd6` |
 
 | 2026-07-27 | **C5** — `XtreamSeriesRepositoryV2` 927 → 239 (−74%), out of `LargeClass`; 4 collaborators; all 6 dropped baseline entries were real complexity wins; +17 unit +15 instrumented tests | **288** | **5** | 0 | 32 | `5adb363` |
+
+| 2026-07-27 | **C6** — `DebridPlaybackRepository` 801 → 88 (−89%), out of `LargeClass`; 4 collaborators; all 8 dropped baseline entries were real wins, 3 new LongParameterList fixed not baselined; +30 unit tests | **280** | **4** | 0 | 32 | `PENDING` |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*

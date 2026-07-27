@@ -43,10 +43,6 @@
     <ID>CyclomaticComplexMethod:DebridFailure.kt$DebridFailureClassifier$fun classify(error: Throwable?): DebridResolutionException</ID>
     <ID>CyclomaticComplexMethod:DebridFragment.kt$DebridFragment$private fun restoreFocusIfPossible()</ID>
     <ID>CyclomaticComplexMethod:DebridFragment.kt$DebridFragment$private fun updateHero(item: DebridContentItem)</ID>
-    <ID>CyclomaticComplexMethod:DebridPlaybackRepository.kt$DebridPlaybackRepository$private fun isAddonProxyErrorTarget(location: String?): Boolean</ID>
-    <ID>CyclomaticComplexMethod:DebridPlaybackRepository.kt$DebridPlaybackRepository$private fun isDirectStreamUrl(url: String): Boolean</ID>
-    <ID>CyclomaticComplexMethod:DebridPlaybackRepository.kt$DebridPlaybackRepository$private fun scoreEpisodeMatch(path: String?, hint: EpisodeHint): Int</ID>
-    <ID>CyclomaticComplexMethod:DebridPlaybackRepository.kt$DebridPlaybackRepository$suspend fun resolveDebridUrl( infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectStreamUrlPassthrough: Boolean = true, bypassCache: Boolean = false ): Result&lt;String&gt;</ID>
     <ID>CyclomaticComplexMethod:DebridRowsAdapter.kt$DebridItemViewHolder$fun bind( item: DebridContentItem, onItemClick: (DebridContentItem) -&gt; Unit, onItemFocused: (DebridContentItem) -&gt; Unit )</ID>
     <ID>CyclomaticComplexMethod:DebridSeeAllViewModel.kt$DebridSeeAllViewModel$private suspend fun getDiscoveryContent(rowId: String, page: Int): Result&lt;List&lt;CatalogItem&gt;&gt;</ID>
     <ID>CyclomaticComplexMethod:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$suspend fun getDebridMovieSources( title: String?, yearHint: String?, providedImdbId: String? = null, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
@@ -150,7 +146,6 @@
     <ID>CyclomaticComplexMethod:VodRepository.kt$VodRepository$suspend fun getMovieSources( streamId: String?, title: String?, primaryCategoryId: String?, yearHint: String? ): List&lt;MovieSource&gt;</ID>
     <ID>CyclomaticComplexMethod:WavySeekBar.kt$WavySeekBar$override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean</ID>
     <ID>LargeClass:BasePlayerFragment.kt$BasePlayerFragment : FragmentRecoveryHost</ID>
-    <ID>LargeClass:DebridPlaybackRepository.kt$DebridPlaybackRepository</ID>
     <ID>LargeClass:LivePlayerOsdManager.kt$LivePlayerOsdManager</ID>
     <ID>LargeClass:LiveTvGuideFragment.kt$LiveTvGuideFragment : Fragment</ID>
     <ID>LargeClass:PlayerViewModel.kt$PlayerViewModel : ViewModel</ID>
@@ -168,8 +163,6 @@
     <ID>LongMethod:DebridDiscoverActivity.kt$DebridDiscoverActivity$private fun setupSelectors()</ID>
     <ID>LongMethod:DebridDiscoverActivity.kt$DebridDiscoverActivity$private fun showDropdown( anchor: TextView, options: List&lt;FilterOption&gt;, selectedValue: Any?, onSelected: (FilterOption) -&gt; Unit )</ID>
     <ID>LongMethod:DebridFailure.kt$DebridFailureClassifier$fun classify(error: Throwable?): DebridResolutionException</ID>
-    <ID>LongMethod:DebridPlaybackRepository.kt$DebridPlaybackRepository$suspend fun getAddonProxyPlaybackReadiness( url: String, headers: Map&lt;String, String&gt;? = null, provider: String? = null, sourceName: String? = null, sourceType: String? = null, diagnosticsContext: Context? = null ): Result&lt;AddonProxyReadiness&gt;</ID>
-    <ID>LongMethod:DebridPlaybackRepository.kt$DebridPlaybackRepository$suspend fun resolveDebridUrl( infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectStreamUrlPassthrough: Boolean = true, bypassCache: Boolean = false ): Result&lt;String&gt;</ID>
     <ID>LongMethod:DebridRowsAdapter.kt$DebridItemViewHolder$fun bind( item: DebridContentItem, onItemClick: (DebridContentItem) -&gt; Unit, onItemFocused: (DebridContentItem) -&gt; Unit )</ID>
     <ID>LongMethod:DebridSearchActivity.kt$DebridSearchActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:DebridSeeAllActivity.kt$DebridSeeAllActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
@@ -261,7 +254,6 @@
     <ID>LongParameterList:VodAdapter.kt$VodViewHolder$( movie: XtreamVodInfo, isFavorite: Boolean, isWatched: Boolean, progress: Float?, onItemFocused: ((Int) -&gt; Unit)?, onClick: (XtreamVodInfo) -&gt; Unit, onLongClick: ((XtreamVodInfo) -&gt; Unit)? = null )</ID>
     <ID>LongParameterList:XtreamRepository.kt$XtreamRepository$( private val context: Context, private val cacheManager: CacheManager, private val favoriteDao: FavoriteDao, private val searchHistoryDao: SearchHistoryDao, private val epgDao: EpgDao, private val vodDao: VodDao, private val seriesDao: SeriesDao, private val favoritesCache: FavoritesCache, private val memoryManager: MemoryManager )</ID>
     <ID>NestedBlockDepth:BasePagingSource.kt$BasePagingSource$override suspend fun load(params: LoadParams&lt;Int&gt;): LoadResult&lt;Int, T&gt;</ID>
-    <ID>NestedBlockDepth:DebridPlaybackRepository.kt$DebridPlaybackRepository$suspend fun resolveDebridUrl( infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectStreamUrlPassthrough: Boolean = true, bypassCache: Boolean = false ): Result&lt;String&gt;</ID>
     <ID>NestedBlockDepth:EpgParser.kt$EpgParser$internal fun parseTimestamp(timestamp: String?): Long</ID>
     <ID>NestedBlockDepth:EpgParser.kt$EpgParser$private fun skipToEndTag(parser: XmlPullParser, tagName: String)</ID>
     <ID>NestedBlockDepth:HomeNavigationRouter.kt$HomeNavigationRouter$suspend fun openContinueWatchingDetail(item: ContinueWatchingItem)</ID>
