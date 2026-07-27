@@ -457,9 +457,14 @@ uncached siblings, the fail-open sweep, and click-time resolution. **Mutation-ch
 the fail-open branch to drop failed rows turns the suite red. On-device suite is now **32 tests**
 (was 17); app launch-stable, zero exceptions in logcat.
 
-⚠ *Noted, not acted on:* `getSeriesById`'s outer `catch (e: Exception)` also swallows
-`CancellationException` (pre-existing). Fixing it changes cancellation behaviour on the episode-load
-hot path, so it belongs in its own commit, not in a relocation.
+✅ *Followed up 2026-07-27 (`518124f`), owner-approved:* `getSeriesById`'s outer
+`catch (e: Exception)` swallowed `CancellationException`, so leaving the detail page ran the whole
+recovery ladder for a screen nobody was looking at. Fixed, together with the two sites in
+`SeriesEpisodeSync` that had the identical bug — the other three already rethrew, which is what made
+the outer swallow defeat their intent. `withTimeoutOrNull` absorbs its own timeout before any of
+these catches see it, so no timeout became a failure. `XtreamSeriesRepositoryV2RecoveryTest` pins the
+half that is reliably observable (catch **ordering**: ordinary failures must still reach the
+fallbacks) and is mutation-checked.
 
 
 **C6 done 2026-07-27.** `DebridPlaybackRepository` 801 → **88** lines (−89%), out of `LargeClass`.
@@ -500,11 +505,12 @@ wrapper that collapsed the three-way readiness to a Boolean — precisely the di
 the code depends on — so it is gone rather than carried forward. `getAddonProxyPlaybackReadiness` is
 what every caller already uses.
 
-⚠ *Gap found while writing the tests, deliberately NOT fixed here:* the sample/trailer/extras
-exclusion in `scoreEpisodeMatch` runs on `substringAfterLast('/')`, so it only sees the **filename**.
-A release that puts featurettes in an `extras/` **folder** with episode-style names still scores 100
-and can outrank the real episode. That is pinned by a test documenting the current behaviour;
-changing it is a behaviour change and belongs in its own commit.
+✅ *Gap found while writing the tests, fixed 2026-07-27 (`344a184`), owner-approved:* the
+sample/trailer/extras exclusion ran on `substringAfterLast('/')`, so it only saw the **filename** —
+`extras/Show.S01E02.mkv` scored 100 and, because ties break on size, a large featurette could
+outrank the real episode. The folder is now checked too, matched as a whole **path segment** and
+never as a substring: "Trailer Park Boys" is a real show and a substring test would zero out every
+file in it.
 
 *Device verification (`.64`):* full instrumented suite **OK (32 tests)**, app launch-stable, zero
 exceptions. Trap worth remembering — the first run showed 5 `FocusPreservingListUpdateTest` failures
