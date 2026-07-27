@@ -104,6 +104,7 @@ object TorrentFileMatcher {
      */
     fun scoreEpisodeMatch(path: String?, hint: EpisodeHint): Int {
         if (path.isNullOrBlank()) return 0
+        if (isInBonusFolder(path)) return 0
 
         val name = path.substringAfterLast('/').lowercase()
         if (name.contains("sample") || name.contains("trailer") || name.contains("extras")) {
@@ -116,6 +117,24 @@ object TorrentFileMatcher {
             scoreTitleMatch(name, hint.title),
         )
     }
+
+    /**
+     * Releases park featurettes in a folder and name them like episodes, so the filename check
+     * alone is not enough — `extras/Show.S01E02.mkv` used to score a perfect 100 and could outrank
+     * the real episode.
+     *
+     * Matched as a **whole path segment**, never as a substring: "Trailer Park Boys" is a real show,
+     * and a substring test would zero out every file in it.
+     */
+    private fun isInBonusFolder(path: String): Boolean =
+        path.substringBeforeLast('/', "")
+            .split('/')
+            .any { it.trim().lowercase() in BONUS_FOLDERS }
+
+    private val BONUS_FOLDERS = setOf(
+        "sample", "samples", "extra", "extras", "featurette", "featurettes",
+        "bonus", "trailer", "trailers", "behind the scenes", "deleted scenes",
+    )
 
     /** "s01e02", "s01.e02", and the "1x02" / "1x02-03" form. Double episodes count for either. */
     private fun scoreNumberedPatterns(name: String, season: Int, episode: Int): Int {

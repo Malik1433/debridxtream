@@ -72,12 +72,42 @@ class TorrentFileMatcherTest {
     }
 
     @Test
-    fun `the sample-exclusion looks only at the filename, not at the folder`() {
-        // Documented gap, not an endorsement: the check runs on substringAfterLast('/'), so a
-        // release that puts its featurettes in an `extras/` FOLDER with episode-style names still
-        // scores full marks and can outrank the real episode. Changing that is a behaviour change,
-        // not a relocation — see the C6 notes in the roadmap.
-        assertEquals(100, TorrentFileMatcher.scoreEpisodeMatch("extras/Show.S01E02.mkv", hint))
+    fun `a bonus folder excludes its files even when they are named like episodes`() {
+        // Was a real gap: the check used to run on substringAfterLast('/') only, so a featurette
+        // in an `extras/` FOLDER scored a perfect 100 and could outrank the real episode.
+        listOf(
+            "extras/Show.S01E02.mkv",
+            "Show.S01.1080p/Featurettes/Show.S01E02.mkv",
+            "Show/Bonus/Show.S01E02.mkv",
+            "Show/Deleted Scenes/Show.S01E02.mkv",
+            "/Show/Samples/Show.S01E02.mkv",
+        ).forEach {
+            assertEquals("'$it' must be excluded", 0, TorrentFileMatcher.scoreEpisodeMatch(it, hint))
+        }
+    }
+
+    @Test
+    fun `a show whose own name contains a bonus word is not excluded`() {
+        // The folder test matches whole path SEGMENTS, never substrings — "Trailer Park Boys" is a
+        // real show, and a substring test would zero out every file in it.
+        assertEquals(100, TorrentFileMatcher.scoreEpisodeMatch("Trailer Park Boys S01/TPB.S01E02.mkv", hint))
+        assertEquals(100, TorrentFileMatcher.scoreEpisodeMatch("Extraordinary/Show.S01E02.mkv", hint))
+        // Only the folder is checked this way; a legitimate season folder still passes.
+        assertEquals(100, TorrentFileMatcher.scoreEpisodeMatch("Show.S01.COMPLETE/Show.S01E02.mkv", hint))
+    }
+
+    @Test
+    fun `the real episode outranks a same-named file sitting in extras`() {
+        val info = torrent(
+            files = listOf(
+                file(1, "Show/Extras/Show.S01E02.mkv", bytes = 9_000_000_000L),
+                file(2, "Show/Show.S01E02.mkv", bytes = 1_000_000_000L),
+            ),
+            links = listOf("https://rd/extras", "https://rd/episode"),
+        )
+        // Even though the featurette is the larger file, only the real episode scores.
+        assertEquals("https://rd/episode", TorrentFileMatcher.pickVideoLink(info, hint))
+        assertEquals(listOf(2), TorrentFileMatcher.selectFileIds(info.files, hint))
     }
 
     @Test
