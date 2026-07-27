@@ -475,4 +475,6 @@ Carried from hard-won incidents; every phase must respect them.
 
 | 2026-07-27 | **C2** — `VodFragment` 1301 → 625 (−52%), out of `LargeClass`; 4 collaborators (adapter, focus, list-state, overlays); 2 new LongParameterList fixed not baselined | **301** | **8** | 0 | 17 | `0307344` |
 
+| 2026-07-27 | **C3** — `SeriesFragment` 1096 → 563 (−49%), out of `LargeClass`; 3 collaborators; 3 of 4 dropped baseline entries were real complexity wins, not relocations | **298** | **7** | 0 | 17 | `e7db659` |
+
 *(Append one row per landed phase. The three numeric columns may never increase.)*
