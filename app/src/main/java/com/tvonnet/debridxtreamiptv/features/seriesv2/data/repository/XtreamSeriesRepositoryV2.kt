@@ -101,6 +101,11 @@ class XtreamSeriesRepositoryV2 @Inject constructor(
                 outcome.series?.let { emit(Result.Success(it)) }
                 return@flow
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            // The page was closed (or collectLatest superseded us). Recovery here would fire a
+            // whole fallback + sibling-adoption chain of network calls for a screen nobody is
+            // looking at, and then fail again trying to emit into a cancelled collector.
+            throw ce
         } catch (e: Exception) {
             android.util.Log.e("SeriesRepoV2", "getSeriesById: Exception: ${e.message}", e)
             // Providers often return array-shaped JSON that breaks get_series_info parsing

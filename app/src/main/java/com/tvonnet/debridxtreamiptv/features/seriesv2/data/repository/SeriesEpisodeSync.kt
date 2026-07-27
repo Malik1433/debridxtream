@@ -36,6 +36,8 @@ internal sealed interface SeriesSyncOutcome {
  * Two invariants that were real incidents:
  *  - **every call is bounded** ([SERIES_INFO_TIMEOUT_MS] / [FALLBACK_TIMEOUT_MS] / 6s for
  *    siblings) so a hung provider degrades instead of parking the detail page;
+ *  - **cancellation is always rethrown**, never swallowed by the per-strategy `catch`: a closed
+ *    detail page must stop the fallback ladder, not run the rest of it into a dead collector;
  *  - **an empty fetch never overwrites populated episodes** (`shouldOverwriteEpisodes`), and the
  *    parent series row is always written *before* its episodes — episodes_v2_core has a foreign
  *    key, and inserting the stub afterwards failed the whole transaction and silently dropped
@@ -252,6 +254,8 @@ internal class SeriesEpisodeSync(
             } else {
                 android.util.Log.w("SeriesRepoV2", "fetchEpisodesFallback: Strategy 1 Failed (Code ${response.code()})")
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("SeriesRepoV2", "fetchEpisodesFallback: Strategy 1 Error", e)
         }
@@ -278,6 +282,8 @@ internal class SeriesEpisodeSync(
             } else {
                 android.util.Log.e("SeriesRepoV2", "fetchEpisodesFallback: Failed with code ${response.code()}")
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("SeriesRepoV2", "fetchEpisodesFallback: Error", e)
         }
