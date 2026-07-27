@@ -237,9 +237,38 @@ one domain per commit).
 | ~~C5~~ ✅ | `XtreamSeriesRepositoryV2.kt` | ~~927~~ **239** | done 2026-07-27 |
 | ~~C6~~ ✅ | `DebridPlaybackRepository.kt` | ~~801~~ **88** | done 2026-07-27 |
 | ~~C7~~ ✅ | `LiveTvGuideFragment.kt` | ~~866~~ **500** | done 2026-07-27 |
-| C8 | `LivePlayerOsdManager.kt` | 1174 | high (player) |
-| C9 | `BasePlayerFragment.kt` | 1481 | high (player) |
-| C10 | `PlayerViewModel.kt` | 1555 | high (player) |
+| C8 | `LivePlayerOsdManager.kt` | 1174 → **965** (in progress) | high (player) |
+| ~~C9~~ ❌ | `BasePlayerFragment.kt` | 1491 — **WON'T DO**, decision below | high (player) |
+| C10 | `PlayerViewModel.kt` | 1556 | high (player) |
+
+
+
+### ❌ C9 `BasePlayerFragment` — WON'T DO (owner decision, 2026-07-27)
+
+Not deferred, not forgotten: **decided against**, so it stops being an open item.
+
+`docs/reports/PLAYER_REFACTOR_PLAN.md` already carries a brace-matched measurement of this file (an
+earlier estimate was wrong because it measured the gap between one `fun` and the next, counting the
+field declarations *between* methods as method bodies). The corrected reality:
+
+- **~684 lines are method bodies**; the other **~800 are not** — imports (80), 21 collaborator
+  `by lazy` + 61 `by session::` state delegates + ~15 view fields (**~215 lines, immovable** — about
+  twenty sibling collaborators read them back as `activity.<field>`), plus the companion, host
+  bridges, class scaffold and kdoc.
+- Only two large bodies exist — `onViewCreated` (132) and `initializePlayer` (100) — and both are
+  orchestration cores that cannot leave.
+- Extracting **all three** remaining leaf clusters lands the base at **~1250**, not 600. Two of those
+  three touch landmines: direct-debrid/addon-proxy (debrid-resume) and display/codec (black video).
+
+So the ceiling is not reachable without either rewriting ~20 collaborators to stop depending on the
+host, or shattering the orchestration into artificial micro-collaborators — a readability *loss* in
+the most dangerous file in the app.
+
+**Decision:** leave `BasePlayerFragment` as it is. Its `LargeClass` entry stays baselined and the
+ratchet keeps it from growing. The player refactor's real wins already shipped and are
+device-verified: `PlayerActivity` 3539 → 201 and the fragment split (1620 → 1491 + `LivePlayerFragment`
+145 + `VodPlayerFragment` 117). Effort goes to **C10 (`PlayerViewModel`)** instead, which is a
+ViewModel and therefore has none of the immovable-view-field problem.
 
 
 **C1 done 2026-07-26.** `SettingsFragment` 790 → **301** lines (−62%), out of `LargeClass`:

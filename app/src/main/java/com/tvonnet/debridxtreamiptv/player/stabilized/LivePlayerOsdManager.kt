@@ -119,10 +119,6 @@ class LivePlayerOsdManager(
     private val toastDot: View = root.findViewById(R.id.live_toast_dot)
     private val toastText: TextView = root.findViewById(R.id.live_toast_text)
     // in-player TV Guide grid (v2)
-    private val guideOverlay: View = root.findViewById(R.id.live_guide_overlay)
-    private val guideTimebar: FrameLayout = root.findViewById(R.id.live_guide_timebar)
-    private val guideClock: TextView = root.findViewById(R.id.live_guide_clock)
-    private val guideList: RecyclerView = root.findViewById(R.id.rv_live_guide)
 
     private val controls = listOf(btnChannels, btnGuide, btnCc, btnAudio, btnAspect, btnFav)
 
@@ -146,18 +142,11 @@ class LivePlayerOsdManager(
     private var surfEpg: Map<String, EpgEntity> = emptyMap()
     private var previewIndex: Int = -1
 
-    // in-player TV Guide grid state (v2)
-    private var guideEpg: Map<String, List<EpgEntity>> = emptyMap()
-    private var guideRowsCache: List<GuideRow> = emptyList()
-    private var guideOpen = false
-    private var guideRow = 0
-    private var guideShowIdx = 0
-    private var guideTimelineWidthPx = 0
-    private var guideWindowStartMs = 0L
-    private val guideAdapter = LiveGuideAdapter()
+    /** The full-screen EPG grid drawn over the video (C8). */
+    private val guide = LiveGuideOverlayController(root, playerView, GuideHost())
 
     val isDrawerOpen: Boolean get() = panel != Panel.NONE
-    val isGuideOpen: Boolean get() = guideOpen
+    val isGuideOpen: Boolean get() = guide.isOpen
     val isOsdVisible: Boolean get() = bottomOsd.isVisible && bottomOsd.alpha > 0.5f
 
     private val surfAdapter = LiveSurfChannelAdapter(
@@ -189,7 +178,7 @@ class LivePlayerOsdManager(
             val now = clockFormat.format(Date())
             clock.text = now
             onAirClock.text = now
-            guideClock.text = now
+            guide.onMinuteTick(now)
             updateProgressRow()
             refreshOnAir()
             handler.postDelayed(this, 30_000L)
@@ -205,12 +194,8 @@ class LivePlayerOsdManager(
         onAirList.adapter = onAirAdapter
         onAirList.isFocusable = false
 
-        guideList.layoutManager = LinearLayoutManager(root.context)
-        guideList.adapter = guideAdapter
-        guideList.isFocusable = false
-
         btnChannels.setOnClickListener { openDrawer() }
-        btnGuide.setOnClickListener { openGuide() }
+        btnGuide.setOnClickListener { guide.open() }
         btnCc.setOnClickListener { cycleCc() }
         btnAudio.setOnClickListener { cycleAudio() }
         btnAspect.setOnClickListener { cycleAspect() }
@@ -708,221 +693,39 @@ class LivePlayerOsdManager(
         }
     }
 
-    // ── in-player TV Guide grid (v2) ───────────────────────────────────────
+    // ── in-player TV Guide grid (v2) ─────────────────────────────────
+    // Owned by [LiveGuideOverlayController]; these stay as the OSD's public surface because
+    // PlayerLiveTuner and PlayerInputRouter already call them.
+
     /** Open the full-screen EPG grid over the video (from the TV Guide button). */
-    fun openGuide() {
-        if (zapChannels.isEmpty()) {
-            showToast(root.context.getString(R.string.player_zap_loading))
-            return
-        }
-        guideOpen = true
-        // The guide is full-screen: retire the bottom OSD, chrome and any drawer.
-        handler.removeCallbacks(hideOsdRunnable)
-        if (panel != Panel.NONE) closeDrawer(refocusControls = false)
-        setChromeVisible(false)
-        setControlsFocusable(false)
-        if (bottomOsd.isVisible) {
-            bottomOsd.animate().alpha(0f).setDuration(180).withEndAction { bottomOsd.isVisible = false }.start()
-            scrimTop.animate().alpha(0f).setDuration(180).withEndAction { scrimTop.isVisible = false }.start()
-            scrimBottom.animate().alpha(0f).setDuration(180).withEndAction { scrimBottom.isVisible = false }.start()
-        }
-
-        guideWindowStartMs = System.currentTimeMillis() - GUIDE_BEFORE_MS
-        guideRow = zapIndex.coerceIn(0, (zapChannels.size - 1).coerceAtLeast(0))
-        guideShowIdx = 0
-        guideClock.text = clockFormat.format(Date())
-        // Ask the host to load windowed EPG for every channel in the zap list.
-        onRequestGuideData(guideWindowStartMs, guideWindowStartMs + GUIDE_WINDOW_MS)
-
-        guideOverlay.alpha = 0f
-        guideOverlay.isVisible = true
-        guideOverlay.animate().alpha(1f).setDuration(200).start()
-        guideList.post {
-            guideTimelineWidthPx = (guideList.width - dp(GUIDE_CH_COL_DP)).coerceAtLeast(0)
-            if (guideTimelineWidthPx == 0) {
-                guideTimelineWidthPx =
-                    (root.resources.displayMetrics.widthPixels - dp(GUIDE_CH_COL_DP)).coerceAtLeast(0)
-            }
-            rebuildGuide(initialFocus = true)
-        }
-    }
+    fun openGuide() = guide.open()
 
     /** Windowed EPG for the guide, keyed by streamId, arriving async from the host. */
-    fun setGuideEpg(map: Map<String, List<EpgEntity>>) {
-        guideEpg = map
-        if (guideOpen) rebuildGuide(initialFocus = false)
-    }
-
-    private fun rebuildGuide(initialFocus: Boolean) {
-        if (!guideOpen) return
-        if (guideTimelineWidthPx <= 0) {
-            guideTimelineWidthPx = (guideList.width - dp(GUIDE_CH_COL_DP)).coerceAtLeast(0)
-        }
-        val rows = buildGuideRows()
-        guideRowsCache = rows
-        val showCount = rows.getOrNull(guideRow)?.shows?.size ?: 0
-        guideShowIdx = if (initialFocus) {
-            focusableShowIndex(rows.getOrNull(guideRow)?.shows)
-        } else {
-            guideShowIdx.coerceIn(0, (showCount - 1).coerceAtLeast(0))
-        }
-        guideAdapter.submit(rows, guideTimelineWidthPx, guideRow, guideShowIdx)
-        renderGuideTimebar()
-        guideList.scrollToPosition(guideRow)
-    }
-
-    private fun buildGuideRows(): List<GuideRow> {
-        val startMs = guideWindowStartMs
-        val endMs = startMs + GUIDE_WINDOW_MS
-        val span = GUIDE_WINDOW_MS.toFloat()
-        val nowMs = System.currentTimeMillis()
-        val nowFrac = ((nowMs - startMs).toFloat() / span).coerceIn(0f, 1f)
-        val noInfo = root.context.getString(R.string.epg_no_info)
-        fun filler(from: Long, to: Long) = GuideShow(
-            title = noInfo,
-            timeLabel = "",
-            leftFrac = ((from - startMs).toFloat() / span).coerceIn(0f, 1f),
-            widthFrac = ((to - from).toFloat() / span).coerceIn(0f, 1f),
-            isCurrent = from <= nowMs && to > nowMs,
-            isFiller = true
-        )
-        return zapChannels.mapIndexed { idx, ch ->
-            val progs = guideEpg[ch.streamId].orEmpty()
-                .filter { it.stop > startMs && it.start < endMs }
-                .deOverlap()
-            // Build a CONTINUOUS lane: gaps between (and around) known programmes are
-            // filled with "No information" blocks so the grid never shows floating bars.
-            val shows = mutableListOf<GuideShow>()
-            var cursor = startMs
-            for (p in progs) {
-                val clipStart = p.start.coerceAtLeast(startMs)
-                val clipEnd = p.stop.coerceAtMost(endMs)
-                if (clipStart <= cursor) {
-                    // overlap/adjacent — nothing to fill
-                } else if (clipStart - cursor >= GUIDE_MIN_FILLER_MS) {
-                    shows.add(filler(cursor, clipStart))
-                }
-                shows.add(
-                    GuideShow(
-                        title = p.title ?: noInfo,
-                        timeLabel = timeFormat.format(Date(p.start)) + " · " +
-                            ((p.stop - p.start) / 60_000L).coerceAtLeast(1) + "m",
-                        leftFrac = ((clipStart - startMs).toFloat() / span).coerceIn(0f, 1f),
-                        widthFrac = ((clipEnd - clipStart).toFloat() / span).coerceIn(0f, 1f),
-                        isCurrent = p.start <= nowMs && p.stop > nowMs
-                    )
-                )
-                cursor = maxOf(cursor, clipEnd)
-            }
-            if (endMs - cursor >= GUIDE_MIN_FILLER_MS) shows.add(filler(cursor, endMs))
-            GuideRow(
-                name = ch.name,
-                num = String.format(java.util.Locale.US, "%03d", idx + 1),
-                logoUrl = ch.logoUrl,
-                isActiveChannel = idx == zapIndex,
-                nowLineFrac = nowFrac,
-                shows = shows
-            )
-        }
-    }
-
-    private fun renderGuideTimebar() {
-        guideTimebar.removeAllViews()
-        val width = guideTimelineWidthPx
-        if (width <= 0) return
-        val startMs = guideWindowStartMs
-        val span = GUIDE_WINDOW_MS.toFloat()
-        val slotMs = 30 * 60_000L
-        var t = ((startMs + slotMs - 1) / slotMs) * slotMs
-        while (t <= startMs + GUIDE_WINDOW_MS) {
-            val frac = (t - startMs).toFloat() / span
-            val label = TextView(root.context).apply {
-                text = timeFormat.format(Date(t))
-                textSize = 6f
-                setTextColor(0xFF475569.toInt())
-                typeface = android.graphics.Typeface.MONOSPACE
-            }
-            val lp = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER_VERTICAL
-            )
-            lp.leftMargin = (frac * width).toInt() + dp(2f)
-            guideTimebar.addView(label, lp)
-            t += slotMs
-        }
-        val nowMs = System.currentTimeMillis()
-        val nowX = (((nowMs - startMs).toFloat() / span).coerceIn(0f, 1f) * width).toInt()
-        val line = View(root.context).apply { setBackgroundColor(0xFF00F0FF.toInt()) }
-        val lineLp = FrameLayout.LayoutParams(dp(2f), FrameLayout.LayoutParams.MATCH_PARENT)
-        lineLp.leftMargin = nowX
-        guideTimebar.addView(line, lineLp)
-        val pill = TextView(root.context).apply {
-            text = "NOW"
-            textSize = 5.5f
-            setTextColor(0xFF041014.toInt())
-            typeface = android.graphics.Typeface.MONOSPACE
-            setPadding(dp(4f), dp(1f), dp(4f), dp(1f))
-            background = GradientDrawable().apply {
-                cornerRadius = dp(2.5f).toFloat()
-                setColor(0xFF00F0FF.toInt())
-            }
-        }
-        val pillLp = FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            Gravity.CENTER_VERTICAL
-        )
-        pillLp.leftMargin = (nowX - dp(8f)).coerceAtLeast(0)
-        guideTimebar.addView(pill, pillLp)
-    }
-
-    private fun guideMove(dRow: Int, dShow: Int) {
-        if (guideRowsCache.isEmpty()) return
-        if (dRow != 0) {
-            guideRow = (guideRow + dRow).coerceIn(0, guideRowsCache.size - 1)
-            // Keep focus on a real programme near the same time when changing channel.
-            guideShowIdx = focusableShowIndex(guideRowsCache[guideRow].shows)
-            guideList.smoothScrollToPosition(guideRow)
-        }
-        if (dShow != 0) {
-            val shows = guideRowsCache[guideRow].shows
-            var j = guideShowIdx + dShow
-            while (j in shows.indices && shows[j].isFiller) j += dShow  // step over "No information"
-            if (j in shows.indices) guideShowIdx = j
-        }
-        guideAdapter.submit(guideRowsCache, guideTimelineWidthPx, guideRow, guideShowIdx)
-    }
-
-    /** First real (non-filler) programme covering now, else first real programme, else 0. */
-    private fun focusableShowIndex(shows: List<GuideShow>?): Int {
-        if (shows.isNullOrEmpty()) return 0
-        shows.indexOfFirst { it.isCurrent && !it.isFiller }.takeIf { it >= 0 }?.let { return it }
-        shows.indexOfFirst { !it.isFiller }.takeIf { it >= 0 }?.let { return it }
-        return 0
-    }
-
-    private fun tuneFromGuide() {
-        val idx = guideRow
-        closeGuide(returnToPlayer = false)
-        onTuneChannel(idx)
-    }
+    fun setGuideEpg(map: Map<String, List<EpgEntity>>) = guide.setGuideEpg(map)
 
     /** BACK inside the guide closes it. Returns true if consumed. */
-    fun handleGuideBack(): Boolean {
-        if (!guideOpen) return false
-        closeGuide(returnToPlayer = true)
-        return true
-    }
+    fun handleGuideBack(): Boolean = guide.handleBack()
 
-    private fun closeGuide(returnToPlayer: Boolean) {
-        if (!guideOpen) return
-        guideOpen = false
-        guideOverlay.animate().alpha(0f).setDuration(180).withEndAction {
-            guideOverlay.isVisible = false
-            guideTimebar.removeAllViews()
-        }.start()
-        if (returnToPlayer) playerView.requestFocus()
+    /** What the guide needs back from the OSD around it. */
+    private inner class GuideHost : LiveGuideOverlayController.Host {
+        override fun zapChannels(): List<ZapChannel> = zapChannels
+        override fun zapIndex(): Int = zapIndex
+        override fun showToast(message: String) = this@LivePlayerOsdManager.showToast(message)
+        override fun requestGuideData(fromMs: Long, toMs: Long) = onRequestGuideData(fromMs, toMs)
+        override fun tuneChannel(index: Int) = onTuneChannel(index)
+
+        /** The guide is full-screen: retire the bottom OSD, chrome and any open drawer. */
+        override fun retireChromeForGuide() {
+            handler.removeCallbacks(hideOsdRunnable)
+            if (panel != Panel.NONE) closeDrawer(refocusControls = false)
+            setChromeVisible(false)
+            setControlsFocusable(false)
+            if (bottomOsd.isVisible) {
+                bottomOsd.animate().alpha(0f).setDuration(180).withEndAction { bottomOsd.isVisible = false }.start()
+                scrimTop.animate().alpha(0f).setDuration(180).withEndAction { scrimTop.isVisible = false }.start()
+                scrimBottom.animate().alpha(0f).setDuration(180).withEndAction { scrimBottom.isVisible = false }.start()
+            }
+        }
     }
 
     private fun dp(v: Float): Int = (v * root.resources.displayMetrics.density).toInt()
@@ -1029,19 +832,7 @@ class LivePlayerOsdManager(
             // Swallow key-ups for keys we consume on the way down.
             return false
         }
-        if (guideOpen) {
-            // The guide owns every D-pad key while open (BACK is routed separately).
-            return when (event.keyCode) {
-                KeyEvent.KEYCODE_DPAD_UP -> { guideMove(-1, 0); true }
-                KeyEvent.KEYCODE_DPAD_DOWN -> { guideMove(1, 0); true }
-                KeyEvent.KEYCODE_DPAD_LEFT -> { guideMove(0, -1); true }
-                KeyEvent.KEYCODE_DPAD_RIGHT -> { guideMove(0, 1); true }
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                    tuneFromGuide(); true
-                }
-                else -> false
-            }
-        }
+        if (guide.isOpen) return guide.handleKeyEvent(event)
         if (isDrawerOpen) {
             // BACK is handled by PlayerActivity's back routing.
             return when (event.keyCode) {
