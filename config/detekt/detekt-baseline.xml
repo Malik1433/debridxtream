@@ -192,7 +192,6 @@
     <ID>LongMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handlePlaybackError(error: PlaybackException)</ID>
     <ID>LongMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handleTimeout()</ID>
     <ID>LongMethod:PlayerTrackManager.kt$PlayerTrackManager$private fun showSinglePressTrackSelection( player: Player, title: String, trackType: Int, showDisableOption: Boolean, onDialogReady: (android.app.Dialog) -&gt; Unit )</ID>
-    <ID>LongMethod:PlayerViewModel.kt$PlayerViewModel$fun observeEpg(epgChannelId: String?, streamId: String? = null)</ID>
     <ID>LongMethod:PreviewPlayerPanel.kt$PreviewPlayerPanel$fun play(stream: XtreamStream, streamUrlOverride: String? = null)</ID>
     <ID>LongMethod:SearchViewModel.kt$SearchViewModel$private fun performSearch(query: String)</ID>
     <ID>LongMethod:SeriesDebridPlaybackController.kt$SeriesDebridPlaybackController$fun playDebridEpisode(source: MovieSource, episode: EpisodeUiModel)</ID>

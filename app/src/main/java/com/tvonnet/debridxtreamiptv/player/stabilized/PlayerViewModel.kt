@@ -148,11 +148,25 @@ class PlayerViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-    private val _overlayState = MutableStateFlow(PlayerOverlayUiState())
-    val overlayState: StateFlow<PlayerOverlayUiState> = _overlayState.asStateFlow()
+    /** Every EPG surface in the player: now/next overlay, surf strip, guide grid (C10). */
+    private val epg = PlayerEpgController(
+        repository = repository,
+        context = context,
+        scope = viewModelScope,
+        zapChannels = { _zapState.value?.channels },
+    )
 
-    private var epgJob: Job? = null
-    private var epgRefreshJob: Job? = null
+    val overlayState: StateFlow<PlayerOverlayUiState> = epg.overlayState
+    val surfEpg: StateFlow<Map<String, EpgEntity>> = epg.surfEpg
+    val guideEpg: StateFlow<Map<String, List<EpgEntity>>> = epg.guideEpg
+
+    fun observeEpg(epgChannelId: String?, streamId: String? = null) =
+        epg.observeEpg(epgChannelId, streamId)
+
+    fun refreshSurfEpg() = epg.refreshSurfEpg()
+
+    fun loadGuideEpg(windowStart: Long, windowEnd: Long) = epg.loadGuideEpg(windowStart, windowEnd)
+
     private val refreshAttempts = mutableMapOf<String, Long>()
 
     private val _zapState = MutableStateFlow<ZapState?>(null)
@@ -908,135 +922,6 @@ class PlayerViewModel @Inject constructor(
         _xrayMetadata.value = null
     }
 
-    fun observeEpg(epgChannelId: String?, streamId: String? = null) {
-        epgJob?.cancel()
-        epgRefreshJob?.cancel()
-
-        if (epgChannelId.isNullOrBlank()) {
-            _overlayState.value = PlayerOverlayUiState(
-                epgAvailable = false,
-                errorMessage = context.getString(R.string.player_epg_channel_unknown)
-            )
-            return
-        }
-
-        _overlayState.value = PlayerOverlayUiState(
-            epgAvailable = false,
-            lastSyncTime = readLastSyncTime(),
-            isSyncing = true,
-            errorMessage = null,
-            streamId = streamId
-        )
-
-        epgJob = viewModelScope.launch {
-            val flow = repository.getEpgByChannel(epgChannelId)
-
-            if (flow == null) {
-                val fallback = streamId
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let { id ->
-                        withContext(Dispatchers.IO) {
-                            repository.fetchShortEpgPrograms(streamId = id, channelKey = epgChannelId, limit = 12)
-                        }
-                    }
-
-                if (fallback is Result.Success && fallback.data.isNotEmpty()) {
-                    val list = fallback.data
-                    val nowMs = System.currentTimeMillis()
-                    val nowProgram = list.firstOrNull { nowMs in it.start..it.stop } ?: list.firstOrNull()
-                    val nextProgram = list.firstOrNull { it.start > nowMs }
-                    val upcoming = list.filter { it.start > nowMs }.take(6)
-                    _overlayState.value = PlayerOverlayUiState(
-                        now = nowProgram,
-                        next = nextProgram,
-                        upcoming = upcoming,
-                        epgAvailable = true,
-                        lastSyncTime = readLastSyncTime(),
-                        isSyncing = false,
-                        errorMessage = null,
-                        streamId = streamId
-                    )
-                } else {
-                    _overlayState.value = PlayerOverlayUiState(
-                        epgAvailable = false,
-                        errorMessage = context.getString(R.string.player_epg_unavailable_generic),
-                        streamId = streamId
-                    )
-                }
-                return@launch
-            }
-
-            flow.collect { programs ->
-                val nowMs = System.currentTimeMillis()
-                if (programs.isEmpty()) {
-                    _overlayState.value = _overlayState.value.copy(
-                        epgAvailable = false,
-                        isSyncing = true,
-                        errorMessage = null,
-                        streamId = streamId
-                    )
-                    val fallback = streamId
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let { id ->
-                            withContext(Dispatchers.IO) {
-                                repository.fetchShortEpgPrograms(streamId = id, channelKey = epgChannelId, limit = 12)
-                            }
-                        }
-
-                    if (fallback is Result.Success && fallback.data.isNotEmpty()) {
-                        val list = fallback.data
-                        val nowMs = System.currentTimeMillis()
-                        val nowProgram = list.firstOrNull { nowMs in it.start..it.stop } ?: list.firstOrNull()
-                        val nextProgram = list.firstOrNull { it.start > nowMs }
-                        val upcoming = list.filter { it.start > nowMs }.take(6)
-                        _overlayState.value = PlayerOverlayUiState(
-                            now = nowProgram,
-                            next = nextProgram,
-                            upcoming = upcoming,
-                            epgAvailable = true,
-                            lastSyncTime = readLastSyncTime(),
-                            isSyncing = false,
-                            errorMessage = null,
-                            streamId = streamId
-                        )
-                    } else {
-                        _overlayState.value = PlayerOverlayUiState(
-                            epgAvailable = false,
-                            lastSyncTime = readLastSyncTime(),
-                            isSyncing = false,
-                            errorMessage = context.getString(R.string.player_epg_no_guide),
-                            streamId = streamId
-                        )
-                    }
-                    return@collect
-                }
-
-                val nowProgram = programs.firstOrNull { nowMs in it.start..it.stop }
-                    ?: programs.firstOrNull()
-                val nextProgram = programs.firstOrNull { it.start > nowMs }
-                val upcoming = programs.filter { it.start > nowMs }.take(6)
-
-                _overlayState.value = PlayerOverlayUiState(
-                    now = nowProgram,
-                    next = nextProgram,
-                    upcoming = upcoming,
-                    epgAvailable = true,
-                    lastSyncTime = readLastSyncTime(),
-                    isSyncing = false,
-                    errorMessage = null,
-                    streamId = streamId
-                )
-            }
-        }
-    }
-
-    private fun readLastSyncTime(): Long? {
-        return context
-            .getSharedPreferences("epg_prefs", Context.MODE_PRIVATE)
-            .getLong("last_sync_time", 0L)
-            .takeIf { it > 0 }
-    }
-
     fun updatePlaybackStatus(contentId: String, isWatched: Boolean, resumePosition: Long, duration: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -1092,87 +977,6 @@ class PlayerViewModel @Inject constructor(
                 channels = list,
                 index = index
             )
-        }
-    }
-
-    // ── per-channel current EPG for the v2 rich surf rows + ON AIR NOW panel ──
-    // Keyed by streamId → the program on air right now for that channel.
-    private val _surfEpg = MutableStateFlow<Map<String, EpgEntity>>(emptyMap())
-    val surfEpg: StateFlow<Map<String, EpgEntity>> = _surfEpg.asStateFlow()
-
-    /** Batch-load current EPG for every channel in the active zap list. */
-    fun refreshSurfEpg() {
-        val state = _zapState.value ?: return
-        viewModelScope.launch(Dispatchers.IO) {
-            val epgIds = state.channels.mapNotNull { it.epgChannelId?.takeIf { id -> id.isNotBlank() } }
-            val byEpgId = repository.getCurrentProgramsByEpgId(epgIds)
-            if (byEpgId.isEmpty()) {
-                _surfEpg.value = emptyMap()
-                return@launch
-            }
-            _surfEpg.value = state.channels.mapNotNull { ch ->
-                val prog = ch.epgChannelId?.let { byEpgId[it] } ?: return@mapNotNull null
-                ch.streamId to prog
-            }.toMap()
-        }
-    }
-
-    // ── windowed EPG for the in-player TV Guide grid (Live Player v2) ─────────
-    // Keyed by streamId → the programmes overlapping the visible guide window.
-    private val _guideEpg = MutableStateFlow<Map<String, List<EpgEntity>>>(emptyMap())
-    val guideEpg: StateFlow<Map<String, List<EpgEntity>>> = _guideEpg.asStateFlow()
-
-    /**
-     * Batch-load windowed EPG for every channel in the active zap list, keyed by streamId.
-     *
-     * Two sources, same as the browse list: (1) one DB read for channels with synced XMLTV,
-     * then (2) a bounded per-stream `get_short_epg` fallback for the rest — without which
-     * channels that only expose provider short-EPG (e.g. many UK sports feeds) render as empty
-     * lanes. DB results emit first; short-EPG results merge in as they arrive.
-     */
-    fun loadGuideEpg(windowStart: Long, windowEnd: Long) {
-        val state = _zapState.value ?: return
-        val channels = state.channels
-        viewModelScope.launch(Dispatchers.IO) {
-            // 1) Batched DB read for everything that has a real XMLTV channel id.
-            val epgIds = channels.mapNotNull { it.epgChannelId?.takeIf { id -> id.isNotBlank() } }.distinct()
-            val byEpgId = if (epgIds.isNotEmpty()) {
-                runCatching { repository.getProgramsByEpgIdInRange(epgIds, windowStart, windowEnd) }
-                    .getOrNull().orEmpty()
-            } else {
-                emptyMap()
-            }
-
-            val result = java.util.concurrent.ConcurrentHashMap<String, List<EpgEntity>>()
-            val needShortEpg = mutableListOf<ZapChannel>()
-            for (ch in channels) {
-                val dbProgs = ch.epgChannelId?.let { byEpgId[it] }
-                if (!dbProgs.isNullOrEmpty()) result[ch.streamId] = dbProgs else needShortEpg.add(ch)
-            }
-            if (result.isNotEmpty()) _guideEpg.value = HashMap(result)
-
-            // 2) Provider short-EPG for the leftovers, capped concurrency so a full channel
-            //    list can't storm the provider.
-            if (needShortEpg.isNotEmpty()) {
-                val gate = Semaphore(4)
-                coroutineScope {
-                    needShortEpg.map { ch ->
-                        async {
-                            gate.withPermit {
-                                val key = ch.epgChannelId?.takeIf { it.isNotBlank() } ?: ch.streamId
-                                val r = runCatching {
-                                    repository.fetchShortEpgPrograms(ch.streamId, key, limit = 24)
-                                }.getOrNull()
-                                if (r is Result.Success) {
-                                    val inWindow = r.data.filter { it.stop > windowStart && it.start < windowEnd }
-                                    if (inWindow.isNotEmpty()) result[ch.streamId] = inWindow
-                                }
-                            }
-                        }
-                    }.awaitAll()
-                }
-                _guideEpg.value = HashMap(result)
-            }
         }
     }
 
