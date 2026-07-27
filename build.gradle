@@ -19,3 +19,89 @@ task clean(type: Delete) {
     delete rootProject.buildDir
 }
 
+// ── Technical-debt ratchet gate (roadmap E2p) ─────────────────────────────────────────────────────
+//
+// detekt alone cannot stop debt growing: everything oversized today is grandfathered into
+// detekt-baseline.xml, so a new violation can be "fixed" by regenerating the baseline. This task
+// reads the SAME ceilings as scripts/check_debt_ratchet.sh (config/detekt/debt-ledger.txt) and fails
+// when the baseline carries more than the ledger allows. Ceilings may only ever be LOWERED.
+//
+// Two front-ends over one ledger, on purpose:
+//   * this task  — runs inside `./gradlew check`, no shell required (Windows/CI safe);
+//   * the script — runs in the pre-commit hook, where starting a Gradle daemon would be too slow.
+// The ledger is the shared source of truth; keep the two in step when changing what is checked.
+tasks.register('debtRatchet') {
+    group = 'verification'
+    description = 'Fails when suppressed-violation counts exceed config/detekt/debt-ledger.txt.'
+
+    def baselineFile = rootProject.file('config/detekt/detekt-baseline.xml')
+    def ledgerFile = rootProject.file('config/detekt/debt-ledger.txt')
+    def sourceDir = rootProject.file('app/src/main/java')
+
+    inputs.file(baselineFile).withPropertyName('baseline')
+    inputs.file(ledgerFile).withPropertyName('ledger')
+    inputs.dir(sourceDir).withPropertyName('source').withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.upToDateWhen { true }
+
+    doLast {
+        if (!baselineFile.exists()) throw new GradleException("ratchet: missing ${baselineFile}")
+        if (!ledgerFile.exists()) throw new GradleException("ratchet: missing ${ledgerFile}")
+
+        def baseline = baselineFile.getText('UTF-8')
+        def total = (baseline =~ /<ID>/).count
+        def failures = []
+        def improvements = []
+
+        ledgerFile.eachLine('UTF-8') { rawLine ->
+            def line = rawLine.trim()
+            if (line.isEmpty() || line.startsWith('#') || !line.contains('=')) return
+            def key = line.substring(0, line.indexOf('=')).trim()
+            def max = line.substring(line.indexOf('=') + 1).trim()
+            if (key.isEmpty() || !max.isInteger()) return
+
+            def ceiling = max.toInteger()
+            def actual = (key == 'TOTAL') ? total : (baseline =~ /<ID>${java.util.regex.Pattern.quote(key)}:/).count
+
+            if (actual > ceiling) {
+                failures << "RATCHET FAIL: ${key} = ${actual}, ceiling is ${ceiling} (+${actual - ceiling})."
+            } else if (actual < ceiling) {
+                improvements << "ratchet: ${key} = ${actual} (ceiling ${ceiling}) — improved by ${ceiling - actual}; lower the ceiling in config/detekt/debt-ledger.txt to lock it in."
+            } else {
+                logger.lifecycle("ratchet: ${key} = ${actual} (at ceiling)")
+            }
+        }
+
+        // Source-level check: detekt's own rules have blind spots. On 2026-07-26 three real
+        // printStackTrace() calls were NOT reported by the PrintStackTrace rule, so a "0" in the
+        // baseline did not mean zero in the code. This measures the SOURCE, not detekt's opinion.
+        def offenders = []
+        if (sourceDir.isDirectory()) {
+            sourceDir.eachFileRecurse { file ->
+                if (!file.isFile() || !file.name.endsWith('.kt')) return
+                file.eachLine('UTF-8') { text, number ->
+                    if (text.contains('printStackTrace()')) {
+                        offenders << "${rootProject.relativePath(file)}:${number}"
+                    }
+                }
+            }
+        }
+        if (offenders.isEmpty()) {
+            logger.lifecycle('ratchet: printStackTrace() in source = 0')
+        } else {
+            failures << "RATCHET FAIL: printStackTrace() found in ${offenders.size()} place(s) — use a logger so it reaches Crashlytics."
+            offenders.each { failures << "    ${it}" }
+        }
+
+        improvements.each { logger.lifecycle(it) }
+
+        if (!failures.isEmpty()) {
+            throw new GradleException(
+                failures.join('\n') +
+                    '\n  Fix the new violation — do NOT raise the ceiling. Relocations must keep the total flat.' +
+                    '\n  See docs/reports/WORLD_CLASS_ROADMAP.md §1.'
+            )
+        }
+        logger.lifecycle(improvements.isEmpty() ? 'ratchet: OK' : 'ratchet: OK (with improvements to lock in)')
+    }
+}
+

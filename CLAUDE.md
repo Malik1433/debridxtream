@@ -17,6 +17,17 @@
 is baselined; it only fails on NEW violations. Thresholds: class 600, method 60, cyclomatic 15,
 params 6/7.
 
+**The ratchet gate runs automatically** so "regenerate the baseline and move on" cannot pass quietly:
+
+- `./gradlew :app:check` runs the `debtRatchet` task (defined in the root `build.gradle`) — no shell
+  needed, so it also works on CI.
+- A **pre-commit hook** runs repo hygiene + the ratchet in under a second. Install once per clone:
+  `./scripts/install_git_hooks.sh` (sets `core.hooksPath` to the versioned `scripts/githooks/`).
+  Bypass a single commit deliberately with `git commit --no-verify` — the Gradle gate still catches it.
+
+Both front-ends read the same ceilings from `config/detekt/debt-ledger.txt`; that file is the source
+of truth, and its numbers may only ever be LOWERED.
+
 **Baseline discipline.** Baseline IDs are keyed `Rule:File.kt$Class$signature`, so *relocating* an
 already-baselined method into a new file legitimately re-fires as "new". That case is expected:
 regenerate with `./gradlew :app:detektBaseline`, then **verify the total did not grow** —

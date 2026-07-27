@@ -1,2 +1,6 @@
 *.sh text eol=lf
 *.cjs text eol=lf
+
+# Git hooks have no extension, so the *.sh rule misses them. CRLF here breaks the shebang
+# ("bad interpreter: /usr/bin/env bash^M") the moment someone clones with autocrlf on.
+scripts/githooks/* text eol=lf

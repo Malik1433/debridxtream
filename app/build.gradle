@@ -14,6 +14,12 @@ plugins {
 // violation fails `./gradlew detekt`. Thresholds are the industry defaults (detekt/Clean Code):
 // class 600 lines, method 60, cyclomatic complexity 15, params 6/7 — see config/detekt/detekt.yml.
 // Regenerate the baseline deliberately (only after real refactoring) with: ./gradlew detektBaseline
+// E2p: the ratchet runs as part of `check`, so "regenerate the baseline and move on" fails the
+// build instead of passing quietly. Definition + rationale live in the root build.gradle.
+tasks.matching { it.name == 'check' }.configureEach {
+    dependsOn rootProject.tasks.named('debtRatchet')
+}
+
 detekt {
     toolVersion = '1.23.7'
     source.setFrom(files('src/main/java', 'src/test/java'))

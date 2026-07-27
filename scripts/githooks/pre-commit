@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Pre-commit gate (roadmap E2p).
+#
+# Two fast, read-only checks — no compilation, no Gradle daemon, so committing stays instant:
+#   1. repo hygiene  — no scratch files, zero-byte files or stray output getting committed;
+#   2. debt ratchet  — the detekt baseline may not carry more than config/detekt/debt-ledger.txt
+#                      allows, which is what stops "regenerate the baseline" from being a fix.
+#
+# Install with:  ./scripts/install_git_hooks.sh
+# Bypass ONCE, deliberately, when you know why:  git commit --no-verify
+#
+# The same ratchet also runs inside `./gradlew check` (task `debtRatchet`), so a bypassed commit
+# still fails the build later.
+set -uo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root" || exit 1
+
+status=0
+
+run_check() {
+  local label="$1" script="$2"
+  if [ ! -x "$script" ] && [ ! -f "$script" ]; then
+    echo "pre-commit: skipping $label ($script not found)"
+    return 0
+  fi
+  if ! bash "$script"; then
+    echo "pre-commit: $label FAILED" >&2
+    status=1
+  fi
+}
+
+run_check "repo hygiene" "scripts/check_repo_hygiene.sh"
+run_check "debt ratchet" "scripts/check_debt_ratchet.sh"
+
+if [ "$status" -ne 0 ]; then
+  echo "" >&2
+  echo "Commit blocked. Fix the above, or re-run with --no-verify if you have a reason." >&2
+  exit 1
+fi
+
+exit 0

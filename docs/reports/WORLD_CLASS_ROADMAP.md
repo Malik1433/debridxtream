@@ -523,8 +523,21 @@ gone to sleep (`mWakefulness=Asleep`). `input keyevent KEYCODE_WAKEUP` first, th
 ### Tier E — the residual lint mass + the gate
 - **E1p** — `CyclomaticComplexMethod` 130 / `LongMethod` 78 / `NestedBlockDepth` 25 / `ComplexCondition`
   25 / `LongParameterList` 31: most of these dissolve as Tier C lands; the rest are fixed file-by-file.
-- **E2p** — The **ratchet gate**: `scripts/check_debt_ratchet.sh` + a pre-commit/CI hook that fails when
-  the baseline total exceeds `config/detekt/debt-ledger.txt`. This is what makes "ignore it" impossible.
+- ~~**E2p**~~ ✅ **done 2026-07-27** — The **ratchet gate** is now automatic. Two front-ends over the
+  one ledger (`config/detekt/debt-ledger.txt`):
+  - `./gradlew :app:check` → the `debtRatchet` task (root `build.gradle`), implemented natively so it
+    needs no shell and works on Windows/CI. Deliberately **not** a wrapper around the bash script:
+    `bash` on this Windows box resolves to WSL's launcher, not Git Bash, so shelling out would have
+    been a silent trap.
+  - A **pre-commit hook** (`scripts/githooks/pre-commit`, installed by `./scripts/install_git_hooks.sh`
+    via `core.hooksPath` so it stays versioned) running repo hygiene + the ratchet. Read-only, well
+    under a second — no compile, no Gradle daemon, so committing stays instant.
+
+  **Verified by breaking it, not by reading it.** A fake `<ID>` added to the baseline (the exact shape
+  of "regenerate to silence a new violation") made *both* front-ends fail with
+  `TOTAL = 281, ceiling is 280` **and** blocked a real `git commit` — HEAD did not move. A planted
+  `printStackTrace()` was caught by both too, which matters because that is the check covering
+  detekt's own blind spot. Both then went green again after the revert.
 - *Exit:* E1 = 0, E9 in place.
 
 ### Pending device QA — status (kept honest, not "pending forever")
