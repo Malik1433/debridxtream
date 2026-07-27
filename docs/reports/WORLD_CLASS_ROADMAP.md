@@ -618,6 +618,6 @@ Carried from hard-won incidents; every phase must respect them.
 
 | 2026-07-27 | **C5** — `XtreamSeriesRepositoryV2` 927 → 239 (−74%), out of `LargeClass`; 4 collaborators; all 6 dropped baseline entries were real complexity wins; +17 unit +15 instrumented tests | **288** | **5** | 0 | 32 | `5adb363` |
 
-| 2026-07-27 | **C6** — `DebridPlaybackRepository` 801 → 88 (−89%), out of `LargeClass`; 4 collaborators; all 8 dropped baseline entries were real wins, 3 new LongParameterList fixed not baselined; +30 unit tests | **280** | **4** | 0 | 32 | `PENDING` |
+| 2026-07-27 | **C6** — `DebridPlaybackRepository` 801 → 88 (−89%), out of `LargeClass`; 4 collaborators; all 8 dropped baseline entries were real wins, 3 new LongParameterList fixed not baselined; +30 unit tests | **280** | **4** | 0 | 32 | `7ecfbc2` |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
