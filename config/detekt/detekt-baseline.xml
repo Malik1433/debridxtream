@@ -108,7 +108,6 @@
     <ID>CyclomaticComplexMethod:PlayerTrackManager.kt$PlayerTrackManager$fun captureManualTrackSelection( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
     <ID>CyclomaticComplexMethod:PlayerTrackManager.kt$PlayerTrackManager$private fun showSinglePressTrackSelection( player: Player, title: String, trackType: Int, showDisableOption: Boolean, onDialogReady: (android.app.Dialog) -&gt; Unit )</ID>
     <ID>CyclomaticComplexMethod:PlayerViewModel.kt$PlayerViewModel$fun loadXRayMetadata(contentId: String?, tmdbId: String?, isMovie: Boolean, title: String?)</ID>
-    <ID>CyclomaticComplexMethod:PlayerViewModel.kt$PlayerViewModel$private fun debridContinuityScore(source: MovieSource, profile: DebridSourceProfile?): Int</ID>
     <ID>CyclomaticComplexMethod:PlayerViewModel.kt$PlayerViewModel$private suspend fun findBestTmdbTvMatch(title: String): Int?</ID>
     <ID>CyclomaticComplexMethod:SearchIndexManager.kt$SearchIndexManager$private suspend fun indexLiveCatalog(service: XtreamApiService): Boolean</ID>
     <ID>CyclomaticComplexMethod:SearchIndexManager.kt$SearchIndexManager$private suspend fun indexSeriesCatalog(service: XtreamApiService): Boolean</ID>
@@ -175,7 +174,6 @@
     <ID>LongMethod:LicenseManager.kt$LicenseManager$fun start()</ID>
     <ID>LongMethod:LiveFragment.kt$LiveFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:LiveFragment.kt$LiveFragment$private fun observeViewModel()</ID>
-    <ID>LongMethod:LiveGuideAdapter.kt$LiveGuideAdapter.Holder$fun bind(row: GuideRow, position: Int)</ID>
     <ID>LongMethod:LiveSearchAdapter.kt$LiveSearchAdapter$override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder</ID>
     <ID>LongMethod:MainActivity.kt$MainActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playDebridMovie( stream: XtreamVodInfo?, source: MovieSource?, returnToSources: Boolean = false )</ID>

@@ -261,10 +261,10 @@ class PlayerViewModel @Inject constructor(
         seasonNum: Int
     ): List<EpisodeEntityV2> {
         if (episodes.isEmpty()) return episodes
-        if (episodes.all { hasUsableArtworkUrl(it.thumbnail) }) {
+        if (episodes.all { SeriesTmdbMatching.hasUsableArtworkUrl(it.thumbnail) }) {
             return episodes
         }
-        val cleanTitle = cleanSeriesTitleForTmdb(seriesTitle)
+        val cleanTitle = SeriesTmdbMatching.cleanSeriesTitleForTmdb(seriesTitle)
             ?: return episodes
 
         return withContext(Dispatchers.IO) {
@@ -291,7 +291,7 @@ class PlayerViewModel @Inject constructor(
                     android.util.Log.d("IPTV_TMDB_POSTERS", "MATCH tvId=$tvId stills=${stillsByEpisode.size}")
                     episodes.map { episode ->
                         val stillUrl = stillsByEpisode[episode.episodeNumber]
-                        if (hasUsableArtworkUrl(episode.thumbnail) || stillUrl == null) {
+                        if (SeriesTmdbMatching.hasUsableArtworkUrl(episode.thumbnail) || stillUrl == null) {
                             episode
                         } else {
                             episode.copy(thumbnail = stillUrl)
@@ -306,24 +306,24 @@ class PlayerViewModel @Inject constructor(
     }
 
     private suspend fun findBestTmdbTvMatch(title: String): Int? {
-        val queries = buildTmdbSearchQueries(title).take(4)
+        val queries = SeriesTmdbMatching.buildTmdbSearchQueries(title).take(4)
         for (query in queries) {
             android.util.Log.d("IPTV_TMDB_POSTERS", "SEARCH query=$query")
             val response = tmdbRemote.searchTvShows(query).getOrNull() ?: continue
             val results = response.results.orEmpty()
             if (results.isEmpty()) continue
 
-            val target = normalizeTmdbTitle(query) ?: continue
+            val target = SeriesTmdbMatching.normalizeTmdbTitle(query) ?: continue
             val best = results
                 .asSequence()
                 .mapNotNull { show ->
                     val id = show.id ?: return@mapNotNull null
                     val candidateTitle = show.name ?: show.originalName ?: return@mapNotNull null
-                    val candidate = normalizeTmdbTitle(candidateTitle) ?: return@mapNotNull null
+                    val candidate = SeriesTmdbMatching.normalizeTmdbTitle(candidateTitle) ?: return@mapNotNull null
                     val titleScore = when {
                         candidate == target -> 0
                         candidate.contains(target) || target.contains(candidate) -> 1
-                        tokenOverlapScore(target, candidate) >= 0.75f -> 2
+                        SeriesTmdbMatching.tokenOverlapScore(target, candidate) >= 0.75f -> 2
                         else -> 5
                     }
                     val popularity = show.popularity ?: 0.0
@@ -338,55 +338,6 @@ class PlayerViewModel @Inject constructor(
             }
         }
         return null
-    }
-
-    private fun hasUsableArtworkUrl(value: String?): Boolean {
-        val trimmed = value?.trim().orEmpty()
-        return trimmed.isNotEmpty() &&
-            !trimmed.equals("null", ignoreCase = true) &&
-            !trimmed.equals("n/a", ignoreCase = true)
-    }
-
-    private fun cleanSeriesTitleForTmdb(rawTitle: String?): String? {
-        return rawTitle
-            ?.replace(Regex("\\bS\\d{1,2}\\s*E\\d{1,2}\\b", RegexOption.IGNORE_CASE), " ")
-            ?.replace(Regex("\\b\\d{1,2}x\\d{1,2}\\b", RegexOption.IGNORE_CASE), " ")
-            ?.replace(Regex("\\bSeason\\s+\\d+\\b", RegexOption.IGNORE_CASE), " ")
-            ?.replace(Regex("\\bEpisode\\s+\\d+\\b", RegexOption.IGNORE_CASE), " ")
-            ?.replace(Regex("^\\[[A-Za-z]{2,3}]\\s*"), " ")
-            ?.replace(Regex("^[A-Za-z]{2,3}\\s*[-|]\\s*"), " ")
-            ?.replace(Regex("\\b(multi|dual|audio|dubbed|hindi|english|french|spanish|arabic|turkish|portuguese)\\b", RegexOption.IGNORE_CASE), " ")
-            ?.replace(Regex("\\b(4k|2160p|1080p|720p|480p|hdr|dv|hevc|x265|x264|h\\.265|h\\.264|web[- ]?dl|webrip|bluray|brrip)\\b", RegexOption.IGNORE_CASE), " ")
-            ?.replace(Regex("\\(\\s*\\d{4}\\s*\\)$"), " ")
-            ?.replace(Regex("\\s+\\d{4}$"), " ")
-            ?.replace(Regex("[^\\p{L}\\p{N} ]"), " ")
-            ?.replace(Regex("\\s+"), " ")
-            ?.trim()
-            ?.takeIf { it.length >= 2 }
-    }
-
-    private fun buildTmdbSearchQueries(title: String): List<String> {
-        val withoutColonSuffix = title.substringBefore(":").trim()
-        val withoutDashSuffix = title.substringBefore(" - ").trim()
-        return listOf(title, withoutColonSuffix, withoutDashSuffix)
-            .map { it.trim() }
-            .filter { it.length >= 2 }
-            .distinct()
-    }
-
-    private fun normalizeTmdbTitle(value: String?): String? {
-        return value
-            ?.lowercase(Locale.ROOT)
-            ?.replace(Regex("\\bthe\\b"), " ")
-            ?.replace(Regex("[^a-z0-9]"), "")
-            ?.takeIf { it.isNotBlank() }
-    }
-
-    private fun tokenOverlapScore(target: String, candidate: String): Float {
-        val targetTokens = target.chunked(3).toSet()
-        val candidateTokens = candidate.chunked(3).toSet()
-        if (targetTokens.isEmpty() || candidateTokens.isEmpty()) return 0f
-        return targetTokens.intersect(candidateTokens).size.toFloat() / targetTokens.size.toFloat()
     }
 
     fun loadDebridSeriesPlaylist(tmdbId: String, seasonNum: Int, currentEpisodeNumber: Int) {
@@ -556,7 +507,7 @@ class PlayerViewModel @Inject constructor(
                 val hashToResolve = targetSource.stream.stream_id
                 // Direct-playable URLs start instantly anyway; only magnet
                 // resolution benefits from warming.
-                if (isDirectPlayableUrl(magnet)) return@launch
+                if (DebridSourceScoring.isDirectPlayableUrl(magnet)) return@launch
                 if (magnet.isNullOrBlank() && hashToResolve.isNullOrBlank()) return@launch
                 playbackResolver.resolve(
                     source = "debrid",
@@ -693,11 +644,10 @@ class PlayerViewModel @Inject constructor(
     ) {
         val magnet = targetSource.stream.direct_source
         val hashToResolve = targetSource.stream.stream_id
-        val profile = targetSource.toDebridSourceProfile(
-            directPlayback = directPreferred && isDirectPlayableUrl(magnet)
-        )
+        val direct = directPreferred && DebridSourceScoring.isDirectPlayableUrl(magnet)
+        val profile = DebridSourceScoring.profileOf(targetSource, direct)
 
-        if (allowDirectHttpPassthrough && directPreferred && isDirectPlayableUrl(magnet)) {
+        if (allowDirectHttpPassthrough && directPreferred && DebridSourceScoring.isDirectPlayableUrl(magnet)) {
             _debridResolutionState.value = DebridResolutionState.Success(
                 url = magnet!!,
                 season = season,
@@ -744,7 +694,7 @@ class PlayerViewModel @Inject constructor(
                     magnet = magnet,
                     headers = targetSource.headers,
                     directDebridPlayback = false,
-                    sourceProfile = targetSource.toDebridSourceProfile(directPlayback = false)
+                    sourceProfile = DebridSourceScoring.profileOf(targetSource, directPlayback = false)
                 )
             }
             is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
@@ -766,12 +716,12 @@ class PlayerViewModel @Inject constructor(
         // are skipped so an error-triggered refresh moves to the next source
         // instead of re-resolving the same broken one. If exclusion would leave
         // nothing, fall back to the full list rather than failing hard.
-        val excludedStableIds = excludeSourceIds.mapNotNull { stableDebridIdentity(it) }.toSet()
+        val excludedStableIds = excludeSourceIds.mapNotNull { DebridSourceScoring.stableIdentity(it) }.toSet()
         val candidates = if (excludedStableIds.isEmpty()) {
             sources
         } else {
             sources.filterNot { source ->
-                stableDebridIdentity(source.stream.stream_id) in excludedStableIds
+                DebridSourceScoring.stableIdentity(source.stream.stream_id) in excludedStableIds
             }.ifEmpty { sources }
         }
 
@@ -783,10 +733,10 @@ class PlayerViewModel @Inject constructor(
         // stream_id carries a volatile "_<list index>" suffix, so the saved id
         // rarely matches verbatim across fetches. Compare on the stable part
         // (bare infoHash / title hash) so resume re-picks the same source.
-        val stableExactId = stableDebridIdentity(exactId)
+        val stableExactId = DebridSourceScoring.stableIdentity(exactId)
         if (stableExactId != null) {
             candidates.firstOrNull { source ->
-                stableDebridIdentity(source.stream.stream_id) == stableExactId
+                DebridSourceScoring.stableIdentity(source.stream.stream_id) == stableExactId
             }?.let { return it }
         }
 
@@ -794,98 +744,24 @@ class PlayerViewModel @Inject constructor(
         // failure), keep the user's audio language — restrict ranking to
         // candidates sharing a requested language (or multi-audio) when any
         // exist, instead of letting provider/quality outrank language.
-        val requestedLanguages = normalizeLanguageSet(profile?.languages)
+        val requestedLanguages = DebridSourceScoring.normalizeLanguageSet(profile?.languages)
         val languagePool = if (requestedLanguages.isEmpty()) {
             candidates
         } else {
             candidates.filter { source ->
-                val candidateLanguages = normalizeLanguageSet(source.languages)
+                val candidateLanguages = DebridSourceScoring.normalizeLanguageSet(source.languages)
                 candidateLanguages.contains("multi") ||
                     candidateLanguages.intersect(requestedLanguages).isNotEmpty()
             }.ifEmpty { candidates }
         }
 
         val ranked = languagePool.sortedWith(
-            compareByDescending<MovieSource> { debridContinuityScore(it, profile) }
+            compareByDescending<MovieSource> { DebridSourceScoring.continuityScore(it, profile) }
                 .thenByDescending { SourceFilterUtils.isPlaybackReady(it) }
-                .thenByDescending { qualityScore(it.quality) }
+                .thenByDescending { DebridSourceScoring.qualityScore(it.quality) }
                 .thenByDescending { it.seeders ?: -1 }
         )
         return ranked.first()
-    }
-
-    private fun stableDebridIdentity(id: String?): String? {
-        if (id.isNullOrBlank()) return null
-        return id.trim()
-            .replace(Regex("_\\d+$"), "")
-            .lowercase()
-            .takeIf { it.isNotBlank() }
-    }
-
-    private fun debridContinuityScore(source: MovieSource, profile: DebridSourceProfile?): Int {
-        if (profile == null) return 0
-        var score = 0
-        if (!profile.sourceType.isNullOrBlank() && source.sourceType.equals(profile.sourceType, ignoreCase = true)) score += 40
-        if (!profile.provider.isNullOrBlank() && source.provider.equals(profile.provider, ignoreCase = true)) score += 35
-        if (!profile.bingeGroup.isNullOrBlank() && source.bingeGroup.equals(profile.bingeGroup, ignoreCase = true)) score += 30
-        if (!profile.sourceName.isNullOrBlank() && source.sourceName.equals(profile.sourceName, ignoreCase = true)) score += 15
-        if (!profile.quality.isNullOrBlank() && source.quality.equals(profile.quality, ignoreCase = true)) score += 10
-        val requestedLanguages = normalizeLanguageSet(profile.languages)
-        val candidateLanguages = normalizeLanguageSet(source.languages)
-        if (requestedLanguages.isNotEmpty()) {
-            val overlap = requestedLanguages.intersect(candidateLanguages)
-            score += overlap.size * 20
-            if (candidateLanguages.contains("multi")) score += 8
-        }
-        if (profile.directPlayback && isDirectPlayableUrl(source.stream.direct_source)) score += 20
-        if (SourceFilterUtils.isPlaybackReady(source)) score += 12
-        return score
-    }
-
-    private fun normalizeLanguageSet(languages: List<String>?): Set<String> {
-        return languages.orEmpty()
-            .flatMap { it.split(',', '/', '|', '+', '&') }
-            .map { it.trim().lowercase(Locale.US) }
-            .filter { it.isNotBlank() }
-            .map {
-                when (it) {
-                    "hindi", "hin" -> "hi"
-                    "german", "deu", "ger" -> "de"
-                    "english", "eng" -> "en"
-                    "multi", "dual audio", "dual" -> "multi"
-                    else -> it
-                }
-            }
-            .toSet()
-    }
-
-    private fun qualityScore(quality: String?): Int {
-        return when {
-            quality?.contains("2160", ignoreCase = true) == true || quality?.contains("4K", ignoreCase = true) == true -> 4
-            quality?.contains("1080", ignoreCase = true) == true -> 3
-            quality?.contains("720", ignoreCase = true) == true -> 2
-            quality?.contains("480", ignoreCase = true) == true -> 1
-            else -> 0
-        }
-    }
-
-    private fun isDirectPlayableUrl(url: String?): Boolean {
-        if (url.isNullOrBlank()) return false
-        return url.startsWith("http", ignoreCase = true) && !url.endsWith(".torrent", ignoreCase = true)
-    }
-
-    private fun MovieSource.toDebridSourceProfile(directPlayback: Boolean): DebridSourceProfile {
-        return DebridSourceProfile(
-            provider = provider,
-            sourceType = sourceType,
-            sourceName = sourceName,
-            languages = languages,
-            quality = quality,
-            streamId = stream.stream_id,
-            bingeGroup = bingeGroup,
-            fileIdx = fileIdx,
-            directPlayback = directPlayback
-        )
     }
 
     fun reResolveDebridUrl(
