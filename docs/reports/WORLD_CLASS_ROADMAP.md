@@ -234,7 +234,7 @@ one domain per commit).
 | ~~C2~~ ✅ | `VodFragment.kt` | ~~1301~~ **625** | done 2026-07-27 |
 | ~~C3~~ ✅ | `SeriesFragment.kt` | ~~1096~~ **563** | done 2026-07-27 |
 | ~~C4~~ ✅ | `SeriesDetailFragmentV2.kt` | ~~843~~ **311** | done 2026-07-27 |
-| C5 | `XtreamSeriesRepositoryV2.kt` | 925 | med |
+| ~~C5~~ ✅ | `XtreamSeriesRepositoryV2.kt` | ~~927~~ **239** | done 2026-07-27 |
 | C6 | `DebridPlaybackRepository.kt` | 801 | med |
 | C7 | `LiveTvGuideFragment.kt` | 866 | med-high (guide playback hand-off) |
 | C8 | `LivePlayerOsdManager.kt` | 1174 | high (player) |
@@ -412,6 +412,55 @@ were written and never read anywhere. Nothing user-facing is lost — the plot i
 which the strip's focus callback had just set to the same episode. It now compares against the id
 the button was labelled with — identical behaviour, minus a cross-collaborator read.
 
+
+**C5 done 2026-07-27.** `XtreamSeriesRepositoryV2` 927 → **239** lines (−74%), out of `LargeClass`.
+First *data-layer* phase, so the C2–C4 UI playbooks do not apply — it is a thin facade over four
+collaborators, public API unchanged:
+- `SeriesTitleMatching` (pure object, **17 unit tests**) — the name rules that decide which provider
+  listings are the same show. They fail in both directions with visible consequences: too strict and
+  the SELECT STREAM panel shows one source where five exist, too loose and it offers episodes of a
+  different programme. Both halves are pinned (what must merge, what must stay apart), including the
+  three quirks that exist for a reason: dash-only prefix stripping so "FBI: Most Wanted" keeps its
+  subtitle, required whitespace after the dash so "9-1-1" survives, and ±1 year tolerance because
+  regional first-air years routinely differ by one.
+- `SeriesSiblingFinder` — the two-stage catalog match (wide SQL `LIKE` pool → normalized-title
+  equality → year guard), sourced from the **legacy** `series_v2` table because that is the one
+  browse and search actually populate.
+- `SeriesEpisodeSync` — the network → DB ladder: `get_series_info` → episodes-only fallbacks →
+  sibling adoption, every stage bounded, an empty fetch never overwriting populated episodes, and
+  the parent row always written before its foreign-keyed episodes.
+- `SeriesStreamAggregator` — the multi-category panel: DB-only and instant, resolution deferred to
+  click or to a sweep gated at 2 concurrent fetches, and **fail-open** (a failed fetch keeps the row;
+  only a *successful* fetch that still lacks the episode drops it).
+
+*Design change worth noting:* the aggregator now depends on a one-method `EpisodeCacheWarmer`
+instead of the whole sync class. That is interface segregation with a purpose — the aggregator must
+not be able to trigger a full detail sync, and it is what makes the pipeline testable without a
+provider.
+
+*Ratchet:* baseline 294 → **288**, LargeClass 6 → **5**. All six removed entries are real wins:
+`LargeClass` is gone, `getSeriesById` dropped under both `LongMethod` and complexity once the
+response branches became named methods, `shortCategoryTag` and `buildStreamGroups` dropped under
+complexity, and `adoptSiblingEpisodes` dropped under `NestedBlockDepth` once the per-sibling attempt
+became its own function. No new violations, nothing re-keyed.
+
+*Behaviour preserved deliberately, not accidentally:* the primary-success branch used to `return`
+even when the re-read row was null, so it never fell through to "no data available". A plain
+nullable return would have silently changed that, so the sync reports a `SeriesSyncOutcome`
+(`Resolved` vs `Unresolved`) instead.
+
+*Device verification (`.64`, 2026-07-27):* this app's UI is not adb-driveable (confirmed again —
+`input keyevent` is a no-op on the custom TV views), so C5 was verified with a **new instrumented
+test**, `SeriesStreamAggregationTest` (15 tests, real Room DB, seeded catalog): sibling grouping of
+decorated variants, the different-year exclusion, primary-category ordering, pending rows for
+uncached siblings, the fail-open sweep, and click-time resolution. **Mutation-checked** — flipping
+the fail-open branch to drop failed rows turns the suite red. On-device suite is now **32 tests**
+(was 17); app launch-stable, zero exceptions in logcat.
+
+⚠ *Noted, not acted on:* `getSeriesById`'s outer `catch (e: Exception)` also swallows
+`CancellationException` (pre-existing). Fixing it changes cancellation behaviour on the episode-load
+hot path, so it belongs in its own commit, not in a relocation.
+
 - *Exit:* E2 = 0; each new collaborator < 600 lines and unit-tested.
 
 ### Tier D — finish the open audit findings
@@ -516,5 +565,7 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-07-27 | **C3** — `SeriesFragment` 1096 → 563 (−49%), out of `LargeClass`; 3 collaborators; 3 of 4 dropped baseline entries were real complexity wins, not relocations | **298** | **7** | 0 | 17 | `e7db659` |
 
 | 2026-07-27 | **C4** — `SeriesDetailFragmentV2` 843 → 311 (−63%), out of `LargeClass`; 5 collaborators + a shared page-state holder; all 4 dropped baseline entries were real complexity wins, not relocations | **294** | **6** | 0 | 17 | `e0fcbd6` |
+
+| 2026-07-27 | **C5** — `XtreamSeriesRepositoryV2` 927 → 239 (−74%), out of `LargeClass`; 4 collaborators; all 6 dropped baseline entries were real complexity wins; +17 unit +15 instrumented tests | **288** | **5** | 0 | 32 | `PENDING` |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
