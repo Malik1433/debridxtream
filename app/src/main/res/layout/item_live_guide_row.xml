@@ -4,7 +4,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="46dp"
+    android:layout_height="56dp"
     android:orientation="horizontal">
 
     <!-- channel column -->
@@ -20,8 +20,8 @@
 
         <FrameLayout
             android:id="@+id/guide_ch_logo"
-            android:layout_width="30dp"
-            android:layout_height="30dp">
+            android:layout_width="40dp"
+            android:layout_height="40dp">
 
             <TextView
                 android:id="@+id/guide_ch_logo_text"
@@ -30,7 +30,7 @@
                 android:layout_gravity="center"
                 android:fontFamily="@font/plus_jakarta_sans"
                 android:textColor="@android:color/white"
-                android:textSize="7sp"
+                android:textSize="9sp"
                 android:textStyle="bold"
                 tools:text="ARD" />
 

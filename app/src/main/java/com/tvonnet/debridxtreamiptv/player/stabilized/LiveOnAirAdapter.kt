@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -44,6 +45,7 @@ class LiveOnAirAdapter : RecyclerView.Adapter<LiveOnAirAdapter.Holder>() {
         private val bar: View = itemView.findViewById(R.id.onair_bar)
         private val logo: FrameLayout = itemView.findViewById(R.id.onair_logo)
         private val logoText: TextView = itemView.findViewById(R.id.onair_logo_text)
+        private val logoImg: ImageView = itemView.findViewById(R.id.onair_logo_img)
         private val name: TextView = itemView.findViewById(R.id.onair_name)
         private val live: TextView = itemView.findViewById(R.id.onair_live)
         private val now: TextView = itemView.findViewById(R.id.onair_now)
@@ -54,8 +56,9 @@ class LiveOnAirAdapter : RecyclerView.Adapter<LiveOnAirAdapter.Holder>() {
             val ctx = itemView.context
             val density = ctx.resources.displayMetrics.density
 
-            logoText.text = LiveChannelVisuals.channelInitials(row.name)
-            logo.background = LiveChannelVisuals.channelTileGradient(row.name, 4.5f * density)
+            // Previously the strip only ever showed initials: OnAirRow carried a logoUrl that
+            // nothing ever read, and there was no ImageView to render it into.
+            LiveLogoBinder.bind(logo, logoImg, logoText, row.name, row.logoUrl)
             name.text = row.name
             num.text = row.num
             now.text = row.nowTitle

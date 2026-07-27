@@ -81,16 +81,7 @@ class LiveGuideAdapter : RecyclerView.Adapter<LiveGuideAdapter.Holder>() {
             val density = ctx.resources.displayMetrics.density
             val isFocusedRow = position == focusedRow
 
-            logoText.text = LiveChannelVisuals.channelInitials(row.name)
-            logo.background = LiveChannelVisuals.channelTileGradient(row.name, 6f * density)
-            if (!row.logoUrl.isNullOrBlank()) {
-                logoImg.isVisible = true
-                logoText.isVisible = false
-                GlideUtils.loadChannelLogo(logoImg, row.logoUrl)
-            } else {
-                logoImg.isVisible = false
-                logoText.isVisible = true
-            }
+            LiveLogoBinder.bind(logo, logoImg, logoText, row.name, row.logoUrl)
             name.text = row.name
             num.text = row.num
             name.setTextColor(

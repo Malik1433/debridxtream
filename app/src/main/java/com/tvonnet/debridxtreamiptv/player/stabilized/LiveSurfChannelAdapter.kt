@@ -10,6 +10,10 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
+import android.graphics.drawable.Drawable
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.util.GlideUtils
 
@@ -60,6 +64,7 @@ class LiveSurfChannelAdapter(
     inner class Holder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val catBar: View = itemView.findViewById(R.id.surf_cat_bar)
         private val num: TextView = itemView.findViewById(R.id.surf_num)
+        private val wash: View = itemView.findViewById(R.id.surf_wash)
         private val logo: FrameLayout = itemView.findViewById(R.id.surf_logo)
         private val logoText: TextView = itemView.findViewById(R.id.surf_logo_text)
         private val logoImg: ImageView = itemView.findViewById(R.id.surf_logo_img)
@@ -87,18 +92,7 @@ class LiveSurfChannelAdapter(
             playing.isVisible = isPlaying
             itemView.isActivated = isPlaying
 
-            logoText.text = LiveChannelVisuals.channelInitials(channel.name)
-            // FIX 3: the logo tile's neutral background is now static (set once in
-            // the layout XML) — no per-channel hashed-color gradient here anymore.
-            if (!channel.logoUrl.isNullOrBlank()) {
-                logoImg.isVisible = true
-                // Explicit null placeholder/error: on a broken/missing logo URL, fall
-                // back to the initials text underneath instead of a generic poster
-                // placeholder icon sitting inside the tile.
-                GlideUtils.loadChannelLogo(logoImg, channel.logoUrl, null, null)
-            } else {
-                logoImg.isVisible = false
-            }
+            bindLogoAndWash(channel, isPlaying)
 
             val rowEpg = epg[channel.streamId]
             now.text = rowEpg?.nowTitle
@@ -129,6 +123,74 @@ class LiveSurfChannelAdapter(
 
             itemView.setOnClickListener { onChannelClick(position) }
             itemView.setOnFocusChangeListener { _, hasFocus -> if (hasFocus) onChannelFocus(position) }
+        }
+
+        /**
+         * The logo goes in as a Drawable rather than straight into the ImageView, because the row's
+         * colour wash is derived from the artwork itself.
+         *
+         * The wash is painted TWICE on purpose: once immediately with the name-hash fallback so the
+         * row is never colourless while the logo is in flight, and again with the real brand colour
+         * once it arrives. Recycled rows are reset first, or a row keeps the previous channel's
+         * logo and colour until its own load finishes.
+         */
+        private fun bindLogoAndWash(channel: ZapChannel, isPlaying: Boolean) {
+            val ctx = itemView.context
+            val fallback = LiveChannelVisuals.accentColor(channel.name)
+
+            logoText.text = LiveChannelVisuals.channelInitials(channel.name)
+            logoText.isVisible = true
+            logoImg.isVisible = false
+            logoImg.setImageDrawable(null)
+            Glide.with(ctx).clear(logoTarget)
+            applyWash(fallback, isPlaying)
+
+            val url = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(channel.logoUrl)
+            if (url.isNullOrBlank()) return
+            pendingLogoUrl = url
+            pendingFocused = isPlaying
+            pendingFallback = fallback
+            Glide.with(ctx).load(url).dontAnimate().into(logoTarget)
+        }
+
+        private fun applyWash(color: Int, focused: Boolean) {
+            wash.background = ChannelAccentWash.forRow(
+                color, focused, itemView.resources.displayMetrics.density
+            )
+        }
+
+        private var pendingLogoUrl: String? = null
+        private var pendingFocused = false
+
+        /**
+         * The same fallback bind() already painted. Reusing it matters for a monochrome logo like
+         * ZDF neo: the palette finds no brand colour, and recomputing the fallback from a different
+         * input here would make the row visibly change colour the moment the logo loads.
+         */
+        private var pendingFallback = 0
+
+        private val logoTarget = object : CustomTarget<Drawable>() {
+            override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
+                logoImg.setImageDrawable(resource)
+                logoImg.isVisible = true
+                logoText.isVisible = false
+                applyWash(
+                    ChannelAccentPalette.accentFor(pendingLogoUrl, resource, pendingFallback),
+                    pendingFocused
+                )
+            }
+
+            override fun onLoadCleared(placeholder: Drawable?) {
+                logoImg.setImageDrawable(null)
+                logoImg.isVisible = false
+                logoText.isVisible = true
+            }
+
+            override fun onLoadFailed(errorDrawable: Drawable?) {
+                // Keep the initials and the fallback wash bind() already applied.
+                logoImg.isVisible = false
+                logoText.isVisible = true
+            }
         }
     }
 }

@@ -247,6 +247,54 @@ object GlideUtils {
         return this.listener(sharedErrorListener as com.bumptech.glide.request.RequestListener<T>)
     }
 
+    /**
+     * Channel logo with a load/fail hook, for "logo-forward" rows that show a placeholder tile only
+     * until a real logo actually renders.
+     *
+     * [onResult] is what makes that safe: it fires `false` for a missing, recently-failed or broken
+     * URL, so the caller can put its fallback back rather than leaving an empty box. It is always
+     * called at least once, and always on the main thread.
+     */
+    fun loadChannelLogo(
+        imageView: ImageView,
+        logoUrl: String?,
+        onResult: (loaded: Boolean) -> Unit
+    ) {
+        val glideUrl = getGlideUrl(logoUrl)
+        if (glideUrl == null) {
+            imageView.setImageDrawable(null)
+            onResult(false)
+            return
+        }
+        Glide.with(imageView.context)
+            .load(glideUrl)
+            .apply(getChannelLogoOptions(null, null))
+            .dontAnimate()
+            .listener(object : com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable> {
+                override fun onLoadFailed(
+                    e: com.bumptech.glide.load.engine.GlideException?,
+                    model: Any?,
+                    target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>,
+                    isFirstResource: Boolean
+                ): Boolean {
+                    onResult(false)
+                    return false
+                }
+
+                override fun onResourceReady(
+                    resource: android.graphics.drawable.Drawable,
+                    model: Any,
+                    target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>?,
+                    dataSource: com.bumptech.glide.load.DataSource,
+                    isFirstResource: Boolean
+                ): Boolean {
+                    onResult(true)
+                    return false
+                }
+            })
+            .into(imageView)
+    }
+
     private fun getGlideUrl(url: String?): com.bumptech.glide.load.model.GlideUrl? {
         val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(url)
         if (resolved.isNullOrBlank()) return null
