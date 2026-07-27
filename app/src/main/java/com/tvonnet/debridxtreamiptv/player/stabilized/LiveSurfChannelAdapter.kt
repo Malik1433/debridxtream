@@ -87,7 +87,7 @@ class LiveSurfChannelAdapter(
             playing.isVisible = isPlaying
             itemView.isActivated = isPlaying
 
-            logoText.text = LivePlayerOsdManager.channelInitials(channel.name)
+            logoText.text = LiveChannelVisuals.channelInitials(channel.name)
             // FIX 3: the logo tile's neutral background is now static (set once in
             // the layout XML) — no per-channel hashed-color gradient here anymore.
             if (!channel.logoUrl.isNullOrBlank()) {
@@ -113,7 +113,7 @@ class LiveSurfChannelAdapter(
                 left.isVisible = false
             }
 
-            val q = LivePlayerOsdManager.detectQuality(channel.name)
+            val q = LiveChannelVisuals.detectQuality(channel.name)
             if (q == null) {
                 quality.isVisible = false
             } else {

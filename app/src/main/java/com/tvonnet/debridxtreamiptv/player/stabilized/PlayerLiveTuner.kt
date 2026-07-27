@@ -168,13 +168,15 @@ internal class PlayerLiveTuner(
             root = osdRoot,
             playerView = playerView,
             playerProvider = { player },
-            onRequestGuideData = { windowStart, windowEnd ->
-                viewModel.loadGuideEpg(windowStart, windowEnd)
-            },
-            onTuneChannel = { index -> tuneToZapIndex(index) },
-            onToggleFavorite = { toggleLiveFavorite() },
-            onCategorySelected = { categoryId ->
-                viewModel.switchZapCategory(categoryId, baseServerUrl ?: prefs.getServerUrl())
+            callbacks = object : LivePlayerOsdManager.Callbacks {
+                override fun onRequestGuideData(windowStartMs: Long, windowEndMs: Long) {
+                    viewModel.loadGuideEpg(windowStartMs, windowEndMs)
+                }
+                override fun onTuneChannel(index: Int) = tuneToZapIndex(index)
+                override fun onToggleFavorite() = toggleLiveFavorite()
+                override fun onCategorySelected(categoryId: String) {
+                    viewModel.switchZapCategory(categoryId, baseServerUrl ?: prefs.getServerUrl())
+                }
             }
         ).also {
             it.show()

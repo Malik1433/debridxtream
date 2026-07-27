@@ -54,8 +54,8 @@ class LiveOnAirAdapter : RecyclerView.Adapter<LiveOnAirAdapter.Holder>() {
             val ctx = itemView.context
             val density = ctx.resources.displayMetrics.density
 
-            logoText.text = LivePlayerOsdManager.channelInitials(row.name)
-            logo.background = LivePlayerOsdManager.channelTileGradient(row.name, 4.5f * density)
+            logoText.text = LiveChannelVisuals.channelInitials(row.name)
+            logo.background = LiveChannelVisuals.channelTileGradient(row.name, 4.5f * density)
             name.text = row.name
             num.text = row.num
             now.text = row.nowTitle

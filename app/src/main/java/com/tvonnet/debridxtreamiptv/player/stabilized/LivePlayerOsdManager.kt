@@ -44,11 +44,19 @@ class LivePlayerOsdManager(
     private val root: View,
     private val playerView: PlayerView,
     private val playerProvider: () -> Player?,
-    private val onRequestGuideData: (Long, Long) -> Unit,
-    private val onTuneChannel: (Int) -> Unit,
-    private val onToggleFavorite: () -> Unit,
-    private val onCategorySelected: (String) -> Unit
+    private val callbacks: Callbacks,
 ) {
+    /**
+     * Everything the OSD hands back to `PlayerLiveTuner`. Grouped rather than passed as four
+     * separate lambdas so the constructor stays inside the parameter-count guardrail.
+     */
+    interface Callbacks {
+        fun onRequestGuideData(windowStartMs: Long, windowEndMs: Long)
+        fun onTuneChannel(index: Int)
+        fun onToggleFavorite()
+        fun onCategorySelected(categoryId: String)
+    }
+
     private val handler = Handler(Looper.getMainLooper())
     private val easeOutExpo = PathInterpolator(0.22f, 1f, 0.36f, 1f)
     private val clockFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
@@ -86,8 +94,6 @@ class LivePlayerOsdManager(
     private val minLeft: TextView = root.findViewById(R.id.live_min_left)
     private val progress: ProgressBar = root.findViewById(R.id.live_progress)
     // ON AIR NOW mini-EPG (bottom OSD, v2)
-    private val onAirClock: TextView = root.findViewById(R.id.live_onair_clock)
-    private val onAirList: RecyclerView = root.findViewById(R.id.rv_live_onair)
     private val btnChannels: View = root.findViewById(R.id.btn_live_channels)
     private val btnGuide: View = root.findViewById(R.id.btn_live_guide)
     private val btnCc: View = root.findViewById(R.id.btn_live_cc)
@@ -98,23 +104,8 @@ class LivePlayerOsdManager(
     private val audioLabel: TextView = root.findViewById(R.id.live_audio_label)
     private val aspectLabel: TextView = root.findViewById(R.id.live_aspect_label)
     private val favIcon: ImageView = root.findViewById(R.id.live_fav_icon)
-    private val drawerScrim: View = root.findViewById(R.id.live_drawer_scrim)
-    private val drawer: View = root.findViewById(R.id.live_surf_drawer)
-    private val surfTitle: TextView = root.findViewById(R.id.live_surf_title)
-    private val surfCount: TextView = root.findViewById(R.id.live_surf_count)
-    private val surfList: RecyclerView = root.findViewById(R.id.rv_live_surf)
     // preview strip (top of channel drawer, v2)
-    private val previewBg: View = root.findViewById(R.id.live_preview_bg)
-    private val previewLogo: FrameLayout = root.findViewById(R.id.live_preview_logo)
-    private val previewLogoText: TextView = root.findViewById(R.id.live_preview_logo_text)
-    private val previewLogoImg: ImageView = root.findViewById(R.id.live_preview_logo_img)
-    private val previewName: TextView = root.findViewById(R.id.live_preview_name)
-    private val previewNow: TextView = root.findViewById(R.id.live_preview_now)
-    private val previewQuality: TextView = root.findViewById(R.id.live_preview_quality)
-    private val previewProgress: ProgressBar = root.findViewById(R.id.live_preview_progress)
     // categories side panel (v2)
-    private val catsDrawer: View = root.findViewById(R.id.live_cats_drawer)
-    private val catsList: RecyclerView = root.findViewById(R.id.rv_live_cats)
     private val toast: View = root.findViewById(R.id.live_toast)
     private val toastDot: View = root.findViewById(R.id.live_toast_dot)
     private val toastText: TextView = root.findViewById(R.id.live_toast_text)
@@ -122,53 +113,30 @@ class LivePlayerOsdManager(
 
     private val controls = listOf(btnChannels, btnGuide, btnCc, btnAudio, btnAspect, btnFav)
 
+    /** Subtitles / audio / aspect cycling (C8). */
+    private val trackControls = LiveTrackControls(
+        playerView = playerView,
+        playerProvider = playerProvider,
+        labels = LiveTrackControls.Labels(ccLabel, audioLabel, aspectLabel),
+        host = TrackControlsHost(),
+    )
+
     // ── state ──────────────────────────────────────────────────────────────
     private var currentNow: EpgEntity? = null
     private var isFavorite = false
-    private var aspectIndex = 0
-    private var zapChannels: List<ZapChannel> = emptyList()
-    private var zapIndex: Int = -1
-    private var favoriteIds: Set<String> = emptySet()
     private var channelName: String? = null
     private var connectionLabel: String = "XTREAM"
 
-    // Two-panel surf drawer: channel list, optionally with the category picker.
-    private enum class Panel { NONE, CHANNELS, BOTH }
-    private var panel: Panel = Panel.NONE
-    private var categories: List<XtreamCategory> = emptyList()
-    private var currentCategoryId: String? = null
-    private var currentCategoryName: String? = null
-    private var pendingCategoryRefocus = false
-    private var surfEpg: Map<String, EpgEntity> = emptyMap()
-    private var previewIndex: Int = -1
+    /** The two-panel surf drawer, which also owns the zap state (C8). */
+    private val surfDrawer = LiveSurfDrawerController(root, DrawerHost())
 
     /** The full-screen EPG grid drawn over the video (C8). */
     private val guide = LiveGuideOverlayController(root, playerView, GuideHost())
 
-    val isDrawerOpen: Boolean get() = panel != Panel.NONE
+    val isDrawerOpen: Boolean get() = surfDrawer.isOpen
     val isGuideOpen: Boolean get() = guide.isOpen
     val isOsdVisible: Boolean get() = bottomOsd.isVisible && bottomOsd.alpha > 0.5f
 
-    private val surfAdapter = LiveSurfChannelAdapter(
-        onChannelClick = { index ->
-            closeDrawer(refocusControls = false)
-            onTuneChannel(index)
-        },
-        onChannelFocus = { index -> updatePreview(index) }
-    )
-
-    private val categoryAdapter: LiveSurfCategoryAdapter = LiveSurfCategoryAdapter { category ->
-        val catId = category.category_id ?: return@LiveSurfCategoryAdapter
-        currentCategoryId = catId
-        currentCategoryName = category.category_name
-        // Reload the zap list for the picked category; the refreshed list arrives
-        // async via setZapState, which re-submits the category highlight + re-asserts
-        // focus because of this flag.
-        pendingCategoryRefocus = true
-        onCategorySelected(catId)
-    }
-
-    private val onAirAdapter = LiveOnAirAdapter()
 
     private val hideOsdRunnable = Runnable { hideOsd() }
     private val hideZapRunnable = Runnable { hideZapOsd() }
@@ -177,34 +145,22 @@ class LivePlayerOsdManager(
         override fun run() {
             val now = clockFormat.format(Date())
             clock.text = now
-            onAirClock.text = now
+            surfDrawer.onMinuteTick(now)
             guide.onMinuteTick(now)
             updateProgressRow()
-            refreshOnAir()
             handler.postDelayed(this, 30_000L)
         }
     }
 
     init {
-        surfList.layoutManager = LinearLayoutManager(root.context)
-        surfList.adapter = surfAdapter
-        catsList.layoutManager = LinearLayoutManager(root.context)
-        catsList.adapter = categoryAdapter
-        onAirList.layoutManager = LinearLayoutManager(root.context)
-        onAirList.adapter = onAirAdapter
-        onAirList.isFocusable = false
-
-        btnChannels.setOnClickListener { openDrawer() }
+        btnChannels.setOnClickListener { surfDrawer.open() }
         btnGuide.setOnClickListener { guide.open() }
-        btnCc.setOnClickListener { cycleCc() }
-        btnAudio.setOnClickListener { cycleAudio() }
-        btnAspect.setOnClickListener { cycleAspect() }
-        btnFav.setOnClickListener { onToggleFavorite() }
-        drawerScrim.setOnClickListener { closeDrawer() }
+        btnCc.setOnClickListener { trackControls.cycleCc() }
+        btnAudio.setOnClickListener { trackControls.cycleAudio() }
+        btnAspect.setOnClickListener { trackControls.cycleAspect() }
+        btnFav.setOnClickListener { callbacks.onToggleFavorite() }
 
-        ccLabel.text = root.context.getString(R.string.live_osd_off)
-        audioLabel.text = root.context.getString(R.string.live_osd_original)
-        aspectLabel.text = ASPECT_LABELS[0]
+        trackControls.applyInitialLabels()
         setControlsFocusable(false)
 
         // LIVE badge pulse (design: livePulse 1.4s)
@@ -228,8 +184,8 @@ class LivePlayerOsdManager(
     fun bindChannel(name: String?, logoUrl: String?) {
         channelName = name
         bugName.text = name.orEmpty()
-        bugInitials.text = channelInitials(name)
-        bugLogo.background = channelTileGradient(
+        bugInitials.text = LiveChannelVisuals.channelInitials(name)
+        bugLogo.background = LiveChannelVisuals.channelTileGradient(
             name,
             8f * root.resources.displayMetrics.density,
             strokeColor = 0x1FFFFFFF
@@ -241,7 +197,7 @@ class LivePlayerOsdManager(
             bugLogoImg.isVisible = false
         }
 
-        val quality = detectQuality(name)
+        val quality = LiveChannelVisuals.detectQuality(name)
         if (quality == null) {
             bugQuality.isVisible = false
         } else {
@@ -305,8 +261,8 @@ class LivePlayerOsdManager(
 
     // ── zap backdrop (gradient + watermark while switching) ────────────────
     fun showZapBackdrop() {
-        zapBackdropInitials.text = channelInitials(channelName)
-        zapBackdropGradient.background = watermarkGradient(channelName)
+        zapBackdropInitials.text = LiveChannelVisuals.channelInitials(channelName)
+        zapBackdropGradient.background = LiveChannelVisuals.watermarkGradient(channelName)
         zapBackdrop.alpha = 1f
         zapBackdrop.isVisible = true
     }
@@ -360,110 +316,8 @@ class LivePlayerOsdManager(
     }
 
     // ── per-channel EPG (v2 rich rows + ON AIR NOW + preview strip) ─────────
-    /** Current-program snapshot for every channel, keyed by streamId. */
-    fun setSurfEpg(map: Map<String, EpgEntity>) {
-        surfEpg = map
-        refreshOnAir()
-        if (panel != Panel.NONE) {
-            // CC-1: this fires on the 30s minute tick while the drawer is open; keep the
-            // user's focused row instead of letting notifyDataSetChanged drop/flicker it.
-            surfList.updatePreservingFocus {
-                surfAdapter.submit(zapChannels, zapIndex, favoriteIds, rowEpgMap(), categoryColor())
-            }
-        }
-        if (previewIndex in zapChannels.indices) bindPreviewStrip(zapChannels[previewIndex])
-    }
-
-    private fun toRowEpg(e: EpgEntity?): SurfRowEpg? {
-        if (e == null || e.stop <= e.start) return e?.let { SurfRowEpg(it.title, 0, null) }
-        val now = System.currentTimeMillis()
-        val dur = (e.stop - e.start).coerceAtLeast(1L)
-        val elapsed = (now - e.start).coerceIn(0L, dur)
-        val pct = (elapsed * 100 / dur).toInt()
-        val leftMin = ((dur - elapsed) / 60_000L).coerceAtLeast(1L)
-        return SurfRowEpg(e.title, pct, "${leftMin}m left")
-    }
-
-    private fun rowEpgMap(): Map<String, SurfRowEpg> =
-        surfEpg.mapNotNull { (id, e) -> toRowEpg(e)?.let { id to it } }.toMap()
-
-    private fun categoryColor(): Int = accentColor(currentCategoryName)
-
-    private fun categoryCounts(): Map<String, Int> {
-        val current = currentCategoryId?.let { mapOf(it to zapChannels.size) } ?: emptyMap()
-        // Favorites count is already tracked client-side (favoriteIds, kept live by
-        // PlayerViewModel.observeLiveFavorites) — free to show without a query.
-        return current + (FAVORITES_CATEGORY_ID to favoriteIds.size)
-    }
-
-    /** ON AIR NOW mini-EPG: prev / current / next around the tuned channel. */
-    private fun refreshOnAir() {
-        val n = zapChannels.size
-        if (n == 0 || zapIndex < 0) {
-            onAirAdapter.submit(emptyList())
-            return
-        }
-        val offsets = when {
-            n >= 3 -> listOf(-1, 0, 1)
-            n == 2 -> listOf(0, 1)
-            else -> listOf(0)
-        }
-        val rows = offsets.map { off ->
-            val idx = ((zapIndex + off) % n + n) % n
-            val ch = zapChannels[idx]
-            val e = surfEpg[ch.streamId]
-            OnAirRow(
-                name = ch.name,
-                num = String.format(java.util.Locale.US, "%03d", idx + 1),
-                nowTitle = e?.title,
-                logoUrl = ch.logoUrl,
-                isActive = off == 0,
-                progress = toRowEpg(e)?.progress ?: 0
-            )
-        }
-        onAirAdapter.submit(rows)
-    }
-
-    private fun updatePreview(index: Int) {
-        if (index !in zapChannels.indices) return
-        previewIndex = index
-        bindPreviewStrip(zapChannels[index])
-    }
-
-    private fun bindPreviewStrip(ch: ZapChannel) {
-        val density = root.resources.displayMetrics.density
-        previewName.text = ch.name
-        previewLogoText.text = channelInitials(ch.name)
-        previewLogo.background = channelTileGradient(ch.name, 6f * density)
-        previewBg.background = watermarkGradient(ch.name)
-        if (!ch.logoUrl.isNullOrBlank()) {
-            previewLogoImg.isVisible = true
-            GlideUtils.loadChannelLogo(previewLogoImg, ch.logoUrl)
-        } else {
-            previewLogoImg.isVisible = false
-        }
-        val e = surfEpg[ch.streamId]
-        previewNow.text = e?.title
-        previewNow.isVisible = !e?.title.isNullOrBlank()
-        val rp = toRowEpg(e)
-        if (rp != null && rp.progress > 0) {
-            previewProgress.isVisible = true
-            previewProgress.progress = rp.progress
-        } else {
-            previewProgress.isVisible = false
-        }
-        val q = detectQuality(ch.name)
-        if (q == null) {
-            previewQuality.isVisible = false
-        } else {
-            previewQuality.isVisible = true
-            previewQuality.text = q
-            previewQuality.setBackgroundResource(
-                if (q.contains("4K")) R.drawable.bg_live_badge_quality_4k
-                else R.drawable.bg_live_badge_quality_hd
-            )
-        }
-    }
+    /** Per-channel "now" EPG for the surf rows, ON AIR strip and preview. */
+    fun setSurfEpg(map: Map<String, EpgEntity>) = surfDrawer.setSurfEpg(map)
 
     // ── chrome (channel bug + top-right status) show / hide ────────────────
     /**
@@ -560,136 +414,47 @@ class LivePlayerOsdManager(
     private fun isControlFocused(): Boolean = controls.any { it.isFocused }
 
     // ── two-panel surf drawer (channels + category picker, v2) ─────────────
-    fun setZapState(categoryId: String, categoryName: String?, channels: List<ZapChannel>, index: Int) {
-        currentCategoryId = categoryId
-        currentCategoryName = categoryName
-        zapChannels = channels
-        zapIndex = index
-        surfTitle.text = categoryName ?: root.context.getString(R.string.live_osd_channels_title)
-        surfCount.text = root.context.getString(R.string.live_osd_channel_count, channels.size)
-        refreshOnAir()
-        if (panel != Panel.NONE) {
-            surfAdapter.submit(channels, index, favoriteIds, rowEpgMap(), categoryColor())
-            categoryAdapter.submit(categories, currentCategoryId, categoryCounts())
-            // A category switch refreshes the list async; re-assert focus + preview.
-            if (pendingCategoryRefocus) {
-                pendingCategoryRefocus = false
-                updatePreview(index.coerceAtLeast(0))
-                focusSurfRow(index.coerceAtLeast(0))
-            }
-        }
-    }
+    // Owned by [LiveSurfDrawerController], which also owns the zap state it renders.
 
-    private fun focusSurfRow(position: Int) {
-        surfList.scrollToPosition(position)
-        surfList.post {
-            surfList.findViewHolderForAdapterPosition(position)?.itemView?.requestFocus()
-                ?: surfList.requestFocus()
-        }
-    }
+    fun setZapState(categoryId: String, categoryName: String?, channels: List<ZapChannel>, index: Int) =
+        surfDrawer.setZapState(categoryId, categoryName, channels, index)
 
     /** Category picker data for the second-LEFT panel. */
-    fun setCategories(cats: List<XtreamCategory>) {
-        categories = cats
-        if (panel == Panel.BOTH) categoryAdapter.submit(cats, currentCategoryId, categoryCounts())
-    }
+    fun setCategories(cats: List<XtreamCategory>) = surfDrawer.setCategories(cats)
 
     fun setFavorites(ids: Set<String>, currentStreamId: String?) {
-        favoriteIds = ids
         isFavorite = currentStreamId != null && ids.contains(currentStreamId)
         favIcon.setImageResource(if (isFavorite) R.drawable.ic_live_star_filled else R.drawable.ic_live_star)
-        if (panel != Panel.NONE) {
-            // CC-1: favorites can update while the drawer is open — preserve the focused row.
-            surfList.updatePreservingFocus {
-                surfAdapter.submit(zapChannels, zapIndex, favoriteIds, rowEpgMap(), categoryColor())
-            }
-        }
+        surfDrawer.setFavorites(ids)
     }
 
-    fun openDrawer() {
-        if (zapChannels.isEmpty()) {
-            showToast(root.context.getString(R.string.player_zap_loading))
-            return
-        }
-        handler.removeCallbacks(hideOsdRunnable)
-        panel = Panel.CHANNELS
-        surfTitle.text = currentCategoryName ?: root.context.getString(R.string.live_osd_channels_title)
-        surfCount.text = root.context.getString(R.string.live_osd_channel_count, zapChannels.size)
-        surfAdapter.submit(zapChannels, zapIndex, favoriteIds, rowEpgMap(), categoryColor())
-        updatePreview(zapIndex.coerceAtLeast(0))
-        drawerScrim.alpha = 0f
-        drawerScrim.isVisible = true
-        drawerScrim.animate().alpha(1f).setDuration(250).start()
-        drawer.isVisible = true
-        drawer.translationX = -drawer.layoutParams.width.toFloat()
-        drawer.animate().translationX(0f).setDuration(300).setInterpolator(easeOutExpo).start()
-        catsDrawer.isVisible = false
-        // OSD dims to ~12% while the drawer is open (spec).
-        bottomOsd.animate().alpha(0.12f).setDuration(250).start()
-        focusSurfRow(zapIndex.coerceAtLeast(0))
-    }
+    fun openDrawer() = surfDrawer.open()
 
-    /** Second LEFT — slide the category picker in far-left; channel list shifts right. */
-    private fun openCategories() {
-        if (categories.isEmpty()) {
-            showToast(root.context.getString(R.string.live_osd_categories_loading))
-            return
-        }
-        panel = Panel.BOTH
-        categoryAdapter.submit(categories, currentCategoryId, categoryCounts())
-        val catW = catsDrawer.layoutParams.width.toFloat()
-        catsDrawer.isVisible = true
-        catsDrawer.translationX = -catW
-        catsDrawer.animate().translationX(0f).setDuration(320).setInterpolator(easeOutExpo).start()
-        drawer.animate().translationX(catW).setDuration(320).setInterpolator(easeOutExpo).start()
-        val selected = categories.indexOfFirst { it.category_id == currentCategoryId }.coerceAtLeast(0)
-        catsList.scrollToPosition(selected)
-        catsList.post {
-            catsList.findViewHolderForAdapterPosition(selected)?.itemView?.requestFocus()
-                ?: catsList.requestFocus()
-        }
-    }
-
-    /** RIGHT from the category picker — collapse it; channel list slides back. */
-    private fun closeCategories() {
-        if (panel != Panel.BOTH) return
-        panel = Panel.CHANNELS
-        val catW = catsDrawer.layoutParams.width.toFloat()
-        catsDrawer.animate().translationX(-catW).setDuration(260).setInterpolator(easeOutExpo)
-            .withEndAction { catsDrawer.isVisible = false }.start()
-        drawer.animate().translationX(0f).setDuration(260).setInterpolator(easeOutExpo).start()
-        focusSurfRow(previewIndex.coerceAtLeast(0))
-    }
+    fun closeDrawer(refocusControls: Boolean = true) = surfDrawer.close(refocusControls)
 
     /** BACK inside the drawer: categories → channels → close. Returns true if consumed. */
-    fun handleDrawerBack(): Boolean {
-        if (panel == Panel.NONE) return false
-        if (panel == Panel.BOTH) {
-            closeCategories()
-            return true
-        }
-        closeDrawer()
-        return true
-    }
+    fun handleDrawerBack(): Boolean = surfDrawer.handleBack()
 
-    fun closeDrawer(refocusControls: Boolean = true) {
-        if (panel == Panel.NONE) return
-        panel = Panel.NONE
-        pendingCategoryRefocus = false
-        drawerScrim.animate().alpha(0f).setDuration(200).withEndAction { drawerScrim.isVisible = false }.start()
-        val catW = catsDrawer.layoutParams.width.toFloat()
-        if (catsDrawer.isVisible) {
-            catsDrawer.animate().translationX(-catW).setDuration(250)
-                .withEndAction { catsDrawer.isVisible = false }.start()
+    /** What the drawer needs back from the OSD around it. */
+    private inner class DrawerHost : LiveSurfDrawerController.Host {
+        override fun showToast(message: String) = this@LivePlayerOsdManager.showToast(message)
+        override fun tuneChannel(index: Int) = callbacks.onTuneChannel(index)
+        override fun selectCategory(categoryId: String) = callbacks.onCategorySelected(categoryId)
+
+        override fun onDrawerOpening() {
+            handler.removeCallbacks(hideOsdRunnable)
+            // OSD dims to ~12% while the drawer is open (spec).
+            bottomOsd.animate().alpha(0.12f).setDuration(250).start()
         }
-        drawer.animate().translationX(-drawer.layoutParams.width.toFloat()).setDuration(250)
-            .withEndAction { drawer.isVisible = false; drawer.translationX = 0f }.start()
-        if (bottomOsd.isVisible) {
-            bottomOsd.animate().alpha(1f).setDuration(250).start()
-            handler.postDelayed(hideOsdRunnable, OSD_TIMEOUT_MS)
-            if (refocusControls) btnChannels.requestFocus()
-        } else {
-            playerView.requestFocus()
+
+        override fun onDrawerClosed(refocusControls: Boolean) {
+            if (bottomOsd.isVisible) {
+                bottomOsd.animate().alpha(1f).setDuration(250).start()
+                handler.postDelayed(hideOsdRunnable, OSD_TIMEOUT_MS)
+                if (refocusControls) btnChannels.requestFocus()
+            } else {
+                playerView.requestFocus()
+            }
         }
     }
 
@@ -708,16 +473,16 @@ class LivePlayerOsdManager(
 
     /** What the guide needs back from the OSD around it. */
     private inner class GuideHost : LiveGuideOverlayController.Host {
-        override fun zapChannels(): List<ZapChannel> = zapChannels
-        override fun zapIndex(): Int = zapIndex
+        override fun zapChannels(): List<ZapChannel> = surfDrawer.channels()
+        override fun zapIndex(): Int = surfDrawer.tunedIndex()
         override fun showToast(message: String) = this@LivePlayerOsdManager.showToast(message)
-        override fun requestGuideData(fromMs: Long, toMs: Long) = onRequestGuideData(fromMs, toMs)
-        override fun tuneChannel(index: Int) = onTuneChannel(index)
+        override fun requestGuideData(fromMs: Long, toMs: Long) = callbacks.onRequestGuideData(fromMs, toMs)
+        override fun tuneChannel(index: Int) = callbacks.onTuneChannel(index)
 
         /** The guide is full-screen: retire the bottom OSD, chrome and any open drawer. */
         override fun retireChromeForGuide() {
             handler.removeCallbacks(hideOsdRunnable)
-            if (panel != Panel.NONE) closeDrawer(refocusControls = false)
+            if (surfDrawer.isOpen) surfDrawer.close(refocusControls = false)
             setChromeVisible(false)
             setControlsFocusable(false)
             if (bottomOsd.isVisible) {
@@ -750,79 +515,12 @@ class LivePlayerOsdManager(
     }
 
     // ── control actions ────────────────────────────────────────────────────
-    private fun cycleCc() {
-        val player = playerProvider() ?: return
-        val groups = player.currentTracks.groups.filter {
-            it.type == C.TRACK_TYPE_TEXT && it.isSupported
-        }
-        val params = player.trackSelectionParameters
-        val currentOverride = params.overrides.values.firstOrNull { it.type == C.TRACK_TYPE_TEXT }
-        val currentIdx = if (params.disabledTrackTypes.contains(C.TRACK_TYPE_TEXT) || groups.isEmpty()) {
-            -1
-        } else {
-            groups.indexOfFirst { it.mediaTrackGroup == currentOverride?.mediaTrackGroup }
-        }
-        val nextIdx = if (groups.isEmpty()) -1 else {
-            val n = currentIdx + 1
-            if (n >= groups.size) -1 else n
-        }
-        val builder = params.buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT)
-        val label: String
-        if (nextIdx < 0) {
-            builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
-            label = root.context.getString(R.string.live_osd_off)
-        } else {
-            builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
-            builder.addOverride(TrackSelectionOverride(groups[nextIdx].mediaTrackGroup, 0))
-            label = trackLabel(groups[nextIdx].getTrackFormat(0).language, groups[nextIdx].getTrackFormat(0).label, nextIdx)
-        }
-        player.trackSelectionParameters = builder.build()
-        ccLabel.text = label
-        showToast("SUBTITLES · " + label.uppercase(Locale.getDefault()))
-        resetOsdTimer()
-    }
+    // ── control actions ──────────────────────────────────────
+    // Subtitles / audio / aspect cycling is owned by [LiveTrackControls].
 
-    private fun cycleAudio() {
-        val player = playerProvider() ?: return
-        val groups = player.currentTracks.groups.filter {
-            it.type == C.TRACK_TYPE_AUDIO && it.isSupported
-        }
-        if (groups.isEmpty()) {
-            showToast("AUDIO · " + root.context.getString(R.string.live_osd_original).uppercase(Locale.getDefault()))
-            return
-        }
-        val params = player.trackSelectionParameters
-        val currentOverride = params.overrides.values.firstOrNull { it.type == C.TRACK_TYPE_AUDIO }
-        val currentIdx = groups.indexOfFirst { it.mediaTrackGroup == currentOverride?.mediaTrackGroup }
-            .let { if (it < 0) groups.indexOfFirst { g -> g.isSelected } else it }
-            .coerceAtLeast(0)
-        val nextIdx = (currentIdx + 1) % groups.size
-        player.trackSelectionParameters = params.buildUpon()
-            .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
-            .addOverride(TrackSelectionOverride(groups[nextIdx].mediaTrackGroup, 0))
-            .build()
-        val format = groups[nextIdx].getTrackFormat(0)
-        val label = when {
-            format.channelCount >= 6 -> "Dolby 5.1"
-            else -> trackLabel(format.language, format.label, nextIdx)
-        }
-        audioLabel.text = label
-        showToast("AUDIO · " + label.uppercase(Locale.getDefault()))
-        resetOsdTimer()
-    }
-
-    private fun cycleAspect() {
-        aspectIndex = (aspectIndex + 1) % ASPECT_LABELS.size
-        playerView.resizeMode = ASPECT_MODES[aspectIndex]
-        aspectLabel.text = ASPECT_LABELS[aspectIndex]
-        showToast("ASPECT · " + ASPECT_LABELS[aspectIndex].uppercase(Locale.getDefault()))
-        resetOsdTimer()
-    }
-
-    private fun trackLabel(language: String?, label: String?, index: Int): String {
-        return label
-            ?: language?.let { Locale(it).displayLanguage.replaceFirstChar { c -> c.uppercase() } }
-            ?: "Track ${index + 1}"
+    private inner class TrackControlsHost : LiveTrackControls.Host {
+        override fun showToast(message: String) = this@LivePlayerOsdManager.showToast(message)
+        override fun resetOsdTimer() = this@LivePlayerOsdManager.resetOsdTimer()
     }
 
     // ── key routing (spec §8) ──────────────────────────────────────────────
@@ -833,30 +531,11 @@ class LivePlayerOsdManager(
             return false
         }
         if (guide.isOpen) return guide.handleKeyEvent(event)
-        if (isDrawerOpen) {
-            // BACK is handled by PlayerActivity's back routing.
-            return when (event.keyCode) {
-                KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    // Channels → open category picker (both); both → close everything.
-                    when (panel) {
-                        Panel.CHANNELS -> openCategories()
-                        Panel.BOTH -> closeDrawer()
-                        Panel.NONE -> {}
-                    }
-                    true
-                }
-                KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    // From the category picker, RIGHT collapses back to the channel list.
-                    if (panel == Panel.BOTH) {
-                        closeCategories(); true
-                    } else false
-                }
-                else -> false // list focus handles up/down/OK natively
-            }
-        }
+        if (surfDrawer.isOpen) return surfDrawer.handleKeyEvent(event)
+
         when (event.keyCode) {
             KeyEvent.KEYCODE_DPAD_LEFT -> {
-                openDrawer(); return true
+                surfDrawer.open(); return true
             }
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 if (!isOsdVisible || !isControlFocused()) {
@@ -900,66 +579,6 @@ class LivePlayerOsdManager(
         // Don't draw a "No information" filler for sub-2min seams between programmes.
         private const val GUIDE_MIN_FILLER_MS = 2 * 60_000L
 
-        private val ASPECT_LABELS = listOf("Fit", "Fill", "16:9", "Zoom")
-        private val ASPECT_MODES = listOf(
-            AspectRatioFrameLayout.RESIZE_MODE_FIT,
-            AspectRatioFrameLayout.RESIZE_MODE_FILL,
-            AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH,
-            AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-        )
 
-        // Genre-bg gradients from the design (LOGO_BG); picked by name hash since
-        // Xtream streams carry no genre.
-        private val TILE_GRADIENTS = listOf(
-            intArrayOf(0xFF1A5FB4.toInt(), 0xFF3584E4.toInt()), // news
-            intArrayOf(0xFF00CC6A.toInt(), 0xFF00FF88.toInt()), // sports
-            intArrayOf(0xFFB8860B.toInt(), 0xFFD4AF37.toInt()), // movies
-            intArrayOf(0xFF7C3AED.toInt(), 0xFFA78BFA.toInt()), // ent
-            intArrayOf(0xFFE11D74.toInt(), 0xFFFF6BA8.toInt()), // kids
-            intArrayOf(0xFFE68A00.toInt(), 0xFFFFAA00.toInt())  // music
-        )
-
-        /** Stable accent color for a category's color-bar (v2 rich surf rows). */
-        fun accentColor(name: String?): Int =
-            TILE_GRADIENTS[Math.abs(name?.hashCode() ?: 0) % TILE_GRADIENTS.size][1]
-
-        fun channelInitials(name: String?): String {
-            if (name.isNullOrBlank()) return "TV"
-            val cleaned = name.substringAfter(':').trim()
-            val word = cleaned.split(' ', '-', '_').firstOrNull { it.any(Char::isLetterOrDigit) } ?: return "TV"
-            return word.filter(Char::isLetterOrDigit).take(4).uppercase(Locale.getDefault())
-        }
-
-        fun channelTileGradient(name: String?, cornerRadiusPx: Float, strokeColor: Int = 0x14FFFFFF): GradientDrawable {
-            val colors = TILE_GRADIENTS[Math.abs(name?.hashCode() ?: 0) % TILE_GRADIENTS.size]
-            return GradientDrawable(GradientDrawable.Orientation.TL_BR, colors).apply {
-                cornerRadius = cornerRadiusPx
-                setStroke(1, strokeColor)
-            }
-        }
-
-        /** Dark radial-ish backdrop used behind the watermark while zapping. */
-        fun watermarkGradient(name: String?): GradientDrawable {
-            val accent = TILE_GRADIENTS[Math.abs(name?.hashCode() ?: 0) % TILE_GRADIENTS.size][0]
-            val dimmed = (0xFF shl 24) or (
-                (((accent shr 16 and 0xFF) * 0.28f).toInt() shl 16) or
-                (((accent shr 8 and 0xFF) * 0.28f).toInt() shl 8) or
-                ((accent and 0xFF) * 0.28f).toInt()
-            )
-            return GradientDrawable(
-                GradientDrawable.Orientation.TL_BR,
-                intArrayOf(dimmed, 0xFF06090E.toInt())
-            )
-        }
-
-        fun detectQuality(name: String?): String? {
-            val upper = name?.uppercase(Locale.getDefault()) ?: return null
-            return when {
-                upper.contains("4K") || upper.contains("UHD") -> "4K UHD"
-                upper.contains("FHD") || upper.contains("1080") -> "FHD"
-                upper.contains("HD") -> "HD"
-                else -> null
-            }
-        }
     }
 }

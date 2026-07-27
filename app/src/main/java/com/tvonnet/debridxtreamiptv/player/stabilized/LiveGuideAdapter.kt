@@ -81,8 +81,8 @@ class LiveGuideAdapter : RecyclerView.Adapter<LiveGuideAdapter.Holder>() {
             val density = ctx.resources.displayMetrics.density
             val isFocusedRow = position == focusedRow
 
-            logoText.text = LivePlayerOsdManager.channelInitials(row.name)
-            logo.background = LivePlayerOsdManager.channelTileGradient(row.name, 6f * density)
+            logoText.text = LiveChannelVisuals.channelInitials(row.name)
+            logo.background = LiveChannelVisuals.channelTileGradient(row.name, 6f * density)
             if (!row.logoUrl.isNullOrBlank()) {
                 logoImg.isVisible = true
                 logoText.isVisible = false
