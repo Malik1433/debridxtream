@@ -81,9 +81,6 @@
     <ID>CyclomaticComplexMethod:LiveNavRail.kt$LiveNavRail$private fun setExpanded(value: Boolean)</ID>
     <ID>CyclomaticComplexMethod:LivePlayerOsdManager.kt$LivePlayerOsdManager$fun handleKeyEvent(event: KeyEvent): Boolean</ID>
     <ID>CyclomaticComplexMethod:LiveSearchAdapter.kt$LiveSearchAdapter$override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder</ID>
-    <ID>CyclomaticComplexMethod:LiveTvGuideFragment.kt$LiveTvGuideFragment$private fun buildChipsIfNeeded(state: GuideUiState)</ID>
-    <ID>CyclomaticComplexMethod:LiveTvGuideFragment.kt$LiveTvGuideFragment$private fun observeState()</ID>
-    <ID>CyclomaticComplexMethod:LiveTvGuideFragment.kt$LiveTvGuideFragment$private fun updateDetail(channel: GuideChannel, program: GuideProgram?)</ID>
     <ID>CyclomaticComplexMethod:LiveTvGuideViewModel.kt$LiveTvGuideViewModel$private fun loadChannels()</ID>
     <ID>CyclomaticComplexMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playDebridMovie( stream: XtreamVodInfo?, source: MovieSource?, returnToSources: Boolean = false )</ID>
     <ID>CyclomaticComplexMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playMovie(sourceOverride: MovieSource? = null)</ID>
@@ -147,7 +144,6 @@
     <ID>CyclomaticComplexMethod:WavySeekBar.kt$WavySeekBar$override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean</ID>
     <ID>LargeClass:BasePlayerFragment.kt$BasePlayerFragment : FragmentRecoveryHost</ID>
     <ID>LargeClass:LivePlayerOsdManager.kt$LivePlayerOsdManager</ID>
-    <ID>LargeClass:LiveTvGuideFragment.kt$LiveTvGuideFragment : Fragment</ID>
     <ID>LargeClass:PlayerViewModel.kt$PlayerViewModel : ViewModel</ID>
     <ID>LongMethod:AddonCatalogRepository.kt$AddonCatalogRepository$suspend fun getDiscoveryContent( type: String, // "movie" or "series" page: Int = 1, sortBy: String? = null, catalogue: String = CATALOGUE_POPULAR, originalLanguage: String? = null, watchProviders: String? = null, watchRegion: String? = "US", releaseDateGte: String? = null, year: Int? = null, withGenres: String? = null ): Result&lt;List&lt;CatalogItem&gt;&gt;</ID>
     <ID>LongMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun initializePlayer(streamUrl: String)</ID>

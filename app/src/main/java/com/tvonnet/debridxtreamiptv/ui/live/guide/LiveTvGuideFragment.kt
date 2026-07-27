@@ -1,9 +1,6 @@
 package com.tvonnet.debridxtreamiptv.ui.live.guide
 
-import android.animation.ValueAnimator
-import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.StateListDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -11,10 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.content.Intent
-import android.view.animation.DecelerateInterpolator
-import android.view.animation.OvershootInterpolator
 import androidx.activity.result.contract.ActivityResultContracts
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -30,8 +24,6 @@ import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import com.tvonnet.debridxtreamiptv.databinding.FragmentLiveTvGuideBinding
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
 import com.tvonnet.debridxtreamiptv.player.stabilized.LiveSharedPlayer
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.live.PreviewPlayerPanel
@@ -40,13 +32,16 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class LiveTvGuideFragment : Fragment() {
+
+    private companion object {
+        /** Cap on waiting for our own surface to render before shrinking anyway. */
+        const val FIRST_FRAME_TIMEOUT_MS = 800L
+    }
 
     private var _binding: FragmentLiveTvGuideBinding? = null
     private val binding get() = _binding!!
@@ -64,8 +59,10 @@ class LiveTvGuideFragment : Fragment() {
     private var pendingPreview: Runnable? = null
     private var lastPreviewStreamId: String? = null
 
-    private var highlightAnim: ValueAnimator? = null
-    private var highlightShown = false
+    private var videoBridge: GuideVideoBridge? = null
+    private var chips: GuideChipsController? = null
+    private var detailPanel: GuideDetailPanel? = null
+    private var searchOverlay: GuideSearchOverlay? = null
 
     private var currentChannel: GuideChannel? = null
 
@@ -92,12 +89,6 @@ class LiveTvGuideFragment : Fragment() {
         ActivityResultContracts.StartActivityForResult()
     ) { result -> onReturnedFromPlayer(result.data) }
 
-    private val clockFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
-    private val dayLabels = listOf("Today", "Tomorrow", "+2 day", "+3 day")
-
-    private var builtCategoriesSignature: String? = null
-    private var dayTabsBuilt = false
-
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentLiveTvGuideBinding.inflate(inflater, container, false)
         return binding.root
@@ -106,6 +97,7 @@ class LiveTvGuideFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        buildCollaborators()
         applyGridConfig()
 
         // The horizontal scroller must not steal focus; chips themselves are focusable.
@@ -140,7 +132,7 @@ class LiveTvGuideFragment : Fragment() {
         }
 
         // Park the persistent video bridge over the tile once the layout is done.
-        binding.root.post { if (_binding != null && !isFullscreen) parkBridgeAtTile() }
+        binding.root.post { if (_binding != null && !isFullscreen) videoBridge?.parkAtTile { !isFullscreen } }
 
         binding.epgGrid.listener = object : EpgGridView.Listener {
             override fun onFocusChanged(channel: GuideChannel, program: GuideProgram?) = updateDetail(channel, program)
@@ -148,12 +140,8 @@ class LiveTvGuideFragment : Fragment() {
             // tunes), OK again on the playing channel goes fullscreen.
             override fun onProgramSelected(channel: GuideChannel, program: GuideProgram?) = selectOrFullscreen(channel)
             override fun onChannelSelected(channel: GuideChannel) = selectOrFullscreen(channel)
-            override fun onExitLeft() {
-                binding.chipsContainer.getChildAt(selectedChipIndex())?.requestFocus()
-            }
-            override fun onExitTop() {
-                binding.chipsContainer.getChildAt(selectedChipIndex())?.requestFocus()
-            }
+            override fun onExitLeft() = focusSelectedChip()
+            override fun onExitTop() = focusSelectedChip()
         }
 
         binding.btnJumpNow.setOnClickListener { binding.epgGrid.scrollToNow(true) }
@@ -181,6 +169,30 @@ class LiveTvGuideFragment : Fragment() {
         binding.epgGrid.setConfig(resources.getDimensionPixelSize(rowH), ppmPx, prefs.isEpgGenreTintEnabled())
     }
 
+    private fun buildCollaborators() {
+        val b = binding
+        videoBridge = GuideVideoBridge(b, previewHandler) { _binding != null }
+        detailPanel = GuideDetailPanel(this, b)
+        chips = GuideChipsController(
+            fragment = this,
+            binding = b,
+            onCategorySelected = { id -> viewModel.selectCategory(id) },
+            onDaySelected = { index -> viewModel.selectDay(index) },
+            onSearchClicked = { searchOverlay?.show() },
+        )
+        searchOverlay = GuideSearchOverlay(
+            fragment = this,
+            viewModel = viewModel,
+            onCategoryPicked = { cat -> viewModel.selectCategory(cat.id) },
+            onChannelPicked = { channel, matches -> onSearchChannelPicked(channel, matches) },
+        )
+    }
+
+    /** Leaving the grid left/up lands on the chip for the category currently being shown. */
+    private fun focusSelectedChip() {
+        chips?.focusSelectedChip(viewModel.uiState.value.selectedCategoryId)
+    }
+
     private fun observeState() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -189,10 +201,7 @@ class LiveTvGuideFragment : Fragment() {
                     binding.empty.visibility = if (!state.isLoading && state.channels.isEmpty()) View.VISIBLE else View.GONE
                     binding.empty.text = state.error ?: "No channels found."
 
-                    buildChipsIfNeeded(state)
-                    buildDayTabsIfNeeded(state)
-                    highlightChips(state.selectedCategoryId)
-                    highlightDayTabs(state.dayIndex)
+                    chips?.bind(state)
 
                     binding.tvChannelCount.text = "${state.channels.size} CH"
                     binding.btnJumpNow.visibility = if (state.isToday && state.channels.isNotEmpty()) View.VISIBLE else View.GONE
@@ -205,311 +214,71 @@ class LiveTvGuideFragment : Fragment() {
                             binding.epgGrid.focusChannel(id)
                             pendingGridFocusStreamId = null
                         }
-                        // Something should always be playing when the guide opens:
-                        // auto-select once (like TiviMate). If "Resume Last Channel"
-                        // is on, start on the last-watched channel instead.
-                        if (previewChannel == null && state.channels.isNotEmpty() && !isFullscreen) {
-                            val lastId = settingsPrefs.getLastLiveStreamId()
-                            val resume = settingsPrefs.isResumeLastLiveEnabled() && lastId != null
-                            val inList = if (resume) {
-                                state.channels.firstOrNull { it.streamId == lastId }
-                            } else null
-                            when {
-                                inList != null -> {
-                                    selectForPreview(inList, persist = false)
-                                    binding.epgGrid.focusChannel(inList.streamId)
-                                }
-                                resume -> {
-                                    // Saved channel isn't in the loaded list (e.g. beyond
-                                    // the "All" cap) — fetch it from the full index once and
-                                    // play it in the mini; grid stays on the first tile.
-                                    if (!resumeInFlight) {
-                                        resumeInFlight = true
-                                        val fallback = state.channels.first()
-                                        viewLifecycleOwner.lifecycleScope.launch {
-                                            try {
-                                                val ch = viewModel.getChannelById(lastId!!)
-                                                if (previewChannel == null) selectForPreview(ch ?: fallback, persist = false)
-                                            } finally {
-                                                resumeInFlight = false
-                                            }
-                                        }
-                                    }
-                                }
-                                else -> selectForPreview(state.channels.first(), persist = false)
-                            }
-                        }
-                        // CC-1: this state block re-emits when the user selects a day tab or
-                        // category chip. Only pull focus into the grid on first populate
-                        // (nothing focused yet) or when the grid already holds focus — never
-                        // yank it away from the chips / day tabs the user is navigating.
-                        if (state.channels.isNotEmpty()) {
-                            val cf = binding.root.findFocus()
-                            if (cf == null || cf === binding.epgGrid) binding.epgGrid.requestFocus()
-                        }
+                        autoSelectInitialChannel(state)
+                        restoreGridFocusIfAppropriate(state)
                     }
                 }
             }
         }
     }
 
-    // ── Category chips ──────────────────────────────────────────────────
-    private val TAG_SEARCH_CHIP = "__guide_search__"
+    /**
+     * Something should always be playing when the guide opens: auto-select once (like TiviMate).
+     * If "Resume Last Channel" is on, start on the last-watched channel instead.
+     *
+     * Every path here passes `persist = false` — an auto-select must never overwrite the user's
+     * real last channel, or the setting would remember whatever the guide happened to land on.
+     */
+    private fun autoSelectInitialChannel(state: GuideUiState) {
+        if (previewChannel != null || state.channels.isEmpty() || isFullscreen) return
 
-    private fun buildChipsIfNeeded(state: GuideUiState) {
-        val signature = state.categories.joinToString("|") { it.id }
-        if (signature == builtCategoriesSignature) return
-        builtCategoriesSignature = signature
-        binding.chipsContainer.removeAllViews()
-        val chips = ArrayList<TextView>()
-        // Unified search — always the first chip; OK opens the search overlay.
-        val searchChip = TextView(requireContext()).apply {
-            id = View.generateViewId()
-            text = "🔍  Search"
-            textSize = 13f
-            setPadding(dp(16), dp(9), dp(16), dp(9))
-            isFocusable = true
-            isSingleLine = true
-            background = chipOutline()
-            setTextColor(pillTextColors())
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { marginEnd = dp(10) }
-            tag = TAG_SEARCH_CHIP
-            setOnClickListener { showSearchDialog() }
-            setOnFocusChangeListener { v, hasFocus ->
-                if (hasFocus) moveHighlightTo(v)
-                else v.post { if (binding.chipsContainer.findFocus() == null) hideHighlight() }
+        val lastId = settingsPrefs.getLastLiveStreamId()
+        val resume = settingsPrefs.isResumeLastLiveEnabled() && lastId != null
+        val inList = if (resume) state.channels.firstOrNull { it.streamId == lastId } else null
+
+        when {
+            inList != null -> {
+                selectForPreview(inList, persist = false)
+                binding.epgGrid.focusChannel(inList.streamId)
             }
+            resume -> resumeChannelBeyondList(lastId!!, state.channels.first())
+            else -> selectForPreview(state.channels.first(), persist = false)
         }
-        chips.add(searchChip)
-        binding.chipsContainer.addView(searchChip)
-        state.categories.forEach { cat ->
-            val chip = TextView(requireContext()).apply {
-                id = View.generateViewId()
-                text = if (cat.count >= 0) "${cat.name}  ${cat.count}" else cat.name
-                textSize = 13f
-                setPadding(dp(16), dp(9), dp(16), dp(9))
-                isFocusable = true
-                isSingleLine = true
-                // Static outline; the visible focus is the single sliding highlight pill.
-                background = chipOutline()
-                setTextColor(pillTextColors())
-                val lp = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { marginEnd = dp(10) }
-                layoutParams = lp
-                tag = cat.id
-                isSelected = cat.id == state.selectedCategoryId
-                setOnClickListener { viewModel.selectCategory(cat.id) }
-                // Glide the shared highlight onto this chip; hide it when focus leaves the row.
-                setOnFocusChangeListener { v, hasFocus ->
-                    if (hasFocus) moveHighlightTo(v)
-                    else v.post { if (binding.chipsContainer.findFocus() == null) hideHighlight() }
-                }
-            }
-            chips.add(chip)
-            binding.chipsContainer.addView(chip)
-        }
-        // Explicit L/R focus order → a single D-pad press always lands on the sibling.
-        // (A HorizontalScrollView otherwise needs two presses to reveal an off-screen chip.)
-        for (i in chips.indices) {
-            if (i + 1 < chips.size) chips[i].nextFocusRightId = chips[i + 1].id
-            if (i - 1 >= 0) chips[i].nextFocusLeftId = chips[i - 1].id
-            chips[i].nextFocusDownId = R.id.epg_grid
-        }
-    }
-
-    private fun highlightChips(selectedId: String) {
-        for (i in 0 until binding.chipsContainer.childCount) {
-            val chip = binding.chipsContainer.getChildAt(i) as? TextView ?: continue
-            chip.isSelected = chip.tag == selectedId
-        }
-    }
-
-    private fun selectedChipIndex(): Int {
-        val id = viewModel.uiState.value.selectedCategoryId
-        for (i in 0 until binding.chipsContainer.childCount) {
-            if ((binding.chipsContainer.getChildAt(i) as? TextView)?.tag == id) return i
-        }
-        return 0
-    }
-
-    /** Pill background with distinct focused / selected / default states. */
-    private fun pillStateBackground(radius: Float): StateListDrawable {
-        fun pill(bg: Int, border: Int) = GradientDrawable().apply {
-            cornerRadius = radius
-            setColor(color(bg))
-            setStroke(dp(2), color(border))
-        }
-        return StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_focused), pill(R.color.epg_chip_active_bg, R.color.epg_cyan))
-            addState(intArrayOf(android.R.attr.state_selected), pill(R.color.epg_chip_active_bg, R.color.epg_chip_active_border))
-            addState(intArrayOf(), pill(R.color.epg_chip_bg, R.color.epg_chip_border))
-        }
-    }
-
-    private fun pillTextColors(): ColorStateList {
-        val states = arrayOf(
-            intArrayOf(android.R.attr.state_focused),
-            intArrayOf(android.R.attr.state_selected),
-            intArrayOf()
-        )
-        val colors = intArrayOf(color(R.color.epg_cyan), color(R.color.epg_cyan), color(R.color.epg_text_secondary))
-        return ColorStateList(states, colors)
-    }
-
-    /** Static chip outline; the moving highlight provides the focus indicator. */
-    private fun chipOutline() = GradientDrawable().apply {
-        cornerRadius = dp(20).toFloat()
-        setColor(color(R.color.epg_chip_bg))
-        setStroke(dp(1), color(R.color.epg_chip_border))
     }
 
     /**
-     * Glide + morph the single highlight pill onto [target]. First appearance snaps in;
-     * subsequent moves animate position AND size so it flows from one chip into the next.
+     * The saved channel isn't in the loaded list (e.g. beyond the "All" cap) — fetch it from the
+     * full index once and play it in the mini; the grid stays on the first tile.
+     * [resumeInFlight] guards it, because this state block re-emits repeatedly.
      */
-    private fun moveHighlightTo(target: View) {
-        val hl = binding.chipHighlight
-        if (target.width == 0) { target.post { moveHighlightTo(target) }; return }
-        val tx = target.left.toFloat()
-        val ty = target.top.toFloat()
-        val tw = target.width
-        val th = target.height
-        hl.visibility = View.VISIBLE
-        hl.alpha = 1f
-        if (!highlightShown) {
-            highlightShown = true
-            hl.pivotX = 0f
-            hl.pivotY = 0f
-            hl.scaleX = 1f
-            hl.scaleY = 1f
-            hl.layoutParams = hl.layoutParams.apply { width = tw; height = th }
-            hl.translationX = tx
-            hl.translationY = ty
-            return
-        }
-        // Grow/shrink via scaleX/Y around the top-left pivot instead of writing layoutParams every
-        // frame — a per-frame layoutParams mutation forces a full layout pass each frame, while
-        // scale is a compositor-only transform. Pivot (0,0) keeps the box anchored at (tx,ty), so
-        // the geometry matches the old translation-positioned top-left exactly.
-        highlightAnim?.cancel()
-        val startW = hl.width * hl.scaleX
-        val startH = hl.height * hl.scaleY
-        hl.pivotX = 0f
-        hl.pivotY = 0f
-        hl.layoutParams = hl.layoutParams.apply { width = tw; height = th }
-        hl.scaleX = if (tw > 0) startW / tw else 1f
-        hl.scaleY = if (th > 0) startH / th else 1f
-        hl.animate().translationX(tx).translationY(ty).scaleX(1f).scaleY(1f)
-            .setDuration(300).setInterpolator(OvershootInterpolator(0.6f)).start()
-    }
-
-    private fun hideHighlight() {
-        highlightShown = false
-        highlightAnim?.cancel()
-        binding.chipHighlight.animate().alpha(0f).setDuration(150).withEndAction {
-            if (_binding != null && binding.chipsContainer.findFocus() == null) {
-                binding.chipHighlight.visibility = View.INVISIBLE
+    private fun resumeChannelBeyondList(lastId: String, fallback: GuideChannel) {
+        if (resumeInFlight) return
+        resumeInFlight = true
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val ch = viewModel.getChannelById(lastId)
+                if (previewChannel == null) selectForPreview(ch ?: fallback, persist = false)
+            } finally {
+                resumeInFlight = false
             }
-        }.start()
-    }
-
-    // ── Day tabs ────────────────────────────────────────────────────────
-    private fun buildDayTabsIfNeeded(state: GuideUiState) {
-        if (dayTabsBuilt) return
-        dayTabsBuilt = true
-        binding.dayTabs.removeAllViews()
-        dayLabels.forEachIndexed { index, label ->
-            val tab = TextView(requireContext()).apply {
-                text = label
-                textSize = 13f
-                setPadding(dp(14), dp(7), dp(14), dp(7))
-                isFocusable = true
-                isSingleLine = true
-                background = pillStateBackground(dp(8).toFloat())
-                setTextColor(pillTextColors())
-                val lp = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { marginStart = dp(4) }
-                layoutParams = lp
-                isSelected = index == state.dayIndex
-                setOnClickListener { viewModel.selectDay(index) }
-                setOnFocusChangeListener { v, hasFocus ->
-                    v.animate().scaleX(if (hasFocus) 1.06f else 1f).scaleY(if (hasFocus) 1.06f else 1f)
-                        .setDuration(160).start()
-                }
-            }
-            binding.dayTabs.addView(tab)
         }
     }
 
-    private fun highlightDayTabs(selected: Int) {
-        for (i in 0 until binding.dayTabs.childCount) {
-            val tab = binding.dayTabs.getChildAt(i) as? TextView ?: continue
-            tab.isSelected = i == selected
-        }
+    /**
+     * CC-1: the state block re-emits when the user selects a day tab or category chip. Only pull
+     * focus into the grid on first populate (nothing focused yet) or when the grid already holds
+     * focus — never yank it away from the chips / day tabs the user is navigating.
+     */
+    private fun restoreGridFocusIfAppropriate(state: GuideUiState) {
+        if (state.channels.isEmpty()) return
+        val cf = binding.root.findFocus()
+        if (cf == null || cf === binding.epgGrid) binding.epgGrid.requestFocus()
     }
 
-    // ── Detail panel ────────────────────────────────────────────────────
+    // ── Detail panel ──────────────────────────────────────
     private fun updateDetail(channel: GuideChannel, program: GuideProgram?) {
         currentChannel = channel
-        val now = System.currentTimeMillis()
-        val genreColor = color(channel.genre.colorRes)
-        binding.previewTile.background = GradientDrawable().apply {
-            cornerRadius = dp(16).toFloat()
-            colors = intArrayOf(withAlpha(genreColor, 90), withAlpha(genreColor, 30))
-            orientation = GradientDrawable.Orientation.TL_BR
-            setStroke(dp(1), withAlpha(color(R.color.epg_cyan), 51))
-        }
-        binding.tvTileInitials.text = channel.initials()
-        binding.tvTileName.text = channel.name
-
-        binding.tvBadgeQuality.visibility = if (channel.quality != null) View.VISIBLE else View.GONE
-        binding.tvBadgeQuality.text = channel.quality ?: ""
-
-        if (program == null) {
-            binding.tvBadgeLive.visibility = View.GONE
-            binding.tvStatus.text = ""
-            binding.tvTitle.text = channel.name
-            binding.tvMeta.text = channel.genre.label
-            binding.tvDesc.text = ""
-            binding.progressTrack.visibility = View.GONE
-            binding.btnPrimary.text = "Add to Favorites"
-            return
-        }
-
-        val isNow = program.isNow(now)
-        val ended = program.hasEnded(now)
-        binding.tvBadgeLive.visibility = if (isNow) View.VISIBLE else View.GONE
-        binding.tvStatus.text = when {
-            isNow -> "ON AIR NOW"
-            ended -> "ENDED"
-            else -> "UP NEXT"
-        }
-        binding.tvStatus.setTextColor(color(when {
-            isNow -> R.color.epg_status_onair
-            ended -> R.color.epg_status_ended
-            else -> R.color.epg_status_upnext
-        }))
-        binding.tvTitle.text = program.title
-        binding.tvMeta.text = "${program.genre.label}   ${clockFmt.format(Date(program.startMs))} - ${clockFmt.format(Date(program.stopMs))}"
-        binding.tvDesc.text = program.description ?: ""
-
-        if (isNow) {
-            binding.progressTrack.visibility = View.VISIBLE
-            val frac = ((now - program.startMs).toFloat() / (program.stopMs - program.startMs)).coerceIn(0f, 1f)
-            binding.progressTrack.post {
-                val lp = binding.progressFill.layoutParams
-                lp.width = (binding.progressTrack.width * frac).toInt()
-                binding.progressFill.layoutParams = lp
-            }
-        } else {
-            binding.progressTrack.visibility = View.GONE
-        }
-
-        binding.btnPrimary.text = if (ended || isNow) "Add to Favorites" else "Set Reminder"
+        detailPanel?.update(channel, program)
     }
 
     /**
@@ -543,127 +312,19 @@ class LiveTvGuideFragment : Fragment() {
     }
 
     // ── Unified search overlay (categories + channels) ─────────────────────
-    private fun showSearchDialog() {
-        val ctx = requireContext()
-        val dialogView = LayoutInflater.from(ctx).inflate(R.layout.dialog_live_guide_search, null)
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(ctx).setView(dialogView).create()
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        val etSearch = dialogView.findViewById<android.widget.EditText>(R.id.et_guide_search)
-        val rv = dialogView.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_guide_search_results)
-        val empty = dialogView.findViewById<TextView>(R.id.tv_guide_search_empty)
-
-        var lastChannels: List<GuideChannel> = emptyList()
-        val adapter = LiveSearchAdapter(
-            onCategory = { cat -> dialog.dismiss(); viewModel.selectCategory(cat.id) },
-            onChannel = { ch ->
-                dialog.dismiss()
-                // Show the matched channels in the grid so the picked one is
-                // present + selected → OK on its tile goes fullscreen.
-                val list = lastChannels.ifEmpty { listOf(ch) }
-                pendingGridFocusStreamId = ch.streamId
-                selectForPreview(ch)
-                viewModel.showChannels(list)
-                binding.epgGrid.focusChannel(ch.streamId)
-            }
-        )
-        rv.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(ctx)
-        rv.adapter = adapter
-
-        var job: kotlinx.coroutines.Job? = null
-        fun rebuild(query: String) {
-            job?.cancel()
-            val cats = viewModel.filterCategories(query)
-            job = viewLifecycleOwner.lifecycleScope.launch {
-                val channels = if (query.isBlank()) emptyList() else viewModel.searchChannels(query)
-                if (!isActive) return@launch
-                lastChannels = channels
-                val rows = ArrayList<LiveSearchAdapter.Row>()
-                if (cats.isNotEmpty()) {
-                    rows.add(LiveSearchAdapter.Row.Header(getString(R.string.live_guide_search_categories)))
-                    cats.forEach { rows.add(LiveSearchAdapter.Row.CategoryRow(it)) }
-                }
-                if (channels.isNotEmpty()) {
-                    rows.add(LiveSearchAdapter.Row.Header(getString(R.string.live_guide_search_channels)))
-                    channels.forEach { rows.add(LiveSearchAdapter.Row.ChannelRow(it)) }
-                }
-                adapter.submit(rows)
-                val isEmpty = rows.isEmpty()
-                empty.visibility = if (isEmpty && query.isNotBlank()) View.VISIBLE else View.GONE
-                rv.visibility = if (isEmpty) View.GONE else View.VISIBLE
-            }
-        }
-
-        etSearch.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) { rebuild(s?.toString().orEmpty()) }
-        })
-
-        etSearch.requestFocus()
-        etSearch.postDelayed({
-            (ctx.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
-                as? android.view.inputmethod.InputMethodManager)
-                ?.showSoftInput(etSearch, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-        }, 100)
-
-        rebuild("") // open on the full category list; typing filters + finds channels
-        dialog.show()
-        // Fixed window size so the RecyclerView (weight=1) gets a bounded height
-        // and scrolls with focus instead of overflowing the dialog off-screen.
-        dialog.window?.setLayout(dp(860), dp(660))
+    /** A search hit shows its matches in the grid, selected, so OK on the tile goes fullscreen. */
+    private fun onSearchChannelPicked(channel: GuideChannel, matches: List<GuideChannel>) {
+        pendingGridFocusStreamId = channel.streamId
+        selectForPreview(channel)
+        viewModel.showChannels(matches)
+        binding.epgGrid.focusChannel(channel.streamId)
     }
 
-    // ── Seamless transition helpers (never show black between surfaces) ─────
-
-    /** Snapshot the last rendered frame of a TextureView-based PlayerView. */
-    private fun captureFrame(pv: androidx.media3.ui.PlayerView): android.graphics.Bitmap? =
-        runCatching { (pv.videoSurfaceView as? android.view.TextureView)?.getBitmap() }.getOrNull()
-
-    /**
-     * Run [action] once the player renders its first frame on the CURRENT
-     * surface — with a timeout fallback so the UI can never get stuck.
-     */
-    private fun onceFirstFrame(player: ExoPlayer, timeoutMs: Long, action: () -> Unit) {
-        var done = false
-        val listener = object : Player.Listener {
-            override fun onRenderedFirstFrame() {
-                if (done) return
-                done = true
-                player.removeListener(this)
-                action()
-            }
-        }
-        player.addListener(listener)
-        previewHandler.postDelayed({
-            if (!done) {
-                done = true
-                player.removeListener(listener)
-                action()
-            }
-        }, timeoutMs)
-    }
-
-    /** Show the hand-off frame snapshot over the bridge video. */
-    private fun showBridgeCover(bitmap: android.graphics.Bitmap?) {
-        if (bitmap == null) return
-        binding.fullscreenCover.setImageBitmap(bitmap)
-        binding.fullscreenCover.alpha = 1f
-        binding.fullscreenCover.visibility = View.VISIBLE
-    }
-
-    // ── In-place fullscreen (grows the preview, keeps the same player) ──────
-    /** Returns [left, top, width, height] of the preview tile relative to the fragment root. */
-    private fun tileRectInRoot(): FloatArray {
-        val tileLoc = IntArray(2); binding.previewTile.getLocationInWindow(tileLoc)
-        val rootLoc = IntArray(2); binding.root.getLocationInWindow(rootLoc)
-        return floatArrayOf(
-            (tileLoc[0] - rootLoc[0]).toFloat(),
-            (tileLoc[1] - rootLoc[1]).toFloat(),
-            binding.previewTile.width.toFloat().coerceAtLeast(1f),
-            binding.previewTile.height.toFloat().coerceAtLeast(1f)
-        )
-    }
+    // ── In-place fullscreen (grows the preview, keeps the same player) ─────────────────
+    // Geometry, the cover snapshot and the first-frame wait live in [GuideVideoBridge]; the
+    // ORDER of the steps below is the part that has historically caused black/frozen video, so it
+    // stays here where it can be read top to bottom.
 
     /**
      * Fullscreen = water-drop grow of the live preview, then hand the RUNNING
@@ -672,14 +333,7 @@ class LiveTvGuideFragment : Fragment() {
      */
     private fun enterFullscreenFor(channel: GuideChannel) {
         if (isFullscreen) return
-        val stream = channel.stream
-        val id = stream.stream_id
-        if (id != null && id != lastPreviewStreamId) {
-            pendingPreview?.let { previewHandler.removeCallbacks(it) }
-            lastPreviewStreamId = id
-            previewPanel?.play(stream)
-            previewPanel?.setVolume(1f)
-        }
+        ensureTunedTo(channel)
         isFullscreen = true
         pendingPreview?.let { previewHandler.removeCallbacks(it) }
         fullscreenReturnFocus = binding.root.findFocus()
@@ -687,15 +341,19 @@ class LiveTvGuideFragment : Fragment() {
         // The bridge already sits on the tile RENDERING LIVE — just grow it.
         // A TextureView keeps rendering through View transforms, so the whole
         // grow shows live video: no snapshot, no surface switch, no freeze.
-        parkBridgeAtTile()
-        binding.fullscreenContainer.animate()
-            .scaleX(1f).scaleY(1f).translationX(0f).translationY(0f)
-            .setDuration(360).setInterpolator(OvershootInterpolator(0.5f))
-            .withEndAction {
-                if (_binding == null) return@withEndAction
-                handOffToPlayerActivity(channel)
-            }
-            .start()
+        videoBridge?.parkAtTile { !isFullscreen }
+        videoBridge?.growToFullscreen { handOffToPlayerActivity(channel) }
+    }
+
+    /** Tune the preview to [channel] if it is not already the one playing. */
+    private fun ensureTunedTo(channel: GuideChannel) {
+        val id = channel.stream.stream_id
+        if (id != null && id != lastPreviewStreamId) {
+            pendingPreview?.let { previewHandler.removeCallbacks(it) }
+            lastPreviewStreamId = id
+            previewPanel?.play(channel.stream)
+            previewPanel?.setVolume(1f)
+        }
     }
 
     /**
@@ -711,7 +369,7 @@ class LiveTvGuideFragment : Fragment() {
         val username = creds.getUsername()
         val password = creds.getPassword()
         if (serverUrl == null || username == null || password == null) {
-            parkBridgeAtTile()
+            videoBridge?.parkAtTile { !isFullscreen }
             isFullscreen = false
             return
         }
@@ -719,9 +377,15 @@ class LiveTvGuideFragment : Fragment() {
         // Hand the running player over WITH a snapshot of its latest frame
         // (still rendering in the mini), so PlayerActivity can cover its own
         // surface warm-up — the one real switch stays invisible.
-        val handOffFrame = captureFrame(binding.previewPlayerView)
+        val handOffFrame = videoBridge?.capturePreviewFrame()
         previewPanel?.detachPlayer()?.let { LiveSharedPlayer.offer(it, streamUrl, stream.stream_id, handOffFrame) }
-        val intent = PlayerActivity.createIntent(
+        livePlayerLauncher.launch(buildPlayerIntent(channel, streamUrl, serverUrl))
+        requireActivity().overridePendingTransition(0, 0)
+    }
+
+    private fun buildPlayerIntent(channel: GuideChannel, streamUrl: String, serverUrl: String): Intent {
+        val stream = channel.stream
+        return PlayerActivity.createIntent(
             context = requireContext(),
             streamUrl = streamUrl,
             title = stream.name ?: "Live",
@@ -738,8 +402,6 @@ class LiveTvGuideFragment : Fragment() {
             baseServerUrl = serverUrl,
             sharedLivePlayer = true
         )
-        livePlayerLauncher.launch(intent)
-        requireActivity().overridePendingTransition(0, 0)
     }
 
     /** BACK from fullscreen: adopt the player back and shrink it into the mini tile. */
@@ -754,17 +416,7 @@ class LiveTvGuideFragment : Fragment() {
         val returnFrame = LiveSharedPlayer.takeFrame()
         val player = LiveSharedPlayer.adopt()
         if (player == null || channel == null) {
-            // No shared player came back (error / cold exit) — fresh preview instead.
-            parkBridgeAtTile()
-            isFullscreen = false
-            lastPreviewStreamId = null
-            channel?.let {
-                updateDetail(it, it.currentProgram(System.currentTimeMillis()))
-                selectForPreview(it)
-                binding.epgGrid.focusChannel(it.streamId)
-                pendingGridFocusStreamId = it.streamId
-            }
-            (fullscreenReturnFocus?.takeIf { it.isAttachedToWindow } ?: binding.epgGrid).requestFocus()
+            recoverWithoutSharedPlayer(channel)
             return
         }
         // The bridge is still fullscreen from the way in. Cover it with the
@@ -772,8 +424,8 @@ class LiveTvGuideFragment : Fragment() {
         // the cover (the only surface switch on the way back), and once our
         // surface renders, reveal the live video and shrink it — live — onto
         // the tile. No frozen video, no black.
-        binding.fullscreenContainer.visibility = View.VISIBLE
-        showBridgeCover(returnFrame)
+        videoBridge?.showFullscreenContainer()
+        videoBridge?.showCover(returnFrame)
         previewPanel?.adoptPlayer(player, channel.stream)
         previewChannel = channel
         lastPreviewStreamId = channel.streamId
@@ -785,55 +437,33 @@ class LiveTvGuideFragment : Fragment() {
         binding.epgGrid.focusChannel(channel.streamId)
         pendingGridFocusStreamId = channel.streamId
 
-        onceFirstFrame(player, 800) {
+        videoBridge?.onceFirstFrame(player, FIRST_FRAME_TIMEOUT_MS) {
             if (_binding == null) return@onceFirstFrame
             // Live frames are flowing again: reveal them and shrink live.
-            binding.fullscreenCover.animate().alpha(0f).setDuration(150).withEndAction {
-                _binding?.let {
-                    binding.fullscreenCover.visibility = View.GONE
-                    binding.fullscreenCover.setImageDrawable(null)
-                    binding.fullscreenCover.alpha = 1f
-                }
-            }.start()
-            val root = binding.root
-            val r = tileRectInRoot()
-            binding.fullscreenContainer.animate()
-                .scaleX(r[2] / root.width.toFloat()).scaleY(r[3] / root.height.toFloat())
-                .translationX(r[0]).translationY(r[1])
-                .setDuration(320).setInterpolator(DecelerateInterpolator())
-                .withEndAction {
-                    if (_binding == null) return@withEndAction
-                    isFullscreen = false
-                    (fullscreenReturnFocus?.takeIf { it.isAttachedToWindow } ?: binding.epgGrid).requestFocus()
-                }
-                .start()
+            videoBridge?.fadeOutCover()
+            videoBridge?.shrinkToTile {
+                isFullscreen = false
+                restoreFocusAfterFullscreen()
+            }
         }
     }
 
-    /**
-     * Park the persistent video bridge exactly over the preview tile (its
-     * "mini" rest state) and drop any cover snapshot. Retries once layout is
-     * done; never touches [isFullscreen] (callers own that flag).
-     */
-    private fun parkBridgeAtTile() {
-        val fc = binding.fullscreenContainer
-        val root = binding.root
-        if (root.width == 0 || binding.previewTile.width == 0) {
-            root.post { if (_binding != null && !isFullscreen) parkBridgeAtTile() }
-            return
+    /** No shared player came back (error / cold exit) — fresh preview instead. */
+    private fun recoverWithoutSharedPlayer(channel: GuideChannel?) {
+        videoBridge?.parkAtTile { !isFullscreen }
+        isFullscreen = false
+        lastPreviewStreamId = null
+        channel?.let {
+            updateDetail(it, it.currentProgram(System.currentTimeMillis()))
+            selectForPreview(it)
+            binding.epgGrid.focusChannel(it.streamId)
+            pendingGridFocusStreamId = it.streamId
         }
-        val r = tileRectInRoot()
-        fc.animate().cancel()
-        fc.pivotX = 0f
-        fc.pivotY = 0f
-        fc.scaleX = r[2] / root.width.toFloat()
-        fc.scaleY = r[3] / root.height.toFloat()
-        fc.translationX = r[0]
-        fc.translationY = r[1]
-        fc.visibility = View.VISIBLE
-        binding.fullscreenCover.visibility = View.GONE
-        binding.fullscreenCover.setImageDrawable(null)
-        binding.fullscreenCover.alpha = 1f
+        restoreFocusAfterFullscreen()
+    }
+
+    private fun restoreFocusAfterFullscreen() {
+        (fullscreenReturnFocus?.takeIf { it.isAttachedToWindow } ?: binding.epgGrid).requestFocus()
     }
 
     private fun startClock() {
@@ -842,7 +472,7 @@ class LiveTvGuideFragment : Fragment() {
             // guide was STOPPED. repeatOnLifecycle cancels on STOP, restarts (fresh time) on re-START.
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 while (isActive) {
-                    binding.tvClock.text = clockFmt.format(Date())
+                    binding.tvClock.text = detailPanel?.formatNow().orEmpty()
                     kotlinx.coroutines.delay(20_000)
                 }
             }
@@ -861,6 +491,10 @@ class LiveTvGuideFragment : Fragment() {
         pendingPreview = null
         previewPanel?.releasePlayer()
         previewPanel = null
+        videoBridge = null
+        chips = null
+        detailPanel = null
+        searchOverlay = null
         _binding = null
     }
 }
