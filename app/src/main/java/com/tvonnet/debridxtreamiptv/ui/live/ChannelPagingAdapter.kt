@@ -117,6 +117,13 @@ class ChannelPagingViewHolder(
         itemView.findViewById<android.widget.ImageView>(R.id.iv_channel_logo)
     }
 
+    /** The per-channel colour wash behind a v2 row (same treatment as the in-player surf list). */
+    private var currentChannelName: String? = null
+
+    private val washView = if (useHorizontalCard) {
+        itemView.findViewById<android.view.View>(R.id.livev2_wash)
+    } else null
+
     // Horizontal card fields
     private val tvChannelNameHorizontal = if (useHorizontalCard) {
         itemView.findViewById<android.widget.TextView>(R.id.tv_channel_name_horizontal)
@@ -206,6 +213,7 @@ class ChannelPagingViewHolder(
         // the glint isn't needed and clipping stays on.
 
         val channelName = channel.name ?: "Unknown Channel"
+        currentChannelName = channelName
 
         // Channel name
         tvChannelNameHorizontal?.text = channelName
@@ -282,6 +290,7 @@ class ChannelPagingViewHolder(
 
     private fun bindNewCard(channel: XtreamStream, onClick: (XtreamStream) -> Unit, onLongClick: ((XtreamStream) -> Unit)? = null) {
         val channelName = channel.name ?: "Unknown Channel"
+        currentChannelName = channelName
 
         // Channel name only (clean and simple)
         tvChannelNumberName?.text = channelName
@@ -321,8 +330,26 @@ class ChannelPagingViewHolder(
         com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.attach(itemView)
     }
 
+    /**
+     * The channel's own colour behind the row, strongest at the left edge and gone before the text.
+     *
+     * Painted twice on purpose: the name-hash fallback goes down immediately so a row is never
+     * colourless while the logo is in flight, then the real brand colour replaces it once the logo
+     * resolves. [ChannelAccentPalette] caches per URL, so scrolling costs nothing.
+     */
+    private fun applyWash(channelName: String?, logoUrl: String?, drawable: android.graphics.drawable.Drawable?) {
+        val view = washView ?: return
+        val fallback = com.tvonnet.debridxtreamiptv.player.stabilized.LiveChannelVisuals.accentColor(channelName)
+        val color = com.tvonnet.debridxtreamiptv.util.ArtworkPalette
+            .accentFor(logoUrl, drawable, fallback)
+        view.background = com.tvonnet.debridxtreamiptv.player.stabilized.ChannelAccentWash.forRow(
+            color, itemView.isSelected || itemView.isFocused, itemView.resources.displayMetrics.density
+        )
+    }
+
     private fun loadChannelImage(imageUrl: String?) {
         val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(imageUrl)
+        applyWash(currentChannelName, resolved, null)
         // Diagnostic Toast
 
         if (ivLogo != null) {
@@ -340,6 +367,25 @@ class ChannelPagingViewHolder(
                     .apply(com.bumptech.glide.request.RequestOptions().transform(com.bumptech.glide.load.resource.bitmap.CenterCrop(), com.bumptech.glide.load.resource.bitmap.RoundedCorners(16)))
                     .placeholder(com.tvonnet.debridxtreamiptv.R.drawable.app_logo)
                     .error(com.tvonnet.debridxtreamiptv.R.drawable.app_logo)
+                    .listener(object : com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable> {
+                        override fun onLoadFailed(
+                            e: com.bumptech.glide.load.engine.GlideException?,
+                            model: Any?,
+                            target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>,
+                            isFirstResource: Boolean
+                        ): Boolean = false
+
+                        override fun onResourceReady(
+                            resource: android.graphics.drawable.Drawable,
+                            model: Any,
+                            target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>?,
+                            dataSource: com.bumptech.glide.load.DataSource,
+                            isFirstResource: Boolean
+                        ): Boolean {
+                            applyWash(currentChannelName, resolved, resource)
+                            return false
+                        }
+                    })
                     .into(ivLogo)
             } else {
                 ivLogo.setImageResource(com.tvonnet.debridxtreamiptv.R.drawable.app_logo)

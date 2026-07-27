@@ -5,7 +5,7 @@
 
   Sizes are the design's px halved (1920x1080 stage -> 960x540dp screen).
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -15,11 +15,21 @@
     android:clickable="true"
     android:focusable="true"
     android:focusableInTouchMode="true"
+    android:stateListAnimator="@null">
+
+    <!-- per-channel colour wash, behind everything -->
+    <View
+        android:id="@+id/livev2_wash"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingStart="12dp"
-    android:paddingEnd="12dp"
-    android:stateListAnimator="@null">
+    android:paddingEnd="12dp">
 
     <!-- Channel number -->
     <TextView
@@ -40,9 +50,7 @@
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_marginStart="10dp"
-        android:layout_marginEnd="10dp"
-        android:background="@drawable/bg_live_channel_logo_tile"
-        android:padding="5dp">
+        android:layout_marginEnd="10dp">
 
         <ImageView
             android:id="@+id/iv_channel_logo_horizontal"
@@ -172,4 +180,5 @@
         android:layout_height="0dp"
         android:visibility="gone" />
 
-</LinearLayout>
+  </LinearLayout>
+</FrameLayout>

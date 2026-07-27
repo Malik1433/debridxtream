@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="39dp"
+    android:layout_height="54dp"
     android:layout_marginBottom="4dp"
     android:background="@drawable/bg_live_surf_row"
     android:focusable="true"
@@ -25,8 +25,8 @@
          (FIX 2) — both sit on one neutral circular background, no per-row color. -->
     <FrameLayout
         android:id="@+id/cat_icon"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
         android:background="@drawable/bg_live_category_icon">
 
         <com.google.android.material.imageview.ShapeableImageView
@@ -48,7 +48,7 @@
             android:layout_gravity="center"
             android:fontFamily="@font/plus_jakarta_sans"
             android:textColor="@android:color/white"
-            android:textSize="9sp"
+            android:textSize="11sp"
             android:textStyle="bold"
             tools:text="⚽" />
     </FrameLayout>
@@ -68,7 +68,7 @@
             android:fontFamily="@font/plus_jakarta_sans"
             android:maxLines="1"
             android:textColor="@color/live_osd_text_primary"
-            android:textSize="10sp"
+            android:textSize="11sp"
             android:textStyle="bold"
             tools:text="Sports" />
 
@@ -80,7 +80,7 @@
             android:fontFamily="monospace"
             android:letterSpacing="0.06"
             android:textColor="@color/live_osd_text_faint"
-            android:textSize="5.5sp"
+            android:textSize="7sp"
             android:visibility="gone"
             tools:text="24 channels"
             tools:visibility="visible" />
