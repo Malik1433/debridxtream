@@ -124,10 +124,8 @@
     <ID>CyclomaticComplexMethod:SeriesDebridPlaybackController.kt$SeriesDebridPlaybackController$fun playDebridEpisode(source: MovieSource, episode: EpisodeUiModel)</ID>
     <ID>CyclomaticComplexMethod:SeriesDebridSourceController.kt$SeriesDebridSourceController$fun fetchAndShowDebridSources( episode: EpisodeUiModel, returnFocusStreamIds: List&lt;String&gt; = emptyList() )</ID>
     <ID>CyclomaticComplexMethod:SeriesDetailFragmentV2.kt$SeriesDetailFragmentV2$private fun bindMetadata(state: SeriesDetailUiState.Success)</ID>
-    <ID>CyclomaticComplexMethod:SeriesFragment.kt$SeriesFragment$private fun restoreFocusIfPossible()</ID>
-    <ID>CyclomaticComplexMethod:SeriesFragment.kt$SeriesFragment$private fun setupDpadNavigation()</ID>
     <ID>CyclomaticComplexMethod:SeriesFragment.kt$SeriesFragment$private fun setupObservers()</ID>
-    <ID>CyclomaticComplexMethod:SeriesFragment.kt$SeriesFragment$private fun updateListLoadingAndEmptyStates(loadState: CombinedLoadStates, isSwitching: Boolean = false)</ID>
+    <ID>CyclomaticComplexMethod:SeriesListStateUi.kt$SeriesListStateUi$fun updateListLoadingAndEmptyStates(loadState: CombinedLoadStates, isSwitching: Boolean = false)</ID>
     <ID>CyclomaticComplexMethod:SeriesRepository.kt$SeriesRepository$suspend fun fetchSeriesForCategory(categoryId: String): Result&lt;List&lt;XtreamSeriesInfo&gt;&gt;</ID>
     <ID>CyclomaticComplexMethod:SeriesSeasonUi.kt$SeriesSeasonUi$fun showSeasonPopup()</ID>
     <ID>CyclomaticComplexMethod:SeriesSeasonUi.kt$SeriesSeasonUi$private fun loadSeasonWatchedProgress()</ID>
@@ -161,7 +159,6 @@
     <ID>LargeClass:LiveTvGuideFragment.kt$LiveTvGuideFragment : Fragment</ID>
     <ID>LargeClass:PlayerViewModel.kt$PlayerViewModel : ViewModel</ID>
     <ID>LargeClass:SeriesDetailFragmentV2.kt$SeriesDetailFragmentV2 : Fragment</ID>
-    <ID>LargeClass:SeriesFragment.kt$SeriesFragment : Fragment</ID>
     <ID>LargeClass:XtreamSeriesRepositoryV2.kt$XtreamSeriesRepositoryV2</ID>
     <ID>LongMethod:AddonCatalogRepository.kt$AddonCatalogRepository$suspend fun getDiscoveryContent( type: String, // "movie" or "series" page: Int = 1, sortBy: String? = null, catalogue: String = CATALOGUE_POPULAR, originalLanguage: String? = null, watchProviders: String? = null, watchRegion: String? = "US", releaseDateGte: String? = null, year: Int? = null, withGenres: String? = null ): Result&lt;List&lt;CatalogItem&gt;&gt;</ID>
     <ID>LongMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun initializePlayer(streamUrl: String)</ID>

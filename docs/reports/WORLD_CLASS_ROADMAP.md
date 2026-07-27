@@ -19,8 +19,8 @@ The app is "world-class" for this project's purposes when **all** of these are t
 
 | # | Criterion | Today | Target |
 |---|---|---:|---:|
-| E1 | detekt suppressions (`config/detekt/detekt-baseline.xml`) | **301** | **0** |
-| E2 | `LargeClass` violations | **8** | **0** |
+| E1 | detekt suppressions (`config/detekt/detekt-baseline.xml`) | **298** | **0** |
+| E2 | `LargeClass` violations | **7** | **0** |
 | E3 | `SwallowedException` (errors silently hidden) | **0 ✅ MET** | **0** |
 | E4 | Instrumented (on-device) tests — **counted as test methods**, `run_instrumented.sh` reports it | **17 ✅ MET** (3 classes) | **≥ 15** covering Live/Player/VOD/Series core flows |
 | E5 | Unit test files | **81 ✅ MET** | ≥ 80, with every new collaborator tested |
@@ -232,7 +232,7 @@ one domain per commit).
 |---|---|---:|---|
 | ~~C1~~ ✅ | `SettingsFragment.kt` | ~~787~~ **301** | done 2026-07-26 |
 | ~~C2~~ ✅ | `VodFragment.kt` | ~~1301~~ **625** | done 2026-07-27 |
-| C3 | `SeriesFragment.kt` | 1096 | low-med |
+| ~~C3~~ ✅ | `SeriesFragment.kt` | ~~1096~~ **563** | done 2026-07-27 |
 | C4 | `SeriesDetailFragmentV2.kt` | 843 | med |
 | C5 | `XtreamSeriesRepositoryV2.kt` | 925 | med |
 | C6 | `DebridPlaybackRepository.kt` | 801 | med |
@@ -349,6 +349,30 @@ the two removed entries is a real improvement rather than a relocation: splittin
 entries were re-keyed by the file move (`VodViewHolder.bind` ×3, `updateListLoadingAndEmptyStates`).
 Two genuinely-new `LongParameterList` violations appeared on the new constructors and were **fixed,
 not baselined**, by grouping the view references into `VodGridViews` / `VodListStateViews`.
+
+
+**C3 done 2026-07-27.** `SeriesFragment` 1096 → **563** lines, out of `LargeClass`. Same three-way
+split as C2, because it is the same screen shape:
+- `SeriesFocusController` (+ `SeriesGridViews`) — D-pad map and focus memory. Carries the one rule
+  Movies does not need: placeholders are off, so past the last *loaded* row there is no focusable
+  card and a plain DOWN escapes into the sidebar (the "focus jumps to category on fast scroll"
+  bug). DOWN is consumed at the edge and turned into a scroll nudge, intercepted on the **card**
+  because the RecyclerView's own key listener never fires while a row child holds focus.
+- `SeriesListStateUi` (+ `SeriesListStateViews`) — skeleton / empty / Retry, plus the debug-only
+  raw error text.
+- `SeriesGridExtras` — the favourite toggle, the episode-count cache and the debounced backdrop,
+  including B-5 (refresh the cache but do **not** notify the adapter: the old
+  `notifyDataSetChanged` restarted every Glide poster load to update a count the card never
+  renders).
+
+*Ratchet:* baseline 301 → **298**, LargeClass 8 → **7**. Three of the four removed entries are real
+improvements, not relocations — splitting `setupDpadNavigation` into per-surface installers and
+`restoreFocusIfPossible` into per-target helpers dropped both under the complexity threshold, and
+`LargeClass` is gone. Only `updateListLoadingAndEmptyStates` was re-keyed by the move. No new
+violations.
+
+*Noted, not acted on:* Movies and Series are now near-identical screens with near-identical
+collaborators. Unifying them is a design change, not a relocation, so it stays out of Tier C.
 
 - *Exit:* E2 = 0; each new collaborator < 600 lines and unit-tested.
 

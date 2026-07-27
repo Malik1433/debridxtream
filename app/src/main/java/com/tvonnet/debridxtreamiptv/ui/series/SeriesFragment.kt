@@ -39,14 +39,7 @@ import java.util.Locale
 @AndroidEntryPoint
 class SeriesFragment : Fragment() {
 
-    private enum class FocusTarget { CATEGORIES, SERIES }
-
     private companion object {
-        const val STATE_LAST_CATEGORY_POS = "series_last_category_pos"
-        const val STATE_LAST_SERIES_POS = "series_last_series_pos"
-        const val STATE_LAST_FOCUS_TARGET = "series_last_focus_target"
-        const val STATE_LAST_CATEGORY_ID = "series_last_category_id"
-        const val STATE_LAST_SERIES_ID = "series_last_series_id"
         const val ACCENT_PURPLE = "#A78BFA"
         const val TEXT_MUTED = "#64748B"
         val SORT_LABELS = listOf("RECENTLY ADDED", "TOP RATED", "A – Z", "MOST EPISODES")
@@ -82,44 +75,31 @@ class SeriesFragment : Fragment() {
     private var categoryCounts: Map<String, Int> = emptyMap()
 
     private var isSeriesLoadingFromViewModel: Boolean = false
-    private var hasLoadError: Boolean = false
     private var lastLoadStates: CombinedLoadStates? = null
-
-    private var lastFocusedCategoryPosition: Int = RecyclerView.NO_POSITION
-    private var lastFocusedSeriesPosition: Int = RecyclerView.NO_POSITION
-    private var lastFocusedCategoryId: String? = null
-    private var lastFocusedSeriesId: String? = null
-    private var lastFocusTarget: FocusTarget = FocusTarget.SERIES
-    private var pendingRestoreFocus: Boolean = false
-
-    private var restoreCategoryPosition: Int = RecyclerView.NO_POSITION
-    private var restoreSeriesPosition: Int = RecyclerView.NO_POSITION
-    private var restoreCategoryId: String? = null
-    private var restoreSeriesId: String? = null
-    private var restoreFocusTarget: FocusTarget = FocusTarget.SERIES
 
     private var currentCategories: List<XtreamCategory> = emptyList()
     private var adapterDataObserver: RecyclerView.AdapterDataObserver? = null
 
-    /** series_id -> (seasonCount, episodeCount) from the local episodes cache. */
-    private var episodeCountsCache: Map<String, Pair<Int, Int>> = emptyMap()
+    // C3 collaborators — same split as the Movies screen (C2): where focus goes, what an empty
+    // grid shows, and the small per-card concerns.
+    private lateinit var focus: SeriesFocusController
+    private lateinit var listState: SeriesListStateUi
+    private lateinit var extras: SeriesGridExtras
 
     // Paging adapter for series (mirror of VodAdapter wiring)
     private val seriesPagingAdapter by lazy {
         SeriesPagingAdapter(
             onSeriesClick = { series, view -> onSeriesClick(series, view) },
             favoriteChecker = { streamId -> viewModel.isFavorite(streamId) },
-            onSeriesLongClick = { series -> handleFavoriteLongPress(series) },
-            countsProvider = { seriesId -> episodeCountsCache[seriesId] }
+            onSeriesLongClick = { series -> extras.handleFavoriteLongPress(series) },
+            countsProvider = { seriesId -> extras.countsFor(seriesId) }
         ).apply {
             onItemFocused = { position ->
-                lastFocusTarget = FocusTarget.SERIES
-                lastFocusedSeriesPosition = position
                 try {
                     val item = peek(position)
+                    focus.onSeriesFocused(position, item?.series_id)
                     if (item != null) {
-                        lastFocusedSeriesId = item.series_id
-                        updateBackdrop(item)
+                        extras.updateBackdrop(item)
                         updateSectionHeaderForSeries(item)
                         // NOTE: episode prefetch was removed — getSeriesById writes the
                         // series_v2 row, which invalidated the grid's Room PagingSource and
@@ -145,7 +125,7 @@ class SeriesFragment : Fragment() {
                 // re-assertion. Paging appends (onItemRangeInserted while scrolling) add
                 // items at the END and must NOT scrollToPosition — that fought the user's
                 // scroll and bounced focus onto the sidebar.
-                override fun onChanged() { restoreFocus() }
+                override fun onChanged() { focus.reassertGridFocus() }
             }
             seriesPagingAdapter.registerAdapterDataObserver(adapterDataObserver!!)
         }
@@ -155,15 +135,16 @@ class SeriesFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         initViews(view)
-        restoreSavedState(savedInstanceState)
+        buildCollaborators()
+        savedInstanceState?.let { focus.restoreSavedState(it) }
         setupRecyclerViews()
         setupSortChips()
         setupSearch()
-        setupDpadNavigation()
+        focus.setupDpadNavigation()
         setupLoadStateListener()
         setupAdapterObserver()
 
-        loadEpisodeCounts()
+        extras.loadEpisodeCounts()
         setupObservers()
     }
 
@@ -180,8 +161,8 @@ class SeriesFragment : Fragment() {
         btnRetry = view.findViewById(R.id.btn_retry)
         btnRetry?.setOnClickListener {
             btnRetry?.visibility = View.GONE
-            showEmptyState(false)
-            showLoadingState(true)
+            listState.showEmptyState(false)
+            listState.showLoadingState(true)
             viewModel.onEvent(SeriesEvent.Retry)
         }
         tvOfflineLabel = view.findViewById(R.id.tv_offline_label)
@@ -192,24 +173,42 @@ class SeriesFragment : Fragment() {
         btnSearch = view.findViewById(R.id.btn_search)
     }
 
-    private fun restoreSavedState(savedInstanceState: Bundle?) {
-        savedInstanceState?.let { state ->
-            lastFocusedCategoryPosition = state.getInt(STATE_LAST_CATEGORY_POS, RecyclerView.NO_POSITION)
-            lastFocusedSeriesPosition = state.getInt(STATE_LAST_SERIES_POS, RecyclerView.NO_POSITION)
-            lastFocusedCategoryId = state.getString(STATE_LAST_CATEGORY_ID)
-            lastFocusedSeriesId = state.getString(STATE_LAST_SERIES_ID)
-            val focusTargetName = state.getString(STATE_LAST_FOCUS_TARGET) ?: FocusTarget.SERIES.name
-            lastFocusTarget = runCatching { FocusTarget.valueOf(focusTargetName) }.getOrDefault(FocusTarget.SERIES)
-
-            restoreCategoryPosition = lastFocusedCategoryPosition
-            restoreSeriesPosition = lastFocusedSeriesPosition
-            restoreCategoryId = lastFocusedCategoryId
-            restoreSeriesId = lastFocusedSeriesId
-            restoreFocusTarget = lastFocusTarget
-            pendingRestoreFocus =
-                lastFocusedCategoryPosition != RecyclerView.NO_POSITION ||
-                    lastFocusedSeriesPosition != RecyclerView.NO_POSITION
-        }
+    private fun buildCollaborators() {
+        focus = SeriesFocusController(
+            fragment = this,
+            views = SeriesGridViews(
+                sidebar = rvCategoriesSidebar,
+                grid = rvSeriesGrid,
+                sortChips = llSortChips,
+                searchButton = { btnSearch },
+            ),
+            adapter = { seriesPagingAdapter },
+            currentCategories = { currentCategories },
+            gridColumnCount = { gridColumnCount },
+        )
+        listState = SeriesListStateUi(
+            fragment = this,
+            views = SeriesListStateViews(
+                grid = rvSeriesGrid,
+                loading = { llLoadingState },
+                empty = { llEmptyState },
+                message = { tvEmptyMessage },
+                hint = { tvEmptyHint },
+                retry = { btnRetry },
+            ),
+            itemCount = { seriesPagingAdapter.itemCount },
+            isLoadingFromViewModel = { isSeriesLoadingFromViewModel },
+            onRefreshSettled = {
+                focus.restoreFocusIfPossible()
+                refreshSectionCount()
+            },
+        )
+        extras = SeriesGridExtras(
+            fragment = this,
+            viewModel = viewModel,
+            adapter = { seriesPagingAdapter },
+            backdropView = { if (::ivBackgroundBackdrop.isInitialized) ivBackgroundBackdrop else null },
+        )
     }
 
     private fun setupRecyclerViews() {
@@ -299,7 +298,7 @@ class SeriesFragment : Fragment() {
                 if (event.action == android.view.KeyEvent.ACTION_DOWN &&
                     keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN
                 ) {
-                    focusGridTop()
+                    focus.focusGridTop()
                     true
                 } else false
             }
@@ -340,52 +339,6 @@ class SeriesFragment : Fragment() {
         }
     }
 
-    /** Move focus to the search pill (its own view is the focus target). */
-    private fun focusSearchBar() {
-        val s = btnSearch
-        if (s == null) {
-            android.util.Log.i("SeriesSearch", "focusSearchBar: btnSearch is null")
-            return
-        }
-        // Make sure the pill itself is the d-pad focus target.
-        s.isFocusable = true
-        s.isFocusableInTouchMode = true
-
-        var ok = s.requestFocus()
-        if (!ok) ok = s.requestFocus(View.FOCUS_UP)
-        android.util.Log.i(
-            "SeriesSearch",
-            "focusSearchBar: isFocusable=${s.isFocusable} isShown=${s.isShown} " +
-                "w=${s.width} h=${s.height} inTouchMode=${s.isInTouchMode} requestFocus=$ok"
-        )
-
-        if (!ok) {
-            // Log the ancestor chain to reveal a focus blocker (descendantFocusability,
-            // visibility, or zero size). FOCUS_BLOCK_DESCENDANTS == 0x60000.
-            var p: android.view.ViewParent? = s.parent
-            while (p is android.view.ViewGroup) {
-                android.util.Log.i(
-                    "SeriesSearch",
-                    "ancestor=${p.javaClass.simpleName} descendantFocusability=${p.descendantFocusability} " +
-                        "visibility=${p.visibility} w=${p.width} h=${p.height}"
-                )
-                p = p.parent
-            }
-        }
-
-        // Always retry on the next frame — covers both a not-yet-laid-out view AND a
-        // focus bounce-back (where the immediate requestFocus succeeds but the list
-        // re-claims focus in the same frame).
-        s.post {
-            if (!isAdded) return@post
-            val ok2 = s.requestFocus() || s.requestFocus(View.FOCUS_UP)
-            android.util.Log.i(
-                "SeriesSearch",
-                "focusSearchBar retry requestFocus=$ok2 hasFocus=${s.hasFocus()} isFocused=${s.isFocused}"
-            )
-        }
-    }
-
     private fun openSearch() {
         if (!isAdded) return
         // Scope search to series, and to the open real category (virtual "All Series" /
@@ -412,194 +365,10 @@ class SeriesFragment : Fragment() {
             .commit()
     }
 
-    private fun setupDpadNavigation() {
-        rvSeriesGrid.setOnKeyListener { _, keyCode, event ->
-            if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-
-            val focused = rvSeriesGrid.findFocus() ?: return@setOnKeyListener false
-            val holder = rvSeriesGrid.findContainingViewHolder(focused) ?: return@setOnKeyListener false
-            val position = holder.bindingAdapterPosition
-
-            when (keyCode) {
-                android.view.KeyEvent.KEYCODE_DPAD_UP -> {
-                    // First row: route UP to the sort chips instead of trapping focus
-                    if (position < gridColumnCount) {
-                        focusSortChipsRow()
-                        true
-                    } else false
-                }
-                android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    // Placeholders are off, so past the last LOADED row there is no focusable
-                    // card below — a plain DOWN then escapes to the sidebar (the "focus jumps
-                    // to category on fast scroll" bug). Consume it and nudge a scroll so the
-                    // next page loads; focus stays on the current card.
-                    val count = seriesPagingAdapter.itemCount
-                    if (count > 0 && position + gridColumnCount >= count) {
-                        rvSeriesGrid.scrollBy(0, focused.height)
-                        true
-                    } else false
-                }
-                android.view.KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    if (position % gridColumnCount == 0) {
-                        rvCategoriesSidebar.post {
-                            rvCategoriesSidebar.post { rvCategoriesSidebar.requestFocus() }
-                        }
-                        true
-                    } else false
-                }
-                else -> false
-            }
-        }
-
-        // The RV key listener above only fires when the RV ITSELF holds focus — on TV the
-        // focused view is the card (a row child), so DOWN/LEFT/UP must be intercepted on
-        // each card. Without this, a fast DOWN past the last laid-out row finds no focusable
-        // below and escapes to the sidebar ("focus jumps to category" bug).
-        rvSeriesGrid.addOnChildAttachStateChangeListener(
-            object : RecyclerView.OnChildAttachStateChangeListener {
-                override fun onChildViewAttachedToWindow(view: View) {
-                    view.setOnKeyListener { _, keyCode, event ->
-                        if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-                        val position = rvSeriesGrid.getChildAdapterPosition(view)
-                        if (position == RecyclerView.NO_POSITION) return@setOnKeyListener false
-                        val count = seriesPagingAdapter.itemCount
-                        when (keyCode) {
-                            android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
-                                val belowPos = position + gridColumnCount
-                                // No card below (last row) OR the row below isn't laid out yet
-                                // (fast scroll) → consume, nudge a scroll, keep focus here.
-                                val belowView = rvSeriesGrid.layoutManager
-                                    ?.findViewByPosition(belowPos)
-                                if (belowPos >= count || belowView == null) {
-                                    rvSeriesGrid.scrollBy(0, view.height)
-                                    true
-                                } else false
-                            }
-                            android.view.KeyEvent.KEYCODE_DPAD_LEFT -> {
-                                if (position % gridColumnCount == 0) {
-                                    rvCategoriesSidebar.post {
-                                        if (isAdded) rvCategoriesSidebar.requestFocus()
-                                    }
-                                    true
-                                } else false
-                            }
-                            android.view.KeyEvent.KEYCODE_DPAD_UP -> {
-                                if (position < gridColumnCount) {
-                                    focusSortChipsRow()
-                                    true
-                                } else false
-                            }
-                            else -> false
-                        }
-                    }
-                }
-
-                override fun onChildViewDetachedFromWindow(view: View) {
-                    view.setOnKeyListener(null)
-                }
-            }
-        )
-
-        // RIGHT from the sidebar must always enter the content column. The RecyclerView
-        // key listener below only fires when the RV itself holds focus (not when a row
-        // child does), and a plain nextFocusRight dead-ends when the grid is scrolled
-        // off-screen below the hero/CW. So intercept the key on each ROW view (which IS
-        // the focused view) and jump to the first on-screen content focusable.
-        rvCategoriesSidebar.addOnChildAttachStateChangeListener(
-            object : RecyclerView.OnChildAttachStateChangeListener {
-                override fun onChildViewAttachedToWindow(view: View) {
-                    view.setOnKeyListener { _, keyCode, event ->
-                        if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-                        when (keyCode) {
-                            android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                                focusContentFromSidebar()
-                                true
-                            }
-                            android.view.KeyEvent.KEYCODE_DPAD_UP -> {
-                                // From the TOP category row, UP goes to the search pill.
-                                // Consume it either way so an unhandled UP can't escape the
-                                // app (which previously bounced to the launcher).
-                                val pos = rvCategoriesSidebar.getChildAdapterPosition(view)
-                                android.util.Log.i("SeriesSearch", "row UP fired, pos=$pos")
-                                if (pos <= 0) {
-                                    focusSearchBar()
-                                    true
-                                } else false
-                            }
-                            else -> false
-                        }
-                    }
-                }
-
-                override fun onChildViewDetachedFromWindow(view: View) {
-                    view.setOnKeyListener(null)
-                }
-            }
-        )
-
-        // Kept as a backup for the (rare) case the RecyclerView itself holds focus.
-        rvCategoriesSidebar.setOnKeyListener { _, keyCode, event ->
-            if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-            when (keyCode) {
-                android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    focusContentFromSidebar()
-                    true
-                }
-                android.view.KeyEvent.KEYCODE_DPAD_LEFT -> true
-                else -> false
-            }
-        }
-    }
-
-    /**
-     * Move focus from the sidebar into the content column, never dead-ending.
-     * Priority: an on-screen grid card → the sort chips row → the grid.
-     */
-    private fun focusContentFromSidebar() {
-        // 1) An on-screen, laid-out grid card.
-        if (rvSeriesGrid.visibility == View.VISIBLE && rvSeriesGrid.childCount > 0) {
-            rvSeriesGrid.post {
-                if (!isAdded) return@post
-                val target = rvSeriesGrid.getChildAt(0)
-                if (target != null && target.requestFocus()) return@post
-                rvSeriesGrid.requestFocus()
-            }
-            return
-        }
-        // 2) Sort chips row (always present in the header; DOWN goes to the grid).
-        if (llSortChips.childCount > 0) {
-            llSortChips.post {
-                if (!isAdded) return@post
-                val chip = llSortChips.getChildAt(0)
-                if (chip != null && chip.requestFocus()) return@post
-                rvSeriesGrid.requestFocus()
-            }
-            return
-        }
-        // 3) Last resort.
-        rvSeriesGrid.post { if (isAdded) rvSeriesGrid.requestFocus() }
-    }
-
-    /** Focus the first sort chip in the merged header row. */
-    private fun focusSortChipsRow() {
-        val chip = llSortChips.getChildAt(0)
-        if (chip != null) chip.post { if (isAdded) chip.requestFocus() } else focusGridTop()
-    }
-
-    /** Return focus to the grid from the header — the first on-screen card, else the grid. */
-    private fun focusGridTop() {
-        rvSeriesGrid.post {
-            if (!isAdded) return@post
-            val card = rvSeriesGrid.getChildAt(0)
-            if (card != null && card.requestFocus()) return@post
-            rvSeriesGrid.requestFocus()
-        }
-    }
-
     private fun setupLoadStateListener() {
         seriesPagingAdapter.addLoadStateListener { loadState ->
             lastLoadStates = loadState
-            updateListLoadingAndEmptyStates(loadState)
+            listState.updateListLoadingAndEmptyStates(loadState)
         }
     }
 
@@ -612,7 +381,7 @@ class SeriesFragment : Fragment() {
             String.format(Locale.US, "%.1f", stars.coerceIn(0f, 5f))
         } else "N/A"
         val year = series.releaseDate?.take(4) ?: ""
-        val counts = series.series_id?.let { episodeCountsCache[it] }
+        val counts = series.series_id?.let { extras.countsFor(it) }
         val middle = if (counts != null) "${counts.first}S · ${counts.second}EP"
         else series.genre?.split(",")?.firstOrNull()?.trim() ?: ""
         tvSectionMeta.text = "★ $ratingText  ·  $middle  ·  $year"
@@ -654,15 +423,15 @@ class SeriesFragment : Fragment() {
 
                 if (isSeriesLoadingFromViewModel != state.isLoadingSeries || state.isSwitchingCategory) {
                     isSeriesLoadingFromViewModel = state.isLoadingSeries
-                    lastLoadStates?.let { updateListLoadingAndEmptyStates(it, state.isSwitchingCategory) }
+                    lastLoadStates?.let { listState.updateListLoadingAndEmptyStates(it, state.isSwitchingCategory) }
                 }
 
                 if (state.error != null) {
-                    hasLoadError = true
+                    listState.hasLoadError = true
                     Toast.makeText(context, state.error, Toast.LENGTH_SHORT).show()
-                    if (seriesPagingAdapter.itemCount == 0 && !state.isLoadingSeries) showEmptyState(true)
+                    if (seriesPagingAdapter.itemCount == 0 && !state.isLoadingSeries) listState.showEmptyState(true)
                 } else if (seriesPagingAdapter.itemCount > 0) {
-                    hasLoadError = false
+                    listState.hasLoadError = false
                 }
 
                 state.selectedCategoryId?.let { id ->
@@ -673,7 +442,7 @@ class SeriesFragment : Fragment() {
                         else -> state.categories.find { it.category_id == id }?.category_name ?: "Series"
                     }
                     currentCategoryName = title
-                    if (lastFocusTarget == FocusTarget.CATEGORIES) {
+                    if (focus.lastFocusTarget == SeriesFocusController.FocusTarget.CATEGORIES) {
                         resetSectionHeader()
                     }
                 }
@@ -682,8 +451,8 @@ class SeriesFragment : Fragment() {
                     if (state.error != null) View.VISIBLE else View.GONE
 
                 if (state.isLoadingSeries && seriesPagingAdapter.itemCount == 0) {
-                    showEmptyState(false)
-                    showLoadingState(true)
+                    listState.showEmptyState(false)
+                    listState.showLoadingState(true)
                 }
             }
         }
@@ -724,57 +493,12 @@ class SeriesFragment : Fragment() {
             viewModel.onEvent(SeriesEvent.SelectCategory(selectedCategoryId))
         }
         categorySidebarAdapter.onItemFocused = { position ->
-            lastFocusTarget = FocusTarget.CATEGORIES
-            lastFocusedCategoryPosition = position
-            if (position in categories.indices) {
-                lastFocusedCategoryId = categories[position].category_id
-            }
+            focus.onCategoryFocused(position, categories.getOrNull(position)?.category_id)
             resetSectionHeader()
         }
         rvCategoriesSidebar.adapter = categorySidebarAdapter
 
-        restoreFocusIfPossible()
-    }
-
-    private fun updateListLoadingAndEmptyStates(loadState: CombinedLoadStates, isSwitching: Boolean = false) {
-        val itemCount = seriesPagingAdapter.itemCount
-
-        val isPagingRefreshLoading =
-            loadState.refresh is LoadState.Loading ||
-                loadState.source.refresh is LoadState.Loading ||
-                loadState.mediator?.refresh is LoadState.Loading
-
-        val shouldShowLoading = (isSeriesLoadingFromViewModel || isPagingRefreshLoading)
-        showLoadingState(shouldShowLoading, itemCount > 0)
-
-        val isListEmpty =
-            !isSeriesLoadingFromViewModel &&
-                !isSwitching &&
-                loadState.refresh is LoadState.NotLoading &&
-                loadState.source.refresh is LoadState.NotLoading &&
-                (loadState.mediator?.refresh == null || loadState.mediator!!.refresh is LoadState.NotLoading) &&
-                itemCount == 0 &&
-                !isPagingRefreshLoading
-        showEmptyState(isListEmpty)
-
-        val errorState = loadState.source.refresh as? LoadState.Error
-            ?: loadState.source.append as? LoadState.Error
-            ?: loadState.source.prepend as? LoadState.Error
-            ?: loadState.refresh as? LoadState.Error
-            ?: loadState.mediator?.refresh as? LoadState.Error
-
-        if (errorState != null) {
-            hasLoadError = true
-            Toast.makeText(context, getDisplayErrorMessage(errorState.error), Toast.LENGTH_LONG).show()
-            if (itemCount == 0) showEmptyState(true)
-        } else if (itemCount > 0) {
-            hasLoadError = false
-        }
-
-        if (!isPagingRefreshLoading && loadState.refresh is LoadState.NotLoading) {
-            restoreFocusIfPossible()
-            refreshSectionCount()
-        }
+        focus.restoreFocusIfPossible()
     }
 
     /**
@@ -785,156 +509,9 @@ class SeriesFragment : Fragment() {
     private fun refreshSectionCount() {
         val count = categoryCounts[selectedCategoryId] ?: seriesPagingAdapter.itemCount
         // Don't clobber the focused-series meta line; only refresh the plain count.
-        if (lastFocusTarget != FocusTarget.SERIES) {
+        if (focus.lastFocusTarget != SeriesFocusController.FocusTarget.SERIES) {
             tvSectionMeta.text = "$count titles"
         }
-    }
-
-    private fun showEmptyState(show: Boolean) {
-        llEmptyState?.visibility = if (show) View.VISIBLE else View.GONE
-        if (show && seriesPagingAdapter.itemCount == 0) {
-            rvSeriesGrid.visibility = View.GONE
-        } else {
-            rvSeriesGrid.visibility = View.VISIBLE
-        }
-        if (show) {
-            if (hasLoadError) {
-                tvEmptyMessage?.text = "Couldn't load series"
-                tvEmptyHint?.visibility = View.VISIBLE
-                tvEmptyHint?.text = "Check your connection and try again"
-                btnRetry?.visibility = View.VISIBLE
-                btnRetry?.post { if (isAdded) btnRetry?.requestFocus() }
-            } else {
-                tvEmptyMessage?.text = "No series available"
-                tvEmptyHint?.visibility = View.GONE
-                btnRetry?.visibility = View.GONE
-            }
-        } else {
-            btnRetry?.visibility = View.GONE
-        }
-    }
-
-    private fun showLoadingState(show: Boolean, keepContent: Boolean = false) {
-        val container = llLoadingState ?: return
-        // Full-screen skeleton ONLY when the grid has nothing to show. When content is
-        // already on screen (category switch / background sync), never blank or dim it —
-        // the sync finishes silently and Paging swaps the rows in place.
-        if (show && !keepContent) {
-            container.visibility = View.VISIBLE
-            container.alpha = 1.0f
-            rvSeriesGrid.alpha = 0f
-            rvSeriesGrid.visibility = View.GONE
-            startShimmerAnimations(container)
-        } else {
-            stopShimmerAnimations(container)
-            container.visibility = View.GONE
-            rvSeriesGrid.visibility = View.VISIBLE
-            rvSeriesGrid.alpha = 1.0f
-        }
-    }
-
-    private var shimmerRunning = false
-
-    private fun startShimmerAnimations(container: ViewGroup) {
-        if (shimmerRunning) return
-        shimmerRunning = true
-        for (i in 0 until container.childCount) {
-            val shimmer = container.getChildAt(i)?.findViewById<View>(R.id.v_shimmer) ?: continue
-            val anim = TranslateAnimation(
-                Animation.RELATIVE_TO_PARENT, -1.0f,
-                Animation.RELATIVE_TO_PARENT, 1.0f,
-                Animation.RELATIVE_TO_PARENT, 0f,
-                Animation.RELATIVE_TO_PARENT, 0f
-            ).apply {
-                duration = 1200L + (i * 80L)
-                repeatCount = Animation.INFINITE
-                repeatMode = Animation.RESTART
-                interpolator = android.view.animation.LinearInterpolator()
-            }
-            shimmer.startAnimation(anim)
-        }
-    }
-
-    private fun stopShimmerAnimations(container: ViewGroup) {
-        if (!shimmerRunning) return
-        shimmerRunning = false
-        for (i in 0 until container.childCount) {
-            container.getChildAt(i)?.findViewById<View>(R.id.v_shimmer)?.clearAnimation()
-        }
-    }
-
-    private fun restoreFocusIfPossible() {
-        if (!pendingRestoreFocus) return
-
-        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("SERIES_RESTORE") {
-            when (restoreFocusTarget) {
-                FocusTarget.CATEGORIES -> {
-                    val count = rvCategoriesSidebar.adapter?.itemCount ?: 0
-                    if (count <= 0) return@requestFocus
-
-                    val adapter = rvCategoriesSidebar.adapter as? CategorySidebarAdapter
-                    val position = resolveCategoryPosition(adapterCount = count) ?: return@requestFocus
-
-                    rvCategoriesSidebar.post {
-                        if (!isAdded) return@post
-                        rvCategoriesSidebar.scrollToPosition(position)
-                        adapter?.setSelected(position)
-                        rvCategoriesSidebar.post {
-                            if (!isAdded) return@post
-                            try {
-                                val focused =
-                                    rvCategoriesSidebar.findViewHolderForAdapterPosition(position)
-                                        ?.itemView?.requestFocus() == true
-                                if (focused) pendingRestoreFocus = false
-                            } finally {
-                                com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("SERIES_RESTORE")
-                            }
-                        }
-                    }
-                }
-
-                FocusTarget.SERIES -> {
-                    val count = seriesPagingAdapter.itemCount
-                    if (count <= 0) return@requestFocus
-
-                    val position = resolveSeriesAdapterPosition()?.coerceIn(0, count - 1) ?: return@requestFocus
-
-                    rvSeriesGrid.post {
-                        if (!isAdded) return@post
-                        rvSeriesGrid.scrollToPosition(position)
-                        rvSeriesGrid.post {
-                            if (!isAdded) return@post
-                            try {
-                                val focused =
-                                    rvSeriesGrid.findViewHolderForAdapterPosition(position)
-                                        ?.itemView?.requestFocus() == true
-                                if (focused) pendingRestoreFocus = false
-                            } finally {
-                                com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("SERIES_RESTORE")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private fun resolveCategoryPosition(adapterCount: Int): Int? {
-        val resolvedPosition = restoreCategoryId
-            ?.let { id -> currentCategories.indexOfFirst { it.category_id == id }.takeIf { it >= 0 } }
-            ?: restoreCategoryPosition.takeIf { it != RecyclerView.NO_POSITION }
-        return resolvedPosition?.coerceIn(0, adapterCount - 1)
-    }
-
-    private fun resolveSeriesAdapterPosition(): Int? {
-        restoreSeriesId?.let { targetId ->
-            val snapshot = seriesPagingAdapter.snapshot()
-            val indexInItems = snapshot.items.indexOfFirst { it.series_id == targetId }
-            if (indexInItems >= 0) {
-                return snapshot.placeholdersBefore + indexInItems
-            }
-        }
-        return restoreSeriesPosition.takeIf { it != RecyclerView.NO_POSITION }
     }
 
     private fun onSeriesClick(series: XtreamSeriesInfo, sharedView: View) {
@@ -953,135 +530,25 @@ class SeriesFragment : Fragment() {
             .commit()
     }
 
-    private fun handleFavoriteLongPress(series: XtreamSeriesInfo) {
-        val streamId = series.series_id ?: return
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                val repository = viewModel.getRepository()
-                val isFavorite = viewModel.isFavorite(streamId)
-
-                if (isFavorite) {
-                    repository.removeFavorite(streamId)
-                    Toast.makeText(requireContext(), "Removed from favorites", Toast.LENGTH_SHORT).show()
-                } else {
-                    repository.addFavorite(
-                        streamId = streamId,
-                        type = "series",
-                        name = series.name ?: "Unknown Series",
-                        iconUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(series.cover)
-                    )
-                    Toast.makeText(requireContext(), "Added to favorites", Toast.LENGTH_SHORT).show()
-                }
-
-                // Refresh adapter to show/hide heart icon
-                seriesPagingAdapter.refresh()
-            } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun getDisplayErrorMessage(error: Throwable): String {
-        return if (BuildConfig.DEBUG) {
-            "Error: ${error.message}"
-        } else {
-            "Unable to load series. Please try again."
-        }
-    }
-
-    private val backdropHandler = android.os.Handler(android.os.Looper.getMainLooper())
-    private var pendingBackdrop: Runnable? = null
-
-    private fun updateBackdrop(series: XtreamSeriesInfo) {
-        // Debounce: swap the backdrop only once focus RESTS (~300ms) — surfing the grid
-        // must not repaint the whole background on every D-pad step.
-        pendingBackdrop?.let { backdropHandler.removeCallbacks(it) }
-        val task = Runnable {
-            if (!isAdded) return@Runnable
-            val imageUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(
-                series.backdropPathList.firstOrNull() ?: series.cover
-            )
-            if (!imageUrl.isNullOrBlank()) {
-                Glide.with(this)
-                    .load(imageUrl)
-                    .transition(DrawableTransitionOptions.withCrossFade(700))
-                    .placeholder(android.R.color.transparent)
-                    .error(android.R.color.transparent)
-                    .into(ivBackgroundBackdrop)
-            }
-        }
-        pendingBackdrop = task
-        backdropHandler.postDelayed(task, 300L)
-    }
-
-    private fun loadEpisodeCounts() {
-        viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                val counts = viewModel.getEpisodeCounts()
-                // B-5: only refresh the cache. The old notifyDataSetChanged() here
-                // rebound EVERY visible card (restarting each Glide poster load = a
-                // poster-reload flash on view-create and every onResume) purely to
-                // update episode counts that the series card does NOT display
-                // (SeriesPagingViewHolder.bind never renders `counts`). No rebind needed.
-                episodeCountsCache = counts
-            } catch (_: Exception) {}
-        }
-    }
-
-    private fun restoreFocus() {
-        // CC-1 (refresh-steals-focus): only re-assert grid focus when the user is ALREADY
-        // inside the grid (a paging append / cache refresh shifted positions). If focus is on
-        // the sidebar / genre pills / search, a background data change must NOT yank it into
-        // the grid. Return-to-fragment focus is handled by restoreFocusIfPossible().
-        if (!rvSeriesGrid.hasFocus()) return
-        rvSeriesGrid.post {
-            val positionToFocus = if (lastFocusedSeriesPosition != RecyclerView.NO_POSITION) lastFocusedSeriesPosition else 0
-            val safePosition = minOf(positionToFocus, seriesPagingAdapter.itemCount - 1)
-
-            if (safePosition >= 0) {
-                rvSeriesGrid.scrollToPosition(safePosition)
-                rvSeriesGrid.post {
-                    rvSeriesGrid.findViewHolderForAdapterPosition(safePosition)?.itemView?.requestFocus()
-                }
-            }
-        }
-    }
-
     override fun onResume() {
         super.onResume()
-        restoreFocusIfPossible()
-        loadEpisodeCounts()
+        focus.restoreFocusIfPossible()
+        extras.loadEpisodeCounts()
     }
 
     override fun onPause() {
         super.onPause()
         com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.saveFocus(requireView())
-        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("SERIES_RESTORE")
-
-        restoreCategoryPosition = lastFocusedCategoryPosition
-        restoreSeriesPosition = lastFocusedSeriesPosition
-        restoreCategoryId = lastFocusedCategoryId
-        restoreSeriesId = lastFocusedSeriesId
-        restoreFocusTarget = lastFocusTarget
-
-        pendingRestoreFocus =
-            restoreCategoryPosition != RecyclerView.NO_POSITION ||
-                restoreSeriesPosition != RecyclerView.NO_POSITION
+        focus.onPause()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putInt(STATE_LAST_CATEGORY_POS, lastFocusedCategoryPosition)
-        outState.putInt(STATE_LAST_SERIES_POS, lastFocusedSeriesPosition)
-        outState.putString(STATE_LAST_CATEGORY_ID, lastFocusedCategoryId)
-        outState.putString(STATE_LAST_SERIES_ID, lastFocusedSeriesId)
-        outState.putString(STATE_LAST_FOCUS_TARGET, lastFocusTarget.name)
+        focus.saveState(outState)
     }
 
     override fun onDestroyView() {
-        pendingBackdrop?.let { backdropHandler.removeCallbacks(it) }
-        pendingBackdrop = null
+        if (::extras.isInitialized) extras.clear()
         adapterDataObserver?.let {
             try { seriesPagingAdapter.unregisterAdapterDataObserver(it) } catch (_: Exception) {}
         }
