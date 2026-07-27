@@ -233,7 +233,7 @@ one domain per commit).
 | ~~C1~~ ✅ | `SettingsFragment.kt` | ~~787~~ **301** | done 2026-07-26 |
 | ~~C2~~ ✅ | `VodFragment.kt` | ~~1301~~ **625** | done 2026-07-27 |
 | ~~C3~~ ✅ | `SeriesFragment.kt` | ~~1096~~ **563** | done 2026-07-27 |
-| C4 | `SeriesDetailFragmentV2.kt` | 843 | med |
+| ~~C4~~ ✅ | `SeriesDetailFragmentV2.kt` | ~~843~~ **311** | done 2026-07-27 |
 | C5 | `XtreamSeriesRepositoryV2.kt` | 925 | med |
 | C6 | `DebridPlaybackRepository.kt` | 801 | med |
 | C7 | `LiveTvGuideFragment.kt` | 866 | med-high (guide playback hand-off) |
@@ -373,6 +373,44 @@ violations.
 
 *Noted, not acted on:* Movies and Series are now near-identical screens with near-identical
 collaborators. Unifying them is a design change, not a relocation, so it stays out of Tier C.
+
+
+**C4 done 2026-07-27.** `SeriesDetailFragmentV2` 843 → **311** lines (−63%), out of `LargeClass`.
+Split by *surface*, since a detail page is a stack of independent panes rather than one grid:
+- `SeriesDetailHeaderUi` — title, plot, the year · seasons/episodes · genre meta line, rating badge
+  and the multi-category summary. The separator dots are the reason it is one owner: each dot
+  depends on the visibility of the fields on *both* sides of it, and the two feeds that decide that
+  (`bindMetadata`, `bindSeriesTotals`) arrive independently, so every path re-runs `updateMetaDots`.
+- `SeriesDetailActions` — the Play · Trailer · Favourite · Season row and the season popup. Grouped
+  by what the user can *do*, because all four share one concern: D-pad focus. The scale-only focus
+  animation exists so it never fights the disabled-Trailer alpha.
+- `SeriesEpisodesStripUi` — the strip, its adapter, focus memory, and the **grace window**: Room
+  paging reports "empty" instantly on a cold open while `get_series_info` is still on the wire, so
+  an empty strip may only be called empty after 12s. That single rule is what separates "No
+  episodes" from "still loading" and is now in one testable place.
+- `SeriesStreamPanelUi` — the SELECT STREAM panel: slide-in, filter chips, and the two focus rules
+  (background made unfocusable while open so D-pad focus cannot escape behind the scrim; a chip
+  toggle rebuilds through `updatePreservingFocus` so the user keeps their row — only the initial
+  open moves focus).
+- `SeriesDetailEnrichment` — the TMDB TV pass (trailer, cast, creator, runtime, age rating) plus
+  IMDb/RT via OMDb, including the title cleanup that makes TMDB search work at all.
+- `SeriesDetailPage` — the page-scoped facts the collaborators share. `trailer` is the only
+  genuinely shared mutable state on this screen (arguments → provider → TMDB, last writer wins),
+  so it lives here instead of each writer keeping a copy.
+
+*Ratchet:* baseline 298 → **294**, LargeClass 7 → **6**. **All four** removed entries are real
+improvements rather than relocations — `LargeClass` is gone, `bindMetadata` dropped under the
+complexity threshold once the rating branch moved out, and both `renderStreamPanel` and
+`showSeasonPopup` dropped under `LongMethod` once the list-rendering and per-row builders were
+split out. Nothing was re-keyed by the move and no new violation was added.
+
+*Dead code deleted, not relocated:* two private fields, `seriesPlot` and `trailerLookupStarted`,
+were written and never read anywhere. Nothing user-facing is lost — the plot is bound straight to
+`tvPlot`, and the TMDB pass is already guarded by its own `enrichStarted` flag.
+
+*Equivalent-guard note:* `updatePlayButton`'s stale-result guard compared against `activeEpisode`,
+which the strip's focus callback had just set to the same episode. It now compares against the id
+the button was labelled with — identical behaviour, minus a cross-collaborator read.
 
 - *Exit:* E2 = 0; each new collaborator < 600 lines and unit-tested.
 
