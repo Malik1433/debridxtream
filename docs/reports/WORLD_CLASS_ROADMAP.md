@@ -236,7 +236,7 @@ one domain per commit).
 | ~~C4~~ ✅ | `SeriesDetailFragmentV2.kt` | ~~843~~ **311** | done 2026-07-27 |
 | ~~C5~~ ✅ | `XtreamSeriesRepositoryV2.kt` | ~~927~~ **239** | done 2026-07-27 |
 | ~~C6~~ ✅ | `DebridPlaybackRepository.kt` | ~~801~~ **88** | done 2026-07-27 |
-| C7 | `LiveTvGuideFragment.kt` | 866 | med-high (guide playback hand-off) |
+| ~~C7~~ ✅ | `LiveTvGuideFragment.kt` | ~~866~~ **500** | done 2026-07-27 |
 | C8 | `LivePlayerOsdManager.kt` | 1174 | high (player) |
 | C9 | `BasePlayerFragment.kt` | 1481 | high (player) |
 | C10 | `PlayerViewModel.kt` | 1555 | high (player) |
@@ -517,6 +517,48 @@ exceptions. Trap worth remembering — the first run showed 5 `FocusPreservingLi
 ("timed out waiting: rows should be laid out") that had nothing to do with the change: the TV had
 gone to sleep (`mWakefulness=Asleep`). `input keyevent KEYCODE_WAKEUP` first, then re-run.
 
+
+**C7 done 2026-07-27.** `LiveTvGuideFragment` 866 → **500** lines (−42%), out of `LargeClass`.
+Back to UI, and the first phase since C1 whose verification genuinely needed the owner's eyes:
+- `GuideChipsController` — category chips + day tabs. Built once, then only re-styled, because the
+  state flow re-emits on every category/day change and rebuilding would destroy focus mid-navigation.
+  Holds the two TV-visible details: explicit `nextFocusLeft/RightId` wiring (inside a
+  `HorizontalScrollView` an off-screen chip otherwise needs **two** D-pad presses) and the single
+  sliding highlight pill, animated by translation+scale around a top-left pivot rather than by
+  rewriting `layoutParams` every frame.
+- `GuideDetailPanel` — driven purely by **focus**, never by selection. Moving through the grid
+  repaints it without touching playback; that separation is what makes this a guide and not a zapper.
+- `GuideSearchOverlay` — the in-flight job is cancelled per keystroke (otherwise a fast typist has
+  searches racing and the slowest wins), and the dialog gets a fixed window size (the results list
+  has `weight=1`, so an unbounded window overflows off-screen instead of scrolling).
+- `GuideVideoBridge` — the one video surface, **transformed** between tile and fullscreen, never
+  re-parented, so the `TextureView` keeps rendering live through the whole grow.
+
+*The step ORDER stayed in the fragment on purpose.* Black/frozen video on this screen has always
+come from ordering, so it must read top to bottom in one place; the bridge only owns geometry.
+
+*Two relocation traps caught:* `parkAtTile`'s retry takes a `stillParked` lambda because the original
+re-checked `!isFullscreen` — dropping it would let a late layout retry yank a **fullscreen** video
+back to tile size. And the first extraction of `buildPlayerIntent` re-read `CredentialsPreferences`,
+which would have substituted an empty string for the value the caller had already null-checked.
+
+*Ratchet:* baseline 280 → **276**, LargeClass 4 → **3**. All four entries gone — `LargeClass`,
+`buildChipsIfNeeded`, `updateDetail`, and `observeState`, the last by splitting the auto-select /
+resume block into `autoSelectInitialChannel` + `resumeChannelBeyondList` +
+`restoreGridFocusIfAppropriate`. No new violations.
+
+*Owner device QA on `.64` — both halves walked and confirmed:* chips advance one per press with the
+highlight sliding, search overlay scrolls and lands the picked channel in the grid, day tabs keep
+focus (CC-1), the detail panel tracks grid focus, LEFT/UP returns to the selected chip; and
+fullscreen grows from the tile, zapping works, BACK shrinks back **live**, the grid selection follows
+the channel zapped to — no black, no frozen frame, no re-buffer. Zero app errors in logcat.
+*Honest limit:* `Log.d` is suppressed on this device, so the logcat evidence is "no errors", not a
+trace of the hand-off — that part rests on the owner's eyes.
+
+*Intended as two commits (C7a/C7b), landed as one:* both halves ended up in the same file, and
+reconstructing a C7a-only state would have meant committing an intermediate that was never built —
+defeating the bisectability the split was for.
+
 - *Exit:* E2 = 0; each new collaborator < 600 lines and unit-tested.
 
 ### Tier D — finish the open audit findings
@@ -638,5 +680,7 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-07-27 | **C5** — `XtreamSeriesRepositoryV2` 927 → 239 (−74%), out of `LargeClass`; 4 collaborators; all 6 dropped baseline entries were real complexity wins; +17 unit +15 instrumented tests | **288** | **5** | 0 | 32 | `5adb363` |
 
 | 2026-07-27 | **C6** — `DebridPlaybackRepository` 801 → 88 (−89%), out of `LargeClass`; 4 collaborators; all 8 dropped baseline entries were real wins, 3 new LongParameterList fixed not baselined; +30 unit tests | **280** | **4** | 0 | 32 | `7ecfbc2` |
+
+| 2026-07-27 | **C7** — `LiveTvGuideFragment` 866 → 500 (−42%), out of `LargeClass`; 4 collaborators; all 4 dropped baseline entries were real wins; owner device-QA'd both halves | **276** | **3** | 0 | 32 | `fad00a3` |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
