@@ -81,6 +81,11 @@ class LiveSurfCategoryAdapter(
 
             chevron.isVisible = isSelected
             itemView.isActivated = isSelected
+            // The selected category carries its own colour; the rest stay plain so the
+            // sidebar does not turn into a rainbow.
+            com.tvonnet.debridxtreamiptv.ui.live.CategoryWash.apply(
+                itemView, category.category_name, isSelected, R.drawable.bg_live_surf_row
+            )
             // Selection cue only (FIX 2 — no more per-category color identity).
             accent.setBackgroundResource(
                 if (isSelected) R.color.neon_cyan else android.R.color.transparent

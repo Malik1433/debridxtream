@@ -28,15 +28,15 @@ object ChannelAccentWash {
     private const val HOLD = 0.10f
     private const val FADE_END = 0.65f
 
-    private const val CORNER_RADIUS_PX = 6f
+    private const val CORNER_RADIUS_DP = 6f
 
-    fun forRow(color: Int, focused: Boolean, density: Float): Drawable {
+    fun forRow(color: Int, focused: Boolean, density: Float, cornerRadiusDp: Float = CORNER_RADIUS_DP): Drawable {
         val peak = (PEAK_ALPHA * if (focused) FOCUSED_MULTIPLIER else 1f).toInt().coerceIn(0, 255)
         val start = Color.argb(peak, Color.red(color), Color.green(color), Color.blue(color))
         val end = Color.argb(0, Color.red(color), Color.green(color), Color.blue(color))
         return PaintDrawable().apply {
             // Match the row background's corners, or the wash paints over the rounded edge.
-            setCornerRadius(CORNER_RADIUS_PX * density)
+            setCornerRadius(cornerRadiusDp * density)
             shaderFactory = object : ShapeDrawable.ShaderFactory() {
                 override fun resize(width: Int, height: Int): Shader = LinearGradient(
                     0f, 0f, width.toFloat(), 0f,

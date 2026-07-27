@@ -82,6 +82,45 @@ object GlideUtils {
     /**
      * Load movie poster with appropriate aspect ratio and transformations
      */
+    /**
+     * Poster load that also hands the artwork back, for callers that colour their UI from it
+     * (see [ArtworkPalette]). [onReady] fires on the main thread, only on success.
+     */
+    fun loadMoviePoster(
+        imageView: ImageView,
+        posterUrl: String?,
+        onReady: (android.graphics.drawable.Drawable) -> Unit
+    ) {
+        val glideUrl = getGlideUrl(posterUrl)
+        if (glideUrl == null) {
+            imageView.setImageResource(R.drawable.tv_card_placeholder)
+            return
+        }
+        Glide.with(imageView.context)
+            .load(glideUrl)
+            .apply(getPosterOptions(R.drawable.tv_card_placeholder, R.drawable.tv_card_placeholder, true))
+            .listener(object : com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable> {
+                override fun onLoadFailed(
+                    e: com.bumptech.glide.load.engine.GlideException?,
+                    model: Any?,
+                    target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>,
+                    isFirstResource: Boolean
+                ): Boolean = false
+
+                override fun onResourceReady(
+                    resource: android.graphics.drawable.Drawable,
+                    model: Any,
+                    target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>?,
+                    dataSource: com.bumptech.glide.load.DataSource,
+                    isFirstResource: Boolean
+                ): Boolean {
+                    onReady(resource)
+                    return false
+                }
+            })
+            .into(imageView)
+    }
+
     fun loadMoviePoster(
         imageView: ImageView,
         posterUrl: String?,
@@ -293,6 +332,25 @@ object GlideUtils {
                 }
             })
             .into(imageView)
+    }
+
+    /**
+     * Fetch artwork purely to read its colour — nothing is shown, so this deliberately does not
+     * touch an ImageView. Small target: the palette walks a 32x32 copy anyway.
+     */
+    fun loadAmbientArtwork(context: Context, url: String?, onReady: (android.graphics.drawable.Drawable) -> Unit) {
+        val glideUrl = getGlideUrl(url) ?: return
+        Glide.with(context)
+            .load(glideUrl)
+            .override(128, 128)
+            .into(object : com.bumptech.glide.request.target.CustomTarget<android.graphics.drawable.Drawable>() {
+                override fun onResourceReady(
+                    resource: android.graphics.drawable.Drawable,
+                    transition: com.bumptech.glide.request.transition.Transition<in android.graphics.drawable.Drawable>?
+                ) = onReady(resource)
+
+                override fun onLoadCleared(placeholder: android.graphics.drawable.Drawable?) = Unit
+            })
     }
 
     private fun getGlideUrl(url: String?): com.bumptech.glide.load.model.GlideUrl? {

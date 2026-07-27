@@ -172,7 +172,16 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         // Poster
         val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(movie.stream_icon)
         if (!resolved.isNullOrBlank()) {
-            com.tvonnet.debridxtreamiptv.util.GlideUtils.loadMoviePoster(ivMoviePoster, resolved, useRoundedCorners = true)
+            // The focus glow takes its colour from the poster, so a focused card blooms in the
+            // film's own palette instead of the app's default cyan.
+            com.tvonnet.debridxtreamiptv.util.GlideUtils.loadMoviePoster(ivMoviePoster, resolved) { poster ->
+                val accent = com.tvonnet.debridxtreamiptv.util.ArtworkPalette
+                    .accentFor(resolved, poster, fallback = 0x00F0FF)
+                com.tvonnet.debridxtreamiptv.util.FocusGlow.attachSelector(
+                    glowFocus,
+                    color = com.tvonnet.debridxtreamiptv.util.FocusGlow.tinted(accent)
+                )
+            }
         } else {
             ivMoviePoster.setImageResource(R.drawable.tv_card_placeholder)
         }

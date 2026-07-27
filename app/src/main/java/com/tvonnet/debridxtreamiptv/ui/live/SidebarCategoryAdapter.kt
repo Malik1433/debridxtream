@@ -143,6 +143,9 @@ class SidebarCategoryViewHolder(itemView: View) : RecyclerView.ViewHolder(itemVi
         // The chip background selector carries the selected/focused states; the label and count
         // only need their colours flipped.
         itemView.isSelected = isSelected
+        CategoryWash.apply(
+            itemView, categoryName, isSelected, R.drawable.livev2_chip_bg, cornerRadiusDp = 15f
+        )
         tvCategoryName.setTextColor(
             ContextCompat.getColor(
                 context,

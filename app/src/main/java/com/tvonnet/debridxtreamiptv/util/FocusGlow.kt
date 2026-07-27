@@ -61,6 +61,16 @@ object FocusGlow {
     const val GLOW_PAD_DP = 12f
 
     /** Card glow: appears only while the (duplicated) focused state is active. */
+    /**
+     * Re-hue a glow without changing how strong it is.
+     *
+     * The glow colours carry their own alpha (`0x59`), tuned so a focused card blooms without
+     * washing out. Artwork-derived colours are opaque, so passing one straight in would make the
+     * bloom several times too bright — this keeps [base]'s alpha and takes only [rgb]'s hue.
+     */
+    fun tinted(rgb: Int, base: Int = CardGlowDrawable.GLOW_COLOR): Int =
+        (base and 0xFF000000.toInt()) or (rgb and 0x00FFFFFF)
+
     fun attachSelector(view: View?, cornerDp: Float = 4f, color: Int = CardGlowDrawable.GLOW_COLOR) {
         view ?: return
         val density = view.resources.displayMetrics.density

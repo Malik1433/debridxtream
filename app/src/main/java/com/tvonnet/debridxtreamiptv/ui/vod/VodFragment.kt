@@ -75,6 +75,7 @@ class VodFragment : Fragment() {
     private lateinit var rvMoviesGrid: RecyclerView
     private lateinit var tvCategoryTitle: TextView
     private lateinit var ivBackgroundBackdrop: ImageView
+    private var ambientColor: android.view.View? = null
     private var llLoadingState: ViewGroup? = null
     private var llEmptyState: LinearLayout? = null
     private var tvEmptyMessage: TextView? = null
@@ -181,6 +182,7 @@ class VodFragment : Fragment() {
         rvMoviesGrid = view.findViewById(R.id.rv_movies_grid)
         tvCategoryTitle = view.findViewById(R.id.tv_category_title)
         ivBackgroundBackdrop = view.findViewById(R.id.iv_background_backdrop)
+        ambientColor = view.findViewById(R.id.ambient_color)
         llLoadingState = view.findViewById(R.id.ll_loading_state)
         llEmptyState = view.findViewById(R.id.ll_empty_state)
         tvEmptyMessage = view.findViewById(R.id.tv_empty_message)
@@ -586,10 +588,30 @@ class VodFragment : Fragment() {
                     .placeholder(android.R.color.transparent)
                     .error(android.R.color.transparent)
                     .into(ivBackgroundBackdrop)
+                applyAmbientColour(imageUrl)
             }
         }
         pendingBackdrop = task
         backdropHandler.postDelayed(task, 300L)
+    }
+
+    /**
+     * Wash the page background in the focused poster's own colour.
+     *
+     * It rides the same debounce as the backdrop, so surfing the grid never repaints it, and it
+     * sits UNDER the readability gradient — the point is a hint of the film's palette bleeding into
+     * the room, not a tint over the text.
+     */
+    private fun applyAmbientColour(posterUrl: String) {
+        val target = ambientColor ?: return
+        com.tvonnet.debridxtreamiptv.util.GlideUtils.loadAmbientArtwork(requireContext(), posterUrl) { art ->
+            if (!isAdded) return@loadAmbientArtwork
+            val colour = com.tvonnet.debridxtreamiptv.util.ArtworkPalette
+                .accentFor(posterUrl, art, fallback = 0x00F0FF)
+            target.background = com.tvonnet.debridxtreamiptv.util.AmbientWash.forBackground(colour)
+            target.alpha = 0f
+            target.animate().alpha(1f).setDuration(700).start()
+        }
     }
 
     override fun onResume() {

@@ -175,7 +175,7 @@ class LiveSurfChannelAdapter(
                 logoImg.isVisible = true
                 logoText.isVisible = false
                 applyWash(
-                    ChannelAccentPalette.accentFor(pendingLogoUrl, resource, pendingFallback),
+                    com.tvonnet.debridxtreamiptv.util.ArtworkPalette.accentFor(pendingLogoUrl, resource, pendingFallback),
                     pendingFocused
                 )
             }

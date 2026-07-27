@@ -135,7 +135,9 @@ class CategorySidebarAdapter(
 
             // Styling
             if (isSelected) {
-                itemView.setBackgroundResource(activeBgRes)
+                com.tvonnet.debridxtreamiptv.ui.live.CategoryWash.apply(
+                    itemView, category.category_name, true, activeBgRes
+                )
                 tvCategoryName.setTextColor(Color.parseColor("#F1F5F9"))
                 tvCategoryCount?.setTextColor(accentColor)
             } else {

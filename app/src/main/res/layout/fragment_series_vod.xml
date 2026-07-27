@@ -22,6 +22,13 @@
         android:alpha="0.12"
         android:contentDescription="Background Backdrop" />
 
+    <!-- Ambient colour of the focused poster; painted in code, above the backdrop but
+         under the readability gradient so text contrast is unaffected. -->
+    <View
+        android:id="@+id/ambient_color"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
     <!-- Gradient Overlay -->
     <View
         android:id="@+id/gradient_overlay_ambient"

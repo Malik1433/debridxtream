@@ -1,4 +1,4 @@
-package com.tvonnet.debridxtreamiptv.player.stabilized
+package com.tvonnet.debridxtreamiptv.util
 
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -6,7 +6,8 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 
 /**
- * The one colour that identifies a channel, pulled out of its logo.
+ * The one colour that identifies a piece of content, pulled out of its artwork — a channel logo,
+ * or a movie/series poster.
  *
  * **Why not just "the most common colour".** This provider bakes a silver plate and an "OTT"
  * watermark into every logo file, so the most common colour is always grey — every row would end up
@@ -16,10 +17,10 @@ import android.graphics.drawable.Drawable
  * A genuinely monochrome logo (ZDF neo is black on white) has no such colour, and that is reported
  * honestly as null rather than as a muddy grey — the caller falls back to the app's own accent.
  *
- * Results are cached by logo URL: the extraction walks a 32×32 copy, which is cheap, but a channel
+ * Results are cached by artwork URL: the extraction walks a 32×32 copy, which is cheap, but a channel
  * list re-binds constantly while scrolling and there is no reason to pay for it twice.
  */
-object ChannelAccentPalette {
+object ArtworkPalette {
 
     private const val SAMPLE = 32
 
@@ -33,11 +34,11 @@ object ChannelAccentPalette {
     private val cache = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
     /**
-     * @param fallback used when the logo is missing, monochrome, or not yet loaded — normally
-     *   [LiveChannelVisuals.accentColor], so a channel still gets a stable colour of its own.
+     * @param fallback used when the artwork is missing, monochrome, or not yet loaded — normally
+     *   a stable per-name colour, so the item still gets a colour of its own.
      */
-    fun accentFor(logoUrl: String?, drawable: Drawable?, fallback: Int): Int {
-        val key = logoUrl?.takeIf { it.isNotBlank() } ?: return fallback
+    fun accentFor(artworkUrl: String?, drawable: Drawable?, fallback: Int): Int {
+        val key = artworkUrl?.takeIf { it.isNotBlank() } ?: return fallback
         cache[key]?.let { return it }
         val bmp = (drawable as? BitmapDrawable)?.bitmap ?: return fallback
         val found = dominantSaturated(bmp) ?: fallback

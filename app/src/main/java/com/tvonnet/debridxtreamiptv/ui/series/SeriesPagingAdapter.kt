@@ -102,7 +102,15 @@ class SeriesPagingViewHolder(itemView: android.view.View) : RecyclerView.ViewHol
         // Poster
         val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(series.cover)
         if (!resolved.isNullOrBlank()) {
-            com.tvonnet.debridxtreamiptv.util.GlideUtils.loadMoviePoster(ivPoster, resolved, useRoundedCorners = true)
+            // Focus glow takes the poster's own colour; the purple default is the fallback.
+            com.tvonnet.debridxtreamiptv.util.GlideUtils.loadMoviePoster(ivPoster, resolved) { poster ->
+                val accent = com.tvonnet.debridxtreamiptv.util.ArtworkPalette
+                    .accentFor(resolved, poster, fallback = GLOW_PURPLE and 0x00FFFFFF)
+                com.tvonnet.debridxtreamiptv.util.FocusGlow.attachSelector(
+                    glowFocus,
+                    color = com.tvonnet.debridxtreamiptv.util.FocusGlow.tinted(accent, GLOW_PURPLE)
+                )
+            }
         } else {
             ivPoster.setImageResource(R.drawable.tv_card_placeholder)
         }
