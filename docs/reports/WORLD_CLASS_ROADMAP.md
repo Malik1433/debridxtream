@@ -515,4 +515,6 @@ Carried from hard-won incidents; every phase must respect them.
 
 | 2026-07-27 | **C3** — `SeriesFragment` 1096 → 563 (−49%), out of `LargeClass`; 3 collaborators; 3 of 4 dropped baseline entries were real complexity wins, not relocations | **298** | **7** | 0 | 17 | `e7db659` |
 
+| 2026-07-27 | **C4** — `SeriesDetailFragmentV2` 843 → 311 (−63%), out of `LargeClass`; 5 collaborators + a shared page-state holder; all 4 dropped baseline entries were real complexity wins, not relocations | **294** | **6** | 0 | 17 | `e0fcbd6` |
+
 *(Append one row per landed phase. The three numeric columns may never increase.)*
