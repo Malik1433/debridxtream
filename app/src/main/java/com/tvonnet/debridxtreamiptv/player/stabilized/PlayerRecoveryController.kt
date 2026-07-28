@@ -50,6 +50,13 @@ internal class PlayerRecoveryController(
         fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean
         fun refreshDirectDebridSourceFromMetadata(reason: String): Boolean
         fun canUseDebridResolver(): Boolean
+
+        /**
+         * Can a direct source mint a fresh link from its own metadata? Asked BEFORE deciding an
+         * expired link is repairable — [refreshDirectDebridSourceFromMetadata] answers the same
+         * question but by doing the work, and a classification must not have side effects.
+         */
+        fun canFreshResolveDirectDebrid(): Boolean
         fun reResolveDebridUrl(
             infoHash: String?,
             magnet: String?,
@@ -111,6 +118,7 @@ internal class PlayerRecoveryController(
     private fun refreshDirectDebridSourceFromMetadata(reason: String): Boolean =
         host.refreshDirectDebridSourceFromMetadata(reason)
     private fun canUseDebridResolver(): Boolean = host.canUseDebridResolver()
+    private fun canFreshResolveDirectDebrid(): Boolean = host.canFreshResolveDirectDebrid()
     private fun recordDirectAddonProxyFailure() = host.recordDirectAddonProxyFailure()
     private fun hasRepeatedDirectAddonProxyTimeout(url: String): Boolean =
         host.hasRepeatedDirectAddonProxyTimeout(url)
@@ -253,7 +261,20 @@ internal class PlayerRecoveryController(
                 "errorCode" to error.errorCode
             )
         )
-        if (isTerminalDirectHttpPlaybackError(error, directDebridPlayback)) {
+        // A link that aged out is REPAIRABLE, not terminal — see isRepairableExpiredDebridLink.
+        // The retry block below already knows how to mint a fresh one and resume at the saved
+        // position, for both debrid modes; it was simply unreachable for these codes, because both
+        // terminal branches return before it. That is what made a dead link unrecoverable, and a
+        // dead link being unrecoverable is why every resume re-resolves before the first frame.
+        val hasDurableDebridIdentity = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
+        val repairableExpiredLink = isRepairableExpiredDebridLink(
+            responseCode = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode,
+            playbackSource = playbackSource,
+            hasDurableDebridIdentity = hasDurableDebridIdentity,
+            canFreshResolveDirect = canFreshResolveDirectDebrid()
+        )
+
+        if (!repairableExpiredLink && isTerminalDirectHttpPlaybackError(error, directDebridPlayback)) {
             if ((error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode == 404) {
                 recordDirectAddonProxyFailure()
             }
@@ -274,7 +295,7 @@ internal class PlayerRecoveryController(
         // below with a cool-off.
         val terminalClientCode =
             (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
-        if (isTerminalHttpForNonLive(terminalClientCode, contentType, playbackSource)) {
+        if (!repairableExpiredLink && isTerminalHttpForNonLive(terminalClientCode, contentType, playbackSource)) {
             handleTerminalPlaybackFailure(errorMessage, preferReturnToSources = true)
             return
         }
@@ -326,7 +347,6 @@ internal class PlayerRecoveryController(
                     "retrySource" to "player_error"
                 )
             )
-            val hasDurableDebridIdentity = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
             if (directDebridPlayback && refreshDirectDebridSourceFromMetadata("player_error_direct_refresh")) {
                 return
             }

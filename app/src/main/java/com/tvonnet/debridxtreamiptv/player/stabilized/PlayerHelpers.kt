@@ -126,6 +126,37 @@ internal fun isAudioSinkInitFailure(error: PlaybackException): Boolean {
     return false
 }
 
+/**
+ * Did the link simply age out — on a source we can still mint a new one for?
+ *
+ * This is the resume rule every mature player follows: a resolved debrid URL is a perishable
+ * artifact, not the thing being resumed. When it dies, you re-mint it and carry on from the same
+ * position; you do not hand the user an error, and you do not pre-emptively re-resolve on every
+ * launch to avoid ever meeting a dead one. Treating these codes as terminal is exactly what forced
+ * that pre-emptive resolution onto the happy path, where it costs a full add-magnet → poll →
+ * unrestrict chain before the first frame.
+ *
+ * Only 401 / 403 / 410 — the codes that mean "this link is no longer yours to use":
+ * - **404** is left terminal: for the addon proxy it means the file is not there, which a new link
+ *   will not fix, and the caller records it as a proxy failure.
+ * - **429** has its own cool-off path; re-resolving into a rate limit deepens it.
+ * - **451** is a legal block. No link will be minted.
+ *
+ * Requires a route back to a fresh link — a durable identity (infoHash/magnet) or a direct source
+ * that can be re-resolved from its metadata. Without one there is nothing to repair with, and
+ * failing fast beats burning the retry budget on a URL that cannot change.
+ */
+internal fun isRepairableExpiredDebridLink(
+    responseCode: Int?,
+    playbackSource: PlaybackSource,
+    hasDurableDebridIdentity: Boolean,
+    canFreshResolveDirect: Boolean
+): Boolean {
+    if (playbackSource != PlaybackSource.DEBRID) return false
+    if (!hasDurableDebridIdentity && !canFreshResolveDirect) return false
+    return responseCode == 401 || responseCode == 403 || responseCode == 410
+}
+
 internal fun isTerminalDirectHttpPlaybackError(
     error: PlaybackException,
     directDebridPlayback: Boolean

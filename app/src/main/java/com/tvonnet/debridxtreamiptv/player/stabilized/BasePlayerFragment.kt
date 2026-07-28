@@ -817,7 +817,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         return playbackSource == PlaybackSource.DEBRID && !directDebridPlayback
     }
 
-    private fun canFreshResolveDirectDebrid(): Boolean = canFreshResolveDirectDebrid(
+    override fun canFreshResolveDirectDebrid(): Boolean = canFreshResolveDirectDebrid(
         playbackSource = playbackSource,
         directDebridPlayback = directDebridPlayback,
         ids = DebridLookupIds(
