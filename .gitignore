@@ -169,3 +169,6 @@ fix2_*.xml
 .claude-flow/security/
 .claude-flow/daemon.pid
 .claude-flow/daemon-state.json
+
+# Pulled AudioTrack-watch captures (multi-MB logcat dumps; the watcher is scripts/audio_track_watch.sh)
+/docs/reports/audio_track_watch/
