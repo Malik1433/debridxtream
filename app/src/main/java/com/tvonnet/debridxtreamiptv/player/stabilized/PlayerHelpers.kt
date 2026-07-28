@@ -127,6 +127,35 @@ internal fun isAudioSinkInitFailure(error: PlaybackException): Boolean {
 }
 
 /**
+ * Must this launch resolve a fresh link BEFORE it can play anything?
+ *
+ * The resume rule, stated once. A resolved debrid URL is a perishable artifact, not the thing being
+ * resumed — so the only reasons to resolve before the first frame are that there is nothing to play,
+ * or that we positively know what we hold is dead. "It might have aged out" is not one of them: that
+ * question is answered far more cheaply by playing the link and repairing if it 403s
+ * (see [isRepairableExpiredDebridLink]).
+ *
+ * It used to be one of them. Any debrid launch with a saved position counted as expired, so every
+ * single resume paid a full add-magnet → poll → unrestrict chain — with the resolved-link cache
+ * deliberately bypassed, and a poll budget of ~63s — before showing a frame, even though the screen
+ * that launched it had just resolved a valid URL moments earlier. That is the whole "resume takes
+ * forever and keeps stopping" report.
+ *
+ * @param expiresAtMs when the held link is known to die, or null when unknown. Unknown means
+ *   "just play it" — never "assume the worst".
+ */
+internal fun mustResolveBeforePlaying(
+    isDebrid: Boolean,
+    hasStreamUrl: Boolean,
+    expiresAtMs: Long?,
+    nowMs: Long
+): Boolean {
+    if (!isDebrid) return false          // an Xtream URL does not expire
+    if (!hasStreamUrl) return true       // nothing to play, so there is no choice
+    return expiresAtMs != null && nowMs > expiresAtMs
+}
+
+/**
  * Did the link simply age out — on a source we can still mint a new one for?
  *
  * This is the resume rule every mature player follows: a resolved debrid URL is a perishable

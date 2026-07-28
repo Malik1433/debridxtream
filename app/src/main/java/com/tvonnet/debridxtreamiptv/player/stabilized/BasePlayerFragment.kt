@@ -663,11 +663,17 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         val isDebrid = playbackSource == PlaybackSource.DEBRID
         val canResolveDebrid = canUseDebridResolver()
         val hasResInfo = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
-        val isDebridHistoryResume = isDebrid && startPositionMs > 0L
         val isDebridUrlMissing = streamUrl.isNullOrBlank()
         val canFreshResolveDirectDebrid = canFreshResolveDirectDebrid()
-        val isExpired = expiresAtExtra?.let { System.currentTimeMillis() > it }
-            ?: (isDebrid && (isDebridUrlMissing || isDebridHistoryResume))
+        // See mustResolveBeforePlaying: a saved position no longer counts as "expired". A resume
+        // now plays the link it was handed and repairs on a real 401/403/410, instead of paying a
+        // cache-bypassing re-resolution before every first frame.
+        val isExpired = mustResolveBeforePlaying(
+            isDebrid = isDebrid,
+            hasStreamUrl = !isDebridUrlMissing,
+            expiresAtMs = expiresAtExtra,
+            nowMs = System.currentTimeMillis()
+        )
 
         if (isDebridUrlMissing && !(canResolveDebrid && hasResInfo) && !canFreshResolveDirectDebrid) {
             showError("Invalid stream URL")

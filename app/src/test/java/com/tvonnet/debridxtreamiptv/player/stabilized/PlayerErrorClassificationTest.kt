@@ -70,6 +70,45 @@ class PlayerErrorClassificationTest {
         assertEquals(5, maxRetriesFor(null, liveMaxRetries = 8, defaultMaxRetries = 5))
     }
 
+    // ── what a launch must resolve BEFORE it can show a frame ─────────────────
+
+    private val now = 1_000_000L
+
+    @Test
+    fun `a resume with a link plays it instead of re-resolving first`() {
+        // The bug this replaces: any debrid launch carrying a saved position was treated as expired,
+        // so every resume paid a cache-bypassing add-magnet -> poll -> unrestrict chain before the
+        // first frame - even though the screen that launched it had just resolved a valid URL.
+        assertFalse(
+            mustResolveBeforePlaying(isDebrid = true, hasStreamUrl = true, expiresAtMs = null, nowMs = now)
+        )
+    }
+
+    @Test
+    fun `no link means there is no choice`() {
+        assertTrue(
+            mustResolveBeforePlaying(isDebrid = true, hasStreamUrl = false, expiresAtMs = null, nowMs = now)
+        )
+    }
+
+    @Test
+    fun `a link we positively know is dead is resolved up front`() {
+        // Knowing beats guessing: an expiry that has passed is a fact, not a suspicion.
+        assertTrue(
+            mustResolveBeforePlaying(isDebrid = true, hasStreamUrl = true, expiresAtMs = now - 1, nowMs = now)
+        )
+        assertFalse(
+            mustResolveBeforePlaying(isDebrid = true, hasStreamUrl = true, expiresAtMs = now + 1, nowMs = now)
+        )
+    }
+
+    @Test
+    fun `Xtream never resolves first - its URLs do not expire`() {
+        assertFalse(
+            mustResolveBeforePlaying(isDebrid = false, hasStreamUrl = true, expiresAtMs = now - 1, nowMs = now)
+        )
+    }
+
     // ── an aged-out debrid link is repairable, not terminal ────────────────────
     //
     // The rule that lets resume follow the standard shape: play the link you have, and mint a new
