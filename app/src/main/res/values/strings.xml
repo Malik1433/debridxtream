@@ -176,6 +176,10 @@
     <string name="live_preview_title_placeholder">Preview a channel to get program details</string>
     <string name="live_preview_next_button">Next program</string>
     <string name="live_preview_loading_state">Loading preview&#8230;</string>
+    <!-- The device ran out of AudioTrack slots. Naming the restart matters: nothing in the app can
+         clear it, and without this the preview simply froze on its first frame with no explanation. -->
+    <string name="live_preview_audio_unavailable">Audio unavailable &#8212; please restart your Fire TV (the device ran out of audio channels)</string>
+    <string name="live_preview_playback_failed">Preview unavailable &#8212; select the channel again to retry</string>
     <string name="live_preview_label_now">Now Playing</string>
     <string name="live_preview_fullscreen">Open fullscreen player</string>
     <string name="live_favorite_action_add">&#9733; Favorite</string>

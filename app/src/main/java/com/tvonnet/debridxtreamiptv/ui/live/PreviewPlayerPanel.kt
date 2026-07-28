@@ -13,6 +13,8 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -69,7 +71,48 @@ class PreviewPlayerPanel(
     // State
     private var currentStream: XtreamStream? = null
     private var nextProgram: EpgEntity? = null
-    
+    private var playbackErrorRetries = 0
+
+    /**
+     * Until this existed the preview had no error handling at all: a failed player was left attached,
+     * showing a frozen first frame with no message, no retry — and still holding its AudioTrack.
+     * That last part is what made it more than cosmetic. AudioFlinger allows 64 tracks per output
+     * thread, and once they are gone nothing on the device can start audio until it is restarted; a
+     * preview that keeps a slot after it has already failed is spending one for nothing.
+     *
+     * So the first thing every terminal error does here is give the player back.
+     */
+    private val playerListener = object : Player.Listener {
+        override fun onPlayerError(error: PlaybackException) = handlePlaybackError(error)
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            // A channel that recovers has earned its retries back; otherwise one bad hour would
+            // leave the panel permanently one failure away from giving up.
+            if (isPlaying) playbackErrorRetries = 0
+        }
+    }
+
+    private fun handlePlaybackError(error: PlaybackException) {
+        val action = PreviewPlaybackErrorPolicy.decide(
+            error, playbackErrorRetries, MAX_PLAYBACK_ERROR_RETRIES
+        )
+        when (action) {
+            PreviewPlaybackErrorPolicy.Action.RETRY -> {
+                playbackErrorRetries++
+                previewPlayer?.prepare()
+            }
+            PreviewPlaybackErrorPolicy.Action.RELEASE_AUDIO_EXHAUSTED -> {
+                releasePlayer()
+                updatePlaceholder(context.getString(R.string.live_preview_audio_unavailable))
+            }
+            PreviewPlaybackErrorPolicy.Action.RELEASE_FAILED -> {
+                releasePlayer()
+                updatePlaceholder(context.getString(R.string.live_preview_playback_failed))
+            }
+        }
+    }
+
+
     // Formatters
     private val previewTimeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
 
@@ -128,7 +171,8 @@ class PreviewPlayerPanel(
         }
 
         currentStream = stream
-        
+        playbackErrorRetries = 0   // a new channel starts with a full retry budget
+
         // Get Credentials
         val credentialsPrefs = CredentialsPreferences(context)
         val serverUrl = credentialsPrefs.getServerUrl() ?: return
@@ -183,6 +227,7 @@ class PreviewPlayerPanel(
                 .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ true)
                 .build().also { created ->
                     created.volume = 1f // Preview plays with sound
+                    created.addListener(playerListener)
                     previewPlayer = created
                     previewPlayerView?.player = created
                 }
@@ -329,6 +374,9 @@ class PreviewPlayerPanel(
     /** Detaches and returns the current player WITHOUT releasing it (shared hand-off). */
     fun detachPlayer(): ExoPlayer? {
         val p = previewPlayer
+        // Stop listening to a player we no longer own — otherwise a fullscreen error would make this
+        // panel release a player that fullscreen is still using.
+        p?.removeListener(playerListener)
         previewPlayer = null
         previewPlayerView?.player = null
         return p
@@ -346,6 +394,10 @@ class PreviewPlayerPanel(
     fun adoptPlayer(p: ExoPlayer, stream: XtreamStream) {
         if (previewPlayer !== p) previewPlayer?.release()
         previewPlayer = p
+        // Owned here again, so it gets the same error handling as one this panel built itself.
+        p.removeListener(playerListener)   // idempotent: a re-adopt must not double-count errors
+        p.addListener(playerListener)
+        playbackErrorRetries = 0
         previewPlayerView?.player = p
         currentStream = stream
         p.playWhenReady = true
@@ -366,5 +418,14 @@ class PreviewPlayerPanel(
     override fun onDestroy(owner: LifecycleOwner) {
         super.onDestroy(owner)
         releasePlayer()
+    }
+
+    private companion object {
+        /**
+         * Bounded on purpose. A preview that retries forever holds its slot forever, which is the
+         * behaviour this whole change exists to remove; two attempts cover a transient provider
+         * blip without turning a dead channel into a permanent tenant.
+         */
+        const val MAX_PLAYBACK_ERROR_RETRIES = 2
     }
 }
