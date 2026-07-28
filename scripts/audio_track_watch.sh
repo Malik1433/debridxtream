@@ -85,10 +85,8 @@ echo \$\$ > "\$DIR/watch.pid"
 #
 # The row layout also varies by thread — a playback table has a leading Name column, a record table
 # does not — so the client is read as the field AFTER yes/no rather than by column number.
-count_tracks() {
-    target="\$1"
+list_clients() {
     intable=0
-    n=0
     while IFS= read -r line; do
         case "\$line" in
             *"Tracks of which"*) intable=1; continue ;;
@@ -104,9 +102,8 @@ count_tracks() {
             shift
         done
         if [ -z "\$client" ]; then intable=0; continue; fi   # first non-row line ends the table
-        if [ -z "\$target" ] || [ "\$client" = "\$target" ]; then n=\$((n + 1)); fi
+        echo "\$client"
     done
-    echo "\$n"
 }
 
 # One forensic dump per escalation, not one per sample: the interesting moment is when the count
@@ -118,17 +115,25 @@ while true; do
     pid=\$(pidof \$PKG)
     dump=\$(dumpsys media.audio_flinger 2>/dev/null)
 
-    all=\$(echo "\$dump" | count_tracks "")
+    clients=\$(echo "\$dump" | list_clients)
+    all=\$(echo "\$clients" | grep -c .)
     if [ -n "\$pid" ]; then
-        ours=\$(echo "\$dump" | count_tracks "\$pid")
+        ours=\$(echo "\$clients" | grep -c "^\$pid\$")
     else
         ours=-1   # app not running: distinct from a genuine zero, so a gap is never read as healthy
     fi
+
+    # WHO holds the tracks, every sample rather than only at the alert. The freeze tracks uptime,
+    # not the app version - the Stick power-cycles with the TV and never sees it, the always-on Cube
+    # does - so the question is which client's share grows over days. Waiting for the alert to find
+    # out would mean having the answer only after the pool is already gone.
+    owners=\$(echo "\$clients" | sort | uniq -c | sort -rn | head -5 |
+        while read -r c p; do [ -n "\$p" ] && printf '%s:%s ' "\$p" "\$c"; done)
     # The pool occupancy AudioFlinger reports itself — this is the number that hits 64 and freezes
     # playback, so it is the one the alert is really watching.
     peak=\$(echo "\$dump" | grep "Tracks of which" | sed 's/^ *//' | cut -d' ' -f1 | sort -rn | head -1)
 
-    echo "\$now pid=\${pid:-none} ours=\$ours all=\$all peak=\${peak:-0}" >> \$LOG
+    echo "\$now pid=\${pid:-none} ours=\$ours all=\$all peak=\${peak:-0} owners=[\${owners}]" >> \$LOG
 
     # Forensics the moment things start climbing. Two triggers, because the incident is the POOL
     # filling — whoever fills it. Watching only our own tracks would miss the run-up entirely if the
