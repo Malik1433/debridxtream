@@ -72,6 +72,43 @@ POOL_THRESHOLD=$POOL_ALERT_THRESHOLD
 # watch.sh finds nothing even while it is plainly running.
 echo \$\$ > "\$DIR/watch.pid"
 
+# Counts CURRENT AudioFlinger tracks from the dump on stdin. \$1 = client pid to match, "" for all.
+#
+# Pure sh, no awk: the Fire TV Stick (AFTMM, Android 7.1) ships none at all, and the Cube's
+# one-true-awk dies mid-dump with "illegal arithmetic operator" unless every compare is forced to a
+# string. One portable path is worth more than a fast one at a five-minute interval.
+#
+# Table-aware, and that is the whole trap in reading this dump: further down it carries a "Local log"
+# of historical AT::add / AT::remove lines that are shape-identical to a live track row. Patterns run
+# over the whole dump reported 8, then 47, then 57 current tracks on a device holding two. Only rows
+# between a "Tracks of which" header and the first line that is not a row are real.
+#
+# The row layout also varies by thread — a playback table has a leading Name column, a record table
+# does not — so the client is read as the field AFTER yes/no rather than by column number.
+count_tracks() {
+    target="\$1"
+    intable=0
+    n=0
+    while IFS= read -r line; do
+        case "\$line" in
+            *"Tracks of which"*) intable=1; continue ;;
+        esac
+        [ "\$intable" -eq 1 ] || continue
+        case "\$line" in
+            *Active*Client*) continue ;;          # the column header
+        esac
+        client=""
+        set -- \$line
+        while [ \$# -gt 0 ]; do
+            if [ "\$1" = "yes" ] || [ "\$1" = "no" ]; then client="\$2"; break; fi
+            shift
+        done
+        if [ -z "\$client" ]; then intable=0; continue; fi   # first non-row line ends the table
+        if [ -z "\$target" ] || [ "\$client" = "\$target" ]; then n=\$((n + 1)); fi
+    done
+    echo "\$n"
+}
+
 # One forensic dump per escalation, not one per sample: the interesting moment is when the count
 # first climbs past a level, and repeating it every five minutes would bury that in noise.
 last_alert=0
@@ -81,11 +118,9 @@ while true; do
     pid=\$(pidof \$PKG)
     dump=\$(dumpsys media.audio_flinger 2>/dev/null)
 
-    # Counting is table-aware and lives in count_tracks.awk — see the note there for why a plain
-    # pattern over the whole dump cannot work.
-    all=\$(echo "\$dump" | awk -v p="" -f "\$DIR/count_tracks.awk")
+    all=\$(echo "\$dump" | count_tracks "")
     if [ -n "\$pid" ]; then
-        ours=\$(echo "\$dump" | awk -v p="\$pid" -f "\$DIR/count_tracks.awk")
+        ours=\$(echo "\$dump" | count_tracks "\$pid")
     else
         ours=-1   # app not running: distinct from a genuine zero, so a gap is never read as healthy
     fi
@@ -114,42 +149,6 @@ done
 DEVICE_EOF
 }
 
-# Counts CURRENT AudioFlinger tracks, optionally for one client pid (-v p=<pid>; empty counts all).
-#
-# This has to be table-aware, and that is the whole trap in reading this dump: further down it
-# carries a "Local log" of historical AT::add / AT::remove lines whose shape is identical to a live
-# track row. Patterns matched against the whole dump counted that history as current tracks and
-# reported 8, then 47, then 57, on a device that was holding two. Only rows between a
-# "Tracks of which" header and the first line that is not a row are real.
-#
-# The row layout also varies by thread — a playback table has a leading Name column, a record table
-# does not — so the client is read as the field AFTER yes/no rather than by column number.
-#
-# Quoted heredoc on purpose: nothing in here is for the host shell to expand.
-write_awk_program() {
-    cat <<'AWK_EOF'
-/Tracks of which/ { intable = 1; next }
-intable {
-    if ($0 ~ /Active +Client/) next
-    matched = 0
-    for (i = 1; i < NF; i++) {
-        if ($i == "yes" || $i == "no") {
-            # Concatenating "" forces a STRING compare. Android ships one-true-awk, which tries to
-            # compare numerically when both sides look like numbers and dies with
-            # "illegal arithmetic operator" partway through this dump.
-            client = $(i + 1) ""
-            want = p ""
-            if (length(want) == 0 || client == want) n++
-            matched = 1
-            break
-        }
-    }
-    if (matched == 0) intable = 0
-}
-END { print n + 0 }
-AWK_EOF
-}
-
 cmd_start() {
     adb_sh "mkdir -p $DEVICE_DIR" >/dev/null 2>&1
     cmd_stop >/dev/null 2>&1
@@ -160,9 +159,6 @@ cmd_start() {
     local tmp=".audio_track_watch.push.tmp"
     write_device_script > "$tmp"
     $ADB $DEVICE_ARG push "$tmp" "$DEVICE_SCRIPT" >/dev/null 2>&1 ||
-        { echo "push failed"; rm -f "$tmp"; exit 1; }
-    write_awk_program > "$tmp"
-    $ADB $DEVICE_ARG push "$tmp" "$DEVICE_DIR/count_tracks.awk" >/dev/null 2>&1 ||
         { echo "push failed"; rm -f "$tmp"; exit 1; }
     rm -f "$tmp"
     adb_sh "chmod 755 $DEVICE_SCRIPT" >/dev/null 2>&1
