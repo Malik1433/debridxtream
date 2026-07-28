@@ -153,7 +153,7 @@ class PlayerViewModel @Inject constructor(
         repository = repository,
         context = context,
         scope = viewModelScope,
-        zapChannels = { _zapState.value?.channels },
+        zapChannels = { zap.currentChannels() },
     )
 
     val overlayState: StateFlow<PlayerOverlayUiState> = epg.overlayState
@@ -169,8 +169,44 @@ class PlayerViewModel @Inject constructor(
 
     private val refreshAttempts = mutableMapOf<String, Long>()
 
-    private val _zapState = MutableStateFlow<ZapState?>(null)
-    val zapState: StateFlow<ZapState?> = _zapState.asStateFlow()
+    /** Which channel is next: zap list, category picker, favourites, browser (C10). */
+    private val zap = PlayerZapController(
+        repository = repository,
+        cacheManager = cacheManager,
+        context = context,
+        scope = viewModelScope,
+    )
+
+    val zapState: StateFlow<ZapState?> = zap.zapState
+    val surfCategories: StateFlow<List<XtreamCategory>> = zap.surfCategories
+    val liveFavoriteIds: StateFlow<Set<String>> = zap.liveFavoriteIds
+    val browserState: StateFlow<BrowserUiState> = zap.browserState
+
+    fun initLiveZapping(
+        categoryId: String?,
+        currentStreamId: String?,
+        baseServerUrl: String?,
+        orderedStreamIds: List<String>?
+    ) = zap.initLiveZapping(categoryId, currentStreamId, baseServerUrl, orderedStreamIds)
+
+    fun switchZapCategory(categoryId: String, baseServerUrl: String?) =
+        zap.switchZapCategory(categoryId, baseServerUrl)
+
+    fun moveZap(direction: Int): ZapChannel? = zap.moveZap(direction)
+
+    fun zapTo(index: Int): ZapChannel? = zap.zapTo(index)
+
+    fun loadSurfCategories() = zap.loadSurfCategories()
+
+    fun observeLiveFavorites() = zap.observeLiveFavorites()
+
+    suspend fun toggleLiveFavorite(streamId: String?, name: String?, iconUrl: String?): Boolean? =
+        zap.toggleLiveFavorite(streamId, name, iconUrl)
+
+    fun toggleBrowser(visible: Boolean, currentCategoryId: String? = null, currentChannelId: String? = null) =
+        zap.toggleBrowser(visible, currentCategoryId, currentChannelId)
+
+    fun selectBrowserCategory(categoryId: String) = zap.selectBrowserCategory(categoryId)
 
     private val _seriesPlaylistState = MutableStateFlow<SeriesPlaylistState?>(null)
     val seriesPlaylistState: StateFlow<SeriesPlaylistState?> = _seriesPlaylistState.asStateFlow()
@@ -932,305 +968,4 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    fun initLiveZapping(
-        categoryId: String?,
-        currentStreamId: String?,
-        baseServerUrl: String?,
-        orderedStreamIds: List<String>?
-    ) {
-        if (categoryId.isNullOrBlank() || currentStreamId.isNullOrBlank() || baseServerUrl.isNullOrBlank()) return
-
-        viewModelScope.launch(Dispatchers.IO) {
-            val prefs = CredentialsPreferences(context)
-            repository.ensureInitialized(baseServerUrl, prefs.getUsername(), prefs.getPassword())
-
-            val streams = cacheManager.getChannels(categoryId, streamType = "live").orEmpty()
-            if (streams.isEmpty()) return@launch
-
-            val byId = streams.associateBy { it.stream_id }
-            val ordered = orderedStreamIds
-                ?.mapNotNull { id -> byId[id] }
-                ?.takeIf { it.isNotEmpty() }
-
-            val list = (ordered ?: streams)
-                .filter { !it.stream_id.isNullOrBlank() }
-                .map { stream ->
-                    ZapChannel(
-                        streamId = stream.stream_id!!,
-                        name = stream.name ?: context.getString(R.string.player_epg_channel_unknown),
-                        logoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
-                        epgChannelId = stream.epg_channel_id,
-                        streamUrl = repository.buildLiveStreamUrl(stream, baseServerUrl)
-                    )
-                }
-
-            if (list.isEmpty()) return@launch
-
-            val categoryName = cacheManager.getCategories("live")
-                ?.firstOrNull { it.category_id == categoryId }
-                ?.category_name
-
-            val index = list.indexOfFirst { it.streamId == currentStreamId }.takeIf { it >= 0 } ?: 0
-            _zapState.value = ZapState(
-                categoryId = categoryId,
-                categoryName = categoryName,
-                channels = list,
-                index = index
-            )
-        }
-    }
-
-    // ── surf-drawer category picker (Live Player OSD, second-LEFT) ───────────
-    private val _surfCategories = MutableStateFlow<List<XtreamCategory>>(emptyList())
-    val surfCategories: StateFlow<List<XtreamCategory>> = _surfCategories.asStateFlow()
-
-    /** Preload live categories so the drawer's category picker is instant. */
-    fun loadSurfCategories() {
-        if (_surfCategories.value.isNotEmpty()) return
-        viewModelScope.launch(Dispatchers.IO) {
-            val cats = cacheManager.getCategories("live")
-                ?: runCatching { repository.ensureLiveCategories() }.getOrNull()
-            if (!cats.isNullOrEmpty()) {
-                // Prepend the synthetic Favorites category, same convention as the
-                // non-fullscreen Live TV screen (LiveFragment.buildDisplayCategories):
-                // same FAVORITES_CATEGORY_ID, same repository.getFavoritesByType("live")
-                // source of truth — no separate favorites data source.
-                val favorites = XtreamCategory(
-                    category_id = FAVORITES_CATEGORY_ID,
-                    category_name = context.getString(R.string.favorites),
-                    parent_id = null
-                )
-                _surfCategories.value = listOf(favorites) + cats.filterNot { it.category_id == FAVORITES_CATEGORY_ID }
-            }
-        }
-    }
-
-    /** Same fallback shape as LiveViewModel.favoriteFallbackChannel — used only when
-     *  a favorited stream_id is no longer resolvable via the cache/API (e.g. removed
-     *  from the provider's playlist since it was favorited). */
-    private fun favoriteFallbackStream(favorite: FavoriteEntity): XtreamStream = XtreamStream(
-        num = null,
-        name = favorite.name,
-        stream_type = "live",
-        stream_id = favorite.streamId,
-        stream_icon = favorite.iconUrl,
-        epg_channel_id = null,
-        added = null,
-        category_id = FAVORITES_CATEGORY_ID,
-        category_ids = null,
-        container_extension = null,
-        custom_sid = null,
-        direct_source = null,
-        tv_archive = null,
-        tv_archive_duration = null
-    )
-
-    private suspend fun buildFavoriteZapChannels(baseServerUrl: String): List<ZapChannel> {
-        val favorites = repository.getFavoritesByType("live").firstOrNull().orEmpty()
-        return favorites.mapNotNull { favorite ->
-            val stream = repository.getLiveStreamById(favorite.streamId) ?: favoriteFallbackStream(favorite)
-            val streamId = stream.stream_id ?: return@mapNotNull null
-            ZapChannel(
-                streamId = streamId,
-                name = stream.name ?: favorite.name,
-                logoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon ?: favorite.iconUrl),
-                epgChannelId = stream.epg_channel_id,
-                streamUrl = repository.buildLiveStreamUrl(stream, baseServerUrl)
-            )
-        }
-    }
-
-    /**
-     * Reload the zap channel list for a category picked in the surf drawer.
-     * Playback stays on the current channel; index resets to 0 for the new list.
-     */
-    fun switchZapCategory(categoryId: String, baseServerUrl: String?) {
-        if (categoryId.isBlank() || baseServerUrl.isNullOrBlank()) return
-        viewModelScope.launch(Dispatchers.IO) {
-            val prefs = CredentialsPreferences(context)
-            repository.ensureInitialized(baseServerUrl, prefs.getUsername(), prefs.getPassword())
-
-            val categoryName: String?
-            val list: List<ZapChannel>
-            if (categoryId == FAVORITES_CATEGORY_ID) {
-                categoryName = context.getString(R.string.favorites)
-                list = buildFavoriteZapChannels(baseServerUrl)
-            } else {
-                var streams = cacheManager.getChannels(categoryId, streamType = "live")
-                if (streams.isNullOrEmpty()) {
-                    val result = repository.fetchLiveStreamsForCategory(categoryId)
-                    if (result is Result.Success) streams = result.data
-                }
-                val safeStreams = streams.orEmpty()
-                if (safeStreams.isEmpty()) return@launch
-
-                categoryName = cacheManager.getCategories("live")
-                    ?.firstOrNull { it.category_id == categoryId }
-                    ?.category_name
-
-                list = safeStreams
-                    .filter { !it.stream_id.isNullOrBlank() }
-                    .map { stream ->
-                        ZapChannel(
-                            streamId = stream.stream_id!!,
-                            name = stream.name ?: context.getString(R.string.player_epg_channel_unknown),
-                            logoUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
-                            epgChannelId = stream.epg_channel_id,
-                            streamUrl = repository.buildLiveStreamUrl(stream, baseServerUrl)
-                        )
-                    }
-            }
-            if (list.isEmpty()) return@launch
-
-            // Keep the currently-playing channel selected if it lives in this category.
-            val currentId = _zapState.value?.let { it.channels.getOrNull(it.index)?.streamId }
-            val index = list.indexOfFirst { it.streamId == currentId }.takeIf { it >= 0 } ?: 0
-            _zapState.value = ZapState(
-                categoryId = categoryId,
-                categoryName = categoryName,
-                channels = list,
-                index = index
-            )
-        }
-    }
-
-    fun moveZap(direction: Int): ZapChannel? {
-        val state = _zapState.value ?: return null
-        if (state.channels.size <= 1) return null
-
-        val size = state.channels.size
-        val normalized = if (direction >= 0) 1 else -1
-        val nextIndex = (state.index + normalized + size) % size
-
-        val updated = state.copy(index = nextIndex)
-        _zapState.value = updated
-        return updated.channels[nextIndex]
-    }
-
-    /** Direct tune from the surf drawer (Live Player OSD). */
-    fun zapTo(index: Int): ZapChannel? {
-        val state = _zapState.value ?: return null
-        if (index !in state.channels.indices) return null
-        val updated = state.copy(index = index)
-        _zapState.value = updated
-        return updated.channels[index]
-    }
-
-    private val _liveFavoriteIds = MutableStateFlow<Set<String>>(emptySet())
-    val liveFavoriteIds: StateFlow<Set<String>> = _liveFavoriteIds.asStateFlow()
-    private var liveFavoritesJob: Job? = null
-
-    fun observeLiveFavorites() {
-        if (liveFavoritesJob != null) return
-        liveFavoritesJob = viewModelScope.launch(Dispatchers.IO) {
-            repository.getFavoritesByType("live").collect { favs ->
-                _liveFavoriteIds.value = favs.map { it.streamId }.toSet()
-            }
-        }
-    }
-
-    /** Toggles the live-channel favorite; returns the new state for toast copy. */
-    suspend fun toggleLiveFavorite(streamId: String?, name: String?, iconUrl: String?): Boolean? {
-        if (streamId.isNullOrBlank()) return null
-        return withContext(Dispatchers.IO) {
-            if (repository.isFavorite(streamId)) {
-                repository.removeFavorite(streamId)
-                false
-            } else {
-                repository.addFavorite(streamId, "live", name ?: "", iconUrl)
-                true
-            }
-        }
-    }
-
-    private val _browserState = MutableStateFlow(BrowserUiState())
-    val browserState: StateFlow<BrowserUiState> = _browserState.asStateFlow()
-
-    fun toggleBrowser(visible: Boolean, currentCategoryId: String? = null, currentChannelId: String? = null) {
-        if (visible) {
-             if (currentCategoryId != null && currentCategoryId != _browserState.value.selectedCategoryId) {
-                 if (_browserState.value.categories.isEmpty()) {
-                     loadBrowserCategories(initialCategoryId = currentCategoryId)
-                 } else {
-                     selectBrowserCategory(currentCategoryId)
-                 }
-             } else if (_browserState.value.categories.isEmpty()) {
-                 loadBrowserCategories()
-             }
-        }
-        _browserState.value = _browserState.value.copy(isVisible = visible)
-    }
-
-    private fun loadBrowserCategories(initialCategoryId: String? = null) {
-        viewModelScope.launch {
-            _browserState.value = _browserState.value.copy(isLoading = true, error = null)
-            try {
-                var categories = cacheManager.getCategories("live")
-                if (categories == null) {
-                    val result = repository.ensureLiveCategories()
-                    if (result.isNotEmpty()) {
-                        categories = result
-                    }
-                }
-
-                if (!categories.isNullOrEmpty()) {
-                    _browserState.value = _browserState.value.copy(
-                        categories = categories,
-                        isLoading = false
-                    )
-                    val targetId = initialCategoryId ?: _browserState.value.selectedCategoryId ?: categories.first().category_id
-                    if (targetId != null) {
-                       selectBrowserCategory(targetId)
-                    }
-                } else {
-                    _browserState.value = _browserState.value.copy(
-                        isLoading = false,
-                        error = context.getString(R.string.series_category_unavailable_generic)
-                    )
-                }
-            } catch (e: Exception) {
-                _browserState.value = _browserState.value.copy(isLoading = false, error = e.message)
-            }
-        }
-    }
-
-    fun selectBrowserCategory(categoryId: String) {
-        if (_browserState.value.selectedCategoryId == categoryId && _browserState.value.channels.isNotEmpty()) return
-
-        viewModelScope.launch {
-            _browserState.value = _browserState.value.copy(
-                selectedCategoryId = categoryId,
-                isLoadingChannels = true
-            )
-            
-            try {
-                var channels = cacheManager.getChannels(categoryId, "live")
-                if (channels == null) {
-                    val result = repository.fetchLiveStreamsForCategory(categoryId)
-                    if (result is Result.Success) {
-                        channels = result.data
-                    }
-                }
-
-                val enrichedChannels = if (!channels.isNullOrEmpty()) {
-                     withContext(Dispatchers.IO) {
-                         repository.enrichChannelsWithCurrentEpg(channels!!)
-                     }
-                } else {
-                     emptyList()
-                }
-
-                _browserState.value = _browserState.value.copy(
-                    channels = enrichedChannels,
-                    isLoadingChannels = false
-                )
-            } catch (e: Exception) {
-                  android.util.Log.w("PlayerViewModel", "Channel browser load failed", e)
-                  _browserState.value = _browserState.value.copy(
-                    isLoadingChannels = false,
-                    channels = emptyList()
-                )
-            }
-        }
-    }
 }
