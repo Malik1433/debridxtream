@@ -65,6 +65,23 @@ internal data class OpenPlayerSurfaces(
     fun anyOpen(): Boolean = isBrowserVisible || isSurfDrawerOpen || isGuideOpen
 }
 
+/**
+ * In the Live OSD, does LEFT open the channel drawer — or step focus back along the controls row?
+ *
+ * It used to open the drawer unconditionally, which made the row a one-way street: you could walk
+ * right from the channels button out to audio or aspect, but the first LEFT threw the drawer open
+ * instead of stepping back one control, so there was no way to walk back. RIGHT never had that
+ * problem because it lets focus travel; this is the same rule stated for the other direction.
+ *
+ * The drawer still opens in the two cases where it should — from the video itself (no control has
+ * focus), and from the leftmost control, where there is nothing further left to reach.
+ */
+internal fun leftOpensChannelDrawer(
+    isOsdVisible: Boolean,
+    isControlFocused: Boolean,
+    isFirstControlFocused: Boolean
+): Boolean = !isOsdVisible || !isControlFocused || isFirstControlFocused
+
 /** What BACK does in a VOD session (movie/episode). */
 internal enum class VodBackAction {
     /** In PiP the system handles BACK. */

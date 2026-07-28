@@ -413,6 +413,16 @@ class LivePlayerOsdManager(
 
     private fun isControlFocused(): Boolean = controls.any { it.isFocused }
 
+    /**
+     * Is focus on the leftmost control that can actually be reached?
+     *
+     * Not `controls.first()`: the row hides the controls it has no data for (a channel with no
+     * subtitle or audio tracks drops those buttons), so the leftmost *reachable* control is not
+     * always the same view.
+     */
+    private fun isFirstControlFocused(): Boolean =
+        controls.firstOrNull { it.isVisible && it.isFocusable }?.isFocused == true
+
     // ── two-panel surf drawer (channels + category picker, v2) ─────────────
     // Owned by [LiveSurfDrawerController], which also owns the zap state it renders.
 
@@ -535,7 +545,13 @@ class LivePlayerOsdManager(
 
         when (event.keyCode) {
             KeyEvent.KEYCODE_DPAD_LEFT -> {
-                surfDrawer.open(); return true
+                // See leftOpensChannelDrawer: the row used to be a one-way street because LEFT
+                // opened the drawer no matter where focus was.
+                if (leftOpensChannelDrawer(isOsdVisible, isControlFocused(), isFirstControlFocused())) {
+                    surfDrawer.open(); return true
+                }
+                resetOsdTimer()
+                return false // let focus travel back across the controls row
             }
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 if (!isOsdVisible || !isControlFocused()) {

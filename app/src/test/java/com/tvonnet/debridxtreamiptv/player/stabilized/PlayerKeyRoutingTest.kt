@@ -114,4 +114,42 @@ class PlayerKeyRoutingTest {
             vodBackAction(isInPictureInPictureMode = true, isControllerVisible = true, backHideArmed = false)
         )
     }
+
+    // ── LEFT in the Live OSD: drawer, or step back along the row? ──────────────
+
+    @Test
+    fun `LEFT from a control mid-row steps back instead of opening the drawer`() {
+        // The reported bug: walk right to the audio or aspect button and the first LEFT threw the
+        // channel drawer open, so there was no way back along the row.
+        assertFalse(
+            leftOpensChannelDrawer(
+                isOsdVisible = true, isControlFocused = true, isFirstControlFocused = false
+            )
+        )
+    }
+
+    @Test
+    fun `LEFT from the leftmost control opens the drawer`() {
+        // Nothing further left to reach, so this is where the gesture belongs.
+        assertTrue(
+            leftOpensChannelDrawer(
+                isOsdVisible = true, isControlFocused = true, isFirstControlFocused = true
+            )
+        )
+    }
+
+    @Test
+    fun `LEFT from the video itself opens the drawer`() {
+        // Both ways of "no control has focus": the OSD is down, or it is up but focus is elsewhere.
+        assertTrue(
+            leftOpensChannelDrawer(
+                isOsdVisible = false, isControlFocused = false, isFirstControlFocused = false
+            )
+        )
+        assertTrue(
+            leftOpensChannelDrawer(
+                isOsdVisible = true, isControlFocused = false, isFirstControlFocused = false
+            )
+        )
+    }
 }
