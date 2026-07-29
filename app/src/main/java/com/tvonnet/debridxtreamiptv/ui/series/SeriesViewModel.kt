@@ -243,17 +243,40 @@ class SeriesViewModel @Inject constructor(
                 // Episode counts only exist for series whose details were cached locally
                 // (legacy `episodes` or v2 `episodes_v2_core`); everything else sorts
                 // to the tail alphabetically.
-                SeriesSortMode.MOST_EPISODES ->
-                    " ORDER BY MAX(" +
-                        "(SELECT COUNT(*) FROM episodes e WHERE e.seriesId = series_v2.seriesId), " +
-                        "(SELECT COUNT(*) FROM episodes_v2_core v WHERE v.series_id = series_v2.seriesId)" +
-                        ") DESC, name COLLATE NOCASE ASC"
+                // Handled below — it needs joins, not just an ORDER BY.
+                SeriesSortMode.MOST_EPISODES -> ""
             }
-            "SELECT * FROM series_v2$whereClause$order"
+            if (q.sortMode == SeriesSortMode.MOST_EPISODES) {
+                mostEpisodesSql(whereClause)
+            } else {
+                "SELECT * FROM series_v2$whereClause$order"
+            }
         }
         return androidx.sqlite.db.SimpleSQLiteQuery(sql, args.toTypedArray())
     }
 
+    private fun mostEpisodesSql(whereClause: String): String = buildMostEpisodesSql(whereClause)
+
+    /**
+     * B-3: "Most Episodes", with each episode table counted ONCE.
+     *
+     * It used to order by two **correlated** subqueries — a COUNT over `episodes` and a COUNT over
+     * `episodes_v2_core`, re-run for every series row. Because the counts sit in the ORDER BY, SQLite
+     * has to evaluate them for the whole table before it can hand back even the first page, so paging
+     * bought nothing and every page re-did all of it: 2×N index lookups plus a full sort, per page.
+     *
+     * Grouping each table up front turns that into one grouped scan each, joined by series id — the
+     * same numbers, computed once. Deliberately NOT a denormalised count column on `series_v2`: that
+     * would mean keeping a mirror in step with two tables written by different subsystems, and a
+     * stale mirror shows the wrong order with nothing to hint why.
+     *
+     * The subqueries expose only `sid`/`c`, so the caller's WHERE (categoryId / name / genre) stays
+     * unambiguous against `series_v2`.
+     *
+     * Unchanged, and worth knowing before trusting this chip: the counts only cover series whose
+     * episodes were cached locally. Series nobody has opened all count 0 and tie, so for most of the
+     * list this still sorts alphabetically. It ranks what has been fetched, not what exists.
+     */
     private fun filterByGenre(series: List<XtreamSeriesInfo>, genre: String?): List<XtreamSeriesInfo> {
         if (genre.isNullOrBlank()) return series
         return series.filter { it.genre?.contains(genre, ignoreCase = true) == true }
@@ -532,3 +555,36 @@ class SeriesViewModel @Inject constructor(
         )
     }
 }
+
+/**
+ * B-3: the "Most Episodes" ordering, with each episode table counted ONCE.
+ *
+ * It used to order by two **correlated** subqueries — a COUNT over `episodes` and a COUNT over
+ * `episodes_v2_core`, re-run for every series row. Because the counts sit in the ORDER BY, SQLite has
+ * to evaluate them for the whole table before it can hand back even the first page, so paging bought
+ * nothing and every page re-did all of it: 2×N index lookups plus a full sort, per page.
+ *
+ * Grouping each table up front turns that into one grouped scan each, joined by series id — the same
+ * numbers, computed once. Deliberately NOT a denormalised count column on `series_v2`: that would
+ * mean keeping a mirror in step with two tables written by different subsystems, and a stale mirror
+ * shows the wrong order with nothing to hint why.
+ *
+ * The subqueries expose only `sid`/`c`, so the caller's WHERE (categoryId / name / genre) stays
+ * unambiguous against `series_v2`.
+ *
+ * Top-level and `internal` so `MostEpisodesSortTest` executes THIS string rather than a copy of it —
+ * raw SQL behind a `@RawQuery` is unchecked by the compiler, and a test holding its own duplicate
+ * would keep passing while production drifted.
+ *
+ * Unchanged, and worth knowing before trusting this chip: the counts only cover series whose episodes
+ * were cached locally. Series nobody has opened all count 0 and tie, so for most of the list this
+ * still sorts alphabetically. It ranks what has been fetched, not what exists.
+ */
+internal fun buildMostEpisodesSql(whereClause: String): String =
+    "SELECT series_v2.* FROM series_v2" +
+        " LEFT JOIN (SELECT seriesId AS sid, COUNT(*) AS c FROM episodes GROUP BY seriesId)" +
+        " legacy ON legacy.sid = series_v2.seriesId" +
+        " LEFT JOIN (SELECT series_id AS sid, COUNT(*) AS c FROM episodes_v2_core GROUP BY series_id)" +
+        " v2 ON v2.sid = series_v2.seriesId" +
+        whereClause +
+        " ORDER BY MAX(IFNULL(legacy.c, 0), IFNULL(v2.c, 0)) DESC, name COLLATE NOCASE ASC"
