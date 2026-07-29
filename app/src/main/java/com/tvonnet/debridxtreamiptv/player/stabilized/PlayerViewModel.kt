@@ -211,11 +211,18 @@ class PlayerViewModel @Inject constructor(
     private val _seriesPlaylistState = MutableStateFlow<SeriesPlaylistState?>(null)
     val seriesPlaylistState: StateFlow<SeriesPlaylistState?> = _seriesPlaylistState.asStateFlow()
 
-    private val _debridResolutionState = MutableStateFlow<DebridResolutionState>(DebridResolutionState.Idle)
-    val debridResolutionState: StateFlow<DebridResolutionState> = _debridResolutionState.asStateFlow()
+    /** Turning a chosen debrid source into a playable URL — the resume path (C10). */
+    private val debrid = PlayerDebridResolver(
+        repository = repository,
+        unifiedSourceProvider = unifiedSourceProvider,
+        playbackResolver = playbackResolver,
+        scope = viewModelScope,
+    )
+    val debridResolutionState: StateFlow<DebridResolutionState> = debrid.debridResolutionState
 
-    private val _xrayMetadata = MutableStateFlow<XRayMetadataUiState?>(null)
-    val xrayMetadata: StateFlow<XRayMetadataUiState?> = _xrayMetadata.asStateFlow()
+    /** The data behind the X-Ray panel; the panel itself is PlayerXRayController (C10). */
+    private val xray = XRayMetadataLoader(tmdbRemote, viewModelScope)
+    val xrayMetadata: StateFlow<XRayMetadataUiState?> = xray.xrayMetadata
 
     fun loadSeriesPlaylist(
         seriesId: String,
@@ -472,7 +479,7 @@ class PlayerViewModel @Inject constructor(
         excludeSourceIds: Set<String> = emptySet()
     ) {
         viewModelScope.launch {
-            _debridResolutionState.value = DebridResolutionState.Loading
+            debrid.setLoading()
             try {
                 // If the countdown pre-warm for this exact episode is still running,
                 // let it finish instead of firing a duplicate RD resolution chain —
@@ -496,11 +503,11 @@ class PlayerViewModel @Inject constructor(
                 }
 
                 if (sources.isEmpty()) {
-                    _debridResolutionState.value = DebridResolutionState.Error("No sources found for the next episode.")
+                    debrid.setError("No sources found for the next episode.")
                     return@launch
                 }
 
-                val targetSource = pickDebridSourceForContinuity(sources, infoHash, sourceProfile, excludeSourceIds)
+                val targetSource = debrid.pickSourceForContinuity(sources, infoHash, sourceProfile, excludeSourceIds)
                 resolveDebridMovieSource(
                     targetSource = targetSource,
                     season = targetSeason,
@@ -513,7 +520,7 @@ class PlayerViewModel @Inject constructor(
                     forceFresh = excludeSourceIds.isNotEmpty()
                 )
             } catch (e: Exception) {
-                _debridResolutionState.value = DebridResolutionState.Error("Failed to fetch sources: ${e.message}")
+                debrid.setError("Failed to fetch sources: ${e.message}")
             }
         }
     }
@@ -552,7 +559,7 @@ class PlayerViewModel @Inject constructor(
                     preferredSourceType = sourceProfile?.sourceType
                 )
                 if (sources.isEmpty()) return@launch
-                val targetSource = pickDebridSourceForContinuity(sources, infoHash, sourceProfile)
+                val targetSource = debrid.pickSourceForContinuity(sources, infoHash, sourceProfile)
                 val magnet = targetSource.stream.direct_source
                 val hashToResolve = targetSource.stream.stream_id
                 // Direct-playable URLs start instantly anyway; only magnet
@@ -586,31 +593,9 @@ class PlayerViewModel @Inject constructor(
         title: String?,
         imdbId: String?,
         cleanTitle: String?
-    ): List<MovieSource> = withContext(Dispatchers.IO) {
-        if (streamId.isNullOrBlank() && imdbId.isNullOrBlank() && title.isNullOrBlank()) {
-            return@withContext emptyList()
-        }
-        val debrid = runCatching {
-            unifiedSourceProvider.getMovieSources(
-                streamId = streamId,
-                title = title,
-                primaryCategoryId = "debrid",
-                yearHint = null,
-                imdbId = imdbId
-            )
-        }.getOrDefault(emptyList())
-        // Also surface the movie's IPTV (Xtream) listings, like the detail picker does.
-        val iptv = runCatching {
-            val q = com.tvonnet.debridxtreamiptv.data.debrid.repository.IptvMovieMatcher
-                .searchQuery(cleanTitle ?: title)
-            if (q != null) {
-                com.tvonnet.debridxtreamiptv.data.debrid.repository.IptvMovieMatcher
-                    .buildSources(repository.searchVod(q), cleanTitle ?: title, null)
-            } else emptyList()
-        }.getOrDefault(emptyList())
-        debrid + iptv
-    }
+    ): List<MovieSource> = debrid.fetchMovieSourcesForPanel(streamId, title, imdbId, cleanTitle)
 
+    @Suppress("LongParameterList") // established public API
     fun refreshDebridMovieSource(
         streamId: String?,
         title: String?,
@@ -618,71 +603,23 @@ class PlayerViewModel @Inject constructor(
         sourceProfile: DebridSourceProfile?,
         allowDirectHttpPassthrough: Boolean = true,
         excludeSourceIds: Set<String> = emptySet()
-    ) {
-        viewModelScope.launch {
-            _debridResolutionState.value = DebridResolutionState.Loading
-            if (streamId.isNullOrBlank() && imdbId.isNullOrBlank() && title.isNullOrBlank()) {
-                _debridResolutionState.value = DebridResolutionState.Error("Missing metadata to refresh direct source.")
-                return@launch
-            }
-            try {
-                val savedId = sourceProfile?.streamId
-                val sources = withContext(Dispatchers.IO) {
-                    unifiedSourceProvider.getMovieSources(
-                        streamId = streamId,
-                        title = title,
-                        primaryCategoryId = "debrid",
-                        yearHint = null,
-                        imdbId = imdbId,
-                        priorityInfoHash = savedId.takeUnless { it in excludeSourceIds },
-                        preferredSourceType = sourceProfile?.sourceType
-                    )
-                }
-                if (sources.isEmpty()) {
-                    _debridResolutionState.value = DebridResolutionState.Error("No fresh movie sources found.")
-                    return@launch
-                }
-                resolveDebridMovieSource(
-                    targetSource = pickDebridSourceForContinuity(sources, savedId, sourceProfile, excludeSourceIds),
-                    season = null,
-                    episode = null,
-                    title = title,
-                    directPreferred = sourceProfile?.directPlayback == true,
-                    allowDirectHttpPassthrough = allowDirectHttpPassthrough
-                )
-            } catch (e: Exception) {
-                _debridResolutionState.value = DebridResolutionState.Error("Failed to refresh source: ${e.message}")
-            }
-        }
-    }
+    ) = debrid.refreshMovieSource(
+        streamId, title, imdbId, sourceProfile, allowDirectHttpPassthrough, excludeSourceIds
+    )
 
     suspend fun getDebridLanguageOptions(
         streamId: String?,
         title: String?,
         imdbId: String?,
         sourceProfile: DebridSourceProfile?
-    ): List<String> {
-        return withContext(Dispatchers.IO) {
-            val sources = unifiedSourceProvider.getMovieSources(
-                streamId = streamId,
-                title = title,
-                primaryCategoryId = "debrid",
-                yearHint = null,
-                imdbId = imdbId
-            )
+    ): List<String> = debrid.getLanguageOptions(streamId, title, imdbId, sourceProfile)
 
-            val languageSet = linkedSetOf<String>()
-            sourceProfile?.languages.orEmpty().forEach { languageSet.add(it) }
-            sources.forEach { source ->
-                source.languages.orEmpty().forEach { languageSet.add(it) }
-            }
-
-            languageSet.map { it.trim() }
-                .filter { it.isNotBlank() }
-                .distinct()
-        }
-    }
-
+    /**
+     * Kept on the ViewModel with this exact signature: PlayerViewModelDebridDirectPassthroughTest
+     * reaches it through `PlayerViewModel::class.declaredFunctions`, and that test pins the
+     * direct-passthrough rule that history/resume depends on.
+     */
+    @Suppress("LongParameterList") // signature is pinned by the reflection-based test above
     private suspend fun resolveDebridMovieSource(
         targetSource: MovieSource,
         season: Int?,
@@ -691,129 +628,11 @@ class PlayerViewModel @Inject constructor(
         directPreferred: Boolean,
         allowDirectHttpPassthrough: Boolean,
         forceFresh: Boolean = true
-    ) {
-        val magnet = targetSource.stream.direct_source
-        val hashToResolve = targetSource.stream.stream_id
-        val direct = directPreferred && DebridSourceScoring.isDirectPlayableUrl(magnet)
-        val profile = DebridSourceScoring.profileOf(targetSource, direct)
+    ) = debrid.resolveMovieSource(
+        targetSource, season, episode, title, directPreferred, allowDirectHttpPassthrough, forceFresh
+    )
 
-        if (allowDirectHttpPassthrough && directPreferred && DebridSourceScoring.isDirectPlayableUrl(magnet)) {
-            _debridResolutionState.value = DebridResolutionState.Success(
-                url = magnet!!,
-                season = season,
-                episode = episode,
-                title = title,
-                infoHash = hashToResolve,
-                magnet = magnet,
-                headers = targetSource.headers,
-                directDebridPlayback = true,
-                sourceProfile = profile
-            )
-            return
-        }
-
-        if (magnet.isNullOrBlank() && hashToResolve.isNullOrBlank()) {
-            _debridResolutionState.value = DebridResolutionState.Error("Invalid source data.")
-            return
-        }
-
-        val result = withContext(Dispatchers.IO) {
-            playbackResolver.resolve(
-                source = "debrid",
-                streamUrl = null,
-                // forceFresh bypasses the resolved-link cache (failure refresh);
-                // a fresh next-episode load may hit a pre-warmed cached link.
-                isExpired = forceFresh,
-                infoHash = hashToResolve,
-                magnet = magnet,
-                seasonNumber = season,
-                episodeNumber = episode,
-                episodeTitle = title,
-                allowDirectHttpPassthrough = allowDirectHttpPassthrough
-            )
-        }
-
-        when (result) {
-            is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Success -> {
-                _debridResolutionState.value = DebridResolutionState.Success(
-                    url = result.url,
-                    season = season,
-                    episode = episode,
-                    title = title,
-                    infoHash = hashToResolve,
-                    magnet = magnet,
-                    headers = targetSource.headers,
-                    directDebridPlayback = false,
-                    sourceProfile = DebridSourceScoring.profileOf(targetSource, directPlayback = false)
-                )
-            }
-            is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
-                _debridResolutionState.value = DebridResolutionState.Error("Refresh required to play this episode.")
-            }
-            is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Error -> {
-                _debridResolutionState.value = DebridResolutionState.Error(result.message)
-            }
-        }
-    }
-
-    private fun pickDebridSourceForContinuity(
-        sources: List<MovieSource>,
-        infoHash: String?,
-        profile: DebridSourceProfile?,
-        excludeSourceIds: Set<String> = emptySet()
-    ): MovieSource {
-        // Failover support: sources that already failed playback in this session
-        // are skipped so an error-triggered refresh moves to the next source
-        // instead of re-resolving the same broken one. If exclusion would leave
-        // nothing, fall back to the full list rather than failing hard.
-        val excludedStableIds = excludeSourceIds.mapNotNull { DebridSourceScoring.stableIdentity(it) }.toSet()
-        val candidates = if (excludedStableIds.isEmpty()) {
-            sources
-        } else {
-            sources.filterNot { source ->
-                DebridSourceScoring.stableIdentity(source.stream.stream_id) in excludedStableIds
-            }.ifEmpty { sources }
-        }
-
-        val exactId = profile?.streamId ?: infoHash
-        candidates.firstOrNull { source ->
-            !exactId.isNullOrBlank() && source.stream.stream_id.equals(exactId, ignoreCase = true)
-        }?.let { return it }
-
-        // stream_id carries a volatile "_<list index>" suffix, so the saved id
-        // rarely matches verbatim across fetches. Compare on the stable part
-        // (bare infoHash / title hash) so resume re-picks the same source.
-        val stableExactId = DebridSourceScoring.stableIdentity(exactId)
-        if (stableExactId != null) {
-            candidates.firstOrNull { source ->
-                DebridSourceScoring.stableIdentity(source.stream.stream_id) == stableExactId
-            }?.let { return it }
-        }
-
-        // Language tier: when the exact source is gone (or excluded after a
-        // failure), keep the user's audio language — restrict ranking to
-        // candidates sharing a requested language (or multi-audio) when any
-        // exist, instead of letting provider/quality outrank language.
-        val requestedLanguages = DebridSourceScoring.normalizeLanguageSet(profile?.languages)
-        val languagePool = if (requestedLanguages.isEmpty()) {
-            candidates
-        } else {
-            candidates.filter { source ->
-                val candidateLanguages = DebridSourceScoring.normalizeLanguageSet(source.languages)
-                candidateLanguages.contains("multi") ||
-                    candidateLanguages.intersect(requestedLanguages).isNotEmpty()
-            }.ifEmpty { candidates }
-        }
-
-        val ranked = languagePool.sortedWith(
-            compareByDescending<MovieSource> { DebridSourceScoring.continuityScore(it, profile) }
-                .thenByDescending { SourceFilterUtils.isPlaybackReady(it) }
-                .thenByDescending { DebridSourceScoring.qualityScore(it.quality) }
-                .thenByDescending { it.seeders ?: -1 }
-        )
-        return ranked.first()
-    }
-
+    @Suppress("LongParameterList") // established public API
     fun reResolveDebridUrl(
         infoHash: String?,
         magnet: String?,
@@ -821,50 +640,7 @@ class PlayerViewModel @Inject constructor(
         episode: Int?,
         title: String?,
         allowDirectHttpPassthrough: Boolean = true
-    ) {
-        android.util.Log.d(
-            "PlayerViewModel",
-            "reResolveDebridUrl: infoHash=${SensitiveLogRedactor.describeHash(infoHash)}, magnet=${SensitiveLogRedactor.describeUrl(magnet)}, season=$season, episode=$episode, hasTitle=${!title.isNullOrBlank()}"
-        )
-        viewModelScope.launch {
-            _debridResolutionState.value = DebridResolutionState.Loading
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    playbackResolver.resolve(
-                        source = "debrid",
-                        streamUrl = null,
-                        isExpired = true, // Force re-resolution on retry
-                        infoHash = infoHash,
-                        magnet = magnet,
-                        seasonNumber = season,
-                        episodeNumber = episode,
-                        episodeTitle = title,
-                        allowDirectHttpPassthrough = allowDirectHttpPassthrough
-                    )
-                }
-
-                when (result) {
-                    is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Success -> {
-                        _debridResolutionState.value = DebridResolutionState.Success(
-                            url = result.url,
-                            season = season,
-                            episode = episode,
-                            title = title,
-                            infoHash = infoHash
-                        )
-                    }
-                    is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
-                        _debridResolutionState.value = DebridResolutionState.Error("Retry failed: Refresh required.")
-                    }
-                    is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Error -> {
-                        _debridResolutionState.value = DebridResolutionState.Error(result.message)
-                    }
-                }
-            } catch (e: Exception) {
-                _debridResolutionState.value = DebridResolutionState.Error("Failed to re-resolve: ${e.message}")
-            }
-        }
-    }
+    ) = debrid.reResolveUrl(infoHash, magnet, season, episode, title, allowDirectHttpPassthrough)
 
     fun getPrevEpisode(): EpisodeEntityV2? {
         val state = _seriesPlaylistState.value ?: return null
@@ -890,73 +666,10 @@ class PlayerViewModel @Inject constructor(
         _seriesPlaylistState.value = null
     }
 
-    fun loadXRayMetadata(contentId: String?, tmdbId: String?, isMovie: Boolean, title: String?) {
-        val lookupId = tmdbId?.replace("tmdb:", "")?.replace("imdb:", "")
-            ?: contentId?.replace("tmdb:", "")?.replace("imdb:", "")
-            ?: return
+    fun loadXRayMetadata(contentId: String?, tmdbId: String?, isMovie: Boolean, title: String?) =
+        xray.load(contentId, tmdbId, isMovie, title)
 
-        viewModelScope.launch {
-            try {
-                if (isMovie) {
-                    val movieIdInt = lookupId.toIntOrNull()
-                    if (movieIdInt != null) {
-                        val result = tmdbRemote.getMovieDetails(movieIdInt)
-                        if (result is Result.Success) {
-                            val details = result.data
-                            val castList = details.credits?.cast?.take(8)?.map { cast ->
-                                XRayCastMember(
-                                    name = cast.name ?: "Unknown",
-                                    character = cast.character,
-                                    avatarUrl = com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbImageUrl.getProfileUrl(cast.profilePath)
-                                )
-                            } ?: emptyList()
-
-                            val directorName = details.credits?.cast?.firstOrNull { 
-                                it.character?.contains("director", ignoreCase = true) == true 
-                            }?.name
-
-                            val durationText = details.runtime?.let {
-                                val h = it / 60
-                                val m = it % 60
-                                if (h > 0) "${h}h ${m}m" else "${m}m"
-                            }
-                            val releaseYear = details.releaseDate?.take(4)
-                            val metaText = listOfNotNull(releaseYear, durationText).joinToString(" • ")
-
-                            _xrayMetadata.value = XRayMetadataUiState(
-                                title = details.title ?: title ?: "Movie Details",
-                                overview = details.overview,
-                                meta = metaText,
-                                director = directorName,
-                                cast = castList
-                            )
-                        }
-                    }
-                } else {
-                    val tvIdInt = lookupId.toIntOrNull()
-                    if (tvIdInt != null) {
-                        val result = tmdbRemote.getSeriesDetails(tvIdInt)
-                        if (result is Result.Success) {
-                            val details = result.data
-                            _xrayMetadata.value = XRayMetadataUiState(
-                                title = details.name ?: title ?: "Series Details",
-                                overview = details.overview,
-                                meta = details.firstAirDate?.take(4),
-                                director = null,
-                                cast = emptyList()
-                            )
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("PlayerViewModel", "Episode metadata load failed", e)
-            }
-        }
-    }
-
-    fun clearXRayMetadata() {
-        _xrayMetadata.value = null
-    }
+    fun clearXRayMetadata() = xray.clear()
 
     fun updatePlaybackStatus(contentId: String, isWatched: Boolean, resumePosition: Long, duration: Long) {
         viewModelScope.launch(Dispatchers.IO) {
