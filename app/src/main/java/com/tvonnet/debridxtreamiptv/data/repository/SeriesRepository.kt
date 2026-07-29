@@ -44,6 +44,9 @@ internal class SeriesRepository(
     private val apiService get() = session.apiService
     private val username: String get() = session.username
     private val password: String get() = session.password
+
+    /** SY-3: the bounded whole-catalog fallback, kept out of this class deliberately — see there. */
+    private val fallbackCatalog = SeriesFallbackCatalog(cacheHelper)
     private var memoryCache: IptvCache?
         get() = catalogCache.memoryCache
         set(value) { catalogCache.memoryCache = value }
@@ -232,12 +235,9 @@ internal class SeriesRepository(
                 val allResult = fetchAllSeries()
                 if (allResult is Result.Success) {
                     Log.d(TAG, "Filtering ${allResult.data.size} series for category $categoryId")
-                    
-                    // Debug: Print first 5 series to check structure
-                    allResult.data.take(5).forEach { 
-                        Log.d(TAG, "Sample Series: name=${it.name}, cat_id=${it.category_id}, cat_ids=${it.category_ids}") 
-                    }
-
+                    // Removed: a leftover debug loop that logged the first 5 series on every 404
+                    // fallback. Same shape as the runBlocking DB counts deleted for B-4 — diagnostic
+                    // scaffolding that outlived the diagnosis and now runs on a user-facing path.
                     val filtered = allResult.data.filter { it.matchesCategory(categoryId) }
 
                     if (filtered.isNotEmpty()) {
@@ -719,48 +719,12 @@ internal class SeriesRepository(
         )
     }
 
+    /** SY-3: bounded + disk-degrading, in [SeriesFallbackCatalog]. This owns only the memory cache. */
     private suspend fun fetchAllSeries(): Result<List<XtreamSeriesInfo>> {
-        allSeriesCacheFallback?.let {
-            return Result.Success(it)
-        }
-
-        return try {
-            if (apiService == null) {
-                return Result.Error(Exception("API service not initialized"))
-            }
-
-            Log.d(TAG, "Fetching all series for fallback (Strategy 1: No Category)")
-            var response = apiService!!.getSeries(username, password)
-            var seriesList = response.body() ?: emptyList()
-
-            // Strategy 2: Try with empty category_id
-            if (!response.isSuccessful || seriesList.isEmpty()) {
-                Log.d(TAG, "Strategy 1 failed/empty. Trying Strategy 2: Empty Category")
-                response = apiService!!.getSeries(username, password, categoryId = "")
-                seriesList = response.body() ?: emptyList()
-            }
-
-            // Strategy 3: Try with category_id = "0"
-            if (!response.isSuccessful || seriesList.isEmpty()) {
-                Log.d(TAG, "Strategy 2 failed/empty. Trying Strategy 3: Category '0'")
-                response = apiService!!.getSeries(username, password, categoryId = "0")
-                seriesList = response.body() ?: emptyList()
-            }
-
-            if (seriesList.isNotEmpty()) {
-                allSeriesCacheFallback = seriesList
-                // Save to Disk Cache - Level 2 Cache
-                cacheHelper.writeAllSeries(seriesList)
-                Log.d(TAG, "Fetched ${seriesList.size} total series for fallback (and cached to disk)")
-                Result.Success(seriesList)
-            } else {
-                Log.e(TAG, "Failed to fetch all series (All strategies failed). Last code: ${response.code()}")
-                Result.Error(HttpException(response))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error fetching all series for fallback", e)
-            Result.Error(e)
-        }
+        allSeriesCacheFallback?.let { return Result.Success(it) }
+        val api = apiService ?: return Result.Error(Exception("API service not initialized"))
+        return fallbackCatalog.fetchAll(api, username, password)
+            .also { if (it is Result.Success) allSeriesCacheFallback = it.data }
     }
     
     suspend fun updateEpisodePlaybackStatus(episodeId: String, isWatched: Boolean, resumePosition: Long, duration: Long) {
