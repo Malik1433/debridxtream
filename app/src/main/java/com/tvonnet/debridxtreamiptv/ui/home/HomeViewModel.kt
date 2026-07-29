@@ -235,19 +235,8 @@ class HomeViewModel @Inject constructor(
                     val enrichedContinueWatching = coroutineScope {
                         continueWatching.map { item ->
                             async {
-                                if (item.source == "xtream" && (item.posterUrl.isNullOrBlank() || !item.posterUrl.startsWith("http"))) {
-                                    val serverUrl = credentialsPrefs.getServerUrl() ?: ""
-                                    when (item.contentType) {
-                                        ContentType.MOVIE -> {
-                                            repository.getVodById(item.contentId)?.let { vod ->
-                                                val icon = vod.stream_icon.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
-                                                val cover = vod.cover.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
-                                                item.copy(posterUrl = icon ?: cover, backdropUrl = cover ?: icon)
-                                            } ?: item
-                                        }
-                                        ContentType.SERIES, ContentType.EPISODE -> enrichSeriesContinueWatchingArtwork(item, serverUrl)
-                                        else -> item
-                                    }
+                                if (needsArtworkEnrichment(item)) {
+                                    enrichContinueWatchingArtwork(item, credentialsPrefs.getServerUrl() ?: "")
                                 } else {
                                     item
                                 }
@@ -334,6 +323,27 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Only a provider (Xtream) row can be missing artwork — a debrid row already carries an absolute
+     * URL, so re-deriving one would cost a lookup and change nothing.
+     */
+    private fun needsArtworkEnrichment(item: ContinueWatchingItem): Boolean =
+        item.source == "xtream" &&
+            (item.posterUrl.isNullOrBlank() || !item.posterUrl.startsWith("http"))
+
+    private suspend fun enrichContinueWatchingArtwork(
+        item: ContinueWatchingItem,
+        serverUrl: String
+    ): ContinueWatchingItem = when (item.contentType) {
+        ContentType.MOVIE -> repository.getVodById(item.contentId)?.let { vod ->
+            val icon = vod.stream_icon.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
+            val cover = vod.cover.toAbsoluteUrl(ContentType.MOVIE, serverUrl)
+            item.copy(posterUrl = icon ?: cover, backdropUrl = cover ?: icon)
+        } ?: item
+        ContentType.SERIES, ContentType.EPISODE -> enrichSeriesContinueWatchingArtwork(item, serverUrl)
+        else -> item
     }
 
     private suspend fun enrichSeriesContinueWatchingArtwork(
@@ -446,6 +456,60 @@ class HomeViewModel @Inject constructor(
 
     fun refreshHomeData() {
         loadHomeData()
+    }
+
+    /**
+     * What coming back from the player is allowed to change: the history rows, and nothing else.
+     *
+     * Returning to the home screen used to re-run the whole build, and that is what made it flash.
+     * [loadHomeData] emits TWICE by design — first a snapshot from the IPTV cache so something is on
+     * screen immediately, then the TMDB-trending pass — and those two produce *different* top-10
+     * lists. So every trip back from a video swapped the rails out and back, which re-derived the
+     * hero rotation, reset it to the first slide, and made Glide reload the full-screen backdrop.
+     * A ~110ms GC freeing 20MB of bitmaps sat right in the middle of it.
+     *
+     * Nothing up there can have changed while the user was watching. What can is the resume position,
+     * whether a title finished, and which channel was last played — all of which live in prefs. So
+     * this reads those, and touches only those two fields.
+     *
+     * Artwork already resolved for a row is carried over rather than re-derived, or the tile would
+     * blink back to a placeholder — the flicker in miniature. A row that is genuinely new (the title
+     * just watched) is enriched here, so it does not sit without a poster until the next full load.
+     */
+    fun refreshHistoryRows() {
+        viewModelScope.launch(Dispatchers.Default) {
+            runCatching {
+                val freshContinueWatching = watchHistoryPrefs.getContinueWatchingList()
+                val freshRecentLive = watchHistoryPrefs.getRecentLiveChannelsList()
+                val alreadyResolved = _uiState.value.continueWatching.associateBy { it.contentId }
+                val serverUrl = credentialsPrefs.getServerUrl() ?: ""
+
+                val merged = freshContinueWatching.map { item ->
+                    val known = alreadyResolved[item.contentId]
+                    when {
+                        known != null -> item.copy(
+                            posterUrl = known.posterUrl ?: item.posterUrl,
+                            backdropUrl = known.backdropUrl ?: item.backdropUrl
+                        )
+                        needsArtworkEnrichment(item) -> enrichContinueWatchingArtwork(item, serverUrl)
+                        else -> item
+                    }
+                }
+
+                _uiState.update { current ->
+                    if (merged == current.continueWatching &&
+                        freshRecentLive == current.recentLiveChannels
+                    ) {
+                        current   // nothing changed — do not hand the UI a new state to re-bind
+                    } else {
+                        current.copy(continueWatching = merged, recentLiveChannels = freshRecentLive)
+                    }
+                }
+            }.onFailure { error ->
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                android.util.Log.w("HomeViewModel", "History-row refresh failed", error)
+            }
+        }
     }
 
     fun clearContinueWatchingItem(item: ContinueWatchingItem) {

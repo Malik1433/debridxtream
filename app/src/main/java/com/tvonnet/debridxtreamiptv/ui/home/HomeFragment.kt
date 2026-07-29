@@ -208,7 +208,10 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.refreshHomeData()
+        // Only the history rows — see refreshHistoryRows. Rebuilding the whole screen here is what
+        // made returning from a video flash: the rails swapped out and back, and the hero reloaded
+        // and jumped to slide 1. New catalog content still arrives on its own, via the sync observer.
+        viewModel.refreshHistoryRows()
         updateStatusBadge()
     }
 
