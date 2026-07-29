@@ -479,8 +479,21 @@ data class DebridContentItem(
     val isSkeleton: Boolean = false,
     val releaseDate: String? = null
 ) {
+    /**
+     * Is the link we hold KNOWN to be dead? Not "might it be".
+     *
+     * This one is expensive to get wrong: the value is passed to `PlaybackResolver` as `isExpired`,
+     * where it becomes `bypassCache`. Returning true for an unknown expiry — which is every row,
+     * since nothing here stores one — meant every resume from the Debrid and Stremio screens
+     * deliberately skipped the 15-minute resolved-link cache and re-ran the whole
+     * add-magnet -> poll -> unrestrict chain. That cache exists precisely so a replay is instant.
+     *
+     * Unknown expiry now means use what we have. A link that really has died is repaired at the
+     * saved position by the player (see isRepairableExpiredDebridLink).
+     */
     fun isExpired(): Boolean {
-        return expiresAt == null || System.currentTimeMillis() > expiresAt
+        if (source == "xtream") return false   // an Xtream URL does not expire
+        return expiresAt != null && System.currentTimeMillis() > expiresAt
     }
 }
 

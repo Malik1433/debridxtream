@@ -40,10 +40,23 @@ data class ContinueWatchingItem(
     val source: String = "xtream", // "xtream" or "debrid"
     val expiresAt: Long? = null
 ) {
+    /**
+     * Is the link we hold KNOWN to be dead? Not "might it be" — see [mustResolveBeforePlaying],
+     * which states the same rule for the player.
+     *
+     * This used to return true whenever [expiresAt] was unknown, which is every debrid row, because
+     * nothing on the resume path ever stores one. So `canResumeDirectly`'s "we have a URL and it is
+     * fresh" clause could never fire, and a row was only playable via the *other* clauses — meaning
+     * a row holding a perfectly good URL, but no infoHash or magnet to re-resolve from, was sent to
+     * the detail screen instead of just playing.
+     *
+     * Unknown expiry now means play it. If it turns out to be dead, the player repairs at the saved
+     * position (see isRepairableExpiredDebridLink) — which is cheaper than refusing to resume, and
+     * far cheaper than resolving up front every time.
+     */
     fun isExpired(): Boolean {
-        // Xtream content doesn't use expiresAt (null), but it's never 'expired' in the Debrid sense
-        if (source == "xtream") return false
-        return expiresAt == null || System.currentTimeMillis() > expiresAt
+        if (source == "xtream") return false   // an Xtream URL does not expire
+        return expiresAt != null && System.currentTimeMillis() > expiresAt
     }
 
     val progressPercentage: Int
