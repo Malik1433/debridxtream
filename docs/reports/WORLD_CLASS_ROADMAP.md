@@ -711,5 +711,11 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-07-27 | **C6** — `DebridPlaybackRepository` 801 → 88 (−89%), out of `LargeClass`; 4 collaborators; all 8 dropped baseline entries were real wins, 3 new LongParameterList fixed not baselined; +30 unit tests | **280** | **4** | 0 | 32 | `7ecfbc2` |
 
 | 2026-07-27 | **C7** — `LiveTvGuideFragment` 866 → 500 (−42%), out of `LargeClass`; 4 collaborators; all 4 dropped baseline entries were real wins; owner device-QA'd both halves | **276** | **3** | 0 | 32 | `fad00a3` |
+| 2026-07-27 | **C8** — `LivePlayerOsdManager` 1174 → 584 (−50%), out of `LargeClass`; guide overlay / surf drawer / track controls split out, `LiveChannelVisuals` pure + 10 tests; a `Callbacks` interface fixed the new `LongParameterList` rather than baselining it | **272** | **2** | 0 | 32 | `21a2fdf` + `b574d02` |
+| 2026-07-27 | **C9** — `BasePlayerFragment`: **WON'T DO**, owner decision after measuring. Its bulk is lifecycle + key routing + the launch contract, which do not separate into collaborators that can stand alone. Recorded rather than left as silent debt — this is why `LargeClass` ends at 1, not 0 | **272** | **2** | 0 | 32 | `5e3a357` |
+| 2026-07-28 | **C10** — `PlayerViewModel` 1556 → 643 (−59%), out of `LargeClass`; 4 steps: pure decisions (`SeriesTmdbMatching` +16, `DebridSourceScoring` +14) → `PlayerEpgController` → `PlayerZapController` → `PlayerDebridResolver` + `XRayMetadataLoader`. **Tier C complete.** | **267** | **1** | 0 | 32 | `85102eb` + `6eb7bec` + `8dc8d73` + `89163ed` |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
+
+**Tier C is complete at LargeClass = 1.** The remaining one is `BasePlayerFragment`, by the C9
+decision above — not a backlog item. Do not "finish" Tier C by reopening it.
