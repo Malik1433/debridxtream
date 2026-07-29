@@ -122,20 +122,6 @@ data class SeriesPlaylistState(
     val error: String? = null
 )
 
-data class XRayMetadataUiState(
-    val title: String,
-    val overview: String?,
-    val meta: String?,
-    val director: String?,
-    val cast: List<XRayCastMember>
-)
-
-data class XRayCastMember(
-    val name: String,
-    val character: String?,
-    val avatarUrl: String?
-)
-
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     private val repository: XtreamRepository,
@@ -219,10 +205,6 @@ class PlayerViewModel @Inject constructor(
         scope = viewModelScope,
     )
     val debridResolutionState: StateFlow<DebridResolutionState> = debrid.debridResolutionState
-
-    /** The data behind the X-Ray panel; the panel itself is PlayerXRayController (C10). */
-    private val xray = XRayMetadataLoader(tmdbRemote, viewModelScope)
-    val xrayMetadata: StateFlow<XRayMetadataUiState?> = xray.xrayMetadata
 
     fun loadSeriesPlaylist(
         seriesId: String,
@@ -665,11 +647,6 @@ class PlayerViewModel @Inject constructor(
     fun clearSeriesPlaylist() {
         _seriesPlaylistState.value = null
     }
-
-    fun loadXRayMetadata(contentId: String?, tmdbId: String?, isMovie: Boolean, title: String?) =
-        xray.load(contentId, tmdbId, isMovie, title)
-
-    fun clearXRayMetadata() = xray.clear()
 
     fun updatePlaybackStatus(contentId: String, isWatched: Boolean, resumePosition: Long, duration: Long) {
         viewModelScope.launch(Dispatchers.IO) {

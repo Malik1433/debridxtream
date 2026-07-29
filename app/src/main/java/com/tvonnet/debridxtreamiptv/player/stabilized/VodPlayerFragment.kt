@@ -101,17 +101,5 @@ class VodPlayerFragment : BasePlayerFragment() {
         debridCoordinator.observeDebridResolutionState()
         seriesController.setupEpisodeBrowser()
 
-        xrayController.bindToggle()
-
-        if (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE || contentType == ContentType.SERIES) {
-            viewModel.loadXRayMetadata(
-                contentId = contentId,
-                tmdbId = tmdbIdExtra ?: imdbIdExtra,
-                isMovie = contentType == ContentType.MOVIE,
-                title = originalTitle
-            )
-        }
-
-        viewModelBinder.observeXrayMetadata()
     }
 }

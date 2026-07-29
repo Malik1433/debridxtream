@@ -25,7 +25,6 @@ internal class PlayerViewModelBinder(
     private val viewModel get() = activity.viewModel
     private val lifecycleScope get() = activity.lifecycleScope
     private val liveOsd get() = activity.liveOsd
-    private val xrayController get() = activity.xrayController
     private val tvChannelNumber get() = activity.tvChannelNumber
 
     private val contentId: String? by session::contentId
@@ -61,11 +60,4 @@ internal class PlayerViewModelBinder(
         }
     }
 
-    fun observeXrayMetadata() {
-        lifecycleScope.launch {
-            activity.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.xrayMetadata.collect { state -> xrayController.render(state) }
-            }
-        }
-    }
 }

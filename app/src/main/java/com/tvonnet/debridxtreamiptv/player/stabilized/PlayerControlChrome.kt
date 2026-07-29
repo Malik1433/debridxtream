@@ -54,7 +54,6 @@ internal fun setupInteractiveAnimations(playerView: PlayerView) {
         R.id.btn_player_audio,
         R.id.btn_player_language,
         R.id.btn_player_subtitles,
-        R.id.layout_xray_toggle,
         R.id.btn_player_volume,
         R.id.volume_progress
     ).forEach { id ->

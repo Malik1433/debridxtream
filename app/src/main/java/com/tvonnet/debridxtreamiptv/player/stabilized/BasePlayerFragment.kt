@@ -136,28 +136,6 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     /** P9: PiP capability + entry. */
     private val pipController by lazy { PlayerPipController(requireActivity()) }
 
-    /** P9: the in-player X-Ray panel (toggle, animation, metadata/cast rendering). */
-    internal val xrayController: PlayerXRayController by lazy {
-        PlayerXRayController(
-            activity = requireActivity(),
-            playerView = playerView,
-            isSeriesPlayback = { isSeriesEpisodePlayback() },
-            // Guards stay exactly as they were before P9: nothing happens while the
-            // episode browser has not been initialised yet.
-            showEpisodeBrowserIfHidden = {
-                if (::episodeBrowserController.isInitialized && !episodeBrowserController.isVisible()) {
-                    seriesController.showEpisodeBrowser()
-                }
-            },
-            hideEpisodeBrowserIfVisible = {
-                if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {
-                    episodeBrowserController.hide()
-                }
-            },
-            fallbackTitle = { originalTitle }
-        )
-    }
-
     internal var player: ExoPlayer? = null
     internal lateinit var playerView: PlayerView
 
@@ -1370,7 +1348,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     // NOTE: snapshot (non-latching) — the old recordPlaybackHistoryIfNeeded() here latched
     // hasRecordedHistory on PiP entry, so everything watched IN PiP was never saved and
     // resume went back to the PiP-entry position.
-    private fun hideUiForPiP() { playerView.hideController(); if (::episodeBrowserController.isInitialized) episodeBrowserController.hide(); xrayController.collapse(); epgOverlay?.isVisible = false; vodInfoOverlay?.isVisible = false; liveOsd?.hideForPip(); supportActionBar?.hide(); historyManager.saveProgressSnapshot() }
+    private fun hideUiForPiP() { playerView.hideController(); if (::episodeBrowserController.isInitialized) episodeBrowserController.hide(); epgOverlay?.isVisible = false; vodInfoOverlay?.isVisible = false; liveOsd?.hideForPip(); supportActionBar?.hide(); historyManager.saveProgressSnapshot() }
     private fun showUiForNormalMode() { if (!isInPictureInPictureMode) { supportActionBar?.show(); liveOsd?.show(); if (contentType == ContentType.LIVE_TV) updateOverlayVisibility() else updateVodOverlayVisibility() } }
 
     /** P26: the thin host forwards its onPictureInPictureModeChanged here. */

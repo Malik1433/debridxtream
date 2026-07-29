@@ -89,14 +89,6 @@
         android:visibility="gone" />
 
     <include
-        android:id="@+id/view_xray_panel"
-        layout="@layout/view_player_xray_panel"
-        android:layout_width="380dp"
-        android:layout_height="match_parent"
-        android:layout_gravity="start"
-        android:visibility="gone" />
-
-    <include
         android:id="@+id/view_next_episode_prompt"
         layout="@layout/view_next_episode_prompt"
         android:layout_width="match_parent"

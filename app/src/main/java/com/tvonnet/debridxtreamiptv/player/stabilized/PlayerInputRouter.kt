@@ -28,7 +28,6 @@ internal class PlayerInputRouter(
     private val viewModel get() = activity.viewModel
     private val playerView get() = activity.playerView
     private val liveOsd get() = activity.liveOsd
-    private val xrayController get() = activity.xrayController
     private val liveTuner get() = activity.liveTuner
     private val epgOverlayUi get() = activity.epgOverlayUi
     private val isControllerVisible get() = activity.isControllerVisible
@@ -77,14 +76,9 @@ internal class PlayerInputRouter(
                 if (event.action == KeyEvent.ACTION_UP) activity.hideNextEpisodePromptIfInitialized()
                 return true
             }
-            val isXrayVisible = xrayController.isPanelVisible()
-            val isEpisodeBrowserVisible = activity.isEpisodeBrowserVisible()
-            // These two overlays aren't handled by onBackPressedDispatcher, so dismiss them here.
-            if (isXrayVisible || isEpisodeBrowserVisible) {
-                if (event.action == KeyEvent.ACTION_UP) {
-                    if (isEpisodeBrowserVisible) episodeBrowserController.hide()
-                    xrayController.collapse()
-                }
+            // The episode browser isn't handled by onBackPressedDispatcher, so dismiss it here.
+            if (activity.isEpisodeBrowserVisible()) {
+                if (event.action == KeyEvent.ACTION_UP) episodeBrowserController.hide()
                 return true
             }
             // Long-press BACK -> PiP (if supported).
