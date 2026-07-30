@@ -25,7 +25,7 @@ The app is "world-class" for this project's purposes when **all** of these are t
 | E4 | Instrumented (on-device) tests — **counted as test methods**, `run_instrumented.sh` reports it | **17 ✅ MET** (3 classes) | **≥ 15** covering Live/Player/VOD/Series core flows |
 | E5 | Unit test files | **81 ✅ MET** | ≥ 80, with every new collaborator tested |
 | E6 | Crash-free playback landmines re-verified after each phase | ad hoc | scripted device checklist |
-| E7 | Open P1 findings from the 2026-07-19 audits | 12 P1 | 0 |
+| E7 | Open P1 findings from the 2026-07-19 audits | **0 ✅ MET** (D1: 11 of 14 were already fixed, 3 done) | 0 |
 | E8 | Stale/contradictory docs at repo root | 0 ✅ | 0 |
 | E9 | CI/pre-commit gate enforcing the ratchet | none | in place |
 
@@ -590,12 +590,58 @@ defeating the bisectability the split was for.
 
 - *Exit:* E2 = 0; each new collaborator < 600 lines and unit-tested.
 
-### Tier D — finish the open audit findings
-- **D1** — 12 open P1s from the 2026-07-19 playback/loading audits.
-- **D2** — Deferred items with a decision recorded (keep or drop, not silently pending):
-  loading `B-8` (TTL-gate per-category refetch), `ST-5`; debrid cache-status overhaul `R1/R2`;
-  player `P15/P16/P19`; licence hardening ×2.
-- *Exit:* E7 = 0, and every remaining "deferred" has an explicit written decision.
+### ✅ Tier D — finish the open audit findings
+
+#### ✅ D1 DONE 2026-07-29 — and the headline is that the list was stale
+
+Filed as "12 open P1s". Checked against the code one by one rather than trusted: **11 of 14 were
+already fixed** — by Tier A/B/C, by earlier batches, or (ST-5) the same day. Three were genuinely
+open and were done here:
+
+| P1 | Was | Commit |
+|---|---|---|
+| **SY-3** | The whole-catalog series fallback ran up to three full fetches with **no timeout at all**, on the interactive path — ~90s worst case | `65318ed` |
+| **IMG-6** | The focus glint allocated a gradient, two arrays and two parsed colours **per animation frame**, on every D-pad move | `e35ffd5` |
+| **B-3** | "Most Episodes" ordered by two **correlated** subqueries per row, recomputed for the whole table on every page | `de11a3e` |
+
+Already fixed, verified in code: ST-3 (`@Synchronized` idempotency), ST-4 (12h cached expiry), ST-5
+(`e9e2ca9`), SY-1 (all-empty guard), SY-2 (per-stage timeouts), B-1 (indices), B-2 (`added_ts`), B-4,
+B-5 (payload rebind), IMG-4 (chained transform), IMG-5, IMG-7.
+
+**The lesson, and it repeated in D2: an audit list ages. Verify each item against the code before
+working it — otherwise you "fix" what is already fixed and miss what moved.**
+
+#### ✅ D2 DONE 2026-07-31 — a decision on every deferred item
+
+Same story: of the eight, **four were already resolved** and had simply never been closed out.
+
+| Item | Finding | Decision |
+|---|---|---|
+| **ST-5** — full home reload on every `onResume` | Fixed 2026-07-29 (`e9e2ca9`) — it was the home-screen flicker | **CLOSED, done** |
+| **P15** — stall monitor | Done `245f116`, device-QA'd | **CLOSED, done** |
+| **P16** — error recovery | Done `d6c1f59`, device-QA'd | **CLOSED, done** |
+| **P19** — `initializePlayer` + `onCreate` | Its target moved into `BasePlayerFragment`, and that is exactly the C9 **won't-do** the owner recorded (`5e3a357`). Doing P19 would reopen a closed decision | **CLOSED, superseded by C9** |
+| **B-8** — a category open always delete+inserts the whole category, even unchanged | Still open; no TTL gate exists | **KEEP** — real repeated write cost, but it is a correctness-sensitive path (the DB-first browse must never blank). Wants its own phase, not a drive-by |
+| **R1** — RD `instantAvailability` is deprecated → the cache check may be blind | **Still open.** `DebridCacheVerifier` → `RealDebridRemoteDataSource.getInstantAvailability` → `rest/1.0/torrents/instantAvailability/{hash}`, still the live path | **BLOCKED on one live check** — see below |
+| **R2** — only the first N hashes are verified, the rest show UNKNOWN and are selectable | **Still open.** `MAX_CACHE_VERIFICATION_HASHES = 10` | **BLOCKED behind R1** — raising the cap is pointless if the endpoint it calls is blind |
+| **Licence hardening ×2** | Plans are written and current | **DEFERRED, with the blockers named** — see below |
+
+**Why R1/R2 are not being guessed at.** The audit's own instruction is to confirm the deprecated
+endpoint with one live request before building on it, and that request needs the owner's Real-Debrid
+token against their account. That is their credential and an external call on their behalf, so it is
+theirs to run or to authorise — not something to do quietly from a debug session. Everything else here
+is decided; this one is one answer away.
+
+**Licence hardening — the blockers, so nobody starts these cold.**
+1. *Offline-token (anti-piracy):* needs the project's **first Cloud Function**, which needs Firebase
+   **Blaze**. Confirm billing before starting; otherwise it cannot even be deployed.
+2. *device_codes credential encryption (privacy):* touches the **live pairing flow** end to end
+   (Keystore keypair + web-dashboard encryption + Vercel redeploy + rules). Do it with the owner
+   present — pairing cannot be QA'd without them.
+   Order: **encryption first** (no Blaze dependency, higher user value), token second. One at a time,
+   each with its own device verification.
+
+- *Exit:* met — every deferred item above now carries an explicit written decision.
 
 ### Tier E — the residual lint mass + the gate
 - **E1p** — `CyclomaticComplexMethod` 130 / `LongMethod` 78 / `NestedBlockDepth` 25 / `ComplexCondition`
@@ -714,6 +760,8 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-07-27 | **C8** — `LivePlayerOsdManager` 1174 → 584 (−50%), out of `LargeClass`; guide overlay / surf drawer / track controls split out, `LiveChannelVisuals` pure + 10 tests; a `Callbacks` interface fixed the new `LongParameterList` rather than baselining it | **272** | **2** | 0 | 32 | `21a2fdf` + `b574d02` |
 | 2026-07-27 | **C9** — `BasePlayerFragment`: **WON'T DO**, owner decision after measuring. Its bulk is lifecycle + key routing + the launch contract, which do not separate into collaborators that can stand alone. Recorded rather than left as silent debt — this is why `LargeClass` ends at 1, not 0 | **272** | **2** | 0 | 32 | `5e3a357` |
 | 2026-07-28 | **C10** — `PlayerViewModel` 1556 → 643 (−59%), out of `LargeClass`; 4 steps: pure decisions (`SeriesTmdbMatching` +16, `DebridSourceScoring` +14) → `PlayerEpgController` → `PlayerZapController` → `PlayerDebridResolver` + `XRayMetadataLoader`. **Tier C complete.** | **267** | **1** | 0 | 32 | `85102eb` + `6eb7bec` + `8dc8d73` + `89163ed` |
+| 2026-07-29 | **D1** — the 3 P1s that were genuinely still open: SY-3 (unbounded whole-catalog fallback, ~90s worst case, on the interactive path), IMG-6 (per-frame gradient allocation on every D-pad move), B-3 (correlated COUNTs recomputed for the whole table per page). The other 11 of 14 were already fixed — the list was stale | **267** | **1** | 0 | 35 | `65318ed` + `e35ffd5` + `de11a3e` |
+| 2026-07-31 | **D2** — an explicit decision on all 8 deferred items. 4 were already resolved and never closed out (ST-5, P15, P16, and P19 which the C9 won't-do supersedes); B-8 kept as its own phase; R1/R2 blocked on one live Real-Debrid check that is the owner's to authorise; licence hardening deferred with its blockers named (Blaze, owner-present pairing QA). **Tier D complete.** | **267** | **1** | 0 | 35 | (docs) |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
 
