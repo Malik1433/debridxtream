@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Glass panel for the resume dialog.
+
+    Not a blur: RenderEffect is API 31+ and these TVs are API 25/28, so a real backdrop blur cannot
+    happen. This app's glass idiom is translucency plus a hairline stroke instead — the same thing
+    cin_detail_btn_glass does — and with the window dim behind it, it reads as glass.
+
+    The fill is lifted and cooled off the page's near-black (#06090E) rather than matching it, which
+    is what made the first version melt into the backdrop.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <gradient
+        android:startColor="#F2161C2B"
+        android:endColor="#F20E121C"
+        android:angle="135" />
+
+    <!-- Faint cyan edge: catches the light the way the glass buttons do. -->
+    <stroke
+        android:width="1dp"
+        android:color="#3300F0FF" />
+
+    <corners android:radius="14dp" />
+</shape>

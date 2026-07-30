@@ -2,109 +2,98 @@
 <!--
     Resume or start over, asked AFTER a source is picked.
 
-    Styled from the movie detail page it is launched from — same panel colour as the source sheet
-    (#0E0D15), the same two button drawables as Watch Now / Trailer, and the same fonts. The first
-    version copied dialog_exit_app, which is plain Material (#1A1A1A card, default Buttons) and looked
-    like it belonged to a different app.
+    Plain LinearLayout on a shape drawable rather than a CardView: the card gave no way to draw the
+    hairline edge that makes this read as glass, and its elevation shadow fought the translucency.
+    See bg_resume_choice_glass for why this is translucency and not a real blur.
 
-    Still a fixed-width CardView in a DialogFragment rather than an AlertDialog: AlertDialog's minimum
-    width renders as a half-screen slab on this TV (the Continue-Watching quick actions hit that too).
+    Sized down from the first pass — it was a slab. Everything here is one step smaller: width,
+    padding, type and buttons.
 -->
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="440dp"
+    android:layout_width="352dp"
     android:layout_height="wrap_content"
     android:layout_gravity="center"
-    app:cardBackgroundColor="#0E0D15"
-    app:cardCornerRadius="14dp"
-    app:cardElevation="12dp"
-    app:cardPreventCornerOverlap="true">
+    android:orientation="vertical"
+    android:background="@drawable/bg_resume_choice_glass"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:padding="20dp">
+
+    <!-- Eyebrow, matching the detail page's section labels -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/resume_choice_eyebrow"
+        android:textColor="@color/neon_cyan"
+        android:textSize="9sp"
+        android:fontFamily="monospace"
+        android:letterSpacing="0.2" />
+
+    <TextView
+        android:id="@+id/tv_resume_choice_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:textColor="@color/source_text_primary"
+        android:textSize="16sp"
+        android:fontFamily="@font/inter_extrabold"
+        android:letterSpacing="0.01"
+        tools:text="Dune: Part Two" />
+
+    <TextView
+        android:id="@+id/tv_resume_choice_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:textColor="@color/text_muted"
+        android:textSize="11sp"
+        android:fontFamily="monospace"
+        android:letterSpacing="0.04"
+        tools:text="You stopped at 42:15." />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:layout_marginTop="16dp"
+        android:gravity="end"
+        android:orientation="horizontal"
         android:clipChildren="false"
-        android:clipToPadding="false"
-        android:padding="26dp">
+        android:clipToPadding="false">
 
-        <!-- Eyebrow, matching the detail page's section labels -->
-        <TextView
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_start_over"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/resume_choice_eyebrow"
-            android:textColor="@color/neon_cyan"
-            android:textSize="10sp"
-            android:fontFamily="monospace"
-            android:letterSpacing="0.2" />
-
-        <TextView
-            android:id="@+id/tv_resume_choice_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:maxLines="2"
-            android:ellipsize="end"
-            android:textColor="@color/source_text_primary"
-            android:textSize="20sp"
+            android:layout_height="34dp"
+            android:layout_marginEnd="8dp"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:background="@drawable/cin_detail_btn_glass"
+            android:text="@string/resume_choice_start_over"
+            android:textColor="@color/cin_detail_focus_text"
+            android:textSize="11sp"
+            android:textAllCaps="false"
             android:fontFamily="@font/inter_extrabold"
-            android:letterSpacing="0.01"
-            tools:text="Dune: Part Two" />
-
-        <TextView
-            android:id="@+id/tv_resume_choice_message"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textColor="@color/text_muted"
-            android:textSize="12sp"
-            android:fontFamily="monospace"
             android:letterSpacing="0.04"
-            tools:text="You stopped at 42:15." />
+            android:stateListAnimator="@null" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="22dp"
-            android:gravity="end"
-            android:orientation="horizontal"
-            android:clipChildren="false"
-            android:clipToPadding="false">
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_start_over"
-                android:layout_width="wrap_content"
-                android:layout_height="38dp"
-                android:layout_marginEnd="10dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:background="@drawable/cin_detail_btn_glass"
-                android:text="@string/resume_choice_start_over"
-                android:textColor="@color/cin_detail_focus_text"
-                android:textSize="12sp"
-                android:textAllCaps="false"
-                android:fontFamily="@font/inter_extrabold"
-                android:letterSpacing="0.04"
-                android:stateListAnimator="@null" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_resume"
-                android:layout_width="wrap_content"
-                android:layout_height="38dp"
-                android:paddingStart="20dp"
-                android:paddingEnd="20dp"
-                android:background="@drawable/cin_detail_btn_watch"
-                android:textColor="#041014"
-                android:textSize="12sp"
-                android:textAllCaps="false"
-                android:fontFamily="@font/inter_extrabold"
-                android:letterSpacing="0.04"
-                android:stateListAnimator="@null"
-                tools:text="Resume 42:15" />
-
-        </LinearLayout>
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_resume"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp"
+            android:background="@drawable/cin_detail_btn_watch"
+            android:textColor="#041014"
+            android:textSize="11sp"
+            android:textAllCaps="false"
+            android:fontFamily="@font/inter_extrabold"
+            android:letterSpacing="0.04"
+            android:stateListAnimator="@null"
+            tools:text="Resume 42:15" />
 
     </LinearLayout>
 
-</androidx.cardview.widget.CardView>
+</LinearLayout>

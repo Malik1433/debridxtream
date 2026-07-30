@@ -92,10 +92,16 @@ class ResumeChoiceDialog : DialogFragment() {
 
     override fun onStart() {
         super.onStart()
-        dialog?.window?.setLayout(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
+        dialog?.window?.apply {
+            setLayout(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            // Push the page back. The panel is translucent by design — there is no real blur to be
+            // had on these TVs — so separation has to come from the dim behind it. At the default
+            // amount the detail page showed straight through and the two melted together.
+            setDimAmount(DIM_AMOUNT)
+        }
     }
 
     /** h:mm:ss past an hour, m:ss below it — how a player shows a position. */
@@ -119,6 +125,9 @@ class ResumeChoiceDialog : DialogFragment() {
         /** Matches MovieDetailActivity.setupFocusAnimations, so focus feels the same either side. */
         private const val FOCUS_SCALE = 1.05f
         private const val FOCUS_ANIM_MS = 200L
+
+        /** Well past the platform default (0.6) — the panel is translucent and needs the contrast. */
+        private const val DIM_AMOUNT = 0.82f
 
         /**
          * @param onChoice true to resume at [positionMs], false to start from the beginning. Not
