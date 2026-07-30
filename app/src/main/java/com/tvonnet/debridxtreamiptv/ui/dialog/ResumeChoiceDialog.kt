@@ -51,12 +51,35 @@ class ResumeChoiceDialog : DialogFragment() {
             getString(R.string.resume_choice_message, formatPosition(positionMs))
 
         val resume = view.findViewById<Button>(R.id.btn_resume)
+        val startOver = view.findViewById<Button>(R.id.btn_start_over)
+
         resume.text = getString(R.string.resume_choice_resume_at, formatPosition(positionMs))
         resume.setOnClickListener { choose(true) }
-        view.findViewById<Button>(R.id.btn_start_over).setOnClickListener { choose(false) }
+        startOver.setOnClickListener { choose(false) }
+
+        listOf(resume, startOver).forEach { it.applyFocusScale() }
 
         // Resume is the common intent, so it takes focus — one OK press does the usual thing.
         resume.requestFocus()
+    }
+
+    /**
+     * Grow on focus, the way the detail page's own buttons do.
+     *
+     * The themed backgrounds only change their stroke when focused — cyan instead of faint white on
+     * the glass button — which is far too quiet to read from across a room. Everywhere else in this
+     * app that difference is carried by the button also scaling up, so it is carried here too rather
+     * than inventing a new focus language for one dialog.
+     */
+    private fun View.applyFocusScale() {
+        setOnFocusChangeListener { v, hasFocus ->
+            v.animate()
+                .scaleX(if (hasFocus) FOCUS_SCALE else 1f)
+                .scaleY(if (hasFocus) FOCUS_SCALE else 1f)
+                .setDuration(FOCUS_ANIM_MS)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .start()
+        }
     }
 
     private fun choose(resume: Boolean) {
@@ -92,6 +115,10 @@ class ResumeChoiceDialog : DialogFragment() {
         const val TAG = "ResumeChoiceDialog"
         private const val ARG_TITLE = "title"
         private const val ARG_POSITION_MS = "positionMs"
+
+        /** Matches MovieDetailActivity.setupFocusAnimations, so focus feels the same either side. */
+        private const val FOCUS_SCALE = 1.05f
+        private const val FOCUS_ANIM_MS = 200L
 
         /**
          * @param onChoice true to resume at [positionMs], false to start from the beginning. Not

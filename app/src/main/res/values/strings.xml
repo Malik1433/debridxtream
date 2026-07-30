@@ -50,6 +50,7 @@
     <string name="movie_detail_error_generic">Error: %1$s</string>
     <string name="movie_detail_sources_header">Available Sources</string>
     <!-- Resume-or-start-over, asked after a source is chosen (the detail page has no Resume button). -->
+    <string name="resume_choice_eyebrow">CONTINUE WATCHING</string>
     <string name="resume_choice_message">You stopped at %1$s.</string>
     <string name="resume_choice_resume">Resume</string>
     <string name="resume_choice_resume_at">Resume %1$s</string>
