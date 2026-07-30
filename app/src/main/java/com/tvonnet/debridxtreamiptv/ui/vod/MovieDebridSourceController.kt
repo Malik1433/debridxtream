@@ -31,7 +31,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -316,38 +315,24 @@ class MovieDebridSourceController(
         bottomSheet.showLoading()
         activity.lifecycleScope.launch {
             try {
-                // The IPTV listings come from a local DB query and are ready in milliseconds; the
-                // debrid lookup is network and gets up to 30s. Running them in sequence meant the
-                // rows we already had sat behind the ones we were still waiting for, so a slow
-                // provider showed a spinner over a picker that could have been populated at once.
-                //
-                // Now IPTV renders as soon as it lands and debrid merges in when it arrives — the
-                // same cache-first shape the rest of the app uses. Concurrent, not just reordered:
-                // the debrid fetch starts first and runs while the DB read happens.
-                val debridDeferred = activity.lifecycleScope.async(Dispatchers.IO) {
-                    unifiedSourceProvider.getMovieSources(
+                val sources = withContext(Dispatchers.IO) {
+                    val debrid = unifiedSourceProvider.getMovieSources(
                         streamId = movieId(),
                         title = movieName(),
                         primaryCategoryId = movieCategoryId(),
                         yearHint = movieYear(),
                         imdbId = currentImdbId()
                     )
-                }
-
-                val iptv = withContext(Dispatchers.IO) {
-                    try {
+                    // Like the series stream panel: surface the same movie's IPTV (Xtream)
+                    // listings alongside the debrid sources, badged "IPTV".
+                    val iptv = try {
                         fetchIptvMovieSources(movieName())
                     } catch (e: Exception) {
-                        coroutineContext.ensureActive()
                         android.util.Log.w("MovieDetailActivity", "IPTV source lookup failed: ${e.message}")
                         emptyList()
                     }
+                    debrid + iptv
                 }
-                if (iptv.isNotEmpty() && bottomSheet.isAdded) {
-                    bottomSheet.showSources(iptv)
-                }
-
-                val sources = debridDeferred.await() + iptv
                 debridSources = sources
                 PlaybackDiagnosticsRecorder.record(
                     activity,
