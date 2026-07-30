@@ -120,9 +120,6 @@ class MovieDetailActivity : AppCompatActivity() {
     private val watchHistoryPrefs by lazy { WatchHistoryPreferences(this) }
     private var hasResumePosition: Boolean = false
     private var resumePositionMs: Long = 0L
-    // The saved Continue-Watching entry for this movie, so pressing "Resume" can relaunch
-    // the exact same (Debrid) source and seek — instead of reopening the source picker.
-    private var resumeCwItem: com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem? = null
 
     // Movie data
     private var movieId: String? = null
@@ -325,8 +322,12 @@ class MovieDetailActivity : AppCompatActivity() {
             movieBackdrop = { movieBackdrop },
             movieContainer = { movieContainer },
             currentImdbId = { currentImdbId },
-            onPlayMovie = { source -> moviePlayback.playMovie(source) },
-            onPlayDebridMovie = { stream, source, returnToSources -> moviePlayback.playDebridMovie(stream, source, returnToSources) }
+            // Both source-selection paths (the sheet and the inline list) come through here, so the
+            // resume question is asked once, in one place, whichever way a source was chosen.
+            onPlayMovie = { source -> withResumeChoice { moviePlayback.playMovie(source) } },
+            onPlayDebridMovie = { stream, source, returnToSources ->
+                withResumeChoice { moviePlayback.playDebridMovie(stream, source, returnToSources) }
+            }
         )
         movieDebridSources.setupSourceViews()
 
@@ -344,7 +345,9 @@ class MovieDetailActivity : AppCompatActivity() {
             movieContainer = { movieContainer },
             movieCategoryId = { movieCategoryId },
             currentImdbId = { currentImdbId },
-            resumePositionMs = { resumePositionMs },
+            // Zero for a launch the user asked to start over; the stored position is left alone so
+            // backing straight out of the player does not lose where they were.
+            resumePositionMs = { if (startFromBeginningOnce) 0L else resumePositionMs },
             launch = { playerLauncher.launch(it) }
         )
 
@@ -513,7 +516,6 @@ class MovieDetailActivity : AppCompatActivity() {
 
         hasResumePosition = resumeItem != null && position > 0L && progress in 1..99
         resumePositionMs = if (hasResumePosition) position else 0L
-        resumeCwItem = if (hasResumePosition) resumeItem else null
         if (hasResumePosition) {
             tvResumeElapsed.text = "RESUME FROM ${formatResumeTime(position)}"
             tvResumeRemaining.text = "${formatResumeTime(duration - position)} LEFT"
@@ -523,9 +525,10 @@ class MovieDetailActivity : AppCompatActivity() {
             layoutResumeBar.visibility = View.GONE
         }
 
-        if (::btnPlay.isInitialized) {
-            btnPlay.text = if (hasResumePosition) "Resume" else "Watch Now"
-        }
+        // The button no longer changes label with saved state. It used to flip to "Resume", and that
+        // flip is what hid the source picker: the resume branch took over and there was no other way
+        // in. Now it always means "choose a source", and where to start is asked after one is picked
+        // (ResumeChoiceDialog). The resume bar above still shows the saved position.
     }
 
     private fun displayRating(rating: Double) {
@@ -553,20 +556,43 @@ class MovieDetailActivity : AppCompatActivity() {
     private fun configureTabs() {
     }
 
+    /**
+     * Set for one launch when the user chose "start from beginning", so the playback controller —
+     * which reads the saved position through a getter — starts at zero without the saved value being
+     * touched. Backing out of the player must not erase where they were.
+     */
+    private var startFromBeginningOnce: Boolean = false
+
+    /**
+     * Ask where to start, then play. Nothing to ask when there is no saved position, so it plays
+     * straight through — the question only appears when it has an answer worth having.
+     *
+     * Backing out of the dialog plays nothing, which is the honest reading of "neither".
+     */
+    private fun withResumeChoice(play: () -> Unit) {
+        if (!hasResumePosition || resumePositionMs <= 0L) {
+            startFromBeginningOnce = false
+            play()
+            return
+        }
+        com.tvonnet.debridxtreamiptv.ui.dialog.ResumeChoiceDialog.show(
+            fragmentManager = supportFragmentManager,
+            title = movieName,
+            positionMs = resumePositionMs
+        ) { resume ->
+            startFromBeginningOnce = !resume
+            play()
+        }
+    }
+
     private fun setupClickListeners() {
         btnPlay.setOnClickListener {
             if (movieCategoryId == "debrid") {
-                val item = resumeCwItem
-                if (hasResumePosition && item != null && moviePlayback.canResumeDebridDirectly(item)) {
-                    // One-tap resume: relaunch the exact source (stored URL / info-hash /
-                    // magnet) and seek to the saved position — matching the home-screen
-                    // Continue Watching behaviour instead of reopening the source picker.
-                    moviePlayback.resumeDebridMovieDirectly(item)
-                } else {
-                    movieDebridSources.showDebridSourcePicker()
-                }
+                // Always the picker, resume or not. One button, one meaning — see updateResumeBar.
+                movieDebridSources.showDebridSourcePicker()
             } else {
-                moviePlayback.playMovie()
+                // IPTV has no source list, so the position question is the only one to ask.
+                withResumeChoice { moviePlayback.playMovie() }
             }
         }
         btnTrailer.setOnClickListener {
