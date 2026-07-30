@@ -562,7 +562,9 @@ class MovieDetailActivity : AppCompatActivity() {
                     // magnet) and seek to the saved position — matching the home-screen
                     // Continue Watching behaviour instead of reopening the source picker.
                     moviePlayback.resumeDebridMovieDirectly(item)
-                } else {
+                } else if (!movieDebridSources.playTopSource()) {
+                    // Nothing ranked yet (still loading, or none found) — the picker shows that
+                    // state honestly instead of the press doing nothing.
                     movieDebridSources.showDebridSourcePicker()
                 }
             } else {
