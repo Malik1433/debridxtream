@@ -93,9 +93,6 @@ class MovieDebridSourceController(
     val failedDebridStreamIds = linkedSetOf<String>()
     var pendingDebridReturnFocusStreamIds: List<String> = emptyList()
 
-    /** Exactly what the sources panel is showing, in the order it shows it — top row is the pick. */
-    private var visibleSources: List<MovieSource> = emptyList()
-
     lateinit var sourcesAdapter: MovieSourceAdapter
         private set
     private lateinit var sizeFilterAdapter: SizeFilterAdapter
@@ -248,7 +245,6 @@ class MovieDebridSourceController(
     private fun applySourceFilters(isInitialLoad: Boolean = false) {
         val updatedState = filterState.copy(preferredLanguage = preferredLanguage)
         val filteredSources = SourceFilterUtils.apply(allSources, updatedState)
-        visibleSources = filteredSources
         sourcesAdapter.submitList(filteredSources) {
             if (isInitialLoad) {
                 btnPlay.requestFocus()
@@ -261,26 +257,6 @@ class MovieDebridSourceController(
         if (!hasSources) {
             tvSourcesStatus.text = activity.getString(R.string.source_filters_empty)
         }
-    }
-
-    /**
-     * Play the top-ranked source without asking, for the Play button.
-     *
-     * "Play" used to open the source picker, which is a strange thing for a button called Play to
-     * do — and once a resume position existed it stopped doing even that, so the sources became
-     * unreachable from this screen entirely. Now the panel is on the page: Play plays, and choosing
-     * something else is a matter of moving right into the list.
-     *
-     * The top row IS the pick — [visibleSources] is the same filtered, ranked list the panel shows,
-     * so the button and the list can never disagree about what "best" means.
-     *
-     * @return false when there is nothing to play yet (sources still loading, or none found), so the
-     *   caller can fall back to the picker rather than swallow the press.
-     */
-    fun playTopSource(): Boolean {
-        val best = visibleSources.firstOrNull() ?: return false
-        applySelectedSource(best, shouldPlay = true)
-        return true
     }
 
     fun showDebridSourcePicker(returnFocusStreamIds: List<String> = emptyList()) {
