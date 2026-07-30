@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <item name="tag_focus_animator" type="id" />
+    <!-- Marks a container that must keep clipping — see FocusGlintHelper.markClipBoundary. -->
+    <item name="tag_focus_clip_boundary" type="id" />
 </resources>

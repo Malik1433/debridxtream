@@ -102,6 +102,11 @@ class SourceSelectionBottomSheet(
         chipLanguage = view.findViewById(R.id.chip_language)
         chipType = view.findViewById(R.id.chip_type)
 
+        // Keep a focused row's growth inside the list: the focus effect otherwise disables clipping
+        // all the way to the root, and a scaled row scrolling past the top rode over the
+        // Quality/Language/Type chips.
+        com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.markClipBoundary(rvSources)
+
         setupAdapters()
         setupContentInfo()
         updateUi()

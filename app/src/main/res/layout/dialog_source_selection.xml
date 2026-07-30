@@ -99,18 +99,42 @@
                     tools:text="EN PRIORITY" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/tv_dialog_title"
+            <!--
+                The left block is two stacked lines — "SELECT SOURCE" and the source count — and the
+                count is often the wider of the two. A barrier tracks whichever currently sticks out
+                furthest, so the title is held clear of both instead of only the one above it.
+            -->
+            <androidx.constraintlayout.widget.Barrier
+                android:id="@+id/barrier_header_left"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                app:barrierDirection="end"
+                app:constraint_referenced_ids="tv_header_title,tv_source_count" />
+
+            <!--
+                0dp + BOTH constraints, not wrap_content with one. It used to be constrained only at
+                its end, so a long film name grew leftwards straight over "SELECT SOURCE" — and the
+                ellipsize never fired, because with wrap_content there was no width to ellipsize
+                against. Now it is bounded on both sides and truncates instead of colliding.
+                constrainedWidth keeps a short name its natural size rather than stretching it.
+            -->
+            <TextView
+                android:id="@+id/tv_dialog_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
                 android:layout_marginEnd="8dp"
                 android:textColor="@color/text_muted"
                 android:textSize="10sp"
                 android:fontFamily="monospace"
                 android:maxLines="1"
                 android:ellipsize="end"
+                android:gravity="end"
+                app:layout_constrainedWidth="true"
+                app:layout_constraintHorizontal_bias="1.0"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/barrier_header_left"
                 app:layout_constraintEnd_toStartOf="@id/chip_lang_priority"
                 tools:text="Dune: Part Two (2024)" />
         </androidx.constraintlayout.widget.ConstraintLayout>
@@ -191,7 +215,8 @@
                 android:id="@+id/rv_sources"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:clipToPadding="true"
+                android:clipChildren="true"
+                android:clipToPadding="false"
                 android:paddingTop="6dp"
                 android:paddingBottom="6dp" />
 

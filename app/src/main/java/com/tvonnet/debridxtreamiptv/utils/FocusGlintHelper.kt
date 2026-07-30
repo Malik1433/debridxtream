@@ -41,6 +41,21 @@ object FocusGlintHelper {
         view.onFocusChangeListener = GlintFocusChangeListener(currentListener)
     }
 
+    /**
+     * Declare that [group] must keep clipping its children, so a focused row inside it cannot paint
+     * outside it.
+     *
+     * The focus effect scales the row up and, to stop the growth being cut off, disables clipping on
+     * every ancestor. That is right for a row floating over a page and wrong for one inside a list
+     * that has UI directly above it — the source sheet's rows rode over its filter chips. Mark the
+     * list and the growth stays inside it.
+     *
+     * Opt-in: unmarked trees behave exactly as before.
+     */
+    fun markClipBoundary(group: android.view.ViewGroup) {
+        group.setTag(com.tvonnet.debridxtreamiptv.R.id.tag_focus_clip_boundary, true)
+    }
+
     private class GlintFocusChangeListener(var originalListener: View.OnFocusChangeListener?) : View.OnFocusChangeListener {
         override fun onFocusChange(v: View, hasFocus: Boolean) {
             originalListener?.onFocusChange(v, hasFocus)
@@ -106,8 +121,14 @@ object FocusGlintHelper {
         // 0. Disable clipping on parents to prevent edge cutoffs
         // Note: We removed v.bringToFront() because it reorders children and can break focus navigation logic (skipping items).
         // translationZ(16f) handles the 3D draw order layering naturally on API 21+.
+        //
+        // The walk stops at a container marked by [markClipBoundary]. Without one it goes all the
+        // way to the root, which is what lets a focused row paint over whatever sits above its list
+        // — in the source sheet, the scaled row rode up over the Quality/Language/Type chips while
+        // scrolling. A boundary keeps the row's growth inside the list it belongs to.
         var parent = v.parent
         while (parent is android.view.ViewGroup) {
+            if (parent.getTag(com.tvonnet.debridxtreamiptv.R.id.tag_focus_clip_boundary) == true) break
             parent.clipChildren = false
             parent.clipToPadding = false
             parent = parent.parent
