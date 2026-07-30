@@ -142,6 +142,7 @@ class MovieDetailActivity : AppCompatActivity() {
     private lateinit var movieTrailerController: MovieTrailerController
     /** MD-3: Debrid + IPTV source acquisition + picker + filters + cache-status (source of truth). */
     private lateinit var movieDebridSources: MovieDebridSourceController
+    private lateinit var sourcePanel: MovieSourcePanelReveal
     /** MD-4: Debrid playback launch + resume + source-failover (reads source state via [movieDebridSources]). */
     private lateinit var moviePlayback: MovieDebridPlaybackController
     /** MD-5: TMDB details + OMDb ratings + similar-movies enrichment (writes metadata fields back). */
@@ -348,6 +349,13 @@ class MovieDetailActivity : AppCompatActivity() {
             launch = { playerLauncher.launch(it) }
         )
 
+        sourcePanel = MovieSourcePanelReveal(
+            panel = findViewById(R.id.container_sources),
+            sourceList = rvSources,
+            openTriggers = listOf(btnPlay, btnTrailer, btnFavorite),
+            onReturnFocus = { btnPlay.requestFocus() }
+        ).also { it.attachAutoClose(findViewById(android.R.id.content)) }
+
         setupClickListeners()
         setupFocusAnimations()
 
@@ -551,6 +559,20 @@ class MovieDetailActivity : AppCompatActivity() {
     }
 
     private fun configureTabs() {
+    }
+
+    /** RIGHT opens the sources panel; BACK closes it before it can exit the screen. */
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (::sourcePanel.isInitialized) {
+            if (sourcePanel.handleKeyEvent(event)) return true
+            if (event.keyCode == android.view.KeyEvent.KEYCODE_BACK &&
+                event.action == android.view.KeyEvent.ACTION_UP &&
+                sourcePanel.handleBack()
+            ) {
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     private fun setupClickListeners() {
