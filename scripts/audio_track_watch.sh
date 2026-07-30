@@ -19,6 +19,7 @@
 #
 # Usage:
 #   scripts/audio_track_watch.sh start [device]   # push + launch (safe to re-run; replaces)
+#   scripts/audio_track_watch.sh ensure [device]  # start it ONLY if it stopped (use after a reboot)
 #   scripts/audio_track_watch.sh status [device]  # is it alive, and the last few samples
 #   scripts/audio_track_watch.sh fetch  [device]  # pull the log + every forensic snapshot
 #   scripts/audio_track_watch.sh stop   [device]
@@ -189,8 +190,41 @@ is_alive() {
     adb_sh "kill -0 $pid 2>/dev/null && echo yes" | tr -d '\r' | grep -q yes
 }
 
+########################################################################################
+# ensure — start it only if it is not already running.
+#
+# The watcher does NOT survive a device reboot, and there is no fixing that from here: a
+# stock Fire TV has no cron and no way to hook boot from adb, and adding a BOOT_COMPLETED
+# receiver to the shipped app for a debug tool is the wrong trade. This already cost one
+# window — the Cube rebooted on 2026-07-30 and sampling had silently stopped a day and a
+# half earlier, for a bug that needs 3-4 days of uptime to appear.
+#
+# So the answer is to make the gap cheap to notice and cheap to close: run this whenever
+# the box has been off, and `status` below now says how old the last sample is instead of
+# just "RUNNING".
+########################################################################################
+cmd_ensure() {
+    if is_alive; then
+        echo "already running (last sample $(last_sample_age_note))"
+        return
+    fi
+    echo "not running — starting"
+    cmd_start
+}
+
+# Timestamp of the last sample, so a watcher that stopped hours ago is visible as such.
+last_sample_age_note() {
+    local last
+    last="$(adb_sh "tail -1 $LOG 2>/dev/null" | tr -d '\r' | cut -c1-19)"
+    if [ -z "$last" ]; then echo "never"; else echo "$last"; fi
+}
+
 cmd_status() {
-    if is_alive; then echo "watcher: RUNNING"; else echo "watcher: NOT running"; fi
+    if is_alive; then
+        echo "watcher: RUNNING (last sample $(last_sample_age_note))"
+    else
+        echo "watcher: NOT running — last sample $(last_sample_age_note); run 'ensure' to restart"
+    fi
     echo "samples: $(adb_sh "wc -l < $LOG 2>/dev/null" | tr -d '\r')"
     echo "alerts:  $(adb_sh "grep -c ALERT $LOG 2>/dev/null" | tr -d '\r')"
     echo "--- last 10 ---"
@@ -223,6 +257,7 @@ cmd_stop() {
 
 case "${1:-}" in
     start)  cmd_start ;;
+    ensure) cmd_ensure ;;
     status) cmd_status ;;
     fetch)  cmd_fetch ;;
     stop)   cmd_stop ;;
