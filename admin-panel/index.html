@@ -62,7 +62,10 @@
   .chip.normal { background:var(--neutral-100); color:var(--neutral-700); }
 
   .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  .hidden { display:none; }
+  /* !important because this is a utility class: an inline `display:` on the element would
+     otherwise outrank it and the element would never hide (the licensing warning banner did
+     exactly that — it announced "Enforcement is OFF" while enforcement was ON). */
+  .hidden { display:none !important; }
   #toast { position:fixed; bottom:24px; right:24px; background:#201e1d; color:#f3f2f2; border-left:3px solid var(--accent); padding:11px 17px; font-size:13px; font-weight:500; opacity:0; transition:opacity .3s; z-index:200; }
   label.field { display:block; margin-top:12px; }
   label.field span { display:block; font-size:12px; margin-bottom:4px; opacity:.7; }
