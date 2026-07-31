@@ -28,7 +28,10 @@ export default function PlaylistsPage() {
 
     useEffect(() => {
         if (!user) return
-        return watchPlaylists(user.uid, setRows, (e) => setListError(e.message))
+        // Clearing the error on every good snapshot matters: without it a message from an earlier
+        // failure stays on screen after the next action succeeds, telling the customer something
+        // went wrong when it didn't.
+        return watchPlaylists(user.uid, (r) => { setRows(r); setListError('') }, (e) => setListError(e.message))
     }, [user])
 
     if (loading || !user) {
@@ -72,6 +75,7 @@ export default function PlaylistsPage() {
 
     async function confirmRemove(p: Playlist) {
         if (!window.confirm(`Remove "${p.name}"? Devices using it will stop loading it.`)) return
+        setListError('')
         try { await removePlaylist(p.id) } catch (e: unknown) { setListError((e as { message?: string })?.message || 'Could not remove.') }
     }
 

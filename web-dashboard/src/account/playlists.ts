@@ -1,5 +1,5 @@
 import {
-    addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where,
+    addDoc, collection, deleteDoc, doc, onSnapshot, query, serverTimestamp, updateDoc, where,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 
@@ -55,15 +55,25 @@ export function validateDraft(d: PlaylistDraft): string | null {
     return null
 }
 
-/** Live list of the signed-in customer's playlists. The where() is what satisfies the read rule. */
+/**
+ * Live list of the signed-in customer's playlists. The where() is what satisfies the read rule.
+ *
+ * Sorted in JS rather than with orderBy(): combining a filter and a sort makes Firestore demand a
+ * composite index, which failed the whole list until the index was built. Somebody has a handful of
+ * playlists, so ordering them here costs nothing and removes a deploy-time dependency that could
+ * break this page in a fresh environment.
+ */
 export function watchPlaylists(ownerUid: string, cb: (rows: Playlist[]) => void, onError: (e: Error) => void) {
-    const q = query(
-        collection(db, 'playlists'),
-        where('ownerUid', '==', ownerUid),
-        orderBy('createdAt', 'asc'),
-    )
+    const q = query(collection(db, 'playlists'), where('ownerUid', '==', ownerUid))
     return onSnapshot(q, (snap) => {
-        cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Playlist, 'id'>) })))
+        const rows = snap.docs.map((d) => {
+            const data = d.data() as Omit<Playlist, 'id'> & { createdAt?: { toMillis?: () => number } }
+            return { row: { id: d.id, ...(data as Omit<Playlist, 'id'>) }, at: data.createdAt?.toMillis?.() ?? Number.MAX_SAFE_INTEGER }
+        })
+        // A doc written moments ago has a null serverTimestamp in the local echo. Sorting it last
+        // keeps a freshly added playlist from jumping position when the server value lands.
+        rows.sort((a, b) => a.at - b.at)
+        cb(rows.map((r) => r.row))
     }, onError)
 }
 

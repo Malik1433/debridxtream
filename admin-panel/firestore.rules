@@ -203,9 +203,16 @@ service cloud.firestore {
         (isSignedIn() && resource.data.ownerUid == request.auth.uid) ||
         (resource.data.ownerUid != null && resource.data.ownerUid == deviceOwnerUid());
       allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
-      allow update, delete: if isAdmin() ||
+      // The ownerUid re-check pins an edit to its current owner — a playlist can never be handed to
+      // another account by editing it.
+      allow update: if isAdmin() ||
         (isSignedIn() && resource.data.ownerUid == request.auth.uid &&
          request.resource.data.ownerUid == resource.data.ownerUid);
+      // Delete is SEPARATE and must not mention request.resource: on a delete there is no incoming
+      // document, so `request.resource.data.ownerUid` is an error and the whole condition fails.
+      // Sharing one rule with update silently made deletion impossible for the owner.
+      allow delete: if isAdmin() ||
+        (isSignedIn() && resource.data.ownerUid == request.auth.uid);
     }
 
     // ── Device → account binding ────────────────────────────────────────
