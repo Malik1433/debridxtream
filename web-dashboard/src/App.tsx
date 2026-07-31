@@ -4,6 +4,10 @@ import SignupPage from './pages/reseller/SignupPage'
 import LoginPage from './pages/reseller/LoginPage'
 import VerifyEmailPage from './pages/reseller/VerifyEmailPage'
 import DashboardPage from './pages/reseller/DashboardPage'
+import AccountPage from './pages/account/AccountPage'
+import AccountLoginPage from './pages/account/LoginPage'
+import AccountSignupPage from './pages/account/SignupPage'
+import AccountVerifyEmailPage from './pages/account/VerifyEmailPage'
 import './index.css'
 
 const RedirectToRoot = () => {
@@ -24,6 +28,13 @@ function App() {
                     <Route path="/reseller/login" element={<LoginPage />} />
                     <Route path="/reseller/signup" element={<SignupPage />} />
                     <Route path="/reseller/verify" element={<VerifyEmailPage />} />
+                    {/* Customer account — a different audience from /reseller (§7.0): resellers pay
+                        per device with no limit, customers get a device-limited subscription. Kept as
+                        separate route trees so neither can drift into the other's flow. */}
+                    <Route path="/account" element={<AccountPage />} />
+                    <Route path="/account/login" element={<AccountLoginPage />} />
+                    <Route path="/account/signup" element={<AccountSignupPage />} />
+                    <Route path="/account/verify" element={<AccountVerifyEmailPage />} />
                 </Routes>
             </div>
         </Router>
