@@ -67,6 +67,10 @@ class MainActivity : AppCompatActivity() {
         // Permanent companion channel: the phone/web config page can push updated
         // settings anytime via the device key (see CompanionConfigSync).
         com.tvonnet.debridxtreamiptv.ui.companion.CompanionConfigSync.start(this)
+        // Give this device an identity so ownership-based rules become possible (§7 U3).
+        // Fire-and-forget by design — nothing below waits on it, and it is a no-op while
+        // anonymous sign-in is disabled in the console.
+        com.tvonnet.debridxtreamiptv.data.licensing.DeviceIdentity.start(this)
         if (!license.isEntitledCached()) {
             startActivity(Intent(this, com.tvonnet.debridxtreamiptv.ui.licensing.ActivationActivity::class.java))
             finish()

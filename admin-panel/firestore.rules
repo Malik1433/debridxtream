@@ -215,6 +215,27 @@ service cloud.firestore {
         (isSignedIn() && resource.data.ownerUid == request.auth.uid);
     }
 
+    // ── Device identity (U3) ────────────────────────────────────────────
+    // A TV signs in anonymously and records "this anonymous uid is me" against its installId.
+    //
+    // This is a CLAIM OF IDENTITY, not a grant of access — nothing is readable because of it. The
+    // authorisation decision happens in claimDevice (U4), which reads this with the admin SDK while
+    // the account owner is standing in front of the television confirming it. That human step is
+    // what stops a doc here from being worth attacking.
+    //
+    // The rule pins authUid to the authenticated caller, so a device can only ever register ITSELF;
+    // it cannot nominate somebody else's identity. Overwrites are allowed by the same test, because
+    // clearing app data mints a fresh anonymous uid and a customer must not need support to recover
+    // from that.
+    match /device_identity/{installId} {
+      allow get: if isAdmin() ||
+        (isSignedIn() && resource.data.authUid == request.auth.uid);
+      allow list: if isAdmin();
+      allow create, update: if isAdmin() ||
+        (isSignedIn() && request.resource.data.authUid == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
     // ── Device → account binding ────────────────────────────────────────
     // A device may READ its own binding (to learn which account it belongs to) and may
     // never write one. Self-binding would let any device claim any account, which is the

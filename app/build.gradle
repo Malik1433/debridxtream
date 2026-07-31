@@ -270,6 +270,17 @@ dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.1.2')
     implementation 'com.google.firebase:firebase-firestore-ktx'
     implementation 'com.google.firebase:firebase-analytics-ktx'
+    // §7 U3: anonymous sign-in, so Firestore rules can express OWNERSHIP instead of
+    // "whoever knows the id may read it" (see DeviceIdentity).
+    //
+    // Pinned OUTSIDE the BOM on purpose. The BOM's firebase-auth 23.x requires minSdk 23, while
+    // every other Firebase library here (firestore 25, analytics 22, crashlytics 19) still supports
+    // 21 — so taking the BOM version would silently drop Fire OS 5 hardware (API 22) to add a
+    // background feature. 22.3.1 is the last line that supports minSdk 21.
+    // `strictly` because the BOM would otherwise pull 23.x back in — a plain version declaration
+    // loses to a BOM constraint (Gradle takes the higher of the two).
+    implementation('com.google.firebase:firebase-auth-ktx') { version { strictly '22.3.1' } }
+    implementation('com.google.firebase:firebase-auth') { version { strictly '22.3.1' } }
     // LP-D-1: remote crash reporting (works without Play services on Fire OS)
     implementation 'com.google.firebase:firebase-crashlytics-ktx'
 
