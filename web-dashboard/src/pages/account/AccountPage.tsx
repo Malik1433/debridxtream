@@ -71,13 +71,13 @@ export default function AccountPage() {
                             <p style={{ margin: 0, fontSize: 14, opacity: 0.6 }}>Scan the code shown on your TV to add it here. Coming in the next update.</p>
                         </div>
                     </div>
-                    <div className="card" style={{ padding: 22, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                    <button onClick={() => nav('/account/playlists')} className="card" style={{ padding: 22, display: 'flex', gap: 14, alignItems: 'flex-start', textAlign: 'left', cursor: 'pointer', width: '100%', font: 'inherit' }}>
                         <ListVideo size={20} style={{ flex: 'none', marginTop: 2, opacity: 0.5 }} />
                         <div>
                             <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>Your playlists</h3>
-                            <p style={{ margin: 0, fontSize: 14, opacity: 0.6 }}>Add your IPTV details once and every device you own picks them up. Coming in the next update.</p>
+                            <p style={{ margin: 0, fontSize: 14, opacity: 0.6 }}>Add your IPTV details once and every device you own picks them up.</p>
                         </div>
-                    </div>
+                    </button>
                 </div>
             </div>
         </div>

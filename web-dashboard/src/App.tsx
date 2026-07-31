@@ -8,6 +8,7 @@ import AccountPage from './pages/account/AccountPage'
 import AccountLoginPage from './pages/account/LoginPage'
 import AccountSignupPage from './pages/account/SignupPage'
 import AccountVerifyEmailPage from './pages/account/VerifyEmailPage'
+import PlaylistsPage from './pages/account/PlaylistsPage'
 import './index.css'
 
 const RedirectToRoot = () => {
@@ -35,6 +36,7 @@ function App() {
                     <Route path="/account/login" element={<AccountLoginPage />} />
                     <Route path="/account/signup" element={<AccountSignupPage />} />
                     <Route path="/account/verify" element={<AccountVerifyEmailPage />} />
+                    <Route path="/account/playlists" element={<PlaylistsPage />} />
                 </Routes>
             </div>
         </Router>
