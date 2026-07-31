@@ -139,6 +139,84 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ════════════════════════════════════════════════════════════════════
+    // END-USER ACCOUNTS — §7 of docs/reports/ANTI_PIRACY_DECISION.md, phase U0.
+    //
+    // Nothing reads or writes these yet; this is the skeleton so later phases add
+    // behaviour, not permissions. The point of the whole section is one shift: today
+    // `device_codes` says "whoever knows the key may read the customer's IPTV password".
+    // Here, access follows OWNERSHIP instead — which is the only version of this that
+    // can actually be made safe.
+    //
+    // Entitlement is never client-writable. `subscriptions` and `device_auth` are
+    // written exclusively by the callable Functions (admin SDK bypasses rules), because
+    // device-slot counting cannot be expressed in rules — rules cannot count.
+    // ════════════════════════════════════════════════════════════════════
+
+    // The uid of the account that owns the DEVICE making this request, or null when the
+    // caller is not a bound device. One document read; used to let a TV read its owner's
+    // playlists without granting it anything else.
+    function deviceOwnerUid() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/device_auth/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/device_auth/$(request.auth.uid)).data.ownerUid
+        : null;
+    }
+
+    // ── End-user profiles ───────────────────────────────────────────────
+    // Firebase Auth is the identity; this doc is just profile. Deliberately NOT where
+    // entitlement lives — a user who can edit their own profile must never be one field
+    // away from editing what they are entitled to.
+    match /users/{uid} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update: if isAdmin() || (
+        isSignedIn() && request.auth.uid == uid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['displayName', 'phone', 'country', 'contact'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ── Subscriptions (entitlement truth) ───────────────────────────────
+    // The customer and their reseller may LOOK; only Functions/admin may write. deviceLimit
+    // and expiresAt decide what someone paid for, so a client write path here would make
+    // every other control in this file decorative.
+    match /subscriptions/{subId} {
+      allow get: if isAdmin() ||
+        (isSignedIn() && (resource.data.ownerUid == request.auth.uid ||
+                          resource.data.resellerId == request.auth.uid));
+      allow list: if isAdmin() ||
+        (isSignedIn() && (resource.data.ownerUid == request.auth.uid ||
+                          resource.data.resellerId == request.auth.uid));
+      allow write: if isAdmin();
+    }
+
+    // ── Playlists (the customer's own IPTV credentials) ─────────────────
+    // The owner has full CRUD. A bound device gets READ ONLY, and only for playlists
+    // belonging to the account that owns it — this is what replaces the device_codes push
+    // channel, and why an edit on the phone reaches the TV without anything being pushed.
+    // Queries MUST filter on ownerUid or the list rule cannot be satisfied.
+    match /playlists/{playlistId} {
+      allow get, list: if isAdmin() ||
+        (isSignedIn() && resource.data.ownerUid == request.auth.uid) ||
+        (resource.data.ownerUid != null && resource.data.ownerUid == deviceOwnerUid());
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isAdmin() ||
+        (isSignedIn() && resource.data.ownerUid == request.auth.uid &&
+         request.resource.data.ownerUid == resource.data.ownerUid);
+    }
+
+    // ── Device → account binding ────────────────────────────────────────
+    // A device may READ its own binding (to learn which account it belongs to) and may
+    // never write one. Self-binding would let any device claim any account, which is the
+    // same class of hole as a client writing its own entitlement.
+    match /device_auth/{authUid} {
+      allow get: if isAdmin() || (isSignedIn() && request.auth.uid == authUid);
+      allow list: if isAdmin();
+      allow write: if isAdmin();
+    }
+
     // Everything else: locked.
     match /{document=**} {
       allow read, write: if false;
