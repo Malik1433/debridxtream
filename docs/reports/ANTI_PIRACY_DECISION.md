@@ -1,6 +1,7 @@
 # Anti-piracy: what is actually achievable, and the one decision it depends on
 
-**Status:** decision needed from the owner before any of this is built.
+**Status:** §6 decided and §4.4 shipped. **§7 (end-user accounts + device slots + playlist management)
+is the live plan** — three questions in §7.8 need the owner before U0 starts.
 **Date:** 2026-07-31. Written after a research pass plus reading how credentials actually flow here.
 
 ---
@@ -75,6 +76,9 @@ when the signing certificate changes).
 Move credential delivery behind the licence. Companion pairing writes them to your backend; the TV
 fetches per session rather than storing them permanently. Touches the **live pairing flow**, so it
 needs owner-present QA.
+> **Superseded 2026-07-31 by §7.** Dropped as an anti-piracy measure (see §6) — but the *account*
+> half of it came back for a different and better reason: managing the customer's own playlists.
+> §7 is that design.
 
 ### 4.3 Hardware key attestation — works on Fire TV, unlike Play Integrity
 Play Integrity needs Play Services, which Fire TV does not have. **Android hardware key attestation
@@ -127,3 +131,131 @@ pairing flow for a lock with no door behind it.
 will stop repackaged redistribution. A determined person with the APK and their own subscription will
 still get through, and nothing buildable on the client changes that. That is the ceiling, and it is
 worth knowing rather than paying to discover.
+
+---
+
+## 7. End-user accounts, device slots, and playlist management (plan, 2026-07-31)
+
+**Requested by the owner**, TiviMate-shaped: the customer makes their own account on the companion
+site, one subscription covers N devices, they scan the QR on the TV to attach a device, and they can
+add and edit their playlists at any time from the phone.
+
+This is not an anti-piracy feature and should not be sold to ourselves as one — under §6 the customer
+brings their own subscription, so nothing here makes the APK harder to crack. It earns its place for
+two other reasons, and both are real:
+
+1. **It closes the credential leak.** Today `device_codes/{code}` is `allow get, create, update: if
+   true` and holds the customer's Xtream username and password in plaintext. The key is printed on the
+   TV screen and handed to the provider. Anyone who sees it can read those credentials and overwrite
+   that TV's config. An account model replaces *"knowing the key grants access"* with *"owning the
+   record grants access"*, which is the only framing that actually fixes this.
+2. **Device counting is the one real answer to account sharing** (§2 already says so). It is not an
+   anti-tamper problem and no client hardening addresses it.
+
+### 7.1 The decisions this rests on
+
+**D1 — The subscription becomes the unit of entitlement; `licenses/{installId}` stays exactly as it
+is.** The TV's licence gate reads `licenses/{installId}` and it is device-verified and working.
+Claiming a device writes *the same fields the TV already reads*. **The licence gate is not rewritten
+and not touched.** This is the difference between a feature and an outage.
+
+**D2 — The TV gets an identity: Firebase Anonymous auth, bound to the device when it is claimed.**
+Without an identity, every rule we can write reduces to "knows the key ⇒ allowed", which is the bug.
+With one, rules can express ownership. The anonymous uid is lost if app data is cleared — but
+`installId` is derived from `ANDROID_ID` and survives `pm clear` (verified on `.64` today), so a
+Function can re-bind a returning device automatically without the customer doing anything.
+
+**D3 — Devices READ playlists; the phone stops PUSHING config.** An edit on the phone reaches the TV
+through the device's own listener. This is what "edit any time" actually requires, and it deletes the
+push channel that carries the credentials.
+
+**D4 — `device_codes` is demoted to a short-lived claim ticket carrying no credentials.** Once nothing
+sensitive is stored there, the pending *"encrypt device_codes at rest"* task is **not needed** —
+ownership rules are strictly stronger than encrypting a world-readable document. Do not build both.
+
+**D5 — Email verification must not stand between a paying customer and their first frame.** Give an
+unverified account a **48-hour window in which everything works**, then require verification for
+claiming and editing. Same reasoning as the licence grace shipped in §4.4: lenient where being wrong
+punishes a real customer, bounded so it is not a hole. The reseller's activate-by-code path stays as
+the fallback so nobody is ever stuck at 9pm.
+
+**D6 — Slot accounting lives in a Function transaction, never in rules.** Rules cannot count.
+And a freed slot must not make "5 devices" mean unlimited: cap **swaps per subscription per 30 days**
+(suggest 2). This number is a business knob, not a technical one — owner sets it.
+
+### 7.2 Data model (additions only; nothing existing changes shape)
+
+| Collection | Shape | Notes |
+|---|---|---|
+| `users/{uid}` | `{email, displayName, createdAt, status}` | uid = Firebase Auth uid. Profile only; Auth is the identity |
+| `subscriptions/{subId}` | `{ownerUid, resellerId, planId, tier, status, expiresAt, deviceLimit, swapsUsed, swapWindowStart, createdAt}` | entitlement truth |
+| `playlists/{playlistId}` | `{ownerUid, name, type:'xtream'\|'m3u', url, username, password, enabled, createdAt, updatedAt}` | owner-scoped; see 7.6 on encryption |
+| `device_auth/{authUid}` | `{installId, ownerUid, subscriptionId}` | lets rules resolve "which device is this caller" |
+| `licenses/{installId}` | **+** `{ownerUid, subscriptionId, deviceName, lastSeenAt}` | existing fields untouched — the TV keeps reading what it reads |
+| `plans/{planId}` | **+** `{deviceLimit}` | reseller-visible |
+
+### 7.3 Cloud Functions (Blaze is already enabled; `activateClient`/`renewClient` are live)
+
+- `claimDevice({activationCode, deviceName})` — auth required. Resolve the licence by code, assert the
+  caller has an active subscription **with a free slot**, then in one transaction bind
+  `licenses/{installId}.{ownerUid, subscriptionId}`, project `{status, tier, expiresAt}` from the
+  subscription, write `device_auth`, and audit. Idempotent on re-claim by the same owner.
+- `releaseDevice({installId})` — frees a slot, increments `swapsUsed`, refuses past the cap.
+- `rebindDevice({installId, newAuthUid})` — the `pm clear` / reinstall path; allowed only when the
+  device is already owned, so it needs no customer action.
+- `activateSubscription({userEmail, planId})` — the reseller sells a *subscription* instead of a single
+  device. Existing `activateClient` stays untouched for the legacy device-at-a-time flow.
+
+### 7.4 Rules, in one line each
+
+`users` own-read/own-write. `subscriptions` own-read, **writes function-only**. `playlists` full CRUD
+for `ownerUid == request.auth.uid`, plus **read** for a bound device (`get(device_auth/$(uid)).ownerUid
+== resource.data.ownerUid`). `device_codes` loses `get` for anyone but the owning account once the
+claim ticket carries no credentials. `licenses` keeps its current device-unauth create/telemetry
+rules; the new ownership fields are function-only.
+
+### 7.5 The QR journey (the part that decides whether customers succeed)
+
+TV shows a QR for `https://<companion>/link?code=DZ5D-WKV7`. The code must survive the whole detour:
+
+| State on arrival | What happens |
+|---|---|
+| Not signed in | signup/login, **`code` preserved through the round trip**, land back on the claim screen |
+| Signed in, unverified, <48h | claim proceeds (D5) with a "verify your email" banner |
+| Signed in, no subscription | "ask your provider" + the activation code shown for the reseller |
+| Signed in, slot free | "Add this TV?" → `claimDevice` → the TV's existing listener unlocks it |
+| Signed in, slots full | device list, remove one to continue (subject to the swap cap) |
+| No playlist yet | straight into "add your first playlist", test-connection via the existing `api/verify-iptv.ts` |
+
+### 7.6 Build phases — one commit each, verify before moving on
+
+| # | Phase | Ships behaviour? |
+|---|---|---|
+| U0 | Data model + `plans.deviceLimit` + rules skeleton | no |
+| U1 | End-user auth on the companion (signup / login / verify) + `users/{uid}` | web only |
+| U2 | Playlists CRUD, owner-scoped, with connection test | web only |
+| U3 | TV anonymous auth + `device_auth` binding — TV still uses the old path | no |
+| U4 | `claimDevice` / `releaseDevice` / `rebindDevice` + slot transaction | no |
+| U5 | `/link?code=` journey incl. the signup-and-return path (7.5) | yes |
+| U6 | TV reads playlists from the account, **behind a flag**, old path intact | flagged |
+| U7 | Devices page (list / rename / remove) + reseller sees `deviceLimit` | yes |
+| U8 | Flip the flag, stop writing credentials to `device_codes`, tighten rules | yes |
+| U9 | TV QR screen wording + D-pad pass | yes |
+
+**Migration:** a device with no `ownerUid` keeps behaving exactly as it does today. There is no forced
+migration and no flag day. U8 only stops *writing* credentials to `device_codes`; existing devices that
+never get claimed carry on.
+
+### 7.7 What this does NOT do
+
+It does not make the app harder to crack (§6 still stands), it does not stop a customer sharing their
+own Xtream credentials outside the app, and it adds a real support burden — password resets and
+verification emails for end users, which we do not have today. That burden is the actual price of this
+feature and it should be weighed as such.
+
+### 7.8 Open — owner's call before U0
+
+1. **Device limit**: how many, and does it come from the plan or per-subscription?
+2. **Can end users buy directly**, or only through a reseller? (Decides whether the payment path from
+   the reseller portal has to be duplicated for consumers.)
+3. **Swap cap** number (D6).
