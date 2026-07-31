@@ -59,27 +59,35 @@ object AccountPlaylistSync {
             Log.w(TAG, "auth unavailable", e); started = false; return
         }
 
-        val uid = auth.currentUser?.uid
-        if (uid != null) { bind(appContext, uid); return }
-
-        // On the very first launch DeviceIdentity is still signing in, so waiting is the difference
-        // between "works" and "works on the second launch". The listener removes itself as soon as
-        // an identity appears — leaving it attached would be exactly the kind of stray callback that
-        // has leaked fragments in this app before.
-        val listener = FirebaseAuth.AuthStateListener { a ->
-            val newUid = a.currentUser?.uid ?: return@AuthStateListener
-            authListener?.let { a.removeAuthStateListener(it) }
-            authListener = null
-            bind(appContext, newUid)
-        }
+        // The listener STAYS attached for the app's lifetime rather than resolving once (§8.1).
+        // Identity here is not fixed: the device starts anonymous, and signing in for premium
+        // replaces that uid with the customer's own. Binding a single time would leave the sync
+        // pointed at an identity that no longer exists — playlists would stop with no error, on a
+        // device that was working a second earlier.
+        val listener = FirebaseAuth.AuthStateListener { a -> resolveOwner(appContext, a.currentUser) }
         authListener = listener
-        auth.addAuthStateListener(listener)
+        auth.addAuthStateListener(listener) // fires immediately with the current state
     }
 
-    private fun bind(appContext: Context, uid: String) {
-        if (bindingListener != null) return
+    /**
+     * Works out whose playlists this device should be reading, for either kind of identity.
+     *
+     * Signed in as a real user, the owner IS the caller — no indirection needed, and the rules let
+     * them read their own playlists directly. Anonymous, we are a claimed TV and the owner is
+     * whoever `device_auth` says claimed us.
+     */
+    private fun resolveOwner(appContext: Context, user: com.google.firebase.auth.FirebaseUser?) {
+        bindingListener?.remove(); bindingListener = null
+        playlistListener?.remove(); playlistListener = null
+
+        if (user == null) return
+        if (!user.isAnonymous) {
+            Log.i(TAG, "signed-in account - reading its playlists directly")
+            watchPlaylists(appContext, user.uid)
+            return
+        }
         bindingListener = FirebaseFirestore.getInstance()
-            .collection("device_auth").document(uid)
+            .collection("device_auth").document(user.uid)
             .addSnapshotListener { snap, e ->
                 if (e != null) { Log.w(TAG, "binding listen failed", e); return@addSnapshotListener }
                 val ownerUid = snap?.getString("ownerUid")
