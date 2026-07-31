@@ -10,6 +10,20 @@ import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import com.tvonnet.debridxtreamiptv.network.CompanionUrlValidator
 
+/** One IPTV source on the customer's account, as the TV sees it. */
+data class AccountPlaylist(
+    val id: String,
+    val name: String,
+    val url: String,
+    val username: String,
+    val password: String,
+    val enabled: Boolean,
+    val isXtream: Boolean,
+    val createdAtMs: Long,
+    /** installId this playlist is addressed to; empty means every device on the account. */
+    val assignedTo: String,
+)
+
 /**
  * Reads the customer's playlists from their ACCOUNT (§7 U6).
  *
@@ -22,22 +36,16 @@ import com.tvonnet.debridxtreamiptv.network.CompanionUrlValidator
  * Because the TV reads rather than being pushed to, an edit on the phone lands here on its own — no
  * second mechanism, no "push again" button.
  *
+ * **One server per device, and no way to switch.** The account may hold several playlists, but each
+ * is addressed to a TV (or to all of them) and a device runs exactly the one that applies to it.
+ * Switching servers on a device is deliberately impossible: watch history, favourites and the
+ * catalogue are keyed by stream id with no record of the provider, so a switch would leave Continue
+ * Watching full of entries belonging to the other server.
+ *
  * **Behind a flag, defaulting OFF.** It rewrites the credentials the app logs in with, which is the
  * single most disruptive thing that can be done to a working install, so it ships dark. The old
  * companion path is untouched and keeps working either way.
  */
-/** One IPTV source on the customer's account, as the TV sees it. */
-data class AccountPlaylist(
-    val id: String,
-    val name: String,
-    val url: String,
-    val username: String,
-    val password: String,
-    val enabled: Boolean,
-    val isXtream: Boolean,
-    val createdAtMs: Long,
-)
-
 object AccountPlaylistSync {
 
     private const val TAG = "AccountPlaylistSync"
@@ -58,10 +66,6 @@ object AccountPlaylistSync {
      */
     @Volatile
     var onCredentialsApplied: (() -> Unit)? = null
-
-    /** Fired when the account's playlist list changes, so an open Settings screen can refresh. */
-    @Volatile
-    var onPlaylistsChanged: (() -> Unit)? = null
 
     /** Latest snapshot of the account's playlists. Written from the Firestore listener (main thread). */
     @Volatile
@@ -142,6 +146,7 @@ object AccountPlaylistSync {
                     val assignedTo = doc.getString("deviceId").orEmpty()
                     if (assignedTo.isNotEmpty() && assignedTo != installId) return@mapNotNull null
                     AccountPlaylist(
+                        assignedTo = assignedTo,
                         id = doc.id,
                         name = doc.getString("name").orEmpty().ifBlank { hostOf(url) },
                         url = url,
@@ -156,40 +161,28 @@ object AccountPlaylistSync {
                         createdAtMs = doc.getTimestamp("createdAt")?.toDate()?.time ?: Long.MAX_VALUE,
                     )
                 }.sortedBy { it.createdAtMs }
-                runCatching { onPlaylistsChanged?.invoke() }
-
                 applyActive(appContext)
             }
     }
 
     /**
-     * Applies whichever playlist this TV is set to use.
+     * Applies the one playlist this TV should run. **Most specific assignment wins**: a playlist
+     * addressed to this device beats one marked "all devices".
      *
-     * The chosen id is looked up first; the first usable one is only a FALLBACK, for a device that
-     * has never chosen and for the case where the selected playlist was deleted on the phone.
-     * Before §8.3 the fallback was the whole rule, which is a coin flip the moment someone owns two.
+     * There is deliberately no way to switch servers on a device. Watch history, favourites and the
+     * catalogue are all keyed by stream id with no record of which provider it came from — so
+     * switching would leave Continue Watching full of entries that belong to the other server and
+     * cannot play. One server per device is what this app's data layer actually supports; the
+     * account holds several so that DIFFERENT TVs can run different ones, which is safe because each
+     * device only ever sees one.
      */
     private fun applyActive(appContext: Context) {
-        val settings = SettingsPreferences(appContext)
         val usable = available.filter { it.enabled && it.isXtream }
-        val activeId = settings.getActivePlaylistId()
-        val chosen = usable.firstOrNull { it.id == activeId } ?: usable.firstOrNull() ?: return
-
-        // Remember a fallback choice so the TV does not silently move to a different provider the
-        // next time the list order changes.
-        if (chosen.id != activeId) settings.setActivePlaylistId(chosen.id)
-
+        val installId = LicenseManager.getInstance(appContext).installId
+        val chosen = usable.firstOrNull { it.assignedTo == installId }
+            ?: usable.firstOrNull { it.assignedTo.isEmpty() }
+            ?: return
         apply(appContext, chosen.url, chosen.username, chosen.password)
-    }
-
-    /** The playlists on this account, for the Settings picker. Empty until the first snapshot. */
-    fun availablePlaylists(): List<AccountPlaylist> = available.filter { it.enabled && it.isXtream }
-
-    /** Switches this TV to another playlist from the same account. */
-    fun selectPlaylist(context: Context, id: String) {
-        val appContext = context.applicationContext
-        SettingsPreferences(appContext).setActivePlaylistId(id)
-        applyActive(appContext)
     }
 
     private fun hostOf(url: String): String =

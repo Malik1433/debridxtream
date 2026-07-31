@@ -168,20 +168,6 @@ class SettingsPreferences(private val context: Context) {
         prefs.edit().putBoolean(KEY_ACCOUNT_PLAYLIST_SYNC, enabled).apply()
     }
 
-    /**
-     * §8.3: which of the account's playlists this TV is using. Null until the customer chooses.
-     *
-     * Stored per DEVICE, not on the account: one household can run a different provider in the
-     * bedroom than in the living room, which is the whole point of holding several.
-     */
-    fun getActivePlaylistId(): String? {
-        return prefs.getString(KEY_ACTIVE_PLAYLIST_ID, null)
-    }
-
-    fun setActivePlaylistId(id: String?) {
-        prefs.edit().apply { if (id == null) remove(KEY_ACTIVE_PLAYLIST_ID) else putString(KEY_ACTIVE_PLAYLIST_ID, id) }.apply()
-    }
-
     fun getLastLiveStreamId(): String? {
         return prefs.getString(KEY_LAST_LIVE_STREAM_ID, null)
     }
@@ -236,7 +222,6 @@ class SettingsPreferences(private val context: Context) {
         // Live TV resume
         const val KEY_RESUME_LAST_LIVE = "resume_last_live"
         const val KEY_ACCOUNT_PLAYLIST_SYNC = "account_playlist_sync"
-        const val KEY_ACTIVE_PLAYLIST_ID = "account_active_playlist_id"
         const val KEY_LAST_LIVE_STREAM_ID = "last_live_stream_id"
         const val KEY_LAST_LIVE_CATEGORY_ID = "last_live_category_id"
     }

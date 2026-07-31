@@ -263,9 +263,6 @@ class SettingsFragment : Fragment() {
                 state.accountServer?.takeIf { it.isNotBlank() }?.let { server ->
                     SettingItem.Info(key = "account_server", title = "Provider", value = serverHost(server))
                 },
-                // §8.3: only offered when the account actually holds more than one. A picker with a
-                // single entry is a row that does nothing.
-                accountPlaylistRow(),
                 SettingItem.Action(
                     key = "logout_account",
                     title = "Sign Out",
@@ -275,25 +272,6 @@ class SettingsFragment : Fragment() {
             )
         }
         detailAdapter.submitList(items)
-    }
-
-    /**
-     * The "Playlist" row, or null when there is nothing to choose between (§8.3).
-     *
-     * Hidden for the many customers who have exactly one playlist — and for everyone who has not
-     * turned account sync on — rather than showing a chooser with one option in it.
-     */
-    private fun accountPlaylistRow(): SettingItem? {
-        val playlists = com.tvonnet.debridxtreamiptv.ui.companion.AccountPlaylistSync.availablePlaylists()
-        if (playlists.size < 2) return null
-        val activeId = com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(requireContext()).getActivePlaylistId()
-        val active = playlists.firstOrNull { it.id == activeId } ?: playlists.first()
-        return SettingItem.Selection(
-            key = "account_playlist",
-            title = "Playlist",
-            currentValue = active.name,
-            onClick = { dialogs.showAccountPlaylistSelector() }
-        )
     }
 
     /** Providers are configured by URL; the host alone is what identifies one to a viewer. */
