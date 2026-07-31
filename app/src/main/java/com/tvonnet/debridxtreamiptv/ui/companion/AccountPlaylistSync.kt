@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.tvonnet.debridxtreamiptv.data.licensing.LicenseManager
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import com.tvonnet.debridxtreamiptv.network.CompanionUrlValidator
@@ -34,6 +35,7 @@ data class AccountPlaylist(
     val password: String,
     val enabled: Boolean,
     val isXtream: Boolean,
+    val createdAtMs: Long,
 )
 
 object AccountPlaylistSync {
@@ -131,8 +133,14 @@ object AccountPlaylistSync {
                 if (e != null) { Log.w(TAG, "playlist listen failed", e); return@addSnapshotListener }
                 val docs = snap?.documents ?: return@addSnapshotListener
 
+                val installId = LicenseManager.getInstance(appContext).installId
                 available = docs.mapNotNull { doc ->
                     val url = doc.getString("url") ?: return@mapNotNull null
+                    // Blank deviceId means "every device" — that is what keeps playlists saved
+                    // before assignment existed working, and what lets one provider serve a whole
+                    // household without being assigned to each TV in turn.
+                    val assignedTo = doc.getString("deviceId").orEmpty()
+                    if (assignedTo.isNotEmpty() && assignedTo != installId) return@mapNotNull null
                     AccountPlaylist(
                         id = doc.id,
                         name = doc.getString("name").orEmpty().ifBlank { hostOf(url) },
@@ -141,8 +149,13 @@ object AccountPlaylistSync {
                         password = doc.getString("password").orEmpty(),
                         enabled = doc.getBoolean("enabled") != false,
                         isXtream = doc.getString("type") != "m3u",
+                        // Sorted by the same key the phone sorts by, so "the first one" means the
+                        // same thing in both places. Firestore's default order is by document id,
+                        // which would have made the TV's fallback pick something the customer never
+                        // saw at the top of their list.
+                        createdAtMs = doc.getTimestamp("createdAt")?.toDate()?.time ?: Long.MAX_VALUE,
                     )
-                }
+                }.sortedBy { it.createdAtMs }
                 runCatching { onPlaylistsChanged?.invoke() }
 
                 applyActive(appContext)

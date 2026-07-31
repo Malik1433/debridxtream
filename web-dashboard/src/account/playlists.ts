@@ -21,12 +21,20 @@ export interface Playlist {
     username: string
     password: string
     enabled: boolean
+    /**
+     * Which TV this playlist is for — the device's installId.
+     *
+     * Empty means EVERY device, and that is the default on purpose: a playlist saved before this
+     * field existed keeps working everywhere, and someone running one provider on all their TVs
+     * never has to assign it three times.
+     */
+    deviceId?: string
 }
 
 export type PlaylistDraft = Omit<Playlist, 'id' | 'ownerUid'>
 
 export function emptyDraft(): PlaylistDraft {
-    return { name: '', type: 'xtream', url: '', username: '', password: '', enabled: true }
+    return { name: '', type: 'xtream', url: '', username: '', password: '', enabled: true, deviceId: '' }
 }
 
 /** Trailing slashes break the `player_api.php` join, so they come off once, here. */
@@ -86,6 +94,7 @@ export async function createPlaylist(ownerUid: string, d: PlaylistDraft) {
         username: d.username.trim(),
         password: d.password,
         enabled: d.enabled,
+        deviceId: d.deviceId || '',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     })
@@ -101,6 +110,7 @@ export async function savePlaylist(id: string, d: PlaylistDraft) {
         username: d.username.trim(),
         password: d.password,
         enabled: d.enabled,
+        deviceId: d.deviceId || '',
         updatedAt: serverTimestamp(),
     })
 }

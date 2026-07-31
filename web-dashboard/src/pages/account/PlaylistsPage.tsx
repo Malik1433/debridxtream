@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useAccount } from '../../account/useAccount'
 import { verificationGrace } from '../../account/verificationGrace'
+import { watchDevices, type AccountDevice } from '../../account/devices'
 import {
     createPlaylist, emptyDraft, removePlaylist, savePlaylist, testPlaylist, validateDraft,
     watchPlaylists, type Playlist, type PlaylistDraft,
@@ -14,6 +15,7 @@ export default function PlaylistsPage() {
     const nav = useNavigate()
     const { user, profile, loading } = useAccount()
     const [rows, setRows] = useState<Playlist[]>([])
+    const [devices, setDevices] = useState<AccountDevice[]>([])
     const [listError, setListError] = useState('')
     const [editingId, setEditingId] = useState<string | null>(null)
     const [draft, setDraft] = useState<PlaylistDraft | null>(null)
@@ -34,6 +36,14 @@ export default function PlaylistsPage() {
         return watchPlaylists(user.uid, (r) => { setRows(r); setListError('') }, (e) => setListError(e.message))
     }, [user])
 
+    // The dropdown lists the TVs already on this account. Picking one beats typing an 8-character
+    // code on a phone, where a single wrong character means the playlist silently reaches no TV at
+    // all and there is nothing on screen to explain why.
+    useEffect(() => {
+        if (!user) return
+        return watchDevices(user.uid, setDevices, () => { /* the picker just falls back to All devices */ })
+    }, [user])
+
     if (loading || !user) {
         return <div className="mod" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', opacity: 0.5 }}>Loading…</div>
     }
@@ -44,7 +54,7 @@ export default function PlaylistsPage() {
     function startAdd() { setEditingId('new'); setDraft(emptyDraft()); setError(''); setTestMsg('') }
     function startEdit(p: Playlist) {
         setEditingId(p.id)
-        setDraft({ name: p.name, type: p.type, url: p.url, username: p.username, password: p.password, enabled: p.enabled !== false })
+        setDraft({ name: p.name, type: p.type, url: p.url, username: p.username, password: p.password, enabled: p.enabled !== false, deviceId: p.deviceId || '' })
         setError(''); setTestMsg('')
     }
     function cancel() { setEditingId(null); setDraft(null); setError(''); setTestMsg('') }
@@ -118,6 +128,17 @@ export default function PlaylistsPage() {
                             <Field label="Server address"><input className="input" value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} placeholder="http://your-provider.com:8080" /></Field>
                             <Field label="Username"><input className="input" value={draft.username} onChange={(e) => setDraft({ ...draft, username: e.target.value })} autoComplete="off" /></Field>
                             <Field label="Password"><input className="input" type="password" value={draft.password} onChange={(e) => setDraft({ ...draft, password: e.target.value })} autoComplete="new-password" /></Field>
+                            <Field label="Use it on">
+                                <select className="input" value={draft.deviceId || ''} onChange={(e) => setDraft({ ...draft, deviceId: e.target.value })}>
+                                    <option value="">All my devices</option>
+                                    {devices.map((d) => (
+                                        <option key={d.installId} value={d.installId}>{d.deviceName || d.activationCode || d.installId.slice(0, 8)}</option>
+                                    ))}
+                                </select>
+                            </Field>
+                            {devices.length === 0 && (
+                                <p style={{ margin: 0, fontSize: 12, opacity: 0.5 }}>Add a TV to your account first if you want this playlist on one TV only.</p>
+                            )}
                             <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 14 }}>
                                 <input type="checkbox" checked={draft.enabled} onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })} />
                                 Use this playlist on my devices
@@ -149,7 +170,7 @@ export default function PlaylistsPage() {
                                 {/* Host only — the full URL carries nothing secret, but showing it in a list
                                     invites shoulder-surfing in a living room. The password is never rendered. */}
                                 <div className="mono" style={{ fontSize: 12, opacity: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {safeHost(p.url)} · {p.username}
+                                    {safeHost(p.url)} · {p.username} · {deviceLabel(p.deviceId, devices)}
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
@@ -166,4 +187,17 @@ export default function PlaylistsPage() {
 
 function safeHost(url: string): string {
     try { return new URL(url).host } catch { return url }
+}
+
+/**
+ * What the row says about where this playlist goes.
+ *
+ * A device that was unlinked leaves playlists pointing at an id that is no longer on the account.
+ * Saying so ("removed TV") is better than showing a raw id or silently pretending it is unassigned —
+ * the customer would otherwise wonder why a playlist reaches nothing.
+ */
+function deviceLabel(deviceId: string | undefined, devices: AccountDevice[]): string {
+    if (!deviceId) return 'all devices'
+    const d = devices.find((x) => x.installId === deviceId)
+    return d ? (d.deviceName || d.activationCode || d.installId.slice(0, 8)) : 'removed TV'
 }
