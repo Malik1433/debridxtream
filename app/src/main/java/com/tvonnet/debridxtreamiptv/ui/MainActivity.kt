@@ -71,6 +71,9 @@ class MainActivity : AppCompatActivity() {
         // Fire-and-forget by design — nothing below waits on it, and it is a no-op while
         // anonymous sign-in is disabled in the console.
         com.tvonnet.debridxtreamiptv.data.licensing.DeviceIdentity.start(this)
+        // §7 U6: read this account's playlists instead of waiting to be pushed to. Flag-gated,
+        // default OFF — it rewrites the credentials we log in with.
+        com.tvonnet.debridxtreamiptv.ui.companion.AccountPlaylistSync.start(this)
         if (!license.isEntitledCached()) {
             startActivity(Intent(this, com.tvonnet.debridxtreamiptv.ui.licensing.ActivationActivity::class.java))
             finish()

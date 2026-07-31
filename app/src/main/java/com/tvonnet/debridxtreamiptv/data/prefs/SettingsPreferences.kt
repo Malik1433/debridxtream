@@ -152,6 +152,22 @@ class SettingsPreferences(private val context: Context) {
         prefs.edit().putBoolean(KEY_RESUME_LAST_LIVE, enabled).apply()
     }
 
+    /**
+     * §7 U6: read IPTV credentials from the customer's ACCOUNT (playlists) instead of only from a
+     * companion push.
+     *
+     * Defaults OFF. It rewrites the credentials the app logs in with, so it ships dark and is turned
+     * on deliberately after the claim flow has been exercised on real hardware:
+     *   adb shell am broadcast … or edit `iptv_settings` → account_playlist_sync = true
+     */
+    fun isAccountPlaylistSyncEnabled(): Boolean {
+        return prefs.getBoolean(KEY_ACCOUNT_PLAYLIST_SYNC, false)
+    }
+
+    fun setAccountPlaylistSyncEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_ACCOUNT_PLAYLIST_SYNC, enabled).apply()
+    }
+
     fun getLastLiveStreamId(): String? {
         return prefs.getString(KEY_LAST_LIVE_STREAM_ID, null)
     }
@@ -205,6 +221,7 @@ class SettingsPreferences(private val context: Context) {
 
         // Live TV resume
         const val KEY_RESUME_LAST_LIVE = "resume_last_live"
+        const val KEY_ACCOUNT_PLAYLIST_SYNC = "account_playlist_sync"
         const val KEY_LAST_LIVE_STREAM_ID = "last_live_stream_id"
         const val KEY_LAST_LIVE_CATEGORY_ID = "last_live_category_id"
     }
