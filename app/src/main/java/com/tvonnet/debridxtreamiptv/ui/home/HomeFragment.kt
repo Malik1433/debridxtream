@@ -225,7 +225,10 @@ class HomeFragment : Fragment() {
         val lm = com.tvonnet.debridxtreamiptv.data.licensing.LicenseManager.getInstance(requireContext())
         badge.text = when {
             lm.isTrialActive() -> "TRIAL · ${lm.trialDaysLeft()}D LEFT"
-            com.tvonnet.debridxtreamiptv.data.licensing.Entitlements.isDebridAllowed(requireContext()) -> "DEBRID · IPTV"
+            // Reads CONFIGURED, not allowed: with one tier every device is allowed Debrid, so
+            // "DEBRID · IPTV" on a device with no addons would be telling the customer they have
+            // something they do not.
+            com.tvonnet.debridxtreamiptv.data.licensing.Entitlements.isDebridConfigured(requireContext()) -> "DEBRID · IPTV"
             else -> "IPTV"
         }
         // Permanent device key, always readable from the home screen.
@@ -236,11 +239,12 @@ class HomeFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { rawState ->
-                    // Tier gating: NORMAL devices are IPTV-only — debrid-sourced
-                    // Continue Watching entries must not appear anywhere (list, counts,
-                    // section visibility all read the same filtered state).
+                    // A device with no debrid addons must not show debrid-sourced Continue Watching
+                    // entries — they would be rows that cannot play. (Under the old tier policy this
+                    // read isDebridAllowed; with one tier the honest test is whether the customer
+                    // actually has a debrid service.)
                     val state = if (com.tvonnet.debridxtreamiptv.data.licensing.Entitlements
-                            .isDebridAllowed(requireContext())
+                            .isDebridConfigured(requireContext())
                     ) rawState
                     else rawState.copy(
                         continueWatching = rawState.continueWatching.filter { it.source != "debrid" }

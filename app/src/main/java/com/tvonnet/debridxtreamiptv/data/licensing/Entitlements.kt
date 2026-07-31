@@ -1,27 +1,52 @@
 package com.tvonnet.debridxtreamiptv.data.licensing
 
 import android.content.Context
+import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
 
 /**
- * Thin entitlement gate for premium-only features, reading the cached license
- * state (set live by [LicenseManager]).
+ * What this device may use.
  *
- * Tier policy (owner-defined): PREMIUM = IPTV + Debrid; NORMAL = IPTV only —
- * every Debrid surface (sidebar entry, home rows, settings category, routes)
- * must be hidden for normal devices. A device inside its 7-day trial gets the
- * full premium experience. With global enforcement OFF the app behaves as
- * premium (fail-open, consistent with the launch gate).
+ * **Tier policy changed 2026-08-01 (owner): there is only ONE tier.** Debrid is not sold separately
+ * any more — a licensed device may use it, and whether it actually *does anything* depends on
+ * something the customer controls: have they added their own debrid addons? They bring that service
+ * themselves, exactly as they bring their IPTV subscription (§1).
+ *
+ * That splits one question into two that used to be conflated:
+ *
+ *  - [isDebridAllowed] — may Debrid surfaces exist? Now the same answer as "may this app run",
+ *    because there is nothing extra to buy.
+ *  - [isDebridConfigured] — has the customer supplied a debrid service? Drives labels and empty
+ *    states. It must NOT hide anything: a customer who never sees Debrid never learns the app can
+ *    do it.
  */
 object Entitlements {
 
     fun isPremium(context: Context): Boolean =
         LicenseManager.getInstance(context).isPremiumCached()
 
-    /** Whether Debrid surfaces should exist at all for this device right now. */
+    /**
+     * Whether Debrid surfaces should exist at all.
+     *
+     * With one tier this follows the launch gate rather than a tier: a device entitled to run the
+     * app is entitled to Debrid. Fail-open while enforcement is off, consistent with every other
+     * gate here.
+     */
     fun isDebridAllowed(context: Context): Boolean {
         val lm = LicenseManager.getInstance(context)
-        // Fail-open only while enforcement is off. Once enforced, the paid tier requires a
-        // trusted signature + untampered cache (isPremiumCached / isTrialActiveTrusted).
-        return !lm.isEnforced() || lm.isPremiumCached() || lm.isTrialActiveTrusted()
+        return !lm.isEnforced() || lm.isEntitledCached()
+    }
+
+    /**
+     * Whether the customer has actually supplied a debrid service — any Stremio addon, a
+     * Real-Debrid token, or a MediaFusion URL.
+     *
+     * For labels and empty states, never for hiding. A surface that quietly vanishes teaches the
+     * customer nothing; an empty one that says how to fill it teaches them everything.
+     */
+    fun isDebridConfigured(context: Context): Boolean {
+        val prefs = DebridPreferences(context.applicationContext)
+        return prefs.getStremioAddonUrls().isNotEmpty() ||
+            !prefs.getRealDebridToken().isNullOrBlank() ||
+            !prefs.getMediaFusionUrl().isNullOrBlank()
     }
 }

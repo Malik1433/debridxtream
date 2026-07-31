@@ -138,8 +138,11 @@ class HomeViewModel @Inject constructor(
                 // which derives from them) must come from the Xtream catalog, never TMDB
                 // (the debrid-side source). The IPTV path is the same proven fallback
                 // used when TMDB is unreachable.
+                // CONFIGURED, not allowed: one tier means every device may use debrid, so the row
+                // content has to follow whether the customer actually supplied a debrid service —
+                // otherwise these rows fetch and render sources that can never play.
                 val debridAllowed = com.tvonnet.debridxtreamiptv.data.licensing.Entitlements
-                    .isDebridAllowed(appContext)
+                    .isDebridConfigured(appContext)
 
                 // ST-2 Phase 1 (instant): build rows straight from the IPTV cache and
                 // emit NOW — cached content appears in ms instead of waiting on the
