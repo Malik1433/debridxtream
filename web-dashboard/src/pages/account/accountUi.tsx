@@ -49,3 +49,19 @@ export function AccountSplitShell({ title, subtitle, children }: { title: string
 export function withSearch(path: string, search: string): string {
     return search && search !== '?' ? `${path}${search}` : path
 }
+
+/**
+ * Where to land after signing in or verifying.
+ *
+ * Preserving the code was not enough on its own: a customer arriving from the TV's QR was bounced to
+ * sign-in, came back, and landed on the account page — holding the code but nowhere near the screen
+ * that uses it. `next` carries the destination too.
+ *
+ * Only same-site paths are accepted. A `next` that could point at another origin would turn the
+ * sign-in page into an open redirect, which is a phishing tool.
+ */
+export function nextTarget(search: string, fallback = '/account'): string {
+    const raw = new URLSearchParams(search).get('next')
+    if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return fallback
+    return raw
+}

@@ -64,13 +64,13 @@ export default function AccountPage() {
                 )}
 
                 <div style={{ display: 'grid', gap: 16, marginTop: 24 }}>
-                    <div className="card" style={{ padding: 22, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                    <button onClick={() => nav('/link')} className="card" style={{ padding: 22, display: 'flex', gap: 14, alignItems: 'flex-start', textAlign: 'left', cursor: 'pointer', width: '100%', font: 'inherit' }}>
                         <MonitorSmartphone size={20} style={{ flex: 'none', marginTop: 2, opacity: 0.5 }} />
                         <div>
-                            <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>Your devices</h3>
-                            <p style={{ margin: 0, fontSize: 14, opacity: 0.6 }}>Scan the code shown on your TV to add it here. Coming in the next update.</p>
+                            <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>Add a TV</h3>
+                            <p style={{ margin: 0, fontSize: 14, opacity: 0.6 }}>Enter the code shown on your TV screen to link it to this account.</p>
                         </div>
-                    </div>
+                    </button>
                     <button onClick={() => nav('/account/playlists')} className="card" style={{ padding: 22, display: 'flex', gap: 14, alignItems: 'flex-start', textAlign: 'left', cursor: 'pointer', width: '100%', font: 'inherit' }}>
                         <ListVideo size={20} style={{ flex: 'none', marginTop: 2, opacity: 0.5 }} />
                         <div>

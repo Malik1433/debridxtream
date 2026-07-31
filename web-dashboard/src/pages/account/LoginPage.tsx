@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../../firebase'
-import { CardShell, Field, errText, withSearch } from './accountUi'
+import { CardShell, Field, errText, nextTarget, withSearch } from './accountUi'
 
 export default function AccountLoginPage() {
     const nav = useNavigate()
@@ -19,7 +19,7 @@ export default function AccountLoginPage() {
         setBusy(true)
         try {
             await signInWithEmailAndPassword(auth, email.trim(), password)
-            nav(withSearch('/account', search), { replace: true })
+            nav(withSearch(nextTarget(search), search), { replace: true })
         } catch (err: unknown) {
             setError(errText(err))
         } finally {

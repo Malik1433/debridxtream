@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { sendEmailVerification, signOut } from 'firebase/auth'
 import { Mail } from 'lucide-react'
 import { auth } from '../../firebase'
-import { CardShell, withSearch } from './accountUi'
+import { CardShell, nextTarget, withSearch } from './accountUi'
 
 export default function AccountVerifyEmailPage() {
     const nav = useNavigate()
@@ -14,14 +14,14 @@ export default function AccountVerifyEmailPage() {
     useEffect(() => {
         const u = auth.currentUser
         if (!u) { nav(withSearch('/account/login', search), { replace: true }); return }
-        if (u.emailVerified) nav(withSearch('/account', search), { replace: true })
+        if (u.emailVerified) nav(withSearch(nextTarget(search), search), { replace: true })
     }, [nav, search])
 
     useEffect(() => {
         const id = setInterval(async () => {
             const u = auth.currentUser
             if (!u) return
-            try { await u.reload(); if (u.emailVerified) { clearInterval(id); nav(withSearch('/account', search), { replace: true }) } } catch { /* ignore */ }
+            try { await u.reload(); if (u.emailVerified) { clearInterval(id); nav(withSearch(nextTarget(search), search), { replace: true }) } } catch { /* ignore */ }
         }, 4000)
         return () => clearInterval(id)
     }, [nav, search])
@@ -48,7 +48,7 @@ export default function AccountVerifyEmailPage() {
                     {/* The reseller portal blocks here until verified. A customer must not be: they may be
                         standing in front of a TV they just paid for, with their email on another device.
                         §7 D5 gives them a bounded window instead of a wall. */}
-                    <button onClick={() => nav(withSearch('/account', search), { replace: true })} className="btn btn-primary btn-block" style={{ justifyContent: 'center', padding: '11px 16px', fontSize: 14 }}>Continue — I'll verify later</button>
+                    <button onClick={() => nav(withSearch(nextTarget(search), search), { replace: true })} className="btn btn-primary btn-block" style={{ justifyContent: 'center', padding: '11px 16px', fontSize: 14 }}>Continue — I'll verify later</button>
                     <button onClick={resend} className="btn btn-secondary btn-block" style={{ justifyContent: 'center' }}>Resend email</button>
                 </div>
             </div>

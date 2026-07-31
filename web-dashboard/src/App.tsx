@@ -9,6 +9,7 @@ import AccountLoginPage from './pages/account/LoginPage'
 import AccountSignupPage from './pages/account/SignupPage'
 import AccountVerifyEmailPage from './pages/account/VerifyEmailPage'
 import PlaylistsPage from './pages/account/PlaylistsPage'
+import LinkDevicePage from './pages/account/LinkDevicePage'
 import './index.css'
 
 const RedirectToRoot = () => {
@@ -37,6 +38,10 @@ function App() {
                     <Route path="/account/signup" element={<AccountSignupPage />} />
                     <Route path="/account/verify" element={<AccountVerifyEmailPage />} />
                     <Route path="/account/playlists" element={<PlaylistsPage />} />
+                    {/* The TV's QR points here. Short path on purpose — it gets typed by hand when a
+                        phone camera won't cooperate. */}
+                    <Route path="/link" element={<LinkDevicePage />} />
+                    <Route path="/account/link" element={<LinkDevicePage />} />
                 </Routes>
             </div>
         </Router>
