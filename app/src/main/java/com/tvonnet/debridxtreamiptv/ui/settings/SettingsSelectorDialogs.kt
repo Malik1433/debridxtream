@@ -21,6 +21,37 @@ class SettingsSelectorDialogs(
 ) {
     private val context get() = fragment.requireContext()
 
+    /**
+     * §8.3: pick which of the account's playlists this TV uses.
+     *
+     * Switching rewrites the credentials the app logs in with, so it is confirmed by the act of
+     * choosing and nothing else — no silent switch on a stray D-pad press, and the current one is
+     * pre-checked so a viewer can see where they are before moving.
+     */
+    fun showAccountPlaylistSelector() {
+        val sync = com.tvonnet.debridxtreamiptv.ui.companion.AccountPlaylistSync
+        val playlists = sync.availablePlaylists()
+        if (playlists.isEmpty()) {
+            Toast.makeText(
+                context,
+                "No playlists on your account yet — add one from your phone.",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+        val activeId = com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(context).getActivePlaylistId()
+        val current = playlists.indexOfFirst { it.id == activeId }.coerceAtLeast(0)
+        AlertDialog.Builder(context)
+            .setTitle("Playlist")
+            .setSingleChoiceItems(playlists.map { it.name }.toTypedArray(), current) { dialog, which ->
+                sync.selectPlaylist(context, playlists[which].id)
+                Toast.makeText(context, "Switched to ${playlists[which].name}", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     fun showPreferredAudioLangSelector(current: String) {
         AlertDialog.Builder(context)
             .setTitle("Preferred Audio Language")

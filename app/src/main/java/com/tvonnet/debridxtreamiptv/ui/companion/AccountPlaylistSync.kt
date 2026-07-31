@@ -25,6 +25,17 @@ import com.tvonnet.debridxtreamiptv.network.CompanionUrlValidator
  * single most disruptive thing that can be done to a working install, so it ships dark. The old
  * companion path is untouched and keeps working either way.
  */
+/** One IPTV source on the customer's account, as the TV sees it. */
+data class AccountPlaylist(
+    val id: String,
+    val name: String,
+    val url: String,
+    val username: String,
+    val password: String,
+    val enabled: Boolean,
+    val isXtream: Boolean,
+)
+
 object AccountPlaylistSync {
 
     private const val TAG = "AccountPlaylistSync"
@@ -45,6 +56,14 @@ object AccountPlaylistSync {
      */
     @Volatile
     var onCredentialsApplied: (() -> Unit)? = null
+
+    /** Fired when the account's playlist list changes, so an open Settings screen can refresh. */
+    @Volatile
+    var onPlaylistsChanged: (() -> Unit)? = null
+
+    /** Latest snapshot of the account's playlists. Written from the Firestore listener (main thread). */
+    @Volatile
+    private var available: List<AccountPlaylist> = emptyList()
 
     /** Idempotent. Safe to call from `MainActivity.onCreate`; returns immediately. */
     fun start(context: Context) {
@@ -111,18 +130,57 @@ object AccountPlaylistSync {
             .addSnapshotListener { snap, e ->
                 if (e != null) { Log.w(TAG, "playlist listen failed", e); return@addSnapshotListener }
                 val docs = snap?.documents ?: return@addSnapshotListener
-                val chosen = docs.firstOrNull { doc ->
-                    doc.getBoolean("enabled") != false && doc.getString("type") != "m3u"
-                } ?: return@addSnapshotListener
 
-                apply(
-                    appContext,
-                    url = chosen.getString("url"),
-                    username = chosen.getString("username"),
-                    password = chosen.getString("password"),
-                )
+                available = docs.mapNotNull { doc ->
+                    val url = doc.getString("url") ?: return@mapNotNull null
+                    AccountPlaylist(
+                        id = doc.id,
+                        name = doc.getString("name").orEmpty().ifBlank { hostOf(url) },
+                        url = url,
+                        username = doc.getString("username").orEmpty(),
+                        password = doc.getString("password").orEmpty(),
+                        enabled = doc.getBoolean("enabled") != false,
+                        isXtream = doc.getString("type") != "m3u",
+                    )
+                }
+                runCatching { onPlaylistsChanged?.invoke() }
+
+                applyActive(appContext)
             }
     }
+
+    /**
+     * Applies whichever playlist this TV is set to use.
+     *
+     * The chosen id is looked up first; the first usable one is only a FALLBACK, for a device that
+     * has never chosen and for the case where the selected playlist was deleted on the phone.
+     * Before §8.3 the fallback was the whole rule, which is a coin flip the moment someone owns two.
+     */
+    private fun applyActive(appContext: Context) {
+        val settings = SettingsPreferences(appContext)
+        val usable = available.filter { it.enabled && it.isXtream }
+        val activeId = settings.getActivePlaylistId()
+        val chosen = usable.firstOrNull { it.id == activeId } ?: usable.firstOrNull() ?: return
+
+        // Remember a fallback choice so the TV does not silently move to a different provider the
+        // next time the list order changes.
+        if (chosen.id != activeId) settings.setActivePlaylistId(chosen.id)
+
+        apply(appContext, chosen.url, chosen.username, chosen.password)
+    }
+
+    /** The playlists on this account, for the Settings picker. Empty until the first snapshot. */
+    fun availablePlaylists(): List<AccountPlaylist> = available.filter { it.enabled && it.isXtream }
+
+    /** Switches this TV to another playlist from the same account. */
+    fun selectPlaylist(context: Context, id: String) {
+        val appContext = context.applicationContext
+        SettingsPreferences(appContext).setActivePlaylistId(id)
+        applyActive(appContext)
+    }
+
+    private fun hostOf(url: String): String =
+        runCatching { android.net.Uri.parse(url).host }.getOrNull()?.takeIf { it.isNotBlank() } ?: url
 
     /**
      * Writes the credentials only when they actually differ.
