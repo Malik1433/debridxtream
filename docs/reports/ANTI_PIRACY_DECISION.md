@@ -232,10 +232,21 @@ swap-rate machinery — no counters, no windows — at the price named in §7.7.
     subscription.
 
   Idempotent on re-claim by the same owner in both cases.
-- `releaseDevice({installId})` — **owner/reseller only** (§7.8 Q3). Frees a slot and audits who did it.
-  The end user has no path to call this; their Devices page is read-and-rename only.
-- `rebindDevice({installId, newAuthUid})` — the `pm clear` / reinstall path; allowed only when the
-  device is already owned, so it needs no customer action.
+
+  A TV that has never signed in has no identity yet. The claim still goes through and returns
+  `identityPending` — refusing would leave a paying customer unable to watch over a background
+  detail. Only the playlist binding waits.
+- `releaseDevice({installId})` — **owner/reseller only** (§7.8 Q3). Frees a slot, and takes back the
+  entitlement it had projected — but only for a subscription device. A reseller-entitled device keeps
+  what the reseller sold. The end user has no path to call this; their Devices page is read-and-rename.
+- ~~`rebindDevice`~~ — **dropped during U4, and the reason matters.** It was meant to re-link a device
+  automatically after its app data was cleared. But the only thing it could authenticate against is
+  `device_identity/{installId}`, which the device itself writes — so anyone who learned an installId
+  could point a victim's binding at their own anonymous uid and read that account's IPTV credentials.
+  That is the exact "knowing the id grants access" hole §7 exists to close, rebuilt in a new place.
+  The customer simply re-scans the QR instead: `claimDevice` is idempotent and re-claiming a device
+  already on the subscription costs no slot. A rare re-scan is a much better price than an attack
+  class.
 - `activateSubscription({userEmail, planId})` — the reseller sells a *subscription* instead of a single
   device. Existing `activateClient` stays untouched for the legacy device-at-a-time flow.
 
