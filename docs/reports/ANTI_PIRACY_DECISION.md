@@ -386,3 +386,58 @@ someone has two. An explicit choice, remembered, replaces it.
 
 V1 first is not sequencing for its own sake: without it, the day V3 ships is the day every
 signed-in TV quietly stops receiving playlists.
+
+---
+
+## 9. Account sign-in as the entitlement check (owner, 2026-07-31)
+
+The owner's shape, in their words: after install the app asks for the account email and password,
+the server confirms the subscription and **which services are active**, the app unlocks accordingly,
+and the link the customer is given afterwards offers only what they are entitled to configure.
+
+### 9.1 What was settled
+
+| Question | Answer |
+|---|---|
+| Does manual IPTV login go away? | **No.** Account sign-in is added; manual entry and the QR stay exactly as they are |
+| Reseller-sold devices | **The device key is a second, equal way in.** If a reseller has activated that key, the device is verified through that activation and needs no email/password at all |
+| Services | **The existing `normal` / `premium` tiers.** `normal` = IPTV, `premium` = IPTV + debrid. No new services model |
+
+The reseller answer is the one worth dwelling on: it does not add a mechanism, it **surfaces one that
+already exists**. `licenses/{installId}` has carried the entitlement all along — the login screen
+simply stops pretending that email/password is the only way to prove it. Two paths, one question:
+*is this device entitled, and to what?*
+
+### 9.2 Verification has two sources, and neither weakens the other
+
+```
+entitled(device) = reseller-activated licence  OR  signed-in account's subscription
+tier             = whichever of those granted it
+```
+
+Widening only. No device that works today can stop working because of this, which is the property
+that lets it ship without a migration plan — the concern that made "account mandatory" the wrong
+answer.
+
+### 9.3 The link is scoped by tier
+
+Today the companion page offers IPTV fields *and* debrid addons to everyone. Once entitlement is
+known it shows what the customer actually has:
+
+- `normal` → IPTV only. No debrid section at all — not disabled, absent. A control that exists but
+  refuses is a support ticket; a control that is not there is an answer.
+- `premium` → both, as now.
+
+### 9.4 Phases
+
+| # | Phase | Risk |
+|---|---|---|
+| W1 | Account sign-in on the TV (email/password) — authenticates only, changes no entitlement | low |
+| W2 | Entitlement reads the account subscription **as well as** the licence (9.2) | **high — gates debrid** |
+| W3 | Companion link scoped by tier (9.3) | low |
+
+W1 before W2 for the same reason V1 came before V3: the sign-in has to exist and be exercised before
+anything starts depending on what it returns.
+
+**Superseded by this section:** §8's V3/V4. They described the same work when sign-in was still
+imagined as a premium-only afterthought hidden in Settings. W1–W3 replace them.
