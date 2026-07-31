@@ -283,7 +283,7 @@ TV shows a QR for `https://<companion>/link?code=DZ5D-WKV7`. The code must survi
 | U5 | `/link?code=` journey incl. the signup-and-return path (7.5) | yes |
 | U6 | TV reads playlists from the account, **behind a flag**, old path intact | flagged |
 | | *Flag lives in `iptv_settings` → `account_playlist_sync`, default OFF. It rewrites the credentials the app logs in with — the most disruptive thing that can be done to a working install — so it ships dark and is turned on only after the claim flow has been exercised on real hardware.* | |
-| U7 | Devices page (list / rename, **no remove**) + reseller-side remove + `deviceLimit` in the reseller UI | yes |
+| U7 | Devices page (list / rename, **no remove**) + reseller-side Unlink | yes |
 | U8 | Flip the flag, stop writing credentials to `device_codes`, tighten rules | yes |
 | U9 | TV QR screen wording + D-pad pass | yes |
 

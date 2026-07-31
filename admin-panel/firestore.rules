@@ -33,8 +33,11 @@ service cloud.firestore {
       // LIST is scoped: the admin panel sees all; a reseller may only enumerate the
       // clients they own (query must filter resellerId == their uid). This also closes
       // the prior "anyone can enumerate every license" exposure.
+      // §7 U7 adds the customer: they may enumerate the devices THEY claimed, and nothing
+      // else. Widening only — no existing caller loses anything.
       allow list: if isAdmin() ||
-        (isSignedIn() && resource.data.resellerId == request.auth.uid);
+        (isSignedIn() && resource.data.resellerId == request.auth.uid) ||
+        (isSignedIn() && resource.data.ownerUid == request.auth.uid);
 
       // Device self-registration: must be pending + normal, no expiry, and the
       // trial anchor MUST be the server clock — a crafted client can no longer seed a
@@ -52,6 +55,14 @@ service cloud.firestore {
       allow update: if isAdmin() || (
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['lastSeenAt', 'appVersionCode', 'appVersionName', 'activationCode'])
+      ) || (
+        // §7 U7: the owning customer may rename their own TV — that key and no other. Naming a
+        // device is the one thing here that is purely theirs; ownership itself is set by
+        // claimDevice and can only be undone by staff (§7.8), so it is NOT in this list.
+        isSignedIn() &&
+        resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.ownerUid == resource.data.ownerUid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deviceName'])
       );
 
       allow delete: if isAdmin();

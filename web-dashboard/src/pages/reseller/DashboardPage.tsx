@@ -10,7 +10,9 @@ import { COUNTRIES, DxLogo, errText } from './authUi'
 
 interface Plan { id: string; name: string; tier: string; months: number; cost: number }
 interface Pkg { id: string; name: string; credits: number; priceUsd: number; bonus?: number }
-interface Client { id: string; activationCode?: string; tier?: string; status?: string; expiresAt?: number; planId?: string }
+// ownerUid is set when the customer claims this TV into their own account (§7). Its presence is
+// the only thing that makes "Unlink" meaningful.
+interface Client { id: string; activationCode?: string; tier?: string; status?: string; expiresAt?: number; planId?: string; ownerUid?: string }
 interface Ledger { id: string; delta: number; reason: string; at: number; balanceAfter?: number }
 type View = 'overview' | 'clients' | 'buy' | 'billing' | 'profile'
 
@@ -160,6 +162,22 @@ function Clients({ plans, clients, showToast }: { plans: Plan[]; clients: Client
         try { const res = await httpsCallable(functions, name)(payload); const d = res.data as { creditsLeft?: number }; showToast(`Done. Credits left: ${d?.creditsLeft ?? '—'}.`); if (name === 'activateClient') setCode(''); return true }
         catch (e) { showToast(errText(e)); return false } finally { setBusy(false) }
     }
+
+    /**
+     * Unlink a device from the customer's account (§7.8: only staff can do this, which is what
+     * makes a device limit mean anything). It does NOT revoke what this reseller sold — the
+     * function leaves a reseller-entitled licence's tier and expiry alone.
+     */
+    async function unlink(c: Client) {
+        if (!window.confirm(
+            `Unlink ${c.activationCode || c.id.slice(0, 8)} from its customer's account?\n\n` +
+            'Their subscription slot is freed and the TV stops receiving their playlists. ' +
+            'The device keeps the plan you sold it.'
+        )) return
+        setBusy(true)
+        try { await httpsCallable(functions, 'releaseDevice')({ installId: c.id }); showToast('Device unlinked.') }
+        catch (e) { showToast(errText(e)) } finally { setBusy(false) }
+    }
     const shown = clients.filter((c) => !search || (c.activationCode || c.id).toLowerCase().includes(search.toLowerCase()))
     const renewPlan = plans.find((p) => p.id === renewPlanId)
 
@@ -193,7 +211,12 @@ function Clients({ plans, clients, showToast }: { plans: Plan[]; clients: Client
                                             <td><span className={`chip ${c.tier === 'premium' ? 'chip-premium' : 'chip-normal'}`}>{c.tier || 'normal'}</span></td>
                                             <td><StatusChip status={c.status} expiresAt={c.expiresAt} /></td>
                                             <td style={{ opacity: 0.72 }}>{fmtDate(c.expiresAt)}</td>
-                                            <td style={{ textAlign: 'right' }}><button className="tbl-btn" disabled={busy || plans.length === 0} onClick={() => { setRenewPlanId(plans[0]?.id || ''); setRenewFor(c) }}>Renew</button></td>
+                                            <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                                <button className="tbl-btn" disabled={busy || plans.length === 0} onClick={() => { setRenewPlanId(plans[0]?.id || ''); setRenewFor(c) }}>Renew</button>
+                                                {/* Only shown when there is actually a link to break — otherwise it is a
+                                                    button that can only ever fail. */}
+                                                {c.ownerUid && <button className="tbl-btn" disabled={busy} style={{ marginLeft: 6 }} onClick={() => unlink(c)}>Unlink</button>}
+                                            </td>
                                         </tr>
                                     )
                                 })}
