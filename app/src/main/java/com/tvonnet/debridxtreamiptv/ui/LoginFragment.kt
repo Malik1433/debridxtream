@@ -120,6 +120,8 @@ class LoginFragment : Fragment() {
         ambientAnimators.clear()
         qrOverlay?.release()
         qrOverlay = null
+        // The sync object outlives this fragment, so a callback left behind would hold the view.
+        com.tvonnet.debridxtreamiptv.ui.companion.AccountPlaylistSync.onCredentialsApplied = null
         super.onDestroyView()
     }
 
@@ -349,6 +351,18 @@ class LoginFragment : Fragment() {
         qrOverlay = LoginQrOverlayController(view.findViewById(R.id.qr_overlay)) {
             autoSyncLoginAttempted = false
             checkAutoSyncCredentials()
+        }
+        // §7 U6: credentials can also arrive from the customer's ACCOUNT, with nobody touching this
+        // screen. Same reaction as a QR pairing — otherwise they land in prefs and the customer keeps
+        // staring at a login form. Posted to the view so we are on the main thread and gone if the
+        // fragment is.
+        com.tvonnet.debridxtreamiptv.ui.companion.AccountPlaylistSync.onCredentialsApplied = {
+            view.post {
+                if (isAdded) {
+                    autoSyncLoginAttempted = false
+                    checkAutoSyncCredentials()
+                }
+            }
         }
     }
 

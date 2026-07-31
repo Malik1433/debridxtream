@@ -34,6 +34,18 @@ object AccountPlaylistSync {
     private var authListener: FirebaseAuth.AuthStateListener? = null
     private var started = false
 
+    /**
+     * Fired after credentials from the account are written, so a screen that is waiting on them can
+     * act.
+     *
+     * Without this the login screen is where the whole feature dies quietly: the credentials land in
+     * prefs, nothing tells the fragment, and the customer — who just added a playlist on their phone
+     * — sits looking at a login form. The QR pairing overlay already solves this for the old path
+     * with its `onPaired` callback; this is the same signal for the new one.
+     */
+    @Volatile
+    var onCredentialsApplied: (() -> Unit)? = null
+
     /** Idempotent. Safe to call from `MainActivity.onCreate`; returns immediately. */
     fun start(context: Context) {
         if (started) return
@@ -123,6 +135,8 @@ object AccountPlaylistSync {
 
         prefs.saveSyncedCredentials(safeUrl, username, password)
         Log.i(TAG, "applied playlist from account")
+        runCatching { onCredentialsApplied?.invoke() }
+            .onFailure { Log.w(TAG, "credentials-applied callback failed", it) }
     }
 
     fun stop() {
