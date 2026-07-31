@@ -46,7 +46,11 @@ android {
     defaultConfig {
         // Align with the installed TV app package on device so `adb install -r` updates the same app.
         applicationId "com.debridxtream.tv"
-        minSdk 21
+        // Raised 21 -> 23 (owner's decision, 2026-07-31) so firebase-auth can come from the BOM
+        // instead of being pinned to an unsupported older line. Cost: Fire OS 5 hardware (Android
+        // 5.x, API 21-22) can no longer install or UPDATE this app — an existing install on such a
+        // device keeps running the build it already has.
+        minSdk 23
         targetSdk 35  // Updated to match compileSdk for latest Android features
         versionCode 36
         versionName "2.1.5"
@@ -271,16 +275,9 @@ dependencies {
     implementation 'com.google.firebase:firebase-firestore-ktx'
     implementation 'com.google.firebase:firebase-analytics-ktx'
     // §7 U3: anonymous sign-in, so Firestore rules can express OWNERSHIP instead of
-    // "whoever knows the id may read it" (see DeviceIdentity).
-    //
-    // Pinned OUTSIDE the BOM on purpose. The BOM's firebase-auth 23.x requires minSdk 23, while
-    // every other Firebase library here (firestore 25, analytics 22, crashlytics 19) still supports
-    // 21 — so taking the BOM version would silently drop Fire OS 5 hardware (API 22) to add a
-    // background feature. 22.3.1 is the last line that supports minSdk 21.
-    // `strictly` because the BOM would otherwise pull 23.x back in — a plain version declaration
-    // loses to a BOM constraint (Gradle takes the higher of the two).
-    implementation('com.google.firebase:firebase-auth-ktx') { version { strictly '22.3.1' } }
-    implementation('com.google.firebase:firebase-auth') { version { strictly '22.3.1' } }
+    // "whoever knows the id may read it" (see DeviceIdentity). Version comes from the BOM —
+    // that is why minSdk is 23 (see above).
+    implementation 'com.google.firebase:firebase-auth-ktx'
     // LP-D-1: remote crash reporting (works without Play services on Fire OS)
     implementation 'com.google.firebase:firebase-crashlytics-ktx'
 
