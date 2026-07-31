@@ -34,6 +34,7 @@ import com.tvonnet.debridxtreamiptv.BuildConfig
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
+import com.tvonnet.debridxtreamiptv.ui.companion.AccountSignInOverlayController
 import com.tvonnet.debridxtreamiptv.ui.companion.LoginQrOverlayController
 import com.tvonnet.debridxtreamiptv.util.GlobalConfig
 import dagger.hilt.android.AndroidEntryPoint
@@ -69,6 +70,7 @@ class LoginFragment : Fragment() {
     private var passwordVisible = false
 
     private var qrOverlay: LoginQrOverlayController? = null
+    private var accountOverlay: AccountSignInOverlayController? = null
     private val ambientAnimators = mutableListOf<ValueAnimator>()
 
     @Inject
@@ -120,6 +122,7 @@ class LoginFragment : Fragment() {
         ambientAnimators.clear()
         qrOverlay?.release()
         qrOverlay = null
+        accountOverlay = null
         // The sync object outlives this fragment, so a callback left behind would hold the view.
         com.tvonnet.debridxtreamiptv.ui.companion.AccountPlaylistSync.onCredentialsApplied = null
         super.onDestroyView()
@@ -352,6 +355,7 @@ class LoginFragment : Fragment() {
             autoSyncLoginAttempted = false
             checkAutoSyncCredentials()
         }
+        setupAccountSignIn(view)
         // §7 U6: credentials can also arrive from the customer's ACCOUNT, with nobody touching this
         // screen. Same reaction as a QR pairing — otherwise they land in prefs and the customer keeps
         // staring at a login form. Posted to the view so we are on the main thread and gone if the
@@ -367,10 +371,38 @@ class LoginFragment : Fragment() {
     }
 
     /**
+     * §9 W1: account sign-in, plus the device key that makes it unnecessary.
+     *
+     * The key is shown unconditionally because it is the OTHER way to be entitled — a reseller
+     * activates it and the customer never needs an account at all. Two ways in, one question.
+     */
+    private fun setupAccountSignIn(view: View) {
+        val overlayView = view.findViewById<View>(R.id.account_overlay) ?: return
+        accountOverlay = AccountSignInOverlayController(overlayView) {
+            // Signing in is all this does. AccountPlaylistSync sees a real (non-anonymous) user and
+            // reads that account's playlists; the existing auto-login then applies them.
+            autoSyncLoginAttempted = false
+            checkAutoSyncCredentials()
+        }
+        view.findViewById<View>(R.id.btn_account_signin)?.setOnClickListener {
+            accountOverlay?.show()
+        }
+        view.findViewById<TextView>(R.id.tv_login_device_key)?.text = runCatching {
+            "DEVICE KEY  " + com.tvonnet.debridxtreamiptv.data.licensing.LicenseManager
+                .getInstance(requireContext()).activationCode
+        }.getOrDefault("")
+    }
+
+    /**
      * Called by MainActivity's legacy onBackPressed override (which bypasses the
-     * OnBackPressedDispatcher). @return true if Back was consumed (QR overlay closed).
+     * OnBackPressedDispatcher). @return true if Back was consumed (an overlay closed).
      */
     fun handleBackPress(): Boolean {
+        accountOverlay?.takeIf { it.isShowing }?.let {
+            it.hide()
+            btnSetupPhone.requestFocus()
+            return true
+        }
         val overlay = qrOverlay ?: return false
         if (overlay.isShowing) {
             overlay.hide()

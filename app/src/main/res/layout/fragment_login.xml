@@ -593,7 +593,7 @@
                     android:focusable="true"
                     android:gravity="center"
                     android:nextFocusUp="@id/btn_login"
-                    android:nextFocusDown="@id/btn_setup_phone"
+                    android:nextFocusDown="@id/btn_account_signin"
                     android:orientation="horizontal">
 
                     <ImageView
@@ -615,6 +615,47 @@
                         android:textSize="9sp"
                         android:textStyle="bold" />
                 </LinearLayout>
+
+                <!-- Sign in with a DebridXtream account (§9 W1). Placed BELOW the phone/QR button
+                     on purpose: typing an email and password on a remote is the slowest way in, so
+                     it is the fallback for someone without a phone, not the headline. -->
+                <LinearLayout
+                    android:id="@+id/btn_account_signin"
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/sel_login_btn_secondary"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:nextFocusUp="@id/btn_setup_phone"
+                    android:nextFocusDown="@id/btn_account_signin"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:duplicateParentState="true"
+                        android:fontFamily="@font/plus_jakarta_sans"
+                        android:text="Sign in with your account"
+                        android:textColor="@color/sel_login_secondary_text"
+                        android:textSize="9sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Device key, always visible. A reseller can activate this device from it, and
+                     then the customer needs no account at all (§9.1). -->
+                <TextView
+                    android:id="@+id/tv_login_device_key"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:letterSpacing="0.08"
+                    android:textColor="#475569"
+                    android:textSize="7sp"
+                    tools:text="DEVICE KEY  DZ5D-WKV7" />
 
                 <!-- Hint bar -->
                 <TextView
@@ -983,6 +1024,166 @@
                     android:duplicateParentState="true"
                     android:fontFamily="@font/plus_jakarta_sans"
                     android:text="Back to Sign In"
+                    android:textColor="@color/sel_login_secondary_text"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+    <!-- ══ ACCOUNT SIGN-IN OVERLAY (§9 W1) ══
+         Its own overlay rather than more rows on the login card: the card is a finished design with
+         a settled D-pad ladder, and the QR overlay already established this pattern. -->
+    <FrameLayout
+        android:id="@+id/account_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#E004070C"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="300dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_login_glass_panel"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:text="Sign in to your account"
+                android:textColor="#E2E8F0"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_account_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:text="Your playlists load automatically."
+                android:textColor="#64748B"
+                android:textSize="8sp" />
+
+            <EditText
+                android:id="@+id/et_account_email"
+                android:layout_width="match_parent"
+                android:layout_height="34dp"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_login_field"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:hint="Email"
+                android:imeOptions="actionNext"
+                android:inputType="textEmailAddress"
+                android:nextFocusDown="@id/et_account_password"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:singleLine="true"
+                android:textColor="#E2E8F0"
+                android:textColorHint="#475569"
+                android:textSize="10sp" />
+
+            <EditText
+                android:id="@+id/et_account_password"
+                android:layout_width="match_parent"
+                android:layout_height="34dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_login_field"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:hint="Password"
+                android:imeOptions="actionDone"
+                android:inputType="textPassword"
+                android:nextFocusUp="@id/et_account_email"
+                android:nextFocusDown="@id/btn_account_submit"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:singleLine="true"
+                android:textColor="#E2E8F0"
+                android:textColorHint="#475569"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/tv_account_error"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:textColor="#F87171"
+                android:textSize="8sp"
+                android:visibility="gone"
+                tools:text="Wrong email or password."
+                tools:visibility="visible" />
+
+            <LinearLayout
+                android:id="@+id/btn_account_submit"
+                android:layout_width="match_parent"
+                android:layout_height="34dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/sel_login_btn_primary"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:nextFocusUp="@id/et_account_password"
+                android:nextFocusDown="@id/btn_account_close"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tv_account_submit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:duplicateParentState="true"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:text="Sign in"
+                    android:textColor="#475569"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Sign-up is not a form here. Creating an account on a remote is painful and needs a
+                 verification email anyway, so we point at the phone and show the address. -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:gravity="center"
+                android:text="No account yet? Create one on your phone at"
+                android:textColor="#64748B"
+                android:textSize="8sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:text="@string/companion_signup_url_short"
+                android:textColor="#38BDF8"
+                android:textSize="9sp" />
+
+            <LinearLayout
+                android:id="@+id/btn_account_close"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/sel_login_btn_secondary"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:nextFocusUp="@id/btn_account_submit"
+                android:nextFocusDown="@id/btn_account_close"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:duplicateParentState="true"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:text="Back"
                     android:textColor="@color/sel_login_secondary_text"
                     android:textSize="9sp"
                     android:textStyle="bold" />
