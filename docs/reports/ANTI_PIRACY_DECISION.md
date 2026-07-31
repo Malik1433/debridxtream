@@ -1,7 +1,7 @@
 # Anti-piracy: what is actually achievable, and the one decision it depends on
 
 **Status:** §6 decided and §4.4 shipped. **§7 (end-user accounts + device slots + playlist management)
-is the live plan** — three questions in §7.8 need the owner before U0 starts.
+is the live plan; its three open questions were answered 2026-07-31 (§7.8) and U0 is unblocked.**
 **Date:** 2026-07-31. Written after a research pass plus reading how credentials actually flow here.
 
 ---
@@ -180,15 +180,16 @@ punishes a real customer, bounded so it is not a hole. The reseller's activate-b
 the fallback so nobody is ever stuck at 9pm.
 
 **D6 — Slot accounting lives in a Function transaction, never in rules.** Rules cannot count.
-And a freed slot must not make "5 devices" mean unlimited: cap **swaps per subscription per 30 days**
-(suggest 2). This number is a business knob, not a technical one — owner sets it.
+A freed slot must not make "3 devices" mean unlimited, so **the customer cannot free a slot at all**
+(owner's call, §7.8): removing a device is an owner/reseller action. That removes the need for any
+swap-rate machinery — no counters, no windows — at the price named in §7.7.
 
 ### 7.2 Data model (additions only; nothing existing changes shape)
 
 | Collection | Shape | Notes |
 |---|---|---|
 | `users/{uid}` | `{email, displayName, createdAt, status}` | uid = Firebase Auth uid. Profile only; Auth is the identity |
-| `subscriptions/{subId}` | `{ownerUid, resellerId, planId, tier, status, expiresAt, deviceLimit, swapsUsed, swapWindowStart, createdAt}` | entitlement truth |
+| `subscriptions/{subId}` | `{ownerUid, resellerId, planId, tier, status, expiresAt, deviceLimit, createdAt}` | entitlement truth. `ownerUid` is the **end user** from day one — that is what lets consumer checkout be added later without reshaping anything (§7.8 Q2) |
 | `playlists/{playlistId}` | `{ownerUid, name, type:'xtream'\|'m3u', url, username, password, enabled, createdAt, updatedAt}` | owner-scoped; see 7.6 on encryption |
 | `device_auth/{authUid}` | `{installId, ownerUid, subscriptionId}` | lets rules resolve "which device is this caller" |
 | `licenses/{installId}` | **+** `{ownerUid, subscriptionId, deviceName, lastSeenAt}` | existing fields untouched — the TV keeps reading what it reads |
@@ -200,7 +201,8 @@ And a freed slot must not make "5 devices" mean unlimited: cap **swaps per subsc
   caller has an active subscription **with a free slot**, then in one transaction bind
   `licenses/{installId}.{ownerUid, subscriptionId}`, project `{status, tier, expiresAt}` from the
   subscription, write `device_auth`, and audit. Idempotent on re-claim by the same owner.
-- `releaseDevice({installId})` — frees a slot, increments `swapsUsed`, refuses past the cap.
+- `releaseDevice({installId})` — **owner/reseller only** (§7.8 Q3). Frees a slot and audits who did it.
+  The end user has no path to call this; their Devices page is read-and-rename only.
 - `rebindDevice({installId, newAuthUid})` — the `pm clear` / reinstall path; allowed only when the
   device is already owned, so it needs no customer action.
 - `activateSubscription({userEmail, planId})` — the reseller sells a *subscription* instead of a single
@@ -224,7 +226,7 @@ TV shows a QR for `https://<companion>/link?code=DZ5D-WKV7`. The code must survi
 | Signed in, unverified, <48h | claim proceeds (D5) with a "verify your email" banner |
 | Signed in, no subscription | "ask your provider" + the activation code shown for the reseller |
 | Signed in, slot free | "Add this TV?" → `claimDevice` → the TV's existing listener unlocks it |
-| Signed in, slots full | device list, remove one to continue (subject to the swap cap) |
+| Signed in, slots full | device list (read-only) + "all 3 devices in use — ask your provider to remove one". Removal is not a customer action (D6) |
 | No playlist yet | straight into "add your first playlist", test-connection via the existing `api/verify-iptv.ts` |
 
 ### 7.6 Build phases — one commit each, verify before moving on
@@ -238,7 +240,7 @@ TV shows a QR for `https://<companion>/link?code=DZ5D-WKV7`. The code must survi
 | U4 | `claimDevice` / `releaseDevice` / `rebindDevice` + slot transaction | no |
 | U5 | `/link?code=` journey incl. the signup-and-return path (7.5) | yes |
 | U6 | TV reads playlists from the account, **behind a flag**, old path intact | flagged |
-| U7 | Devices page (list / rename / remove) + reseller sees `deviceLimit` | yes |
+| U7 | Devices page (list / rename, **no remove**) + reseller-side remove + `deviceLimit` in the reseller UI | yes |
 | U8 | Flip the flag, stop writing credentials to `device_codes`, tighten rules | yes |
 | U9 | TV QR screen wording + D-pad pass | yes |
 
@@ -246,16 +248,24 @@ TV shows a QR for `https://<companion>/link?code=DZ5D-WKV7`. The code must survi
 migration and no flag day. U8 only stops *writing* credentials to `device_codes`; existing devices that
 never get claimed carry on.
 
-### 7.7 What this does NOT do
+### 7.7 What this does NOT do, and what it costs
 
-It does not make the app harder to crack (§6 still stands), it does not stop a customer sharing their
-own Xtream credentials outside the app, and it adds a real support burden — password resets and
-verification emails for end users, which we do not have today. That burden is the actual price of this
-feature and it should be weighed as such.
+It does not make the app harder to crack (§6 still stands) and it does not stop a customer sharing
+their own Xtream credentials outside the app.
 
-### 7.8 Open — owner's call before U0
+The price is support load, and the §7.8 answers concentrate it in one place: **every replaced or dead
+TV becomes a reseller ticket**, because the customer cannot free their own slot. That is the deliberate
+trade for making the 3-device limit mean three devices. Watch it after launch — if it turns into the
+most common ticket, the cheapest relief is a self-service removal with a cooldown rather than raising
+the limit. On top of that come the ordinary costs of running accounts: password resets and
+verification emails, which we do not carry today.
 
-1. **Device limit**: how many, and does it come from the plan or per-subscription?
-2. **Can end users buy directly**, or only through a reseller? (Decides whether the payment path from
-   the reseller portal has to be duplicated for consumers.)
-3. **Swap cap** number (D6).
+### 7.8 Owner's answers — ANSWERED 2026-07-31
+
+| Question | Answer | Consequence in this plan |
+|---|---|---|
+| Device limit | **3, carried on the plan** (`plans.deviceLimit`) | reseller picks a plan, the limit follows; no per-customer bookkeeping |
+| Who sells | **Resellers now; consumer purchase later** | `subscriptions.ownerUid` is the end user from day one, so consumer checkout is an added path, not a reshape |
+| Freeing a slot | **Owner/reseller only** | no swap counters anywhere; `releaseDevice` is privileged; customer Devices page is read + rename (§7.7 names the cost) |
+
+**U0 is unblocked.**
