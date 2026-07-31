@@ -178,17 +178,18 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ── Subscriptions (entitlement truth) ───────────────────────────────
-    // The customer and their reseller may LOOK; only Functions/admin may write. deviceLimit
-    // and expiresAt decide what someone paid for, so a client write path here would make
-    // every other control in this file decorative.
+    // ── Subscriptions (entitlement truth, CONSUMER channel only) ────────
+    // §7.0: resellers buy PER DEVICE and have no limit — they never touch this collection;
+    // their path stays `plans` + activateClient. Subscriptions exist only for the direct
+    // customer, and `deviceLimit` lives here rather than on a plan so that re-pricing a
+    // product later cannot silently shrink a subscription somebody already paid for.
+    //
+    // Read-only to the customer; only Functions/admin may write. deviceLimit and expiresAt
+    // decide what someone paid for, so a client write path here would make every other
+    // control in this file decorative.
     match /subscriptions/{subId} {
-      allow get: if isAdmin() ||
-        (isSignedIn() && (resource.data.ownerUid == request.auth.uid ||
-                          resource.data.resellerId == request.auth.uid));
-      allow list: if isAdmin() ||
-        (isSignedIn() && (resource.data.ownerUid == request.auth.uid ||
-                          resource.data.resellerId == request.auth.uid));
+      allow get, list: if isAdmin() ||
+        (isSignedIn() && resource.data.ownerUid == request.auth.uid);
       allow write: if isAdmin();
     }
 

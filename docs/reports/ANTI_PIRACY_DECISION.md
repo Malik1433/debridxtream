@@ -152,6 +152,31 @@ two other reasons, and both are real:
 2. **Device counting is the one real answer to account sharing** (§2 already says so). It is not an
    anti-tamper problem and no client hardening addresses it.
 
+### 7.0 Two sales channels, two entitlement models — and only one of them counts devices
+
+Clarified by the owner 2026-07-31, after U0 had already been built the wrong way. This is the frame
+everything else in §7 sits inside:
+
+| | **Reseller channel** (exists, working) | **Direct / consumer channel** (new) |
+|---|---|---|
+| Who buys | reseller, on behalf of a client | the end user, in the mobile companion app |
+| Unit | **per device** | **per subscription** |
+| Device limit | **none — they pay per device** | **3** (§7.8) |
+| Mechanism | `activateClient` spends credits, writes `licenses/{installId}` | `claimDevice` consumes a slot on `subscriptions/{subId}` |
+
+**So `deviceLimit` must never live on `plans`** — `plans` is the reseller's price list and a limit
+there would be meaningless at best and a mis-sale at worst. It lives on the **subscription**.
+
+This also splits a thing that looked like one thing:
+
+- **Entitlement** — either reseller-per-device *or* a consumer subscription.
+- **Ownership** — the account that manages a device's playlists.
+
+They are independent. A customer whose device was activated by a reseller can still create an account
+and manage their playlists from the phone, and **that must not consume a subscription slot**, because
+they have no subscription. `claimDevice` therefore has two paths: a device already entitled through a
+reseller is bound for *management only*; anything else needs an active subscription with a free slot.
+
 ### 7.1 The decisions this rests on
 
 **D1 — The subscription becomes the unit of entitlement; `licenses/{installId}` stays exactly as it
@@ -189,18 +214,24 @@ swap-rate machinery — no counters, no windows — at the price named in §7.7.
 | Collection | Shape | Notes |
 |---|---|---|
 | `users/{uid}` | `{email, displayName, createdAt, status}` | uid = Firebase Auth uid. Profile only; Auth is the identity |
-| `subscriptions/{subId}` | `{ownerUid, resellerId, planId, tier, status, expiresAt, deviceLimit, createdAt}` | entitlement truth. `ownerUid` is the **end user** from day one — that is what lets consumer checkout be added later without reshaping anything (§7.8 Q2) |
+| `subscriptions/{subId}` | `{ownerUid, planId, tier, status, expiresAt, deviceLimit, createdAt}` | **consumer channel only** (§7.0). `deviceLimit` is stamped here at creation, not read live from a plan, so changing a product later never silently shrinks someone's existing subscription. Defaults to 3 until consumer purchase exists and defines products |
 | `playlists/{playlistId}` | `{ownerUid, name, type:'xtream'\|'m3u', url, username, password, enabled, createdAt, updatedAt}` | owner-scoped; see 7.6 on encryption |
 | `device_auth/{authUid}` | `{installId, ownerUid, subscriptionId}` | lets rules resolve "which device is this caller" |
 | `licenses/{installId}` | **+** `{ownerUid, subscriptionId, deviceName, lastSeenAt}` | existing fields untouched — the TV keeps reading what it reads |
-| `plans/{planId}` | **+** `{deviceLimit}` | reseller-visible |
+| `plans/{planId}` | **unchanged** | reseller price list, **per device**. No `deviceLimit` here — see §7.0 |
 
 ### 7.3 Cloud Functions (Blaze is already enabled; `activateClient`/`renewClient` are live)
 
-- `claimDevice({activationCode, deviceName})` — auth required. Resolve the licence by code, assert the
-  caller has an active subscription **with a free slot**, then in one transaction bind
-  `licenses/{installId}.{ownerUid, subscriptionId}`, project `{status, tier, expiresAt}` from the
-  subscription, write `device_auth`, and audit. Idempotent on re-claim by the same owner.
+- `claimDevice({activationCode, deviceName})` — auth required. Resolve the licence by code, then
+  **branch on how the device is entitled** (§7.0):
+  - *already entitled through a reseller* → bind `ownerUid` + `device_auth` for **management only**.
+    No slot is consumed and no entitlement field is touched — the reseller sold that device and this
+    call must not be able to alter what they sold.
+  - *otherwise* → require an active subscription with a free slot; in one transaction bind
+    `licenses/{installId}.{ownerUid, subscriptionId}` and project `{status, tier, expiresAt}` from the
+    subscription.
+
+  Idempotent on re-claim by the same owner in both cases.
 - `releaseDevice({installId})` — **owner/reseller only** (§7.8 Q3). Frees a slot and audits who did it.
   The end user has no path to call this; their Devices page is read-and-rename only.
 - `rebindDevice({installId, newAuthUid})` — the `pm clear` / reinstall path; allowed only when the
@@ -264,7 +295,7 @@ verification emails, which we do not carry today.
 
 | Question | Answer | Consequence in this plan |
 |---|---|---|
-| Device limit | **3, carried on the plan** (`plans.deviceLimit`) | reseller picks a plan, the limit follows; no per-customer bookkeeping |
+| Device limit | **3 — and only for the direct/consumer channel.** Resellers have **no limit**; they pay per device | stamped on `subscriptions`, never on `plans` (§7.0). Corrected after U0 was first built with it on `plans` |
 | Who sells | **Resellers now; consumer purchase later** | `subscriptions.ownerUid` is the end user from day one, so consumer checkout is an added path, not a reshape |
 | Freeing a slot | **Owner/reseller only** | no swap counters anywhere; `releaseDevice` is privileged; customer Devices page is read + rename (§7.7 names the cost) |
 

@@ -176,12 +176,12 @@
     <!-- PLANS -->
     <div id="plans" class="hidden" style="max-width:760px">
       <div class="row" style="justify-content:space-between;margin-bottom:6px">
-        <div><h2 style="font-size:20px">Plans</h2><p class="muted">What a reseller can sell — tier, duration, credit cost, and how many devices it covers.</p></div>
+        <div><h2 style="font-size:20px">Plans</h2><p class="muted">What a reseller can sell — tier, duration, credit cost. Priced <b>per device</b>; resellers have no device limit.</p></div>
         <button class="primary" onclick="togglePlanForm()">Add Plan</button>
       </div>
       <div class="card" style="padding:0;overflow-x:auto">
         <table>
-          <thead><tr><th>Name</th><th>Tier</th><th>Months</th><th>Devices</th><th>Cost (credits)</th><th style="width:90px"></th></tr></thead>
+          <thead><tr><th>Name</th><th>Tier</th><th>Months</th><th>Cost (credits)</th><th style="width:90px"></th></tr></thead>
           <tbody id="planRows"></tbody>
         </table>
       </div>
@@ -190,7 +190,6 @@
           <label class="field" style="margin-top:0"><span>Name</span><input type="text" id="pName" placeholder="1 Month Premium" style="width:180px"></label>
           <label class="field" style="margin-top:0"><span>Tier</span><select id="pTier"><option value="premium">premium (IPTV+Debrid)</option><option value="normal">normal (IPTV)</option></select></label>
           <label class="field" style="margin-top:0"><span>Months</span><input type="text" id="pMonths" value="1" style="width:70px"></label>
-          <label class="field" style="margin-top:0"><span>Devices</span><input type="text" id="pDevices" value="3" style="width:70px"></label>
           <label class="field" style="margin-top:0"><span>Cost</span><input type="text" id="pCost" value="1" style="width:70px"></label>
           <button class="primary" style="margin-top:20px" onclick="addPlan()">Add</button>
         </div>
@@ -433,10 +432,9 @@ function addCredits(r, amount){
 }
 
 // ---- Plans ----
-// Owner's decision (ANTI_PIRACY_DECISION.md §7.8): one subscription covers 3 devices, and the
-// number rides on the PLAN so the reseller picks a plan and the limit follows. Plans seeded
-// before this field existed fall back to it rather than to 0.
-const DEFAULT_DEVICE_LIMIT = 3;
+// RESELLER price list, priced PER DEVICE. Deliberately carries no device limit: the 3-device cap
+// belongs to the direct/consumer channel and is stamped on `subscriptions`. See §7.0 of
+// docs/reports/ANTI_PIRACY_DECISION.md — putting it here would be a mis-sale waiting to happen.
 let plans = [], unsubPlans = null;
 function togglePlanForm(){ document.getElementById('planForm').classList.toggle('hidden'); }
 function attachPlans(){
@@ -449,22 +447,18 @@ function attachPlans(){
 }
 function renderPlans(){
   const rows=document.getElementById('planRows'); rows.innerHTML='';
-  if (!plans.length){ rows.innerHTML='<tr><td colspan="6" class="muted">No plans yet — add one above.</td></tr>'; return; }
+  if (!plans.length){ rows.innerHTML='<tr><td colspan="5" class="muted">No plans yet — add one above.</td></tr>'; return; }
   for (const p of plans){
     const tr=document.createElement('tr');
-    // A plan seeded before device slots existed has no deviceLimit. Show the default it will
-    // be treated as rather than "0", which would read as "this plan covers no devices".
-    const devices = p.deviceLimit ? p.deviceLimit : `${DEFAULT_DEVICE_LIMIT} <span class="muted">(default)</span>`;
     tr.innerHTML = `
       <td>${p.name||p.id}</td>
       <td><span class="chip ${p.tier==='premium'?'premium':'normal'}">${(p.tier||'normal').toUpperCase()}</span></td>
       <td>${p.months||0}</td>
-      <td>${devices}</td>
       <td style="font-weight:700;color:var(--accent-700)">${p.cost||0}</td>
       <td></td>`;
     const del=document.createElement('button'); del.className='bad'; del.textContent='✕';
     del.onclick=()=>{ if(confirm('Delete plan "'+(p.name||p.id)+'"?')) db.collection('plans').doc(p.id).delete().then(()=>toast('Deleted')).catch(e=>toast(e.message)); };
-    tr.children[5].appendChild(del);
+    tr.children[4].appendChild(del);
     rows.appendChild(tr);
   }
 }
@@ -472,13 +466,11 @@ function addPlan(){
   const name=document.getElementById('pName').value.trim();
   const tier=document.getElementById('pTier').value;
   const months=parseInt(document.getElementById('pMonths').value)||0;
-  const deviceLimit=parseInt(document.getElementById('pDevices').value);
   const cost=parseInt(document.getElementById('pCost').value);
   if(!name){ toast('Enter a plan name'); return; }
   if(months<=0){ toast('Months must be > 0'); return; }
-  if(!Number.isFinite(deviceLimit)||deviceLimit<1){ toast('Devices must be at least 1'); return; }
   if(!Number.isFinite(cost)||cost<0){ toast('Cost must be 0 or more'); return; }
-  db.collection('plans').add({name, tier, months, deviceLimit, cost}).then(()=>{ toast('Plan added'); document.getElementById('pName').value=''; }).catch(e=>toast('Failed: '+e.message));
+  db.collection('plans').add({name, tier, months, cost}).then(()=>{ toast('Plan added'); document.getElementById('pName').value=''; }).catch(e=>toast('Failed: '+e.message));
 }
 
 // ---- Credit packages ----
