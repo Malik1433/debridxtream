@@ -312,3 +312,77 @@ verification emails, which we do not carry today.
 | Freeing a slot | **Owner/reseller only** | no swap counters anywhere; `releaseDevice` is privileged; customer Devices page is read + rename (§7.7 names the cost) |
 
 **U0 is unblocked.**
+
+---
+
+## 8. Account sign-in on the TV, multi-server, and premium (owner, 2026-07-31)
+
+Three follow-ups from the owner after U6 was proven on hardware. The first answer is the one that
+keeps this small:
+
+> **"Email login sirf premium activation verification ke liye, baaki sab same hi rahega."**
+
+So the TV's login screen does **not** change. IPTV credentials still arrive the way they do today
+(QR pairing, manual entry, or §7 U6's account sync). Signing in with a DebridXtream account is a
+separate, optional act with exactly one purpose: proving the user has a subscription that includes
+premium, so debrid unlocks.
+
+That is a much smaller and safer change than putting account login in front of everything, and it
+leaves every working path alone.
+
+### 8.1 The interaction that would otherwise break U6 silently
+
+Today the TV signs in **anonymously** and its playlists are found through
+`device_auth/{anonymousUid} → ownerUid`.
+
+The moment a user signs in with email, **the TV's uid changes to their own**. `device_auth` has no
+row under that uid, so playlist sync would simply stop — with no error, on a device that was working
+a second earlier.
+
+The fix is to stop treating the anonymous binding as the only way to know the owner:
+
+- signed in as a **real user** → the owner IS `request.auth.uid`; read `playlists` directly. This
+  path is actually simpler than the anonymous one, and needs no `device_auth` row at all.
+- signed in **anonymously** → resolve the owner through `device_auth` exactly as U6 does now.
+
+Firebase's anonymous→email *linking* is deliberately not used: it fails when the account already
+exists, which is the normal case here (the customer made their account on the phone first).
+
+### 8.2 Where premium comes from (owner: account subscription, resellers unchanged)
+
+§7.0's two channels stay intact:
+
+| | source of premium |
+|---|---|
+| Reseller-sold device | its own licence, exactly as today — **untouched** |
+| Consumer, signed in | their subscription's `tier` + `expiresAt` |
+
+So premium becomes *"the device licence grants it **or** the signed-in account's subscription does"*.
+Widening only: no device that has premium today can lose it because of this.
+
+`subscriptions` is written only by Functions/admin and readable only by its owner, so it is a
+trustworthy source. The existing tamper-evidence on the local cache is unaffected — a subscription is
+re-read from the server, not cached and trusted.
+
+### 8.3 Multi-server (owner: one active at a time, switchable)
+
+The account may hold several playlists; the TV runs **one** and the user switches it in Settings.
+Deliberately not "merge everything into one catalogue": that would touch sync, EPG and the catalogue
+layer — the parts of this app that have caused the loading problems — for a convenience.
+
+Today `AccountPlaylistSync` silently picks the *first* enabled playlist, which is a coin flip once
+someone has two. An explicit choice, remembered, replaces it.
+
+### 8.4 Phases
+
+| # | Phase | Risk |
+|---|---|---|
+| V1 | Owner-resolution fix (8.1) — real user vs anonymous. Ships **before** any sign-in UI exists, so U6 cannot break when V2 lands | low |
+| V2 | Multi-server: remember the active playlist, pick it in Settings, sync honours it | medium — touches the credentials the app logs in with |
+| V3 | Account sign-in on the TV, in Settings only, for premium activation | medium — new auth path, must not disturb anonymous identity for unclaimed devices |
+| V4 | Premium from the subscription, folded into the existing entitlement checks (8.2) | **high — gates debrid.** Widening only, and verified on device before it ships |
+| U8 | Flag default ON + stop writing credentials to `device_codes` + tighten rules | high |
+| U9 | Point the TV's QR at `/link` — **only after U8**, or the QR leads somewhere that does nothing | medium |
+
+V1 first is not sequencing for its own sake: without it, the day V3 ships is the day every
+signed-in TV quietly stops receiving playlists.
