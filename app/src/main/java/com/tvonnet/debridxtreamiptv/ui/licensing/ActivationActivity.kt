@@ -68,6 +68,13 @@ class ActivationActivity : AppCompatActivity() {
                             titleTv.text = "Your subscription has expired"
                             statusTv.text = "Contact your provider to renew"
                         }
+                        // Nothing is wrong with the licence — the device just has not been able to
+                        // reach us for a while. Say that, and say what fixes it. Telling someone
+                        // their subscription expired when it has not is how support tickets start.
+                        LicenseState.Reason.OFFLINE_TOO_LONG -> {
+                            titleTv.text = "Please connect to the internet"
+                            statusTv.text = "This device needs to check in — it will unlock by itself once online"
+                        }
                     }
                 }
             }

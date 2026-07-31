@@ -21,7 +21,17 @@ sealed class LicenseState {
     data class Locked(val activationCode: String, val reason: Reason) : LicenseState()
     data class Active(val tier: String, val isTrial: Boolean = false) : LicenseState()
 
-    enum class Reason { PENDING, DEACTIVATED, EXPIRED, TRIAL_ENDED }
+    enum class Reason {
+        PENDING, DEACTIVATED, EXPIRED, TRIAL_ENDED,
+
+        /**
+         * Entitled as far as the cached document knows, but the licence server has not been reached
+         * for longer than the grace window. Distinct from EXPIRED on purpose: nothing is wrong with
+         * the licence, the device just needs to get online — and telling someone their subscription
+         * expired when it has not is the kind of message that generates a support ticket.
+         */
+        OFFLINE_TOO_LONG
+    }
 }
 
 /**
@@ -75,7 +85,24 @@ class LicenseManager private constructor(context: Context) {
      * inside its 7-day trial window also passes.
      */
     fun isEntitledCached(): Boolean =
-        !cache.enforce || cache.isCurrentlyEntitled() || isTrialActive()
+        !cache.enforce || (onlineCheckFresh() && (cache.isCurrentlyEntitled() || isTrialActive()))
+
+    /**
+     * Has this device reached the licence server recently enough to still count?
+     *
+     * The gap this closes: entitlement was decided purely from the cached document, so a device that
+     * blocks Firebase after one successful sync stayed entitled forever. With the owner's choice of
+     * online-only (no offline token), freshness is the enforcement.
+     *
+     * Generous on purpose — see [OnlineCheckFreshness]. It only applies under `enforce`, which
+     * defaults false, so this cannot lock anyone out until enforcement is deliberately turned on.
+     */
+    private fun onlineCheckFresh(now: Long = System.currentTimeMillis()): Boolean =
+        OnlineCheckFreshness.isFresh(
+            nowMs = now,
+            lastVerifiedAt = cache.lastVerifiedAt,
+            firstSeenAt = cache.firstSeenAt
+        )
 
     /** True when the app is running under the expected release certificate (see [AppIntegrity]). */
     fun appIntegrityOk(): Boolean = AppIntegrity.isTrustedSignature(appContext)
@@ -122,7 +149,11 @@ class LicenseManager private constructor(context: Context) {
     }
 
     private fun cachedState(): LicenseState {
-        if (!cache.enforce || cache.isCurrentlyEntitled()) return LicenseState.Active(cache.tier)
+        if (!cache.enforce) return LicenseState.Active(cache.tier)
+        // Stale beats entitled: without this the gate would refuse entry while the state still said
+        // Active, and the two would disagree about the same device.
+        if (!onlineCheckFresh()) return LicenseState.Locked(activationCode, LicenseState.Reason.OFFLINE_TOO_LONG)
+        if (cache.isCurrentlyEntitled()) return LicenseState.Active(cache.tier)
         if (isTrialActive()) return LicenseState.Active(LicensePreferences.TIER_PREMIUM, isTrial = true)
         val reason = when {
             cache.status == LicensePreferences.STATUS_ACTIVE -> LicenseState.Reason.EXPIRED // active but past expiresAt
@@ -145,6 +176,12 @@ class LicenseManager private constructor(context: Context) {
         // can't hand it a fresh 7-day trial. (Captures devices that were active before
         // the everEntitled flag existed.)
         if (cache.isCurrentlyEntitled()) cache.everEntitled = true
+
+        // Stamp the install's first sighting once, so a device that never reaches the server still
+        // gets a bounded first-run window rather than an unbounded one. An install that predates this
+        // field reads 0, which OnlineCheckFreshness treats as "new" — deliberately lenient, because
+        // guessing "ancient" would lock out existing users on the very build that ships this.
+        if (cache.firstSeenAt <= 0L) cache.firstSeenAt = System.currentTimeMillis()
 
         // Global enforcement switch (fail-open default). Kept separate so the owner can
         // roll the gate out safely: ship code with enforce=false, flip to true when ready.
@@ -203,6 +240,12 @@ class LicenseManager private constructor(context: Context) {
                 }
                 _state.value = cachedState()
                 return@addSnapshotListener
+            }
+            // ONLY a real server round-trip counts as "we reached the licence server". Firestore
+            // replays this same listener from its own offline cache, and stamping on that would mean
+            // the online gate never expires — an enforcement mechanism that always says yes.
+            if (snapshot != null && !snapshot.metadata.isFromCache) {
+                cache.lastVerifiedAt = System.currentTimeMillis()
             }
             if (snapshot != null && snapshot.exists()) {
                 cache.docCreated = true

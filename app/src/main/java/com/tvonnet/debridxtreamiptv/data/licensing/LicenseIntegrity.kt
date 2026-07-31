@@ -27,7 +27,13 @@ object LicenseIntegrity {
 
     // Bound to the physical install id so a tag lifted from one device is useless on
     // another. Salt is deliberately unremarkable to blend into the minified output.
-    private const val KEY_SALT = "dx-lic-v1"
+    /**
+     * Not a secret, and never was — it is compiled into the APK, so anyone who can read the app can
+     * read this. The tag is tamper-EVIDENCE against a rooted prefs edit, not tamper-proofing against
+     * someone rebuilding the app. `internal` so the migration test can construct a v1 tag the way an
+     * older build did.
+     */
+    internal const val KEY_SALT = "dx-lic-v1"
 
     fun seal(prefs: LicensePreferences, installId: String) {
         prefs.integrityTag = tagFor(prefs, installId)
@@ -37,13 +43,32 @@ object LicenseIntegrity {
     fun verify(prefs: LicensePreferences, installId: String): Boolean {
         val stored = prefs.integrityTag
         if (stored.isEmpty()) return false
-        return constantTimeEquals(stored, tagFor(prefs, installId))
+        if (constantTimeEquals(stored, tagFor(prefs, installId))) return true
+
+        // A tag sealed before lastVerifiedAt joined the signed set. Accept it ONCE and immediately
+        // re-seal as v2 — otherwise shipping v2 invalidates every tag in the field, and because the
+        // tag gates premium that would drop debrid for every user until their next successful sync.
+        //
+        // Upgrading on the spot is what keeps this from being a hole: the v1 form is never accepted
+        // twice for the same install, so it cannot be used to keep an unsigned lastVerifiedAt.
+        if (constantTimeEquals(stored, legacyTagFor(prefs, installId))) {
+            seal(prefs, installId)
+            return true
+        }
+        return false
     }
 
-    private fun tagFor(prefs: LicensePreferences, installId: String): String {
+    private fun tagFor(prefs: LicensePreferences, installId: String): String =
+        hmac(prefs.canonicalForSigning(), installId)
+
+    /** The pre-v2 form, for the one-time upgrade in [verify]. */
+    private fun legacyTagFor(prefs: LicensePreferences, installId: String): String =
+        hmac(prefs.legacyCanonicalV1(), installId)
+
+    private fun hmac(canonical: String, installId: String): String {
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec("$KEY_SALT:$installId".toByteArray(Charsets.UTF_8), "HmacSHA256"))
-        val bytes = mac.doFinal(prefs.canonicalForSigning().toByteArray(Charsets.UTF_8))
+        val bytes = mac.doFinal(canonical.toByteArray(Charsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
     }
 

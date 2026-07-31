@@ -73,8 +73,40 @@ class LicensePreferences(context: Context) {
         get() = prefs.getString(KEY_INTEGRITY_TAG, "") ?: ""
         set(value) = prefs.edit().putString(KEY_INTEGRITY_TAG, value).apply()
 
-    /** Canonical serialization of the fields covered by the integrity tag. */
-    fun canonicalForSigning(): String = "v1|$status|$tier|$expiresAt|$createdAt|$enforce"
+    /**
+     * When the licence server was last genuinely REACHED — 0 if never.
+     *
+     * Only a real server round-trip may set this. A Firestore snapshot served from its own offline
+     * cache must not, or the online gate can never expire and is decorative.
+     */
+    var lastVerifiedAt: Long
+        get() = prefs.getLong(KEY_LAST_VERIFIED_AT, 0L)
+        set(value) = prefs.edit().putLong(KEY_LAST_VERIFIED_AT, value).apply()
+
+    /**
+     * First time this install was seen, so a device that has NEVER reached the server can still be
+     * given a bounded first-run window. Stamped once and never rewritten.
+     */
+    var firstSeenAt: Long
+        get() = prefs.getLong(KEY_FIRST_SEEN_AT, 0L)
+        set(value) = prefs.edit().putLong(KEY_FIRST_SEEN_AT, value).apply()
+
+    /**
+     * Canonical serialization of the fields covered by the integrity tag.
+     *
+     * v2 adds [lastVerifiedAt], because with online-only enforcement that timestamp IS the licence —
+     * left unsigned, a rooted prefs edit could park it in the future and stay entitled forever, which
+     * is the same hole the tag was introduced to close for `tier`.
+     */
+    fun canonicalForSigning(): String =
+        "v2|$status|$tier|$expiresAt|$createdAt|$enforce|$lastVerifiedAt"
+
+    /**
+     * The v1 string, kept ONLY so an existing sealed cache can be recognised once and re-sealed as
+     * v2. Without it, shipping v2 would invalidate every tag in the field, and since the tag gates
+     * premium that would drop debrid for every user until their next successful sync.
+     */
+    fun legacyCanonicalV1(): String = "v1|$status|$tier|$expiresAt|$createdAt|$enforce"
 
     /** True when the last known state grants access (active + not expired). */
     fun isCurrentlyEntitled(now: Long = System.currentTimeMillis()): Boolean {
@@ -96,6 +128,8 @@ class LicensePreferences(context: Context) {
         private const val KEY_ENFORCE = "enforce"
         private const val KEY_CREATED_AT = "created_at"
         private const val KEY_INTEGRITY_TAG = "integrity_tag"
+        private const val KEY_LAST_VERIFIED_AT = "last_verified_at"
+        private const val KEY_FIRST_SEEN_AT = "first_seen_at"
 
         const val STATUS_UNKNOWN = "unknown"
         const val STATUS_PENDING = "pending"

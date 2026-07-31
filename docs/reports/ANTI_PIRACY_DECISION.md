@@ -105,10 +105,25 @@ R8 / `minifyEnabled` is on for release builds. Keep it; it makes the licence bra
 
 ---
 
-## 6. The decision
+## 6. The decision — ANSWERED 2026-07-31
 
-**Answer §1 — do you sell the service, or does the user bring it?**
+**The owner's answer: users bring their own IPTV subscription.**
 
-- **You sell it** → build §4.1, then §4.2 + §4.3 + device limits. That is a real lock and worth the work.
-- **They bring it** → do §4.1 and §4.4 and stop there. Anything more is effort spent on a door that
-  cannot be closed.
+So this is the §3 branch, and the scope is settled:
+
+| | |
+|---|---|
+| **§4.1 Release signing** | DO — one command, owner runs it (holds the password) |
+| **§4.4 Online licence gate** | DO — cheap, no backend function, no Blaze |
+| **§4.2 Server-delivered credentials** | **DO NOT BUILD** — see below |
+| **§4.3 Hardware attestation** | Not for licensing. Keep it in scope only for the device_codes encryption work, where it protects the user's credentials rather than the licence |
+
+**Why §4.2 is dropped, explicitly.** It is the strongest measure available and it would be wasted
+here. Its whole power is withholding something the app cannot work without — and when the user brings
+their own subscription, we hold nothing to withhold. Building it would be weeks of work on the live
+pairing flow for a lock with no door behind it.
+
+**What that means honestly:** licence enforcement will stop casual copying, and the signature check
+will stop repackaged redistribution. A determined person with the APK and their own subscription will
+still get through, and nothing buildable on the client changes that. That is the ceiling, and it is
+worth knowing rather than paying to discover.
