@@ -441,3 +441,64 @@ anything starts depending on what it returns.
 
 **Superseded by this section:** §8's V3/V4. They described the same work when sign-in was still
 imagined as a premium-only afterthought hidden in Settings. W1–W3 replace them.
+
+---
+
+## 10. Where this actually stands (2026-08-01) — read this instead of §8/§9
+
+The owner said the plan had become confusing. It had. One decision they made is what un-confuses it:
+
+> **There is only ONE tier.**
+
+That single answer deleted most of §8 and §9: no normal/premium split, no "which services did they
+buy", no entitlement-scoped pairing link, and no risky phase gating debrid on a subscription lookup.
+
+What is left fits in two sentences:
+
+> **The licence answers one question: may this device run the app.**
+> **What the customer can watch depends on what they entered.**
+
+IPTV details → IPTV works. Debrid addons as well → debrid works too. The customer brings both
+services; we sell neither.
+
+### 10.1 Done and device-verified
+
+| | |
+|---|---|
+| **One tier** (`ce8243d`) | `isDebridAllowed` now follows the app's own licence. A second question, `isDebridConfigured`, is used in exactly two places — the home badge and Continue Watching — because those are the only places where the alternative is telling the customer something untrue |
+| **TV login page** (`728fa33`) | "Sign in with your account" + the device key, beside the untouched IPTV fields and phone/QR. Account sign-in sits BELOW phone/QR because typing on a remote is the slowest way in |
+| **Debrid setup guide** (`aeda106`) | Opening Debrid with no addons explains how to add them instead of showing rows that never fill. The section stays reachable on purpose — hiding it teaches nobody anything |
+| **Google on the website** (`ee35905`) | Popup with redirect fallback, `prompt=select_account`, profile doc created for Google users |
+
+### 10.2 Owner decisions recorded so they are not re-litigated
+
+- **Multi-server: dropped, and why.** Watch history, favourites and the catalogue are keyed by stream
+  id with no record of the provider, so switching servers on one device would fill Continue Watching
+  with entries that cannot play. What survives is per-device assignment: different TVs, different
+  providers, each seeing exactly one.
+- **The audio-wedge warning: deliberately NOT built.** The owner's call — the freeze appeared under
+  our own heavy double-playlist testing, not under normal use, and the cause is now understood
+  (turn the TV off and on). Recorded so this is not mistaken for an oversight.
+- **No Google button on the TV.** Fire TV has no Play Services. A TV-side Google sign-in has to be a
+  device-code flow, which is its own phase — and is only needed by someone who has a Google-only
+  account *and* no phone.
+
+### 10.3 Blocked on the owner, not on code
+
+Two Firebase console settings, or Google sign-in cannot work — found by querying the project rather
+than waiting for it to fail in the owner's hands:
+
+1. Authentication → Sign-in method → **Google** → Enable.
+2. Authentication → Settings → **Authorized domains** → add `debxtrem-companion.vercel.app`.
+
+Only `localhost`, `debridxtream-new.firebaseapp.com` and `debridxtream-new.web.app` are listed today.
+Authorized domains gate **OAuth only**, which is why email/password already works from Vercel — and
+why this stays invisible until somebody presses the Google button.
+
+### 10.4 Still open
+
+- **U8** — flag `account_playlist_sync` ON by default, stop writing credentials to `device_codes`,
+  tighten those rules. The flag is currently on for `.64` only.
+- **U9** — point the TV's QR at `/link`. **Only after U8**, or the QR leads somewhere that does
+  nothing on a device whose flag is off.
+- TV-side Google (device-code flow), if a Google-only customer without a phone ever turns up.
