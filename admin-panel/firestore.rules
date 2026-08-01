@@ -80,20 +80,24 @@ service cloud.firestore {
       allow write: if false;        // console-only
     }
 
-    // ── Companion config channel (permanent device-key docs) ────────────
-    // Unauthenticated by design: the TV and the phone page both address the doc
-    // by the device key (capability). Docs carry pushed IPTV credentials, so
-    // LIST is denied — you must know the exact key; enumeration is blocked.
-    // DELETE is admin-only: nobody who merely knows a key should be able to wipe
-    // another device's config (griefing). get/create/update stay open because the
-    // unauthenticated phone page legitimately writes config by key.
-    // RESIDUAL RISK (needs a bigger change, tracked separately): anyone who learns a
-    // device's key can still READ its pushed IPTV credentials. Proper fix = short-lived
-    // pairing tokens + not storing raw credentials at rest (encrypt with a device-held key).
+    // ── Companion config channel (legacy) ───────────────────────────────
+    // §7/U8b, 2026-08-01: **this channel may no longer carry credentials.**
+    //
+    // It used to hold the customer's Xtream username and password, readable by anyone who
+    // learned the device key — a key printed on the TV screen and handed to their provider.
+    // That was the hole §7 was written to close. Configuration now flows through `playlists`,
+    // which is owner-scoped.
+    //
+    // The ban is enforced HERE rather than only by deleting the client code, because a rule is
+    // a property of the data: no future client, and no direct API call, can put credentials
+    // back in. The doc itself stays writable so the TV can keep publishing its `waiting`
+    // status, and readable because there is no longer anything in it worth reading.
     match /device_codes/{code} {
-      allow get, create, update: if true;
-      allow delete: if isAdmin();
+      allow get: if true;
       allow list: if false;
+      allow create, update: if !request.resource.data.keys()
+        .hasAny(['iptv', 'debridConfig', 'stremioAddonUrls', 'debrid', 'mediafusion', 'password']);
+      allow delete: if isAdmin();
     }
 
     // ── Resellers (multi-tenant reseller dashboard) ─────────────────────

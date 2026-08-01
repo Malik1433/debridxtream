@@ -52,8 +52,12 @@ android {
         // device keeps running the build it already has.
         minSdk 23
         targetSdk 35  // Updated to match compileSdk for latest Android features
-        versionCode 36
-        versionName "2.1.5"
+        // Bumped for the account release (§7-§9). This is also what makes the fleet
+        // ANSWERABLE: LicenseManager writes appVersionCode to licenses/{installId} on every
+        // launch, so anything still reporting 36 has not taken the account build — which is
+        // exactly the question U8b hangs on.
+        versionCode 37
+        versionName "2.2.0"
         multiDexEnabled true
         multiDexKeepFile file('multidex-keep.txt')
         multiDexKeepProguard file('multidex-keep.pro')

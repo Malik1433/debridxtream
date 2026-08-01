@@ -499,12 +499,13 @@ why this stays invisible until somebody presses the Google button.
 
 - **U8a — DONE.** `account_playlist_sync` now defaults ON.
 - **U9 — DONE.** The TV's QR points at `/link` and the overlay was rewritten for that flow.
-- **U8b — the only thing left, and it waits on the fleet, not on code.** Stop writing credentials to
-  `device_codes` and tighten those rules. It is a small change held back for one reason: **a device's
-  QR address is baked into the build it is running.** Older builds still point at the legacy
-  ConfigPage, so removing credential writing kills their only pairing route. Do it once old builds
-  are gone — not before.
-  *(An earlier note here claimed U8b and U9 had to ship together. Wrong: repointing the QR only
-  affects devices running the NEW build, so U9 was safe on its own. Only U8b is coupled to old
-  builds still existing.)*
+- **U8b — DONE (2026-08-01).** Safe because the fleet is two devices, both on the account build,
+  and the owner is happy to reconfigure them from scratch. Credential writing is gone from the web,
+  the legacy config page is deleted, its addresses redirect to `/link` (they are printed inside older
+  TV builds), and — the part that matters — **the rules now REFUSE credential fields on
+  `device_codes`**. Deleting client code only stops today's client; a rule is a property of the data,
+  so no future client and no direct API call can put credentials back.
+  *(This also required the versionCode bump: it had sat at 36 through all of §7-§9, so the fleet
+  could not be told apart. 37 makes "who is still on an old build" answerable from
+  `licenses/{installId}.appVersionCode`.)*
 - TV-side Google (device-code flow), if a Google-only customer without a phone ever turns up.

@@ -1,5 +1,5 @@
 import { db } from '../firebase'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc } from 'firebase/firestore'
 
 export interface AppConfig {
     schemaVersion?: number
@@ -63,42 +63,12 @@ export const FirestoreService = {
     /**
      * Pushes the configuration to Firestore for the given device code
      */
-    async pushConfig(code: string, config: AppConfig): Promise<void> {
-        try {
-            const docRef = doc(db, 'device_codes', code)
-            const addonUrls = config.stremioAddonUrls ?? config.debridConfig?.stremioAddonUrls ?? []
-            const payload: Record<string, unknown> = {
-                schemaVersion: config.schemaVersion ?? 2,
-                debridConfig: {
-                    ...(config.debridConfig ?? {}),
-                    stremioAddonUrls: addonUrls
-                },
-                stremioAddonUrls: addonUrls,
-                status: 'completed',
-                updatedAt: serverTimestamp()
-            }
-
-            if (config.iptv) {
-                payload.iptv = config.iptv
-            }
-
-            console.log(
-                'Pushing companion config',
-                {
-                    code,
-                    schemaVersion: payload.schemaVersion,
-                    hasIptv: Boolean(config.iptv),
-                    addonCount: addonUrls.length
-                }
-            );
-
-            // Wrap setDoc with a 15s timeout
-            await withTimeout(setDoc(docRef, payload, { merge: true }), 15000)
-            console.log('Config pushed successfully');
-        } catch (error) {
-            console.error('Detailed Error pushing config:', error)
-            throw error
-        }
-    }
+    /**
+     * REMOVED (§7 U8b, 2026-08-01). This wrote the customer's Xtream username and password into
+     * `device_codes/{code}` — a document readable by anyone who learned the device key, which is
+     * printed on the TV screen. Configuration now lives in `playlists`, owner-scoped, and the
+     * Firestore rules refuse credential fields on `device_codes` outright, so this cannot be
+     * reinstated by accident.
+     */
 }
 
