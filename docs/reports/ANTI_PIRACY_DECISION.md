@@ -497,8 +497,11 @@ why this stays invisible until somebody presses the Google button.
 
 ### 10.4 Still open
 
-- **U8** — flag `account_playlist_sync` ON by default, stop writing credentials to `device_codes`,
-  tighten those rules. The flag is currently on for `.64` only.
-- **U9** — point the TV's QR at `/link`. **Only after U8**, or the QR leads somewhere that does
-  nothing on a device whose flag is off.
+- **U8a — DONE.** `account_playlist_sync` now defaults ON.
+- **U8b + U9 — must ship TOGETHER, and the plan had this wrong.** §7.6 listed "stop writing
+  credentials to `device_codes`" under U8 and "repoint the QR" under U9, in that order. That
+  sequence breaks pairing: the TV's QR still opens the old ConfigPage, so stopping that page from
+  writing credentials while the QR still points at it kills the old route before the new one is
+  reachable. The cutover is one step — repoint the QR at `/link`, stop writing credentials to
+  `device_codes`, tighten those rules.
 - TV-side Google (device-code flow), if a Google-only customer without a phone ever turns up.

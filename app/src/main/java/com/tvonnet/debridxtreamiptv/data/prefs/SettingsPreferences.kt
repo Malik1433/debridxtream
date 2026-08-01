@@ -153,15 +153,19 @@ class SettingsPreferences(private val context: Context) {
     }
 
     /**
-     * §7 U6: read IPTV credentials from the customer's ACCOUNT (playlists) instead of only from a
-     * companion push.
+     * §7 U6 / U8: read IPTV credentials from the customer's ACCOUNT (playlists) instead of only from
+     * a companion push.
      *
-     * Defaults OFF. It rewrites the credentials the app logs in with, so it ships dark and is turned
-     * on deliberately after the claim flow has been exercised on real hardware:
-     *   adb shell am broadcast … or edit `iptv_settings` → account_playlist_sync = true
+     * **Default flipped to ON (U8, 2026-08-01)** after the whole chain was exercised on real
+     * hardware: claim from the phone, playlists read on the TV, auto-login, and the same again after
+     * a sign-out.
+     *
+     * Turning it on is safe for a device that is NOT claimed to any account: the sync resolves no
+     * owner, reads nothing and writes nothing. It only does something once a customer has actually
+     * linked that TV — which is the point at which they want it to.
      */
     fun isAccountPlaylistSyncEnabled(): Boolean {
-        return prefs.getBoolean(KEY_ACCOUNT_PLAYLIST_SYNC, false)
+        return prefs.getBoolean(KEY_ACCOUNT_PLAYLIST_SYNC, true)
     }
 
     fun setAccountPlaylistSyncEnabled(enabled: Boolean) {
