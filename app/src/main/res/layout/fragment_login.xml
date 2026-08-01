@@ -773,7 +773,7 @@
                         android:layout_marginTop="10dp"
                         android:fontFamily="monospace"
                         android:letterSpacing="0.12"
-                        android:text="SCAN WITH DEBRIDXTREAM APP"
+                        android:text="SCAN WITH YOUR PHONE CAMERA"
                         android:textColor="#64748B"
                         android:textSize="7sp" />
                 </LinearLayout>
@@ -815,7 +815,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/plus_jakarta_sans"
-                                android:text="Open the companion app"
+                                android:text="Scan the code"
                                 android:textColor="#F1F5F9"
                                 android:textSize="9sp"
                                 android:textStyle="bold" />
@@ -826,7 +826,7 @@
                                 android:layout_marginTop="2dp"
                                 android:fontFamily="@font/inter"
                                 android:lineSpacingMultiplier="1.4"
-                                android:text="Install DebridXtream on your phone and tap 'Connect TV'."
+                                android:text="Point your phone camera at the QR code — no app to install."
                                 android:textColor="#64748B"
                                 android:textSize="8sp" />
                         </LinearLayout>
@@ -862,7 +862,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/plus_jakarta_sans"
-                                android:text="Scan the QR code"
+                                android:text="Sign in on your phone"
                                 android:textColor="#F1F5F9"
                                 android:textSize="9sp"
                                 android:textStyle="bold" />
@@ -873,7 +873,7 @@
                                 android:layout_marginTop="2dp"
                                 android:fontFamily="@font/inter"
                                 android:lineSpacingMultiplier="1.4"
-                                android:text="Point your phone camera at the QR code on the left."
+                                android:text="Create an account or sign in. Google works too."
                                 android:textColor="#64748B"
                                 android:textSize="8sp" />
                         </LinearLayout>
@@ -909,7 +909,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/plus_jakarta_sans"
-                                android:text="Enter your credentials"
+                                android:text="Add this TV"
                                 android:textColor="#F1F5F9"
                                 android:textSize="9sp"
                                 android:textStyle="bold" />
@@ -920,7 +920,7 @@
                                 android:layout_marginTop="2dp"
                                 android:fontFamily="@font/inter"
                                 android:lineSpacingMultiplier="1.4"
-                                android:text="Fill in your Xtream details on your phone — it syncs automatically."
+                                android:text="The code below is already filled in — just confirm. Your playlists then load here by themselves."
                                 android:textColor="#64748B"
                                 android:textSize="8sp" />
                         </LinearLayout>

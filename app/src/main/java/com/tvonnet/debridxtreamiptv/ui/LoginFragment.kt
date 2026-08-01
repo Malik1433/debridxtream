@@ -363,6 +363,10 @@ class LoginFragment : Fragment() {
         com.tvonnet.debridxtreamiptv.ui.companion.AccountPlaylistSync.onCredentialsApplied = {
             view.post {
                 if (isAdded) {
+                    // The QR now leads to the account claim page, which never writes to
+                    // device_codes — so the overlay's own listener never completes. Close it here,
+                    // or it waits for a hand-off that already happened.
+                    qrOverlay?.onConfiguredElsewhere()
                     autoSyncLoginAttempted = false
                     checkAutoSyncCredentials()
                 }

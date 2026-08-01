@@ -498,10 +498,13 @@ why this stays invisible until somebody presses the Google button.
 ### 10.4 Still open
 
 - **U8a — DONE.** `account_playlist_sync` now defaults ON.
-- **U8b + U9 — must ship TOGETHER, and the plan had this wrong.** §7.6 listed "stop writing
-  credentials to `device_codes`" under U8 and "repoint the QR" under U9, in that order. That
-  sequence breaks pairing: the TV's QR still opens the old ConfigPage, so stopping that page from
-  writing credentials while the QR still points at it kills the old route before the new one is
-  reachable. The cutover is one step — repoint the QR at `/link`, stop writing credentials to
-  `device_codes`, tighten those rules.
+- **U9 — DONE.** The TV's QR points at `/link` and the overlay was rewritten for that flow.
+- **U8b — the only thing left, and it waits on the fleet, not on code.** Stop writing credentials to
+  `device_codes` and tighten those rules. It is a small change held back for one reason: **a device's
+  QR address is baked into the build it is running.** Older builds still point at the legacy
+  ConfigPage, so removing credential writing kills their only pairing route. Do it once old builds
+  are gone — not before.
+  *(An earlier note here claimed U8b and U9 had to ship together. Wrong: repointing the QR only
+  affects devices running the NEW build, so U9 was safe on its own. Only U8b is coupled to old
+  builds still existing.)*
 - TV-side Google (device-code flow), if a Google-only customer without a phone ever turns up.

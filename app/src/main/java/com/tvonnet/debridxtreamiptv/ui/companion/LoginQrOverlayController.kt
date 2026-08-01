@@ -185,4 +185,22 @@ class LoginQrOverlayController(
             }
         }
     }
+
+    /**
+     * The QR now opens the ACCOUNT claim page (§9 U9), and that route never writes to
+     * `device_codes` — so the listener above will not fire for it. What arrives instead is
+     * credentials, read from the account by [AccountPlaylistSync] once the customer confirms the TV
+     * on their phone.
+     *
+     * Without this, the overlay would sit on "SCANNING FOR DEVICE…" forever while the login it was
+     * waiting for had already happened behind it. The `device_codes` listener stays for the legacy
+     * page, which older builds still point at.
+     */
+    fun onConfiguredElsewhere() {
+        if (paired) return
+        paired = true
+        tvStatus.text = "✓ TV ADDED · SYNCING…"
+        handler.removeCallbacks(statusCycler)
+        hide()
+    }
 }
