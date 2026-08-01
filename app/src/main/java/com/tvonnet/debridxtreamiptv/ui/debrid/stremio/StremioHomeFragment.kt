@@ -107,6 +107,22 @@ class StremioHomeFragment : Fragment() {
         debridVm.checkAuthStatus()
         discoverVm  // touch to init
         view.post { view.findViewById<View>(R.id.navTabHome)?.requestFocus() }
+        showSetupGuideIfNoDebridService(view)
+    }
+
+    /**
+     * With one tier, every device may open Debrid — but it does nothing until the customer adds
+     * their own addons. Rather than leaving them on rows that never fill, say what is missing and
+     * how to fix it (Qadam 3).
+     *
+     * Re-checked in [onResume] because addons can arrive while this screen sits in the background:
+     * from the phone, or from Settings on this TV.
+     */
+    private fun showSetupGuideIfNoDebridService(view: View) {
+        val configured = com.tvonnet.debridxtreamiptv.data.licensing.Entitlements
+            .isDebridConfigured(requireContext())
+        view.findViewById<View>(R.id.debrid_setup_overlay)?.visibility =
+            if (configured) View.GONE else View.VISIBLE
     }
 
     override fun onResume() {
@@ -114,6 +130,7 @@ class StremioHomeFragment : Fragment() {
         isNavigatingAway = false
         debridVm.refreshContinueWatching()
         heroManager.onResumeTimer()
+        view?.let { showSetupGuideIfNoDebridService(it) }
     }
 
     override fun onPause() {

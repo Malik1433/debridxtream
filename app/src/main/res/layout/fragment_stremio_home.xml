@@ -544,4 +544,106 @@
     <!-- ══════════════ SEARCH OVERLAY ══════════════ -->
     <include layout="@layout/overlay_stremio_search" />
 
+    <!-- ══ NO DEBRID SERVICE YET (§9 / Qadam 3) ══
+         Shown INSTEAD of leaving the customer on an empty Debrid screen wondering what is broken.
+         One tier means every device may use Debrid; whether it does anything depends on the
+         customer adding their own addons, so this is the screen that tells them how. -->
+    <FrameLayout
+        android:id="@+id/debrid_setup_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#F206090E"
+        android:clickable="true"
+        android:focusable="false"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="460dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:paddingHorizontal="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.18"
+                android:text="DEBRID"
+                android:textColor="#38BDF8"
+                android:textSize="8sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Add your debrid service to use this section"
+                android:textColor="#F1F5F9"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:lineSpacingExtra="3dp"
+                android:text="Debrid plays movies and series from your own debrid provider. Nothing here works until you add your addon links — they are yours, not part of this app."
+                android:textColor="#94A3B8"
+                android:textSize="10sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:text="On your phone"
+                android:textColor="#E2E8F0"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:lineSpacingExtra="2dp"
+                android:text="Open the address below, sign in, and paste your addon links there. This TV picks them up on its own."
+                android:textColor="#94A3B8"
+                android:textSize="10sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:fontFamily="monospace"
+                android:text="@string/companion_signup_url_short"
+                android:textColor="#38BDF8"
+                android:textSize="12sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Or on this TV"
+                android:textColor="#E2E8F0"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Settings › Debrid › Stremio Addons › Add Addon"
+                android:textColor="#94A3B8"
+                android:textSize="10sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.08"
+                android:text="BACK  ·  RETURN"
+                android:textColor="#475569"
+                android:textSize="8sp" />
+        </LinearLayout>
+    </FrameLayout>
 </FrameLayout>
