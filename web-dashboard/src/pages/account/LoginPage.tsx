@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../../firebase'
-import { CardShell, Field, errText, nextTarget, withSearch } from './accountUi'
+import { googleErrorText, signInWithGoogle } from '../../account/googleSignIn'
+import { CardShell, Field, GoogleMark, errText, nextTarget, withSearch } from './accountUi'
 
 export default function AccountLoginPage() {
     const nav = useNavigate()
@@ -27,6 +28,18 @@ export default function AccountLoginPage() {
         }
     }
 
+    async function google() {
+        setError(''); setNotice('')
+        setBusy(true)
+        try {
+            await signInWithGoogle()
+            // A redirect never reaches this line; a popup sign-in does.
+            nav(withSearch(nextTarget(search), search), { replace: true })
+        } catch (err: unknown) {
+            setError(googleErrorText(err))
+        } finally { setBusy(false) }
+    }
+
     async function resetPassword() {
         setError(''); setNotice('')
         if (!email.trim()) { setError('Enter your email first, then tap "Forgot password".'); return }
@@ -48,6 +61,16 @@ export default function AccountLoginPage() {
                 {notice && <p style={{ color: 'var(--dx-success)', fontSize: 13, margin: 0 }}>{notice}</p>}
                 <button disabled={busy} className="btn btn-primary btn-block" style={{ padding: '11px 16px', fontSize: 14 }}>{busy ? 'Signing in…' : 'Sign in'}</button>
             </form>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '18px 0' }}>
+                <div style={{ flex: 1, height: 1, background: 'var(--color-neutral-200)' }} />
+                <span style={{ fontSize: 12, opacity: 0.45 }}>or</span>
+                <div style={{ flex: 1, height: 1, background: 'var(--color-neutral-200)' }} />
+            </div>
+
+            <button type="button" onClick={google} disabled={busy} className="btn btn-secondary btn-block" style={{ justifyContent: 'center', padding: '11px 16px', fontSize: 14, gap: 8 }}>
+                <GoogleMark />Continue with Google
+            </button>
             <button type="button" onClick={resetPassword} className="btn btn-ghost" style={{ marginTop: 14, opacity: 0.6, fontSize: 13, padding: 0 }}>Forgot password?</button>
             <p style={{ marginTop: 20, fontSize: 14, opacity: 0.7 }}>
                 New here? <Link to={withSearch('/account/signup', search)}>Create an account</Link>

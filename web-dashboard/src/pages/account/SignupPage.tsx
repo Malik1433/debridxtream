@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db } from '../../firebase'
-import { AccountSplitShell, Field, errText, withSearch } from './accountUi'
+import { googleErrorText, signInWithGoogle } from '../../account/googleSignIn'
+import { AccountSplitShell, Field, GoogleMark, errText, nextTarget, withSearch } from './accountUi'
 
 export default function AccountSignupPage() {
     const nav = useNavigate()
@@ -38,8 +39,29 @@ export default function AccountSignupPage() {
         }
     }
 
+    async function google() {
+        setError('')
+        setBusy(true)
+        try {
+            await signInWithGoogle()
+            // Google accounts arrive already verified, so there is nothing to verify — go straight
+            // where they were headed instead of via the verify screen.
+            nav(withSearch(nextTarget(search), search), { replace: true })
+        } catch (err: unknown) {
+            setError(googleErrorText(err))
+        } finally { setBusy(false) }
+    }
+
     return (
         <AccountSplitShell title="Create your account" subtitle="One account for all your devices.">
+            <button type="button" onClick={google} disabled={busy} className="btn btn-secondary btn-block" style={{ justifyContent: 'center', padding: '11px 16px', fontSize: 14, gap: 8, marginBottom: 18 }}>
+                <GoogleMark />Continue with Google
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+                <div style={{ flex: 1, height: 1, background: 'var(--color-neutral-200)' }} />
+                <span style={{ fontSize: 12, opacity: 0.45 }}>or sign up with email</span>
+                <div style={{ flex: 1, height: 1, background: 'var(--color-neutral-200)' }} />
+            </div>
             <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <Field label="Your name"><input className="input" type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" /></Field>
                 <Field label="Email"><input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" /></Field>
