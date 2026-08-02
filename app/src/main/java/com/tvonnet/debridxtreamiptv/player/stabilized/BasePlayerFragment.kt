@@ -338,16 +338,16 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         onCommit = { target -> liveTuner.tuneToZapChannel(target) }
     )
 
+    // HTTP codes that mean the source itself is dead — retrying can never help.
+    private val TERMINAL_HTTP_CODES = setOf(400, 401, 403, 404, 405, 410, 416, 451)
+
     // Fail fast on permanently broken sources so app-level fallback kicks in quickly;
     // transient errors back off exponentially with jitter to avoid retry storms.
     private val playbackLoadErrorPolicy = object : DefaultLoadErrorHandlingPolicy() {
         override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
             val responseCode =
                 (loadErrorInfo.exception as? HttpDataSource.InvalidResponseCodeException)?.responseCode
-            if (responseCode == 400 || responseCode == 401 || responseCode == 403 ||
-                responseCode == 404 || responseCode == 405 || responseCode == 410 ||
-                responseCode == 416 || responseCode == 451
-            ) {
+            if (responseCode in TERMINAL_HTTP_CODES) {
                 return C.TIME_UNSET
             }
             // HTTP 429 (QA fix 4): the provider WAF is rate-limiting this IP. Standard
@@ -641,6 +641,8 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         val isDebrid = playbackSource == PlaybackSource.DEBRID
         val canResolveDebrid = canUseDebridResolver()
         val hasResInfo = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
+        // The resolver can only repair this playback if it is usable AND has a hash/magnet to feed it.
+        val canResolverRepair = canResolveDebrid && hasResInfo
         val isDebridUrlMissing = streamUrl.isNullOrBlank()
         val canFreshResolveDirectDebrid = canFreshResolveDirectDebrid()
         // See mustResolveBeforePlaying: a saved position no longer counts as "expired". A resume
@@ -653,7 +655,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
             nowMs = System.currentTimeMillis()
         )
 
-        if (isDebridUrlMissing && !(canResolveDebrid && hasResInfo) && !canFreshResolveDirectDebrid) {
+        if (isDebridUrlMissing && !canResolverRepair && !canFreshResolveDirectDebrid) {
             showError("Invalid stream URL")
             finish()
             return
@@ -697,7 +699,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
 
         if (canFreshResolveDirectDebrid && isExpired) {
             refreshDirectDebridSourceFromMetadata("expired_direct_resume")
-        } else if (canResolveDebrid && hasResInfo && (isDebridUrlMissing || isExpired)) {
+        } else if (canResolverRepair && (isDebridUrlMissing || isExpired)) {
             Log.i("PlayerActivity", "Debrid resume detected: URL is ${if (isDebridUrlMissing) "missing" else "expired"}. Triggering resolution.")
             isResolvingDebrid = true
             viewModel.reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
@@ -1317,7 +1319,13 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     fun hostKeyLongPress(keyCode: Int, event: KeyEvent): Boolean? = inputRouter.onKeyLongPress(keyCode, event)
 
     fun hostUserInteraction() {
-        if (contentType == ContentType.LIVE_TV || isInPictureInPictureMode || !playerView.useController || (::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible)) return
+        // Live/PiP never auto-show the controller chrome on interaction.
+        val chromeSuppressed = contentType == ContentType.LIVE_TV || isInPictureInPictureMode
+        val nextEpisodePromptShowing =
+            ::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible
+        if (chromeSuppressed || !playerView.useController || nextEpisodePromptShowing) {
+            return
+        }
         
         // Fix: Don't show controller if browser is open
         if (::episodeBrowserController.isInitialized && episodeBrowserController.isVisible()) {

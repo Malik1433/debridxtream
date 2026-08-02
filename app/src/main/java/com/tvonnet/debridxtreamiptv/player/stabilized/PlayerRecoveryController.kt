@@ -445,7 +445,10 @@ internal class PlayerRecoveryController(
                 if (directDebridPlayback && refreshDirectDebridSourceFromMetadata("buffer_timeout_direct_refresh")) {
                     return
                 }
-                if (canUseDebridResolver() && !isResolvingDebrid && retryCount > 1 && (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())) {
+                val hasResolveInfo =
+                    !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
+                val resolverIdle = canUseDebridResolver() && !isResolvingDebrid
+                if (resolverIdle && retryCount > 1 && hasResolveInfo) {
                       isResolvingDebrid = true
                       if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
                       reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)

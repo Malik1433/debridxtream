@@ -123,7 +123,8 @@ internal class PlayerInputRouter(
             // (DPAD_DOWN no longer auto-opens it).
 
             // Standard Controller triggers
-            if (contentType != ContentType.LIVE_TV && playerView.useController && !activity.isNextEpisodePromptVisible() && !playerView.isControllerFullyVisible) {
+            val controllerCanAppear = contentType != ContentType.LIVE_TV && playerView.useController
+            if (controllerCanAppear && !activity.isNextEpisodePromptVisible() && !playerView.isControllerFullyVisible) {
                 if (isControllerTriggerKey(event.keyCode)) {
                     showControllerWithSmartFocus(event)
                     return true

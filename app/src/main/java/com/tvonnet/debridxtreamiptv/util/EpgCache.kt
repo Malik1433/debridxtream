@@ -73,7 +73,9 @@ object EpgCache {
 
         // Treat only real EPG data as a fresh cache hit.
         // Empty/null pairs are a miss so late XMLTV syncs or short-EPG retries can repopulate.
-        if (now - lastUpdate < cacheExpirationMs && cached != null && (cached.first != null || cached.second != null)) {
+        val isFresh = now - lastUpdate < cacheExpirationMs
+        val hasRealData = cached != null && (cached.first != null || cached.second != null)
+        if (isFresh && hasRealData && cached != null) {
             Log.d(TAG, "EPG cache hit for channel $channelKey")
             return cached
         }

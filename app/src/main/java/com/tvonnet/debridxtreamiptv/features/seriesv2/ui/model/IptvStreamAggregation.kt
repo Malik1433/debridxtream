@@ -72,6 +72,16 @@ data class StreamLanguage(val code: String, val flag: String) {
             return StreamLanguage(up, FLAGS[up] ?: "🌐")
         }
 
+        /** Title markers per language code, in display order — each spelling was observed in the wild. */
+        private val LANGUAGE_MARKERS = linkedMapOf(
+            "MULTI" to listOf("multi"),
+            "FR" to listOf("vostfr", "vf", "french", "fr-"),
+            "HI" to listOf("hindi", "hin ", "-hi", " hi "),
+            "AR" to listOf("arab", "ar-sub", " ar "),
+            "ES" to listOf("span", "esp", " es "),
+            "EN" to listOf("english", "eng ", "-en", " en ")
+        )
+
         /**
          * Infer languages from a stream/series name and its category tag. Providers
          * encode language hints in the title (MULTI, VOSTFR, AR-Sub, VF…) so we scan
@@ -80,12 +90,9 @@ data class StreamLanguage(val code: String, val flag: String) {
         fun inferFrom(name: String?, categoryTag: String?): List<StreamLanguage> {
             val n = name?.lowercase().orEmpty()
             val found = linkedSetOf<String>()
-            if (n.contains("multi")) found.add("MULTI")
-            if (n.contains("vostfr") || n.contains("vf") || n.contains("french") || n.contains("fr-")) found.add("FR")
-            if (n.contains("hindi") || n.contains("hin ") || n.contains("-hi") || n.contains(" hi ")) found.add("HI")
-            if (n.contains("arab") || n.contains("ar-sub") || n.contains(" ar ")) found.add("AR")
-            if (n.contains("span") || n.contains("esp") || n.contains(" es ")) found.add("ES")
-            if (n.contains("english") || n.contains("eng ") || n.contains("-en") || n.contains(" en ")) found.add("EN")
+            LANGUAGE_MARKERS.forEach { (code, markers) ->
+                if (markers.any { n.contains(it) }) found.add(code)
+            }
             if (found.isEmpty()) {
                 val tag = categoryTag?.uppercase()?.takeIf { it.isNotBlank() && it != "SERIES" && it != "SRV" }
                 found.add(tag ?: "EN")

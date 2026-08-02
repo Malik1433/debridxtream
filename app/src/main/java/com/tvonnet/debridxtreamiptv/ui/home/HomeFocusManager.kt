@@ -72,7 +72,11 @@ internal class HomeFocusManager(private var fragment: HomeFragment?) {
             state.recentLiveChannels.isNotEmpty() ||
             state.top10Movies.isNotEmpty() ||
             state.top10Series.isNotEmpty()
-        if (currentFocus != null && !appliedLoadingFallbackFocus && !(hasContentRows && isHeroButtonFocus(currentFocus))) {
+        // A real user focus already exists (and is not just our loading fallback or the hero
+        // button we are about to re-target): respect it and consider initial focus done.
+        val holdsIntentionalFocus = currentFocus != null && !appliedLoadingFallbackFocus
+        val isRetargetableHeroFocus = hasContentRows && currentFocus != null && isHeroButtonFocus(currentFocus)
+        if (holdsIntentionalFocus && !isRetargetableHeroFocus) {
             hasAppliedInitialFocus = true
             return
         }
@@ -207,9 +211,8 @@ internal class HomeFocusManager(private var fragment: HomeFragment?) {
 
     fun requestFocusSafely(target: View?): Boolean {
         val frag = fragment ?: return false
-        if (!frag.isAdded || frag.view == null || target == null || !target.isShown || !target.isFocusable) {
-            return false
-        }
+        if (!frag.isAdded || frag.view == null) return false
+        if (target == null || !target.isShown || !target.isFocusable) return false
         return target.requestFocus()
     }
 

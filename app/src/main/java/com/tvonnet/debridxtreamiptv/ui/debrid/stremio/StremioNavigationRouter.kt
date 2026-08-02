@@ -184,29 +184,35 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
             Toast.makeText(frag.requireContext(), "Removed from Continue Watching", Toast.LENGTH_SHORT).show()
         }
         dialog.show()
-        run {
-            val win = dialog.window
-            if (win != null && anchor != null && anchor.width != 0 && anchor.height != 0) {
-                dialogView.measure(
-                    android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED),
-                    android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
-                )
-                val mw = dialogView.measuredWidth
-                val mh = dialogView.measuredHeight
-                val loc = IntArray(2)
-                anchor.getLocationOnScreen(loc)
-                val dm = anchor.resources.displayMetrics
-                val margin = (12 * dm.density).toInt()
-                win.setGravity(android.view.Gravity.TOP or android.view.Gravity.START)
-                val lp = win.attributes
-                lp.x = (loc[0] + anchor.width / 2 - mw / 2)
-                    .coerceIn(margin, (dm.widthPixels - mw - margin).coerceAtLeast(margin))
-                lp.y = (loc[1] + anchor.height / 2 - mh / 2)
-                    .coerceIn(margin, (dm.heightPixels - mh - margin).coerceAtLeast(margin))
-                win.attributes = lp
-            }
-        }
+        positionDialogOverAnchor(dialog, dialogView, anchor)
         openDetailChip.requestFocus()
+    }
+
+    /** Centre the dialog over its anchor card, clamped to the screen with a small margin. */
+    private fun positionDialogOverAnchor(
+        dialog: android.app.Dialog,
+        dialogView: android.view.View,
+        anchor: android.view.View?
+    ) {
+        val win = dialog.window ?: return
+        if (anchor == null || anchor.width == 0 || anchor.height == 0) return
+        dialogView.measure(
+            android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED),
+            android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+        )
+        val mw = dialogView.measuredWidth
+        val mh = dialogView.measuredHeight
+        val loc = IntArray(2)
+        anchor.getLocationOnScreen(loc)
+        val dm = anchor.resources.displayMetrics
+        val margin = (12 * dm.density).toInt()
+        win.setGravity(android.view.Gravity.TOP or android.view.Gravity.START)
+        val lp = win.attributes
+        lp.x = (loc[0] + anchor.width / 2 - mw / 2)
+            .coerceIn(margin, (dm.widthPixels - mw - margin).coerceAtLeast(margin))
+        lp.y = (loc[1] + anchor.height / 2 - mh / 2)
+            .coerceIn(margin, (dm.heightPixels - mh - margin).coerceAtLeast(margin))
+        win.attributes = lp
     }
 
     private suspend fun openContinueWatchingDetail(item: ContinueWatchingItem) {

@@ -173,7 +173,8 @@ class LoginQrOverlayController(
                 return@addSnapshotListener
             }
             val status = snapshot?.getString("status")
-            if (snapshot != null && !paired && (status == "completed" || status == "success")) {
+            val pairingFinished = status == "completed" || status == "success"
+            if (snapshot != null && !paired && pairingFinished) {
                 paired = true
                 val applied = CompanionConfigApplier.apply(context, snapshot.data)
                 tvStatus.text = "✓ PHONE CONNECTED · SYNCING…"

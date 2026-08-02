@@ -7,8 +7,9 @@
 # See docs/reports/WORLD_CLASS_ROADMAP.md (§1 exit criteria, §5 ledger).
 #
 # key=max_allowed
-TOTAL=267
+TOTAL=241
 LargeClass=1
+ComplexCondition=0
 SwallowedException=0
 PrintStackTrace=0
 ExplicitGarbageCollectionCall=0

@@ -2,30 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues></ManuallySuppressedIssues>
   <CurrentIssues>
-    <ID>ComplexCondition:BasePlayerFragment.kt$BasePlayerFragment$canResolveDebrid &amp;&amp; hasResInfo &amp;&amp; (isDebridUrlMissing || isExpired)</ID>
-    <ID>ComplexCondition:BasePlayerFragment.kt$BasePlayerFragment$contentType == ContentType.LIVE_TV || isInPictureInPictureMode || !playerView.useController || (::nextEpisodeManager.isInitialized &amp;&amp; nextEpisodeManager.isPromptVisible)</ID>
-    <ID>ComplexCondition:BasePlayerFragment.kt$BasePlayerFragment$isDebridUrlMissing &amp;&amp; !(canResolveDebrid &amp;&amp; hasResInfo) &amp;&amp; !canFreshResolveDirectDebrid</ID>
-    <ID>ComplexCondition:BasePlayerFragment.kt$BasePlayerFragment.&lt;no name provided&gt;$responseCode == 400 || responseCode == 401 || responseCode == 403 || responseCode == 404 || responseCode == 405 || responseCode == 410 || responseCode == 416 || responseCode == 451</ID>
-    <ID>ComplexCondition:CinEpisodeAdapter.kt$CinEpisodeAdapter$state != null &amp;&amp; !state.isWatched &amp;&amp; state.durationMs &gt; 0 &amp;&amp; state.progressMs &gt; 0</ID>
-    <ID>ComplexCondition:EpgCache.kt$EpgCache$now - lastUpdate &lt; cacheExpirationMs &amp;&amp; cached != null &amp;&amp; (cached.first != null || cached.second != null)</ID>
-    <ID>ComplexCondition:HomeFocusManager.kt$HomeFocusManager$!frag.isAdded || frag.view == null || target == null || !target.isShown || !target.isFocusable</ID>
-    <ID>ComplexCondition:HomeFocusManager.kt$HomeFocusManager$currentFocus != null &amp;&amp; !appliedLoadingFallbackFocus &amp;&amp; !(hasContentRows &amp;&amp; isHeroButtonFocus(currentFocus))</ID>
-    <ID>ComplexCondition:HomeViewModel.kt$HomeViewModel$!current.isLoading &amp;&amp; current.errorMessage == nextState.errorMessage &amp;&amp; current.isEmpty == nextState.isEmpty &amp;&amp; current.top10Movies == nextState.top10Movies &amp;&amp; current.top10Series == nextState.top10Series &amp;&amp; current.continueWatching == nextState.continueWatching &amp;&amp; current.recentLiveChannels == nextState.recentLiveChannels &amp;&amp; current.heroItem == nextState.heroItem &amp;&amp; current.sections == nextState.sections</ID>
-    <ID>ComplexCondition:IptvStreamAggregation.kt$StreamLanguage.Companion$n.contains("english") || n.contains("eng ") || n.contains("-en") || n.contains(" en ")</ID>
-    <ID>ComplexCondition:IptvStreamAggregation.kt$StreamLanguage.Companion$n.contains("hindi") || n.contains("hin ") || n.contains("-hi") || n.contains(" hi ")</ID>
-    <ID>ComplexCondition:IptvStreamAggregation.kt$StreamLanguage.Companion$n.contains("vostfr") || n.contains("vf") || n.contains("french") || n.contains("fr-")</ID>
-    <ID>ComplexCondition:LanguageParser.kt$LanguageParser$lowerTitle.contains("multi") || lowerTitle.contains("multi audio") || lowerTitle.contains("multi-audio") || lowerTitle.contains("dual audio") || lowerTitle.contains("dual-audio") || lowerTitle.contains("dualaudio")</ID>
-    <ID>ComplexCondition:LoginFragment.kt$LoginFragment$!loggedIn &amp;&amp; !server.isNullOrEmpty() &amp;&amp; !user.isNullOrEmpty() &amp;&amp; !pass.isNullOrEmpty()</ID>
-    <ID>ComplexCondition:LoginQrOverlayController.kt$LoginQrOverlayController$snapshot != null &amp;&amp; !paired &amp;&amp; (status == "completed" || status == "success")</ID>
-    <ID>ComplexCondition:PlayerDebridCoordinator.kt$PlayerDebridCoordinator$server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank() || stream.stream_id.isNullOrBlank()</ID>
-    <ID>ComplexCondition:PlayerEventListener.kt$PlayerEventListener$!hasSupportedAudioSelected &amp;&amp; firstSupportedGroup != null &amp;&amp; audioGroups.size &gt; 1 &amp;&amp; !hasAudioOverride</ID>
-    <ID>ComplexCondition:PlayerExitController.kt$PlayerExitController$exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete</ID>
-    <ID>ComplexCondition:PlayerHistoryManager.kt$PlayerHistoryManager$existing != null &amp;&amp; existing.source != item.source &amp;&amp; existing.currentPosition &gt; 0 &amp;&amp; existing.totalDuration &gt; 0</ID>
-    <ID>ComplexCondition:PlayerInputRouter.kt$PlayerInputRouter$contentType != ContentType.LIVE_TV &amp;&amp; playerView.useController &amp;&amp; !activity.isNextEpisodePromptVisible() &amp;&amp; !playerView.isControllerFullyVisible</ID>
-    <ID>ComplexCondition:PlayerRecoveryController.kt$PlayerRecoveryController$canUseDebridResolver() &amp;&amp; !isResolvingDebrid &amp;&amp; retryCount &gt; 1 &amp;&amp; (!debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank())</ID>
-    <ID>ComplexCondition:StremioNavigationRouter.kt$StremioNavigationRouter$win != null &amp;&amp; anchor != null &amp;&amp; anchor.width != 0 &amp;&amp; anchor.height != 0</ID>
-    <ID>ComplexCondition:WatchedIdentityBuilder.kt$WatchedIdentityBuilder$"token=" in lower || "access_token=" in lower || "username=" in lower || "password=" in lower</ID>
-    <ID>ComplexCondition:XtreamSession.kt$XtreamSession$apiService != null &amp;&amp; this.username == username &amp;&amp; this.password == password &amp;&amp; this.baseUrl == normalizedUrlPre</ID>
     <ID>CyclomaticComplexMethod:AddonCatalogRepository.kt$AddonCatalogRepository$suspend fun getDiscoveryContent( type: String, // "movie" or "series" page: Int = 1, sortBy: String? = null, catalogue: String = CATALOGUE_POPULAR, originalLanguage: String? = null, watchProviders: String? = null, watchRegion: String? = "US", releaseDateGte: String? = null, year: Int? = null, withGenres: String? = null ): Result&lt;List&lt;CatalogItem&gt;&gt;</ID>
     <ID>CyclomaticComplexMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>CyclomaticComplexMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun refreshDirectDebridSourceFromMetadata(reason: String): Boolean</ID>
@@ -69,9 +45,7 @@
     <ID>CyclomaticComplexMethod:HomeNavigationRouter.kt$HomeNavigationRouter$fun onContinueWatchingItemClick(item: ContinueWatchingItem)</ID>
     <ID>CyclomaticComplexMethod:HomeNavigationRouter.kt$HomeNavigationRouter$suspend fun openContinueWatchingDetail(item: ContinueWatchingItem)</ID>
     <ID>CyclomaticComplexMethod:HomeViewModel.kt$HomeViewModel$private fun loadHomeData()</ID>
-    <ID>CyclomaticComplexMethod:IptvStreamAggregation.kt$StreamLanguage.Companion$fun inferFrom(name: String?, categoryTag: String?): List&lt;StreamLanguage&gt;</ID>
     <ID>CyclomaticComplexMethod:LanguageFilterAdapter.kt$LanguageFilterAdapter.LanguageViewHolder$private fun getFlagEmoji(languageCode: String): String</ID>
-    <ID>CyclomaticComplexMethod:LanguageParser.kt$LanguageParser$fun extractLanguages(title: String?): List&lt;String&gt;</ID>
     <ID>CyclomaticComplexMethod:LanguageParser.kt$LanguageParser$fun getLanguageFlag(languages: List&lt;String&gt;): String</ID>
     <ID>CyclomaticComplexMethod:LicenseManager.kt$LicenseManager$fun start()</ID>
     <ID>CyclomaticComplexMethod:LiveEpgPreviewController.kt$LiveEpgPreviewController$fun maybeRestorePreviewFromState(state: LiveUiState)</ID>

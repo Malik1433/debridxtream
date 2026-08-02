@@ -122,7 +122,9 @@ internal class PlayerDebridCoordinator(
                 val server = prefs.getServerUrl()?.trimEnd('/')
                 val user = prefs.getUsername()
                 val pass = prefs.getPassword()
-                if (server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank() || stream.stream_id.isNullOrBlank()) {
+                val credentialsIncomplete =
+                    server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank()
+                if (credentialsIncomplete || stream.stream_id.isNullOrBlank()) {
                     showToast("Missing credentials"); return
                 }
                 directDebridPlayback = false

@@ -63,12 +63,7 @@ internal class XtreamSession(private val context: Context) {
         password: String,
         onInitialized: () -> Unit
     ): Boolean {
-        val normalizedUrlPre = baseUrl.trimEnd('/') + "/"
-        if (apiService != null &&
-            this.username == username &&
-            this.password == password &&
-            this.baseUrl == normalizedUrlPre
-        ) {
+        if (matches(baseUrl, username, password)) {
             return false
         }
         return try {

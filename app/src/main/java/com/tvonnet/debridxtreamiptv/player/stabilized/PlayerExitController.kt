@@ -72,7 +72,11 @@ internal class PlayerExitController(
         )
     }
 
-    fun setExitResultIfNeeded() { if (exitResultHandled || !returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || didPlaybackComplete) return; val pos = player?.currentPosition ?: lastPlaybackPositionMs; if (manualExit || pos < RETURN_TO_SOURCES_THRESHOLD_MS) { exitResultHandled = true; activity.setResult(Activity.RESULT_OK, buildReturnToSourcesIntent()) } }
+    /** Return-to-sources only applies to a debrid playback that opted in. */
+    private fun returnToSourcesApplies(): Boolean =
+        returnToSourcesOnExit && playbackSource == PlaybackSource.DEBRID
+
+    fun setExitResultIfNeeded() { if (exitResultHandled || !returnToSourcesApplies() || didPlaybackComplete) return; val pos = player?.currentPosition ?: lastPlaybackPositionMs; if (manualExit || pos < RETURN_TO_SOURCES_THRESHOLD_MS) { exitResultHandled = true; activity.setResult(Activity.RESULT_OK, buildReturnToSourcesIntent()) } }
 
     fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean { if (!returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || exitResultHandled) return false; exitResultHandled = true; PlaybackDiagnosticsRecorder.record(activity.requireContext(), "return_to_sources", activity.diagnosticsPlaybackFields() + mapOf("reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(reason), "autoPlayNext" to autoPlayNext)); activity.setResult(Activity.RESULT_OK, buildFailedSourceReturnIntent(failedStreamId = debridStreamIdExtra ?: debridInfoHashExtra ?: contentId ?: currentUrl, reason = reason, autoPlayNext = autoPlayNext)); activity.releasePlayer("return_to_sources"); PlaybackDiagnosticsRecorder.finishSession(activity.requireContext(), "return_to_sources"); activity.finish(); return true }
 

@@ -1,7 +1,11 @@
 package com.tvonnet.debridxtreamiptv.data.debrid.util
 
 object LanguageParser {
-    
+
+    private val MULTI_AUDIO_MARKERS = listOf(
+        "multi", "multi audio", "multi-audio", "dual audio", "dual-audio", "dualaudio"
+    )
+
     private val LANGUAGE_MAP = mapOf(
         "hi" to listOf(
             "hi",
@@ -43,14 +47,7 @@ object LanguageParser {
         val lowerTitle = title.lowercase()
 
         // Check for Multi Audio
-        if (
-            lowerTitle.contains("multi") ||
-            lowerTitle.contains("multi audio") ||
-            lowerTitle.contains("multi-audio") ||
-            lowerTitle.contains("dual audio") ||
-            lowerTitle.contains("dual-audio") ||
-            lowerTitle.contains("dualaudio")
-        ) {
+        if (MULTI_AUDIO_MARKERS.any { lowerTitle.contains(it) }) {
             languages.add("multi")
         }
 

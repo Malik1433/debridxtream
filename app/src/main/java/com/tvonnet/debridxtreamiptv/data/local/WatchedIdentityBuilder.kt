@@ -99,10 +99,14 @@ object WatchedIdentityBuilder {
         if (value.isBlank()) return false
         val lower = value.lowercase()
         if ("://" in lower || lower.startsWith("magnet:")) return true
-        if ("token=" in lower || "access_token=" in lower || "username=" in lower || "password=" in lower) return true
-        if ("apikey=" in lower || "api_key=" in lower || "authorization=" in lower) return true
+        if (CREDENTIAL_MARKERS.any { it in lower }) return true
         return INFO_HASH_HEX.matches(value) || INFO_HASH_BASE32.matches(value)
     }
+
+    private val CREDENTIAL_MARKERS = listOf(
+        "token=", "access_token=", "username=", "password=",
+        "apikey=", "api_key=", "authorization="
+    )
 
     private const val UNKNOWN = "unknown"
     private val INFO_HASH_HEX = Regex("^[a-fA-F0-9]{40}$")

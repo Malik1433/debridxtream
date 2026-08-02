@@ -186,11 +186,11 @@ class PlayerHistoryManager(
      */
     private fun handleTinyProgressExit(type: ContentType, item: ContinueWatchingItem) {
         val existing = findLogicalContinueWatchingMatch(item)
-        if (existing != null &&
+        val isResumableCrossSourceRow = existing != null &&
             existing.source != item.source &&
             existing.currentPosition > 0 &&
             existing.totalDuration > 0
-        ) {
+        if (isResumableCrossSourceRow && existing != null) {
             if (isSameLogicalPlayback(item, existing)) {
                 val rehomed = item.copy(
                     currentPosition = existing.currentPosition,

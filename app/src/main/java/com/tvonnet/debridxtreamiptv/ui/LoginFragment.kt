@@ -426,17 +426,18 @@ class LoginFragment : Fragment() {
         val pass = credentialsPrefs.getPassword()
         val loggedIn = credentialsPrefs.isLoggedIn()
 
-        if (!loggedIn && !server.isNullOrEmpty() && !user.isNullOrEmpty() && !pass.isNullOrEmpty()) {
-            android.util.Log.i("LoginFragment", "Auto-sync credentials detected! Triggering login...")
-            autoSyncLoginAttempted = true
+        if (loggedIn || server.isNullOrEmpty()) return
+        if (user.isNullOrEmpty() || pass.isNullOrEmpty()) return
 
-            etServerUrl.setText(server)
-            etUsername.setText(user)
-            etPassword.setText(pass)
+        android.util.Log.i("LoginFragment", "Auto-sync credentials detected! Triggering login...")
+        autoSyncLoginAttempted = true
 
-            validateInputs()?.let { normalizedServer ->
-                performLogin(normalizedServer, user.trim(), pass)
-            }
+        etServerUrl.setText(server)
+        etUsername.setText(user)
+        etPassword.setText(pass)
+
+        validateInputs()?.let { normalizedServer ->
+            performLogin(normalizedServer, user.trim(), pass)
         }
     }
 

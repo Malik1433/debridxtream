@@ -296,21 +296,7 @@ class HomeViewModel @Inject constructor(
                 }
             }.onSuccess { nextState ->
                 _uiState.update { current ->
-                    if (
-                        !current.isLoading &&
-                        current.errorMessage == nextState.errorMessage &&
-                        current.isEmpty == nextState.isEmpty &&
-                        current.top10Movies == nextState.top10Movies &&
-                        current.top10Series == nextState.top10Series &&
-                        current.continueWatching == nextState.continueWatching &&
-                        current.recentLiveChannels == nextState.recentLiveChannels &&
-                        current.heroItem == nextState.heroItem &&
-                        current.sections == nextState.sections
-                    ) {
-                        current
-                    } else {
-                        nextState
-                    }
+                    if (rendersIdenticallyTo(current, nextState)) current else nextState
                 }
             }.onFailure { error ->
                 _uiState.update {
@@ -327,6 +313,21 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * The home-flicker rule (e9e2ca9): hand the UI the SAME state object when nothing it renders
+     * differs, so observers never re-bind. A loading state must always be replaced.
+     */
+    private fun rendersIdenticallyTo(current: HomeUiState, next: HomeUiState): Boolean =
+        !current.isLoading &&
+            current.errorMessage == next.errorMessage &&
+            current.isEmpty == next.isEmpty &&
+            current.top10Movies == next.top10Movies &&
+            current.top10Series == next.top10Series &&
+            current.continueWatching == next.continueWatching &&
+            current.recentLiveChannels == next.recentLiveChannels &&
+            current.heroItem == next.heroItem &&
+            current.sections == next.sections
 
     /**
      * Only a provider (Xtream) row can be missing artwork — a debrid row already carries an absolute

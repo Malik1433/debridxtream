@@ -266,12 +266,14 @@ internal class PlayerEventListener(
                     if (group.isSelected) { hasSupportedAudioSelected = true; break }
                 }
             }
-            if (!hasSupportedAudioSelected && firstSupportedGroup != null && audioGroups.size > 1 && !hasAudioOverride) {
+            // Smart fallback fires only when there IS an alternative and the user hasn't chosen.
+            val fallbackGroup = if (audioGroups.size > 1) firstSupportedGroup else null
+            if (!hasSupportedAudioSelected && fallbackGroup != null && !hasAudioOverride) {
                  // LP-B-6: guard the snapshot — the old `?: player?.trackSelectionParameters!!`
                  // fallback NPE'd if the player was released while this callback was in flight.
                  player?.let { p ->
                      p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
-                         .setOverrideForType(TrackSelectionOverride(firstSupportedGroup.mediaTrackGroup, 0))
+                         .setOverrideForType(TrackSelectionOverride(fallbackGroup.mediaTrackGroup, 0))
                          .build()
                  }
             }

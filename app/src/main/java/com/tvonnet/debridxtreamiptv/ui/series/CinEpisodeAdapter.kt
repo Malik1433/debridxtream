@@ -216,7 +216,7 @@ class CinEpisodeAdapter(
                 if (watchedKeys.add(identityKey)) changed = true
             }
             // Compute progress percent from stored resume position
-            if (state != null && !state.isWatched && state.durationMs > 0 && state.progressMs > 0) {
+            if (state != null && showsPartialProgress(state)) {
                 val pct = ((state.progressMs.toFloat() / state.durationMs) * 100).toInt().coerceIn(0, 100)
                 if (pct in 1..99 && progressByKey[identityKey] != pct) {
                     progressByKey[identityKey] = pct
@@ -226,6 +226,10 @@ class CinEpisodeAdapter(
             if (changed) notifyItemChangedByIdentity(identityKey)
         }
     }
+
+    /** Started but neither finished nor marked watched — the RESUME progress-strip case. */
+    private fun showsPartialProgress(state: WatchedStateEntity): Boolean =
+        !state.isWatched && state.durationMs > 0 && state.progressMs > 0
 
     private fun toggleWatched(context: Context, item: EpisodeUiModel, identityKey: String, watched: Boolean) {
         adapterScope.launch {
