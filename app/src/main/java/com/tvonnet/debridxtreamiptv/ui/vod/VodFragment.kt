@@ -103,6 +103,11 @@ class VodFragment : Fragment() {
     private var currentCategories: List<XtreamCategory> = emptyList()
     private var adapterDataObserver: RecyclerView.AdapterDataObserver? = null
 
+    // Focus memory must outlive the VIEW: opening a detail page is a replace+backstack, so the
+    // pop recreates the view and with it a fresh VodFocusController — without this snapshot the
+    // armed restore dies with the old instance and BACK lands the user on the search pill.
+    private var focusSnapshot: Bundle? = null
+
     // C2 collaborators. The screen keeps the sidebar/observers/header; these own the three
     // concerns that dominated it: where focus goes, what an empty grid shows, and card overlays.
     private lateinit var focus: VodFocusController
@@ -162,7 +167,7 @@ class VodFragment : Fragment() {
 
         initViews(view)
         buildCollaborators()
-        savedInstanceState?.let { focus.restoreSavedState(it) }
+        (savedInstanceState ?: focusSnapshot)?.let { focus.restoreSavedState(it) }
         setupRecyclerViews()
         setupSortChips()
         setupSearch()
@@ -623,6 +628,7 @@ class VodFragment : Fragment() {
         super.onPause()
         com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.saveFocus(requireView())
         focus.onPause()
+        focusSnapshot = Bundle().also { focus.saveState(it) }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

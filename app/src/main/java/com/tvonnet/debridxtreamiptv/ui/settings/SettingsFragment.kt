@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.OneShotPreDrawListener
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -70,6 +71,24 @@ class SettingsFragment : Fragment() {
 
         setupAdapters()
         observeState()
+
+        // On a D-pad-only device this screen opened with NOTHING focused — the first press was
+        // silently spent finding a target. Two windows matter: the rail's first layout (a bare
+        // post{} can run before layout for a synchronous adapter — CC-1), and the moment the
+        // activity's nav sidebar closes, which drops activity focus to null AFTER we first drew.
+        OneShotPreDrawListener.add(binding.rvSettingsCategories) { assertInitialRailFocus() }
+        binding.rvSettingsCategories.postDelayed({ assertInitialRailFocus() }, 400L)
+        binding.rvSettingsCategories.postDelayed({ assertInitialRailFocus() }, 1000L)
+    }
+
+    /** Focus the first rail item, but never steal — only acts while nothing else holds focus. */
+    private fun assertInitialRailFocus() {
+        if (_binding == null) return
+        if (activity?.currentFocus != null) return
+        val first = binding.rvSettingsCategories.findViewHolderForAdapterPosition(0)?.itemView
+        if (first?.requestFocus() != true) {
+            binding.rvSettingsCategories.requestFocus()
+        }
     }
 
     private fun setupAdapters() {

@@ -80,6 +80,11 @@ class SeriesFragment : Fragment() {
     private var currentCategories: List<XtreamCategory> = emptyList()
     private var adapterDataObserver: RecyclerView.AdapterDataObserver? = null
 
+    // Focus memory must outlive the VIEW: opening a detail page is a replace+backstack, so the
+    // pop recreates the view and with it a fresh SeriesFocusController — without this snapshot
+    // the armed restore dies with the old instance and BACK drops D-pad focus entirely.
+    private var focusSnapshot: Bundle? = null
+
     // C3 collaborators — same split as the Movies screen (C2): where focus goes, what an empty
     // grid shows, and the small per-card concerns.
     private lateinit var focus: SeriesFocusController
@@ -136,7 +141,7 @@ class SeriesFragment : Fragment() {
 
         initViews(view)
         buildCollaborators()
-        savedInstanceState?.let { focus.restoreSavedState(it) }
+        (savedInstanceState ?: focusSnapshot)?.let { focus.restoreSavedState(it) }
         setupRecyclerViews()
         setupSortChips()
         setupSearch()
@@ -540,6 +545,7 @@ class SeriesFragment : Fragment() {
         super.onPause()
         com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.saveFocus(requireView())
         focus.onPause()
+        focusSnapshot = Bundle().also { focus.saveState(it) }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
