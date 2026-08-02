@@ -509,3 +509,15 @@ why this stays invisible until somebody presses the Google button.
   could not be told apart. 37 makes "who is still on an old build" answerable from
   `licenses/{installId}.appVersionCode`.)*
 - TV-side Google (device-code flow), if a Google-only customer without a phone ever turns up.
+- **Custom domain — agreed, deferred (owner, 2026-08-01).** The TV prints
+  `debxtrem-companion.vercel.app` on its sign-in and pairing screens: a customer reads our hosting
+  provider's name rather than ours. `tvonnet.xyz` is already owned (Namecheap, currently serving
+  nothing) and matches the app's own `com.tvonnet.*` namespace. Use the APEX rather than a
+  subdomain — this string gets read off a television and typed into a phone, so 11 characters beats
+  17. Three steps, in order: Vercel → Domains; Namecheap → the DNS record Vercel shows; **Firebase →
+  Authorized domains** — that third one is the trap, because it gates OAuth only, so email/password
+  keeps working and Google fails silently on the new host. Then the app's `companion_setup_url` and
+  the printed address change together. **The vercel.app address must keep working**: it is baked
+  into every TV build already in the field and cannot be changed retroactively.
+  *Do NOT hide the printed address instead — it is the only route for a customer whose phone camera
+  cannot read the QR.*
