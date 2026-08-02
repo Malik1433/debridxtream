@@ -63,38 +63,38 @@ internal fun diagnosticsSourceFields(
     )
 }
 
+/** Running tally of one track type: how many are supported, which of them are selected. */
+private class TrackTally {
+    var supportedCount = 0
+    val selectedLanguages = mutableListOf<String>()
+
+    fun countSupported(group: Tracks.Group, index: Int) {
+        supportedCount++
+        if (group.isTrackSelected(index)) {
+            selectedLanguages += group.getTrackFormat(index).language ?: "unknown"
+        }
+    }
+}
+
 /** Supported/selected audio and text tracks of the current selection. */
 internal fun trackDiagnosticsFields(tracks: Tracks): Map<String, Any?> {
-    var supportedAudioTrackCount = 0
-    var supportedTextTrackCount = 0
-    val selectedAudioLanguages = mutableListOf<String>()
-    val selectedTextLanguages = mutableListOf<String>()
+    val audio = TrackTally()
+    val text = TrackTally()
 
     tracks.groups.forEach { group ->
         for (index in 0 until group.length) {
             if (!group.isTrackSupported(index)) continue
-            val format = group.getTrackFormat(index)
             when (group.type) {
-                C.TRACK_TYPE_AUDIO -> {
-                    supportedAudioTrackCount++
-                    if (group.isTrackSelected(index)) {
-                        selectedAudioLanguages += format.language ?: "unknown"
-                    }
-                }
-                C.TRACK_TYPE_TEXT -> {
-                    supportedTextTrackCount++
-                    if (group.isTrackSelected(index)) {
-                        selectedTextLanguages += format.language ?: "unknown"
-                    }
-                }
+                C.TRACK_TYPE_AUDIO -> audio.countSupported(group, index)
+                C.TRACK_TYPE_TEXT -> text.countSupported(group, index)
             }
         }
     }
 
     return mapOf(
-        "supportedAudioTrackCount" to supportedAudioTrackCount,
-        "supportedTextTrackCount" to supportedTextTrackCount,
-        "selectedAudioLanguages" to selectedAudioLanguages.distinct(),
-        "selectedTextLanguages" to selectedTextLanguages.distinct()
+        "supportedAudioTrackCount" to audio.supportedCount,
+        "supportedTextTrackCount" to text.supportedCount,
+        "selectedAudioLanguages" to audio.selectedLanguages.distinct(),
+        "selectedTextLanguages" to text.selectedLanguages.distinct()
     )
 }

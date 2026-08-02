@@ -53,7 +53,6 @@
     <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$private fun observeViewModel()</ID>
     <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$private fun restoreInitialFocusIfNeeded(state: LiveUiState)</ID>
     <ID>CyclomaticComplexMethod:LiveNavRail.kt$LiveNavRail$private fun setExpanded(value: Boolean)</ID>
-    <ID>CyclomaticComplexMethod:LiveSearchAdapter.kt$LiveSearchAdapter$override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder</ID>
     <ID>CyclomaticComplexMethod:LiveTvGuideViewModel.kt$LiveTvGuideViewModel$private fun loadChannels()</ID>
     <ID>CyclomaticComplexMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playDebridMovie( stream: XtreamVodInfo?, source: MovieSource?, returnToSources: Boolean = false )</ID>
     <ID>CyclomaticComplexMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playMovie(sourceOverride: MovieSource? = null)</ID>
@@ -146,7 +145,6 @@
     <ID>LongMethod:LicenseManager.kt$LicenseManager$fun start()</ID>
     <ID>LongMethod:LiveFragment.kt$LiveFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:LiveFragment.kt$LiveFragment$private fun observeViewModel()</ID>
-    <ID>LongMethod:LiveSearchAdapter.kt$LiveSearchAdapter$override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder</ID>
     <ID>LongMethod:MainActivity.kt$MainActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playDebridMovie( stream: XtreamVodInfo?, source: MovieSource?, returnToSources: Boolean = false )</ID>
     <ID>LongMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playMovie(sourceOverride: MovieSource? = null)</ID>
@@ -202,13 +200,9 @@
     <ID>LongParameterList:SyncManager.kt$SyncManager$( private val session: XtreamSession, private val catalogCache: CatalogCache, private val cacheHelper: CacheHelper, private val cacheManager: CacheManager, private val syncPrefs: SharedPreferences, private val liveRepository: LiveRepository, private val vodRepository: VodRepository, private val seriesRepository: SeriesRepository, private val searchIndexManager: SearchIndexManager )</ID>
     <ID>LongParameterList:VodAdapter.kt$VodViewHolder$( movie: XtreamVodInfo, isFavorite: Boolean, isWatched: Boolean, progress: Float?, onItemFocused: ((Int) -&gt; Unit)?, onClick: (XtreamVodInfo) -&gt; Unit, onLongClick: ((XtreamVodInfo) -&gt; Unit)? = null )</ID>
     <ID>NestedBlockDepth:BasePagingSource.kt$BasePagingSource$override suspend fun load(params: LoadParams&lt;Int&gt;): LoadResult&lt;Int, T&gt;</ID>
-    <ID>NestedBlockDepth:EpgParser.kt$EpgParser$internal fun parseTimestamp(timestamp: String?): Long</ID>
-    <ID>NestedBlockDepth:EpgParser.kt$EpgParser$private fun skipToEndTag(parser: XmlPullParser, tagName: String)</ID>
     <ID>NestedBlockDepth:HomeNavigationRouter.kt$HomeNavigationRouter$suspend fun openContinueWatchingDetail(item: ContinueWatchingItem)</ID>
     <ID>NestedBlockDepth:LiveRepository.kt$LiveRepository$suspend fun ensureLiveCategories(): List&lt;XtreamCategory&gt;</ID>
-    <ID>NestedBlockDepth:LiveSearchAdapter.kt$LiveSearchAdapter$override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder</ID>
     <ID>NestedBlockDepth:PlaybackResolver.kt$PlaybackResolver$suspend fun resolve( source: String, streamUrl: String?, isExpired: Boolean, infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectHttpPassthrough: Boolean = true ): ResolutionResult</ID>
-    <ID>NestedBlockDepth:PlayerDiagnosticsFields.kt$internal fun trackDiagnosticsFields(tracks: Tracks): Map&lt;String, Any?&gt;</ID>
     <ID>NestedBlockDepth:PlayerEventListener.kt$PlayerEventListener$override fun onPlaybackStateChanged(playbackState: Int)</ID>
     <ID>NestedBlockDepth:PlayerEventListener.kt$PlayerEventListener$override fun onTracksChanged(tracks: androidx.media3.common.Tracks)</ID>
     <ID>NestedBlockDepth:PlayerInputRouter.kt$PlayerInputRouter$fun dispatchKeyEvent(event: KeyEvent): Boolean?</ID>
@@ -216,14 +210,12 @@
     <ID>NestedBlockDepth:PlayerSeriesController.kt$PlayerSeriesController$fun showEpisodeBrowser()</ID>
     <ID>NestedBlockDepth:PlayerTrackManager.kt$PlayerTrackManager$fun applyTrackIndexOverrides( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
     <ID>NestedBlockDepth:PlayerTrackManager.kt$PlayerTrackManager$fun captureManualTrackSelection( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
-    <ID>NestedBlockDepth:QrGenerator.kt$QrGenerator$fun generateQrCode(content: String, size: Int = 512): Bitmap?</ID>
     <ID>NestedBlockDepth:SeriesRepository.kt$SeriesRepository$private suspend fun fetchFallbackSeriesDetail(seriesId: String): Result&lt;XtreamSeriesDetailResponse&gt;</ID>
     <ID>NestedBlockDepth:SeriesRepository.kt$SeriesRepository$suspend fun ensureSeriesCategories(): List&lt;XtreamCategory&gt;</ID>
     <ID>NestedBlockDepth:SeriesRepository.kt$SeriesRepository$suspend fun fetchSeriesForCategory(categoryId: String): Result&lt;List&lt;XtreamSeriesInfo&gt;&gt;</ID>
     <ID>NestedBlockDepth:SeriesRepository.kt$SeriesRepository$suspend fun syncSeriesDetail(seriesId: String): Result&lt;XtreamSeriesDetailResponse&gt;</ID>
     <ID>NestedBlockDepth:VodRepository.kt$VodRepository$suspend fun ensureVodCategories(): List&lt;XtreamCategory&gt;</ID>
     <ID>NestedBlockDepth:VodRepository.kt$VodRepository$suspend fun getMovieSources( streamId: String?, title: String?, primaryCategoryId: String?, yearHint: String? ): List&lt;MovieSource&gt;</ID>
-    <ID>NestedBlockDepth:XtreamResponseParser.kt$XtreamResponseParser$fun parseEpisodes(json: JsonElement?): Map&lt;String, List&lt;XtreamEpisodeInfo&gt;&gt;</ID>
     <ID>SpreadOperator:AppModule.kt$AppModule$(*DatabaseMigrations.getAllMigrations())</ID>
     <ID>SpreadOperator:EpgParser.kt$EpgParser.XmlDeclarationStrippingReader$('&lt;', '?', *probe.copyOf(read3))</ID>
     <ID>TooManyFunctions:BasePlayerFragment.kt$BasePlayerFragment : FragmentRecoveryHost</ID>

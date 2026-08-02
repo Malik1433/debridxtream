@@ -484,18 +484,18 @@ object EpgParser {
             var depth = 1
             while (eventType != XmlPullParser.END_DOCUMENT && depth > 0) {
                 eventType = parser.next()
-                when (eventType) {
-                    XmlPullParser.START_TAG -> {
-                        if (parser.name == tagName) depth++
-                    }
-                    XmlPullParser.END_TAG -> {
-                        if (parser.name == tagName) depth--
-                    }
-                }
+                depth += nestedTagDelta(parser, eventType, tagName)
             }
         } catch (e: Exception) {
             Log.w(TAG, "Error while skipping tag: $tagName", e)
         }
+    }
+
+    /** +1 entering another [tagName], −1 leaving one, 0 for everything else. */
+    private fun nestedTagDelta(parser: XmlPullParser, eventType: Int, tagName: String): Int = when {
+        eventType == XmlPullParser.START_TAG && parser.name == tagName -> 1
+        eventType == XmlPullParser.END_TAG && parser.name == tagName -> -1
+        else -> 0
     }
     
     internal fun parseTimestamp(timestamp: String?): Long {
@@ -520,34 +520,29 @@ object EpgParser {
             calendar.set(year, month - 1, day, hour, minute, second) // Month is 0-indexed
             calendar.set(java.util.Calendar.MILLISECOND, 0)
             
-            var baseTime = calendar.timeInMillis
-            
-            // Handle timezone offset if present
-            if (timestamp.length > 14) {
-                val offsetStr = timestamp.substring(14).trim()
-                if (offsetStr.isNotEmpty()) {
-                    val signStr = offsetStr.substring(0, 1)
-                    val isPositive = signStr != "-" // Defaults to positive if no sign, or +
-                    val timePart = offsetStr.substring(if (signStr == "+" || signStr == "-") 1 else 0).replace(":", "")
-                    if (timePart.length >= 4) {
-                        val offsetHours = timePart.substring(0, 2).toIntOrNull() ?: 0
-                        val offsetMinutes = timePart.substring(2, 4).toIntOrNull() ?: 0
-                        val offsetMillis = (offsetHours * 60 * 60 * 1000) + (offsetMinutes * 60 * 1000)
-                        
-                        // XMLTV timestamp is local time at that timezone offset, so subtract the offset to get canonical UTC.
-                        if (isPositive) {
-                            baseTime -= offsetMillis
-                        } else {
-                            baseTime += offsetMillis
-                        }
-                    }
-                }
-            }
-            
-            baseTime
+            // XMLTV timestamp is local time at that offset, so subtract it to get canonical UTC.
+            calendar.timeInMillis - timezoneOffsetMillis(timestamp)
         } catch (e: Exception) {
             Log.w(TAG, "Failed to parse timestamp: $timestamp", e)
             -1L // sentinel: caller skips/repairs; never fabricate 'now' (bogus now-airing)
         }
+    }
+
+    /**
+     * Signed millis of the "+HHmm"/"-HH:mm" XMLTV suffix after position 14, or 0 when absent
+     * or garbled (a missing sign defaults to positive, matching real-world feeds).
+     */
+    private fun timezoneOffsetMillis(timestamp: String): Long {
+        if (timestamp.length <= 14) return 0L
+        val offsetStr = timestamp.substring(14).trim()
+        if (offsetStr.isEmpty()) return 0L
+        val signStr = offsetStr.substring(0, 1)
+        val isPositive = signStr != "-"
+        val timePart = offsetStr.substring(if (signStr == "+" || signStr == "-") 1 else 0).replace(":", "")
+        if (timePart.length < 4) return 0L
+        val offsetHours = timePart.substring(0, 2).toIntOrNull() ?: 0
+        val offsetMinutes = timePart.substring(2, 4).toIntOrNull() ?: 0
+        val offsetMillis = (offsetHours * 60L * 60 * 1000) + (offsetMinutes * 60L * 1000)
+        return if (isPositive) offsetMillis else -offsetMillis
     }
 }

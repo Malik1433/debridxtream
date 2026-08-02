@@ -38,25 +38,7 @@ object XtreamResponseParser {
             // Case 2: Standard Map Format {"1": [ep...], "2": [ep...]}
             // Case 2: Standard Map Format {"1": [ep...], "2": [ep...]}
             if (json.isJsonObject) {
-                val resultMap = mutableMapOf<String, List<XtreamEpisodeInfo>>()
-                val listType = object : TypeToken<List<XtreamEpisodeInfo>>() {}.type
-                
-                for ((key, value) in json.asJsonObject.entrySet()) {
-                    try {
-                        if (value.isJsonArray) {
-                            val episodes: List<XtreamEpisodeInfo>? = gson.fromJson(value, listType)
-                            if (!episodes.isNullOrEmpty()) {
-                                resultMap[key] = episodes
-                            }
-                        } else {
-                           // Skip non-array values (metadata fields etc)
-                           Log.w(TAG, "Skipping non-array value for key: $key")
-                        }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed to parse episodes for season key: $key", e)
-                    }
-                }
-                return resultMap
+                return parseSeasonMap(json.asJsonObject)
             }
 
             // Case 3: Array Format [ep1, ep2...] or Empty Array []
@@ -85,6 +67,37 @@ object XtreamResponseParser {
         } catch (e: Exception) {
             Log.e(TAG, "Critical parsing error in parseEpisodes", e)
             emptyMap()
+        }
+    }
+
+    // Case 2 — standard map format {"1": [ep, ...], "2": [ep, ...]}; unparsable seasons are skipped.
+    private fun parseSeasonMap(obj: com.google.gson.JsonObject): Map<String, List<XtreamEpisodeInfo>> {
+        val resultMap = mutableMapOf<String, List<XtreamEpisodeInfo>>()
+        val listType = object : TypeToken<List<XtreamEpisodeInfo>>() {}.type
+        for ((key, value) in obj.entrySet()) {
+            val episodes = parseSeasonEntry(key, value, listType) ?: continue
+            resultMap[key] = episodes
+        }
+        return resultMap
+    }
+
+    /** One season entry's episode list, or null when the value is not a non-empty parsable array. */
+    private fun parseSeasonEntry(
+        key: String,
+        value: JsonElement,
+        listType: java.lang.reflect.Type
+    ): List<XtreamEpisodeInfo>? {
+        return try {
+            if (!value.isJsonArray) {
+                // Skip non-array values (metadata fields etc)
+                Log.w(TAG, "Skipping non-array value for key: $key")
+                return null
+            }
+            val episodes: List<XtreamEpisodeInfo>? = gson.fromJson(value, listType)
+            episodes?.takeIf { it.isNotEmpty() }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to parse episodes for season key: $key", e)
+            null
         }
     }
 }

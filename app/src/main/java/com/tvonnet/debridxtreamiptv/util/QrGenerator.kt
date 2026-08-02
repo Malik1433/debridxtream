@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
+import com.google.zxing.common.BitMatrix
 import com.google.zxing.qrcode.QRCodeWriter
 import java.util.EnumMap
 
@@ -29,26 +30,28 @@ object QrGenerator {
 
             val writer = QRCodeWriter()
             val bitMatrix = writer.encode(content, BarcodeFormat.QR_CODE, size, size, hints)
-            
-            val width = bitMatrix.width
-            val height = bitMatrix.height
-            val pixels = IntArray(width * height)
-            
-            for (y in 0 until height) {
-                val offset = y * width
-                for (x in 0 until width) {
-                    // Black pixels for the QR code, transparent or white for background
-                    // Using deep black and transparent for better glassmorphism integration
-                    pixels[offset + x] = if (bitMatrix.get(x, y)) Color.BLACK else Color.TRANSPARENT
-                }
-            }
 
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            bitmap.setPixels(pixels, 0, width, 0, 0, width, height)
+            val bitmap = Bitmap.createBitmap(bitMatrix.width, bitMatrix.height, Bitmap.Config.ARGB_8888)
+            bitmap.setPixels(toPixels(bitMatrix), 0, bitMatrix.width, 0, 0, bitMatrix.width, bitMatrix.height)
             bitmap
         } catch (e: Exception) {
             android.util.Log.e("QrGenerator", "Failed to generate QR code", e)
             null
         }
+    }
+
+    // Black pixels for the QR code, transparent for background — the transparency is what
+    // lets the code sit on the glassmorphism panels.
+    private fun toPixels(bitMatrix: BitMatrix): IntArray {
+        val width = bitMatrix.width
+        val height = bitMatrix.height
+        val pixels = IntArray(width * height)
+        for (y in 0 until height) {
+            val offset = y * width
+            for (x in 0 until width) {
+                pixels[offset + x] = if (bitMatrix.get(x, y)) Color.BLACK else Color.TRANSPARENT
+            }
+        }
+        return pixels
     }
 }
