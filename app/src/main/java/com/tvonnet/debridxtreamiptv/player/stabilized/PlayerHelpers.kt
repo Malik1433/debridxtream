@@ -245,6 +245,14 @@ internal enum class EndedAction {
     COMPLETE_AND_FINISH,
 }
 
+/**
+ * Did STATE_ENDED arrive mid-stream for VOD? A provider socket drop reports ENDED long before
+ * the real end of the content, so the session should resume in place instead of finishing.
+ * True only when a real duration is known and the position is more than 15s short of it.
+ */
+internal fun endedMidStream(durationMs: Long, positionMs: Long): Boolean =
+    durationMs > 0L && positionMs < durationMs - 15_000L
+
 internal fun endedActionFor(
     isSeriesLike: Boolean,
     isResolvingDebrid: Boolean,

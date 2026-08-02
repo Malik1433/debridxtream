@@ -77,6 +77,62 @@ class VodDiffCallback : androidx.recyclerview.widget.DiffUtil.ItemCallback<Xtrea
 /** A card's favourite/watched/progress overlay state, computed once per bind. */
 data class VodOverlays(val isFavorite: Boolean, val isWatched: Boolean, val progress: Float?)
 
+/** A card's parsed display text: cleaned title + quality badge ("4K" / "FHD" / "HD"). */
+data class VodCardText(val title: String, val qualityBadge: String)
+
+// Trailing language tags a provider appends to the raw listing name, e.g. "Movie |EN".
+private val VOD_LANG_TAG_REGEX = Regex("""(?i)[\|\[\(]?\s*(MULTI|EN|FR|IT|ES|DE|RU|TR|AR|NL|PT|PL)\s*[\]\)]?$""")
+
+// Trailing quality tags, e.g. "Movie [4K]" — extracted into the badge, stripped from the title.
+private val VOD_QUALITY_TAG_REGEX = Regex("""(?i)[\|\[\(]?\s*(4K|UHD|1080p|720p|FHD|HD)\s*[\]\)]?$""")
+
+/**
+ * Title/quality parsing for a movie card, as a pure function of the raw listing name
+ * (extracted verbatim from VodViewHolder.bind so it is unit-testable off-device).
+ */
+internal fun parseVodCardText(rawName: String?): VodCardText {
+    var cleanName = rawName?.trim() ?: "Unknown Movie"
+
+    // Extract language tags
+    val langMatch = VOD_LANG_TAG_REGEX.find(cleanName)
+    if (langMatch != null) {
+        cleanName = dropTrailingTagSeparator(cleanName.replace(langMatch.value, "").trim())
+    }
+
+    // Extract quality
+    val qMatch = VOD_QUALITY_TAG_REGEX.find(cleanName)
+    var qualityBadge = "HD"
+    if (qMatch != null) {
+        qualityBadge = qualityBadgeFor(qMatch.groupValues[1].uppercase(Locale.ROOT))
+        cleanName = dropTrailingTagSeparator(cleanName.replace(qMatch.value, "").trim())
+    } else {
+        qualityBadge = embeddedQualityBadge(cleanName.lowercase(Locale.ROOT))
+    }
+
+    // Shared cleanup for leading/embedded provider tags + escapes (after quality
+    // extraction above, which strips trailing quality tokens and sets the badge).
+    val title = com.tvonnet.debridxtreamiptv.util.MediaTitleCleaner.clean(cleanName)
+        .ifBlank { "Unknown Movie" }
+    return VodCardText(title, qualityBadge)
+}
+
+// After a trailing tag is stripped, its separator may remain ("Movie |" / "Movie -").
+private fun dropTrailingTagSeparator(name: String): String =
+    if (name.endsWith("|") || name.endsWith("-")) name.dropLast(1).trim() else name
+
+private fun qualityBadgeFor(qExtracted: String): String = when {
+    qExtracted.contains("4K") || qExtracted.contains("UHD") -> "4K"
+    qExtracted.contains("1080") || qExtracted.contains("FHD") -> "FHD"
+    else -> "HD"
+}
+
+// No trailing tag matched: fall back to quality tokens embedded anywhere in the name.
+private fun embeddedQualityBadge(nameLower: String): String = when {
+    nameLower.contains("4k") || nameLower.contains("uhd") -> "4K"
+    nameLower.contains("1080p") || nameLower.contains("fhd") -> "FHD"
+    else -> "HD"
+}
+
 class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private val tvMovieTitle = itemView.findViewById<TextView>(R.id.tv_movie_title)
     private val tvQualityValue = itemView.findViewById<TextView>(R.id.tv_quality_value)
@@ -124,43 +180,11 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         itemView.isFocusableInTouchMode = true
         itemView.setTag(R.id.tag_vod_id, movie.stream_id?.toString())
 
-        var cleanName = movie.name?.trim() ?: "Unknown Movie"
-
-        // Extract language tags
-        val langRegex = Regex("""(?i)[\|\[\(]?\s*(MULTI|EN|FR|IT|ES|DE|RU|TR|AR|NL|PT|PL)\s*[\]\)]?$""")
-        val langMatch = langRegex.find(cleanName)
-        if (langMatch != null) {
-            cleanName = cleanName.replace(langMatch.value, "").trim()
-            if (cleanName.endsWith("|") || cleanName.endsWith("-")) cleanName = cleanName.dropLast(1).trim()
-        }
-
-        // Extract quality
-        val qualityRegex = Regex("""(?i)[\|\[\(]?\s*(4K|UHD|1080p|720p|FHD|HD)\s*[\]\)]?$""")
-        val qMatch = qualityRegex.find(cleanName)
-        var qualityBadge = "HD"
-        if (qMatch != null) {
-            val qExtracted = qMatch.groupValues[1].uppercase(Locale.ROOT)
-            qualityBadge = when {
-                qExtracted.contains("4K") || qExtracted.contains("UHD") -> "4K"
-                qExtracted.contains("1080") || qExtracted.contains("FHD") -> "FHD"
-                else -> "HD"
-            }
-            cleanName = cleanName.replace(qMatch.value, "").trim()
-            if (cleanName.endsWith("|") || cleanName.endsWith("-")) cleanName = cleanName.dropLast(1).trim()
-        } else {
-            val nameLower = cleanName.lowercase(Locale.ROOT)
-            if (nameLower.contains("4k") || nameLower.contains("uhd")) qualityBadge = "4K"
-            else if (nameLower.contains("1080p") || nameLower.contains("fhd")) qualityBadge = "FHD"
-        }
-
-        // Shared cleanup for leading/embedded provider tags + escapes (after quality
-        // extraction above, which strips trailing quality tokens and sets the badge).
-        cleanName = com.tvonnet.debridxtreamiptv.util.MediaTitleCleaner.clean(cleanName)
-            .ifBlank { "Unknown Movie" }
-        tvMovieTitle.text = cleanName
+        val cardText = parseVodCardText(movie.name)
+        tvMovieTitle.text = cardText.title
 
         // Quality badge: 4K ONLY — an "HD" pill on every card is pure noise.
-        val is4K = qualityBadge == "4K"
+        val is4K = cardText.qualityBadge == "4K"
         llQualityBadge?.visibility = if (is4K) View.VISIBLE else View.GONE
         if (is4K) {
             tvQualityValue.text = "4K"

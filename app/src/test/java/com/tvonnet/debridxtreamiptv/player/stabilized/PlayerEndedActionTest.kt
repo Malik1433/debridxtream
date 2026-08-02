@@ -94,6 +94,26 @@ class PlayerEndedActionTest {
         assertEquals(EndedAction.WAIT_FOR_RESOLVE, action)
     }
 
+    // ── The mid-stream drop detector (feeds the resume-in-place branch, not endedActionFor) ─────
+
+    @Test
+    fun `ended more than 15s short of the known end - is a mid-stream drop`() {
+        assertEquals(true, endedMidStream(durationMs = 60_000L, positionMs = 30_000L))
+    }
+
+    @Test
+    fun `ended within 15s of the end - is a real end, not a drop`() {
+        assertEquals(false, endedMidStream(durationMs = 60_000L, positionMs = 50_000L))
+        assertEquals(false, endedMidStream(durationMs = 60_000L, positionMs = 60_000L))
+    }
+
+    @Test
+    fun `unknown duration - never treated as a mid-stream drop`() {
+        // Live/unset durations report 0 or negative; resuming there would loop forever.
+        assertEquals(false, endedMidStream(durationMs = 0L, positionMs = 30_000L))
+        assertEquals(false, endedMidStream(durationMs = -1L, positionMs = 0L))
+    }
+
     // ── Non-series content is unaffected ────────────────────────────────────────────────────────
 
     @Test

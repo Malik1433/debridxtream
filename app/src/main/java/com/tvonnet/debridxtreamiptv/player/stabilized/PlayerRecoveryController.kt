@@ -443,15 +443,7 @@ internal class PlayerRecoveryController(
         if (directDebridPlayback && refreshDirectDebridSourceFromMetadata("buffer_timeout_direct_refresh")) {
             return
         }
-        val hasResolveInfo =
-            !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
-        val resolverIdle = canUseDebridResolver() && !isResolvingDebrid
-        if (resolverIdle && retryCount > 1 && hasResolveInfo) {
-              isResolvingDebrid = true
-              if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
-              reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
-              return
-        }
+        if (maybeReResolveDebridAfterTimeout()) return
         // No toast here either — the unified "RECONNECTING…" banner (shown by
         // canAttemptReconnect() above) is the single reconnect indicator.
         // Live first retry: light in-place re-prepare on the SAME engine
@@ -465,6 +457,25 @@ internal class PlayerRecoveryController(
             currentUrl?.let { performSeamlessSwitch(it) }
             return
         }
+        rebuildPlayerAfterTimeout(timedOutUrl)
+    }
+
+    // Second-retry escalation, verbatim from retryAfterBufferTimeout: mint a fresh debrid link
+    // instead of re-connecting the stale one. True when the re-resolve was started (timeout
+    // handling is done); false leaves the caller on the reconnect path.
+    private fun maybeReResolveDebridAfterTimeout(): Boolean {
+        val hasResolveInfo =
+            !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
+        val resolverIdle = canUseDebridResolver() && !isResolvingDebrid
+        if (!resolverIdle || retryCount <= 1 || !hasResolveInfo) return false
+        isResolvingDebrid = true
+        if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
+        reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
+        return true
+    }
+
+    // The heavy full-engine rebuild, verbatim: save the resume position, release, re-init after 2s.
+    private fun rebuildPlayerAfterTimeout(timedOutUrl: String?) {
         if (contentType != ContentType.LIVE_TV && player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
         PlaybackDiagnosticsRecorder.record(
             activity,

@@ -117,79 +117,116 @@ internal class PlayerInputRouter(
     }
 
     private fun handleActionDownKey(event: KeyEvent): Boolean? {
-            if (activity.isEpisodeBrowserVisible()) {
-                // VOD Player redesign: coverflow panel. Delegate UP/DOWN to the list; LEFT/BACK
-                // close it — restore transport controls when it closes. While it stays open, consume
-                // every key so an unhandled one can't fall through and flash the controller underneath.
-                playerView.hideController()
-                episodeBrowserController.handleKeyEvent(event)
-                if (!episodeBrowserController.isVisible()) {
-                    showControllerWithSmartFocus()
-                }
-                return true
-            }
+            if (activity.isEpisodeBrowserVisible()) return consumeEpisodeBrowserKey(event)
 
             // VOD Player redesign: the episodes list opens ONLY via the EPISODES button now
             // (DPAD_DOWN no longer auto-opens it).
 
-            // Standard Controller triggers
-            val controllerCanAppear = contentType != ContentType.LIVE_TV && playerView.useController
-            if (controllerCanAppear && !activity.isNextEpisodePromptVisible() && !playerView.isControllerFullyVisible) {
-                if (isControllerTriggerKey(event.keyCode)) {
-                    showControllerWithSmartFocus(event)
-                    return true
-                }
-            }
+            if (maybeShowVodController(event)) return true
 
             // Cinematic live OSD routing (spec §8): ◀ drawer, ▶/OK controls row.
             // Zap keys fall through to the branches below.
             if (contentType == ContentType.LIVE_TV && !viewModel.browserState.value.isVisible) {
                 liveOsd?.let { osd -> if (osd.handleKeyEvent(event)) return true }
             }
-            val surfDrawerOpen = liveOsd?.isDrawerOpen == true
-            // Guide owns the screen while open — never zap the channel underneath it.
-            val guideOpen = liveOsd?.isGuideOpen == true
 
-            when (event.keyCode) {
-                KeyEvent.KEYCODE_DPAD_LEFT -> { if (contentType == ContentType.LIVE_TV && liveOsd == null && !viewModel.browserState.value.isVisible) { viewModel.toggleBrowser(true, viewModel.zapState.value?.categoryId ?: liveCategoryId, contentId); return true } }
-                KeyEvent.KEYCODE_CAPTIONS -> { if (contentType != ContentType.LIVE_TV) { showSubtitleSelection(); return true } }
+            return when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT -> handleDpadLeftDown()
+                KeyEvent.KEYCODE_CAPTIONS -> handleCaptionsDown()
                 KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_UP,
                 KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_DOWN,
-                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    val direction = zapDirectionFor(event.keyCode)
-                    if (direction != null && canZapNow(
-                            action = event.action,
-                            repeatCount = event.repeatCount,
-                            contentType = contentType,
-                            surfaces = OpenPlayerSurfaces(
-                                isBrowserVisible = viewModel.browserState.value.isVisible,
-                                isSurfDrawerOpen = surfDrawerOpen,
-                                isGuideOpen = guideOpen
-                            )
-                        )
-                    ) {
-                        liveTuner.zapChannel(direction = direction)
-                        return true
-                    }
-                }
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { if (contentType == ContentType.LIVE_TV) { if (viewModel.browserState.value.isVisible || liveOsd != null) return null; if (epgOverlayUi.mode != EpgOverlayMode.HIDDEN && !epgOverlayUi.isPinned) hideEpgOverlay() else showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false); return true } }
-                KeyEvent.KEYCODE_INFO -> {
-                    if (contentType == ContentType.LIVE_TV) {
-                        liveOsd?.showOsd(focus = true) ?: toggleEpgOverlayPinned()
-                    } else { backHideArmed = false; playerView.showController(); playerView.requestFocus() }
-                    return true
-                }
-                KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_GUIDE -> {
-                    if (contentType == ContentType.LIVE_TV) {
-                        liveOsd?.let {
-                            viewModel.toggleBrowser(true, viewModel.zapState.value?.categoryId ?: liveCategoryId, contentId)
-                        } ?: toggleEpgOverlayPinned()
-                        return true
-                    }
-                    if (playerView.isControllerFullyVisible) { showSubtitleSelection(); return true }
-                }
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> handleZapKeyDown(event)
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER ->
+                    handleCenterDown()
+                KeyEvent.KEYCODE_INFO -> handleInfoDown()
+                KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_GUIDE -> handleMenuOrGuideDown()
+                else -> null
             }
-            return null
+    }
+
+    // VOD Player redesign: coverflow panel. Delegate UP/DOWN to the list; LEFT/BACK
+    // close it — restore transport controls when it closes. While it stays open, consume
+    // every key so an unhandled one can't fall through and flash the controller underneath.
+    private fun consumeEpisodeBrowserKey(event: KeyEvent): Boolean {
+        playerView.hideController()
+        episodeBrowserController.handleKeyEvent(event)
+        if (!episodeBrowserController.isVisible()) {
+            showControllerWithSmartFocus()
+        }
+        return true
+    }
+
+    // Standard Controller triggers: a trigger key pops the hidden VOD transport controller.
+    private fun maybeShowVodController(event: KeyEvent): Boolean {
+        val controllerCanAppear = contentType != ContentType.LIVE_TV && playerView.useController
+        if (!controllerCanAppear || activity.isNextEpisodePromptVisible() || playerView.isControllerFullyVisible) {
+            return false
+        }
+        if (!isControllerTriggerKey(event.keyCode)) return false
+        showControllerWithSmartFocus(event)
+        return true
+    }
+
+    private fun handleDpadLeftDown(): Boolean? {
+        if (contentType != ContentType.LIVE_TV || liveOsd != null) return null
+        if (viewModel.browserState.value.isVisible) return null
+        viewModel.toggleBrowser(true, viewModel.zapState.value?.categoryId ?: liveCategoryId, contentId)
+        return true
+    }
+
+    private fun handleCaptionsDown(): Boolean? {
+        if (contentType == ContentType.LIVE_TV) return null
+        showSubtitleSelection()
+        return true
+    }
+
+    private fun handleZapKeyDown(event: KeyEvent): Boolean? {
+        val direction = zapDirectionFor(event.keyCode) ?: return null
+        val canZap = canZapNow(
+            action = event.action,
+            repeatCount = event.repeatCount,
+            contentType = contentType,
+            surfaces = OpenPlayerSurfaces(
+                isBrowserVisible = viewModel.browserState.value.isVisible,
+                isSurfDrawerOpen = liveOsd?.isDrawerOpen == true,
+                // Guide owns the screen while open — never zap the channel underneath it.
+                isGuideOpen = liveOsd?.isGuideOpen == true
+            )
+        )
+        if (!canZap) return null
+        liveTuner.zapChannel(direction = direction)
+        return true
+    }
+
+    private fun handleCenterDown(): Boolean? {
+        if (contentType != ContentType.LIVE_TV) return null
+        if (viewModel.browserState.value.isVisible || liveOsd != null) return null
+        if (epgOverlayUi.mode != EpgOverlayMode.HIDDEN && !epgOverlayUi.isPinned) {
+            hideEpgOverlay()
+        } else {
+            showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false)
+        }
+        return true
+    }
+
+    private fun handleInfoDown(): Boolean {
+        if (contentType == ContentType.LIVE_TV) {
+            liveOsd?.showOsd(focus = true) ?: toggleEpgOverlayPinned()
+        } else {
+            backHideArmed = false; playerView.showController(); playerView.requestFocus()
+        }
+        return true
+    }
+
+    private fun handleMenuOrGuideDown(): Boolean? {
+        if (contentType == ContentType.LIVE_TV) {
+            liveOsd?.let {
+                viewModel.toggleBrowser(true, viewModel.zapState.value?.categoryId ?: liveCategoryId, contentId)
+            } ?: toggleEpgOverlayPinned()
+            return true
+        }
+        if (playerView.isControllerFullyVisible) { showSubtitleSelection(); return true }
+        return null
     }
 
     fun onKeyLongPress(keyCode: Int, event: KeyEvent): Boolean? {

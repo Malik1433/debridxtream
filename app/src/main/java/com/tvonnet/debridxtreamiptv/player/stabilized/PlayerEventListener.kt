@@ -162,19 +162,7 @@ internal class PlayerEventListener(
          // Same for VOD: a mid-stream socket drop reports ENDED
          // long before the real end. Only finish when actually
          // at the end of the content; otherwise resume in place.
-         val durationMs = player?.duration ?: 0L
-         val positionMs = player?.currentPosition ?: 0L
-         val endedMidStream = durationMs > 0L && positionMs < durationMs - 15_000L
-         if (endedMidStream && canReconnect && canAttemptReconnect()) {
-              endedReconnects++; lastEndedReconnectAtMs = nowMs
-              Log.i(
-                  "PlayerActivity",
-                  "Stream ended ${durationMs - positionMs}ms before content end — resuming ($endedReconnects/3)"
-              )
-              startPositionMs = positionMs
-              currentUrl?.let { liveTuner.performSeamlessSwitch(it) }
-              return
-         }
+         if (maybeResumeVodAfterMidStreamDrop(nowMs, canReconnect)) return
          // T1.5 episode continuity. The decision itself is a pure function so it can be
          // unit-tested (see endedActionFor / PlayerEndedActionTest): advance ONLY on a real
          // hasNext (no ghost load past the final episode), and never double-advance or
@@ -199,6 +187,23 @@ internal class PlayerEventListener(
                    activity.finish()
               }
          }
+    }
+
+    // The mid-stream decision itself is a pure function (endedMidStream, tested alongside
+    // endedActionFor) — this helper is the reaction: record the attempt and resume in place.
+    private fun maybeResumeVodAfterMidStreamDrop(nowMs: Long, canReconnect: Boolean): Boolean {
+         val durationMs = player?.duration ?: 0L
+         val positionMs = player?.currentPosition ?: 0L
+         if (!endedMidStream(durationMs, positionMs)) return false
+         if (!canReconnect || !canAttemptReconnect()) return false
+         endedReconnects++; lastEndedReconnectAtMs = nowMs
+         Log.i(
+             "PlayerActivity",
+             "Stream ended ${durationMs - positionMs}ms before content end — resuming ($endedReconnects/3)"
+         )
+         startPositionMs = positionMs
+         currentUrl?.let { liveTuner.performSeamlessSwitch(it) }
+         return true
     }
 
     private fun onLiveEnded(nowMs: Long, canReconnect: Boolean) {
