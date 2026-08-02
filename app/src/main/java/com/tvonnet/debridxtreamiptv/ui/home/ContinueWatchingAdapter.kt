@@ -105,6 +105,8 @@ class ContinueWatchingAdapter(
         private var dwellRunnable: Runnable? = null
         private var inActionsMode = false
         private var swallowNextSelectUp = false
+        private var suppressNextClick = false
+        private var longPressHandled = false
 
         init {
             com.tvonnet.debridxtreamiptv.util.FocusGlow.attachSelector(
@@ -119,9 +121,16 @@ class ContinueWatchingAdapter(
             onOpenDetail: (ContinueWatchingItem) -> Unit,
             onRemoveItem: (ContinueWatchingItem) -> Unit
         ) {
-            var suppressNextClick = false
-            var longPressHandled = false
+            suppressNextClick = false
+            longPressHandled = false
             resetBubbleToInfo()
+            bindCardContent(item)
+            attachCardListeners(item, onClick, onOpenDetail, onRemoveItem)
+            attachChipListeners(item, onOpenDetail, onRemoveItem)
+            attachFocusListener(item, onFocused)
+        }
+
+        private fun bindCardContent(item: ContinueWatchingItem) {
             tvContinueTitle.text = formatTitle(item)
             tvContinueProgress.text = item.formattedProgress
             tvContinueTypeBadge.text = formatTypeBadge(item)
@@ -129,10 +138,23 @@ class ContinueWatchingAdapter(
             itemView.scaleX = if (itemView.hasFocus()) 1.06f else 1.0f
             itemView.scaleY = if (itemView.hasFocus()) 1.06f else 1.0f
             itemView.elevation = if (itemView.hasFocus()) 22f else 6f
-            
+
             val resolvedUrl = GlobalConfig.resolveIconUrl(item.posterUrl ?: item.backdropUrl)
             ivContinuePoster.loadPosterOrPlaceholder(resolvedUrl)
-            
+
+            qiInfo?.let {
+                itemView.findViewById<TextView>(R.id.qi_title)?.text = formatTitle(item)
+                itemView.findViewById<TextView>(R.id.qi_tag)?.text = "RESUME"
+                itemView.findViewById<TextView>(R.id.qi_sub)?.text = item.formattedProgress
+            }
+        }
+
+        private fun attachCardListeners(
+            item: ContinueWatchingItem,
+            onClick: (ContinueWatchingItem) -> Unit,
+            onOpenDetail: (ContinueWatchingItem) -> Unit,
+            onRemoveItem: (ContinueWatchingItem) -> Unit
+        ) {
             itemView.setOnClickListener {
                 if (suppressNextClick) {
                     suppressNextClick = false
@@ -172,8 +194,14 @@ class ContinueWatchingAdapter(
                     else -> false
                 }
             }
+        }
 
-            // Chip wiring (used in actions mode)
+        // Chip wiring (used in actions mode)
+        private fun attachChipListeners(
+            item: ContinueWatchingItem,
+            onOpenDetail: (ContinueWatchingItem) -> Unit,
+            onRemoveItem: (ContinueWatchingItem) -> Unit
+        ) {
             qiOpen?.setOnClickListener { onOpenDetail(item) }
             qiRemove?.setOnClickListener {
                 exitActionsMode()
@@ -196,13 +224,12 @@ class ContinueWatchingAdapter(
             }
             qiOpen?.setOnKeyListener(chipKeyListener)
             qiRemove?.setOnKeyListener(chipKeyListener)
+        }
 
-            qiInfo?.let {
-                itemView.findViewById<TextView>(R.id.qi_title)?.text = formatTitle(item)
-                itemView.findViewById<TextView>(R.id.qi_tag)?.text = "RESUME"
-                itemView.findViewById<TextView>(R.id.qi_sub)?.text = item.formattedProgress
-            }
-
+        private fun attachFocusListener(
+            item: ContinueWatchingItem,
+            onFocused: (Int, ContinueWatchingItem) -> Unit
+        ) {
             itemView.setOnFocusChangeListener { view, hasFocus ->
                 view.animate()
                     .scaleX(if (hasFocus) 1.06f else 1.0f)

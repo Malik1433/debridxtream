@@ -133,6 +133,27 @@ class CinEpisodeAdapter(
             val durationMin = item.durationMinutes
             tvDuration.text = if (durationMin != null) "${durationMin}M" else ""
 
+            loadThumbnail(item)
+
+            val identityKey = watchedIdentityKey(itemView.context, item)
+            val actuallyWatched = resolveWatchedState(item, identityKey)
+            val pct = resolveProgressPercent(item, identityKey, durationMin)
+            val hasProgress = !actuallyWatched && pct != null
+
+            applyProgressBar(hasProgress, pct)
+            applyBadge(actuallyWatched, isSelected)
+
+            // Subtitle
+            tvSubtitle.text = when {
+                actuallyWatched -> "WATCHED · ${tvDuration.text}"
+                hasProgress -> "RESUME · ${pct}%"
+                else -> item.description?.take(20) ?: ""
+            }
+
+            itemView.isSelected = isSelected
+        }
+
+        private fun loadThumbnail(item: EpisodeUiModel) {
             val thumbnail = item.thumbnailUrl?.takeIf { it.isNotBlank() }
             Glide.with(itemView)
                 .load(thumbnail)
@@ -140,40 +161,44 @@ class CinEpisodeAdapter(
                 .error(R.drawable.tv_card_placeholder)
                 .centerCrop()
                 .into(ivThumb)
+        }
 
-            val context = itemView.context
-            val identityKey = watchedIdentityKey(context, item)
-            val isWatched = identityKey != null && watchedKeys.contains(identityKey)
-
+        // Lazy-loads the stored state once per identity, then merges the three watched signals.
+        private fun resolveWatchedState(item: EpisodeUiModel, identityKey: String?): Boolean {
             if (identityKey != null && !loadedKeys.contains(identityKey)) {
                 loadWatchedState(identityKey)
             }
+            val isWatched = identityKey != null && watchedKeys.contains(identityKey)
+            return item.isWatched || isWatched || watchedOverride.contains(item.id)
+        }
 
-            val actuallyWatched = item.isWatched || isWatched || watchedOverride.contains(item.id)
-
-            // Progress percent: prefer Activity override (authoritative), then stored watched-state, then item.resumePosition
+        // Progress percent: prefer Activity override (authoritative), then stored watched-state, then item.resumePosition
+        private fun resolveProgressPercent(item: EpisodeUiModel, identityKey: String?, durationMin: Int?): Int? {
             val overridePct = progressOverride[item.id]
             val storedPct = identityKey?.let { progressByKey[it] }
             val fallbackPct = if (item.resumePosition > 0 && durationMin != null && durationMin > 0) {
                 ((item.resumePosition.toFloat() / (durationMin * 60_000L)) * 100).toInt().coerceIn(0, 100)
             } else null
-            val pct = (overridePct ?: storedPct ?: fallbackPct)?.takeIf { it in 1..99 }
-            val hasProgress = !actuallyWatched && pct != null
+            return (overridePct ?: storedPct ?: fallbackPct)?.takeIf { it in 1..99 }
+        }
 
-            // Progress bar
-            if (hasProgress) {
-                layoutProgress.visibility = View.VISIBLE
-                vProgressFill.post {
-                    val parentWidth = (vProgressFill.parent as? View)?.width ?: 0
-                    val lp = vProgressFill.layoutParams
-                    lp.width = (parentWidth * pct!! / 100f).toInt()
-                    vProgressFill.layoutParams = lp
-                }
-            } else {
+        // Progress bar
+        private fun applyProgressBar(hasProgress: Boolean, pct: Int?) {
+            if (!hasProgress || pct == null) {
                 layoutProgress.visibility = View.GONE
+                return
             }
+            layoutProgress.visibility = View.VISIBLE
+            vProgressFill.post {
+                val parentWidth = (vProgressFill.parent as? View)?.width ?: 0
+                val lp = vProgressFill.layoutParams
+                lp.width = (parentWidth * pct / 100f).toInt()
+                vProgressFill.layoutParams = lp
+            }
+        }
 
-            // Badge
+        // Badge
+        private fun applyBadge(actuallyWatched: Boolean, isSelected: Boolean) {
             when {
                 actuallyWatched -> {
                     vBadgeBg.setBackgroundResource(R.drawable.cin_series_ep_badge_watched)
@@ -193,15 +218,6 @@ class CinEpisodeAdapter(
                     ivPlayIcon.setColorFilter(0xFFF1F5F9.toInt())
                 }
             }
-
-            // Subtitle
-            tvSubtitle.text = when {
-                actuallyWatched -> "WATCHED · ${tvDuration.text}"
-                hasProgress -> "RESUME · ${pct}%"
-                else -> item.description?.take(20) ?: ""
-            }
-
-            itemView.isSelected = isSelected
         }
     }
 

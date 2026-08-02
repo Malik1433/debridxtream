@@ -105,6 +105,19 @@ class ChannelPagingAdapter(
     }
 }
 
+/** The badge flags for a live channel row, from its name alone. 4K wins over HD. */
+internal class LiveChannelBadgeFlags(val is4k: Boolean, val isHd: Boolean, val isPay: Boolean)
+
+internal fun liveChannelBadgeFlags(channelName: String): LiveChannelBadgeFlags {
+    val is4k = channelName.contains("4k", ignoreCase = true) ||
+        channelName.contains("uhd", ignoreCase = true)
+    val isHd = !is4k && channelName.contains("hd", ignoreCase = true)
+    val isPay = channelName.contains("ppv", ignoreCase = true) ||
+        channelName.contains("pay", ignoreCase = true) ||
+        channelName.contains("$")
+    return LiveChannelBadgeFlags(is4k = is4k, isHd = isHd, isPay = isPay)
+}
+
 class ChannelPagingViewHolder(
     itemView: android.view.View,
     private val useNewCard: Boolean,
@@ -218,60 +231,9 @@ class ChannelPagingViewHolder(
         // Channel name
         tvChannelNameHorizontal?.text = channelName
 
-        val nowProgram = epgData?.first
-        val nowTitle = nowProgram?.title?.takeIf { it.isNotBlank() }
-            ?: itemView.context.getString(R.string.live_preview_no_epg)
-        tvEpgNow?.text = nowTitle
-        tvEpgNow?.visibility = android.view.View.VISIBLE
-
-        if (nowProgram != null) {
-            val duration = (nowProgram.stop - nowProgram.start).coerceAtLeast(1L)
-            val elapsed = (System.currentTimeMillis() - nowProgram.start)
-                .coerceAtLeast(0)
-                .coerceAtMost(duration)
-            val progress = ((elapsed * 100) / duration).toInt()
-            pbEpgProgress?.progress = progress
-            pbEpgProgress?.visibility = android.view.View.VISIBLE
-        } else {
-            pbEpgProgress?.visibility = android.view.View.GONE
-        }
-
-        val is4k = channelName.contains("4k", ignoreCase = true) ||
-            channelName.contains("uhd", ignoreCase = true)
-        val isHd = !is4k && channelName.contains("hd", ignoreCase = true)
-        val hasEpg = epgData?.first != null || epgData?.second != null
-        val isPay = channelName.contains("ppv", ignoreCase = true) ||
-            channelName.contains("pay", ignoreCase = true) ||
-            channelName.contains("$")
-
-        badge4k?.visibility = if (is4k) android.view.View.VISIBLE else android.view.View.GONE
-        badgeHd?.visibility = if (isHd) android.view.View.VISIBLE else android.view.View.GONE
-        badgeEpg?.visibility = if (hasEpg) android.view.View.VISIBLE else android.view.View.GONE
-        badgePay?.visibility = if (isPay) android.view.View.VISIBLE else android.view.View.GONE
-        favoriteIndicator?.visibility = if (isFavorite) android.view.View.VISIBLE else android.view.View.GONE
-
-        // v2: channel number + a single quality chip (gold 4K / grey HD, hidden when neither).
-        // Many providers send num=0 for every channel, so fall back to the row's position.
-        val channelNumber = channel.num?.takeIf { it > 0 }
-            ?: bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }?.plus(1)
-        tvChannelNumber?.text = channelNumber
-            ?.let { String.format(Locale.US, "%03d", it) }
-            .orEmpty()
-        badgeQuality?.apply {
-            when {
-                is4k -> {
-                    text = "4K"
-                    setBackgroundResource(R.drawable.bg_live_badge_quality_4k)
-                    visibility = android.view.View.VISIBLE
-                }
-                isHd -> {
-                    text = "HD"
-                    setBackgroundResource(R.drawable.bg_live_badge_quality_hd)
-                    visibility = android.view.View.VISIBLE
-                }
-                else -> visibility = android.view.View.GONE
-            }
-        }
+        bindEpgNow(epgData?.first)
+        bindBadges(channelName, epgData, isFavorite)
+        bindChannelNumber(channel)
 
         // Load channel logo
         loadChannelImage(channel.stream_icon)
@@ -286,6 +248,63 @@ class ChannelPagingViewHolder(
             true
         }
 
+    }
+
+    private fun bindEpgNow(nowProgram: EpgEntity?) {
+        val nowTitle = nowProgram?.title?.takeIf { it.isNotBlank() }
+            ?: itemView.context.getString(R.string.live_preview_no_epg)
+        tvEpgNow?.text = nowTitle
+        tvEpgNow?.visibility = android.view.View.VISIBLE
+
+        if (nowProgram == null) {
+            pbEpgProgress?.visibility = android.view.View.GONE
+            return
+        }
+        val duration = (nowProgram.stop - nowProgram.start).coerceAtLeast(1L)
+        val elapsed = (System.currentTimeMillis() - nowProgram.start)
+            .coerceAtLeast(0)
+            .coerceAtMost(duration)
+        val progress = ((elapsed * 100) / duration).toInt()
+        pbEpgProgress?.progress = progress
+        pbEpgProgress?.visibility = android.view.View.VISIBLE
+    }
+
+    private fun bindBadges(channelName: String, epgData: Pair<EpgEntity?, EpgEntity?>?, isFavorite: Boolean) {
+        val flags = liveChannelBadgeFlags(channelName)
+        val hasEpg = epgData?.first != null || epgData?.second != null
+
+        badge4k?.visibility = if (flags.is4k) android.view.View.VISIBLE else android.view.View.GONE
+        badgeHd?.visibility = if (flags.isHd) android.view.View.VISIBLE else android.view.View.GONE
+        badgeEpg?.visibility = if (hasEpg) android.view.View.VISIBLE else android.view.View.GONE
+        badgePay?.visibility = if (flags.isPay) android.view.View.VISIBLE else android.view.View.GONE
+        favoriteIndicator?.visibility = if (isFavorite) android.view.View.VISIBLE else android.view.View.GONE
+
+        // v2: a single quality chip (gold 4K / grey HD, hidden when neither).
+        badgeQuality?.apply {
+            when {
+                flags.is4k -> {
+                    text = "4K"
+                    setBackgroundResource(R.drawable.bg_live_badge_quality_4k)
+                    visibility = android.view.View.VISIBLE
+                }
+                flags.isHd -> {
+                    text = "HD"
+                    setBackgroundResource(R.drawable.bg_live_badge_quality_hd)
+                    visibility = android.view.View.VISIBLE
+                }
+                else -> visibility = android.view.View.GONE
+            }
+        }
+    }
+
+    // v2: the channel number beside the row. Many providers send num=0 for every channel,
+    // so fall back to the row's position.
+    private fun bindChannelNumber(channel: XtreamStream) {
+        val channelNumber = channel.num?.takeIf { it > 0 }
+            ?: bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }?.plus(1)
+        tvChannelNumber?.text = channelNumber
+            ?.let { String.format(Locale.US, "%03d", it) }
+            .orEmpty()
     }
 
     private fun bindNewCard(channel: XtreamStream, onClick: (XtreamStream) -> Unit, onLongClick: ((XtreamStream) -> Unit)? = null) {

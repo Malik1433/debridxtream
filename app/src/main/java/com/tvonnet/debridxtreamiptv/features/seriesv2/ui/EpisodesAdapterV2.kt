@@ -161,19 +161,35 @@ class EpisodesAdapterV2(
             val pctFraction = if (durationMs > 0L) {
                 (resume.toFloat() / durationMs.toFloat()).coerceIn(0.02f, 1f)
             } else 0.35f
-            if (hasProgress) {
-                binding.layoutProgress.visibility = View.VISIBLE
-                binding.vProgressFill.post {
-                    val parent = binding.layoutProgress.width
-                    val lp = binding.vProgressFill.layoutParams
-                    lp.width = (parent * pctFraction).toInt()
-                    binding.vProgressFill.layoutParams = lp
-                }
-            } else {
-                binding.layoutProgress.visibility = View.GONE
-            }
+            applyResumeBar(hasProgress, pctFraction)
+            bindSubtitle(episode, watched, hasProgress, durationMs, pctFraction)
+            applyBadge(watched, isActive)
+            loadThumbnail(episode)
+        }
 
-            // Subtitle line
+        private fun applyResumeBar(hasProgress: Boolean, pctFraction: Float) {
+            if (!hasProgress) {
+                binding.layoutProgress.visibility = View.GONE
+                return
+            }
+            binding.layoutProgress.visibility = View.VISIBLE
+            binding.vProgressFill.post {
+                val parent = binding.layoutProgress.width
+                val lp = binding.vProgressFill.layoutParams
+                lp.width = (parent * pctFraction).toInt()
+                binding.vProgressFill.layoutParams = lp
+            }
+        }
+
+        // Subtitle line
+        private fun bindSubtitle(
+            episode: EpisodeEntityV2,
+            watched: Boolean,
+            hasProgress: Boolean,
+            durationMs: Long,
+            pctFraction: Float
+        ) {
+            val durationText = formatDuration(episode.duration)
             binding.tvSubtitle.text = when {
                 watched -> "WATCHED" + (if (durationText.isNotEmpty()) " · $durationText" else "")
                 hasProgress -> {
@@ -183,8 +199,10 @@ class EpisodesAdapterV2(
                 !episode.releaseDate.isNullOrBlank() -> episode.releaseDate
                 else -> "EPISODE ${episode.episodeNumber}"
             }
+        }
 
-            // Badge: watched (green + check), active (cyan + play), or default (dark + play)
+        // Badge: watched (green + check), active (cyan + play), or default (dark + play)
+        private fun applyBadge(watched: Boolean, isActive: Boolean) {
             when {
                 watched -> {
                     binding.vBadgeBg.setBackgroundResource(R.drawable.cin_series_ep_badge_watched)
@@ -204,7 +222,9 @@ class EpisodesAdapterV2(
                     binding.ivPlayIcon.setColorFilter(0xFFF1F5F9.toInt())
                 }
             }
+        }
 
+        private fun loadThumbnail(episode: EpisodeEntityV2) {
             val imageUrl = if (!episode.thumbnail.isNullOrEmpty()) episode.thumbnail else seriesCoverUrl
             Glide.with(binding.root.context)
                 .load(imageUrl)
