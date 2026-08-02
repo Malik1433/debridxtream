@@ -33,12 +33,12 @@ class VodAdapter(
         val PAYLOAD_OVERLAYS = Any()
     }
 
-    private fun overlayState(movie: XtreamVodInfo): Triple<Boolean, Boolean, Float?> {
+    private fun overlayState(movie: XtreamVodInfo): VodOverlays {
         val sid = movie.stream_id?.toString()
         val isFavorite = sid?.let { favoriteChecker?.invoke(it) } ?: false
         val isWatched = sid?.let { watchedChecker?.invoke(it) } ?: false
         val progress = sid?.let { progressChecker?.invoke(it) }
-        return Triple(isFavorite, isWatched, progress)
+        return VodOverlays(isFavorite, isWatched, progress)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VodViewHolder {
@@ -50,8 +50,7 @@ class VodAdapter(
     override fun onBindViewHolder(holder: VodViewHolder, position: Int) {
         val movie = getItem(position)
         if (movie != null) {
-            val (isFavorite, isWatched, progress) = overlayState(movie)
-            holder.bind(movie, isFavorite, isWatched, progress, onItemFocused, onMovieClick, onMovieLongClick)
+            holder.bind(movie, overlayState(movie), onItemFocused, onMovieClick, onMovieLongClick)
         }
     }
 
@@ -74,6 +73,9 @@ class VodDiffCallback : androidx.recyclerview.widget.DiffUtil.ItemCallback<Xtrea
         return oldItem == newItem
     }
 }
+
+/** A card's favourite/watched/progress overlay state, computed once per bind. */
+data class VodOverlays(val isFavorite: Boolean, val isWatched: Boolean, val progress: Float?)
 
 class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private val tvMovieTitle = itemView.findViewById<TextView>(R.id.tv_movie_title)
@@ -112,13 +114,12 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
     fun bind(
         movie: XtreamVodInfo,
-        isFavorite: Boolean,
-        isWatched: Boolean,
-        progress: Float?,
+        overlays: VodOverlays,
         onItemFocused: ((Int) -> Unit)?,
         onClick: (XtreamVodInfo) -> Unit,
         onLongClick: ((XtreamVodInfo) -> Unit)? = null
     ) {
+        val (isFavorite, isWatched, progress) = overlays
         itemView.isFocusable = true
         itemView.isFocusableInTouchMode = true
         itemView.setTag(R.id.tag_vod_id, movie.stream_id?.toString())

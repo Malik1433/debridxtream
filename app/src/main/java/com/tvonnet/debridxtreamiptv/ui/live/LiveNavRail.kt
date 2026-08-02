@@ -217,6 +217,7 @@ class LiveNavRail(
     ) : RecyclerView.Adapter<RailAdapter.Holder>() {
 
         private var labelsVisible = false
+        private val callbacks = Holder.Callbacks(onFocusChanged, onDpadRight, onSelected)
 
         init {
             setHasStableIds(true)
@@ -239,8 +240,7 @@ class LiveNavRail(
         }
 
         override fun onBindViewHolder(holder: Holder, position: Int) {
-            holder.bind(items[position], items[position].section == activeSection, labelsVisible,
-                onFocusChanged, onDpadRight, onSelected)
+            holder.bind(items[position], items[position].section == activeSection, labelsVisible, callbacks)
         }
 
         override fun onBindViewHolder(holder: Holder, position: Int, payloads: MutableList<Any>) {
@@ -265,14 +265,20 @@ class LiveNavRail(
                     ?.setDuration(if (visible) 200L else 140L)?.start()
             }
 
+            /** The adapter-level callbacks, constant across binds — bundled once. */
+            data class Callbacks(
+                val onFocusChanged: (Boolean) -> Unit,
+                val onDpadRight: () -> Boolean,
+                val onSelected: (String) -> Unit
+            )
+
             fun bind(
                 item: RailItem,
                 isActive: Boolean,
                 labelsVisible: Boolean,
-                onFocusChanged: (Boolean) -> Unit,
-                onDpadRight: () -> Boolean,
-                onSelected: (String) -> Unit
+                callbacks: Callbacks
             ) {
+                val (onFocusChanged, onDpadRight, onSelected) = callbacks
                 icon?.setImageResource(item.iconRes)
                 label?.text = item.label
                 label?.alpha = if (labelsVisible) 1f else 0f

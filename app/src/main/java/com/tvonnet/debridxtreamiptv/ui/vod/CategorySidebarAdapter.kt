@@ -46,13 +46,21 @@ class CategorySidebarAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val category = categories[position]
         val isSelected = position == selectedPosition
-        holder.bind(category, isSelected, activeBgRes, accentColor, countProvider?.invoke(category.category_id), onItemFocused) {
+        val row = ViewHolder.RowBind(
+            category = category,
+            isSelected = isSelected,
+            activeBgRes = activeBgRes,
+            accentColor = accentColor,
+            count = countProvider?.invoke(category.category_id),
+            onItemFocused = onItemFocused
+        ) {
             val oldPosition = selectedPosition
             selectedPosition = holder.bindingAdapterPosition
             notifyItemChanged(oldPosition)
             notifyItemChanged(selectedPosition)
             onCategoryClick(category)
         }
+        holder.bind(row)
     }
 
     override fun getItemCount() = categories.size
@@ -104,15 +112,19 @@ class CategorySidebarAdapter(
         private val tvCategoryCount = itemView.findViewById<TextView>(R.id.tv_category_count)
         private val vActiveIndicator = itemView.findViewById<View>(R.id.v_active_indicator)
 
-        fun bind(
-            category: XtreamCategory,
-            isSelected: Boolean,
-            activeBgRes: Int,
-            accentColor: Int,
-            count: Int?,
-            onItemFocused: ((Int) -> Unit)?,
-            onClick: () -> Unit
-        ) {
+        /** One row's full render payload — bundled so bind() has a single parameter. */
+        data class RowBind(
+            val category: XtreamCategory,
+            val isSelected: Boolean,
+            val activeBgRes: Int,
+            val accentColor: Int,
+            val count: Int?,
+            val onItemFocused: ((Int) -> Unit)?,
+            val onClick: () -> Unit
+        )
+
+        fun bind(row: RowBind) {
+            val (category, isSelected, activeBgRes, accentColor, count, onItemFocused, onClick) = row
             itemView.isFocusable = true
             itemView.isFocusableInTouchMode = true
             itemView.setTag(R.id.tag_category_id, category.category_id)
