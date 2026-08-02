@@ -66,27 +66,31 @@ enum class StreamLanguage(val label: String) {
     UNKNOWN("Unknown");
 
     companion object {
+        // The old when-chain as data: every accepted spelling maps to its language;
+        // anything else (including "unknown" and "") is UNKNOWN via the map miss.
+        private val LANGUAGE_BY_CODE: Map<String, StreamLanguage> = mapOf(
+            "hi" to HINDI, "hin" to HINDI, "hindi" to HINDI,
+            "en" to ENGLISH, "eng" to ENGLISH, "english" to ENGLISH,
+            "pa" to PUNJABI, "pun" to PUNJABI, "punjabi" to PUNJABI,
+            "de" to GERMAN, "ger" to GERMAN, "german" to GERMAN,
+            "fr" to FRENCH, "fre" to FRENCH, "french" to FRENCH,
+            "ur" to URDU, "urdu" to URDU,
+            "ta" to TAMIL, "tamil" to TAMIL,
+            "te" to TELUGU, "telugu" to TELUGU,
+            "ml" to MALAYALAM, "malayalam" to MALAYALAM,
+            "kn" to KANNADA, "kannada" to KANNADA,
+            "it" to ITALIAN, "ita" to ITALIAN, "italian" to ITALIAN,
+            "ru" to RUSSIAN, "rus" to RUSSIAN, "russian" to RUSSIAN,
+            "es" to SPANISH, "spa" to SPANISH, "spanish" to SPANISH,
+            "multi" to MULTI, "multilanguage" to MULTI, "multi audio" to MULTI,
+            "multi-audio" to MULTI, "dual audio" to MULTI, "dual-audio" to MULTI,
+            "dualaudio" to MULTI,
+            "all" to ALL,
+        )
+
         fun parse(code: String?): StreamLanguage {
             if (code == null) return UNKNOWN
-            return when (code.lowercase().trim()) {
-                "hi", "hin", "hindi" -> HINDI
-                "en", "eng", "english" -> ENGLISH
-                "pa", "pun", "punjabi" -> PUNJABI
-                "de", "ger", "german" -> GERMAN
-                "fr", "fre", "french" -> FRENCH
-                "ur", "urdu" -> URDU
-                "ta", "tamil" -> TAMIL
-                "te", "telugu" -> TELUGU
-                "ml", "malayalam" -> MALAYALAM
-                "kn", "kannada" -> KANNADA
-                "it", "ita", "italian" -> ITALIAN
-                "ru", "rus", "russian" -> RUSSIAN
-                "es", "spa", "spanish" -> SPANISH
-                "multi", "multilanguage", "multi audio", "multi-audio", "dual audio", "dual-audio", "dualaudio" -> MULTI
-                "all" -> ALL
-                "unknown", "" -> UNKNOWN
-                else -> UNKNOWN
-            }
+            return LANGUAGE_BY_CODE[code.lowercase().trim()] ?: UNKNOWN
         }
     }
 }
@@ -122,54 +126,55 @@ object SourceFilterUtils {
 
     fun filter(sources: List<MovieSource>, state: SourceFilterState): List<MovieSource> {
         var filtered = sources
-
         if (state.cachedOnly) {
             filtered = filtered.filter { isPlaybackReady(it) }
         }
+        filtered = applySizeCap(filtered, state.maxSizeBytes)
+        filtered = applyQualityFilter(filtered, state.preferredQuality)
+        filtered = applyLanguageFilter(filtered, state.preferredLanguage)
+        return applyTypeFilter(filtered, state.preferredType)
+    }
 
-        val maxSize = state.maxSizeBytes
-        if (maxSize != null) {
-            filtered = filtered.filter { source ->
-                val size = source.sizeBytes
-                size == null || size <= maxSize
+    private fun applySizeCap(sources: List<MovieSource>, maxSize: Long?): List<MovieSource> {
+        if (maxSize == null) return sources
+        return sources.filter { source ->
+            val size = source.sizeBytes
+            size == null || size <= maxSize
+        }
+    }
+
+    private fun applyQualityFilter(sources: List<MovieSource>, qual: String?): List<MovieSource> {
+        if (qual == null || qual == "All") return sources
+        val qualEnum = VideoQuality.parse(qual)
+        return sources.filter { source ->
+            // Type-safe matching based on strictly parsed Enum
+            VideoQuality.parse(source.quality) == qualEnum
+        }
+    }
+
+    private fun applyLanguageFilter(sources: List<MovieSource>, lang: String?): List<MovieSource> {
+        if (lang == null || lang == "All") return sources
+        val langEnum = StreamLanguage.parse(lang)
+        return sources.filter { source ->
+            val sourceLangs = source.languages?.map { StreamLanguage.parse(it) } ?: emptyList()
+            when (langEnum) {
+                StreamLanguage.MULTI -> sourceLangs.contains(StreamLanguage.MULTI)
+                StreamLanguage.UNKNOWN -> sourceLangs.isEmpty() || sourceLangs.all { it == StreamLanguage.UNKNOWN }
+                else -> sourceLangs.contains(langEnum)
             }
         }
+    }
 
-        val qual = state.preferredQuality
-        if (qual != null && qual != "All") {
-            val qualEnum = VideoQuality.parse(qual)
-            filtered = filtered.filter { source ->
-                // Type-safe matching based on strictly parsed Enum
-                VideoQuality.parse(source.quality) == qualEnum
+    private fun applyTypeFilter(sources: List<MovieSource>, type: String?): List<MovieSource> {
+        if (type == null || type == "All") return sources
+        return sources.filter { source ->
+            when (type) {
+                "RD Cached" -> source.cacheStatus == DebridCacheStatus.VERIFIED_CACHED
+                // Everything else filters by the actual source name (addon /
+                // provider / IPTV) so users can isolate a single source.
+                else -> sourceDisplayName(source).equals(type, ignoreCase = true)
             }
         }
-
-        val lang = state.preferredLanguage
-        if (lang != null && lang != "All") {
-            val langEnum = StreamLanguage.parse(lang)
-            filtered = filtered.filter { source ->
-                val sourceLangs = source.languages?.map { StreamLanguage.parse(it) } ?: emptyList()
-                when (langEnum) {
-                    StreamLanguage.MULTI -> sourceLangs.contains(StreamLanguage.MULTI)
-                    StreamLanguage.UNKNOWN -> sourceLangs.isEmpty() || sourceLangs.all { it == StreamLanguage.UNKNOWN }
-                    else -> sourceLangs.contains(langEnum)
-                }
-            }
-        }
-
-        val type = state.preferredType
-        if (type != null && type != "All") {
-            filtered = filtered.filter { source ->
-                when (type) {
-                    "RD Cached" -> source.cacheStatus == DebridCacheStatus.VERIFIED_CACHED
-                    // Everything else filters by the actual source name (addon /
-                    // provider / IPTV) so users can isolate a single source.
-                    else -> sourceDisplayName(source).equals(type, ignoreCase = true)
-                }
-            }
-        }
-
-        return filtered
     }
 
     fun apply(sources: List<MovieSource>, state: SourceFilterState): List<MovieSource> {
@@ -180,40 +185,46 @@ object SourceFilterUtils {
         val globalSortLang = state.sortLanguage?.let { StreamLanguage.parse(it) }
         val sortLangEnum = selectedSortLang ?: globalSortLang
 
-        // PRE-COMPUTE SCORES (O(N)): Calculate all heavy object mapping operations upfront.
-        // By mapping strings to Enums once here, we guarantee O(1) lookups during the O(N log N) sorting phase.
-        val cacheScores = IdentityHashMap<MovieSource, Int>(filtered.size)
-        val langScores = IdentityHashMap<MovieSource, Int>(filtered.size)
-        val sessionScores = IdentityHashMap<MovieSource, Int>(filtered.size)
-        val recoveryScores = IdentityHashMap<MovieSource, Int>(filtered.size)
+        val scores = computeScores(filtered, sortLangEnum)
 
+        // A language the user selected leads the sort; otherwise cache priority does.
+        val lead = if (selectedSortLang != null) {
+            compareByDescending<MovieSource> { scores.lang[it] ?: 0 }
+                .thenByDescending { scores.cache[it] ?: 0 }
+        } else {
+            compareByDescending<MovieSource> { scores.cache[it] ?: 0 }
+                .thenByDescending { scores.lang[it] ?: 0 }
+        }
+        return filtered.sortedWith(
+            lead
+                .thenByDescending { scores.session[it] ?: 0 }
+                .thenByDescending { scores.recovery[it] ?: 0 }
+                .thenByDescending { it.seeders ?: -1 }
+        )
+    }
+
+    /** Per-source sort scores, keyed by identity so equal-looking sources stay distinct. */
+    private class SourceScores(size: Int) {
+        val cache = IdentityHashMap<MovieSource, Int>(size)
+        val lang = IdentityHashMap<MovieSource, Int>(size)
+        val session = IdentityHashMap<MovieSource, Int>(size)
+        val recovery = IdentityHashMap<MovieSource, Int>(size)
+    }
+
+    // PRE-COMPUTE SCORES (O(N)): Calculate all heavy object mapping operations upfront.
+    // By mapping strings to Enums once here, we guarantee O(1) lookups during the O(N log N) sorting phase.
+    private fun computeScores(filtered: List<MovieSource>, sortLangEnum: StreamLanguage?): SourceScores {
+        val scores = SourceScores(filtered.size)
         filtered.forEach { source ->
             // Parse to strictly-typed languages array once per source
             val parsedLanguages = source.languages?.map { StreamLanguage.parse(it) } ?: emptyList()
 
-            cacheScores[source] = getCachePriority(source)
-            langScores[source] = if (sortLangEnum != null) getLanguageMatchScore(parsedLanguages, sortLangEnum) else 0
-            sessionScores[source] = SessionSourcePreference.score(source)
-            recoveryScores[source] = getRecoveryLanguageScore(parsedLanguages)
+            scores.cache[source] = getCachePriority(source)
+            scores.lang[source] = if (sortLangEnum != null) getLanguageMatchScore(parsedLanguages, sortLangEnum) else 0
+            scores.session[source] = SessionSourcePreference.score(source)
+            scores.recovery[source] = getRecoveryLanguageScore(parsedLanguages)
         }
-
-        return if (selectedSortLang != null) {
-            filtered.sortedWith(
-                compareByDescending<MovieSource> { langScores[it] ?: 0 }
-                    .thenByDescending { cacheScores[it] ?: 0 }
-                    .thenByDescending { sessionScores[it] ?: 0 }
-                    .thenByDescending { recoveryScores[it] ?: 0 }
-                    .thenByDescending { it.seeders ?: -1 }
-            )
-        } else {
-            filtered.sortedWith(
-                compareByDescending<MovieSource> { cacheScores[it] ?: 0 }
-                    .thenByDescending { langScores[it] ?: 0 }
-                    .thenByDescending { sessionScores[it] ?: 0 }
-                    .thenByDescending { recoveryScores[it] ?: 0 }
-                    .thenByDescending { it.seeders ?: -1 }
-            )
-        }
+        return scores
     }
 
     fun hasCacheConfidence(source: MovieSource): Boolean {

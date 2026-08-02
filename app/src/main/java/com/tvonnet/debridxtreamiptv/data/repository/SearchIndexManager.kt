@@ -115,6 +115,56 @@ internal class SearchIndexManager(
         }
     }
 
+    // A fetch that degrades to empty on failure (the stage then falls back / reports stale);
+    // cancellation always propagates. The log line is byte-identical to the old inline copies.
+    private suspend fun <T> fetchOrEmpty(call: suspend () -> retrofit2.Response<List<T>>): List<T> = try {
+        call().takeIf { it.isSuccessful }?.body().orEmpty()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.w(TAG, "Search index: catalog fetch failed (${e.javaClass.simpleName}) — falling back", e)
+        emptyList()
+    }
+
+    // Per-category variant: null signals a failed fetch so the caller can count failures.
+    private suspend fun <T> fetchCategoryOrNull(
+        catId: String,
+        call: suspend () -> retrofit2.Response<List<T>>
+    ): List<T>? = try {
+        call().takeIf { it.isSuccessful }?.body().orEmpty()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.w(TAG, "Search index: category $catId fetch failed (${e.javaClass.simpleName})", e)
+        null
+    }
+
+    // Some panels reject the uncategorized call — iterate categories, verbatim shared shape.
+    // A stage passes only when something was indexed AND most categories worked.
+    private suspend fun <S, C> indexPerCategory(
+        stageName: String,
+        categories: List<C>,
+        categoryIdOf: (C) -> String?,
+        fetchCategory: suspend (String) -> List<S>?,
+        insert: suspend (List<S>, String) -> Unit
+    ): Boolean {
+        var indexedAny = false
+        var failures = 0
+        for (category in categories) {
+            val catId = categoryIdOf(category) ?: continue
+            val streams = fetchCategory(catId)
+            if (streams == null) {
+                failures++
+            } else if (streams.isNotEmpty()) {
+                insert(streams, catId)
+                indexedAny = true
+            }
+            delay(SEARCH_INDEX_CATEGORY_FETCH_DELAY_MS)
+        }
+        Log.i(TAG, "Search index: $stageName per-category done (categories=${categories.size}, failures=$failures)")
+        return indexedAny && failures < categories.size / 2
+    }
+
     private suspend fun indexVodCatalog(service: XtreamApiService): Boolean {
         val dao = vodDao ?: return false
         suspend fun insertAll(streams: List<XtreamVodInfo>, categoryIdOf: (XtreamVodInfo) -> String) {
@@ -123,53 +173,24 @@ internal class SearchIndexManager(
             }
         }
         return try {
-            val full = try {
-                service.getVodStreams(username, password, categoryId = null)
-                    .takeIf { it.isSuccessful }?.body().orEmpty()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "Search index: catalog fetch failed (${e.javaClass.simpleName}) — falling back", e)
-                emptyList()
-            }
+            val full = fetchOrEmpty { service.getVodStreams(username, password, categoryId = null) }
             if (full.isNotEmpty()) {
                 insertAll(full) { it.category_id ?: "" }
                 Log.i(TAG, "Search index: vod full-catalog upserted ${full.size} movies")
                 return true
             }
-            // Some panels reject the uncategorized call — iterate categories.
             Log.i(TAG, "Search index: vod full fetch empty — per-category fallback")
-            val categories = try {
-                service.getVodCategories(username, password).takeIf { it.isSuccessful }?.body().orEmpty()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "Search index: catalog fetch failed (${e.javaClass.simpleName}) — falling back", e)
-                emptyList()
-            }
+            val categories = fetchOrEmpty { service.getVodCategories(username, password) }
             if (categories.isEmpty()) return false
-            var indexedAny = false
-            var failures = 0
-            for (category in categories) {
-                val catId = category.category_id ?: continue
-                val streams = try {
-                    service.getVodStreams(username, password, categoryId = catId)
-                        .takeIf { it.isSuccessful }?.body().orEmpty()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    failures++
-                    Log.w(TAG, "Search index: category $catId fetch failed (${e.javaClass.simpleName})", e)
-                    emptyList()
-                }
-                if (streams.isNotEmpty()) {
-                    insertAll(streams) { catId }
-                    indexedAny = true
-                }
-                delay(SEARCH_INDEX_CATEGORY_FETCH_DELAY_MS)
-            }
-            Log.i(TAG, "Search index: vod per-category done (categories=${categories.size}, failures=$failures)")
-            indexedAny && failures < categories.size / 2
+            indexPerCategory(
+                stageName = "vod",
+                categories = categories,
+                categoryIdOf = { it.category_id },
+                fetchCategory = { catId ->
+                    fetchCategoryOrNull(catId) { service.getVodStreams(username, password, categoryId = catId) }
+                },
+                insert = { streams, catId -> insertAll(streams) { catId } }
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -186,52 +207,24 @@ internal class SearchIndexManager(
             }
         }
         return try {
-            val full = try {
-                service.getSeries(username, password, categoryId = null)
-                    .takeIf { it.isSuccessful }?.body().orEmpty()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "Search index: catalog fetch failed (${e.javaClass.simpleName}) — falling back", e)
-                emptyList()
-            }
+            val full = fetchOrEmpty { service.getSeries(username, password, categoryId = null) }
             if (full.isNotEmpty()) {
                 insertAll(full) { it.category_id ?: "" }
                 Log.i(TAG, "Search index: series full-catalog upserted ${full.size} series")
                 return true
             }
             Log.i(TAG, "Search index: series full fetch empty — per-category fallback")
-            val categories = try {
-                service.getSeriesCategories(username, password).takeIf { it.isSuccessful }?.body().orEmpty()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "Search index: catalog fetch failed (${e.javaClass.simpleName}) — falling back", e)
-                emptyList()
-            }
+            val categories = fetchOrEmpty { service.getSeriesCategories(username, password) }
             if (categories.isEmpty()) return false
-            var indexedAny = false
-            var failures = 0
-            for (category in categories) {
-                val catId = category.category_id ?: continue
-                val streams = try {
-                    service.getSeries(username, password, categoryId = catId)
-                        .takeIf { it.isSuccessful }?.body().orEmpty()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    failures++
-                    Log.w(TAG, "Search index: category $catId fetch failed (${e.javaClass.simpleName})", e)
-                    emptyList()
-                }
-                if (streams.isNotEmpty()) {
-                    insertAll(streams) { catId }
-                    indexedAny = true
-                }
-                delay(SEARCH_INDEX_CATEGORY_FETCH_DELAY_MS)
-            }
-            Log.i(TAG, "Search index: series per-category done (categories=${categories.size}, failures=$failures)")
-            indexedAny && failures < categories.size / 2
+            indexPerCategory(
+                stageName = "series",
+                categories = categories,
+                categoryIdOf = { it.category_id },
+                fetchCategory = { catId ->
+                    fetchCategoryOrNull(catId) { service.getSeries(username, password, categoryId = catId) }
+                },
+                insert = { streams, catId -> insertAll(streams) { catId } }
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -243,15 +236,7 @@ internal class SearchIndexManager(
     private suspend fun indexLiveCatalog(service: XtreamApiService): Boolean {
         val cm = cacheManager ?: return false
         return try {
-            val full = try {
-                service.getLiveStreams(username, password, categoryId = null)
-                    .takeIf { it.isSuccessful }?.body().orEmpty()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "Search index: catalog fetch failed (${e.javaClass.simpleName}) — falling back", e)
-                emptyList()
-            }
+            val full = fetchOrEmpty { service.getLiveStreams(username, password, categoryId = null) }
             if (full.isNotEmpty()) {
                 // Insert-only-new under a synthetic category id — never touches
                 // the lazy per-category rows (see CacheManager).
@@ -260,37 +245,17 @@ internal class SearchIndexManager(
                 return true
             }
             Log.i(TAG, "Search index: live full fetch empty — per-category fallback")
-            val categories = try {
-                service.getLiveCategories(username, password).takeIf { it.isSuccessful }?.body().orEmpty()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "Search index: catalog fetch failed (${e.javaClass.simpleName}) — falling back", e)
-                emptyList()
-            }
+            val categories = fetchOrEmpty { service.getLiveCategories(username, password) }
             if (categories.isEmpty()) return false
-            var indexedAny = false
-            var failures = 0
-            for (category in categories) {
-                val catId = category.category_id ?: continue
-                val streams = try {
-                    service.getLiveStreams(username, password, categoryId = catId)
-                        .takeIf { it.isSuccessful }?.body().orEmpty()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    failures++
-                    Log.w(TAG, "Search index: category $catId fetch failed (${e.javaClass.simpleName})", e)
-                    emptyList()
-                }
-                if (streams.isNotEmpty()) {
-                    cm.indexChannelsForSearch(streams, "live")
-                    indexedAny = true
-                }
-                delay(SEARCH_INDEX_CATEGORY_FETCH_DELAY_MS)
-            }
-            Log.i(TAG, "Search index: live per-category done (categories=${categories.size}, failures=$failures)")
-            indexedAny && failures < categories.size / 2
+            indexPerCategory(
+                stageName = "live",
+                categories = categories,
+                categoryIdOf = { it.category_id },
+                fetchCategory = { catId ->
+                    fetchCategoryOrNull(catId) { service.getLiveStreams(username, password, categoryId = catId) }
+                },
+                insert = { streams, _ -> cm.indexChannelsForSearch(streams, "live") }
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
