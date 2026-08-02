@@ -97,112 +97,14 @@ object EpgParser {
      * Returns the total number of programmes encountered.
      */
     suspend fun parseStream(reader: Reader, onProgram: suspend (EpgProgram) -> Unit): Int {
-        var programCount = 0
-        var skippedInvalidTags = 0
+        val counts = StreamCounts()
 
         // Phase 4: launch as a CHILD of the caller (coroutineContext) rather than a brand-new
         // detached CoroutineScope — otherwise cancelling the caller left this parse running
         // (a detached-scope leak). Still stored in parsingJob for the explicit external cancel.
         parsingJob = CoroutineScope(coroutineContext + Dispatchers.IO).launch {
             try {
-                val chunkSize = memoryManager.getOptimalChunkSize()
-                val bufferedReader = BufferedReader(reader, chunkSize)
-                val xmlFactory = XmlPullParserFactory.newInstance()
-                xmlFactory.isNamespaceAware = false
-                val parser = xmlFactory.newPullParser()
-
-                // Create a custom Reader that processes XML declarations on-the-fly
-                val processedReader = createXmlDeclarationFixingReader(bufferedReader)
-                parser.setInput(processedReader)
-
-                var eventType = parser.eventType
-                var currentProgram: EpgProgram? = null
-
-                while (eventType != XmlPullParser.END_DOCUMENT && isActive) {
-                    try {
-                        when (eventType) {
-                            XmlPullParser.START_TAG -> {
-                                when (parser.name) {
-                                    "programme" -> {
-                                        currentProgram = EpgProgram(
-                                            channelId = parser.getAttributeValue(null, "channel") ?: "",
-                                            start = parseTimestamp(parser.getAttributeValue(null, "start")),
-                                            stop = parseTimestamp(parser.getAttributeValue(null, "stop")),
-                                            title = null,
-                                            desc = null,
-                                            category = null
-                                        )
-                                    }
-                                    "title" -> {
-                                        val titleText = parser.nextText()
-                                        currentProgram = currentProgram?.copy(title = cleanTextContent(titleText))
-                                    }
-                                    "desc" -> {
-                                        val descText = parser.nextText()
-                                        currentProgram = currentProgram?.copy(desc = cleanTextContent(descText))
-                                    }
-                                    "category" -> {
-                                        val categoryText = parser.nextText()
-                                        currentProgram = currentProgram?.copy(category = cleanTextContent(categoryText))
-                                    }
-                                    // Skip invalid HTML/JavaScript tags
-                                    "a", "script", "style", "noscript", "iframe", "object", "embed" -> {
-                                        Log.w(TAG, "Skipping invalid HTML tag: ${parser.name}")
-                                        skippedInvalidTags++
-                                        skipToEndTag(parser, parser.name)
-                                    }
-                                }
-                            }
-                            XmlPullParser.END_TAG -> {
-                                if (parser.name == "programme") {
-                                    currentProgram?.let { program ->
-                                        // Require a real start. parseTimestamp returns -1L for
-                                        // malformed input; adding those previously fabricated a
-                                        // 'now' timestamp and injected bogus "now-airing" rows.
-                                        if (program.channelId.isNotEmpty() && program.start > 0L) {
-                                            // Valid start but missing/invalid stop: give a 1h default
-                                            // window rather than dropping the programme wholesale.
-                                            val safeProgram = if (program.stop <= program.start)
-                                                program.copy(stop = program.start + 3_600_000L)
-                                            else program
-                                            onProgram(safeProgram)
-                                            programCount++
-
-                                            // Yield to avoid blocking and allow cancellation
-                                            yield()
-
-                                            // Periodically relieve APP-HEAP pressure, but
-                                            // never abort on system-memory pressure (normal
-                                            // on TV) — aborting drops every remaining channel.
-                                            if (programCount % 100 == 0) {
-                                                if (memoryManager.appHeapPressure() == MemoryManager.MemoryPressure.CRITICAL) {
-                                                    Log.w(TAG, "App-heap critical during parse; requesting GC and continuing")
-                                                    memoryManager.requestGarbageCollection()
-                                                }
-                                            }
-                                        }
-                                    }
-                                    currentProgram = null
-                                }
-                            }
-                        }
-                        eventType = parser.next()
-
-                    } catch (tagException: Exception) {
-                        Log.w(TAG, "Error parsing tag, continuing...", tagException)
-                        try {
-                            eventType = parser.next()
-                        } catch (recoveryException: Exception) {
-                            Log.e(TAG, "Failed to recover from parsing error", recoveryException)
-                            break
-                        }
-                    }
-                }
-
-                if (skippedInvalidTags > 0) {
-                    Log.i(TAG, "EPG parsing completed: $programCount programs, skipped $skippedInvalidTags invalid tags")
-                }
-
+                runParseLoop(createStreamingParser(reader), onProgram, counts)
             } catch (e: OutOfMemoryError) {
                 Log.e(TAG, "EPG parsing failed due to memory constraints", e)
                 memoryManager.requestGarbageCollection()
@@ -221,7 +123,150 @@ object EpgParser {
             throw e // our own caller was cancelled — propagate
         }
 
-        return programCount
+        return counts.programs
+    }
+
+    /** Mutable tallies for one parseStream run (written only inside the parse coroutine). */
+    private class StreamCounts {
+        var programs = 0
+        var skippedInvalidTags = 0
+    }
+
+    // The pull-event loop, verbatim from parseStream: tag errors recover in place (skip one
+    // event), an unrecoverable parser state ends the loop and keeps what was parsed so far.
+    private suspend fun runParseLoop(
+        parser: XmlPullParser,
+        onProgram: suspend (EpgProgram) -> Unit,
+        counts: StreamCounts
+    ) {
+        var eventType = parser.eventType
+        var currentProgram: EpgProgram? = null
+
+        while (eventType != XmlPullParser.END_DOCUMENT && coroutineContext.isActive) {
+            try {
+                currentProgram = handleEvent(parser, eventType, currentProgram, onProgram, counts)
+                eventType = parser.next()
+
+            } catch (tagException: Exception) {
+                Log.w(TAG, "Error parsing tag, continuing...", tagException)
+                eventType = recoverOrEnd(parser) ?: break
+            }
+        }
+
+        if (counts.skippedInvalidTags > 0) {
+            Log.i(
+                TAG,
+                "EPG parsing completed: ${counts.programs} programs, skipped ${counts.skippedInvalidTags} invalid tags"
+            )
+        }
+    }
+
+    // One pull event, verbatim: START_TAG updates the in-flight programme, a closing
+    // programme tag emits it (and resets), everything else passes the current one through.
+    private suspend fun handleEvent(
+        parser: XmlPullParser,
+        eventType: Int,
+        currentProgram: EpgProgram?,
+        onProgram: suspend (EpgProgram) -> Unit,
+        counts: StreamCounts
+    ): EpgProgram? {
+        if (eventType == XmlPullParser.START_TAG) return handleStartTag(parser, currentProgram, counts)
+        if (eventType != XmlPullParser.END_TAG || parser.name != "programme") return currentProgram
+        currentProgram?.let { emitProgramme(it, onProgram, counts) }
+        return null
+    }
+
+    // One recovery step after a tag error: the next event, or null when the parser is wedged
+    // (the loop then ends and keeps everything parsed so far).
+    private fun recoverOrEnd(parser: XmlPullParser): Int? = try {
+        parser.next()
+    } catch (recoveryException: Exception) {
+        Log.e(TAG, "Failed to recover from parsing error", recoveryException)
+        null
+    }
+
+    private fun createStreamingParser(reader: Reader): XmlPullParser {
+        val chunkSize = memoryManager.getOptimalChunkSize()
+        val bufferedReader = BufferedReader(reader, chunkSize)
+        val xmlFactory = XmlPullParserFactory.newInstance()
+        xmlFactory.isNamespaceAware = false
+        val parser = xmlFactory.newPullParser()
+
+        // Create a custom Reader that processes XML declarations on-the-fly
+        val processedReader = createXmlDeclarationFixingReader(bufferedReader)
+        parser.setInput(processedReader)
+        return parser
+    }
+
+    // One START_TAG, verbatim from the parse loop: returns the updated in-flight programme.
+    private fun handleStartTag(
+        parser: XmlPullParser,
+        currentProgram: EpgProgram?,
+        counts: StreamCounts
+    ): EpgProgram? {
+        when (parser.name) {
+            "programme" -> {
+                return EpgProgram(
+                    channelId = parser.getAttributeValue(null, "channel") ?: "",
+                    start = parseTimestamp(parser.getAttributeValue(null, "start")),
+                    stop = parseTimestamp(parser.getAttributeValue(null, "stop")),
+                    title = null,
+                    desc = null,
+                    category = null
+                )
+            }
+            "title" -> {
+                val titleText = parser.nextText()
+                return currentProgram?.copy(title = cleanTextContent(titleText))
+            }
+            "desc" -> {
+                val descText = parser.nextText()
+                return currentProgram?.copy(desc = cleanTextContent(descText))
+            }
+            "category" -> {
+                val categoryText = parser.nextText()
+                return currentProgram?.copy(category = cleanTextContent(categoryText))
+            }
+            // Skip invalid HTML/JavaScript tags
+            "a", "script", "style", "noscript", "iframe", "object", "embed" -> {
+                Log.w(TAG, "Skipping invalid HTML tag: ${parser.name}")
+                counts.skippedInvalidTags++
+                skipToEndTag(parser, parser.name)
+            }
+        }
+        return currentProgram
+    }
+
+    // A closed programme, verbatim from the parse loop: validate, default the stop window, emit.
+    private suspend fun emitProgramme(
+        program: EpgProgram,
+        onProgram: suspend (EpgProgram) -> Unit,
+        counts: StreamCounts
+    ) {
+        // Require a real start. parseTimestamp returns -1L for
+        // malformed input; adding those previously fabricated a
+        // 'now' timestamp and injected bogus "now-airing" rows.
+        if (program.channelId.isEmpty() || program.start <= 0L) return
+        // Valid start but missing/invalid stop: give a 1h default
+        // window rather than dropping the programme wholesale.
+        val safeProgram = if (program.stop <= program.start)
+            program.copy(stop = program.start + 3_600_000L)
+        else program
+        onProgram(safeProgram)
+        counts.programs++
+
+        // Yield to avoid blocking and allow cancellation
+        yield()
+
+        // Periodically relieve APP-HEAP pressure, but
+        // never abort on system-memory pressure (normal
+        // on TV) — aborting drops every remaining channel.
+        if (counts.programs % 100 == 0) {
+            if (memoryManager.appHeapPressure() == MemoryManager.MemoryPressure.CRITICAL) {
+                Log.w(TAG, "App-heap critical during parse; requesting GC and continuing")
+                memoryManager.requestGarbageCollection()
+            }
+        }
     }
 
     /**
@@ -328,60 +373,62 @@ object EpgParser {
                     continue
                 }
 
-                // Possible processing instruction.
-                val nextInt = source.read()
-                if (nextInt == -1) {
-                    cbuf[out++] = '<'
-                    remaining--
-                    break
-                }
-                val next = nextInt.toChar()
-
-                if (next != '?') {
-                    // Normal tag, emit both chars.
-                    if (remaining >= 2) {
-                        cbuf[out++] = '<'
-                        cbuf[out++] = next
-                        remaining -= 2
-                    } else {
-                        cbuf[out++] = '<'
-                        remaining--
-                        pushPending(next)
-                    }
-                    continue
-                }
-
-                // We have "<?", look for "<?xml" (case-insensitive).
-                val probe = CharArray(3)
-                val read3 = source.read(probe, 0, 3)
-                if (read3 < 3) {
-                    // Not enough to decide; emit what we got.
-                    emitChars('<', '?', *probe.copyOf(read3))
-                    continue
-                }
-
-                val isXml = probe[0].lowercaseChar() == 'x' &&
-                    probe[1].lowercaseChar() == 'm' &&
-                    probe[2].lowercaseChar() == 'l'
-
-                if (!isXml) {
-                    emitChars('<', '?', probe[0], probe[1], probe[2])
-                    continue
-                }
-
-                if (seenXmlDeclaration) {
-                    // Skip this extra XML declaration entirely (until "?>").
-                    skipUntilProcessingInstructionEnd()
-                    continue
-                }
-
-                // Keep the first xml declaration.
-                seenXmlDeclaration = true
-                emitChars('<', '?', probe[0], probe[1], probe[2])
+                // Rare path — a tag start. Queues into pending; drained at the top of the loop.
+                queueTagStart()
             }
 
             val written = out - off
             return if (written == 0) -1 else written
+        }
+
+        // A '<' was read: a normal tag queues both chars verbatim; "<?" classifies the
+        // processing instruction (keep the first XML declaration, strip duplicates).
+        // At end-of-stream the lone '<' is still emitted, as before.
+        private fun queueTagStart() {
+            val nextInt = source.read()
+            if (nextInt == -1) {
+                pushPending('<')
+                return
+            }
+            val next = nextInt.toChar()
+            if (next != '?') {
+                pushPending('<')
+                pushPending(next)
+                return
+            }
+            handleProcessingInstruction()
+        }
+
+        // We have read "<?": look for "<?xml" (case-insensitive) and either queue the
+        // instruction into pending (drained by the read loop) or skip a duplicate XML
+        // declaration entirely. Verbatim from read().
+        private fun handleProcessingInstruction() {
+            val probe = CharArray(3)
+            val read3 = source.read(probe, 0, 3)
+            if (read3 < 3) {
+                // Not enough to decide; emit what we got.
+                emitChars('<', '?', *probe.copyOf(read3))
+                return
+            }
+
+            val isXml = probe[0].lowercaseChar() == 'x' &&
+                probe[1].lowercaseChar() == 'm' &&
+                probe[2].lowercaseChar() == 'l'
+
+            if (!isXml) {
+                emitChars('<', '?', probe[0], probe[1], probe[2])
+                return
+            }
+
+            if (seenXmlDeclaration) {
+                // Skip this extra XML declaration entirely (until "?>").
+                skipUntilProcessingInstructionEnd()
+                return
+            }
+
+            // Keep the first xml declaration.
+            seenXmlDeclaration = true
+            emitChars('<', '?', probe[0], probe[1], probe[2])
         }
 
         private fun drainPending(dest: CharArray, off: Int, len: Int): Int {

@@ -94,6 +94,22 @@ object LanguageParser {
         return patterns.any { it.containsMatchIn(text) }
     }
 
+    // All Indian-language codes render as the single "HI" label; a code with no
+    // mapping contributes nothing (an unknown-only list renders "UNK" below).
+    private val FLAG_LABEL_BY_CODE = mapOf(
+        "hi" to "HI", "ta" to "HI", "te" to "HI", "ml" to "HI", "kn" to "HI", "pa" to "HI",
+        "en" to "EN",
+        "es" to "ES",
+        "fr" to "FR",
+        "de" to "DE",
+        "it" to "IT",
+        "ru" to "RU",
+        "ja" to "JA",
+        "ko" to "KO",
+        "zh" to "ZH",
+        "ar" to "AR",
+    )
+
     fun getLanguageFlag(languages: List<String>): String {
         if (languages.isEmpty()) return ""
 
@@ -101,22 +117,7 @@ object LanguageParser {
             return "MULTI"
         }
 
-        val labels = languages.mapNotNull { lang ->
-            when (lang.lowercase()) {
-                "hi", "ta", "te", "ml", "kn", "pa" -> "HI"
-                "en" -> "EN"
-                "es" -> "ES"
-                "fr" -> "FR"
-                "de" -> "DE"
-                "it" -> "IT"
-                "ru" -> "RU"
-                "ja" -> "JA"
-                "ko" -> "KO"
-                "zh" -> "ZH"
-                "ar" -> "AR"
-                else -> null
-            }
-        }.distinct()
+        val labels = languages.mapNotNull { lang -> FLAG_LABEL_BY_CODE[lang.lowercase()] }.distinct()
 
         return if (labels.isEmpty()) {
             "UNK"

@@ -21,59 +21,10 @@ object CategoryFlagResolver {
     fun resolveFlagRes(categoryName: String): Int? {
         val upper = categoryName.trim().uppercase(Locale.getDefault())
         val normalizedUpper = normalizeLabel(upper)
-        when {
-            "DEUTSCHLAND" in normalizedUpper || "GERMANY" in normalizedUpper -> return R.drawable.flag_de
-            "OSTERREICH" in normalizedUpper || "AUSTRIA" in normalizedUpper -> return R.drawable.flag_at
-            "SCHWEIZ" in normalizedUpper || "SWITZERLAND" in normalizedUpper -> return R.drawable.flag_ch
-            "POLSKA" in normalizedUpper || "POLAND" in normalizedUpper -> return R.drawable.flag_pl
-            "ISLAND" in normalizedUpper || "ICELAND" in normalizedUpper -> return R.drawable.flag_is
-            "IRLAND" in normalizedUpper || "IRELAND" in normalizedUpper -> return R.drawable.flag_ie
-            "BELGIQUE" in normalizedUpper || "BELGIUM" in normalizedUpper -> return R.drawable.flag_be
-            "LUXEMBOURG" in normalizedUpper || "LETZEBUERG" in normalizedUpper -> return R.drawable.flag_lu
-            "PORTUGAL" in normalizedUpper -> return R.drawable.flag_pt
-            "FRANCE" in normalizedUpper -> return R.drawable.flag_fr
-            "ITALY" in normalizedUpper -> return R.drawable.flag_it
-            "SPAIN" in normalizedUpper || "ESPANA" in normalizedUpper -> return R.drawable.flag_es
-            "NETHERLANDS" in normalizedUpper -> return R.drawable.flag_nl
-            "RUSSIA" in normalizedUpper -> return R.drawable.flag_ru
-            "TURKEY" in normalizedUpper -> return R.drawable.flag_tr
-            "NORWAY" in normalizedUpper -> return R.drawable.flag_no
-            "CANADA" in normalizedUpper -> return R.drawable.flag_ca
-            "HONG KONG" in normalizedUpper || "HONGKONG" in normalizedUpper -> return R.drawable.flag_hk
-            "FINLAND" in normalizedUpper -> return R.drawable.flag_fi
-            "DENMARK" in normalizedUpper -> return R.drawable.flag_dk
-            "SWEDEN" in normalizedUpper -> return R.drawable.flag_se
-            "ARGENTINA" in normalizedUpper -> return R.drawable.flag_ar
-            "MEXICO" in normalizedUpper -> return R.drawable.flag_mx
-            "BRAZIL" in normalizedUpper -> return R.drawable.flag_br
-            "MOROCCO" in normalizedUpper -> return R.drawable.flag_ma
-            "ALBANIA" in normalizedUpper -> return R.drawable.flag_al
-            "AUSTRALIA" in normalizedUpper -> return R.drawable.flag_au
-            "JAPAN" in normalizedUpper -> return R.drawable.flag_jp
-            "KOREA" in normalizedUpper -> return R.drawable.flag_kr
-            "UAE" in normalizedUpper || "UNITED ARAB EMIRATES" in normalizedUpper -> return R.drawable.flag_ae
-            "SAUDI" in normalizedUpper || "SAUDI ARABIA" in normalizedUpper -> return R.drawable.flag_sa
-            "EGYPT" in normalizedUpper -> return R.drawable.flag_eg
-            "CHINA" in normalizedUpper -> return R.drawable.flag_cn
-            "EUROPE" in normalizedUpper -> return R.drawable.flag_eu
-            "AFRICA" in normalizedUpper -> return R.drawable.flag_af
-            "AMERICA" in normalizedUpper -> return R.drawable.flag_am
-        }
-        val prefixRaw = normalizedUpper.substringBefore('|', "").trim()
-        val prefix = if (prefixRaw.length == 3 && prefixRaw.endsWith("I")) {
-            prefixRaw.dropLast(1)
-        } else {
-            prefixRaw
-        }
-        val normalizedCode = when (prefix) {
-            "USA" -> "US"
-            "UK" -> "GB"
-            "ALB" -> "AL"
-            "SW", "SU" -> "SE"
-            else -> prefix
-        }
+        FLAG_RES_BY_NAME_MARKER.firstOrNull { (marker, _) -> marker in normalizedUpper }
+            ?.let { return it.second }
 
-        FLAG_RES_BY_CODE[normalizedCode]?.let { return it }
+        FLAG_RES_BY_CODE[prefixCountryCode(normalizedUpper)]?.let { return it }
 
         return when {
             "UNITED STATES" in normalizedUpper || "USA" in normalizedUpper -> R.drawable.flag_us
@@ -81,6 +32,65 @@ object CategoryFlagResolver {
             else -> null
         }
     }
+
+    // The country code from a leading "XX|" prefix, with the historical alias fixups
+    // (a trailing I on a 3-letter prefix is dropped: "GERI|" style feeds).
+    private fun prefixCountryCode(normalizedUpper: String): String {
+        val prefixRaw = normalizedUpper.substringBefore('|', "").trim()
+        val prefix = if (prefixRaw.length == 3 && prefixRaw.endsWith("I")) {
+            prefixRaw.dropLast(1)
+        } else {
+            prefixRaw
+        }
+        return when (prefix) {
+            "USA" -> "US"
+            "UK" -> "GB"
+            "ALB" -> "AL"
+            "SW", "SU" -> "SE"
+            else -> prefix
+        }
+    }
+
+    // Ordered, first match wins — this is the old when-chain as data, so the precedence
+    // (e.g. "GERMANY" before "AUSTRIA") is exactly the original branch order.
+    private val FLAG_RES_BY_NAME_MARKER: List<Pair<String, Int>> = listOf(
+        "DEUTSCHLAND" to R.drawable.flag_de, "GERMANY" to R.drawable.flag_de,
+        "OSTERREICH" to R.drawable.flag_at, "AUSTRIA" to R.drawable.flag_at,
+        "SCHWEIZ" to R.drawable.flag_ch, "SWITZERLAND" to R.drawable.flag_ch,
+        "POLSKA" to R.drawable.flag_pl, "POLAND" to R.drawable.flag_pl,
+        "ISLAND" to R.drawable.flag_is, "ICELAND" to R.drawable.flag_is,
+        "IRLAND" to R.drawable.flag_ie, "IRELAND" to R.drawable.flag_ie,
+        "BELGIQUE" to R.drawable.flag_be, "BELGIUM" to R.drawable.flag_be,
+        "LUXEMBOURG" to R.drawable.flag_lu, "LETZEBUERG" to R.drawable.flag_lu,
+        "PORTUGAL" to R.drawable.flag_pt,
+        "FRANCE" to R.drawable.flag_fr,
+        "ITALY" to R.drawable.flag_it,
+        "SPAIN" to R.drawable.flag_es, "ESPANA" to R.drawable.flag_es,
+        "NETHERLANDS" to R.drawable.flag_nl,
+        "RUSSIA" to R.drawable.flag_ru,
+        "TURKEY" to R.drawable.flag_tr,
+        "NORWAY" to R.drawable.flag_no,
+        "CANADA" to R.drawable.flag_ca,
+        "HONG KONG" to R.drawable.flag_hk, "HONGKONG" to R.drawable.flag_hk,
+        "FINLAND" to R.drawable.flag_fi,
+        "DENMARK" to R.drawable.flag_dk,
+        "SWEDEN" to R.drawable.flag_se,
+        "ARGENTINA" to R.drawable.flag_ar,
+        "MEXICO" to R.drawable.flag_mx,
+        "BRAZIL" to R.drawable.flag_br,
+        "MOROCCO" to R.drawable.flag_ma,
+        "ALBANIA" to R.drawable.flag_al,
+        "AUSTRALIA" to R.drawable.flag_au,
+        "JAPAN" to R.drawable.flag_jp,
+        "KOREA" to R.drawable.flag_kr,
+        "UAE" to R.drawable.flag_ae, "UNITED ARAB EMIRATES" to R.drawable.flag_ae,
+        "SAUDI" to R.drawable.flag_sa, "SAUDI ARABIA" to R.drawable.flag_sa,
+        "EGYPT" to R.drawable.flag_eg,
+        "CHINA" to R.drawable.flag_cn,
+        "EUROPE" to R.drawable.flag_eu,
+        "AFRICA" to R.drawable.flag_af,
+        "AMERICA" to R.drawable.flag_am,
+    )
 
     /**
      * Fallback badge for categories with no country mapping (Favorites, All,
@@ -97,30 +107,33 @@ object CategoryFlagResolver {
         if (alphaCode.length == 2) {
             return alphaCode
         }
-        return when {
-            "favorit" in lower -> "★" // ★
-            "sport" in lower -> "⚽"
-            "news" in lower -> "📰"
-            "movie" in lower || "film" in lower -> "🎬"
-            "entertain" in lower || "show" in lower -> "✨"
-            "music" in lower -> "🎵"
-            "kids" in lower || "child" in lower -> "👶"
-            "doc" in lower -> "📖"
-            "relig" in lower -> "✝"
-            "edu" in lower -> "🎓"
-            "animal" in lower || "nature" in lower -> "🌍"
-            else -> trimmed
-                .split(" ")
-                .firstOrNull()
-                ?.take(2)
-                ?.uppercase(Locale.getDefault())
-                // `firstOrNull` on a blank name yields "" rather than null, so the elvis below
-                // never fired and the badge came back blank — breaking this function's one
-                // promise, that the caller always has something to render.
-                ?.takeIf { it.isNotBlank() }
-                ?: "#"
-        }
+        ICON_BY_NAME_MARKER.firstOrNull { (marker, _) -> marker in lower }?.let { return it.second }
+        return trimmed
+            .split(" ")
+            .firstOrNull()
+            ?.take(2)
+            ?.uppercase(Locale.getDefault())
+            // `firstOrNull` on a blank name yields "" rather than null, so the elvis below
+            // never fired and the badge came back blank — breaking this function's one
+            // promise, that the caller always has something to render.
+            ?.takeIf { it.isNotBlank() }
+            ?: "#"
     }
+
+    // Ordered, first match wins — the old when-chain as data, original branch order kept.
+    private val ICON_BY_NAME_MARKER: List<Pair<String, String>> = listOf(
+        "favorit" to "★",
+        "sport" to "⚽",
+        "news" to "📰",
+        "movie" to "🎬", "film" to "🎬",
+        "entertain" to "✨", "show" to "✨",
+        "music" to "🎵",
+        "kids" to "👶", "child" to "👶",
+        "doc" to "📖",
+        "relig" to "✝",
+        "edu" to "🎓",
+        "animal" to "🌍", "nature" to "🌍",
+    )
 
     private fun normalizeLabel(value: String): String {
         val normalized = Normalizer.normalize(value, Normalizer.Form.NFD)

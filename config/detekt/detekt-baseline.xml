@@ -7,8 +7,6 @@
     <ID>CyclomaticComplexMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun refreshDirectDebridSourceFromMetadata(reason: String): Boolean</ID>
     <ID>CyclomaticComplexMethod:BrowserAdapters.kt$BrowserCategoryAdapter.ViewHolder$fun bind(category: XtreamCategory, isSelected: Boolean)</ID>
     <ID>CyclomaticComplexMethod:BrowserAdapters.kt$BrowserChannelAdapter.ViewHolder$fun bind(channel: XtreamStream)</ID>
-    <ID>CyclomaticComplexMethod:CategoryFlagResolver.kt$CategoryFlagResolver$@DrawableRes fun resolveFlagRes(categoryName: String): Int?</ID>
-    <ID>CyclomaticComplexMethod:CategoryFlagResolver.kt$CategoryFlagResolver$fun resolveCategoryIcon(categoryName: String): String</ID>
     <ID>CyclomaticComplexMethod:ChannelPagingAdapter.kt$ChannelPagingViewHolder$private fun bindHorizontalCard( channel: XtreamStream, onClick: (XtreamStream) -&gt; Unit, onLongClick: ((XtreamStream) -&gt; Unit)? = null, epgData: Pair&lt;EpgEntity?, EpgEntity?&gt;? = null, isFavorite: Boolean = false )</ID>
     <ID>CyclomaticComplexMethod:CinEpisodeAdapter.kt$CinEpisodeAdapter.EpisodeViewHolder$fun bind(item: EpisodeUiModel, isSelected: Boolean)</ID>
     <ID>CyclomaticComplexMethod:CompanionConfigApplier.kt$CompanionConfigApplier$fun apply(context: Context, data: Map&lt;String, Any&gt;?): Boolean</ID>
@@ -16,7 +14,6 @@
     <ID>CyclomaticComplexMethod:CompanionConfigSync.kt$CompanionConfigSync$fun start(context: Context)</ID>
     <ID>CyclomaticComplexMethod:ContinueWatchingAdapter.kt$ContinueWatchingAdapter.ContinueWatchingViewHolder$fun bind( item: ContinueWatchingItem, onClick: (ContinueWatchingItem) -&gt; Unit, onFocused: (Int, ContinueWatchingItem) -&gt; Unit, onOpenDetail: (ContinueWatchingItem) -&gt; Unit, onRemoveItem: (ContinueWatchingItem) -&gt; Unit )</ID>
     <ID>CyclomaticComplexMethod:DebridDiscoverActivity.kt$DebridDiscoverActivity$private fun showDropdown( anchor: TextView, options: List&lt;FilterOption&gt;, selectedValue: Any?, onSelected: (FilterOption) -&gt; Unit )</ID>
-    <ID>CyclomaticComplexMethod:DebridFailure.kt$DebridFailureClassifier$fun classify(error: Throwable?): DebridResolutionException</ID>
     <ID>CyclomaticComplexMethod:DebridFragment.kt$DebridFragment$private fun restoreFocusIfPossible()</ID>
     <ID>CyclomaticComplexMethod:DebridFragment.kt$DebridFragment$private fun updateHero(item: DebridContentItem)</ID>
     <ID>CyclomaticComplexMethod:DebridRowsAdapter.kt$DebridItemViewHolder$fun bind( item: DebridContentItem, onItemClick: (DebridContentItem) -&gt; Unit, onItemFocused: (DebridContentItem) -&gt; Unit )</ID>
@@ -27,8 +24,6 @@
     <ID>CyclomaticComplexMethod:DynamicAddonFetcher.kt$DynamicAddonFetcher$private fun parseStream(definition: AddonDefinition, element: JsonElement): AddonStream?</ID>
     <ID>CyclomaticComplexMethod:EpgCache.kt$EpgCache$fun warmNowNext(entries: List&lt;WarmEntry&gt;)</ID>
     <ID>CyclomaticComplexMethod:EpgGridView.kt$EpgGridView$override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean</ID>
-    <ID>CyclomaticComplexMethod:EpgParser.kt$EpgParser$suspend fun parseStream(reader: Reader, onProgram: suspend (EpgProgram) -&gt; Unit): Int</ID>
-    <ID>CyclomaticComplexMethod:EpgParser.kt$EpgParser.XmlDeclarationStrippingReader$override fun read(cbuf: CharArray, off: Int, len: Int): Int</ID>
     <ID>CyclomaticComplexMethod:EpgSyncManager.kt$EpgSyncManager$suspend fun fetchAndSaveEpg(): Result&lt;Int&gt;</ID>
     <ID>CyclomaticComplexMethod:EpgSyncWorker.kt$EpgSyncWorker$override suspend fun doWork(): Result</ID>
     <ID>CyclomaticComplexMethod:EpisodesAdapterV2.kt$EpisodesAdapterV2.EpisodeViewHolder$fun bind(episode: EpisodeEntityV2)</ID>
@@ -45,7 +40,6 @@
     <ID>CyclomaticComplexMethod:HomeNavigationRouter.kt$HomeNavigationRouter$fun onContinueWatchingItemClick(item: ContinueWatchingItem)</ID>
     <ID>CyclomaticComplexMethod:HomeViewModel.kt$HomeViewModel$private fun loadHomeData()</ID>
     <ID>CyclomaticComplexMethod:LanguageFilterAdapter.kt$LanguageFilterAdapter.LanguageViewHolder$private fun getFlagEmoji(languageCode: String): String</ID>
-    <ID>CyclomaticComplexMethod:LanguageParser.kt$LanguageParser$fun getLanguageFlag(languages: List&lt;String&gt;): String</ID>
     <ID>CyclomaticComplexMethod:LicenseManager.kt$LicenseManager$fun start()</ID>
     <ID>CyclomaticComplexMethod:LiveEpgPreviewController.kt$LiveEpgPreviewController$fun maybeRestorePreviewFromState(state: LiveUiState)</ID>
     <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
@@ -111,7 +105,6 @@
     <ID>LongMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:BrowserAdapters.kt$BrowserCategoryAdapter.ViewHolder$fun bind(category: XtreamCategory, isSelected: Boolean)</ID>
     <ID>LongMethod:BrowserAdapters.kt$BrowserChannelAdapter.ViewHolder$fun bind(channel: XtreamStream)</ID>
-    <ID>LongMethod:CategoryFlagResolver.kt$CategoryFlagResolver$@DrawableRes fun resolveFlagRes(categoryName: String): Int?</ID>
     <ID>LongMethod:ChannelPagingAdapter.kt$ChannelPagingViewHolder$private fun bindHorizontalCard( channel: XtreamStream, onClick: (XtreamStream) -&gt; Unit, onLongClick: ((XtreamStream) -&gt; Unit)? = null, epgData: Pair&lt;EpgEntity?, EpgEntity?&gt;? = null, isFavorite: Boolean = false )</ID>
     <ID>LongMethod:CinEpisodeAdapter.kt$CinEpisodeAdapter.EpisodeViewHolder$fun bind(item: EpisodeUiModel, isSelected: Boolean)</ID>
     <ID>LongMethod:CompanionConfigServer.kt$CompanionConfigServer$fun start()</ID>
@@ -119,14 +112,11 @@
     <ID>LongMethod:ContinueWatchingAdapter.kt$ContinueWatchingAdapter.ContinueWatchingViewHolder$fun bind( item: ContinueWatchingItem, onClick: (ContinueWatchingItem) -&gt; Unit, onFocused: (Int, ContinueWatchingItem) -&gt; Unit, onOpenDetail: (ContinueWatchingItem) -&gt; Unit, onRemoveItem: (ContinueWatchingItem) -&gt; Unit )</ID>
     <ID>LongMethod:DebridDiscoverActivity.kt$DebridDiscoverActivity$private fun setupSelectors()</ID>
     <ID>LongMethod:DebridDiscoverActivity.kt$DebridDiscoverActivity$private fun showDropdown( anchor: TextView, options: List&lt;FilterOption&gt;, selectedValue: Any?, onSelected: (FilterOption) -&gt; Unit )</ID>
-    <ID>LongMethod:DebridFailure.kt$DebridFailureClassifier$fun classify(error: Throwable?): DebridResolutionException</ID>
     <ID>LongMethod:DebridRowsAdapter.kt$DebridItemViewHolder$fun bind( item: DebridContentItem, onItemClick: (DebridContentItem) -&gt; Unit, onItemFocused: (DebridContentItem) -&gt; Unit )</ID>
     <ID>LongMethod:DebridSearchActivity.kt$DebridSearchActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:DebridSeeAllActivity.kt$DebridSeeAllActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$suspend fun getDebridMovieSources( title: String?, yearHint: String?, providedImdbId: String? = null, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
     <ID>LongMethod:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$suspend fun getSeriesEpisodeSources( seriesId: String?, seasonNumber: Int, episodeNumber: Int, title: String?, yearHint: String?, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
-    <ID>LongMethod:EpgParser.kt$EpgParser$suspend fun parseStream(reader: Reader, onProgram: suspend (EpgProgram) -&gt; Unit): Int</ID>
-    <ID>LongMethod:EpgParser.kt$EpgParser.XmlDeclarationStrippingReader$override fun read(cbuf: CharArray, off: Int, len: Int): Int</ID>
     <ID>LongMethod:EpgSyncManager.kt$EpgSyncManager$suspend fun fetchAndSaveEpg(): Result&lt;Int&gt;</ID>
     <ID>LongMethod:EpgSyncWorker.kt$EpgSyncWorker$override suspend fun doWork(): Result</ID>
     <ID>LongMethod:EpisodesAdapterV2.kt$EpisodesAdapterV2.EpisodeViewHolder$fun bind(episode: EpisodeEntityV2)</ID>
