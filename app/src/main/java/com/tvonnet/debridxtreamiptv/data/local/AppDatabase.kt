@@ -62,7 +62,8 @@ import com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.SeriesDaoV2
     ],
     version = 14,
     // Phase 8: export the schema JSON (room.schemaLocation in build.gradle) so Room migrations become
-    // testable via MigrationTestHelper — the gate for removing fallbackToDestructiveMigration (7.5).
+    // testable via MigrationTestHelper — the gate that allowed removing fallbackToDestructiveMigration
+    // (Phase 7.5, done: an unhandled version now fails loudly instead of wiping).
     // NOTE: schemas only exist from v14 forward (export was off historically); pre-14 versions have
     // no exported JSON, so the helper can only prove v14 -> future paths.
     exportSchema = true

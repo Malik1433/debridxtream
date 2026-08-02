@@ -159,8 +159,9 @@ object AppModule {
         )
             // Week 12: Add proper migrations to preserve user data
             .addMigrations(*DatabaseMigrations.getAllMigrations())
-            // Fallback for unhandled migrations (dev safety net)
-            .fallbackToDestructiveMigration()
+            // Phase 7.5: deliberately NO fallbackToDestructiveMigration — an unhandled version
+            // must fail loudly instead of silently wiping watch progress and favourites.
+            // MigrationTest pins both halves (populated v14 survives reopen; below-floor throws).
             // Week 14: Phase 2.1 - Memory Management fixes
             .setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING) // Enable WAL for better concurrency
             .build()
