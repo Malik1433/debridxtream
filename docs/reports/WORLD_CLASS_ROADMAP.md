@@ -769,6 +769,8 @@ Carried from hard-won incidents; every phase must respect them.
 
 | 2026-08-02 | **E1p — DI exemption (owner decision):** `LongParameterList` now ignores `@Inject`/`@Provides` — the framework handing a class its collaborators is not a design smell, and bundling injected deps would be fake cohesion. Exactly the 6 DI sites left the baseline; the rule still fires everywhere else. Remaining LPL = 16 real targets (collaborator ctors + ViewHolder binds + the owner-gated diagnostics clump) | **228** | **1** | 0 | 43 | `d98922b` |
 
+| 2026-08-02 | **E1p batch 3 — 6 NestedBlockDepth leaf sites** (QrGenerator, EpgParser ×2, XtreamResponseParser, trackDiagnosticsFields, LiveSearchAdapter per-type creators); a LongMethod + a CyclomaticComplexMethod fell out for real with the ViewHolder split. Player-path depth entries deliberately deferred to their own session (control flow near landmines). Diff 8 deletions / 0 additions; both TVs on this build. Kapt trap recorded: raw [brackets] in KDoc break stub generation | **220** | **1** | 0 | 43 | `b9ef8a6` |
+
 *(Append one row per landed phase. The three numeric columns may never increase.)*
 
 **Tier C is complete at LargeClass = 1.** The remaining one is `BasePlayerFragment`, by the C9
