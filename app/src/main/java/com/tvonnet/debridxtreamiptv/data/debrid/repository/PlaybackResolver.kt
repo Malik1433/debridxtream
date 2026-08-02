@@ -72,45 +72,9 @@ class PlaybackResolver @Inject constructor(
                     bypassCache = isExpired || attempt > 1
                 )
 
-                when (result) {
-                    is Result.Success -> {
-                        val resolvedUrl = result.data
-                        val isValidUrl = !resolvedUrl.isNullOrBlank() && 
-                            (resolvedUrl.startsWith("http://") || resolvedUrl.startsWith("https://"))
-                        
-                        if (!isValidUrl) {
-                            lastError = "Resolved URL is empty or invalid"
-                            android.util.Log.w("PlaybackResolver", "Debrid resolution attempt $attempt failed: $lastError")
-                            continue
-                        }
-                        android.util.Log.i("PlaybackResolver", "Debrid resolution SUCCESS")
-                        return ResolutionResult.Success(resolvedUrl)
-                    }
-                    is Result.Error -> {
-                        // QA fix (B1 completion): the repository returns several failures as RAW
-                        // Exceptions ("Torrent not ready…", "No links available…", "No download
-                        // URL…"). A plain `as?` cast left them untyped → not terminal → a wasted
-                        // second ~63s poll cycle AND failureType=null → the picker never
-                        // auto-advanced. Classify everything so the NOT_CACHED mapping applies.
-                        val typedError = result.exception as? DebridResolutionException
-                            ?: com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureClassifier
-                                .classify(result.exception)
-                        lastError = typedError.message
-                        android.util.Log.w(
-                            "PlaybackResolver",
-                            "Debrid resolution attempt $attempt failed: ${typedError.type}"
-                        )
-                        if (typedError.terminal) {
-                            return ResolutionResult.Error(
-                                message = typedError.message,
-                                failureType = typedError.type,
-                                retryAfterSeconds = typedError.retryAfterSeconds
-                            )
-                        }
-                        // No delay needed as resolveDebridUrl has internal polling/backoff
-                    }
-                    else -> { /* Handle Loading or other states if necessary */ }
-                }
+                val outcome = debridAttemptOutcome(result, attempt)
+                if (outcome.final != null) return outcome.final
+                if (outcome.lastError != null) lastError = outcome.lastError
             }
             android.util.Log.e("PlaybackResolver", "Debrid resolution FAILED after 2 attempts")
             return ResolutionResult.Error(lastError ?: "Resolution failed after 2 attempts")
@@ -122,6 +86,60 @@ class PlaybackResolver @Inject constructor(
             }
             android.util.Log.d("PlaybackResolver", "Xtream resolution SUCCESS (instant)")
             return ResolutionResult.Success(streamUrl)
+        }
+    }
+
+    // One debrid attempt's verdict: `final` short-circuits the retry loop with that result;
+    // `lastError` (when set) replaces the loop's running lastError. Bodies verbatim from resolve().
+    private data class DebridAttemptOutcome(
+        val final: ResolutionResult?,
+        val lastError: String?
+    )
+
+    private fun debridAttemptOutcome(result: Result<String>, attempt: Int): DebridAttemptOutcome {
+        return when (result) {
+            is Result.Success -> {
+                val resolvedUrl = result.data
+                val isValidUrl = !resolvedUrl.isNullOrBlank() &&
+                    (resolvedUrl.startsWith("http://") || resolvedUrl.startsWith("https://"))
+
+                if (!isValidUrl) {
+                    val lastError = "Resolved URL is empty or invalid"
+                    android.util.Log.w("PlaybackResolver", "Debrid resolution attempt $attempt failed: $lastError")
+                    DebridAttemptOutcome(final = null, lastError = lastError)
+                } else {
+                    android.util.Log.i("PlaybackResolver", "Debrid resolution SUCCESS")
+                    DebridAttemptOutcome(final = ResolutionResult.Success(resolvedUrl), lastError = null)
+                }
+            }
+            is Result.Error -> {
+                // QA fix (B1 completion): the repository returns several failures as RAW
+                // Exceptions ("Torrent not ready…", "No links available…", "No download
+                // URL…"). A plain `as?` cast left them untyped → not terminal → a wasted
+                // second ~63s poll cycle AND failureType=null → the picker never
+                // auto-advanced. Classify everything so the NOT_CACHED mapping applies.
+                val typedError = result.exception as? DebridResolutionException
+                    ?: com.tvonnet.debridxtreamiptv.data.debrid.model.DebridFailureClassifier
+                        .classify(result.exception)
+                android.util.Log.w(
+                    "PlaybackResolver",
+                    "Debrid resolution attempt $attempt failed: ${typedError.type}"
+                )
+                if (typedError.terminal) {
+                    DebridAttemptOutcome(
+                        final = ResolutionResult.Error(
+                            message = typedError.message,
+                            failureType = typedError.type,
+                            retryAfterSeconds = typedError.retryAfterSeconds
+                        ),
+                        lastError = typedError.message
+                    )
+                } else {
+                    // No delay needed as resolveDebridUrl has internal polling/backoff
+                    DebridAttemptOutcome(final = null, lastError = typedError.message)
+                }
+            }
+            else -> { /* Handle Loading or other states if necessary */ DebridAttemptOutcome(null, null) }
         }
     }
 }

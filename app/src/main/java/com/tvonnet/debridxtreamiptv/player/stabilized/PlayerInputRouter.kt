@@ -90,23 +90,33 @@ internal class PlayerInputRouter(
             // so onBackPressedDispatcher never runs (the "BACK doesn't exit" bug). 1st press hides the
             // controls, 2nd runs the real exit (records history, sets manualExit).
             if (contentType == ContentType.MOVIE || contentType == ContentType.EPISODE) {
-                if (event.action == KeyEvent.ACTION_UP) {
-                    when (vodBackAction(isInPictureInPictureMode, isControllerVisible, backHideArmed)) {
-                        VodBackAction.PASS_THROUGH -> return null
-                        VodBackAction.HIDE_CONTROLLER -> {
-                            playerView.hideController()
-                            backHideArmed = true
-                        }
-                        VodBackAction.EXIT -> performBackExit()
-                    }
-                }
-                return true
+                return handleVodBack(event)
             }
             // LIVE_TV and anything else: fall through to onBackPressedDispatcher, which handles the
             // channel browser, EPG, and the shared Live TV player hand-off + manualExit / history.
         }
 
         if (event.action == KeyEvent.ACTION_DOWN) {
+            return handleActionDownKey(event)
+        }
+        return null
+    }
+
+    private fun handleVodBack(event: KeyEvent): Boolean? {
+        if (event.action == KeyEvent.ACTION_UP) {
+            when (vodBackAction(isInPictureInPictureMode, isControllerVisible, backHideArmed)) {
+                VodBackAction.PASS_THROUGH -> return null
+                VodBackAction.HIDE_CONTROLLER -> {
+                    playerView.hideController()
+                    backHideArmed = true
+                }
+                VodBackAction.EXIT -> performBackExit()
+            }
+        }
+        return true
+    }
+
+    private fun handleActionDownKey(event: KeyEvent): Boolean? {
             if (activity.isEpisodeBrowserVisible()) {
                 // VOD Player redesign: coverflow panel. Delegate UP/DOWN to the list; LEFT/BACK
                 // close it — restore transport controls when it closes. While it stays open, consume
@@ -179,8 +189,7 @@ internal class PlayerInputRouter(
                     if (playerView.isControllerFullyVisible) { showSubtitleSelection(); return true }
                 }
             }
-        }
-        return null
+            return null
     }
 
     fun onKeyLongPress(keyCode: Int, event: KeyEvent): Boolean? {

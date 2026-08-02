@@ -150,32 +150,7 @@ internal class PlayerSeriesController(
         val seasonTitle = episodeBrowserSeasonTitle(seriesTitleExtra, seasonNumberExtra)
 
         if (state == null) {
-            // Show overlay in loading state immediately
-            episodeBrowserController.show(emptyList(), contentId, seasonTitle, getEpisodeBrowserFallbackImageUrl())
-            episodeBrowserController.setLoading(true)
-
-            val seriesId = intent.getStringExtra(PlayerActivity.EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
-            val seasonNum = intent.getIntExtra(PlayerActivity.EXTRA_SEASON_NUM, -1)
-            Log.d("PlayerActivity", "showEpisodeBrowser: state is null, triggering load. seriesId=${SensitiveLogRedactor.describeHash(seriesId)}, seasonNum=$seasonNum, contentId=${SensitiveLogRedactor.describeHash(contentId)}")
-            if (seriesId != null && seasonNum != -1) {
-                 if (playbackSource == PlaybackSource.DEBRID) {
-                     viewModel.loadDebridSeriesPlaylist(seriesId, seasonNum, episodeNumberExtra ?: 1)
-                 } else if (playbackSource != PlaybackSource.DEBRID) {
-                     val episodeId = currentIptvEpisodeIdForPlaylist()
-                     if (episodeId != null) {
-                         viewModel.loadSeriesPlaylist(
-                             seriesId, seasonNum, episodeId, seriesTitleExtra, episodeNumberExtra
-                         )
-                     } else {
-                         episodeBrowserController.showMessage("Episodes unavailable", seasonTitle)
-                     }
-                 } else {
-                     episodeBrowserController.showMessage("Episodes unavailable", seasonTitle)
-                 }
-            } else {
-                 Log.e("PlayerActivity", "showEpisodeBrowser: CANNOT load playlist, missing IDs! seriesId=$seriesId, seasonNum=$seasonNum")
-                 episodeBrowserController.showMessage("Episodes unavailable", seasonTitle)
-            }
+            showEpisodeBrowserLoadingAndTriggerLoad(seasonTitle)
             return
         }
         when (val view = episodeBrowserViewFor(state.isLoading, state.originalList, state.error)) {
@@ -193,6 +168,35 @@ internal class PlayerSeriesController(
                     fallbackImageUrl = getEpisodeBrowserFallbackImageUrl()
                 )
             }
+        }
+    }
+
+    private fun showEpisodeBrowserLoadingAndTriggerLoad(seasonTitle: String) {
+        // Show overlay in loading state immediately
+        episodeBrowserController.show(emptyList(), contentId, seasonTitle, getEpisodeBrowserFallbackImageUrl())
+        episodeBrowserController.setLoading(true)
+
+        val seriesId = intent.getStringExtra(PlayerActivity.EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
+        val seasonNum = intent.getIntExtra(PlayerActivity.EXTRA_SEASON_NUM, -1)
+        Log.d("PlayerActivity", "showEpisodeBrowser: state is null, triggering load. seriesId=${SensitiveLogRedactor.describeHash(seriesId)}, seasonNum=$seasonNum, contentId=${SensitiveLogRedactor.describeHash(contentId)}")
+        if (seriesId != null && seasonNum != -1) {
+             if (playbackSource == PlaybackSource.DEBRID) {
+                 viewModel.loadDebridSeriesPlaylist(seriesId, seasonNum, episodeNumberExtra ?: 1)
+             } else if (playbackSource != PlaybackSource.DEBRID) {
+                 val episodeId = currentIptvEpisodeIdForPlaylist()
+                 if (episodeId != null) {
+                     viewModel.loadSeriesPlaylist(
+                         seriesId, seasonNum, episodeId, seriesTitleExtra, episodeNumberExtra
+                     )
+                 } else {
+                     episodeBrowserController.showMessage("Episodes unavailable", seasonTitle)
+                 }
+             } else {
+                 episodeBrowserController.showMessage("Episodes unavailable", seasonTitle)
+             }
+        } else {
+             Log.e("PlayerActivity", "showEpisodeBrowser: CANNOT load playlist, missing IDs! seriesId=$seriesId, seasonNum=$seasonNum")
+             episodeBrowserController.showMessage("Episodes unavailable", seasonTitle)
         }
     }
 

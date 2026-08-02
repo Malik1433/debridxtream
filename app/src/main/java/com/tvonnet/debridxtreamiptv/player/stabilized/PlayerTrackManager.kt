@@ -244,40 +244,8 @@ class PlayerTrackManager(
         seriesId: String?
     ) {
         val groups = player.currentTracks.groups
-        var sAIdx = -1
-        var sALang: String? = null
-        var sTIdx = -1
-        var sTLang: String? = null
-
-        var aC = 0
-        for (g in groups) {
-            if (g.type == C.TRACK_TYPE_AUDIO) {
-                for (j in 0 until g.length) {
-                    if (g.isTrackSelected(j)) {
-                        sAIdx = aC
-                        sALang = g.getTrackFormat(j).language
-                        break
-                    }
-                    aC++
-                }
-            }
-            if (sAIdx != -1) break
-        }
-
-        var tC = 0
-        for (g in groups) {
-            if (g.type == C.TRACK_TYPE_TEXT) {
-                for (j in 0 until g.length) {
-                    if (g.isTrackSelected(j)) {
-                        sTIdx = tC
-                        sTLang = g.getTrackFormat(j).language
-                        break
-                    }
-                    tC++
-                }
-            }
-            if (sTIdx != -1) break
-        }
+        val (sAIdx, sALang) = findSelectedTrack(groups, C.TRACK_TYPE_AUDIO)
+        val (sTIdx, sTLang) = findSelectedTrack(groups, C.TRACK_TYPE_TEXT)
 
         if (sALang != null) {
             preferredAudioLanguage = sALang
@@ -320,43 +288,53 @@ class PlayerTrackManager(
         var mod = false
 
         if (tAIdx != -1) {
-            var aC = 0
-            for (g in groups) {
-                if (g.type == C.TRACK_TYPE_AUDIO) {
-                    for (j in 0 until g.length) {
-                        if (aC == tAIdx) {
-                            params.addOverride(TrackSelectionOverride(g.mediaTrackGroup, j))
-                            mod = true
-                            break
-                        }
-                        aC++
-                    }
-                }
-                if (mod) break
-            }
+            if (addTrackOverrideAt(groups, C.TRACK_TYPE_AUDIO, tAIdx, params)) mod = true
         }
 
         if (tTIdx != -1) {
-            var tC = 0
-            var tMod = false
-            for (g in groups) {
-                if (g.type == C.TRACK_TYPE_TEXT) {
-                    for (j in 0 until g.length) {
-                        if (tC == tTIdx) {
-                            params.addOverride(TrackSelectionOverride(g.mediaTrackGroup, j))
-                            mod = true
-                            tMod = true
-                            break
-                        }
-                        tC++
-                    }
-                }
-                if (tMod) break
-            }
+            if (addTrackOverrideAt(groups, C.TRACK_TYPE_TEXT, tTIdx, params)) mod = true
         }
 
         if (mod) {
             player.trackSelectionParameters = params.build()
         }
+    }
+
+    // Walks the type's tracks in flat index order (the same order the capture above counts in)
+    // and returns the selected track's flat index + language, or -1 to null when none is selected.
+    private fun findSelectedTrack(
+        groups: List<androidx.media3.common.Tracks.Group>,
+        trackType: Int
+    ): Pair<Int, String?> {
+        var count = 0
+        for (g in groups) {
+            if (g.type != trackType) continue
+            for (j in 0 until g.length) {
+                if (g.isTrackSelected(j)) return count to g.getTrackFormat(j).language
+                count++
+            }
+        }
+        return -1 to null
+    }
+
+    // Adds an override for the track at the given flat index of that type; true when one was added.
+    private fun addTrackOverrideAt(
+        groups: List<androidx.media3.common.Tracks.Group>,
+        trackType: Int,
+        targetIndex: Int,
+        params: androidx.media3.common.TrackSelectionParameters.Builder
+    ): Boolean {
+        var count = 0
+        for (g in groups) {
+            if (g.type != trackType) continue
+            for (j in 0 until g.length) {
+                if (count == targetIndex) {
+                    params.addOverride(TrackSelectionOverride(g.mediaTrackGroup, j))
+                    return true
+                }
+                count++
+            }
+        }
+        return false
     }
 }

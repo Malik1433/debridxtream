@@ -392,20 +392,8 @@ internal class PlayerRecoveryController(
             // full re-init) turns a recovering rebuffer into a much longer visible
             // reconnect on weak channels. Extend the window instead (bounded), and
             // only tear down when the buffer is genuinely not filling.
-            if (contentType == ContentType.LIVE_TV) {
-                val buffered = player?.bufferedPosition ?: 0L
-                if (buffered > watchdogBufferedPosAtArm + 500L &&
-                    watchdogExtensions < MAX_WATCHDOG_EXTENSIONS
-                ) {
-                    watchdogExtensions++
-                    watchdogBufferedPosAtArm = buffered
-                    Log.i(
-                        "PlayerActivity",
-                        "Buffering slow but progressing (buffered=${buffered}ms) — extending watchdog $watchdogExtensions/${MAX_WATCHDOG_EXTENSIONS}"
-                    )
-                    timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
-                    return
-                }
+            if (contentType == ContentType.LIVE_TV && maybeExtendWatchdogWindow()) {
+                return
             }
             val timedOutUrl = currentUrl
             PlaybackDiagnosticsRecorder.record(
@@ -427,58 +415,83 @@ internal class PlayerRecoveryController(
                 return
             }
             if (retryCount < (if (contentType == ContentType.LIVE_TV) LIVE_MAX_RETRIES else maxRetries)) {
-                // Aggregate budget gate (fix 2): a stuck first-connect timeout is part
-                // of the same reconnect family; refuse once the window is spent.
-                if (!canAttemptReconnect()) {
-                    handleTerminalPlaybackFailure("Connection timeout")
-                    return
-                }
-                retryCount++
-                PlaybackDiagnosticsRecorder.record(
-                    activity,
-                    "retry_triggered",
-                    diagnosticsPlaybackFields(timedOutUrl, retry = retryCount) + mapOf(
-                        "reasonCode" to "TIMEOUT",
-                        "retrySource" to "buffer_timeout"
-                    )
-                )
-                if (directDebridPlayback && refreshDirectDebridSourceFromMetadata("buffer_timeout_direct_refresh")) {
-                    return
-                }
-                val hasResolveInfo =
-                    !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
-                val resolverIdle = canUseDebridResolver() && !isResolvingDebrid
-                if (resolverIdle && retryCount > 1 && hasResolveInfo) {
-                      isResolvingDebrid = true
-                      if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
-                      reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
-                      return
-                }
-                // No toast here either — the unified "RECONNECTING…" banner (shown by
-                // canAttemptReconnect() above) is the single reconnect indicator.
-                // Live first retry: light in-place re-prepare on the SAME engine
-                // (the proven ENDED/freeze recovery path) instead of the heavy
-                // release → 2s wait → full re-init. The player instance is healthy —
-                // only the source starved — so this cuts each visible reconnect by
-                // ~4-5s and avoids the audio-focus abandon/request churn. The full
-                // engine rebuild is kept as the SECOND retry for wedged pipelines.
-                if (contentType == ContentType.LIVE_TV && retryCount < LIVE_MAX_RETRIES && player != null) {
-                    Log.i("PlayerActivity", "Buffer timeout — in-place re-prepare (retry $retryCount)")
-                    currentUrl?.let { performSeamlessSwitch(it) }
-                    return
-                }
-                if (contentType != ContentType.LIVE_TV && player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
-                PlaybackDiagnosticsRecorder.record(
-                    activity,
-                    "release_player",
-                    diagnosticsPlaybackFields(timedOutUrl) + mapOf("releaseReason" to "buffer_timeout_retry")
-                )
-                player?.release(); player = null
-                retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, 2000)
+                retryAfterBufferTimeout(timedOutUrl)
             } else {
                 handleTerminalPlaybackFailure("Connection timeout")
             }
         }
+    }
+
+    // The buffer has genuinely stalled past the timeout window: one retry step, verbatim from
+    // handleTimeout. Every early return here ends the timeout handling exactly as it did inline.
+    private fun retryAfterBufferTimeout(timedOutUrl: String?) {
+        // Aggregate budget gate (fix 2): a stuck first-connect timeout is part
+        // of the same reconnect family; refuse once the window is spent.
+        if (!canAttemptReconnect()) {
+            handleTerminalPlaybackFailure("Connection timeout")
+            return
+        }
+        retryCount++
+        PlaybackDiagnosticsRecorder.record(
+            activity,
+            "retry_triggered",
+            diagnosticsPlaybackFields(timedOutUrl, retry = retryCount) + mapOf(
+                "reasonCode" to "TIMEOUT",
+                "retrySource" to "buffer_timeout"
+            )
+        )
+        if (directDebridPlayback && refreshDirectDebridSourceFromMetadata("buffer_timeout_direct_refresh")) {
+            return
+        }
+        val hasResolveInfo =
+            !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
+        val resolverIdle = canUseDebridResolver() && !isResolvingDebrid
+        if (resolverIdle && retryCount > 1 && hasResolveInfo) {
+              isResolvingDebrid = true
+              if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
+              reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
+              return
+        }
+        // No toast here either — the unified "RECONNECTING…" banner (shown by
+        // canAttemptReconnect() above) is the single reconnect indicator.
+        // Live first retry: light in-place re-prepare on the SAME engine
+        // (the proven ENDED/freeze recovery path) instead of the heavy
+        // release → 2s wait → full re-init. The player instance is healthy —
+        // only the source starved — so this cuts each visible reconnect by
+        // ~4-5s and avoids the audio-focus abandon/request churn. The full
+        // engine rebuild is kept as the SECOND retry for wedged pipelines.
+        if (contentType == ContentType.LIVE_TV && retryCount < LIVE_MAX_RETRIES && player != null) {
+            Log.i("PlayerActivity", "Buffer timeout — in-place re-prepare (retry $retryCount)")
+            currentUrl?.let { performSeamlessSwitch(it) }
+            return
+        }
+        if (contentType != ContentType.LIVE_TV && player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
+        PlaybackDiagnosticsRecorder.record(
+            activity,
+            "release_player",
+            diagnosticsPlaybackFields(timedOutUrl) + mapOf("releaseReason" to "buffer_timeout_retry")
+        )
+        player?.release(); player = null
+        retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, 2000)
+    }
+
+    // Progress-aware watchdog extension (live): true when the buffer grew since arming and an
+    // extension window was granted — the caller must return without tearing the player down.
+    private fun maybeExtendWatchdogWindow(): Boolean {
+        val buffered = player?.bufferedPosition ?: 0L
+        if (buffered > watchdogBufferedPosAtArm + 500L &&
+            watchdogExtensions < MAX_WATCHDOG_EXTENSIONS
+        ) {
+            watchdogExtensions++
+            watchdogBufferedPosAtArm = buffered
+            Log.i(
+                "PlayerActivity",
+                "Buffering slow but progressing (buffered=${buffered}ms) — extending watchdog $watchdogExtensions/${MAX_WATCHDOG_EXTENSIONS}"
+            )
+            timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
+            return true
+        }
+        return false
     }
 
     private companion object {

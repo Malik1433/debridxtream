@@ -43,7 +43,6 @@
     <ID>CyclomaticComplexMethod:HomeKeyRoutingManager.kt$HomeKeyRoutingManager$fun moveFocusUpFromArea(area: HomeContentFocusArea, position: Int): Boolean</ID>
     <ID>CyclomaticComplexMethod:HomeNavigationRouter.kt$HomeNavigationRouter$fun launchLiveStream( streamId: String?, fallbackTitle: String?, fallbackLogo: String?, fallbackUrl: String?, epgChannelId: String? = null )</ID>
     <ID>CyclomaticComplexMethod:HomeNavigationRouter.kt$HomeNavigationRouter$fun onContinueWatchingItemClick(item: ContinueWatchingItem)</ID>
-    <ID>CyclomaticComplexMethod:HomeNavigationRouter.kt$HomeNavigationRouter$suspend fun openContinueWatchingDetail(item: ContinueWatchingItem)</ID>
     <ID>CyclomaticComplexMethod:HomeViewModel.kt$HomeViewModel$private fun loadHomeData()</ID>
     <ID>CyclomaticComplexMethod:LanguageFilterAdapter.kt$LanguageFilterAdapter.LanguageViewHolder$private fun getFlagEmoji(languageCode: String): String</ID>
     <ID>CyclomaticComplexMethod:LanguageParser.kt$LanguageParser$fun getLanguageFlag(languages: List&lt;String&gt;): String</ID>
@@ -64,21 +63,19 @@
     <ID>CyclomaticComplexMethod:MovieSourceAdapter.kt$MovieSourceAdapter.SourceViewHolder$private fun getFlagEmoji(languageCode: String): String</ID>
     <ID>CyclomaticComplexMethod:MovieSourceConversion.kt$internal fun convertAddonStreamsToMovieSources( addonStreams: List&lt;AddonStream&gt;, title: String?, cacheStatusByHash: Map&lt;String, DebridCacheStatus&gt; ): List&lt;MovieSource&gt;</ID>
     <ID>CyclomaticComplexMethod:MovieSourceConversion.kt$internal fun isDirectStreamUrl(url: String): Boolean</ID>
-    <ID>CyclomaticComplexMethod:PlaybackResolver.kt$PlaybackResolver$suspend fun resolve( source: String, streamUrl: String?, isExpired: Boolean, infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectHttpPassthrough: Boolean = true ): ResolutionResult</ID>
     <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity.Companion$fun createIntent( context: Context, streamUrl: String, title: String? = null, channelName: String? = null, channelLogo: String? = null, epgChannelId: String? = null, startPositionMs: Long? = null, contentId: String? = null, contentType: ContentType? = null, playbackSource: PlaybackSource? = null, posterUrl: String? = null, backdropUrl: String? = null, liveCategoryId: String? = null, liveChannelIds: ArrayList&lt;String&gt;? = null, baseServerUrl: String? = null, headers: Map&lt;String, String&gt;? = null, tmdbId: String? = null, imdbId: String? = null, seriesTitle: String? = null, episodeTitle: String? = null, seasonNumber: Int? = null, episodeNumber: Int? = null, debridInfoHash: String? = null, debridMagnet: String? = null, directDebridPlayback: Boolean = false, debridProvider: String? = null, debridSourceType: String? = null, debridSourceName: String? = null, debridLanguages: List&lt;String&gt;? = null, debridQuality: String? = null, debridStreamId: String? = null, debridBingeGroup: String? = null, debridFileIdx: Int? = null, subtitles: List&lt;String&gt;? = null, expiresAt: Long? = null, seriesId: String? = null, sharedLivePlayer: Boolean = false ): Intent</ID>
     <ID>CyclomaticComplexMethod:PlayerDebridCoordinator.kt$PlayerDebridCoordinator$private fun switchToMovieSource(source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource)</ID>
-    <ID>CyclomaticComplexMethod:PlayerEventListener.kt$PlayerEventListener$override fun onPlaybackStateChanged(playbackState: Int)</ID>
+    <ID>CyclomaticComplexMethod:PlayerEventListener.kt$PlayerEventListener$private fun onStateEnded()</ID>
     <ID>CyclomaticComplexMethod:PlayerHelpers.kt$internal fun resolveMediaMimeType( url: String, sourceHints: List&lt;String?&gt;, streamHeaders: Map&lt;String, String&gt;? ): String?</ID>
     <ID>CyclomaticComplexMethod:PlayerHistoryManager.kt$PlayerHistoryManager$fun saveProgressSnapshot()</ID>
     <ID>CyclomaticComplexMethod:PlayerInputRouter.kt$PlayerInputRouter$fun dispatchKeyEvent(event: KeyEvent): Boolean?</ID>
+    <ID>CyclomaticComplexMethod:PlayerInputRouter.kt$PlayerInputRouter$private fun handleActionDownKey(event: KeyEvent): Boolean?</ID>
     <ID>CyclomaticComplexMethod:PlayerLiveEpgRenderer.kt$PlayerLiveEpgRenderer$fun renderOverlay(state: PlayerOverlayUiState)</ID>
     <ID>CyclomaticComplexMethod:PlayerMetadataBinder.kt$PlayerMetadataBinder$fun bindModernMetadata(title: String?)</ID>
     <ID>CyclomaticComplexMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handlePlaybackError(error: PlaybackException)</ID>
-    <ID>CyclomaticComplexMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handleTimeout()</ID>
+    <ID>CyclomaticComplexMethod:PlayerRecoveryController.kt$PlayerRecoveryController$private fun retryAfterBufferTimeout(timedOutUrl: String?)</ID>
     <ID>CyclomaticComplexMethod:PlayerSeriesController.kt$PlayerSeriesController$fun playNextEpisode()</ID>
     <ID>CyclomaticComplexMethod:PlayerStallMonitor.kt$PlayerStallMonitor$private fun checkVideoRenderProgress(p: ExoPlayer, now: Long)</ID>
-    <ID>CyclomaticComplexMethod:PlayerTrackManager.kt$PlayerTrackManager$fun applyTrackIndexOverrides( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
-    <ID>CyclomaticComplexMethod:PlayerTrackManager.kt$PlayerTrackManager$fun captureManualTrackSelection( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
     <ID>CyclomaticComplexMethod:PlayerTrackManager.kt$PlayerTrackManager$private fun showSinglePressTrackSelection( player: Player, title: String, trackType: Int, showDisableOption: Boolean, onDialogReady: (android.app.Dialog) -&gt; Unit )</ID>
     <ID>CyclomaticComplexMethod:PlayerViewModel.kt$PlayerViewModel$private suspend fun findBestTmdbTvMatch(title: String): Int?</ID>
     <ID>CyclomaticComplexMethod:SearchIndexManager.kt$SearchIndexManager$private suspend fun indexLiveCatalog(service: XtreamApiService): Boolean</ID>
@@ -140,7 +137,6 @@
     <ID>LongMethod:FavoritesFragment.kt$FavoritesFragment$private fun handleFavoriteClick(favorite: FavoriteEntity)</ID>
     <ID>LongMethod:HomeHeroManager.kt$HomeHeroManager$fun updateHeroSection(item: FeaturedItem)</ID>
     <ID>LongMethod:HomeNavigationRouter.kt$HomeNavigationRouter$fun onContinueWatchingItemClick(item: ContinueWatchingItem)</ID>
-    <ID>LongMethod:HomeNavigationRouter.kt$HomeNavigationRouter$suspend fun openContinueWatchingDetail(item: ContinueWatchingItem)</ID>
     <ID>LongMethod:HomeViewModel.kt$HomeViewModel$private fun loadHomeData()</ID>
     <ID>LongMethod:LicenseManager.kt$LicenseManager$fun start()</ID>
     <ID>LongMethod:LiveFragment.kt$LiveFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
@@ -156,11 +152,8 @@
     <ID>LongMethod:MovieInfoSection.kt$@Composable fun MovieInfoSection( movie: MovieUiModel, onPlayClick: () -&gt; Unit, onTrailerClick: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>LongMethod:MovieSourceAdapter.kt$MovieSourceAdapter.SourceViewHolder$fun bind(source: MovieSource)</ID>
     <ID>LongMethod:MovieSourceConversion.kt$internal fun convertAddonStreamsToMovieSources( addonStreams: List&lt;AddonStream&gt;, title: String?, cacheStatusByHash: Map&lt;String, DebridCacheStatus&gt; ): List&lt;MovieSource&gt;</ID>
-    <ID>LongMethod:PlaybackResolver.kt$PlaybackResolver$suspend fun resolve( source: String, streamUrl: String?, isExpired: Boolean, infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectHttpPassthrough: Boolean = true ): ResolutionResult</ID>
-    <ID>LongMethod:PlayerEventListener.kt$PlayerEventListener$override fun onPlaybackStateChanged(playbackState: Int)</ID>
-    <ID>LongMethod:PlayerInputRouter.kt$PlayerInputRouter$fun dispatchKeyEvent(event: KeyEvent): Boolean?</ID>
+    <ID>LongMethod:PlayerInputRouter.kt$PlayerInputRouter$private fun handleActionDownKey(event: KeyEvent): Boolean?</ID>
     <ID>LongMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handlePlaybackError(error: PlaybackException)</ID>
-    <ID>LongMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handleTimeout()</ID>
     <ID>LongMethod:PlayerTrackManager.kt$PlayerTrackManager$private fun showSinglePressTrackSelection( player: Player, title: String, trackType: Int, showDisableOption: Boolean, onDialogReady: (android.app.Dialog) -&gt; Unit )</ID>
     <ID>LongMethod:PreviewPlayerPanel.kt$PreviewPlayerPanel$fun play(stream: XtreamStream, streamUrlOverride: String? = null)</ID>
     <ID>LongMethod:SearchViewModel.kt$SearchViewModel$private fun performSearch(query: String)</ID>
@@ -199,15 +192,6 @@
     <ID>LongParameterList:SeriesSeasonUi.kt$SeriesSeasonUi$( private val activity: AppCompatActivity, private val rvSeasons: RecyclerView, private val rvEpisodes: RecyclerView, private val tvEmptyEpisodes: TextView, private val btnWatchNow: AppCompatButton, private val btnSeasonSelector: AppCompatButton, private val tvSeasonProgress: TextView, private val tvSeasonEpisodeCount: TextView, private val layoutResume: LinearLayout, private val tvResumeLabel: TextView, private val tvResumeRight: TextView, private val vResumeProgress: View, private val tvResumeEpTitle: TextView, private val watchedStateRepository: WatchedStateRepository, private val isDebrid: () -&gt; Boolean, private val seriesId: () -&gt; String?, private val seriesName: () -&gt; String?, private val seriesReleaseDate: () -&gt; String?, private val onPlayEpisode: (EpisodeUiModel) -&gt; Unit, )</ID>
     <ID>LongParameterList:SyncManager.kt$SyncManager$( private val session: XtreamSession, private val catalogCache: CatalogCache, private val cacheHelper: CacheHelper, private val cacheManager: CacheManager, private val syncPrefs: SharedPreferences, private val liveRepository: LiveRepository, private val vodRepository: VodRepository, private val seriesRepository: SeriesRepository, private val searchIndexManager: SearchIndexManager )</ID>
     <ID>LongParameterList:VodAdapter.kt$VodViewHolder$( movie: XtreamVodInfo, isFavorite: Boolean, isWatched: Boolean, progress: Float?, onItemFocused: ((Int) -&gt; Unit)?, onClick: (XtreamVodInfo) -&gt; Unit, onLongClick: ((XtreamVodInfo) -&gt; Unit)? = null )</ID>
-    <ID>NestedBlockDepth:HomeNavigationRouter.kt$HomeNavigationRouter$suspend fun openContinueWatchingDetail(item: ContinueWatchingItem)</ID>
-    <ID>NestedBlockDepth:PlaybackResolver.kt$PlaybackResolver$suspend fun resolve( source: String, streamUrl: String?, isExpired: Boolean, infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectHttpPassthrough: Boolean = true ): ResolutionResult</ID>
-    <ID>NestedBlockDepth:PlayerEventListener.kt$PlayerEventListener$override fun onPlaybackStateChanged(playbackState: Int)</ID>
-    <ID>NestedBlockDepth:PlayerEventListener.kt$PlayerEventListener$override fun onTracksChanged(tracks: androidx.media3.common.Tracks)</ID>
-    <ID>NestedBlockDepth:PlayerInputRouter.kt$PlayerInputRouter$fun dispatchKeyEvent(event: KeyEvent): Boolean?</ID>
-    <ID>NestedBlockDepth:PlayerRecoveryController.kt$PlayerRecoveryController$fun handleTimeout()</ID>
-    <ID>NestedBlockDepth:PlayerSeriesController.kt$PlayerSeriesController$fun showEpisodeBrowser()</ID>
-    <ID>NestedBlockDepth:PlayerTrackManager.kt$PlayerTrackManager$fun applyTrackIndexOverrides( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
-    <ID>NestedBlockDepth:PlayerTrackManager.kt$PlayerTrackManager$fun captureManualTrackSelection( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
     <ID>SpreadOperator:AppModule.kt$AppModule$(*DatabaseMigrations.getAllMigrations())</ID>
     <ID>SpreadOperator:EpgParser.kt$EpgParser.XmlDeclarationStrippingReader$('&lt;', '?', *probe.copyOf(read3))</ID>
     <ID>TooManyFunctions:BasePlayerFragment.kt$BasePlayerFragment : FragmentRecoveryHost</ID>

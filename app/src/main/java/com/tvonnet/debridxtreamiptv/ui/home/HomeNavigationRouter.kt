@@ -265,89 +265,77 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
         when (item.contentType) {
             ContentType.MOVIE, ContentType.EPISODE -> {
                 if (item.contentType == ContentType.MOVIE) {
-                    if (isDebrid) {
-                        val movieIntent = Intent(context, MovieDetailActivity::class.java).apply {
-                            putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.tmdbId ?: item.contentId)
-                            putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
-                            putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
-                            putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
-                            putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
-                            putExtra(MovieDetailActivity.EXTRA_SOURCE_RAIL, "Continue Watching")
-                        }
-                        startActivityPreservingContentFocus(movieIntent)
-                    } else {
-                        val detailFragment = MovieDetailFragmentV2.newInstance(
-                            streamId = item.contentId,
-                            title = item.title,
-                            backdropUrl = item.backdropUrl,
-                            posterUrl = item.posterUrl
-                        )
-                        navigateToFragment(detailFragment)
-                    }
+                    openContinueWatchingMovie(context, item, isDebrid)
                 } else {
-                    val seriesId = if (isDebrid) {
-                        item.seriesId?.takeIf { it.isNotBlank() }
-                            ?: item.tmdbId?.takeIf { it.isNotBlank() }
-                            ?: item.contentId
-                    } else {
-                        resolveIptvSeriesIdForContinueWatching(item) ?: item.contentId
-                    }
-                    if (seriesId == null) {
-                        showHomeActionUnavailable()
-                        return
-                    }
-                    if (isDebrid) {
-                        val seriesIntent = Intent(context, SeriesDetailActivity::class.java).apply {
-                            putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, seriesId)
-                            putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.seriesTitle ?: item.title)
-                            putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
-                            putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
-                            putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
-                        }
-                        startActivityPreservingContentFocus(seriesIntent)
-                    } else {
-                        val detailFragment = SeriesDetailFragmentV2.newInstance(
-                            seriesId = seriesId,
-                            title = item.seriesTitle ?: item.title,
-                            backdropUrl = item.backdropUrl,
-                            posterUrl = item.posterUrl
-                        )
-                        navigateToFragment(detailFragment)
-                    }
+                    openContinueWatchingSeries(context, item, isDebrid)
                 }
             }
-            ContentType.SERIES -> {
-                val seriesId = if (isDebrid) {
-                    item.seriesId?.takeIf { it.isNotBlank() }
-                        ?: item.tmdbId?.takeIf { it.isNotBlank() }
-                        ?: item.contentId
-                } else {
-                    resolveIptvSeriesIdForContinueWatching(item) ?: item.contentId
-                }
-                if (seriesId == null) {
-                    showHomeActionUnavailable()
-                    return
-                }
-                if (isDebrid) {
-                    val seriesIntent = Intent(context, SeriesDetailActivity::class.java).apply {
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, seriesId)
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.seriesTitle ?: item.title)
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
-                        putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
-                    }
-                    startActivityPreservingContentFocus(seriesIntent)
-                } else {
-                    val detailFragment = SeriesDetailFragmentV2.newInstance(
-                        seriesId = seriesId,
-                        title = item.seriesTitle ?: item.title,
-                        backdropUrl = item.backdropUrl,
-                        posterUrl = item.posterUrl
-                    )
-                    navigateToFragment(detailFragment)
-                }
-            }
+            ContentType.SERIES -> openContinueWatchingSeries(context, item, isDebrid)
             else -> showHomeActionUnavailable()
+        }
+    }
+
+    private fun openContinueWatchingMovie(
+        context: android.content.Context,
+        item: ContinueWatchingItem,
+        isDebrid: Boolean
+    ) {
+        if (isDebrid) {
+            val movieIntent = Intent(context, MovieDetailActivity::class.java).apply {
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.tmdbId ?: item.contentId)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
+                putExtra(MovieDetailActivity.EXTRA_SOURCE_RAIL, "Continue Watching")
+            }
+            startActivityPreservingContentFocus(movieIntent)
+        } else {
+            val detailFragment = MovieDetailFragmentV2.newInstance(
+                streamId = item.contentId,
+                title = item.title,
+                backdropUrl = item.backdropUrl,
+                posterUrl = item.posterUrl
+            )
+            navigateToFragment(detailFragment)
+        }
+    }
+
+    // Shared by the EPISODE and SERIES arms of openContinueWatchingDetail — their bodies were
+    // byte-identical before extraction.
+    private suspend fun openContinueWatchingSeries(
+        context: android.content.Context,
+        item: ContinueWatchingItem,
+        isDebrid: Boolean
+    ) {
+        val seriesId = if (isDebrid) {
+            item.seriesId?.takeIf { it.isNotBlank() }
+                ?: item.tmdbId?.takeIf { it.isNotBlank() }
+                ?: item.contentId
+        } else {
+            resolveIptvSeriesIdForContinueWatching(item) ?: item.contentId
+        }
+        if (seriesId == null) {
+            showHomeActionUnavailable()
+            return
+        }
+        if (isDebrid) {
+            val seriesIntent = Intent(context, SeriesDetailActivity::class.java).apply {
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, seriesId)
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.seriesTitle ?: item.title)
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
+                putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
+            }
+            startActivityPreservingContentFocus(seriesIntent)
+        } else {
+            val detailFragment = SeriesDetailFragmentV2.newInstance(
+                seriesId = seriesId,
+                title = item.seriesTitle ?: item.title,
+                backdropUrl = item.backdropUrl,
+                posterUrl = item.posterUrl
+            )
+            navigateToFragment(detailFragment)
         }
     }
 

@@ -95,41 +95,7 @@ internal class PlayerEventListener(
             )
         )
         if (playbackState == Player.STATE_READY) {
-             isSwitching = false
-             // BUFFERING→READY: refresh the session network-quality estimate
-             // (QA fix 7) using the passive bandwidth meter, debounced.
-             if (lastBufferingStartMs != 0L) maybeUpdateNetworkQuality()
-             // Keep the resume target alive while a debrid re-resolve is in flight:
-             // clearing it here would make the upcoming seamless switch start from 0.
-             if (!isResolvingDebrid && player?.currentPosition ?: 0L > 1000) startPositionMs = 0L
-            maybeMatchDisplayFrameRate()
-            // Black-video watchdog (VOD): audio can play while the HW decoder
-            // renders no frames under tunneling — reinit without tunneling if so.
-            if (contentType != ContentType.LIVE_TV &&
-                !hasRenderedFirstFrameForCurrentSource && !blackVideoFallbackTried
-            ) {
-                timeoutHandler.removeCallbacks(blackVideoCheckRunnable)
-                timeoutHandler.postDelayed(blackVideoCheckRunnable, BLACK_VIDEO_CHECK_MS)
-            }
-            timeoutHandler.removeCallbacks(timeoutRunnable)
-            watchdogExtensions = 0
-            watchdogBufferedPosAtArm = -1L
-            retryCount = 0
-            audioSinkRecoveryCount = 0
-            // A clean READY means recovery succeeded — reset the unified
-            // reconnect budget (fix 2) and retire the banner (fix 3).
-            resetReconnectBudget()
-            hideReconnectingBanner()
-            // First playable frame — dissolve the cinematic loader to reveal video.
-            loaderUi.hide()
-            lastBufferingStartMs = 0L
-            addonProxyFailures.clearFailures()
-            maybeRecordDirectAddonProxySuccess()
-            if (contentType != ContentType.LIVE_TV) {
-                updatePlayPauseVisibility(playerView, player?.playWhenReady == true, isControllerVisible)
-                backHideArmed = false
-                playerView.showController()
-            }
+            onStateReady()
         } else if (playbackState == Player.STATE_BUFFERING) {
             timeoutHandler.removeCallbacks(timeoutRunnable)
             timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
@@ -139,77 +105,125 @@ internal class PlayerEventListener(
             timeoutHandler.removeCallbacks(timeoutRunnable)
             lastBufferingStartMs = 0L
             if (playbackState == Player.STATE_ENDED) {
-                 val nowMs = SystemClock.elapsedRealtime()
-                 if (nowMs - lastEndedReconnectAtMs > 30_000L) endedReconnects = 0
-                 val canReconnect = endedReconnects < 3
-                 // A live stream never legitimately ends — ENDED means the
-                 // provider dropped the socket. Reconnect instead of
-                 // silently finishing back to the channel list.
-                 if (contentType == ContentType.LIVE_TV) {
-                      // Inner cap (endedReconnects) AND the aggregate budget
-                      // must both allow it; canAttemptReconnect() records the
-                      // attempt + shows the banner only when it returns true.
-                      if (canReconnect && canAttemptReconnect()) {
-                           endedReconnects++; lastEndedReconnectAtMs = nowMs
-                           Log.i("PlayerActivity", "Live stream ended unexpectedly — reconnecting ($endedReconnects/3)")
-                           // A just-dropped socket usually refuses an immediate
-                           // reconnect — give the provider a moment so the FIRST
-                           // attempt succeeds instead of burning budget slots.
-                           // Stale-guarded: a zap meanwhile changes currentUrl
-                           // and this runnable no-ops.
-                           val urlAtEnded = currentUrl
-                           retryHandler.postDelayed({
-                                if (!isFinishing && !isDestroyed && currentUrl == urlAtEnded) {
-                                     urlAtEnded?.let { liveTuner.performSeamlessSwitch(it) }
-                                }
-                           }, LIVE_ENDED_RECONNECT_DELAY_MS)
-                      } else {
-                           recovery.handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
-                      }
-                      return
-                 }
-                 // Same for VOD: a mid-stream socket drop reports ENDED
-                 // long before the real end. Only finish when actually
-                 // at the end of the content; otherwise resume in place.
-                 val durationMs = player?.duration ?: 0L
-                 val positionMs = player?.currentPosition ?: 0L
-                 val endedMidStream = durationMs > 0L && positionMs < durationMs - 15_000L
-                 if (endedMidStream && canReconnect && canAttemptReconnect()) {
-                      endedReconnects++; lastEndedReconnectAtMs = nowMs
-                      Log.i(
-                          "PlayerActivity",
-                          "Stream ended ${durationMs - positionMs}ms before content end — resuming ($endedReconnects/3)"
-                      )
-                      startPositionMs = positionMs
-                      currentUrl?.let { liveTuner.performSeamlessSwitch(it) }
-                      return
-                 }
-                 // T1.5 episode continuity. The decision itself is a pure function so it can be
-                 // unit-tested (see endedActionFor / PlayerEndedActionTest): advance ONLY on a real
-                 // hasNext (no ghost load past the final episode), and never double-advance or
-                 // finish() while a next-episode resolve is still in flight.
-                 val isSeriesLike = contentType == ContentType.SERIES || contentType == ContentType.EPISODE
-                 when (
-                      endedActionFor(
-                           isSeriesLike = isSeriesLike,
-                           isResolvingDebrid = isResolvingDebrid,
-                           hasNext = viewModel.seriesPlaylistState.value?.hasNext == true,
-                           isNextPromptVisible = activity.isNextEpisodePromptVisible(),
-                      )
-                 ) {
-                      EndedAction.WAIT_FOR_RESOLVE -> return
-                      EndedAction.ADVANCE_TO_NEXT -> {
-                           seriesController.playNextEpisode()
-                           return
-                      }
-                      EndedAction.COMPLETE_AND_KEEP_PROMPT -> didPlaybackComplete = true
-                      EndedAction.COMPLETE_AND_FINISH -> {
-                           didPlaybackComplete = true
-                           activity.finish()
-                      }
-                 }
+                onStateEnded()
             }
         }
+    }
+
+    private fun onStateReady() {
+         isSwitching = false
+         // BUFFERING→READY: refresh the session network-quality estimate
+         // (QA fix 7) using the passive bandwidth meter, debounced.
+         if (lastBufferingStartMs != 0L) maybeUpdateNetworkQuality()
+         // Keep the resume target alive while a debrid re-resolve is in flight:
+         // clearing it here would make the upcoming seamless switch start from 0.
+         if (!isResolvingDebrid && player?.currentPosition ?: 0L > 1000) startPositionMs = 0L
+        maybeMatchDisplayFrameRate()
+        // Black-video watchdog (VOD): audio can play while the HW decoder
+        // renders no frames under tunneling — reinit without tunneling if so.
+        if (contentType != ContentType.LIVE_TV &&
+            !hasRenderedFirstFrameForCurrentSource && !blackVideoFallbackTried
+        ) {
+            timeoutHandler.removeCallbacks(blackVideoCheckRunnable)
+            timeoutHandler.postDelayed(blackVideoCheckRunnable, BLACK_VIDEO_CHECK_MS)
+        }
+        timeoutHandler.removeCallbacks(timeoutRunnable)
+        watchdogExtensions = 0
+        watchdogBufferedPosAtArm = -1L
+        retryCount = 0
+        audioSinkRecoveryCount = 0
+        // A clean READY means recovery succeeded — reset the unified
+        // reconnect budget (fix 2) and retire the banner (fix 3).
+        resetReconnectBudget()
+        hideReconnectingBanner()
+        // First playable frame — dissolve the cinematic loader to reveal video.
+        loaderUi.hide()
+        lastBufferingStartMs = 0L
+        addonProxyFailures.clearFailures()
+        maybeRecordDirectAddonProxySuccess()
+        if (contentType != ContentType.LIVE_TV) {
+            updatePlayPauseVisibility(playerView, player?.playWhenReady == true, isControllerVisible)
+            backHideArmed = false
+            playerView.showController()
+        }
+    }
+
+    private fun onStateEnded() {
+         val nowMs = SystemClock.elapsedRealtime()
+         if (nowMs - lastEndedReconnectAtMs > 30_000L) endedReconnects = 0
+         val canReconnect = endedReconnects < 3
+         // A live stream never legitimately ends — ENDED means the
+         // provider dropped the socket. Reconnect instead of
+         // silently finishing back to the channel list.
+         if (contentType == ContentType.LIVE_TV) {
+              onLiveEnded(nowMs, canReconnect)
+              return
+         }
+         // Same for VOD: a mid-stream socket drop reports ENDED
+         // long before the real end. Only finish when actually
+         // at the end of the content; otherwise resume in place.
+         val durationMs = player?.duration ?: 0L
+         val positionMs = player?.currentPosition ?: 0L
+         val endedMidStream = durationMs > 0L && positionMs < durationMs - 15_000L
+         if (endedMidStream && canReconnect && canAttemptReconnect()) {
+              endedReconnects++; lastEndedReconnectAtMs = nowMs
+              Log.i(
+                  "PlayerActivity",
+                  "Stream ended ${durationMs - positionMs}ms before content end — resuming ($endedReconnects/3)"
+              )
+              startPositionMs = positionMs
+              currentUrl?.let { liveTuner.performSeamlessSwitch(it) }
+              return
+         }
+         // T1.5 episode continuity. The decision itself is a pure function so it can be
+         // unit-tested (see endedActionFor / PlayerEndedActionTest): advance ONLY on a real
+         // hasNext (no ghost load past the final episode), and never double-advance or
+         // finish() while a next-episode resolve is still in flight.
+         val isSeriesLike = contentType == ContentType.SERIES || contentType == ContentType.EPISODE
+         when (
+              endedActionFor(
+                   isSeriesLike = isSeriesLike,
+                   isResolvingDebrid = isResolvingDebrid,
+                   hasNext = viewModel.seriesPlaylistState.value?.hasNext == true,
+                   isNextPromptVisible = activity.isNextEpisodePromptVisible(),
+              )
+         ) {
+              EndedAction.WAIT_FOR_RESOLVE -> return
+              EndedAction.ADVANCE_TO_NEXT -> {
+                   seriesController.playNextEpisode()
+                   return
+              }
+              EndedAction.COMPLETE_AND_KEEP_PROMPT -> didPlaybackComplete = true
+              EndedAction.COMPLETE_AND_FINISH -> {
+                   didPlaybackComplete = true
+                   activity.finish()
+              }
+         }
+    }
+
+    private fun onLiveEnded(nowMs: Long, canReconnect: Boolean) {
+         // Inner cap (endedReconnects) AND the aggregate budget
+         // must both allow it; canAttemptReconnect() records the
+         // attempt + shows the banner only when it returns true.
+         if (canReconnect && canAttemptReconnect()) {
+              endedReconnects++; lastEndedReconnectAtMs = nowMs
+              Log.i("PlayerActivity", "Live stream ended unexpectedly — reconnecting ($endedReconnects/3)")
+              // A just-dropped socket usually refuses an immediate
+              // reconnect — give the provider a moment so the FIRST
+              // attempt succeeds instead of burning budget slots.
+              // Stale-guarded: a zap meanwhile changes currentUrl
+              // and this runnable no-ops.
+              val urlAtEnded = currentUrl
+              retryHandler.postDelayed({ reconnectIfStillOn(urlAtEnded) }, LIVE_ENDED_RECONNECT_DELAY_MS)
+         } else {
+              recovery.handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
+         }
+    }
+
+    private fun reconnectIfStillOn(urlAtEnded: String?) {
+         if (!isFinishing && !isDestroyed && currentUrl == urlAtEnded) {
+              urlAtEnded?.let { liveTuner.performSeamlessSwitch(it) }
+         }
     }
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
         if (contentType != ContentType.LIVE_TV) {
@@ -253,30 +267,34 @@ internal class PlayerEventListener(
         timeoutHandler.postDelayed(captureRunnable, 1500)
 
         if (isSoftwareAudioEnabled) {
-            val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
-            var hasSupportedAudioSelected = false
-            var firstSupportedGroup: androidx.media3.common.Tracks.Group? = null
-            var hasAudioOverride = false
-            for (group in audioGroups) {
-                if (player?.trackSelectionParameters?.overrides?.containsKey(group.mediaTrackGroup) == true) {
-                    hasAudioOverride = true
-                }
-                if (group.isSupported) {
-                    if (firstSupportedGroup == null) firstSupportedGroup = group
-                    if (group.isSelected) { hasSupportedAudioSelected = true; break }
-                }
+            maybeAutoSelectSupportedAudio(tracks)
+        }
+    }
+
+    private fun maybeAutoSelectSupportedAudio(tracks: androidx.media3.common.Tracks) {
+        val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+        var hasSupportedAudioSelected = false
+        var firstSupportedGroup: androidx.media3.common.Tracks.Group? = null
+        var hasAudioOverride = false
+        for (group in audioGroups) {
+            if (player?.trackSelectionParameters?.overrides?.containsKey(group.mediaTrackGroup) == true) {
+                hasAudioOverride = true
             }
-            // Smart fallback fires only when there IS an alternative and the user hasn't chosen.
-            val fallbackGroup = if (audioGroups.size > 1) firstSupportedGroup else null
-            if (!hasSupportedAudioSelected && fallbackGroup != null && !hasAudioOverride) {
-                 // LP-B-6: guard the snapshot — the old `?: player?.trackSelectionParameters!!`
-                 // fallback NPE'd if the player was released while this callback was in flight.
-                 player?.let { p ->
-                     p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
-                         .setOverrideForType(TrackSelectionOverride(fallbackGroup.mediaTrackGroup, 0))
-                         .build()
-                 }
+            if (group.isSupported) {
+                if (firstSupportedGroup == null) firstSupportedGroup = group
+                if (group.isSelected) { hasSupportedAudioSelected = true; break }
             }
+        }
+        // Smart fallback fires only when there IS an alternative and the user hasn't chosen.
+        val fallbackGroup = if (audioGroups.size > 1) firstSupportedGroup else null
+        if (!hasSupportedAudioSelected && fallbackGroup != null && !hasAudioOverride) {
+             // LP-B-6: guard the snapshot — the old `?: player?.trackSelectionParameters!!`
+             // fallback NPE'd if the player was released while this callback was in flight.
+             player?.let { p ->
+                 p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
+                     .setOverrideForType(TrackSelectionOverride(fallbackGroup.mediaTrackGroup, 0))
+                     .build()
+             }
         }
     }
     override fun onPlayerError(error: PlaybackException) {
