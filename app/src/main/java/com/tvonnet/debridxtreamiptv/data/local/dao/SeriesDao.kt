@@ -108,6 +108,14 @@ interface SeriesDao {
     """)
     suspend fun searchSeries(query: String, categoryId: String?): List<SeriesEntity>
     
+    /** B-8 freshness gate: is this category's synced copy recent enough to skip the refetch? */
+    @Query("SELECT COUNT(*) AS rowCount, MAX(cachedAt) AS newestCachedAt FROM series_v2 WHERE categoryId = :categoryId")
+    suspend fun getCategoryFreshness(categoryId: String): CategoryCacheFreshness
+
+    /** Full category list (non-paging), in the synced order — the fresh-path read for B-8. */
+    @Query("SELECT * FROM series_v2 WHERE categoryId = :categoryId ORDER BY num ASC")
+    suspend fun getSeriesByCategorySync(categoryId: String): List<SeriesEntity>
+
     @Query("DELETE FROM series_v2")
     suspend fun deleteAllSeries()
 

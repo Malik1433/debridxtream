@@ -16,6 +16,12 @@ data class CategoryMovieCount(
     val count: Int
 )
 
+/** COUNT + newest cachedAt for one category in one scan — the B-8 freshness gate's input. */
+data class CategoryCacheFreshness(
+    val rowCount: Int,
+    val newestCachedAt: Long?
+)
+
 /**
  * DAO for VOD Movies
  * Phase 1: Database Infrastructure
@@ -73,6 +79,14 @@ interface VodDao {
     /** Per-category synced movie counts, in one pass, for the sidebar badges. */
     @Query("SELECT categoryId AS categoryId, COUNT(*) AS count FROM vod_v2 WHERE categoryId IS NOT NULL GROUP BY categoryId")
     suspend fun getMovieCountsByCategory(): List<CategoryMovieCount>
+
+    /** B-8 freshness gate: is this category's synced copy recent enough to skip the refetch? */
+    @Query("SELECT COUNT(*) AS rowCount, MAX(cachedAt) AS newestCachedAt FROM vod_v2 WHERE categoryId = :categoryId")
+    suspend fun getCategoryFreshness(categoryId: String): CategoryCacheFreshness
+
+    /** Full category list (non-paging), in the synced order — the fresh-path read for B-8. */
+    @Query("SELECT * FROM vod_v2 WHERE categoryId = :categoryId ORDER BY num ASC")
+    suspend fun getMoviesByCategorySync(categoryId: String): List<VodEntity>
 
     @Query("DELETE FROM vod_v2")
     suspend fun deleteAllMovies()

@@ -97,6 +97,14 @@ internal class VodRepository(
                 return Result.Success(cached)
             }
 
+            // B-8: a fresh synced copy in Room is served as-is — no network refetch, no
+            // delete+insert rewrite of an unchanged category. Stale/empty falls through.
+            freshDbCopyOrNull(categoryId)?.let { cached ->
+                perCategoryVodCache[categoryId] = cached
+                Log.d(TAG, "B-8: category $categoryId fresh in DB (${cached.size} movies), skipping refetch")
+                return Result.Success(cached)
+            }
+
             val service = apiService ?: return Result.Error(Exception("API service not initialized"))
 
             return try {
@@ -105,20 +113,8 @@ internal class VodRepository(
                     Log.d(TAG, "Fetching VOD streams for category: $categoryId")
                     val response = service.getVodStreams(username, password, categoryId = categoryId)
                     if (response.isSuccessful) {
-                        val streams = response.body().orEmpty()
+                        val streams = persistFetchedCategory(categoryId, response.body().orEmpty())
                         perCategoryVodCache[categoryId] = streams
-                        
-                        // Save to DB
-                        try {
-                            vodDao?.let { dao ->
-                                val entities = streams.map { it.toVodEntity(categoryId) }
-                                dao.replaceMoviesForCategory(categoryId, entities)
-                                Log.d(TAG, "Saved ${entities.size} movies to DB for category $categoryId (Atomic Replace)")
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to save movies to DB", e)
-                        }
-
                         Log.d(TAG, "VOD streams fetched for category $categoryId: ${streams.size} movies")
                         Result.Success(streams)
                     } else {
@@ -136,6 +132,55 @@ internal class VodRepository(
         }
     }
     
+    /**
+     * B-8 fresh path: the category's Room copy, but only when it is recent enough
+     * ([CategoryFetchFreshness]) and non-empty. Null means "go to the network".
+     */
+    private suspend fun freshDbCopyOrNull(categoryId: String): List<XtreamVodInfo>? {
+        return try {
+            val freshness = vodDao.getCategoryFreshness(categoryId)
+            if (!CategoryFetchFreshness.isFresh(
+                    freshness.rowCount, freshness.newestCachedAt, System.currentTimeMillis()
+                )
+            ) {
+                return null
+            }
+            vodDao.getMoviesByCategorySync(categoryId)
+                .map { it.toXtreamVodInfo() }
+                .takeIf { it.isNotEmpty() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "B-8 freshness check failed for category $categoryId, falling through to network", e)
+            null
+        }
+    }
+
+    /**
+     * Persists a fetched category — unless the response is empty while Room still holds rows,
+     * in which case the rows are kept and served (never let an empty refresh destroy good data,
+     * the SY-1 rule). Returns the list callers should treat as the category's content.
+     */
+    private suspend fun persistFetchedCategory(
+        categoryId: String,
+        streams: List<XtreamVodInfo>
+    ): List<XtreamVodInfo> {
+        if (streams.isEmpty() && vodDao.getCategoryFreshness(categoryId).rowCount > 0) {
+            Log.w(TAG, "Empty VOD response for category $categoryId, keeping existing rows")
+            return vodDao.getMoviesByCategorySync(categoryId).map { it.toXtreamVodInfo() }
+        }
+        try {
+            val entities = streams.map { it.toVodEntity(categoryId) }
+            vodDao.replaceMoviesForCategory(categoryId, entities)
+            Log.d(TAG, "Saved ${entities.size} movies to DB for category $categoryId (Atomic Replace)")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save movies to DB", e)
+        }
+        return streams
+    }
+
     suspend fun ensureVodCategories(): List<XtreamCategory> {
         cacheManager?.getCategories("vod")?.let { cached ->
             if (cached.isNotEmpty()) {

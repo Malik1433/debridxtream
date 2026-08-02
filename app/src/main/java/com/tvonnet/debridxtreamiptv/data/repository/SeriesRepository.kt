@@ -168,6 +168,28 @@ internal class SeriesRepository(
             return Result.Success(cachedDuringCooldown)
         }
 
+        // B-8: a fresh synced copy in Room is served as-is — no network refetch, no L2 preload
+        // rewrite, no delete+insert of an unchanged category. Stale/empty falls through to the
+        // existing network + fallback chain.
+        try {
+            val freshness = seriesDao.getCategoryFreshness(categoryId)
+            if (CategoryFetchFreshness.isFresh(
+                    freshness.rowCount, freshness.newestCachedAt, System.currentTimeMillis()
+                )
+            ) {
+                val cached = seriesDao.getSeriesByCategorySync(categoryId).map { it.toXtreamSeriesInfo() }
+                if (cached.isNotEmpty()) {
+                    perCategorySeriesCache[categoryId] = cached
+                    Log.d(TAG, "B-8: category $categoryId fresh in DB (${cached.size} series), skipping refetch")
+                    return Result.Success(cached)
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "B-8 freshness check failed for category $categoryId, falling through to network", e)
+        }
+
         return try {
             if (apiService == null) {
                 return Result.Error(Exception("API service not initialized"))
