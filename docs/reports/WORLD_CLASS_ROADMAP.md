@@ -711,6 +711,63 @@ reload?" without a live session). G3 is a product/legal decision, not a coding t
 - **F2** — The outstanding owner QA reminder: series **final-episode END** (ghost-advance + next-episode
   prompt), still unverified.
 
+### Tier H — the debrid source list: fewer rows, honest languages *(owner-requested 2026-08-03)*
+
+Full plan with file:line evidence for every claim: **`docs/reports/SOURCE_LIST_QUALITY_PLAN.md`**.
+The outline below is the executable summary. **Start after E1p.**
+
+**The problem.** Opening a title in Debrid lists 100–500 sources, but most are not different files:
+the same release comes back from several addons, so ~10 real files appear as ~40 rows. And most rows
+say only `MULTI`, which never says *which* languages — so a customer looking for Hindi cannot find it.
+
+Three findings from the exploration pass change the shape of the fix:
+
+1. **`DebridCacheVerifier.kt:37,63` only cache-verifies the first 10 hashes.** On a duplicate-heavy
+   list those 10 checks are spent on 4 copies of 3 files, so most real files never get a cache
+   verdict. Collapsing duplicates restores cache accuracy — a benefit nobody asked for.
+2. **Streams with no `infoHash` are skipped by dedup entirely** (`SourceHelpers.kt:113-117`) — and the
+   hash is usually sitting in the proxy URL path (`.../<40-hex>/<fileIdx>/`, cf.
+   `StremioAddonFetcher.kt:38`). Recovering it is the single highest-leverage change here.
+3. **Language is *inside* the dedup key** (`SourceHelpers.kt:140-143`), so the same torrent tagged
+   differently by two addons splits into two rows. The duplicate problem and the language problem
+   have been feeding each other — which is why the order below is not negotiable.
+
+**Owner decisions (locked, 2026-08-03).** Duplicates are **collapsed and counted** ("4 sources"), not
+discarded — the count is a reliability signal and the alternates are the failover path. Addon
+reliability is **learned silently**, no settings UI. Verified languages are **shared via Firestore**,
+so the first person to play a release teaches everyone.
+
+- **H0** — `StreamIdentity.kt`: one "which real file is this?" function. Hash from infoHash ▸ magnet ▸
+  **URL path**. Nothing else in the key — languages/delivery/provider were presentation, never
+  identity. A weak name+size fallback only when both agree and the title is not a placeholder,
+  because collapsing two *different* files is far worse than showing two rows. Behaviour-preserving.
+- **H1** — `StreamGrouping.kt`: one row per file + retained alternates; `addonCount` badge. Must run
+  **before** `verifyRealDebridCacheStatuses` so the 10-hash budget buys 10 distinct files. Watch the
+  `_<idx>` stream-id suffix (`MovieSourceConversion.kt:94-98`) — D-pad focus must not jump.
+- **H2** — `SourceAlternates.kt`: a dead link silently retries the **same file** from another addon
+  before the file is blacklisted (today one failure blacklists it at
+  `MovieDebridPlaybackController.kt:97`). Own budget, separate from `MAX_AUTO_FALLBACK_ATTEMPTS`.
+- **H3** — stop inventing languages: `LanguageParser.kt:44,72-79` returns `emptyList()` instead of
+  `listOf("en")`; unknown renders as one neutral chip, not a lie. **`MULTI` must then match any
+  language filter** — otherwise removing the fake "en" would *hide* rows the English filter used to
+  show. Scoring must change in **both** sorters (the sheet sorts twice) or they fight.
+- **H4** — learn real audio languages at `PlayerEventListener.kt:260 onTracksChanged`, keyed by
+  infoHash; Room **v15** additive table + migration test. Verified chips get a check-mark.
+- **H5** — share them via `release_languages/{hash}` (opaque id, no PII), `arrayUnion` + `increment`,
+  fire-and-forget in `DeviceIdentity`'s posture; bounded read that never overwrites cached data.
+- **H6** — silent per-addon reliability in SharedPreferences. **First rendered frame is the only
+  honest success signal.** Neutral until ≥5 observations; a tiebreak *within* the family only, so a
+  bad night cannot invert the list.
+
+**Order matters:** H1 first (the only immediately visible win, and it frees the cache budget) → H2
+(needs H1's alternates) → H3 (must follow H1, language is inside the dedup key today) → H4 → H5 → H6.
+
+**File-layout constraint:** `MovieDebridSourceController.kt` (613 lines) and
+`MovieDebridPlaybackController.kt` (556) are at/over the 600 ceiling — **all new logic goes in new
+files**, never into those two.
+
+---
+
 ---
 
 ## 4. Known landmines — never regress these
