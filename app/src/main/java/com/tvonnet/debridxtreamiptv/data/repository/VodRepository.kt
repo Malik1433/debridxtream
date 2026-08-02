@@ -204,12 +204,7 @@ internal class VodRepository(
             if (response.isSuccessful) {
                 val categories = response.body().orEmpty()
                 if (categories.isNotEmpty()) {
-                    try {
-                        cacheManager?.putCategories(categories, "vod")
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed to persist VOD categories into CacheManager", e)
-                    }
-                    updateVodCategoriesCache(categories)
+                    cacheFetchedVodCategories(categories)
                 }
                 categories
             } else {
@@ -220,6 +215,15 @@ internal class VodRepository(
             Log.e(TAG, "Error fetching VOD categories", e)
             emptyList()
         }
+    }
+
+    private suspend fun cacheFetchedVodCategories(categories: List<XtreamCategory>) {
+        try {
+            cacheManager?.putCategories(categories, "vod")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to persist VOD categories into CacheManager", e)
+        }
+        updateVodCategoriesCache(categories)
     }
 
     private suspend fun updateVodCategoriesCache(categories: List<XtreamCategory>) {
@@ -344,12 +348,7 @@ internal class VodRepository(
 
                 if (!matchesId && !matchesName) continue
 
-                if (!matchesId) {
-                    val candidateYear = extractYear(stream.releaseDate)
-                    if (targetYear != null && candidateYear != null && abs(candidateYear - targetYear) > 1) {
-                        continue
-                    }
-                }
+                if (!matchesId && yearVetoesNameMatch(stream, targetYear)) continue
 
                 val label = buildMovieSourceLabel(category, stream)
                 sources[candidateId] = MovieSource(
@@ -374,6 +373,12 @@ internal class VodRepository(
         }
 
         return sources.values.sortedWith(comparator)
+    }
+
+    /** A name-only match is rejected when both sides carry a year and they differ by more than 1. */
+    private fun yearVetoesNameMatch(stream: XtreamVodInfo, targetYear: Int?): Boolean {
+        val candidateYear = extractYear(stream.releaseDate)
+        return targetYear != null && candidateYear != null && abs(candidateYear - targetYear) > 1
     }
 
     suspend fun getVodById(streamId: String): XtreamVodInfo? {

@@ -82,12 +82,7 @@ internal class SeriesRepository(
             if (response.isSuccessful) {
                 val categories = response.body().orEmpty()
                 if (categories.isNotEmpty()) {
-                    try {
-                        cacheManager?.putCategories(categories, "series")
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed to persist Series categories into CacheManager", e)
-                    }
-                    updateSeriesCategoriesCache(categories)
+                    cacheFetchedSeriesCategories(categories)
                 }
                 categories
             } else {
@@ -98,6 +93,15 @@ internal class SeriesRepository(
             Log.e(TAG, "Error fetching Series categories", e)
             emptyList()
         }
+    }
+
+    private suspend fun cacheFetchedSeriesCategories(categories: List<XtreamCategory>) {
+        try {
+            cacheManager?.putCategories(categories, "series")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to persist Series categories into CacheManager", e)
+        }
+        updateSeriesCategoriesCache(categories)
     }
 
     private suspend fun updateSeriesCategoriesCache(categories: List<XtreamCategory>) {
@@ -197,28 +201,7 @@ internal class SeriesRepository(
             
         Log.d(TAG, "Fetching series for category: $categoryId")
             
-            // Level 2 Cache: Check if we have "All Series" cached and pre-load DB
-            // This prevents the 10s delay if the category returns 404 but we already have the data
-            try {
-                if (allSeriesCacheFallback == null) {
-                    allSeriesCacheFallback = cacheHelper.readAllSeries()
-                }
-                
-                allSeriesCacheFallback?.let { allSeries ->
-                    val filtered = allSeries.filter { it.matchesCategory(categoryId) }
-
-                    if (filtered.isNotEmpty()) {
-                        Log.d(TAG, "⚡ Level 2 Cache HIT: Pre-loading ${filtered.size} series for category $categoryId")
-                        // Save to DB immediately so UI shows data while network call runs
-                        seriesDao?.let { dao ->
-                            val entities = filtered.map { it.toSeriesEntity(categoryId) }
-                            dao.replaceSeriesForCategory(categoryId, entities)
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to pre-load from Level 2 cache", e)
-            }
+            preloadSeriesFromLevel2Cache(categoryId)
 
             val response = apiService!!.getSeries(username, password, categoryId = categoryId)
             
@@ -227,20 +210,9 @@ internal class SeriesRepository(
                 if (streams.isNotEmpty()) {
                     Log.d(TAG, "Series fetched for category $categoryId: ${streams.size} series")
                     updateSeriesCacheForCategory(categoryId, streams)
-                    
+
                     // Phase 2: Save to Database
-                    try {
-                        seriesDao?.let { dao ->
-                            val entities = streams.mapIndexed { index, item -> 
-                                item.copy(num = index).toSeriesEntity(categoryId) 
-                            }
-                            // Use atomic transaction to replace series (Delete + Insert) prevents empty list flicker
-                            dao.replaceSeriesForCategory(categoryId, entities)
-                            Log.d(TAG, "Saved ${entities.size} series to DB for category $categoryId (Atomic Replace)")
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to save series to DB", e)
-                    }
+                    saveSeriesPageToDb(categoryId, streams)
                     markSeriesCategoryHealthy(categoryId)
                     Result.Success(streams)
                 } else {
@@ -251,44 +223,7 @@ internal class SeriesRepository(
                     )
                 }
             } else if (response.code() == 404) {
-                Log.w(TAG, "Series category $categoryId returned 404. Attempting to fetch ALL series and filter.")
-                
-                // Try fetching all series
-                val allResult = fetchAllSeries()
-                if (allResult is Result.Success) {
-                    Log.d(TAG, "Filtering ${allResult.data.size} series for category $categoryId")
-                    // Removed: a leftover debug loop that logged the first 5 series on every 404
-                    // fallback. Same shape as the runBlocking DB counts deleted for B-4 — diagnostic
-                    // scaffolding that outlived the diagnosis and now runs on a user-facing path.
-                    val filtered = allResult.data.filter { it.matchesCategory(categoryId) }
-
-                    if (filtered.isNotEmpty()) {
-                        Log.d(TAG, "Found ${filtered.size} series for category $categoryId in ALL list")
-                        updateSeriesCacheForCategory(categoryId, filtered)
-                        
-                         // Save to DB
-                        try {
-                            seriesDao?.let { dao ->
-                                val entities = filtered.mapIndexed { index, item -> 
-                                    item.copy(num = index).toSeriesEntity(categoryId) 
-                                }
-                                dao.replaceSeriesForCategory(categoryId, entities)
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to save fallback series to DB", e)
-                        }
-                        
-                        // Mark as healthy since we found data
-                        markSeriesCategoryHealthy(categoryId)
-                        return Result.Success(filtered)
-                    }
-                }
-                
-                handleSeriesFallback(
-                    categoryId = categoryId,
-                    warningMessage = "Series category $categoryId returned 404 and not found in ALL list. Attempting cache fallback.",
-                    failureState = SeriesCategoryState.TEMPORARILY_UNAVAILABLE
-                )
+                handleSeries404Fallback(categoryId)
             } else {
                 val error = HttpException(response)
                 updateSeriesCategoryStatus(
@@ -313,6 +248,87 @@ internal class SeriesRepository(
             } else {
                 Result.Error(e)
             }
+        }
+    }
+
+    // Level 2 Cache: Check if we have "All Series" cached and pre-load DB
+    // This prevents the 10s delay if the category returns 404 but we already have the data
+    private suspend fun preloadSeriesFromLevel2Cache(categoryId: String) {
+        try {
+            if (allSeriesCacheFallback == null) {
+                allSeriesCacheFallback = cacheHelper.readAllSeries()
+            }
+            val allSeries = allSeriesCacheFallback ?: return
+            val filtered = allSeries.filter { it.matchesCategory(categoryId) }
+            if (filtered.isEmpty()) return
+            Log.d(TAG, "⚡ Level 2 Cache HIT: Pre-loading ${filtered.size} series for category $categoryId")
+            // Save to DB immediately so UI shows data while network call runs
+            seriesDao?.let { dao ->
+                val entities = filtered.map { it.toSeriesEntity(categoryId) }
+                dao.replaceSeriesForCategory(categoryId, entities)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to pre-load from Level 2 cache", e)
+        }
+    }
+
+    private suspend fun saveSeriesPageToDb(categoryId: String, streams: List<XtreamSeriesInfo>) {
+        try {
+            seriesDao?.let { dao ->
+                val entities = streams.mapIndexed { index, item ->
+                    item.copy(num = index).toSeriesEntity(categoryId)
+                }
+                // Use atomic transaction to replace series (Delete + Insert) prevents empty list flicker
+                dao.replaceSeriesForCategory(categoryId, entities)
+                Log.d(TAG, "Saved ${entities.size} series to DB for category $categoryId (Atomic Replace)")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save series to DB", e)
+        }
+    }
+
+    private suspend fun handleSeries404Fallback(categoryId: String): Result<List<XtreamSeriesInfo>> {
+        Log.w(TAG, "Series category $categoryId returned 404. Attempting to fetch ALL series and filter.")
+
+        // Try fetching all series
+        val allResult = fetchAllSeries()
+        if (allResult is Result.Success) {
+            Log.d(TAG, "Filtering ${allResult.data.size} series for category $categoryId")
+            // Removed: a leftover debug loop that logged the first 5 series on every 404
+            // fallback. Same shape as the runBlocking DB counts deleted for B-4 — diagnostic
+            // scaffolding that outlived the diagnosis and now runs on a user-facing path.
+            val filtered = allResult.data.filter { it.matchesCategory(categoryId) }
+
+            if (filtered.isNotEmpty()) {
+                Log.d(TAG, "Found ${filtered.size} series for category $categoryId in ALL list")
+                updateSeriesCacheForCategory(categoryId, filtered)
+
+                // Save to DB
+                saveFallbackSeriesToDb(categoryId, filtered)
+
+                // Mark as healthy since we found data
+                markSeriesCategoryHealthy(categoryId)
+                return Result.Success(filtered)
+            }
+        }
+
+        return handleSeriesFallback(
+            categoryId = categoryId,
+            warningMessage = "Series category $categoryId returned 404 and not found in ALL list. Attempting cache fallback.",
+            failureState = SeriesCategoryState.TEMPORARILY_UNAVAILABLE
+        )
+    }
+
+    private suspend fun saveFallbackSeriesToDb(categoryId: String, filtered: List<XtreamSeriesInfo>) {
+        try {
+            seriesDao?.let { dao ->
+                val entities = filtered.mapIndexed { index, item ->
+                    item.copy(num = index).toSeriesEntity(categoryId)
+                }
+                dao.replaceSeriesForCategory(categoryId, entities)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save fallback series to DB", e)
         }
     }
 
@@ -399,31 +415,29 @@ internal class SeriesRepository(
         Log.d("XtreamDebug", "syncSeriesDetail: Starting for $seriesId")
         val result = fetchSeriesDetailFromNetwork(seriesId)
         if (result is Result.Success) {
-            val detail = result.data
-            if (seriesDao != null) {
-                try {
-                    Log.d("XtreamDebug", "syncSeriesDetail: Saving to DB...")
-                    val seasonEntities = detail.seasons?.map { it.toSeasonEntity(seriesId) } ?: emptyList()
-                    val episodeEntities = mutableListOf<com.tvonnet.debridxtreamiptv.data.local.entity.EpisodeEntity>()
-                    detail.episodes?.forEach { entry ->
-                         val seasonKey = entry.key
-                         val episodes = entry.value
-                         val seasonNum = seasonKey.filter { it.isDigit() }.toIntOrNull() ?: 0
-                         episodes.forEach { episode ->
-                             episodeEntities.add(episode.toEpisodeEntity(seriesId, seasonNum))
-                         }
-                    }
-                    
-                    seriesDao.saveSeriesDetails(seriesId, seasonEntities, episodeEntities)
-                    Log.d("XtreamDebug", "✅ Series $seriesId details synced to database in ${System.currentTimeMillis() - start}ms")
-                } catch (e: Exception) {
-                    Log.e("XtreamDebug", "❌ Failed to save series details to database. Data will still show in UI.", e)
-                }
-            }
+            persistSeriesDetailToDb(seriesId, result.data, start)
         } else {
              Log.e("XtreamDebug", "syncSeriesDetail: Fetch failed")
         }
         return result
+    }
+
+    private suspend fun persistSeriesDetailToDb(
+        seriesId: String,
+        detail: XtreamSeriesDetailResponse,
+        start: Long
+    ) {
+        if (seriesDao == null) return
+        try {
+            Log.d("XtreamDebug", "syncSeriesDetail: Saving to DB...")
+            val seasonEntities = detail.seasons?.map { it.toSeasonEntity(seriesId) } ?: emptyList()
+            val episodeEntities = buildEpisodeEntities(seriesId, detail)
+
+            seriesDao.saveSeriesDetails(seriesId, seasonEntities, episodeEntities)
+            Log.d("XtreamDebug", "✅ Series $seriesId details synced to database in ${System.currentTimeMillis() - start}ms")
+        } catch (e: Exception) {
+            Log.e("XtreamDebug", "❌ Failed to save series details to database. Data will still show in UI.", e)
+        }
     }
 
     private suspend fun fetchSeriesDetailFromNetwork(seriesId: String): Result<XtreamSeriesDetailResponse> {
@@ -495,26 +509,9 @@ internal class SeriesRepository(
             // 2. Fetch episodes using get_series_episodes (get_show_episodes)
             val episodesResponse = apiService!!.getSeriesEpisodes(username, password, seriesId = seriesId)
              var episodesMap: Map<String, List<XtreamEpisodeInfo>>? = null
-             
+
             if (episodesResponse.isSuccessful && episodesResponse.body() != null) {
-                 val json = episodesResponse.body()!!
-                 
-                 // Handle dynamic JSON (Map vs List)
-                 if (json.isJsonObject) {
-                     val type = object : TypeToken<Map<String, List<XtreamEpisodeInfo>>>() {}.type
-                     // We need to parse manually or strict because Gson might fail on "info"
-                      try {
-                          episodesMap = Gson().fromJson(json, type)
-                      } catch(e: Exception) {
-                          Log.e("XtreamDebug", "Fallback 2 JSON Parse Error: ${e.message}")
-                      }
-                 } else if (json.isJsonArray) {
-                      // Sometimes it returns a list of episodes directly? Or list of objects?
-                      // Standard Xtream get_show_episodes returns Map "1": [episodes], "2": [episodes]
-                      // If it is array, likely empty []
-                      Log.w("XtreamDebug", "Fallback 2 returned Array, constructing empty map")
-                      episodesMap = emptyMap()
-                 }
+                 episodesMap = parseFallbackEpisodesJson(episodesResponse.body()!!)
             }
             
             val combined = XtreamSeriesDetailResponse(
@@ -763,4 +760,44 @@ internal class SeriesRepository(
         private const val LATEST_SERIES_LIMIT = 24
         private const val SERIES_DETAIL_REQUEST_TIMEOUT_MS = 15_000L
     }
+}
+
+// Pure helpers for the series-detail sync path, deliberately outside the class: they touch no
+// repository state, and SeriesRepository sits right at the LargeClass ceiling.
+
+private fun buildEpisodeEntities(
+    seriesId: String,
+    detail: XtreamSeriesDetailResponse
+): List<com.tvonnet.debridxtreamiptv.data.local.entity.EpisodeEntity> {
+    val episodeEntities = mutableListOf<com.tvonnet.debridxtreamiptv.data.local.entity.EpisodeEntity>()
+    detail.episodes?.forEach { entry ->
+         val seasonKey = entry.key
+         val episodes = entry.value
+         val seasonNum = seasonKey.filter { it.isDigit() }.toIntOrNull() ?: 0
+         episodes.forEach { episode ->
+             episodeEntities.add(episode.toEpisodeEntity(seriesId, seasonNum))
+         }
+    }
+    return episodeEntities
+}
+
+// Handle dynamic JSON (Map vs List)
+private fun parseFallbackEpisodesJson(json: JsonElement): Map<String, List<XtreamEpisodeInfo>>? {
+    var episodesMap: Map<String, List<XtreamEpisodeInfo>>? = null
+    if (json.isJsonObject) {
+        val type = object : TypeToken<Map<String, List<XtreamEpisodeInfo>>>() {}.type
+        // We need to parse manually or strict because Gson might fail on "info"
+        try {
+            episodesMap = Gson().fromJson(json, type)
+        } catch(e: Exception) {
+            Log.e("XtreamDebug", "Fallback 2 JSON Parse Error: ${e.message}")
+        }
+    } else if (json.isJsonArray) {
+        // Sometimes it returns a list of episodes directly? Or list of objects?
+        // Standard Xtream get_show_episodes returns Map "1": [episodes], "2": [episodes]
+        // If it is array, likely empty []
+        Log.w("XtreamDebug", "Fallback 2 returned Array, constructing empty map")
+        episodesMap = emptyMap()
+    }
+    return episodesMap
 }

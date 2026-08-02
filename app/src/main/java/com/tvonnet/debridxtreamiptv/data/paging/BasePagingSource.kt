@@ -40,29 +40,10 @@ abstract class BasePagingSource<T : Any>(
         return try {
             val startIndex = params.key ?: 0
             val loadSize = params.loadSize
-            
+
             // Fetch items for this category if not cached
-            if (cachedItems == null) {
-                Log.d(getLogTag(), "Fetching items for category: $categoryId")
-                val result = fetchFromApi(categoryId)
-                
-                cachedItems = when (result) {
-                    is Result.Success -> {
-                        Log.d(getLogTag(), "Fetched ${result.data.size} items")
-                        result.data
-                    }
-                    is Result.Error -> {
-                        Log.e(getLogTag(), "Error fetching items", result.exception)
-                        if (treatErrorAsEmpty()) {
-                            emptyList()
-                        } else {
-                            return LoadResult.Error(result.exception)
-                        }
-                    }
-                    else -> emptyList()
-                }
-            }
-            
+            ensureItemsCached()?.let { return it }
+
             val allItems = cachedItems ?: emptyList()
             
             val safeStart = startIndex.coerceIn(0, allItems.size)
@@ -81,7 +62,31 @@ abstract class BasePagingSource<T : Any>(
             LoadResult.Error(e)
         }
     }
-    
+
+    // Fills cachedItems on first load; a non-null return is the error to propagate from load().
+    private suspend fun ensureItemsCached(): LoadResult.Error<Int, T>? {
+        if (cachedItems != null) return null
+        Log.d(getLogTag(), "Fetching items for category: $categoryId")
+        val result = fetchFromApi(categoryId)
+
+        cachedItems = when (result) {
+            is Result.Success -> {
+                Log.d(getLogTag(), "Fetched ${result.data.size} items")
+                result.data
+            }
+            is Result.Error -> {
+                Log.e(getLogTag(), "Error fetching items", result.exception)
+                if (treatErrorAsEmpty()) {
+                    emptyList()
+                } else {
+                    return LoadResult.Error(result.exception)
+                }
+            }
+            else -> emptyList()
+        }
+        return null
+    }
+
     override fun getRefreshKey(state: PagingState<Int, T>): Int? {
         val anchor = state.anchorPosition ?: return null
         val page = state.closestPageToPosition(anchor) ?: return null

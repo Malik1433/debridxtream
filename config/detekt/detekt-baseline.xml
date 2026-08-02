@@ -199,9 +199,7 @@
     <ID>LongParameterList:SeriesSeasonUi.kt$SeriesSeasonUi$( private val activity: AppCompatActivity, private val rvSeasons: RecyclerView, private val rvEpisodes: RecyclerView, private val tvEmptyEpisodes: TextView, private val btnWatchNow: AppCompatButton, private val btnSeasonSelector: AppCompatButton, private val tvSeasonProgress: TextView, private val tvSeasonEpisodeCount: TextView, private val layoutResume: LinearLayout, private val tvResumeLabel: TextView, private val tvResumeRight: TextView, private val vResumeProgress: View, private val tvResumeEpTitle: TextView, private val watchedStateRepository: WatchedStateRepository, private val isDebrid: () -&gt; Boolean, private val seriesId: () -&gt; String?, private val seriesName: () -&gt; String?, private val seriesReleaseDate: () -&gt; String?, private val onPlayEpisode: (EpisodeUiModel) -&gt; Unit, )</ID>
     <ID>LongParameterList:SyncManager.kt$SyncManager$( private val session: XtreamSession, private val catalogCache: CatalogCache, private val cacheHelper: CacheHelper, private val cacheManager: CacheManager, private val syncPrefs: SharedPreferences, private val liveRepository: LiveRepository, private val vodRepository: VodRepository, private val seriesRepository: SeriesRepository, private val searchIndexManager: SearchIndexManager )</ID>
     <ID>LongParameterList:VodAdapter.kt$VodViewHolder$( movie: XtreamVodInfo, isFavorite: Boolean, isWatched: Boolean, progress: Float?, onItemFocused: ((Int) -&gt; Unit)?, onClick: (XtreamVodInfo) -&gt; Unit, onLongClick: ((XtreamVodInfo) -&gt; Unit)? = null )</ID>
-    <ID>NestedBlockDepth:BasePagingSource.kt$BasePagingSource$override suspend fun load(params: LoadParams&lt;Int&gt;): LoadResult&lt;Int, T&gt;</ID>
     <ID>NestedBlockDepth:HomeNavigationRouter.kt$HomeNavigationRouter$suspend fun openContinueWatchingDetail(item: ContinueWatchingItem)</ID>
-    <ID>NestedBlockDepth:LiveRepository.kt$LiveRepository$suspend fun ensureLiveCategories(): List&lt;XtreamCategory&gt;</ID>
     <ID>NestedBlockDepth:PlaybackResolver.kt$PlaybackResolver$suspend fun resolve( source: String, streamUrl: String?, isExpired: Boolean, infoHash: String?, magnet: String?, seasonNumber: Int? = null, episodeNumber: Int? = null, episodeTitle: String? = null, allowDirectHttpPassthrough: Boolean = true ): ResolutionResult</ID>
     <ID>NestedBlockDepth:PlayerEventListener.kt$PlayerEventListener$override fun onPlaybackStateChanged(playbackState: Int)</ID>
     <ID>NestedBlockDepth:PlayerEventListener.kt$PlayerEventListener$override fun onTracksChanged(tracks: androidx.media3.common.Tracks)</ID>
@@ -210,12 +208,6 @@
     <ID>NestedBlockDepth:PlayerSeriesController.kt$PlayerSeriesController$fun showEpisodeBrowser()</ID>
     <ID>NestedBlockDepth:PlayerTrackManager.kt$PlayerTrackManager$fun applyTrackIndexOverrides( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
     <ID>NestedBlockDepth:PlayerTrackManager.kt$PlayerTrackManager$fun captureManualTrackSelection( player: Player, debridInfoHashExtra: String?, seriesId: String? )</ID>
-    <ID>NestedBlockDepth:SeriesRepository.kt$SeriesRepository$private suspend fun fetchFallbackSeriesDetail(seriesId: String): Result&lt;XtreamSeriesDetailResponse&gt;</ID>
-    <ID>NestedBlockDepth:SeriesRepository.kt$SeriesRepository$suspend fun ensureSeriesCategories(): List&lt;XtreamCategory&gt;</ID>
-    <ID>NestedBlockDepth:SeriesRepository.kt$SeriesRepository$suspend fun fetchSeriesForCategory(categoryId: String): Result&lt;List&lt;XtreamSeriesInfo&gt;&gt;</ID>
-    <ID>NestedBlockDepth:SeriesRepository.kt$SeriesRepository$suspend fun syncSeriesDetail(seriesId: String): Result&lt;XtreamSeriesDetailResponse&gt;</ID>
-    <ID>NestedBlockDepth:VodRepository.kt$VodRepository$suspend fun ensureVodCategories(): List&lt;XtreamCategory&gt;</ID>
-    <ID>NestedBlockDepth:VodRepository.kt$VodRepository$suspend fun getMovieSources( streamId: String?, title: String?, primaryCategoryId: String?, yearHint: String? ): List&lt;MovieSource&gt;</ID>
     <ID>SpreadOperator:AppModule.kt$AppModule$(*DatabaseMigrations.getAllMigrations())</ID>
     <ID>SpreadOperator:EpgParser.kt$EpgParser.XmlDeclarationStrippingReader$('&lt;', '?', *probe.copyOf(read3))</ID>
     <ID>TooManyFunctions:BasePlayerFragment.kt$BasePlayerFragment : FragmentRecoveryHost</ID>

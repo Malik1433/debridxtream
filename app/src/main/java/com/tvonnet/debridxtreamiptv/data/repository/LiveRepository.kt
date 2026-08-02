@@ -97,22 +97,7 @@ internal class LiveRepository(
             if (response.isSuccessful) {
                 val categories = response.body().orEmpty()
                 if (categories.isNotEmpty()) {
-                    try {
-                        cacheManager?.putCategories(categories, "live")
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed to persist Live categories into CacheManager", e)
-                    }
-                    // Update memory cache
-                    val existingCache = readCache()
-                    val existingStreams = existingCache?.live?.streams ?: emptyList()
-                    val updatedLiveData = LiveCacheData(categories, existingStreams)
-                    val updatedCache = if (existingCache != null) {
-                        existingCache.copy(timestamp = System.currentTimeMillis(), live = updatedLiveData)
-                    } else {
-                        IptvCache(System.currentTimeMillis(), updatedLiveData, null, null, null)
-                    }
-                    memoryCache = updatedCache
-                    withContext(Dispatchers.IO) { cacheHelper.writeCache(updatedCache) }
+                    cacheFetchedLiveCategories(categories)
                 }
                 categories
             } else {
@@ -124,7 +109,26 @@ internal class LiveRepository(
             emptyList()
         }
     }
-    
+
+    private suspend fun cacheFetchedLiveCategories(categories: List<XtreamCategory>) {
+        try {
+            cacheManager?.putCategories(categories, "live")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to persist Live categories into CacheManager", e)
+        }
+        // Update memory cache
+        val existingCache = readCache()
+        val existingStreams = existingCache?.live?.streams ?: emptyList()
+        val updatedLiveData = LiveCacheData(categories, existingStreams)
+        val updatedCache = if (existingCache != null) {
+            existingCache.copy(timestamp = System.currentTimeMillis(), live = updatedLiveData)
+        } else {
+            IptvCache(System.currentTimeMillis(), updatedLiveData, null, null, null)
+        }
+        memoryCache = updatedCache
+        withContext(Dispatchers.IO) { cacheHelper.writeCache(updatedCache) }
+    }
+
     /**
      * Week 7: Fetch live streams for specific category with multi-level caching
      * 
