@@ -622,24 +622,22 @@ Same story: of the eight, **four were already resolved** and had simply never be
 | **P16** — error recovery | Done `d6c1f59`, device-QA'd | **CLOSED, done** |
 | **P19** — `initializePlayer` + `onCreate` | Its target moved into `BasePlayerFragment`, and that is exactly the C9 **won't-do** the owner recorded (`5e3a357`). Doing P19 would reopen a closed decision | **CLOSED, superseded by C9** |
 | **B-8** — a category open always delete+inserts the whole category, even unchanged | Still open; no TTL gate exists | **KEEP** — real repeated write cost, but it is a correctness-sensitive path (the DB-first browse must never blank). Wants its own phase, not a drive-by |
-| **R1** — RD `instantAvailability` is deprecated → the cache check may be blind | **Still open.** `DebridCacheVerifier` → `RealDebridRemoteDataSource.getInstantAvailability` → `rest/1.0/torrents/instantAvailability/{hash}`, still the live path | **BLOCKED on one live check** — see below |
-| **R2** — only the first N hashes are verified, the rest show UNKNOWN and are selectable | **Still open.** `MAX_CACHE_VERIFICATION_HASHES = 10` | **BLOCKED behind R1** — raising the cap is pointless if the endpoint it calls is blind |
+| **R1** — RD `instantAvailability` is deprecated → the cache check may be blind | Path exists in code but is not exercised: no Real-Debrid token is in use on this installation | **WON'T DO — owner decision 2026-08-02.** The app's debrid flow runs through Stremio addons (StremThru), not a direct RD token, so the RD cache-verification path this item wanted to overhaul is dead weight, not a defect. Do not resurrect; if RD-token use ever starts, re-open from this row |
+| **R2** — only the first N hashes are verified, the rest show UNKNOWN and are selectable | `MAX_CACHE_VERIFICATION_HASHES = 10` — caps a path that is not exercised (see R1) | **WON'T DO — closed with R1**, same decision, same re-open condition |
 | **Licence hardening ×2** | Plans are written and current | **DEFERRED, with the blockers named** — see below |
 
-**Why R1/R2 are not being guessed at.** The audit's own instruction is to confirm the deprecated
-endpoint with one live request before building on it, and that request needs the owner's Real-Debrid
-token against their account. That is their credential and an external call on their behalf, so it is
-theirs to run or to authorise — not something to do quietly from a debug session. Everything else here
-is decided; this one is one answer away.
+**R1/R2 closure (2026-08-02).** These sat "one live RD request away" — but the owner confirmed the
+premise was wrong: **no Real-Debrid token is used at all**; debrid runs through Stremio addons. The
+live-request blocker was therefore unanswerable by design, and the overhaul it gated has no user. Both
+recorded as won't-do above so no future session re-diagnoses "the cache check may be blind" as a bug.
 
-**Licence hardening — the blockers, so nobody starts these cold.**
-1. *Offline-token (anti-piracy):* needs the project's **first Cloud Function**, which needs Firebase
-   **Blaze**. Confirm billing before starting; otherwise it cannot even be deployed.
-2. *device_codes credential encryption (privacy):* touches the **live pairing flow** end to end
-   (Keystore keypair + web-dashboard encryption + Vercel redeploy + rules). Do it with the owner
-   present — pairing cannot be QA'd without them.
-   Order: **encryption first** (no Blaze dependency, higher user value), token second. One at a time,
-   each with its own device verification.
+**Licence hardening — ⚠ this block is superseded (kept for history).** Both items closed after D2 was
+written: the offline-token shipped instead as the **online-only gate** (`bc6824f`), and device_codes
+encryption was superseded by the §7 accounts plan, completed through **U8b** (`4590840`, credentials
+banned from `device_codes` by Firestore rule). The only licence item still open is **release signing**
+(owner-run, `scripts/setup_release_signing.sh`). Original blocker notes:
+1. *Offline-token (anti-piracy):* needed the project's first Cloud Function → Firebase Blaze.
+2. *device_codes credential encryption (privacy):* touched the live pairing flow end to end.
 
 - *Exit:* met — every deferred item above now carries an explicit written decision.
 
@@ -762,6 +760,7 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-07-28 | **C10** — `PlayerViewModel` 1556 → 643 (−59%), out of `LargeClass`; 4 steps: pure decisions (`SeriesTmdbMatching` +16, `DebridSourceScoring` +14) → `PlayerEpgController` → `PlayerZapController` → `PlayerDebridResolver` + `XRayMetadataLoader`. **Tier C complete.** | **267** | **1** | 0 | 32 | `85102eb` + `6eb7bec` + `8dc8d73` + `89163ed` |
 | 2026-07-29 | **D1** — the 3 P1s that were genuinely still open: SY-3 (unbounded whole-catalog fallback, ~90s worst case, on the interactive path), IMG-6 (per-frame gradient allocation on every D-pad move), B-3 (correlated COUNTs recomputed for the whole table per page). The other 11 of 14 were already fixed — the list was stale | **267** | **1** | 0 | 35 | `65318ed` + `e35ffd5` + `de11a3e` |
 | 2026-07-31 | **D2** — an explicit decision on all 8 deferred items. 4 were already resolved and never closed out (ST-5, P15, P16, and P19 which the C9 won't-do supersedes); B-8 kept as its own phase; R1/R2 blocked on one live Real-Debrid check that is the owner's to authorise; licence hardening deferred with its blockers named (Blaze, owner-present pairing QA). **Tier D complete.** | **267** | **1** | 0 | 35 | (docs) |
+| 2026-08-02 | **R1/R2 → WON'T DO** — owner confirmed no Real-Debrid token is in use (debrid runs via Stremio addons), so the RD cache-verification overhaul has no user; both closed to stop repeat re-diagnosis. Same pass: stale statuses reconciled (U8b/P27-P28/L1-L4 etc. were done but never closed out — the D1 lesson, a third time) | **267** | **1** | 0 | 35 | (docs) |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
 
