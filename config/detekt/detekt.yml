@@ -31,6 +31,12 @@ complexity:
     ignoreDefaultParameters: true
     ignoreDataClasses: true
     ignoreAnnotatedParameter: []
+    # Owner decision 2026-08-02: DI-injected constructors / @Provides factories are the
+    # framework handing a class its collaborators — a long list there is not a design smell,
+    # and "fixing" it by bundling injected deps would be fake cohesion.
+    ignoreAnnotated:
+      - 'Inject'
+      - 'Provides'
   CyclomaticComplexMethod:
     active: true
     threshold: 15
