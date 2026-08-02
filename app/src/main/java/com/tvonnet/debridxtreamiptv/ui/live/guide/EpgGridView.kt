@@ -103,6 +103,9 @@ class EpgGridView @JvmOverloads constructor(
     }
     private val rect = RectF()
 
+    // Reused per-program cell bounds — never allocate inside the draw loop.
+    private val programBounds = RectF()
+
     private var animator: ValueAnimator? = null
 
     // Sliding focus highlight (glides + morphs between channels/programs).
@@ -348,16 +351,18 @@ class EpgGridView @JvmOverloads constructor(
                 val w = p.durationMinutes() * ppm - dp(3f)
                 val right = left + w
                 if (right < channelColWidth || left > width) continue
-                drawProgram(canvas, p, left, top, right, bottom)
+                programBounds.set(left, top, right, bottom)
+                drawProgram(canvas, p, programBounds)
             }
         }
         canvas.restoreToCount(save)
     }
 
-    private fun drawProgram(
-        canvas: Canvas, p: GuideProgram,
-        left: Float, top: Float, right: Float, bottom: Float
-    ) {
+    private fun drawProgram(canvas: Canvas, p: GuideProgram, bounds: RectF) {
+        val left = bounds.left
+        val top = bounds.top
+        val right = bounds.right
+        val bottom = bounds.bottom
         val bt = top + dp(8f)
         val bb = bottom - dp(8f)
         val now = nowMs

@@ -89,14 +89,7 @@ open class PlayerViewModelDebridDirectPassthroughTest {
             )
         } returns ResolutionResult.Success(freshUrl)
 
-        invokeResolveDebridMovieSource(
-            targetSource = source,
-            season = null,
-            episode = null,
-            title = "Jack Ryan",
-            directPreferred = true,
-            allowDirectHttpPassthrough = false
-        )
+        invokeResolveDebridMovieSource(targetSource = source, title = "Jack Ryan")
 
         val state = viewModel.debridResolutionState.value
         assertTrue(state is DebridResolutionState.Success)
@@ -126,14 +119,7 @@ open class PlayerViewModelDebridDirectPassthroughTest {
             )
         } returns ResolutionResult.Success(freshUrl)
 
-        invokeResolveDebridMovieSource(
-            targetSource = source,
-            season = 1,
-            episode = 2,
-            title = "Nemesis",
-            directPreferred = true,
-            allowDirectHttpPassthrough = false
-        )
+        invokeResolveDebridMovieSource(targetSource = source, title = "Nemesis", season = 1, episode = 2)
 
         val state = viewModel.debridResolutionState.value
         assertTrue(state is DebridResolutionState.Success)
@@ -160,14 +146,7 @@ open class PlayerViewModelDebridDirectPassthroughTest {
             )
         } returns ResolutionResult.Success(freshUrl)
 
-        invokeResolveDebridMovieSource(
-            targetSource = source,
-            season = null,
-            episode = null,
-            title = "Old History Movie",
-            directPreferred = true,
-            allowDirectHttpPassthrough = false
-        )
+        invokeResolveDebridMovieSource(targetSource = source, title = "Old History Movie")
 
         coVerify(exactly = 1) {
             playbackResolver.resolve(
@@ -223,14 +202,15 @@ open class PlayerViewModelDebridDirectPassthroughTest {
         )
     }
 
+    /** Every scenario here exercises direct-preferred playback with HTTP passthrough disabled. */
     private suspend fun invokeResolveDebridMovieSource(
         targetSource: MovieSource,
-        season: Int?,
-        episode: Int?,
         title: String?,
-        directPreferred: Boolean,
-        allowDirectHttpPassthrough: Boolean
+        season: Int? = null,
+        episode: Int? = null
     ) {
+        val directPreferred = true
+        val allowDirectHttpPassthrough = false
         val method = PlayerViewModel::class.declaredFunctions.first { it.name == "resolveDebridMovieSource" }
         method.isAccessible = true
         method.callSuspend(

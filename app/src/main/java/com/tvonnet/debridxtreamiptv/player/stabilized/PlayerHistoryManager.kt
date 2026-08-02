@@ -104,7 +104,7 @@ class PlayerHistoryManager(
         // Offload it to the existing IO persistScope. (The exit-time save in
         // recordContinueWatchingHistory stays synchronous for crash/kill durability.)
         persistScope.launch { watchHistoryPrefs.saveContinueWatchingItem(item) }
-        recordAutomaticWatchedState(type, id, item, pos, dur, isWatched = false, timestamp = now)
+        recordAutomaticWatchedState(type, id, item, ProgressSnapshot(pos, dur, isWatched = false, timestamp = now))
     }
 
     private fun recordLiveHistory(channelId: String) {
@@ -146,7 +146,7 @@ class PlayerHistoryManager(
         }
 
         if (!isTinyProgress) {
-            recordAutomaticWatchedState(type, contentId, item, pos, dur, isWatched, now)
+            recordAutomaticWatchedState(type, contentId, item, ProgressSnapshot(pos, dur, isWatched, now))
         }
 
         if (type == ContentType.EPISODE) viewModel.updatePlaybackStatus(contentId, isWatched, if (isWatched) 0 else pos, dur)
@@ -258,14 +258,28 @@ class PlayerHistoryManager(
         )
     }
 
+    /** One playback pass's progress facts, bundled so the persistence chain stays one value. */
+    private data class ProgressSnapshot(
+        val pos: Long,
+        val dur: Long,
+        val isWatched: Boolean,
+        val timestamp: Long
+    )
+
+    /** [ProgressSnapshot] merged against the existing row: what actually gets persisted. */
+    private data class WatchedProgressStamp(
+        val progressMs: Long,
+        val durationMs: Long,
+        val isWatched: Boolean,
+        val watchedAt: Long?,
+        val updatedAt: Long
+    )
+
     private fun recordAutomaticWatchedState(
         type: ContentType,
         contentId: String,
         item: ContinueWatchingItem,
-        pos: Long,
-        dur: Long,
-        isWatched: Boolean,
-        timestamp: Long
+        progress: ProgressSnapshot
     ) {
         val identityKey = watchedIdentityKey(type, contentId) ?: return
         // M5: persistScope (not lifecycleScope) — the onDestroy-time write must
@@ -282,18 +296,20 @@ class PlayerHistoryManager(
                 identityKey = identityKey,
                 type = type,
                 item = item,
-                progressMs = pos,
-                durationMs = dur,
-                isWatched = isWatched || existing?.isWatched == true,
-                watchedAt = when {
-                    isWatched -> timestamp
-                    existing?.isWatched == true -> existing.watchedAt
-                    else -> null
-                },
-                updatedAt = timestamp,
+                stamp = WatchedProgressStamp(
+                    progressMs = progress.pos,
+                    durationMs = progress.dur,
+                    isWatched = progress.isWatched || existing?.isWatched == true,
+                    watchedAt = when {
+                        progress.isWatched -> progress.timestamp
+                        existing?.isWatched == true -> existing.watchedAt
+                        else -> null
+                    },
+                    updatedAt = progress.timestamp
+                ),
                 existing = existing
             )
-            watchedStateRepository.upsertAutomaticProgress(state, timestamp)
+            watchedStateRepository.upsertAutomaticProgress(state, progress.timestamp)
         }
     }
 
@@ -301,11 +317,7 @@ class PlayerHistoryManager(
         identityKey: String,
         type: ContentType,
         item: ContinueWatchingItem,
-        progressMs: Long,
-        durationMs: Long,
-        isWatched: Boolean,
-        watchedAt: Long?,
-        updatedAt: Long,
+        stamp: WatchedProgressStamp,
         existing: WatchedStateEntity?
     ): WatchedStateEntity {
         val source = watchedSource()
@@ -320,11 +332,11 @@ class PlayerHistoryManager(
                 WatchedStateEntity.CONTENT_TYPE_EPISODE
             },
             source = source,
-            isWatched = isWatched,
-            progressMs = progressMs,
-            durationMs = durationMs,
-            watchedAt = watchedAt,
-            updatedAt = updatedAt,
+            isWatched = stamp.isWatched,
+            progressMs = stamp.progressMs,
+            durationMs = stamp.durationMs,
+            watchedAt = stamp.watchedAt,
+            updatedAt = stamp.updatedAt,
             manualState = existing?.manualState,
             manualUpdatedAt = existing?.manualUpdatedAt,
             title = if (type == ContentType.MOVIE) item.title else item.episodeTitle ?: activity.episodeTitleExtra,

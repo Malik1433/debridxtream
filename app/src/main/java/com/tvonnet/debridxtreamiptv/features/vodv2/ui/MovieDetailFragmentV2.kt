@@ -275,7 +275,8 @@ class MovieDetailFragmentV2 : Fragment() {
             return
         }
 
-        val streamUrl = buildStreamUrl(serverUrl, username, password, id, containerExt, directSource)
+        val streamUrl = resolveDirectSourceUrl(directSource)
+            ?: buildXtreamMovieUrl(serverUrl, username, password, id, containerExt)
         val intent = PlayerActivity.createIntent(
             context = requireContext(),
             streamUrl = streamUrl,
@@ -486,20 +487,23 @@ class MovieDetailFragmentV2 : Fragment() {
         }
     }
 
-    private fun buildStreamUrl(
+    /** A provider-supplied absolute stream URL, or null when the Xtream URL must be built. */
+    private fun resolveDirectSourceUrl(directSource: String?): String? {
+        val direct = directSource?.trim().orEmpty()
+        if (direct.isBlank()) return null
+        if (direct.startsWith("http://", true) || direct.startsWith("https://", true)) return direct
+        if (direct.startsWith("rtmp://", true)) return direct
+        if (direct.startsWith("rtsp://", true)) return direct
+        return null
+    }
+
+    private fun buildXtreamMovieUrl(
         serverUrl: String,
         username: String,
         password: String,
         streamId: String,
-        containerExt: String?,
-        directSource: String?
+        containerExt: String?
     ): String {
-        val direct = directSource?.trim().orEmpty()
-        if (direct.isNotBlank()) {
-            if (direct.startsWith("http://", true) || direct.startsWith("https://", true)) return direct
-            if (direct.startsWith("rtmp://", true)) return direct
-            if (direct.startsWith("rtsp://", true)) return direct
-        }
         val baseUrl = serverUrl.trimEnd('/')
         val ext = containerExt?.trim()?.trimStart('.')?.ifBlank { "mp4" } ?: "mp4"
         return "$baseUrl/movie/$username/$password/$streamId.$ext"

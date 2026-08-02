@@ -84,7 +84,7 @@ internal class SyncManager(
         includeLatest: Boolean
     ): Result<IptvCache> {
         return syncMutex.withLock {
-            updateSyncProgress(
+            updateSyncProgress(SyncProgress(
                 type = syncType,
                 state = SyncState.RUNNING,
                 percent = 0,
@@ -92,14 +92,14 @@ internal class SyncManager(
                 vodCount = 0,
                 seriesCount = 0,
                 stage = "Preparing data"
-            )
+            ))
 
             try {
                 withContext(Dispatchers.IO) {
                     if (apiService == null) {
                         val cached = cacheHelper.readCache()
                         if (cached != null) {
-                            updateSyncProgress(
+                            updateSyncProgress(SyncProgress(
                                 type = syncType,
                                 state = SyncState.SUCCESS,
                                 percent = 100,
@@ -107,10 +107,10 @@ internal class SyncManager(
                                 vodCount = cached.vod?.streams?.size ?: 0,
                                 seriesCount = cached.series?.streams?.size ?: 0,
                                 stage = "Using cached data"
-                            )
+                            ))
                             return@withContext Result.Success(cached)
                         }
-                        updateSyncProgress(
+                        updateSyncProgress(SyncProgress(
                             type = syncType,
                             state = SyncState.ERROR,
                             percent = 0,
@@ -119,7 +119,7 @@ internal class SyncManager(
                             seriesCount = 0,
                             stage = "Sync failed",
                             errorMessage = "API service not initialized"
-                        )
+                        ))
                         return@withContext Result.Error(Exception("API service not initialized and no cache available"))
                     }
 
@@ -131,7 +131,7 @@ internal class SyncManager(
                     val liveResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { liveRepository.fetchLiveCategoriesAndStreams() }
                     val liveData = liveResult?.getOrNull() ?: LiveCacheData(emptyList(), emptyList())
                     val liveCount = liveData.streams.size
-                    updateSyncProgress(
+                    updateSyncProgress(SyncProgress(
                         type = syncType,
                         state = SyncState.RUNNING,
                         percent = 25,
@@ -139,7 +139,7 @@ internal class SyncManager(
                         vodCount = 0,
                         seriesCount = 0,
                         stage = "Downloading live channels"
-                    )
+                    ))
 
                     val vodResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { vodRepository.fetchVodCategoriesAndStreams() }
                     val vodData = vodResult?.getOrNull() ?: VodCacheData(emptyList(), emptyList())
@@ -149,7 +149,7 @@ internal class SyncManager(
                         vodData.streams
                     }
                     val vodFinal = vodData.copy(streams = vodStreams)
-                    updateSyncProgress(
+                    updateSyncProgress(SyncProgress(
                         type = syncType,
                         state = SyncState.RUNNING,
                         percent = 50,
@@ -157,7 +157,7 @@ internal class SyncManager(
                         vodCount = vodStreams.size,
                         seriesCount = 0,
                         stage = "Downloading movies"
-                    )
+                    ))
 
                     val seriesResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { seriesRepository.fetchSeriesCategoriesAndStreams() }
                     val seriesData = seriesResult?.getOrNull() ?: SeriesCacheData(emptyList(), emptyList())
@@ -167,7 +167,7 @@ internal class SyncManager(
                         seriesData.streams
                     }
                     val seriesFinal = seriesData.copy(streams = seriesStreams)
-                    updateSyncProgress(
+                    updateSyncProgress(SyncProgress(
                         type = syncType,
                         state = SyncState.RUNNING,
                         percent = 75,
@@ -175,7 +175,7 @@ internal class SyncManager(
                         vodCount = vodStreams.size,
                         seriesCount = seriesStreams.size,
                         stage = "Downloading series"
-                    )
+                    ))
 
                     // SY-1: the stage fetchers swallow network/auth failures into empty
                     // results (no throw), so a totally-failed sync would otherwise write an
@@ -196,7 +196,7 @@ internal class SyncManager(
                             (existing.series?.categories?.isNotEmpty() == true)
                         )
                         if (existingHasContent) {
-                            updateSyncProgress(
+                            updateSyncProgress(SyncProgress(
                                 type = syncType,
                                 state = SyncState.SUCCESS,
                                 percent = 100,
@@ -204,10 +204,10 @@ internal class SyncManager(
                                 vodCount = existing.vod?.streams?.size ?: 0,
                                 seriesCount = existing.series?.streams?.size ?: 0,
                                 stage = "Using cached data"
-                            )
+                            ))
                             return@withContext Result.Success(existing)
                         }
-                        updateSyncProgress(
+                        updateSyncProgress(SyncProgress(
                             type = syncType,
                             state = SyncState.ERROR,
                             percent = 0,
@@ -216,7 +216,7 @@ internal class SyncManager(
                             seriesCount = 0,
                             stage = "Sync failed",
                             errorMessage = "Could not load your content. Check your connection and try again."
-                        )
+                        ))
                         return@withContext Result.Error(Exception("Sync returned no categories (network/auth failure)"))
                     }
 
@@ -228,7 +228,7 @@ internal class SyncManager(
                         epg = null
                     )
 
-                    updateSyncProgress(
+                    updateSyncProgress(SyncProgress(
                         type = syncType,
                         state = SyncState.RUNNING,
                         percent = 90,
@@ -236,7 +236,7 @@ internal class SyncManager(
                         vodCount = vodStreams.size,
                         seriesCount = seriesStreams.size,
                         stage = "Finalizing cache"
-                    )
+                    ))
 
                     cacheHelper.writeCache(cache)
                     memoryCache = cache
@@ -261,7 +261,7 @@ internal class SyncManager(
                     // background so Search covers categories the user never
                     // opened. Fire-and-forget; idempotent via REPLACE upserts.
                     scheduleSearchIndexSyncIfStale()
-                    updateSyncProgress(
+                    updateSyncProgress(SyncProgress(
                         type = syncType,
                         state = SyncState.SUCCESS,
                         percent = 100,
@@ -269,7 +269,7 @@ internal class SyncManager(
                         vodCount = vodStreams.size,
                         seriesCount = seriesStreams.size,
                         stage = "Complete"
-                    )
+                    ))
 
                     Result.Success(cache)
                 }
@@ -277,7 +277,7 @@ internal class SyncManager(
                 Log.e(TAG, "Failed to fetch data", e)
                 val cached = cacheHelper.readCache()
                 if (cached != null) {
-                    updateSyncProgress(
+                    updateSyncProgress(SyncProgress(
                         type = syncType,
                         state = SyncState.SUCCESS,
                         percent = 100,
@@ -285,10 +285,10 @@ internal class SyncManager(
                         vodCount = cached.vod?.streams?.size ?: 0,
                         seriesCount = cached.series?.streams?.size ?: 0,
                         stage = "Using cached data"
-                    )
+                    ))
                     Result.Success(cached)
                 } else {
-                    updateSyncProgress(
+                    updateSyncProgress(SyncProgress(
                         type = syncType,
                         state = SyncState.ERROR,
                         percent = 0,
@@ -297,33 +297,15 @@ internal class SyncManager(
                         seriesCount = 0,
                         stage = "Sync failed",
                         errorMessage = e.message
-                    )
+                    ))
                     Result.Error(e)
                 }
             }
         }
     }
 
-    private fun updateSyncProgress(
-        type: SyncType,
-        state: SyncState,
-        percent: Int,
-        liveCount: Int,
-        vodCount: Int,
-        seriesCount: Int,
-        stage: String,
-        errorMessage: String? = null
-    ) {
-        _syncProgress.value = SyncProgress(
-            type = type,
-            state = state,
-            percent = percent.coerceIn(0, 100),
-            liveCount = liveCount,
-            vodCount = vodCount,
-            seriesCount = seriesCount,
-            stage = stage,
-            errorMessage = errorMessage
-        )
+    private fun updateSyncProgress(progress: SyncProgress) {
+        _syncProgress.value = progress.copy(percent = progress.percent.coerceIn(0, 100))
     }
 
     private fun saveSyncMetadata(syncType: SyncType) {

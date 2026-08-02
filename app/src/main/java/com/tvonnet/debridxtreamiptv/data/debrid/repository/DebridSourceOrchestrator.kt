@@ -75,7 +75,7 @@ internal class DebridSourceOrchestrator(
             // the saved source is no longer offered there.
             val stablePriorityId = stableStreamIdentity(priorityInfoHash)
             if (stablePriorityId != null && !preferredSourceType.isNullOrBlank()) {
-                val scoped = fetchScopedMovieStreams(preferredSourceType, imdbId, title, yearHint, releaseYear, contentType)
+                val scoped = fetchScopedMovieStreams(preferredSourceType, imdbId, title, yearHint)
                 if (scoped.any { streamMatchesStableIdentity(it, stablePriorityId) }) {
                     val scopedStreams = prioritizeAddonStreams(
                         deduplicateStreams(UnifiedSourceProvider.filterMismatchedAddonMovieStreams(scoped, title, yearHint))
@@ -399,9 +399,7 @@ internal class DebridSourceOrchestrator(
         sourceType: String,
         imdbId: String?,
         title: String?,
-        yearHint: String?,
-        releaseYear: Int?,
-        contentType: ContentType
+        yearHint: String?
     ): List<AddonStream> {
         return try {
             withTimeoutOrNull(SCOPED_FETCH_TIMEOUT_MS) {
