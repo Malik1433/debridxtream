@@ -771,6 +771,8 @@ Carried from hard-won incidents; every phase must respect them.
 
 | 2026-08-02 | **E1p batch 3 — 6 NestedBlockDepth leaf sites** (QrGenerator, EpgParser ×2, XtreamResponseParser, trackDiagnosticsFields, LiveSearchAdapter per-type creators); a LongMethod + a CyclomaticComplexMethod fell out for real with the ViewHolder split. Player-path depth entries deliberately deferred to their own session (control flow near landmines). Diff 8 deletions / 0 additions; both TVs on this build. Kapt trap recorded: raw [brackets] in KDoc break stub generation | **220** | **1** | 0 | 43 | `b9ef8a6` |
 
+| 2026-08-02 | **E1p batch 4 — 8 NestedBlockDepth data-layer sites** (SeriesRepository ×4, VodRepository ×2, LiveRepository, BasePagingSource): verbatim inner-block extractions — category-persist blocks, L2 preload, DB saves, the 404 fallback branch, detail persist + fallback-episodes parse, year-veto predicate, paging cache-fill. Two pure detail helpers placed file-level (not in-class) because SeriesRepository sits right at the LargeClass ceiling — detekt caught the overshoot mid-batch and the placement fixed it without baselining. Diff 8 deletions / 0 additions; device sanity on .64: launch + guide + live play (steady ~10 Mbps) PASS. **NestedBlockDepth remaining = 9, all player-path** | **212** | **1** | 0 | 43 | `c957c73` |
+
 *(Append one row per landed phase. The three numeric columns may never increase.)*
 
 **Tier C is complete at LargeClass = 1.** The remaining one is `BasePlayerFragment`, by the C9
