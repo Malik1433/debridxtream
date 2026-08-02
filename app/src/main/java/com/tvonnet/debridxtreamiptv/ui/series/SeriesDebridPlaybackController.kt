@@ -36,20 +36,44 @@ class SeriesDebridPlaybackController(
     private val seasonUi: SeriesSeasonUi,
     private val sources: SeriesDebridSourceController,
     private val repository: XtreamRepository,
-    private val credentialsPreferences: CredentialsPreferences,
-    private val unifiedSourceProvider: com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider,
-    private val debridPlaybackRepository: com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridPlaybackRepository,
-    private val playbackResolver: com.tvonnet.debridxtreamiptv.data.debrid.repository.PlaybackResolver,
-    private val seriesRepositoryV2: com.tvonnet.debridxtreamiptv.features.seriesv2.data.repository.XtreamSeriesRepositoryV2,
-    private val isDebrid: () -> Boolean,
-    private val seriesId: () -> String?,
-    private val seriesName: () -> String?,
-    private val seriesCover: () -> String?,
-    private val seriesBackdrop: () -> String?,
-    private val seriesReleaseDate: () -> String?,
-    private val showLoading: (Boolean) -> Unit,
-    private val launch: (Intent) -> Unit,
+    deps: Deps,
+    host: Host,
 ) {
+    /** The debrid/resolver collaborators the playback path resolves through. */
+    data class Deps(
+        val credentialsPreferences: CredentialsPreferences,
+        val unifiedSourceProvider: com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider,
+        val debridPlaybackRepository: com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridPlaybackRepository,
+        val playbackResolver: com.tvonnet.debridxtreamiptv.data.debrid.repository.PlaybackResolver,
+        val seriesRepositoryV2: com.tvonnet.debridxtreamiptv.features.seriesv2.data.repository.XtreamSeriesRepositoryV2,
+    )
+
+    /** Current-series accessors + loading/launch hand-offs back to the Activity. */
+    data class Host(
+        val isDebrid: () -> Boolean,
+        val seriesId: () -> String?,
+        val seriesName: () -> String?,
+        val seriesCover: () -> String?,
+        val seriesBackdrop: () -> String?,
+        val seriesReleaseDate: () -> String?,
+        val showLoading: (Boolean) -> Unit,
+        val launch: (Intent) -> Unit,
+    )
+
+    private val credentialsPreferences = deps.credentialsPreferences
+    private val unifiedSourceProvider = deps.unifiedSourceProvider
+    private val debridPlaybackRepository = deps.debridPlaybackRepository
+    private val playbackResolver = deps.playbackResolver
+    private val seriesRepositoryV2 = deps.seriesRepositoryV2
+    private val isDebrid = host.isDebrid
+    private val seriesId = host.seriesId
+    private val seriesName = host.seriesName
+    private val seriesCover = host.seriesCover
+    private val seriesBackdrop = host.seriesBackdrop
+    private val seriesReleaseDate = host.seriesReleaseDate
+    private val showLoading = host.showLoading
+    private val launch = host.launch
+
     private companion object {
         const val MAX_AUTO_FALLBACK_ATTEMPTS = 3
     }

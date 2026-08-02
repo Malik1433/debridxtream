@@ -198,20 +198,24 @@ class LiveFragment : Fragment() {
             chipSearch = view.findViewById(R.id.chip_search),
             etChannelSearch = view.findViewById(R.id.et_channel_search),
             tvSearchLabel = view.findViewById(R.id.tv_search_label),
-            onChipQueryChanged = { q -> categoryController?.onChipQueryChanged(q) },
-            chipQueryIsNotEmpty = { categoryController?.chipQueryIsNotEmpty() == true },
-            onFocusDownToChannels = { channelFocusController?.focusChannelItem(0) },
+            callbacks = LiveSearchController.Callbacks(
+                onChipQueryChanged = { q -> categoryController?.onChipQueryChanged(q) },
+                chipQueryIsNotEmpty = { categoryController?.chipQueryIsNotEmpty() == true },
+                onFocusDownToChannels = { channelFocusController?.focusChannelItem(0) },
+            ),
         )
         searchController?.setup()
         categoryController = LiveCategoryController(
             fragment = this,
             rvCategories = rvCategories,
             viewModel = viewModel,
-            favoritesCount = { favoritesController?.favoritesCount ?: 0 },
-            lastUiState = { lastUiState },
-            onBeforeCategorySelect = { searchController?.collapseIfHasText() },
-            onShowEmptyState = { message -> showEmptyState(message) },
-            onShowLoading = { message -> showLoading(message) },
+            callbacks = LiveCategoryController.Callbacks(
+                favoritesCount = { favoritesController?.favoritesCount ?: 0 },
+                lastUiState = { lastUiState },
+                onBeforeCategorySelect = { searchController?.collapseIfHasText() },
+                onShowEmptyState = { message -> showEmptyState(message) },
+                onShowLoading = { message -> showLoading(message) },
+            ),
         )
         favoritesController = LiveFavoritesController(
             fragment = this,
@@ -234,12 +238,14 @@ class LiveFragment : Fragment() {
             rvChannels = rvChannels,
             channelPagingAdapter = channelPagingAdapter,
             tvQuickJump = view.findViewById(R.id.tv_quick_jump),
-            onFocusNavRail = { focusNavRail() },
-            onFocusCategoryStrip = { categoryController?.focusCategoryStrip() == true },
-            onFocusWatch = { btnWatch?.requestFocus() == true },
-            onUnblockCategoryFocus = { categoryController?.unblockCategoryFocusAfterRestore() },
-            isFocusRestored = { didRestoreFocusForThisView },
-            markFocusRestored = { didRestoreFocusForThisView = true },
+            callbacks = LiveChannelFocusController.Callbacks(
+                onFocusNavRail = { focusNavRail() },
+                onFocusCategoryStrip = { categoryController?.focusCategoryStrip() == true },
+                onFocusWatch = { btnWatch?.requestFocus() == true },
+                onUnblockCategoryFocus = { categoryController?.unblockCategoryFocusAfterRestore() },
+                isFocusRestored = { didRestoreFocusForThisView },
+                markFocusRestored = { didRestoreFocusForThisView = true },
+            ),
         )
         liveZoom = run {
             val container = view.findViewById<View>(R.id.live_fullscreen_bridge) ?: return@run null
@@ -257,28 +263,34 @@ class LiveFragment : Fragment() {
             viewModel = viewModel,
             repository = repository,
             channelPagingAdapter = channelPagingAdapter,
-            previewPanel = { previewPlayerPanel },
             zoom = liveZoom,
-            onLaunch = { intent, options -> livePlayerLauncher.launch(intent, options) },
-            onUpdatePreviewEpg = { stream -> epgController?.updatePreviewEpg(stream) },
-            onUpdateFavoriteButton = { stream -> favoritesController?.updateFavoriteButtonState(stream) },
-            onFocusChannelAt = { index -> channelFocusController?.focusChannelItem(index, markRestored = true) },
-            onRestoreChannelFocus = { channelFocusController?.restoreChannelFocusIfNeeded() },
-            markPreviewRestored = { didRestorePreviewForThisView = true },
+            callbacks = LivePlaybackLauncher.Callbacks(
+                previewPanel = { previewPlayerPanel },
+                onLaunch = { intent, options -> livePlayerLauncher.launch(intent, options) },
+                onUpdatePreviewEpg = { stream -> epgController?.updatePreviewEpg(stream) },
+                onUpdateFavoriteButton = { stream -> favoritesController?.updateFavoriteButtonState(stream) },
+                onFocusChannelAt = { index -> channelFocusController?.focusChannelItem(index, markRestored = true) },
+                onRestoreChannelFocus = { channelFocusController?.restoreChannelFocusIfNeeded() },
+                markPreviewRestored = { didRestorePreviewForThisView = true },
+            ),
         )
         epgController = LiveEpgPreviewController(
             fragment = this,
             viewModel = viewModel,
             repository = repository,
-            rvChannels = rvChannels,
-            rvEpgStrip = view.findViewById(R.id.rv_epg_strip),
-            tvEpgStripSubtitle = view.findViewById(R.id.tv_epg_strip_subtitle),
             channelPagingAdapter = channelPagingAdapter,
-            previewPanel = { previewPlayerPanel },
-            onFocusChannel = { position -> channelFocusController?.focusChannelItem(position) },
-            onUpdateFavoriteButton = { stream -> favoritesController?.updateFavoriteButtonState(stream) },
-            isPreviewRestored = { didRestorePreviewForThisView },
-            markPreviewRestored = { didRestorePreviewForThisView = true },
+            views = LiveEpgPreviewController.Views(
+                rvChannels = rvChannels,
+                rvEpgStrip = view.findViewById(R.id.rv_epg_strip),
+                tvEpgStripSubtitle = view.findViewById(R.id.tv_epg_strip_subtitle),
+            ),
+            callbacks = LiveEpgPreviewController.Callbacks(
+                previewPanel = { previewPlayerPanel },
+                onFocusChannel = { position -> channelFocusController?.focusChannelItem(position) },
+                onUpdateFavoriteButton = { stream -> favoritesController?.updateFavoriteButtonState(stream) },
+                isPreviewRestored = { didRestorePreviewForThisView },
+                markPreviewRestored = { didRestorePreviewForThisView = true },
+            ),
         )
         epgController?.setupEpgStrip()
 

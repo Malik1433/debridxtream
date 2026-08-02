@@ -40,16 +40,35 @@ class LiveEpgPreviewController(
     private val fragment: Fragment,
     private val viewModel: LiveViewModel,
     private val repository: XtreamRepository,
-    private val rvChannels: RecyclerView,
-    private val rvEpgStrip: RecyclerView?,
-    private val tvEpgStripSubtitle: TextView?,
     private val channelPagingAdapter: ChannelPagingAdapter,
-    private val previewPanel: () -> PreviewPlayerPanel?,
-    private val onFocusChannel: (Int) -> Unit,
-    private val onUpdateFavoriteButton: (XtreamStream?) -> Unit,
-    private val isPreviewRestored: () -> Boolean,
-    private val markPreviewRestored: () -> Unit,
+    views: Views,
+    callbacks: Callbacks,
 ) {
+    /** The EPG strip + channel list views this controller renders into. */
+    data class Views(
+        val rvChannels: RecyclerView,
+        val rvEpgStrip: RecyclerView?,
+        val tvEpgStripSubtitle: TextView?,
+    )
+
+    /** Fragment-owned surfaces and the shared preview-restore latch. */
+    data class Callbacks(
+        val previewPanel: () -> PreviewPlayerPanel?,
+        val onFocusChannel: (Int) -> Unit,
+        val onUpdateFavoriteButton: (XtreamStream?) -> Unit,
+        val isPreviewRestored: () -> Boolean,
+        val markPreviewRestored: () -> Unit,
+    )
+
+    private val rvChannels = views.rvChannels
+    private val rvEpgStrip = views.rvEpgStrip
+    private val tvEpgStripSubtitle = views.tvEpgStripSubtitle
+    private val previewPanel = callbacks.previewPanel
+    private val onFocusChannel = callbacks.onFocusChannel
+    private val onUpdateFavoriteButton = callbacks.onUpdateFavoriteButton
+    private val isPreviewRestored = callbacks.isPreviewRestored
+    private val markPreviewRestored = callbacks.markPreviewRestored
+
     private var guideEpgJob: Job? = null
     private var epgStripAdapter: LiveEpgStripAdapter? = null
     private var epgPrimeJob: Job? = null

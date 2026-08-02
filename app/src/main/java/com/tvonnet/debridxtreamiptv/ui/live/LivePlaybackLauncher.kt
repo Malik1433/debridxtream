@@ -47,15 +47,28 @@ class LivePlaybackLauncher(
     private val viewModel: LiveViewModel,
     private val repository: XtreamRepository,
     private val channelPagingAdapter: ChannelPagingAdapter,
-    private val previewPanel: () -> PreviewPlayerPanel?,
     private val zoom: LiveFullscreenZoom?,
-    private val onLaunch: (Intent, ActivityOptionsCompat) -> Unit,
-    private val onUpdatePreviewEpg: (XtreamStream) -> Unit,
-    private val onUpdateFavoriteButton: (XtreamStream?) -> Unit,
-    private val onFocusChannelAt: (Int) -> Unit,
-    private val onRestoreChannelFocus: () -> Unit,
-    private val markPreviewRestored: () -> Unit,
+    callbacks: Callbacks,
 ) {
+    /** The Fragment-owned surfaces and reactions the launch/return paths drive. */
+    data class Callbacks(
+        val previewPanel: () -> PreviewPlayerPanel?,
+        val onLaunch: (Intent, ActivityOptionsCompat) -> Unit,
+        val onUpdatePreviewEpg: (XtreamStream) -> Unit,
+        val onUpdateFavoriteButton: (XtreamStream?) -> Unit,
+        val onFocusChannelAt: (Int) -> Unit,
+        val onRestoreChannelFocus: () -> Unit,
+        val markPreviewRestored: () -> Unit,
+    )
+
+    private val previewPanel = callbacks.previewPanel
+    private val onLaunch = callbacks.onLaunch
+    private val onUpdatePreviewEpg = callbacks.onUpdatePreviewEpg
+    private val onUpdateFavoriteButton = callbacks.onUpdateFavoriteButton
+    private val onFocusChannelAt = callbacks.onFocusChannelAt
+    private val onRestoreChannelFocus = callbacks.onRestoreChannelFocus
+    private val markPreviewRestored = callbacks.markPreviewRestored
+
 
     /**
      * Navigate to PlayerActivity to play a stream.

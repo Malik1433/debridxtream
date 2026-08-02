@@ -28,12 +28,23 @@ class LiveCategoryController(
     private val fragment: Fragment,
     private val rvCategories: RecyclerView,
     private val viewModel: LiveViewModel,
-    private val favoritesCount: () -> Int,
-    private val lastUiState: () -> LiveUiState?,
-    private val onBeforeCategorySelect: () -> Unit,
-    private val onShowEmptyState: (String) -> Unit,
-    private val onShowLoading: (String) -> Unit,
+    callbacks: Callbacks,
 ) {
+    /** Fragment-owned state reads + reactions the category strip drives. */
+    data class Callbacks(
+        val favoritesCount: () -> Int,
+        val lastUiState: () -> LiveUiState?,
+        val onBeforeCategorySelect: () -> Unit,
+        val onShowEmptyState: (String) -> Unit,
+        val onShowLoading: (String) -> Unit,
+    )
+
+    private val favoritesCount = callbacks.favoritesCount
+    private val lastUiState = callbacks.lastUiState
+    private val onBeforeCategorySelect = callbacks.onBeforeCategorySelect
+    private val onShowEmptyState = callbacks.onShowEmptyState
+    private val onShowLoading = callbacks.onShowLoading
+
     private var sidebarCategoryAdapter: SidebarCategoryAdapter? = null
     private var categoryChipQuery: String = ""
     private var categoriesFocusBlockedForRestore = false

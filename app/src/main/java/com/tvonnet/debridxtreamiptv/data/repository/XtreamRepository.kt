@@ -455,8 +455,9 @@ class XtreamRepository @Inject constructor(
     private val searchIndexManager =
         SearchIndexManager(session, syncPrefs, vodDao, seriesDao, cacheManager)
     private val syncManager = SyncManager(
-        session, catalogCache, cacheHelper, cacheManager, syncPrefs,
-        liveRepository, vodRepository, seriesRepository, searchIndexManager
+        session,
+        SyncManager.Caches(catalogCache, cacheHelper, cacheManager, syncPrefs),
+        SyncManager.Domains(liveRepository, vodRepository, seriesRepository, searchIndexManager)
     )
 
     fun scheduleSearchIndexSyncIfStale() = searchIndexManager.scheduleSearchIndexSyncIfStale()

@@ -31,13 +31,25 @@ class LiveChannelFocusController(
     private val rvChannels: RecyclerView,
     private val channelPagingAdapter: ChannelPagingAdapter,
     private val tvQuickJump: TextView?,
-    private val onFocusNavRail: () -> Boolean,
-    private val onFocusCategoryStrip: () -> Boolean,
-    private val onFocusWatch: () -> Boolean,
-    private val onUnblockCategoryFocus: () -> Unit,
-    private val isFocusRestored: () -> Boolean,
-    private val markFocusRestored: () -> Unit,
+    callbacks: Callbacks,
 ) {
+    /** Focus hand-offs to the Fragment's other surfaces + the one-shot restore latch. */
+    data class Callbacks(
+        val onFocusNavRail: () -> Boolean,
+        val onFocusCategoryStrip: () -> Boolean,
+        val onFocusWatch: () -> Boolean,
+        val onUnblockCategoryFocus: () -> Unit,
+        val isFocusRestored: () -> Boolean,
+        val markFocusRestored: () -> Unit,
+    )
+
+    private val onFocusNavRail = callbacks.onFocusNavRail
+    private val onFocusCategoryStrip = callbacks.onFocusCategoryStrip
+    private val onFocusWatch = callbacks.onFocusWatch
+    private val onUnblockCategoryFocus = callbacks.onUnblockCategoryFocus
+    private val isFocusRestored = callbacks.isFocusRestored
+    private val markFocusRestored = callbacks.markFocusRestored
+
     private var pendingChannelFocusPosition: Int? = null
     private val quickJumpBuffer = StringBuilder()
     private var quickJumpJob: Job? = null

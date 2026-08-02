@@ -38,21 +38,51 @@ import kotlinx.coroutines.withContext
 class SeriesDebridSourceController(
     private val activity: AppCompatActivity,
     private val seasonUi: SeriesSeasonUi,
-    private val unifiedSourceProvider: com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider,
-    private val debridPlaybackRepository: com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridPlaybackRepository,
-    private val seriesRepositoryV2: com.tvonnet.debridxtreamiptv.features.seriesv2.data.repository.XtreamSeriesRepositoryV2,
-    private val credentialsPreferences: CredentialsPreferences,
-    private val layoutRdSummary: LinearLayout,
-    private val tvRdSummary: TextView,
-    private val tvQualityBadge: TextView,
-    private val seriesId: () -> String?,
-    private val seriesName: () -> String?,
-    private val seriesBackdrop: () -> String?,
-    private val seriesReleaseDate: () -> String?,
-    private val showLoading: (Boolean) -> Unit,
-    private val onPlayDebridSource: (MovieSource, EpisodeUiModel) -> Unit,
-    private val onPlayIptvSource: (MovieSource, EpisodeUiModel) -> Unit,
+    deps: Deps,
+    views: Views,
+    host: Host,
 ) {
+    /** The data/resolver collaborators the per-episode source lists are built from. */
+    data class Deps(
+        val unifiedSourceProvider: com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider,
+        val debridPlaybackRepository: com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridPlaybackRepository,
+        val seriesRepositoryV2: com.tvonnet.debridxtreamiptv.features.seriesv2.data.repository.XtreamSeriesRepositoryV2,
+        val credentialsPreferences: CredentialsPreferences,
+    )
+
+    /** The RD-summary strip views this controller renders into. */
+    data class Views(
+        val layoutRdSummary: LinearLayout,
+        val tvRdSummary: TextView,
+        val tvQualityBadge: TextView,
+    )
+
+    /** Current-series accessors + loading/play hand-offs back to the Activity. */
+    data class Host(
+        val seriesId: () -> String?,
+        val seriesName: () -> String?,
+        val seriesBackdrop: () -> String?,
+        val seriesReleaseDate: () -> String?,
+        val showLoading: (Boolean) -> Unit,
+        val onPlayDebridSource: (MovieSource, EpisodeUiModel) -> Unit,
+        val onPlayIptvSource: (MovieSource, EpisodeUiModel) -> Unit,
+    )
+
+    private val unifiedSourceProvider = deps.unifiedSourceProvider
+    private val debridPlaybackRepository = deps.debridPlaybackRepository
+    private val seriesRepositoryV2 = deps.seriesRepositoryV2
+    private val credentialsPreferences = deps.credentialsPreferences
+    private val layoutRdSummary = views.layoutRdSummary
+    private val tvRdSummary = views.tvRdSummary
+    private val tvQualityBadge = views.tvQualityBadge
+    private val seriesId = host.seriesId
+    private val seriesName = host.seriesName
+    private val seriesBackdrop = host.seriesBackdrop
+    private val seriesReleaseDate = host.seriesReleaseDate
+    private val showLoading = host.showLoading
+    private val onPlayDebridSource = host.onPlayDebridSource
+    private val onPlayIptvSource = host.onPlayIptvSource
+
     // Per-episode source state (single source of truth; SD-4c playback reads these).
     val cachedDebridSourcesByEpisode = mutableMapOf<String, List<MovieSource>>()
     val debridFilterStateByEpisode = mutableMapOf<String, SourceFilterState>()

@@ -31,10 +31,19 @@ class LiveSearchController(
     private val chipSearch: View?,
     private val etChannelSearch: EditText?,
     private val tvSearchLabel: TextView?,
-    private val onChipQueryChanged: (String) -> Unit,
-    private val chipQueryIsNotEmpty: () -> Boolean,
-    private val onFocusDownToChannels: () -> Unit,
+    callbacks: Callbacks,
 ) {
+    /** The Fragment-owned reactions the search pill pokes (chip state + focus hand-off). */
+    data class Callbacks(
+        val onChipQueryChanged: (String) -> Unit,
+        val chipQueryIsNotEmpty: () -> Boolean,
+        val onFocusDownToChannels: () -> Unit,
+    )
+
+    private val onChipQueryChanged = callbacks.onChipQueryChanged
+    private val chipQueryIsNotEmpty = callbacks.chipQueryIsNotEmpty
+    private val onFocusDownToChannels = callbacks.onFocusDownToChannels
+
     private var searchDebounceJob: Job? = null
 
     private companion object {

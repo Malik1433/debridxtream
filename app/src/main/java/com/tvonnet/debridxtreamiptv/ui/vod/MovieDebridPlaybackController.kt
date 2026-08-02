@@ -46,17 +46,33 @@ class MovieDebridPlaybackController(
     private val repository: XtreamRepository,
     private val debridPlaybackRepository: DebridPlaybackRepository,
     private val playbackResolver: PlaybackResolver,
-    private val tvSourcesStatus: TextView,
-    private val movieId: () -> String?,
-    private val movieName: () -> String?,
-    private val movieIcon: () -> String?,
-    private val movieBackdrop: () -> String?,
-    private val movieContainer: () -> String?,
-    private val movieCategoryId: () -> String?,
-    private val currentImdbId: () -> String?,
-    private val resumePositionMs: () -> Long,
-    private val launch: (Intent) -> Unit,
+    host: Host,
 ) {
+    /** The Activity-owned status view + current-movie accessors + player launch hand-off. */
+    data class Host(
+        val tvSourcesStatus: TextView,
+        val movieId: () -> String?,
+        val movieName: () -> String?,
+        val movieIcon: () -> String?,
+        val movieBackdrop: () -> String?,
+        val movieContainer: () -> String?,
+        val movieCategoryId: () -> String?,
+        val currentImdbId: () -> String?,
+        val resumePositionMs: () -> Long,
+        val launch: (Intent) -> Unit,
+    )
+
+    private val tvSourcesStatus = host.tvSourcesStatus
+    private val movieId = host.movieId
+    private val movieName = host.movieName
+    private val movieIcon = host.movieIcon
+    private val movieBackdrop = host.movieBackdrop
+    private val movieContainer = host.movieContainer
+    private val movieCategoryId = host.movieCategoryId
+    private val currentImdbId = host.currentImdbId
+    private val resumePositionMs = host.resumePositionMs
+    private val launch = host.launch
+
     private companion object {
         const val MAX_AUTO_FALLBACK_ATTEMPTS = 3
     }

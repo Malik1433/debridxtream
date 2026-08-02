@@ -55,30 +55,74 @@ import kotlinx.coroutines.withContext
  */
 class MovieDebridSourceController(
     private val activity: AppCompatActivity,
-    private val unifiedSourceProvider: UnifiedSourceProvider,
-    private val debridPlaybackRepository: DebridPlaybackRepository,
-    private val repository: XtreamRepository,
-    private val credentialsPrefs: CredentialsPreferences,
-    private val tvSourcesHeader: TextView,
-    private val tvSourcesStatus: TextView,
-    private val rvSources: RecyclerView,
-    private val layoutSourceFilters: View,
-    private val btnCachedOnly: TextView,
-    private val rvLanguageFilters: RecyclerView,
-    private val btnPlay: Button,
-    private val layoutRdSummary: View,
-    private val tvRdSummaryText: TextView,
-    private val tvQualityBadge: TextView,
-    private val movieId: () -> String?,
-    private val movieName: () -> String?,
-    private val movieCategoryId: () -> String?,
-    private val movieYear: () -> String?,
-    private val movieBackdrop: () -> String?,
-    private val movieContainer: () -> String?,
-    private val currentImdbId: () -> String?,
-    private val onPlayMovie: (MovieSource?) -> Unit,
-    private val onPlayDebridMovie: (XtreamVodInfo?, MovieSource?, Boolean) -> Unit,
+    deps: Deps,
+    views: Views,
+    movie: MovieAccessors,
+    callbacks: Callbacks,
 ) {
+    /** The data/resolver collaborators the source list is built from. */
+    data class Deps(
+        val unifiedSourceProvider: UnifiedSourceProvider,
+        val debridPlaybackRepository: DebridPlaybackRepository,
+        val repository: XtreamRepository,
+        val credentialsPrefs: CredentialsPreferences,
+    )
+
+    /** The source-panel views this controller renders into. */
+    data class Views(
+        val tvSourcesHeader: TextView,
+        val tvSourcesStatus: TextView,
+        val rvSources: RecyclerView,
+        val layoutSourceFilters: View,
+        val btnCachedOnly: TextView,
+        val rvLanguageFilters: RecyclerView,
+        val btnPlay: Button,
+        val layoutRdSummary: View,
+        val tvRdSummaryText: TextView,
+        val tvQualityBadge: TextView,
+    )
+
+    /** Accessors onto the Activity's current-movie fields (read at call time, never stale). */
+    data class MovieAccessors(
+        val movieId: () -> String?,
+        val movieName: () -> String?,
+        val movieCategoryId: () -> String?,
+        val movieYear: () -> String?,
+        val movieBackdrop: () -> String?,
+        val movieContainer: () -> String?,
+        val currentImdbId: () -> String?,
+    )
+
+    /** The play hand-offs back to the Activity (resume prompt + playback controller). */
+    data class Callbacks(
+        val onPlayMovie: (MovieSource?) -> Unit,
+        val onPlayDebridMovie: (XtreamVodInfo?, MovieSource?, Boolean) -> Unit,
+    )
+
+    private val unifiedSourceProvider = deps.unifiedSourceProvider
+    private val debridPlaybackRepository = deps.debridPlaybackRepository
+    private val repository = deps.repository
+    private val credentialsPrefs = deps.credentialsPrefs
+    private val tvSourcesHeader = views.tvSourcesHeader
+    private val tvSourcesStatus = views.tvSourcesStatus
+    private val rvSources = views.rvSources
+    private val layoutSourceFilters = views.layoutSourceFilters
+    private val btnCachedOnly = views.btnCachedOnly
+    private val rvLanguageFilters = views.rvLanguageFilters
+    private val btnPlay = views.btnPlay
+    private val layoutRdSummary = views.layoutRdSummary
+    private val tvRdSummaryText = views.tvRdSummaryText
+    private val tvQualityBadge = views.tvQualityBadge
+    private val movieId = movie.movieId
+    private val movieName = movie.movieName
+    private val movieCategoryId = movie.movieCategoryId
+    private val movieYear = movie.movieYear
+    private val movieBackdrop = movie.movieBackdrop
+    private val movieContainer = movie.movieContainer
+    private val currentImdbId = movie.currentImdbId
+    private val onPlayMovie = callbacks.onPlayMovie
+    private val onPlayDebridMovie = callbacks.onPlayDebridMovie
+
     // Source state (single source of truth; MD-4 playback reads/mutates these).
     var selectedSource: MovieSource? = null
     var sourcesLoadJob: Job? = null

@@ -29,31 +29,71 @@ class MovieMetadataController(
     private val activity: AppCompatActivity,
     private val tmdbRemoteDataSource: TmdbRemoteDataSource,
     private val trailerController: MovieTrailerController,
-    private val castAdapter: CastAdapter,
-    private val tvCastTitle: TextView,
-    private val rvCast: RecyclerView,
-    private val tvImdbRating: TextView,
-    private val badgeImdb: View,
-    private val tvRtRating: TextView,
-    private val badgeRt: View,
-    private val tvAgeRating: TextView,
-    private val layoutMetadataRow: View,
-    private val similarAdapter: SimilarMoviesAdapter,
-    private val layoutSimilarRow: View,
-    private val movieName: () -> String?,
-    private val currentImdbId: () -> String?,
-    private val setCurrentImdbId: (String?) -> Unit,
-    private val movieAgeRating: () -> String?,
-    private val setMovieAgeRating: (String?) -> Unit,
-    private val setMoviePlot: (String?) -> Unit,
-    private val setMovieRating: (String?) -> Unit,
-    private val setMovieYear: (String?) -> Unit,
-    private val setMovieDuration: (String?) -> Unit,
-    private val setMovieGenre: (String?) -> Unit,
-    private val setMovieDirector: (String?) -> Unit,
-    private val onMetadataApplied: () -> Unit,
-    private val onFetchComplete: (String?) -> Unit,
+    views: Views,
+    fields: MovieFields,
+    callbacks: Callbacks,
 ) {
+    /** The metadata row's views + the cast/similar adapters this controller renders into. */
+    data class Views(
+        val castAdapter: CastAdapter,
+        val tvCastTitle: TextView,
+        val rvCast: RecyclerView,
+        val tvImdbRating: TextView,
+        val badgeImdb: View,
+        val tvRtRating: TextView,
+        val badgeRt: View,
+        val tvAgeRating: TextView,
+        val layoutMetadataRow: View,
+        val similarAdapter: SimilarMoviesAdapter,
+        val layoutSimilarRow: View,
+    )
+
+    /** Getter/setter lambdas onto the Activity-owned movie metadata fields (see class KDoc). */
+    data class MovieFields(
+        val movieName: () -> String?,
+        val currentImdbId: () -> String?,
+        val setCurrentImdbId: (String?) -> Unit,
+        val movieAgeRating: () -> String?,
+        val setMovieAgeRating: (String?) -> Unit,
+        val setMoviePlot: (String?) -> Unit,
+        val setMovieRating: (String?) -> Unit,
+        val setMovieYear: (String?) -> Unit,
+        val setMovieDuration: (String?) -> Unit,
+        val setMovieGenre: (String?) -> Unit,
+        val setMovieDirector: (String?) -> Unit,
+    )
+
+    /** Re-render + source-load hand-offs back to the Activity. */
+    data class Callbacks(
+        val onMetadataApplied: () -> Unit,
+        val onFetchComplete: (String?) -> Unit,
+    )
+
+    private val castAdapter = views.castAdapter
+    private val tvCastTitle = views.tvCastTitle
+    private val rvCast = views.rvCast
+    private val tvImdbRating = views.tvImdbRating
+    private val badgeImdb = views.badgeImdb
+    private val tvRtRating = views.tvRtRating
+    private val badgeRt = views.badgeRt
+    private val tvAgeRating = views.tvAgeRating
+    private val layoutMetadataRow = views.layoutMetadataRow
+    private val similarAdapter = views.similarAdapter
+    private val layoutSimilarRow = views.layoutSimilarRow
+    private val movieName = fields.movieName
+    private val currentImdbId = fields.currentImdbId
+    private val setCurrentImdbId = fields.setCurrentImdbId
+    private val movieAgeRating = fields.movieAgeRating
+    private val setMovieAgeRating = fields.setMovieAgeRating
+    private val setMoviePlot = fields.setMoviePlot
+    private val setMovieRating = fields.setMovieRating
+    private val setMovieYear = fields.setMovieYear
+    private val setMovieDuration = fields.setMovieDuration
+    private val setMovieGenre = fields.setMovieGenre
+    private val setMovieDirector = fields.setMovieDirector
+    private val onMetadataApplied = callbacks.onMetadataApplied
+    private val onFetchComplete = callbacks.onFetchComplete
+
     fun fetchTmdbDetails(tmdbId: String) {
         activity.lifecycleScope.launch {
             var imdbId: String? = null

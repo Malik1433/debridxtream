@@ -226,43 +226,53 @@ class SeriesDetailActivity : AppCompatActivity() {
 
         seriesSeasonUi = SeriesSeasonUi(
             activity = this,
-            rvSeasons = rvSeasons,
-            rvEpisodes = rvEpisodes,
-            tvEmptyEpisodes = tvEmptyEpisodes,
-            btnWatchNow = btnWatchNow,
-            btnSeasonSelector = btnSeasonSelector,
-            tvSeasonProgress = tvSeasonProgress,
-            tvSeasonEpisodeCount = tvSeasonEpisodeCount,
-            layoutResume = layoutResume,
-            tvResumeLabel = tvResumeLabel,
-            tvResumeRight = tvResumeRight,
-            vResumeProgress = vResumeProgress,
-            tvResumeEpTitle = tvResumeEpTitle,
             watchedStateRepository = watchedStateRepository,
-            isDebrid = { isDebridContent },
-            seriesId = { seriesId },
-            seriesName = { seriesName },
-            seriesReleaseDate = { seriesReleaseDate },
-            onPlayEpisode = { seriesDebridPlayback.playEpisode(it) }
+            views = SeriesSeasonUi.Views(
+                rvSeasons = rvSeasons,
+                rvEpisodes = rvEpisodes,
+                tvEmptyEpisodes = tvEmptyEpisodes,
+                btnWatchNow = btnWatchNow,
+                btnSeasonSelector = btnSeasonSelector,
+                tvSeasonProgress = tvSeasonProgress,
+                tvSeasonEpisodeCount = tvSeasonEpisodeCount,
+                layoutResume = layoutResume,
+                tvResumeLabel = tvResumeLabel,
+                tvResumeRight = tvResumeRight,
+                vResumeProgress = vResumeProgress,
+                tvResumeEpTitle = tvResumeEpTitle,
+            ),
+            host = SeriesSeasonUi.Host(
+                isDebrid = { isDebridContent },
+                seriesId = { seriesId },
+                seriesName = { seriesName },
+                seriesReleaseDate = { seriesReleaseDate },
+                onPlayEpisode = { seriesDebridPlayback.playEpisode(it) }
+            )
         )
 
         seriesDebridSources = SeriesDebridSourceController(
             activity = this,
             seasonUi = seriesSeasonUi,
-            unifiedSourceProvider = unifiedSourceProvider,
-            debridPlaybackRepository = debridPlaybackRepository,
-            seriesRepositoryV2 = seriesRepositoryV2,
-            credentialsPreferences = credentialsPreferences,
-            layoutRdSummary = layoutRdSummary,
-            tvRdSummary = tvRdSummary,
-            tvQualityBadge = tvQualityBadge,
-            seriesId = { seriesId },
-            seriesName = { seriesName },
-            seriesBackdrop = { seriesBackdrop },
-            seriesReleaseDate = { seriesReleaseDate },
-            showLoading = { showLoading(it) },
-            onPlayDebridSource = { source, ep -> seriesDebridPlayback.playDebridEpisode(source, ep) },
-            onPlayIptvSource = { source, ep -> seriesDebridPlayback.playIptvSourceFromDebrid(source, ep) }
+            deps = SeriesDebridSourceController.Deps(
+                unifiedSourceProvider = unifiedSourceProvider,
+                debridPlaybackRepository = debridPlaybackRepository,
+                seriesRepositoryV2 = seriesRepositoryV2,
+                credentialsPreferences = credentialsPreferences,
+            ),
+            views = SeriesDebridSourceController.Views(
+                layoutRdSummary = layoutRdSummary,
+                tvRdSummary = tvRdSummary,
+                tvQualityBadge = tvQualityBadge,
+            ),
+            host = SeriesDebridSourceController.Host(
+                seriesId = { seriesId },
+                seriesName = { seriesName },
+                seriesBackdrop = { seriesBackdrop },
+                seriesReleaseDate = { seriesReleaseDate },
+                showLoading = { showLoading(it) },
+                onPlayDebridSource = { source, ep -> seriesDebridPlayback.playDebridEpisode(source, ep) },
+                onPlayIptvSource = { source, ep -> seriesDebridPlayback.playIptvSourceFromDebrid(source, ep) }
+            )
         )
 
         seriesDebridPlayback = SeriesDebridPlaybackController(
@@ -270,19 +280,23 @@ class SeriesDetailActivity : AppCompatActivity() {
             seasonUi = seriesSeasonUi,
             sources = seriesDebridSources,
             repository = repository,
-            credentialsPreferences = credentialsPreferences,
-            unifiedSourceProvider = unifiedSourceProvider,
-            debridPlaybackRepository = debridPlaybackRepository,
-            playbackResolver = playbackResolver,
-            seriesRepositoryV2 = seriesRepositoryV2,
-            isDebrid = { isDebridContent },
-            seriesId = { seriesId },
-            seriesName = { seriesName },
-            seriesCover = { seriesCover },
-            seriesBackdrop = { seriesBackdrop },
-            seriesReleaseDate = { seriesReleaseDate },
-            showLoading = { showLoading(it) },
-            launch = { playerLauncher.launch(it) }
+            deps = SeriesDebridPlaybackController.Deps(
+                credentialsPreferences = credentialsPreferences,
+                unifiedSourceProvider = unifiedSourceProvider,
+                debridPlaybackRepository = debridPlaybackRepository,
+                playbackResolver = playbackResolver,
+                seriesRepositoryV2 = seriesRepositoryV2,
+            ),
+            host = SeriesDebridPlaybackController.Host(
+                isDebrid = { isDebridContent },
+                seriesId = { seriesId },
+                seriesName = { seriesName },
+                seriesCover = { seriesCover },
+                seriesBackdrop = { seriesBackdrop },
+                seriesReleaseDate = { seriesReleaseDate },
+                showLoading = { showLoading(it) },
+                launch = { playerLauncher.launch(it) }
+            )
         )
     }
 

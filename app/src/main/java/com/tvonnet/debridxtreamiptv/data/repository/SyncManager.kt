@@ -32,15 +32,34 @@ import kotlinx.coroutines.withTimeoutOrNull
  */
 internal class SyncManager(
     private val session: XtreamSession,
-    private val catalogCache: CatalogCache,
-    private val cacheHelper: CacheHelper,
-    private val cacheManager: CacheManager,
-    private val syncPrefs: SharedPreferences,
-    private val liveRepository: LiveRepository,
-    private val vodRepository: VodRepository,
-    private val seriesRepository: SeriesRepository,
-    private val searchIndexManager: SearchIndexManager
+    caches: Caches,
+    domains: Domains
 ) {
+    /** The cache/persistence cluster the sync writes through. */
+    internal data class Caches(
+        val catalogCache: CatalogCache,
+        val cacheHelper: CacheHelper,
+        val cacheManager: CacheManager,
+        val syncPrefs: SharedPreferences
+    )
+
+    /** The per-domain collaborators the sync fans out to. */
+    internal data class Domains(
+        val liveRepository: LiveRepository,
+        val vodRepository: VodRepository,
+        val seriesRepository: SeriesRepository,
+        val searchIndexManager: SearchIndexManager
+    )
+
+    private val catalogCache = caches.catalogCache
+    private val cacheHelper = caches.cacheHelper
+    private val cacheManager = caches.cacheManager
+    private val syncPrefs = caches.syncPrefs
+    private val liveRepository = domains.liveRepository
+    private val vodRepository = domains.vodRepository
+    private val seriesRepository = domains.seriesRepository
+    private val searchIndexManager = domains.searchIndexManager
+
     private val syncMutex = Mutex()
     private val _syncProgress = MutableStateFlow(SyncProgress.idle())
     val syncProgress: StateFlow<SyncProgress> = _syncProgress.asStateFlow()

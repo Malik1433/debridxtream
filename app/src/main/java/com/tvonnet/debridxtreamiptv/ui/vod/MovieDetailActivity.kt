@@ -301,33 +301,41 @@ class MovieDetailActivity : AppCompatActivity() {
 
         movieDebridSources = MovieDebridSourceController(
             activity = this,
-            unifiedSourceProvider = unifiedSourceProvider,
-            debridPlaybackRepository = debridPlaybackRepository,
-            repository = repository,
-            credentialsPrefs = credentialsPrefs,
-            tvSourcesHeader = tvSourcesHeader,
-            tvSourcesStatus = tvSourcesStatus,
-            rvSources = rvSources,
-            layoutSourceFilters = layoutSourceFilters,
-            btnCachedOnly = btnCachedOnly,
-            rvLanguageFilters = rvLanguageFilters,
-            btnPlay = btnPlay,
-            layoutRdSummary = layoutRdSummary,
-            tvRdSummaryText = tvRdSummaryText,
-            tvQualityBadge = tvQualityBadge,
-            movieId = { movieId },
-            movieName = { movieName },
-            movieCategoryId = { movieCategoryId },
-            movieYear = { movieYear },
-            movieBackdrop = { movieBackdrop },
-            movieContainer = { movieContainer },
-            currentImdbId = { currentImdbId },
-            // Both source-selection paths (the sheet and the inline list) come through here, so the
-            // resume question is asked once, in one place, whichever way a source was chosen.
-            onPlayMovie = { source -> withResumeChoice { moviePlayback.playMovie(source) } },
-            onPlayDebridMovie = { stream, source, returnToSources ->
-                withResumeChoice { moviePlayback.playDebridMovie(stream, source, returnToSources) }
-            }
+            deps = MovieDebridSourceController.Deps(
+                unifiedSourceProvider = unifiedSourceProvider,
+                debridPlaybackRepository = debridPlaybackRepository,
+                repository = repository,
+                credentialsPrefs = credentialsPrefs,
+            ),
+            views = MovieDebridSourceController.Views(
+                tvSourcesHeader = tvSourcesHeader,
+                tvSourcesStatus = tvSourcesStatus,
+                rvSources = rvSources,
+                layoutSourceFilters = layoutSourceFilters,
+                btnCachedOnly = btnCachedOnly,
+                rvLanguageFilters = rvLanguageFilters,
+                btnPlay = btnPlay,
+                layoutRdSummary = layoutRdSummary,
+                tvRdSummaryText = tvRdSummaryText,
+                tvQualityBadge = tvQualityBadge,
+            ),
+            movie = MovieDebridSourceController.MovieAccessors(
+                movieId = { movieId },
+                movieName = { movieName },
+                movieCategoryId = { movieCategoryId },
+                movieYear = { movieYear },
+                movieBackdrop = { movieBackdrop },
+                movieContainer = { movieContainer },
+                currentImdbId = { currentImdbId },
+            ),
+            callbacks = MovieDebridSourceController.Callbacks(
+                // Both source-selection paths (the sheet and the inline list) come through here, so the
+                // resume question is asked once, in one place, whichever way a source was chosen.
+                onPlayMovie = { source -> withResumeChoice { moviePlayback.playMovie(source) } },
+                onPlayDebridMovie = { stream, source, returnToSources ->
+                    withResumeChoice { moviePlayback.playDebridMovie(stream, source, returnToSources) }
+                }
+            )
         )
         movieDebridSources.setupSourceViews()
 
@@ -337,18 +345,20 @@ class MovieDetailActivity : AppCompatActivity() {
             repository = repository,
             debridPlaybackRepository = debridPlaybackRepository,
             playbackResolver = playbackResolver,
-            tvSourcesStatus = tvSourcesStatus,
-            movieId = { movieId },
-            movieName = { movieName },
-            movieIcon = { movieIcon },
-            movieBackdrop = { movieBackdrop },
-            movieContainer = { movieContainer },
-            movieCategoryId = { movieCategoryId },
-            currentImdbId = { currentImdbId },
-            // Zero for a launch the user asked to start over; the stored position is left alone so
-            // backing straight out of the player does not lose where they were.
-            resumePositionMs = { if (startFromBeginningOnce) 0L else resumePositionMs },
-            launch = { playerLauncher.launch(it) }
+            host = MovieDebridPlaybackController.Host(
+                tvSourcesStatus = tvSourcesStatus,
+                movieId = { movieId },
+                movieName = { movieName },
+                movieIcon = { movieIcon },
+                movieBackdrop = { movieBackdrop },
+                movieContainer = { movieContainer },
+                movieCategoryId = { movieCategoryId },
+                currentImdbId = { currentImdbId },
+                // Zero for a launch the user asked to start over; the stored position is left alone so
+                // backing straight out of the player does not lose where they were.
+                resumePositionMs = { if (startFromBeginningOnce) 0L else resumePositionMs },
+                launch = { playerLauncher.launch(it) }
+            )
         )
 
         setupClickListeners()
@@ -364,30 +374,36 @@ class MovieDetailActivity : AppCompatActivity() {
             activity = this,
             tmdbRemoteDataSource = tmdbRemoteDataSource,
             trailerController = movieTrailerController,
-            castAdapter = castAdapter,
-            tvCastTitle = tvCastTitle,
-            rvCast = rvCast,
-            tvImdbRating = tvImdbRating,
-            badgeImdb = badgeImdb,
-            tvRtRating = tvRtRating,
-            badgeRt = badgeRt,
-            tvAgeRating = tvAgeRating,
-            layoutMetadataRow = layoutMetadataRow,
-            similarAdapter = similarAdapter,
-            layoutSimilarRow = layoutSimilarRow,
-            movieName = { movieName },
-            currentImdbId = { currentImdbId },
-            setCurrentImdbId = { currentImdbId = it },
-            movieAgeRating = { movieAgeRating },
-            setMovieAgeRating = { movieAgeRating = it },
-            setMoviePlot = { moviePlot = it },
-            setMovieRating = { movieRating = it },
-            setMovieYear = { movieYear = it },
-            setMovieDuration = { movieDuration = it },
-            setMovieGenre = { movieGenre = it },
-            setMovieDirector = { movieDirector = it },
-            onMetadataApplied = { displayMovieDetails(); refreshResumeState() },
-            onFetchComplete = { movieDebridSources.loadMovieSources(it) }
+            views = MovieMetadataController.Views(
+                castAdapter = castAdapter,
+                tvCastTitle = tvCastTitle,
+                rvCast = rvCast,
+                tvImdbRating = tvImdbRating,
+                badgeImdb = badgeImdb,
+                tvRtRating = tvRtRating,
+                badgeRt = badgeRt,
+                tvAgeRating = tvAgeRating,
+                layoutMetadataRow = layoutMetadataRow,
+                similarAdapter = similarAdapter,
+                layoutSimilarRow = layoutSimilarRow,
+            ),
+            fields = MovieMetadataController.MovieFields(
+                movieName = { movieName },
+                currentImdbId = { currentImdbId },
+                setCurrentImdbId = { currentImdbId = it },
+                movieAgeRating = { movieAgeRating },
+                setMovieAgeRating = { movieAgeRating = it },
+                setMoviePlot = { moviePlot = it },
+                setMovieRating = { movieRating = it },
+                setMovieYear = { movieYear = it },
+                setMovieDuration = { movieDuration = it },
+                setMovieGenre = { movieGenre = it },
+                setMovieDirector = { movieDirector = it },
+            ),
+            callbacks = MovieMetadataController.Callbacks(
+                onMetadataApplied = { displayMovieDetails(); refreshResumeState() },
+                onFetchComplete = { movieDebridSources.loadMovieSources(it) }
+            )
         )
     }
 

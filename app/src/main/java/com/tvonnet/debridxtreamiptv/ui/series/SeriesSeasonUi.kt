@@ -34,25 +34,53 @@ import kotlinx.coroutines.withContext
  */
 class SeriesSeasonUi(
     private val activity: AppCompatActivity,
-    private val rvSeasons: RecyclerView,
-    private val rvEpisodes: RecyclerView,
-    private val tvEmptyEpisodes: TextView,
-    private val btnWatchNow: AppCompatButton,
-    private val btnSeasonSelector: AppCompatButton,
-    private val tvSeasonProgress: TextView,
-    private val tvSeasonEpisodeCount: TextView,
-    private val layoutResume: LinearLayout,
-    private val tvResumeLabel: TextView,
-    private val tvResumeRight: TextView,
-    private val vResumeProgress: View,
-    private val tvResumeEpTitle: TextView,
     private val watchedStateRepository: WatchedStateRepository,
-    private val isDebrid: () -> Boolean,
-    private val seriesId: () -> String?,
-    private val seriesName: () -> String?,
-    private val seriesReleaseDate: () -> String?,
-    private val onPlayEpisode: (EpisodeUiModel) -> Unit,
+    views: Views,
+    host: Host,
 ) {
+    /** The season/episode/resume views this collaborator renders into. */
+    data class Views(
+        val rvSeasons: RecyclerView,
+        val rvEpisodes: RecyclerView,
+        val tvEmptyEpisodes: TextView,
+        val btnWatchNow: AppCompatButton,
+        val btnSeasonSelector: AppCompatButton,
+        val tvSeasonProgress: TextView,
+        val tvSeasonEpisodeCount: TextView,
+        val layoutResume: LinearLayout,
+        val tvResumeLabel: TextView,
+        val tvResumeRight: TextView,
+        val vResumeProgress: View,
+        val tvResumeEpTitle: TextView,
+    )
+
+    /** Accessors onto the Activity's current-series fields + the play hand-off. */
+    data class Host(
+        val isDebrid: () -> Boolean,
+        val seriesId: () -> String?,
+        val seriesName: () -> String?,
+        val seriesReleaseDate: () -> String?,
+        val onPlayEpisode: (EpisodeUiModel) -> Unit,
+    )
+
+    private val rvSeasons = views.rvSeasons
+    private val rvEpisodes = views.rvEpisodes
+    private val tvEmptyEpisodes = views.tvEmptyEpisodes
+    private val btnWatchNow = views.btnWatchNow
+    private val btnSeasonSelector = views.btnSeasonSelector
+    private val tvSeasonProgress = views.tvSeasonProgress
+    private val tvSeasonEpisodeCount = views.tvSeasonEpisodeCount
+    private val layoutResume = views.layoutResume
+    private val tvResumeLabel = views.tvResumeLabel
+    private val tvResumeRight = views.tvResumeRight
+    private val vResumeProgress = views.vResumeProgress
+    private val tvResumeEpTitle = views.tvResumeEpTitle
+    private val isDebrid = host.isDebrid
+    private val seriesId = host.seriesId
+    private val seriesName = host.seriesName
+    private val seriesReleaseDate = host.seriesReleaseDate
+    private val onPlayEpisode = host.onPlayEpisode
+
     private val seasonsAdapter: SeriesSeasonAdapter
     private lateinit var cinEpisodeAdapter: CinEpisodeAdapter
 
