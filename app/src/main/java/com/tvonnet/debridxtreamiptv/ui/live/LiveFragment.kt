@@ -170,7 +170,24 @@ class LiveFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         didRestoreFocusForThisView = false
         didRestorePreviewForThisView = false
-        
+
+        bindCoreViews(view)
+        buildHeaderSearchAndCategories(view)
+        buildFocusZoomAndLaunchers(view)
+        buildEpgAndPreview(view)
+        setupListViews()
+        setupListKeyRouting()
+        setupListPolish()
+        setupMemoryGuards()
+
+        // Observe ViewModel state
+        observeViewModel()
+        favoritesController?.observeFavorites()
+        epgController?.observeEpgUpdates()
+        epgController?.primeEpgData()
+    }
+
+    private fun bindCoreViews(view: View) {
         // Setup UI for the v2 3-column layout (rail | channels | preview + guide)
         rvCategories = view.findViewById<RecyclerView>(R.id.rv_category_chips)
             ?: error("Missing rv_category_chips in fragment_live_3column")
@@ -182,7 +199,9 @@ class LiveFragment : Fragment() {
         // Loading/empty overlays for channels list
         llLoadingState = view.findViewById(R.id.ll_loading_state)
         tvLoadingMessage = view.findViewById(R.id.tv_loading_message)
+    }
 
+    private fun buildHeaderSearchAndCategories(view: View) {
         headerController = LiveHeaderController(
             fragment = this,
             tvHeaderCategory = view.findViewById(R.id.tv_category_name),
@@ -232,6 +251,9 @@ class LiveFragment : Fragment() {
                 }
             },
         )
+    }
+
+    private fun buildFocusZoomAndLaunchers(view: View) {
         channelFocusController = LiveChannelFocusController(
             fragment = this,
             viewModel = viewModel,
@@ -274,6 +296,9 @@ class LiveFragment : Fragment() {
                 markPreviewRestored = { didRestorePreviewForThisView = true },
             ),
         )
+    }
+
+    private fun buildEpgAndPreview(view: View) {
         epgController = LiveEpgPreviewController(
             fragment = this,
             viewModel = viewModel,
@@ -303,7 +328,9 @@ class LiveFragment : Fragment() {
             onFavoriteClick = { stream -> favoritesController?.togglePreviewFavorite(stream) }
         )
         viewLifecycleOwner.lifecycle.addObserver(previewPlayerPanel!!)
-        
+    }
+
+    private fun setupListViews() {
         // v2: categories are a horizontal chip strip in the header, not a vertical sidebar.
         rvCategories.apply {
             layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
@@ -323,49 +350,30 @@ class LiveFragment : Fragment() {
             recycledViewPool.setMaxRecycledViews(0, 60)
             adapter = channelPagingAdapter
         }
+    }
 
-        // We DO NOT use FocusTrapHelper here because it breaks RecyclerView scrolling!
-        // When you press DOWN on the last visible item, focusSearch() returns null (because the next item isn't laid out yet).
-        // FocusTrapHelper would intercept that null and kill the event, preventing the RV from scrolling.
-        // v2 chip strip: DOWN drops into the channel list; LEFT off the first chip enters the
-        // rail (RIGHT/LEFT between chips is left to the RV so it can scroll).
-        rvCategories.setOnKeyListener { _, keyCode, event ->
-            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-            when (keyCode) {
-                KeyEvent.KEYCODE_DPAD_DOWN -> {
+    private fun setupListKeyRouting() {
+        LiveListKeyRouting(
+            rvCategories,
+            rvChannels,
+            LiveListKeyRouting.Hooks(
+                focusChannelAtLast = {
                     channelFocusController?.focusChannelItem(viewModel.uiState.value.lastFocusedChannelPosition ?: 0)
-                    true
-                }
-                KeyEvent.KEYCODE_DPAD_LEFT -> {
+                },
+                leftFromFirstCategory = {
                     if (categoryController?.isFirstCategoryFocused() == true) focusNavRail() else false
-                }
-                KeyEvent.KEYCODE_DPAD_UP -> true // nothing above the strip
-                else -> false
-            }
-        }
-
-        com.tvonnet.debridxtreamiptv.utils.SpatialNavigationEngine.enforceStrictOrthogonalNavigation(rvChannels)
-
-        // TV Focus Guard. v2 topology: LEFT enters the rail, UP off the top row reaches the
-        // chip strip, RIGHT crosses to the Watch button.
-        rvChannels.setOnKeyListener { _, keyCode, event ->
-            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-
-            when (keyCode) {
-                KeyEvent.KEYCODE_DPAD_UP -> {
+                },
+                upFromChannels = {
                     if (channelFocusController?.isFirstChannelFocused() == true) (categoryController?.focusCategoryStrip() == true) else (channelFocusController?.moveChannelFocusBy(delta = -1) == true)
-                }
-                KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    channelFocusController?.moveChannelFocusBy(delta = 1) == true
-                }
-                KeyEvent.KEYCODE_DPAD_LEFT -> focusNavRail()
-                KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    btnWatch?.requestFocus() == true
-                }
-                else -> false
-            }
-        }
-        
+                },
+                downFromChannels = { channelFocusController?.moveChannelFocusBy(delta = 1) == true },
+                focusNavRail = { focusNavRail() },
+                focusWatch = { btnWatch?.requestFocus() == true },
+            )
+        ).attach()
+    }
+
+    private fun setupListPolish() {
         // Smooth/pro: avoid "re-enter" layout animations on return from fullscreen.
         rvChannels.itemAnimator = null
         rvCategories.itemAnimator = null
@@ -387,7 +395,9 @@ class LiveFragment : Fragment() {
         with(com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager) {
             channelPagingAdapter.applyFocusMemory()
         }
-        
+    }
+
+    private fun setupMemoryGuards() {
         // Phase 2.5: Initialize EPG cache system
         EpgCache.initialize(repository)
 
@@ -413,12 +423,6 @@ class LiveFragment : Fragment() {
                 }
             }
         }.also { memoryManager.addEmergencyCleanupCallback(it) }
-
-        // Observe ViewModel state
-        observeViewModel()
-        favoritesController?.observeFavorites()
-        epgController?.observeEpgUpdates()
-        epgController?.primeEpgData()
     }
 
     override fun onResume() {
@@ -537,7 +541,14 @@ class LiveFragment : Fragment() {
      * Uses repeatOnLifecycle to prevent JobCancellationException issues
      */
     private fun observeViewModel() {
-        // Observe UI state for categories with proper lifecycle management
+        observeUiState()
+        observePagedChannels()
+        observeLoadState()
+        observeNavigationEvents()
+    }
+
+    // Observe UI state for categories with proper lifecycle management
+    private fun observeUiState() {
         uiStateJob = viewLifecycleOwner.lifecycleScope.launch {
             try {
                 viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -561,8 +572,10 @@ class LiveFragment : Fragment() {
                 }
             }
         }
+    }
 
-        // Observe paged channels with proper lifecycle management
+    // Observe paged channels with proper lifecycle management
+    private fun observePagedChannels() {
         pagedChannelsJob = viewLifecycleOwner.lifecycleScope.launch {
             try {
                 // Keep Paging collection alive while the view exists (not STARTED), so fullscreen transitions don't reset the list.
@@ -585,8 +598,10 @@ class LiveFragment : Fragment() {
                 }
             }
         }
+    }
 
-        // Observe adapter load state with enhanced error handling
+    // Observe adapter load state with enhanced error handling
+    private fun observeLoadState() {
         loadStateJob = viewLifecycleOwner.lifecycleScope.launch {
             try {
                 channelPagingAdapter.loadStateFlow.collectLatest { loadStates ->
@@ -613,8 +628,10 @@ class LiveFragment : Fragment() {
                 }
             }
         }
+    }
 
-        // Observe navigation events (play channel) with proper lifecycle management
+    // Observe navigation events (play channel) with proper lifecycle management
+    private fun observeNavigationEvents() {
         navigationJob = viewLifecycleOwner.lifecycleScope.launch {
             try {
                 viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -669,43 +686,18 @@ class LiveFragment : Fragment() {
 
         val categoryIdToReveal = state.lastFocusedCategoryId ?: state.selectedCategoryId
         if (!categoryIdToReveal.isNullOrBlank()) {
-            val positionById = cc.displayCategories.indexOfFirst { it.category_id == categoryIdToReveal }
-            val position = if (positionById >= 0) positionById else state.lastFocusedCategoryPosition ?: -1
+            val position = categoryPositionFor(cc, categoryIdToReveal, state)
             if (position >= 0) rvCategories.scrollToPosition(position)
         }
 
         if (state.lastFocusArea == LiveFocusArea.CATEGORIES) {
-            val focusCategoryId = state.lastFocusedCategoryId ?: state.selectedCategoryId
-            if (!focusCategoryId.isNullOrBlank()) {
-                val positionById = cc.displayCategories.indexOfFirst { it.category_id == focusCategoryId }
-                val position = if (positionById >= 0) positionById else state.lastFocusedCategoryPosition ?: -1
-                if (position >= 0) {
-                    com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("LIVE_GRID") {
-                        rvCategories.post {
-                            rvCategories.scrollToPosition(position)
-                            rvCategories.post {
-                                try {
-                                    rvCategories.findViewHolderForAdapterPosition(position)?.itemView?.requestFocus()
-                                    didRestoreFocusForThisView = true
-                                } finally {
-                                    com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
-                                }
-                            }
-                        }
-                    }
-                    return
-                }
-            }
-            com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("LIVE_GRID") {
-                rvCategories.post {
-                    try {
-                        didRestoreFocusForThisView = cc.focusSelectedCategoryItem()
-                    } finally {
-                        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
-                    }
-                }
-            }
+            restoreCategoriesFocus(cc, state)
         }
+    }
+
+    private fun restoreCategoriesFocus(cc: LiveCategoryController, state: LiveUiState) {
+        LiveCategoryFocusRestorer(rvCategories) { restored -> didRestoreFocusForThisView = restored }
+            .restore(cc, state)
     }
 
 
@@ -800,4 +792,120 @@ class LiveFragment : Fragment() {
 
     private fun focusNavRail(): Boolean = navRail?.focusActiveItem() == true
 
+}
+
+// Id lookup first; the saved numeric position is only the fallback when the id vanished.
+private fun categoryPositionFor(
+    cc: LiveCategoryController,
+    categoryId: String,
+    state: LiveUiState
+): Int {
+    val positionById = cc.displayCategories.indexOfFirst { it.category_id == categoryId }
+    return if (positionById >= 0) positionById else state.lastFocusedCategoryPosition ?: -1
+}
+
+/**
+ * Restores D-pad focus to the remembered category chip (verbatim from the fragment).
+ * Saved-id row first (double-post: first pass scrolls the row in, second focuses the
+ * now-laid-out holder), else the selected category; [setRestored] writes the fragment's
+ * didRestoreFocusForThisView latch.
+ */
+private class LiveCategoryFocusRestorer(
+    private val rvCategories: RecyclerView,
+    private val setRestored: (Boolean) -> Unit,
+) {
+    fun restore(cc: LiveCategoryController, state: LiveUiState) {
+        val focusCategoryId = state.lastFocusedCategoryId ?: state.selectedCategoryId
+        if (!focusCategoryId.isNullOrBlank()) {
+            val position = categoryPositionFor(cc, focusCategoryId, state)
+            if (position >= 0) {
+                focusCategoryAt(position)
+                return
+            }
+        }
+        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("LIVE_GRID") {
+            rvCategories.post {
+                try {
+                    setRestored(cc.focusSelectedCategoryItem())
+                } finally {
+                    com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
+                }
+            }
+        }
+    }
+
+    private fun focusCategoryAt(position: Int) {
+        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.requestFocus("LIVE_GRID") {
+            rvCategories.post {
+                rvCategories.scrollToPosition(position)
+                rvCategories.post {
+                    try {
+                        rvCategories.findViewHolderForAdapterPosition(position)?.itemView?.requestFocus()
+                        setRestored(true)
+                    } finally {
+                        com.tvonnet.debridxtreamiptv.utils.FocusCoordinator.release("LIVE_GRID")
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The v2 D-pad topology for the chip strip + channel list, verbatim from the fragment's
+ * onViewCreated. We DO NOT use FocusTrapHelper here because it breaks RecyclerView
+ * scrolling: when you press DOWN on the last visible item, focusSearch() returns null
+ * (the next item isn't laid out yet) and the trap would kill the event, preventing the
+ * RV from scrolling. Chip strip: DOWN drops into the channel list; LEFT off the first
+ * chip enters the rail (RIGHT/LEFT between chips is left to the RV so it can scroll).
+ * Channel list: LEFT enters the rail, UP off the top row reaches the chip strip,
+ * RIGHT crosses to the Watch button.
+ */
+private class LiveListKeyRouting(
+    private val rvCategories: RecyclerView,
+    private val rvChannels: RecyclerView,
+    private val hooks: Hooks,
+) {
+    class Hooks(
+        val focusChannelAtLast: () -> Unit,
+        val leftFromFirstCategory: () -> Boolean,
+        val upFromChannels: () -> Boolean,
+        val downFromChannels: () -> Boolean,
+        val focusNavRail: () -> Boolean,
+        val focusWatch: () -> Boolean,
+    )
+
+    fun attach() {
+        attachCategoryStrip()
+        com.tvonnet.debridxtreamiptv.utils.SpatialNavigationEngine.enforceStrictOrthogonalNavigation(rvChannels)
+        attachChannelList()
+    }
+
+    private fun attachCategoryStrip() {
+        rvCategories.setOnKeyListener { _, keyCode, event ->
+            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    hooks.focusChannelAtLast()
+                    true
+                }
+                KeyEvent.KEYCODE_DPAD_LEFT -> hooks.leftFromFirstCategory()
+                KeyEvent.KEYCODE_DPAD_UP -> true // nothing above the strip
+                else -> false
+            }
+        }
+    }
+
+    private fun attachChannelList() {
+        rvChannels.setOnKeyListener { _, keyCode, event ->
+            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP -> hooks.upFromChannels()
+                KeyEvent.KEYCODE_DPAD_DOWN -> hooks.downFromChannels()
+                KeyEvent.KEYCODE_DPAD_LEFT -> hooks.focusNavRail()
+                KeyEvent.KEYCODE_DPAD_RIGHT -> hooks.focusWatch()
+                else -> false
+            }
+        }
+    }
 }
