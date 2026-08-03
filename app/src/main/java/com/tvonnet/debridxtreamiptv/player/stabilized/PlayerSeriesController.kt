@@ -283,36 +283,51 @@ internal class PlayerSeriesController(
         historyManager.recordPlaybackHistoryIfNeeded()
 
         if (playbackSource == PlaybackSource.DEBRID && contentType == ContentType.EPISODE) {
-             val currentSeason = seasonNumberExtra ?: -1
-             val currentEpisode = episodeNumberExtra ?: -1
-             val tmdbId = debridSeriesLookupId().takeIf { it.isNotBlank() }
-
-              if (tmdbId != null && currentSeason != -1 && currentEpisode != -1) {
-                  val nextEp = viewModel.getNextEpisode()
-
-                  val targetSeason = nextEp?.seasonNumber?.takeIf { it >= currentSeason } ?: currentSeason
-                  val targetEpisode = if (nextEp != null && nextEp.seasonNumber == currentSeason && nextEp.episodeNumber > currentEpisode) {
-                      nextEp.episodeNumber
-                  } else if (nextEp != null && nextEp.seasonNumber > currentSeason) {
-                      nextEp.episodeNumber
-                  } else {
-                      currentEpisode + 1
-                  }
-
-                  viewModel.loadNextDebridEpisode(
-                      seriesId = tmdbId,
-                      targetSeason = targetSeason,
-                      targetEpisode = targetEpisode,
-                      seriesTitle = seriesTitleExtra,
-                      infoHash = debridInfoHashExtra ?: debridStreamIdExtra,
-                      sourceProfile = currentDebridSourceProfile()
-                  )
-             } else {
-                 showError("Next episode data missing")
-             }
+            advanceDebridEpisode()
         } else {
             viewModel.getNextEpisode()
         }
+    }
+
+    private fun advanceDebridEpisode() {
+        val currentSeason = seasonNumberExtra ?: -1
+        val currentEpisode = episodeNumberExtra ?: -1
+        val tmdbId = debridSeriesLookupId().takeIf { it.isNotBlank() }
+
+        if (tmdbId != null && currentSeason != -1 && currentEpisode != -1) {
+            val nextEp = viewModel.getNextEpisode()
+            val (targetSeason, targetEpisode) = debridNextTarget(currentSeason, currentEpisode, nextEp)
+
+            viewModel.loadNextDebridEpisode(
+                seriesId = tmdbId,
+                targetSeason = targetSeason,
+                targetEpisode = targetEpisode,
+                seriesTitle = seriesTitleExtra,
+                infoHash = debridInfoHashExtra ?: debridStreamIdExtra,
+                sourceProfile = currentDebridSourceProfile()
+            )
+        } else {
+            showError("Next episode data missing")
+        }
+    }
+
+    // Pure decision: where a debrid "next" hop lands. A playlist row only counts as the
+    // next episode when it is genuinely ahead of the current one (same-season later
+    // episode, or a later season); otherwise fall back to current+1.
+    private fun debridNextTarget(
+        currentSeason: Int,
+        currentEpisode: Int,
+        nextEp: com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2?
+    ): Pair<Int, Int> {
+        val targetSeason = nextEp?.seasonNumber?.takeIf { it >= currentSeason } ?: currentSeason
+        val targetEpisode = if (nextEp != null && nextEp.seasonNumber == currentSeason && nextEp.episodeNumber > currentEpisode) {
+            nextEp.episodeNumber
+        } else if (nextEp != null && nextEp.seasonNumber > currentSeason) {
+            nextEp.episodeNumber
+        } else {
+            currentEpisode + 1
+        }
+        return targetSeason to targetEpisode
     }
 
     fun playPreviousEpisode() {

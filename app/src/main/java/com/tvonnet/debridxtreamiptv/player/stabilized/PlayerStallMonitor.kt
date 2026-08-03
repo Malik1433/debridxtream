@@ -138,30 +138,41 @@ internal class PlayerStallMonitor(
             )
         )
         if (contentType == ContentType.LIVE_TV) {
-            // Live freeze = usually broken PTS in the provider's TS mux, not the
-            // decoder. Re-preparing the same URL restarts the timestamp adjuster
-            // from the current live data, past the discontinuity.
-            if (currentUrl != lastFreezeRecoveryUrl || now - lastFreezeRecoveryAtMs > 60_000L) {
-                liveFreezeReprepares = 0
-                lastFreezeRecoveryUrl = currentUrl
-            }
-            // Inner cap (liveFreezeReprepares) AND the aggregate budget (fix 2) must
-            // both allow it; canAttemptReconnect() records the attempt + shows the
-            // banner (fix 3) only when it returns true.
-            if (liveFreezeReprepares < MAX_LIVE_FREEZE_REPREPARES && canAttemptReconnect()) {
-                liveFreezeReprepares++
-                lastFreezeRecoveryAtMs = now
-                Log.i(
-                    "PlayerActivity",
-                    "Live video frozen (rendered=$rendered) — re-preparing stream, attempt $liveFreezeReprepares/$MAX_LIVE_FREEZE_REPREPARES"
-                )
-                currentUrl?.let { liveTuner.performSeamlessSwitch(it) }
-            } else {
-                recovery.handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
-            }
+            recoverLiveFreeze(rendered, now)
             return
         }
 
+        recoverVodFreeze(p)
+    }
+
+    // Live freeze = usually broken PTS in the provider's TS mux, not the
+    // decoder. Re-preparing the same URL restarts the timestamp adjuster
+    // from the current live data, past the discontinuity.
+    private fun recoverLiveFreeze(rendered: Int, now: Long) {
+        if (currentUrl != lastFreezeRecoveryUrl || now - lastFreezeRecoveryAtMs > 60_000L) {
+            liveFreezeReprepares = 0
+            lastFreezeRecoveryUrl = currentUrl
+        }
+        // Inner cap (liveFreezeReprepares) AND the aggregate budget (fix 2) must
+        // both allow it; canAttemptReconnect() records the attempt + shows the
+        // banner (fix 3) only when it returns true.
+        if (liveFreezeReprepares < MAX_LIVE_FREEZE_REPREPARES && canAttemptReconnect()) {
+            liveFreezeReprepares++
+            lastFreezeRecoveryAtMs = now
+            Log.i(
+                "PlayerActivity",
+                "Live video frozen (rendered=$rendered) — re-preparing stream, attempt $liveFreezeReprepares/$MAX_LIVE_FREEZE_REPREPARES"
+            )
+            currentUrl?.let { liveTuner.performSeamlessSwitch(it) }
+        } else {
+            recovery.handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
+        }
+    }
+
+    // VOD freeze: first strike rebuilds the player with tunneling off (the proven
+    // 4K "audio plays, video black" recovery); a second strike escalates to the
+    // normal error path.
+    private fun recoverVodFreeze(p: ExoPlayer) {
         if (!disableTunnelingForSession) {
             disableTunnelingForSession = true
             Log.w("PlayerActivity", "Video frozen while audio playing — reinitializing without tunneling")

@@ -9,16 +9,12 @@
     <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$private fun restoreInitialFocusIfNeeded(state: LiveUiState)</ID>
     <ID>CyclomaticComplexMethod:PlayerInputRouter.kt$PlayerInputRouter$fun dispatchKeyEvent(event: KeyEvent): Boolean?</ID>
     <ID>CyclomaticComplexMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handlePlaybackError(error: PlaybackException)</ID>
-    <ID>CyclomaticComplexMethod:PlayerSeriesController.kt$PlayerSeriesController$fun playNextEpisode()</ID>
-    <ID>CyclomaticComplexMethod:PlayerStallMonitor.kt$PlayerStallMonitor$private fun checkVideoRenderProgress(p: ExoPlayer, now: Long)</ID>
-    <ID>CyclomaticComplexMethod:PlayerTrackManager.kt$PlayerTrackManager$private fun showSinglePressTrackSelection( player: Player, title: String, trackType: Int, showDisableOption: Boolean, onDialogReady: (android.app.Dialog) -&gt; Unit )</ID>
     <ID>LargeClass:BasePlayerFragment.kt$BasePlayerFragment : FragmentRecoveryHost</ID>
     <ID>LongMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun initializePlayer(streamUrl: String)</ID>
     <ID>LongMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:LiveFragment.kt$LiveFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:LiveFragment.kt$LiveFragment$private fun observeViewModel()</ID>
     <ID>LongMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handlePlaybackError(error: PlaybackException)</ID>
-    <ID>LongMethod:PlayerTrackManager.kt$PlayerTrackManager$private fun showSinglePressTrackSelection( player: Player, title: String, trackType: Int, showDisableOption: Boolean, onDialogReady: (android.app.Dialog) -&gt; Unit )</ID>
     <ID>LongMethod:PreviewPlayerPanel.kt$PreviewPlayerPanel$fun play(stream: XtreamStream, streamUrlOverride: String? = null)</ID>
     <ID>LongParameterList:PlayerDiagnosticsFields.kt$( provider: String?, sourceType: String?, sourceName: String?, languages: List&lt;String&gt;?, quality: String?, bingeGroup: String?, fileIdx: Int?, streamId: String?, infoHash: String? )</ID>
     <ID>SpreadOperator:AppModule.kt$AppModule$(*DatabaseMigrations.getAllMigrations())</ID>
