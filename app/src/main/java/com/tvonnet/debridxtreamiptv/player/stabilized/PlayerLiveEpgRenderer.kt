@@ -93,6 +93,23 @@ internal class PlayerLiveEpgRenderer(
         }
         if (epgOverlay == null) return
 
+        bindStatusRow(state)
+        bindNowRow(state.now)
+
+        val nextPrograms = state.upcoming.take(3)
+        bindNextSlot(cardNext1, tvNext1Title, tvNext1Time, nextPrograms.getOrNull(0))
+        bindNextSlot(cardNext2, tvNext2Title, tvNext2Time, nextPrograms.getOrNull(1))
+        bindNextSlot(cardNext3, tvNext3Title, tvNext3Time, nextPrograms.getOrNull(2))
+
+        if (!hasShownOverlayOnce) {
+            showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false)
+            hasShownOverlayOnce = true
+        }
+
+        updateOverlayVisibility()
+    }
+
+    private fun bindStatusRow(state: PlayerOverlayUiState) {
         val statusText = when {
             state.isSyncing -> getString(R.string.player_epg_syncing)
             !state.errorMessage.isNullOrBlank() -> state.errorMessage
@@ -101,8 +118,9 @@ internal class PlayerLiveEpgRenderer(
         }
         tvEpgStatus?.text = statusText
         tvEpgStatus?.isVisible = !statusText.isNullOrBlank()
+    }
 
-        val now = state.now
+    private fun bindNowRow(now: com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity?) {
         tvNowTitle?.text = now?.title ?: getString(R.string.epg_no_info)
         tvNowTime?.text = now?.let { formatTimeRangeCompact(it) } ?: "--:--"
         tvNowCardTitle?.text = now?.title ?: getString(R.string.epg_no_info)
@@ -116,18 +134,6 @@ internal class PlayerLiveEpgRenderer(
                 * 100 / duration).toInt()
         } ?: 0
         progressNow?.progress = progress
-
-        val nextPrograms = state.upcoming.take(3)
-        bindNextSlot(cardNext1, tvNext1Title, tvNext1Time, nextPrograms.getOrNull(0))
-        bindNextSlot(cardNext2, tvNext2Title, tvNext2Time, nextPrograms.getOrNull(1))
-        bindNextSlot(cardNext3, tvNext3Title, tvNext3Time, nextPrograms.getOrNull(2))
-
-        if (!hasShownOverlayOnce) {
-            showEpgOverlay(EpgOverlayMode.COMPACT, pinned = false)
-            hasShownOverlayOnce = true
-        }
-
-        updateOverlayVisibility()
     }
 
     private fun bindNextSlot(container: View?, titleView: TextView?, timeView: TextView?, program: com.tvonnet.debridxtreamiptv.data.local.entity.EpgEntity?) {

@@ -88,15 +88,10 @@ class PlayerHistoryManager(
         val id = activity.contentId ?: activity.currentUrl ?: return
         val p = activity.player ?: return
         val dur = p.duration
-        if (dur <= 0 || dur == C.TIME_UNSET || dur < MIN_DURATION_TO_TRACK_MS) return
+        if (isUntrackableDuration(dur)) return
         val pos = p.currentPosition
         if (shouldIgnoreTinyProgress(pos, dur)) return
-        val isWatched = when (type) {
-            ContentType.MOVIE -> isMovieWatchedThreshold(pos, dur)
-            ContentType.EPISODE, ContentType.SERIES -> isEpisodeWatchedThreshold(pos, dur)
-            else -> false
-        }
-        if (isWatched) return // completion handling belongs to the exit path
+        if (isWatchedThresholdFor(type, pos, dur)) return // completion handling belongs to the exit path
         val now = System.currentTimeMillis()
         val item = buildContinueWatchingItem(id, type, pos, dur, now)
         // Phase 1: the Continue-Watching prefs write is a full Gson decode+encode. On the
@@ -134,16 +129,12 @@ class PlayerHistoryManager(
     private fun recordContinueWatchingHistory(contentId: String, type: ContentType): Boolean {
         val p = activity.player ?: return false
         val dur = p.duration
-        if (dur <= 0 || dur == C.TIME_UNSET || dur < MIN_DURATION_TO_TRACK_MS) return false
+        if (isUntrackableDuration(dur)) return false
         val pos = p.currentPosition
         val now = System.currentTimeMillis()
         val item = buildContinueWatchingItem(contentId, type, pos, dur, now)
         val isTinyProgress = shouldIgnoreTinyProgress(pos, dur)
-        val isWatched = when (type) {
-            ContentType.MOVIE -> isMovieWatchedThreshold(pos, dur)
-            ContentType.EPISODE, ContentType.SERIES -> isEpisodeWatchedThreshold(pos, dur)
-            else -> false
-        }
+        val isWatched = isWatchedThresholdFor(type, pos, dur)
 
         if (!isTinyProgress) {
             recordAutomaticWatchedState(type, contentId, item, ProgressSnapshot(pos, dur, isWatched, now))
@@ -445,6 +436,15 @@ class PlayerHistoryManager(
     private fun progressRatio(pos: Long, dur: Long): Float = pos / dur.toFloat()
 
     private fun remainingMs(pos: Long, dur: Long): Long = (dur - pos).coerceAtLeast(0L)
+
+    private fun isUntrackableDuration(dur: Long): Boolean =
+        dur <= 0 || dur == C.TIME_UNSET || dur < MIN_DURATION_TO_TRACK_MS
+
+    private fun isWatchedThresholdFor(type: ContentType, pos: Long, dur: Long): Boolean = when (type) {
+        ContentType.MOVIE -> isMovieWatchedThreshold(pos, dur)
+        ContentType.EPISODE, ContentType.SERIES -> isEpisodeWatchedThreshold(pos, dur)
+        else -> false
+    }
 
     private fun shouldIgnoreTinyProgress(pos: Long, dur: Long): Boolean {
         // 5% of a long movie is several minutes — too strict on its own. Treat

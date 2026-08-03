@@ -273,82 +273,16 @@ class TrailerActivity : AppCompatActivity() {
         isIframeMode = true
         overlayMessage.visibility = View.GONE
         val safeId = id.trim().replace("'", "")
-        val origin = APP_WEB_ORIGIN
-        val html =
-            """
-            <!doctype html>
-            <html>
-              <head>
-                <meta charset="utf-8" />
-                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-                <meta name="referrer" content="strict-origin-when-cross-origin" />
-                <style>
-                  html, body { margin:0; padding:0; width:100%; height:100%; background:#000; overflow:hidden; }
-                  #player { position:absolute; inset:0; width:100%; height:100%; }
-                </style>
-              </head>
-              <body>
-                <div id="player"></div>
-                <script>
-                  var __player = null;
-                  function onYouTubeIframeAPIReady() {
-                    try {
-                      __player = new YT.Player('player', {
-                        height: '100%',
-                        width: '100%',
-                        videoId: '$safeId',
-                        playerVars: {
-                          autoplay: 1,
-                          controls: 1,
-                          enablejsapi: 1,
-                          fs: 1,
-                          rel: 0,
-                          playsinline: 1,
-                          modestbranding: 1,
-                          origin: '$origin',
-                          widget_referrer: '$origin'
-                        },
-                        events: {
-                          'onReady': function(e) {
-                            try { AndroidBridge.onReady(); } catch (err) {}
-                          },
-                          'onStateChange': function(e) {
-                            try { AndroidBridge.onStateChange(e.data); } catch (err) {}
-                          },
-                          'onError': function(e) {
-                            try { AndroidBridge.onError(e.data); } catch (err) {}
-                          }
-                        }
-                      });
-                    } catch (err) {
-                      try { AndroidBridge.onError(999); } catch (e) {}
-                    }
-                  }
-                  function playTrailer() {
-                    try {
-                      if (__player && __player.playVideo) { __player.playVideo(); return true; }
-                    } catch (e) {}
-                    return false;
-                  }
-                  function isPlaying() {
-                    try {
-                      if (__player && __player.getPlayerState) { return __player.getPlayerState() === 1; }
-                    } catch (e) {}
-                    return false;
-                  }
-                  (function(){
-                    var tag = document.createElement('script');
-                    tag.src = 'https://www.youtube.com/iframe_api';
-                    document.head.appendChild(tag);
-                  })();
-                </script>
-              </body>
-            </html>
-            """.trimIndent()
 
         loading.visibility = View.VISIBLE
-        webView.loadDataWithBaseURL(APP_WEB_ORIGIN, html, "text/html", "utf-8", null)
+        webView.loadDataWithBaseURL(APP_WEB_ORIGIN, buildIframeHtml(safeId), "text/html", "utf-8", null)
         schedulePlaybackWatchdog(loadToken)
+    }
+
+    private fun buildIframeHtml(safeId: String): String {
+        return IFRAME_HTML_TEMPLATE
+            .replace("__VIDEO_ID__", safeId)
+            .replace("__ORIGIN__", APP_WEB_ORIGIN)
     }
 
     private fun buildYoutubeCandidates(id: String): List<String> {
@@ -580,6 +514,79 @@ class TrailerActivity : AppCompatActivity() {
         private const val APP_WEB_ORIGIN = "https://debridxtream.local"
         private const val PLAYBACK_WATCHDOG_DELAY_MS = 10000L
         private const val INVALID_TRAILER_DISMISS_DELAY_MS = 1500L
+
+        // The IFrame-API page loadYoutubeIframe renders; __VIDEO_ID__ / __ORIGIN__ are
+        // substituted in buildIframeHtml. Body is the same markup that used to live inline.
+        private val IFRAME_HTML_TEMPLATE = """
+            <!doctype html>
+            <html>
+              <head>
+                <meta charset="utf-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+                <meta name="referrer" content="strict-origin-when-cross-origin" />
+                <style>
+                  html, body { margin:0; padding:0; width:100%; height:100%; background:#000; overflow:hidden; }
+                  #player { position:absolute; inset:0; width:100%; height:100%; }
+                </style>
+              </head>
+              <body>
+                <div id="player"></div>
+                <script>
+                  var __player = null;
+                  function onYouTubeIframeAPIReady() {
+                    try {
+                      __player = new YT.Player('player', {
+                        height: '100%',
+                        width: '100%',
+                        videoId: '__VIDEO_ID__',
+                        playerVars: {
+                          autoplay: 1,
+                          controls: 1,
+                          enablejsapi: 1,
+                          fs: 1,
+                          rel: 0,
+                          playsinline: 1,
+                          modestbranding: 1,
+                          origin: '__ORIGIN__',
+                          widget_referrer: '__ORIGIN__'
+                        },
+                        events: {
+                          'onReady': function(e) {
+                            try { AndroidBridge.onReady(); } catch (err) {}
+                          },
+                          'onStateChange': function(e) {
+                            try { AndroidBridge.onStateChange(e.data); } catch (err) {}
+                          },
+                          'onError': function(e) {
+                            try { AndroidBridge.onError(e.data); } catch (err) {}
+                          }
+                        }
+                      });
+                    } catch (err) {
+                      try { AndroidBridge.onError(999); } catch (e) {}
+                    }
+                  }
+                  function playTrailer() {
+                    try {
+                      if (__player && __player.playVideo) { __player.playVideo(); return true; }
+                    } catch (e) {}
+                    return false;
+                  }
+                  function isPlaying() {
+                    try {
+                      if (__player && __player.getPlayerState) { return __player.getPlayerState() === 1; }
+                    } catch (e) {}
+                    return false;
+                  }
+                  (function(){
+                    var tag = document.createElement('script');
+                    tag.src = 'https://www.youtube.com/iframe_api';
+                    document.head.appendChild(tag);
+                  })();
+                </script>
+              </body>
+            </html>
+            """.trimIndent()
 
         fun createIntent(context: Context, trailerValue: String): Intent {
             return Intent(context, TrailerActivity::class.java).apply {

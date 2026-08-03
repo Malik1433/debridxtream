@@ -353,24 +353,7 @@ class PlayerViewModel @Inject constructor(
             if (results.isEmpty()) continue
 
             val target = SeriesTmdbMatching.normalizeTmdbTitle(query) ?: continue
-            val best = results
-                .asSequence()
-                .mapNotNull { show ->
-                    val id = show.id ?: return@mapNotNull null
-                    val candidateTitle = show.name ?: show.originalName ?: return@mapNotNull null
-                    val candidate = SeriesTmdbMatching.normalizeTmdbTitle(candidateTitle) ?: return@mapNotNull null
-                    val titleScore = when {
-                        candidate == target -> 0
-                        candidate.contains(target) || target.contains(candidate) -> 1
-                        SeriesTmdbMatching.tokenOverlapScore(target, candidate) >= 0.75f -> 2
-                        else -> 5
-                    }
-                    val popularity = show.popularity ?: 0.0
-                    Triple(titleScore, -popularity, id)
-                }
-                .filter { it.first <= 2 }
-                .minWithOrNull(compareBy<Triple<Int, Double, Int>> { it.first }.thenBy { it.second })
-
+            val best = bestTvCandidate(results, target)
             if (best != null) {
                 android.util.Log.d("IPTV_TMDB_POSTERS", "TV_MATCH query=$query id=${best.third} score=${best.first}")
                 return best.third
@@ -378,6 +361,29 @@ class PlayerViewModel @Inject constructor(
         }
         return null
     }
+
+    // Exact normalized-title match first (0), then containment (1), then token overlap (2);
+    // anything worse (5) is filtered out. Popularity breaks ties within a score band.
+    private fun bestTvCandidate(
+        results: List<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbTvShow>,
+        target: String
+    ): Triple<Int, Double, Int>? = results
+        .asSequence()
+        .mapNotNull { show ->
+            val id = show.id ?: return@mapNotNull null
+            val candidateTitle = show.name ?: show.originalName ?: return@mapNotNull null
+            val candidate = SeriesTmdbMatching.normalizeTmdbTitle(candidateTitle) ?: return@mapNotNull null
+            val titleScore = when {
+                candidate == target -> 0
+                candidate.contains(target) || target.contains(candidate) -> 1
+                SeriesTmdbMatching.tokenOverlapScore(target, candidate) >= 0.75f -> 2
+                else -> 5
+            }
+            val popularity = show.popularity ?: 0.0
+            Triple(titleScore, -popularity, id)
+        }
+        .filter { it.first <= 2 }
+        .minWithOrNull(compareBy<Triple<Int, Double, Int>> { it.first }.thenBy { it.second })
 
     fun loadDebridSeriesPlaylist(tmdbId: String, seasonNum: Int, currentEpisodeNumber: Int) {
         android.util.Log.d("PlayerViewModel", "loadDebridSeriesPlaylist: tmdbId=$tmdbId, season=$seasonNum")

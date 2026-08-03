@@ -41,35 +41,60 @@ internal fun resolveMediaMimeType(
         .joinToString(" ")
         .lowercase(Locale.US)
 
-    return when {
-        cleanUrl.endsWith(".m3u8") ||
-            sourceText.contains(".m3u8") ||
-            sourceText.contains(" hls") ||
-            headerText.contains("mpegurl") ||
-            headerText.contains("application/vnd.apple.mpegurl") -> MimeTypes.APPLICATION_M3U8
-        cleanUrl.endsWith(".mpd") ||
-            sourceText.contains(".mpd") ||
-            sourceText.contains(" dash") ||
-            headerText.contains("application/dash+xml") -> MimeTypes.APPLICATION_MPD
-        cleanUrl.endsWith(".mp4") ||
-            cleanUrl.endsWith(".m4v") ||
-            sourceText.contains(".mp4") ||
-            sourceText.contains(".m4v") ||
-            headerText.contains("video/mp4") -> MimeTypes.VIDEO_MP4
-        cleanUrl.endsWith(".mkv") ||
-            sourceText.contains(".mkv") ||
-            headerText.contains("matroska") -> "video/x-matroska"
-        cleanUrl.endsWith(".webm") ||
-            sourceText.contains(".webm") ||
-            headerText.contains("video/webm") -> MimeTypes.VIDEO_WEBM
-        cleanUrl.endsWith(".ts") ||
-            cleanUrl.endsWith(".m2ts") ||
-            sourceText.contains(".m2ts") ||
-            sourceText.contains(".ts ") ||
-            headerText.contains("video/mp2t") -> MimeTypes.VIDEO_MP2T
-        else -> null
-    }
+    return MIME_RULES.firstOrNull { rule ->
+        rule.urlSuffixes.any { cleanUrl.endsWith(it) } ||
+            rule.sourceTokens.any { sourceText.contains(it) } ||
+            rule.headerTokens.any { headerText.contains(it) }
+    }?.mime
 }
+
+/** One container-detection rule: URL suffixes, provider/title tokens, response-header tokens. */
+private class MimeRule(
+    val mime: String,
+    val urlSuffixes: List<String>,
+    val sourceTokens: List<String> = emptyList(),
+    val headerTokens: List<String> = emptyList(),
+)
+
+// Same branches, same order, as the original when-chain: first match wins.
+private val MIME_RULES = listOf(
+    MimeRule(
+        MimeTypes.APPLICATION_M3U8,
+        urlSuffixes = listOf(".m3u8"),
+        sourceTokens = listOf(".m3u8", " hls"),
+        headerTokens = listOf("mpegurl", "application/vnd.apple.mpegurl")
+    ),
+    MimeRule(
+        MimeTypes.APPLICATION_MPD,
+        urlSuffixes = listOf(".mpd"),
+        sourceTokens = listOf(".mpd", " dash"),
+        headerTokens = listOf("application/dash+xml")
+    ),
+    MimeRule(
+        MimeTypes.VIDEO_MP4,
+        urlSuffixes = listOf(".mp4", ".m4v"),
+        sourceTokens = listOf(".mp4", ".m4v"),
+        headerTokens = listOf("video/mp4")
+    ),
+    MimeRule(
+        "video/x-matroska",
+        urlSuffixes = listOf(".mkv"),
+        sourceTokens = listOf(".mkv"),
+        headerTokens = listOf("matroska")
+    ),
+    MimeRule(
+        MimeTypes.VIDEO_WEBM,
+        urlSuffixes = listOf(".webm"),
+        sourceTokens = listOf(".webm"),
+        headerTokens = listOf("video/webm")
+    ),
+    MimeRule(
+        MimeTypes.VIDEO_MP2T,
+        urlSuffixes = listOf(".ts", ".m2ts"),
+        sourceTokens = listOf(".m2ts", ".ts "),
+        headerTokens = listOf("video/mp2t")
+    ),
+)
 
 internal fun cleanTitle(raw: String): String {
     var clean = raw.replace(".", " ").replace("_", " ")

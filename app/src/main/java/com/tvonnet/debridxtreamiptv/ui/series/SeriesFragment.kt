@@ -402,70 +402,81 @@ class SeriesFragment : Fragment() {
 
     private fun setupObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.uiState.collectLatest { state ->
-                val displayCategories = buildSidebarCategories(state.categories)
-                val categoryAdapter = rvCategoriesSidebar.adapter as? CategorySidebarAdapter
-                if (categoryAdapter == null && displayCategories.isNotEmpty()) {
-                    currentCategories = displayCategories
-                    setupCategorySidebar(displayCategories)
-                } else if (categoryAdapter != null && displayCategories != currentCategories) {
-                    currentCategories = displayCategories
-                    categoryAdapter.updateCategories(displayCategories, state.selectedCategoryId)
-                }
-
-                // Sidebar count badges — refresh rows when the counts change.
-                if (state.categoryCounts != categoryCounts) {
-                    categoryCounts = state.categoryCounts
-                    rvCategoriesSidebar.adapter?.notifyDataSetChanged()
-                    // Keep the section "N TITLES" in sync with the sidebar total.
-                    refreshSectionCount()
-                }
-
-                state.selectedCategoryId?.let { selectedId ->
-                    selectedCategoryId = selectedId
-                    (rvCategoriesSidebar.adapter as? CategorySidebarAdapter)?.setSelectedById(selectedId)
-                }
-
-                if (isSeriesLoadingFromViewModel != state.isLoadingSeries || state.isSwitchingCategory) {
-                    isSeriesLoadingFromViewModel = state.isLoadingSeries
-                    lastLoadStates?.let { listState.updateListLoadingAndEmptyStates(it, state.isSwitchingCategory) }
-                }
-
-                if (state.error != null) {
-                    listState.hasLoadError = true
-                    Toast.makeText(context, state.error, Toast.LENGTH_SHORT).show()
-                    if (seriesPagingAdapter.itemCount == 0 && !state.isLoadingSeries) listState.showEmptyState(true)
-                } else if (seriesPagingAdapter.itemCount > 0) {
-                    listState.hasLoadError = false
-                }
-
-                state.selectedCategoryId?.let { id ->
-                    val title = when (id) {
-                        FAVORITES_CATEGORY_ID -> getString(R.string.favorites)
-                        SeriesViewModel.ALL_SERIES_CATEGORY_ID -> "All Series"
-                        SeriesViewModel.RECENTLY_ADDED_CATEGORY_ID -> "Recently Added"
-                        else -> state.categories.find { it.category_id == id }?.category_name ?: "Series"
-                    }
-                    currentCategoryName = title
-                    if (focus.lastFocusTarget == SeriesFocusController.FocusTarget.CATEGORIES) {
-                        resetSectionHeader()
-                    }
-                }
-
-                tvOfflineLabel?.visibility =
-                    if (state.error != null) View.VISIBLE else View.GONE
-
-                if (state.isLoadingSeries && seriesPagingAdapter.itemCount == 0) {
-                    listState.showEmptyState(false)
-                    listState.showLoadingState(true)
-                }
-            }
+            viewModel.uiState.collectLatest { state -> renderSeriesState(state) }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.pagedSeries.collectLatest { pagingData ->
                 seriesPagingAdapter.submitData(pagingData)
             }
+        }
+    }
+
+    // One SeriesUiState emission, verbatim: sidebar rows + counts, selection, the loading/empty
+    // handoff, the error toast, and the section header title. Mirror of VodFragment.renderVodState.
+    private fun renderSeriesState(state: SeriesUiState) {
+        syncSidebarCategories(state)
+
+        // Sidebar count badges — refresh rows when the counts change.
+        if (state.categoryCounts != categoryCounts) {
+            categoryCounts = state.categoryCounts
+            rvCategoriesSidebar.adapter?.notifyDataSetChanged()
+            // Keep the section "N TITLES" in sync with the sidebar total.
+            refreshSectionCount()
+        }
+
+        state.selectedCategoryId?.let { selectedId ->
+            selectedCategoryId = selectedId
+            (rvCategoriesSidebar.adapter as? CategorySidebarAdapter)?.setSelectedById(selectedId)
+        }
+
+        if (isSeriesLoadingFromViewModel != state.isLoadingSeries || state.isSwitchingCategory) {
+            isSeriesLoadingFromViewModel = state.isLoadingSeries
+            lastLoadStates?.let { listState.updateListLoadingAndEmptyStates(it, state.isSwitchingCategory) }
+        }
+
+        if (state.error != null) {
+            listState.hasLoadError = true
+            Toast.makeText(context, state.error, Toast.LENGTH_SHORT).show()
+            if (seriesPagingAdapter.itemCount == 0 && !state.isLoadingSeries) listState.showEmptyState(true)
+        } else if (seriesPagingAdapter.itemCount > 0) {
+            listState.hasLoadError = false
+        }
+
+        updateSectionHeaderTitle(state)
+
+        tvOfflineLabel?.visibility =
+            if (state.error != null) View.VISIBLE else View.GONE
+
+        if (state.isLoadingSeries && seriesPagingAdapter.itemCount == 0) {
+            listState.showEmptyState(false)
+            listState.showLoadingState(true)
+        }
+    }
+
+    private fun syncSidebarCategories(state: SeriesUiState) {
+        val displayCategories = buildSidebarCategories(state.categories)
+        val categoryAdapter = rvCategoriesSidebar.adapter as? CategorySidebarAdapter
+        if (categoryAdapter == null && displayCategories.isNotEmpty()) {
+            currentCategories = displayCategories
+            setupCategorySidebar(displayCategories)
+        } else if (categoryAdapter != null && displayCategories != currentCategories) {
+            currentCategories = displayCategories
+            categoryAdapter.updateCategories(displayCategories, state.selectedCategoryId)
+        }
+    }
+
+    private fun updateSectionHeaderTitle(state: SeriesUiState) {
+        val id = state.selectedCategoryId ?: return
+        val title = when (id) {
+            FAVORITES_CATEGORY_ID -> getString(R.string.favorites)
+            SeriesViewModel.ALL_SERIES_CATEGORY_ID -> "All Series"
+            SeriesViewModel.RECENTLY_ADDED_CATEGORY_ID -> "Recently Added"
+            else -> state.categories.find { it.category_id == id }?.category_name ?: "Series"
+        }
+        currentCategoryName = title
+        if (focus.lastFocusTarget == SeriesFocusController.FocusTarget.CATEGORIES) {
+            resetSectionHeader()
         }
     }
 

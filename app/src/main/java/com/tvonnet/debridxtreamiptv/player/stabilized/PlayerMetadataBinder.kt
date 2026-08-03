@@ -39,14 +39,23 @@ internal class PlayerMetadataBinder(
 
         posterView?.let { GlideUtils.loadMoviePoster(it, posterUrlExtra) }
 
-        val displayTitle = if (playbackSource == PlaybackSource.DEBRID) {
+        titleView?.text = resolveDisplayTitle(title)
+        subtitleView?.text = buildSubtitle()
+        qualityView?.apply {
+            text = debridQualityExtra
+            isVisible = !debridQualityExtra.isNullOrBlank()
+        }
+    }
+
+    private fun resolveDisplayTitle(title: String?): String {
+        return if (playbackSource == PlaybackSource.DEBRID) {
             cleanTitle(title ?: getString(R.string.app_name))
         } else {
             title ?: getString(R.string.app_name)
         }
+    }
 
-        titleView?.text = displayTitle
-
+    private fun buildSubtitle(): String {
         val contentLabel = when (contentType) {
             ContentType.MOVIE -> getString(R.string.label_movie)
             ContentType.SERIES -> getString(R.string.label_series)
@@ -58,7 +67,7 @@ internal class PlayerMetadataBinder(
             PlaybackSource.IPTV -> getString(R.string.label_iptv)
         }
 
-        val subtitle = if (contentType == ContentType.EPISODE || contentType == ContentType.SERIES) {
+        return if (contentType == ContentType.EPISODE || contentType == ContentType.SERIES) {
             val season = seasonNumberExtra
             val episode = episodeNumberExtra
             if (season != null && episode != null) {
@@ -68,12 +77,6 @@ internal class PlayerMetadataBinder(
             }
         } else {
             "$contentLabel • $sourceLabel"
-        }
-
-        subtitleView?.text = subtitle
-        qualityView?.apply {
-            text = debridQualityExtra
-            isVisible = !debridQualityExtra.isNullOrBlank()
         }
     }
 }

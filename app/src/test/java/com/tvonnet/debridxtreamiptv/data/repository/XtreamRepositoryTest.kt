@@ -367,70 +367,43 @@ class XtreamRepositoryTest {
     
     // Helper function to create mock cache data
     private fun createMockCache(): IptvCache {
-        val liveCategories = listOf(
-            XtreamCategory(
-                category_id = "1",
-                category_name = "Sports",
-                parent_id = null
-            ),
-            XtreamCategory(
-                category_id = "2",
-                category_name = "News",
-                parent_id = null
-            )
-        )
-        
-        val liveStreams = List(10) { index ->
-            XtreamStream(
-                num = index,
-                stream_id = index.toString(),
-                name = "Channel $index",
-                category_id = "1",
-                stream_icon = "icon$index.jpg",
-                stream_type = "live",
-                epg_channel_id = null,
-                added = "123456",
-                category_ids = listOf(1),
-                container_extension = "ts",
-                custom_sid = null,
-                direct_source = null,
-                tv_archive = 0,
-                tv_archive_duration = 0
-            )
-        }
-        
-        val vodCategories = listOf(
-            XtreamCategory(
-                category_id = "10",
-                category_name = "Action",
-                parent_id = null
-            ),
-            XtreamCategory(
-                category_id = "11",
-                category_name = "Comedy",
-                parent_id = null
-            )
-        )
-        
-        val seriesCategories = listOf(
-            XtreamCategory(
-                category_id = "20",
-                category_name = "Drama",
-                parent_id = null
-            ),
-            XtreamCategory(
-                category_id = "21",
-                category_name = "Sci-Fi",
-                parent_id = null
-            )
-        )
-        
         return IptvCache(
             timestamp = System.currentTimeMillis(),
-            live = LiveCacheData(liveCategories, liveStreams),
-            vod = VodCacheData(vodCategories, emptyList()),
-            series = SeriesCacheData(seriesCategories, emptyList()),
+            live = LiveCacheData(
+                mockCategories("1" to "Sports", "2" to "News"),
+                createMockLiveStreams()
+            ),
+            vod = VodCacheData(mockCategories("10" to "Action", "11" to "Comedy"), emptyList()),
+            series = SeriesCacheData(mockCategories("20" to "Drama", "21" to "Sci-Fi"), emptyList()),
             epg = null
+        )
+    }
+
+    private fun mockCategories(vararg idToName: Pair<String, String>): List<XtreamCategory> =
+        idToName.map { (id, name) ->
+            XtreamCategory(
+                category_id = id,
+                category_name = name,
+                parent_id = null
+            )
+        }
+
+    private fun createMockLiveStreams(): List<XtreamStream> = List(10) { index ->
+        XtreamStream(
+            num = index,
+            stream_id = index.toString(),
+            name = "Channel $index",
+            category_id = "1",
+            stream_icon = "icon$index.jpg",
+            stream_type = "live",
+            epg_channel_id = null,
+            added = "123456",
+            category_ids = listOf(1),
+            container_extension = "ts",
+            custom_sid = null,
+            direct_source = null,
+            tv_archive = 0,
+            tv_archive_duration = 0
         )
     }
 }
