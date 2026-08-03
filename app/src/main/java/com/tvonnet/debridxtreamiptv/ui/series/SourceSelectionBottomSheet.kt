@@ -361,77 +361,94 @@ class SourceSelectionBottomSheet(
 
     private fun updateUi() {
         if (isLoading) {
-            progressBar.visibility = View.VISIBLE
-            tvStatus.visibility = View.VISIBLE
-            tvStatus.text = statusMessage
-            rvSources.visibility = View.GONE
-            layoutSourceFilters.visibility = View.GONE
-            tvSourceCount.visibility = View.GONE
+            showLoadingState()
+            return
+        }
+        progressBar.visibility = View.GONE
+        if (displayedSources.isNotEmpty()) {
+            showSourcesState()
         } else {
-            progressBar.visibility = View.GONE
-            if (displayedSources.isNotEmpty()) {
-                tvStatus.visibility = View.GONE
-                rvSources.visibility = View.VISIBLE
-                tvSourceCount.visibility = View.VISIBLE
-                val cachedCount = displayedSources.count {
-                    it.cacheStatus == DebridCacheStatus.VERIFIED_CACHED ||
-                        it.cacheStatus == DebridCacheStatus.DIRECT_STREAM
-                }
-                tvSourceCount.text = if (hasLanguagePriority()) {
-                    "${displayedSources.size} sources · sorted by ${languagePriorityCode()} priority"
-                } else {
-                    "${displayedSources.size} sources found · $cachedCount cached"
-                }
-                // First cached source after sorting = BEST PICK.
-                val bestStreamId = displayedSources
-                    .firstOrNull { SourceSorter.isCached(it) }
-                    ?.stream?.stream_id
-                sourcesAdapter.updateBestPick(bestStreamId)
-                sourcesAdapter.updateSelection(selectedStreamId, notify = false)
-                sourcesAdapter.submitList(displayedSources) {
-                    sourcesAdapter.updateSelection(selectedStreamId)
-                    val visibleStreamIds = displayedSources.mapNotNull { it.stream.stream_id }
-                    val shouldRestoreFocus = needsFocusRestore || (
-                        rvSources.hasFocus() &&
-                            focusedStreamId != null &&
-                            !visibleStreamIds.contains(focusedStreamId)
-                        )
-                    if (displayedSources.isNotEmpty() && shouldRestoreFocus) {
-                        val targetStreamId = resolveRestoreFocusStreamId(
-                            visibleStreamIds = visibleStreamIds,
-                            focusedStreamId = focusedStreamId,
-                            returnFocusStreamIds = pendingReturnFocusStreamIds,
-                            selectedStreamId = selectedStreamId
-                        )
-                        val targetIndex = targetStreamId
-                            ?.let { streamId ->
-                                displayedSources.indexOfFirst { it.stream.stream_id == streamId }
-                            }
-                            ?.takeIf { it >= 0 }
-                            ?: 0
-                        pendingReturnFocusStreamIds = emptyList()
-                        needsFocusRestore = false
-                        rvSources.scrollToPosition(targetIndex)
-                        rvSources.post {
-                            val holder = rvSources.findViewHolderForAdapterPosition(targetIndex)
-                            if (holder != null) {
-                                holder.itemView.requestFocus()
-                            } else {
-                                focusTopControl()
-                            }
-                        }
-                    }
-                }
-            } else {
-                tvStatus.visibility = View.VISIBLE
-                tvStatus.text = statusMessage ?: getString(R.string.source_filters_empty)
-                rvSources.visibility = View.GONE
-                tvSourceCount.visibility = View.GONE
-                needsFocusRestore = false
-                rvSources.post {
-                    focusEmptyState()
-                }
+            showEmptyState()
+        }
+    }
+
+    private fun showLoadingState() {
+        progressBar.visibility = View.VISIBLE
+        tvStatus.visibility = View.VISIBLE
+        tvStatus.text = statusMessage
+        rvSources.visibility = View.GONE
+        layoutSourceFilters.visibility = View.GONE
+        tvSourceCount.visibility = View.GONE
+    }
+
+    private fun showSourcesState() {
+        tvStatus.visibility = View.GONE
+        rvSources.visibility = View.VISIBLE
+        tvSourceCount.visibility = View.VISIBLE
+        val cachedCount = displayedSources.count {
+            it.cacheStatus == DebridCacheStatus.VERIFIED_CACHED ||
+                it.cacheStatus == DebridCacheStatus.DIRECT_STREAM
+        }
+        tvSourceCount.text = if (hasLanguagePriority()) {
+            "${displayedSources.size} sources · sorted by ${languagePriorityCode()} priority"
+        } else {
+            "${displayedSources.size} sources found · $cachedCount cached"
+        }
+        // First cached source after sorting = BEST PICK.
+        val bestStreamId = displayedSources
+            .firstOrNull { SourceSorter.isCached(it) }
+            ?.stream?.stream_id
+        sourcesAdapter.updateBestPick(bestStreamId)
+        sourcesAdapter.updateSelection(selectedStreamId, notify = false)
+        sourcesAdapter.submitList(displayedSources) {
+            sourcesAdapter.updateSelection(selectedStreamId)
+            restoreListFocusIfNeeded()
+        }
+    }
+
+    // The submitList-commit half of showSourcesState, verbatim: keep focus stable across a
+    // list swap — restore to the remembered/selected row, else the top, else the header.
+    private fun restoreListFocusIfNeeded() {
+        val visibleStreamIds = displayedSources.mapNotNull { it.stream.stream_id }
+        val shouldRestoreFocus = needsFocusRestore || (
+            rvSources.hasFocus() &&
+                focusedStreamId != null &&
+                !visibleStreamIds.contains(focusedStreamId)
+            )
+        if (displayedSources.isEmpty() || !shouldRestoreFocus) return
+        val targetStreamId = resolveRestoreFocusStreamId(
+            visibleStreamIds = visibleStreamIds,
+            focusedStreamId = focusedStreamId,
+            returnFocusStreamIds = pendingReturnFocusStreamIds,
+            selectedStreamId = selectedStreamId
+        )
+        val targetIndex = targetStreamId
+            ?.let { streamId ->
+                displayedSources.indexOfFirst { it.stream.stream_id == streamId }
             }
+            ?.takeIf { it >= 0 }
+            ?: 0
+        pendingReturnFocusStreamIds = emptyList()
+        needsFocusRestore = false
+        rvSources.scrollToPosition(targetIndex)
+        rvSources.post {
+            val holder = rvSources.findViewHolderForAdapterPosition(targetIndex)
+            if (holder != null) {
+                holder.itemView.requestFocus()
+            } else {
+                focusTopControl()
+            }
+        }
+    }
+
+    private fun showEmptyState() {
+        tvStatus.visibility = View.VISIBLE
+        tvStatus.text = statusMessage ?: getString(R.string.source_filters_empty)
+        rvSources.visibility = View.GONE
+        tvSourceCount.visibility = View.GONE
+        needsFocusRestore = false
+        rvSources.post {
+            focusEmptyState()
         }
     }
 

@@ -88,30 +88,55 @@ class MovieSourceAdapter(
             binding.tvReleaseName.text = source.label
 
             // Col 4: Quality Badge
+            bindQualityBadge(source)
+
+            // Col 5: Type Badge
+            bindTypeBadge(source)
+
+            // Col 6: Size text + proportional visual bar
+            bindSizeColumn(source)
+
+            // BEST PICK treatment (first cached source after sorting)
+            val isBestItem = bestStreamId != null && source.stream.stream_id == bestStreamId
+            binding.vBestAccent.isVisible = isBestItem
+            binding.tvBestBadge.isVisible = isBestItem
+
+            binding.root.isSelected = source.stream.stream_id == selectedStreamId
+
+            bindFocusHandling(source, isBestItem)
+
+            binding.root.setOnClickListener {
+                onSourceClicked(source)
+            }
+
+            binding.root.setOnKeyListener { v, keyCode, event -> handleSourceKey(v, keyCode, event, source) }
+        }
+
+        private fun bindQualityBadge(source: MovieSource) {
             val qualityLabel = source.quality
                 ?.trim()
                 ?.takeIf { it.isNotBlank() && it.lowercase(Locale.US) != "unknown" }
                 ?.uppercase(Locale.US)
             binding.tvQuality.isVisible = !qualityLabel.isNullOrBlank()
-            if (!qualityLabel.isNullOrBlank()) {
-                binding.tvQuality.text = qualityLabel
-                when {
-                    qualityLabel.contains("4K") || qualityLabel.contains("2160") -> {
-                        binding.tvQuality.setBackgroundResource(R.drawable.cin_pill_4k_gold)
-                        binding.tvQuality.setTextColor(binding.root.context.getColor(R.color.black))
-                    }
-                    qualityLabel.contains("1080") -> {
-                        binding.tvQuality.setBackgroundResource(R.drawable.cin_pill_1080p_blue)
-                        binding.tvQuality.setTextColor(binding.root.context.getColor(R.color.white))
-                    }
-                    else -> {
-                        binding.tvQuality.setBackgroundResource(R.drawable.cin_pill_generic)
-                        binding.tvQuality.setTextColor(binding.root.context.getColor(R.color.white))
-                    }
+            if (qualityLabel.isNullOrBlank()) return
+            binding.tvQuality.text = qualityLabel
+            when {
+                qualityLabel.contains("4K") || qualityLabel.contains("2160") -> {
+                    binding.tvQuality.setBackgroundResource(R.drawable.cin_pill_4k_gold)
+                    binding.tvQuality.setTextColor(binding.root.context.getColor(R.color.black))
+                }
+                qualityLabel.contains("1080") -> {
+                    binding.tvQuality.setBackgroundResource(R.drawable.cin_pill_1080p_blue)
+                    binding.tvQuality.setTextColor(binding.root.context.getColor(R.color.white))
+                }
+                else -> {
+                    binding.tvQuality.setBackgroundResource(R.drawable.cin_pill_generic)
+                    binding.tvQuality.setTextColor(binding.root.context.getColor(R.color.white))
                 }
             }
+        }
 
-            // Col 5: Type Badge
+        private fun bindTypeBadge(source: MovieSource) {
             val typeLabel = when {
                 source.sourceType == "IPTV" -> "IPTV"
                 source.cacheStatus == DebridCacheStatus.NOT_CACHED -> "TORRENT"
@@ -125,19 +150,10 @@ class MovieSourceAdapter(
                 binding.tvType.setBackgroundResource(R.drawable.cin_pill_uncached)
                 binding.tvType.setTextColor(binding.root.context.getColor(R.color.white))
             }
+        }
 
-            // Col 6: Size text + proportional visual bar
-            bindSizeColumn(source)
-
-            // BEST PICK treatment (first cached source after sorting)
-            val isBestItem = bestStreamId != null && source.stream.stream_id == bestStreamId
-            binding.vBestAccent.isVisible = isBestItem
-            binding.tvBestBadge.isVisible = isBestItem
-
-            val isSelectedItem = source.stream.stream_id == selectedStreamId
-            binding.root.isSelected = isSelectedItem
-
-            // Focus management
+        // Focus management
+        private fun bindFocusHandling(source: MovieSource, isBestItem: Boolean) {
             FocusGlintHelper.updateListener(binding.root) { _, hasFocus ->
                 val stillSelected = source.stream.stream_id == selectedStreamId
                 binding.root.isSelected = stillSelected
@@ -160,54 +176,44 @@ class MovieSourceAdapter(
             } else {
                 binding.ivPlay.isVisible = false
             }
+        }
 
-            binding.root.setOnClickListener {
-                onSourceClicked(source)
-            }
-            
-            binding.root.setOnKeyListener { v, keyCode, event ->
-                if (event.action == android.view.KeyEvent.ACTION_DOWN) {
-                    val position = bindingAdapterPosition
-                    if (position == RecyclerView.NO_POSITION) return@setOnKeyListener false
-                    
-                    val rv = v.parent as? RecyclerView ?: return@setOnKeyListener false
-                    val adapter = rv.adapter ?: return@setOnKeyListener false
-                    
-                    when (keyCode) {
-                        android.view.KeyEvent.KEYCODE_DPAD_CENTER,
-                        android.view.KeyEvent.KEYCODE_ENTER -> {
-                            onSourceClicked(source)
-                            return@setOnKeyListener true
-                        }
-                        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
-                            if (position < adapter.itemCount - 1) {
-                                val nextPosition = position + 1
-                                rv.scrollToPosition(nextPosition)
-                                rv.post {
-                                    val nextHolder = rv.findViewHolderForAdapterPosition(nextPosition)
-                                    nextHolder?.itemView?.requestFocus()
-                                }
-                                return@setOnKeyListener true
-                            } else {
-                                return@setOnKeyListener true
-                            }
-                        }
-                        android.view.KeyEvent.KEYCODE_DPAD_UP -> {
-                            if (position > 0) {
-                                val prevPosition = position - 1
-                                rv.scrollToPosition(prevPosition)
-                                rv.post {
-                                    val prevHolder = rv.findViewHolderForAdapterPosition(prevPosition)
-                                    prevHolder?.itemView?.requestFocus()
-                                }
-                                return@setOnKeyListener true
-                            }
-                            onNavigateUpFromFirstRow()
-                            return@setOnKeyListener true
-                        }
-                    }
+        // CENTER plays; UP/DOWN move row-by-row with an explicit scroll+focus (a plain focus
+        // search can skip rows mid-scroll); UP from the first row escapes to the caller.
+        private fun handleSourceKey(
+            v: android.view.View,
+            keyCode: Int,
+            event: android.view.KeyEvent,
+            source: MovieSource
+        ): Boolean {
+            if (event.action != android.view.KeyEvent.ACTION_DOWN) return false
+            val position = bindingAdapterPosition
+            if (position == RecyclerView.NO_POSITION) return false
+            val rv = v.parent as? RecyclerView ?: return false
+            val adapter = rv.adapter ?: return false
+
+            return when (keyCode) {
+                android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+                android.view.KeyEvent.KEYCODE_ENTER -> {
+                    onSourceClicked(source)
+                    true
                 }
-                false
+                android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    if (position < adapter.itemCount - 1) focusRowAt(rv, position + 1)
+                    true
+                }
+                android.view.KeyEvent.KEYCODE_DPAD_UP -> {
+                    if (position > 0) focusRowAt(rv, position - 1) else onNavigateUpFromFirstRow()
+                    true
+                }
+                else -> false
+            }
+        }
+
+        private fun focusRowAt(rv: RecyclerView, target: Int) {
+            rv.scrollToPosition(target)
+            rv.post {
+                rv.findViewHolderForAdapterPosition(target)?.itemView?.requestFocus()
             }
         }
 
@@ -216,27 +222,12 @@ class MovieSourceAdapter(
             val provider = source.provider?.uppercase(Locale.US) ?: ""
             val sourceName = source.sourceName?.uppercase(Locale.US) ?: ""
 
-            // Design palette: RD cyan, AIO amber, STRM green, generic glass
-            val darkText = 0xFF0E0D15.toInt()
-            val (badgeText, badgeBg, textColor) = when {
-                provider.contains("IPTV") || label == "IPTV" ->
-                    Triple("IPTV", R.drawable.cin_src_badge_xtream, 0xFFE8B94A.toInt())
-                sourceName.contains("AIO") || label.contains("AIOSTREAMS") ->
-                    Triple("AIO", R.drawable.cin_src_badge_aio_amber, darkText)
-                sourceName.contains("STREMTHRU") || sourceName.contains("STRM") || label.contains("STREMTHRU") ->
-                    Triple("STRM", R.drawable.cin_src_badge_strm_green, darkText)
-                label.contains("RD") || label.contains("REAL-DEBRID") || provider.contains("REALDEBRID") ->
-                    Triple("RD", R.drawable.cin_src_badge_rd_cyan, darkText)
-                label.contains("AD") || label.contains("ALLDEBRID") || provider.contains("ALLDEBRID") ->
-                    Triple("AD", R.drawable.cin_src_badge_aio_amber, darkText)
-                label.contains("PM") || label.contains("PREMIUMIZE") || provider.contains("PREMIUMIZE") ->
-                    Triple("PM", R.drawable.cin_src_badge_prem, 0xFFF1F5F9.toInt())
-                else -> Triple("SRC", R.drawable.cin_src_badge_generic, 0xFFF1F5F9.toInt())
-            }
+            val badge = PROVIDER_BADGE_RULES.firstOrNull { it.matches(provider, sourceName, label) }
+                ?: GENERIC_PROVIDER_BADGE
 
-            binding.tvProvider.text = badgeText
-            binding.tvProvider.setBackgroundResource(badgeBg)
-            binding.tvProvider.setTextColor(textColor)
+            binding.tvProvider.text = badge.text
+            binding.tvProvider.setBackgroundResource(badge.bg)
+            binding.tvProvider.setTextColor(badge.textColor)
         }
 
         private fun bindLanguages(source: MovieSource) {
@@ -260,27 +251,8 @@ class MovieSourceAdapter(
             }
         }
 
-        private fun getFlagEmoji(languageCode: String): String {
-            return when (languageCode.lowercase()) {
-                "en", "eng", "english" -> "🇺🇸 EN"
-                "fr", "fre", "french" -> "🇫🇷 FR"
-                "de", "ger", "german" -> "🇩🇪 DE"
-                "es", "spa", "spanish" -> "🇪🇸 ES"
-                "it", "ita", "italian" -> "🇮🇹 IT"
-                "pt", "por", "portuguese" -> "🇵🇹 PT"
-                "ru", "rus", "russian" -> "🇷🇺 RU"
-                "hi", "hin", "hindi" -> "🇮🇳 HI"
-                "ja", "jpn", "japanese" -> "🇯🇵 JA"
-                "ko", "kor", "korean" -> "🇰🇷 KO"
-                "zh", "chi", "chinese" -> "🇨🇳 ZH"
-                "ar", "ara", "arabic" -> "🇸🇦 AR"
-                "tr", "tur", "turkish" -> "🇹🇷 TR"
-                "pl", "pol", "polish" -> "🇵🇱 PL"
-                "nl", "dut", "dutch" -> "🇳🇱 NL"
-                "multi" -> "🌎 MULTI"
-                else -> "🌐 UNK"
-            }
-        }
+        private fun getFlagEmoji(languageCode: String): String =
+            FLAG_EMOJI_BY_CODE[languageCode.lowercase()] ?: "🌐 UNK"
 
         private fun formatSizeLabel(sizeBytes: Long): String {
             val gb = 1024.0 * 1024.0 * 1024.0
@@ -341,11 +313,80 @@ class MovieSourceAdapter(
         FocusGlintHelper.forceReset(holder.itemView)
     }
 
+    /** A provider badge (text, pill drawable, text colour) plus the markers that select it. */
+    private class ProviderBadge(
+        val text: String,
+        val bg: Int,
+        val textColor: Int,
+        val providerMarkers: List<String> = emptyList(),
+        val sourceNameMarkers: List<String> = emptyList(),
+        val labelMarkers: List<String> = emptyList(),
+        val labelExact: String? = null,
+    ) {
+        fun matches(provider: String, sourceName: String, label: String): Boolean {
+            if (providerMarkers.any { provider.contains(it) }) return true
+            if (sourceNameMarkers.any { sourceName.contains(it) }) return true
+            if (labelMarkers.any { label.contains(it) }) return true
+            return labelExact != null && label == labelExact
+        }
+    }
+
     companion object {
         private const val SIZE_BAR_WIDTH_DP = 40f
         private const val SIZE_COLOR_CYAN = 0xFF00F0FF.toInt()
         private const val SIZE_COLOR_AMBER = 0x99FFAA00.toInt()
         private const val SIZE_COLOR_RED = 0x99FF3355.toInt()
+        private const val BADGE_DARK_TEXT = 0xFF0E0D15.toInt()
+
+        // Design palette: RD cyan, AIO amber, STRM green, generic glass — the old
+        // when-chain as data, ordered, first match wins.
+        private val PROVIDER_BADGE_RULES = listOf(
+            ProviderBadge(
+                "IPTV", R.drawable.cin_src_badge_xtream, 0xFFE8B94A.toInt(),
+                providerMarkers = listOf("IPTV"), labelExact = "IPTV",
+            ),
+            ProviderBadge(
+                "AIO", R.drawable.cin_src_badge_aio_amber, BADGE_DARK_TEXT,
+                sourceNameMarkers = listOf("AIO"), labelMarkers = listOf("AIOSTREAMS"),
+            ),
+            ProviderBadge(
+                "STRM", R.drawable.cin_src_badge_strm_green, BADGE_DARK_TEXT,
+                sourceNameMarkers = listOf("STREMTHRU", "STRM"), labelMarkers = listOf("STREMTHRU"),
+            ),
+            ProviderBadge(
+                "RD", R.drawable.cin_src_badge_rd_cyan, BADGE_DARK_TEXT,
+                labelMarkers = listOf("RD", "REAL-DEBRID"), providerMarkers = listOf("REALDEBRID"),
+            ),
+            ProviderBadge(
+                "AD", R.drawable.cin_src_badge_aio_amber, BADGE_DARK_TEXT,
+                labelMarkers = listOf("AD", "ALLDEBRID"), providerMarkers = listOf("ALLDEBRID"),
+            ),
+            ProviderBadge(
+                "PM", R.drawable.cin_src_badge_prem, 0xFFF1F5F9.toInt(),
+                labelMarkers = listOf("PM", "PREMIUMIZE"), providerMarkers = listOf("PREMIUMIZE"),
+            ),
+        )
+        private val GENERIC_PROVIDER_BADGE =
+            ProviderBadge("SRC", R.drawable.cin_src_badge_generic, 0xFFF1F5F9.toInt())
+
+        private val FLAG_EMOJI_BY_CODE = mapOf(
+            "en" to "🇺🇸 EN", "eng" to "🇺🇸 EN", "english" to "🇺🇸 EN",
+            "fr" to "🇫🇷 FR", "fre" to "🇫🇷 FR", "french" to "🇫🇷 FR",
+            "de" to "🇩🇪 DE", "ger" to "🇩🇪 DE", "german" to "🇩🇪 DE",
+            "es" to "🇪🇸 ES", "spa" to "🇪🇸 ES", "spanish" to "🇪🇸 ES",
+            "it" to "🇮🇹 IT", "ita" to "🇮🇹 IT", "italian" to "🇮🇹 IT",
+            "pt" to "🇵🇹 PT", "por" to "🇵🇹 PT", "portuguese" to "🇵🇹 PT",
+            "ru" to "🇷🇺 RU", "rus" to "🇷🇺 RU", "russian" to "🇷🇺 RU",
+            "hi" to "🇮🇳 HI", "hin" to "🇮🇳 HI", "hindi" to "🇮🇳 HI",
+            "ja" to "🇯🇵 JA", "jpn" to "🇯🇵 JA", "japanese" to "🇯🇵 JA",
+            "ko" to "🇰🇷 KO", "kor" to "🇰🇷 KO", "korean" to "🇰🇷 KO",
+            "zh" to "🇨🇳 ZH", "chi" to "🇨🇳 ZH", "chinese" to "🇨🇳 ZH",
+            "ar" to "🇸🇦 AR", "ara" to "🇸🇦 AR", "arabic" to "🇸🇦 AR",
+            "tr" to "🇹🇷 TR", "tur" to "🇹🇷 TR", "turkish" to "🇹🇷 TR",
+            "pl" to "🇵🇱 PL", "pol" to "🇵🇱 PL", "polish" to "🇵🇱 PL",
+            "nl" to "🇳🇱 NL", "dut" to "🇳🇱 NL", "dutch" to "🇳🇱 NL",
+            "multi" to "🌎 MULTI",
+        )
 
         private val DiffCallback = object : DiffUtil.ItemCallback<MovieSource>() {
             override fun areItemsTheSame(oldItem: MovieSource, newItem: MovieSource): Boolean {

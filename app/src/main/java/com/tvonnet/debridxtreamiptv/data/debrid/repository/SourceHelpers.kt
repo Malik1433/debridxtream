@@ -234,6 +234,48 @@ internal fun metadataScore(stream: AddonStream): Int {
      * - Applies intelligent detection based on title patterns and categories
      * - Avoids routing obvious TV/live content to debrid
      */
+// Enhanced category-based detection
+private val MOVIE_CATEGORIES = listOf(
+    "movies", "cinema", "film", "movies_vod", "vod_movies"
+)
+private val TV_CATEGORIES = listOf(
+    "live_tv", "live", "sports", "news", "tv_channels", "series", "shows"
+)
+
+// Skip obvious non-debrid content based on title patterns
+private val NON_DEBRID_PATTERNS = listOf(
+    "live ", " news", " weather", " sports channel", " tv channel",
+    " documentary series", " reality show", " talk show", " podcast",
+    // NOTE: " s" and " e" were removed here — those 2-char substrings matched almost
+    // any multi-word movie title (e.g. "Toy Story" -> " s", "The Empire..." -> " e"),
+    // misrouting real movies to IPTV. Season/episode detection is already covered by
+    // " season ", " episode ", " ep " below and " s01".." s05" in TV_CONTENT_PATTERNS.
+    " season ", " episode ", " ep ", " ptv ", " channel "
+)
+
+// Skip titles that indicate TV/series content
+private val TV_CONTENT_PATTERNS = listOf(
+    " season ", " episode ", " s01", " s02", " s03", " s04", " s05",
+    " ep ", " part ", " series", " show", " channel ", " tv ",
+    " live ", " news ", " weather "
+)
+
+// More specific movie detection patterns
+private val MOVIE_INDICATORS = listOf(
+    "(", ")", "movie", "film", "cinema", "hd", "4k", "bluray", "dvd"
+)
+
+// Year patterns (common in movies)
+private val MOVIE_YEAR_PATTERN = Regex("\\b(19|20)\\d{2}\\b")
+
+private fun isNonDebridTitle(titleLower: String): Boolean =
+    NON_DEBRID_PATTERNS.any { titleLower.contains(it) } ||
+        TV_CONTENT_PATTERNS.any { titleLower.contains(it) }
+
+private fun hasStrongMovieIndicators(titleLower: String): Boolean =
+    MOVIE_INDICATORS.any { titleLower.contains(it) } &&
+        MOVIE_YEAR_PATTERN.containsMatchIn(titleLower)
+
 internal fun isDebridContent(
         categoryId: String?,
         title: String?
@@ -246,61 +288,16 @@ internal fun isDebridContent(
             return true
         }
 
-        // Enhanced category-based detection
-        val movieCategories = listOf(
-            "movies", "cinema", "film", "movies_vod", "vod_movies"
-        )
-        val tvCategories = listOf(
-            "live_tv", "live", "sports", "news", "tv_channels", "series", "shows"
-        )
-
         // Check if category suggests this should use IPTV
-        if (categoryId != null && tvCategories.any { categoryId.lowercase().contains(it) }) {
+        if (categoryId != null && TV_CATEGORIES.any { categoryId.lowercase().contains(it) }) {
             Log.d(TAG, "📺 IPTV CATEGORY DETECTED: $categoryId - will use IPTV sources")
             return false
         }
 
-        // Skip obvious non-debrid content based on title patterns
-        val nonDebridPatterns = listOf(
-            "live ", " news", " weather", " sports channel", " tv channel",
-            " documentary series", " reality show", " talk show", " podcast",
-            // NOTE: " s" and " e" were removed here — those 2-char substrings matched almost
-            // any multi-word movie title (e.g. "Toy Story" -> " s", "The Empire..." -> " e"),
-            // misrouting real movies to IPTV. Season/episode detection is already covered by
-            // " season ", " episode ", " ep " below and " s01".." s05" in tvContentPatterns.
-            " season ", " episode ", " ep ", " ptv ", " channel "
-        )
-
-        // Skip titles that indicate TV/series content
-        val tvContentPatterns = listOf(
-            " season ", " episode ", " s01", " s02", " s03", " s04", " s05",
-            " ep ", " part ", " series", " show", " channel ", " tv ",
-            " live ", " news ", " weather "
-        )
-
-        val isNonDebridContent = nonDebridPatterns.any { pattern ->
-            titleLower.contains(pattern)
-        } || tvContentPatterns.any { pattern ->
-            titleLower.contains(pattern)
-        }
-
-        if (isNonDebridContent) {
+        if (isNonDebridTitle(titleLower)) {
             Log.d(TAG, "📺 NON-DEBRID CONTENT DETECTED: '$title' - will use IPTV sources")
             return false
         }
-
-        // More specific movie detection patterns
-        val movieIndicators = listOf(
-            "(", ")", "movie", "film", "cinema", "hd", "4k", "bluray", "dvd"
-        )
-
-        val hasMovieIndicators = movieIndicators.any { indicator ->
-            titleLower.contains(indicator)
-        }
-
-        // Check for year patterns (common in movies)
-        val yearPattern = Regex("\\b(19|20)\\d{2}\\b")
-        val hasYearPattern = yearPattern.containsMatchIn(titleLower)
 
         // Check title length (movies tend to have longer, more descriptive titles)
         val hasReasonableTitleLength = titleLower.length > 5
@@ -313,14 +310,14 @@ internal fun isDebridContent(
                 false
             }
 
-            // Use debrid for content with strong movie indicators
-            hasMovieIndicators && hasYearPattern -> {
+            // Use debrid for content with strong movie indicators (incl. a year)
+            hasStrongMovieIndicators(titleLower) -> {
                 Log.d(TAG, "🎬 STRONG MOVIE INDICATORS: '$title' - will try PureFire sources first")
                 true
             }
 
             // Use debrid for movie category content
-            movieCategories.any { categoryId?.lowercase()?.contains(it) == true } -> {
+            MOVIE_CATEGORIES.any { categoryId?.lowercase()?.contains(it) == true } -> {
                 Log.d(TAG, "🎬 MOVIE CATEGORY: '$categoryId' - will try PureFire sources first")
                 true
             }

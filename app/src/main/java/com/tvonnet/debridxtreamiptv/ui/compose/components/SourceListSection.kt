@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.ui.compose.SourceUiModel
+import com.tvonnet.debridxtreamiptv.ui.sources.SizeFilterOption
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
 import java.util.Locale
 
@@ -59,34 +60,32 @@ fun SourceListSection(
     }
     val showLanguageFilters = languageOptions.size > 1
 
-    var cachedOnly by remember(sources) { mutableStateOf(false) }
-    var selectedSizeOption by remember(sources) { mutableStateOf(SourceFilterUtils.SIZE_OPTIONS.first()) }
-    var preferredLanguage by remember(sources) { mutableStateOf<String?>(null) }
+    val filters = remember(sources) { SourceChipFilters() }
 
     LaunchedEffect(showCachedFilter) {
-        if (!showCachedFilter) cachedOnly = false
+        if (!showCachedFilter) filters.cachedOnly = false
     }
     LaunchedEffect(showSizeFilters) {
-        if (!showSizeFilters) selectedSizeOption = SourceFilterUtils.SIZE_OPTIONS.first()
+        if (!showSizeFilters) filters.selectedSizeOption = SourceFilterUtils.SIZE_OPTIONS.first()
     }
     LaunchedEffect(showLanguageFilters) {
-        if (!showLanguageFilters) preferredLanguage = null
+        if (!showLanguageFilters) filters.preferredLanguage = null
     }
 
     val filteredSources = remember(
         sources,
-        cachedOnly,
-        selectedSizeOption,
-        preferredLanguage,
+        filters.cachedOnly,
+        filters.selectedSizeOption,
+        filters.preferredLanguage,
         showCachedFilter,
         showSizeFilters,
         showLanguageFilters
     ) {
         applySourceFilters(
             sources = sources,
-            cachedOnly = cachedOnly && showCachedFilter,
-            maxSizeBytes = if (showSizeFilters) selectedSizeOption.maxSizeBytes else null,
-            preferredLanguage = if (showLanguageFilters) preferredLanguage else null
+            cachedOnly = filters.cachedOnly && showCachedFilter,
+            maxSizeBytes = if (showSizeFilters) filters.selectedSizeOption.maxSizeBytes else null,
+            preferredLanguage = if (showLanguageFilters) filters.preferredLanguage else null
         )
     }
 
@@ -98,72 +97,115 @@ fun SourceListSection(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
 
-        if (showCachedFilter || showSizeFilters || showLanguageFilters) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                if (showCachedFilter) {
-                    FilterChip(
-                        label = stringResource(R.string.source_filter_cached_only),
-                        selected = cachedOnly,
-                        onClick = { cachedOnly = !cachedOnly }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+        SourceFilterChips(
+            visibility = SourceFilterVisibility(showCachedFilter, showSizeFilters, showLanguageFilters),
+            filters = filters,
+            languageOptions = languageOptions
+        )
 
-                if (showSizeFilters) {
-                    Row(
-                        modifier = Modifier
-                            .horizontalScroll(rememberScrollState())
-                            .padding(bottom = 8.dp)
-                    ) {
-                        SourceFilterUtils.SIZE_OPTIONS.forEach { option ->
-                            FilterChip(
-                                label = option.label,
-                                selected = option == selectedSizeOption,
-                                onClick = { selectedSizeOption = option }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                    }
-                }
+        SourceRows(filteredSources, onSourceClick)
+    }
+}
 
-                if (showLanguageFilters) {
-                    Row(
-                        modifier = Modifier
-                            .horizontalScroll(rememberScrollState())
-                            .padding(bottom = 8.dp)
-                    ) {
-                        languageOptions.forEach { language ->
-                            val label = languageLabelFor(language)
-                            FilterChip(
-                                label = label,
-                                selected = preferredLanguage == language,
-                                onClick = {
-                                    preferredLanguage = if (preferredLanguage == language) null else language
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                    }
-                }
-            }
+/** Chip-filter state for one sources list — remembered per list, so it resets on new sources. */
+private class SourceChipFilters {
+    var cachedOnly by mutableStateOf(false)
+    var selectedSizeOption by mutableStateOf(SourceFilterUtils.SIZE_OPTIONS.first())
+    var preferredLanguage by mutableStateOf<String?>(null)
+}
+
+private class SourceFilterVisibility(val cached: Boolean, val size: Boolean, val language: Boolean) {
+    val any: Boolean get() = cached || size || language
+}
+
+@Composable
+private fun SourceFilterChips(
+    visibility: SourceFilterVisibility,
+    filters: SourceChipFilters,
+    languageOptions: List<String>
+) {
+    if (!visibility.any) return
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        if (visibility.cached) {
+            CachedFilterChip(filters.cachedOnly) { filters.cachedOnly = !filters.cachedOnly }
         }
+        if (visibility.size) {
+            SizeFilterChipRow(filters.selectedSizeOption) { filters.selectedSizeOption = it }
+        }
+        if (visibility.language) {
+            LanguageFilterChipRow(languageOptions, filters.preferredLanguage) { filters.preferredLanguage = it }
+        }
+    }
+}
 
-        if (filteredSources.isEmpty()) {
-            Text(
-                text = stringResource(R.string.source_filters_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFFB0B0B0),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+@Composable
+private fun CachedFilterChip(cachedOnly: Boolean, onToggle: () -> Unit) {
+    FilterChip(
+        label = stringResource(R.string.source_filter_cached_only),
+        selected = cachedOnly,
+        onClick = onToggle
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+}
+
+@Composable
+private fun SizeFilterChipRow(selected: SizeFilterOption, onSelect: (SizeFilterOption) -> Unit) {
+    Row(
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .padding(bottom = 8.dp)
+    ) {
+        SourceFilterUtils.SIZE_OPTIONS.forEach { option ->
+            FilterChip(
+                label = option.label,
+                selected = option == selected,
+                onClick = { onSelect(option) }
             )
-        } else {
-            filteredSources.forEach { source ->
-                SourceItem(
-                    source = source,
-                    onClick = { onSourceClick(source) }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
+            Spacer(modifier = Modifier.width(8.dp))
         }
+    }
+}
+
+@Composable
+private fun LanguageFilterChipRow(
+    options: List<String>,
+    preferred: String?,
+    onSelect: (String?) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .padding(bottom = 8.dp)
+    ) {
+        options.forEach { language ->
+            FilterChip(
+                label = languageLabelFor(language),
+                selected = preferred == language,
+                // Selecting the active language again clears the filter.
+                onClick = { onSelect(if (preferred == language) null else language) }
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun SourceRows(filteredSources: List<SourceUiModel>, onSourceClick: (SourceUiModel) -> Unit) {
+    if (filteredSources.isEmpty()) {
+        Text(
+            text = stringResource(R.string.source_filters_empty),
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFFB0B0B0),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+        return
+    }
+    filteredSources.forEach { source ->
+        SourceItem(
+            source = source,
+            onClick = { onSourceClick(source) }
+        )
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
@@ -218,55 +260,67 @@ fun SourceItem(
             .padding(16.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = source.name,
-                    color = if (isFocused) Color.White else Color(0xFFEEEEEE),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (isFocused) FontWeight.SemiBold else FontWeight.Normal,
-                    modifier = Modifier.weight(1f)
-                )
+            SourceItemHeader(source, isFocused)
+            SourceProviderLine(source, isFocused)
+            SourceBadgesRow(source, isFocused)
+        }
+    }
+}
 
-                source.languageFlag?.takeIf { it.isNotBlank() }?.let { language ->
-                    BadgeChip(
-                        label = language,
-                        isFocused = isFocused
-                    )
-                }
-            }
+@Composable
+private fun SourceItemHeader(source: SourceUiModel, isFocused: Boolean) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = source.name,
+            color = if (isFocused) Color.White else Color(0xFFEEEEEE),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (isFocused) FontWeight.SemiBold else FontWeight.Normal,
+            modifier = Modifier.weight(1f)
+        )
 
-            val providerLine = listOfNotNull(
-                source.source?.takeIf { it.isNotBlank() },
-                source.extension?.uppercase(Locale.US)
-            ).joinToString(" - ")
-            if (providerLine.isNotBlank()) {
-                Text(
-                    text = providerLine,
-                    color = if (isFocused) Color(0xFFCCCCCC) else Color.Gray,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
+        source.languageFlag?.takeIf { it.isNotBlank() }?.let { language ->
+            BadgeChip(
+                label = language,
+                isFocused = isFocused
+            )
+        }
+    }
+}
 
-            val badges = buildBadges(source)
-            if (badges.isNotEmpty()) {
-                Row(
-                    modifier = Modifier
-                        .padding(top = 6.dp)
-                        .horizontalScroll(rememberScrollState())
-                ) {
-                    badges.forEach { label ->
-                        BadgeChip(
-                            label = label,
-                            isFocused = isFocused
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                }
-            }
+@Composable
+private fun SourceProviderLine(source: SourceUiModel, isFocused: Boolean) {
+    val providerLine = listOfNotNull(
+        source.source?.takeIf { it.isNotBlank() },
+        source.extension?.uppercase(Locale.US)
+    ).joinToString(" - ")
+    if (providerLine.isNotBlank()) {
+        Text(
+            text = providerLine,
+            color = if (isFocused) Color(0xFFCCCCCC) else Color.Gray,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
+}
+
+@Composable
+private fun SourceBadgesRow(source: SourceUiModel, isFocused: Boolean) {
+    val badges = buildBadges(source)
+    if (badges.isEmpty()) return
+    Row(
+        modifier = Modifier
+            .padding(top = 6.dp)
+            .horizontalScroll(rememberScrollState())
+    ) {
+        badges.forEach { label ->
+            BadgeChip(
+                label = label,
+                isFocused = isFocused
+            )
+            Spacer(modifier = Modifier.width(8.dp))
         }
     }
 }
@@ -350,27 +404,28 @@ private fun matchesPreferredLanguage(source: SourceUiModel, preferred: String): 
     return languages.contains(preferred) || languages.contains("multi")
 }
 
-private fun languageLabelFor(code: String): String {
-    return when (code.lowercase(Locale.US)) {
-        "multi" -> "MULTI"
-        "en", "eng", "english" -> "EN"
-        "fr", "fre", "french" -> "FR"
-        "de", "ger", "german" -> "DE"
-        "es", "spa", "spanish" -> "ES"
-        "it", "ita", "italian" -> "IT"
-        "pt", "por", "portuguese" -> "PT"
-        "ru", "rus", "russian" -> "RU"
-        "hi", "hin", "hindi" -> "HI"
-        "ja", "jpn", "japanese" -> "JA"
-        "ko", "kor", "korean" -> "KO"
-        "zh", "chi", "chinese" -> "ZH"
-        "ar", "ara", "arabic" -> "AR"
-        "tr", "tur", "turkish" -> "TR"
-        "pl", "pol", "polish" -> "PL"
-        "nl", "dut", "dutch" -> "NL"
-        else -> code.uppercase(Locale.US)
-    }
-}
+// The old when-chain as data; an unknown code falls back to its own uppercase form.
+private val LANGUAGE_LABEL_BY_CODE = mapOf(
+    "multi" to "MULTI",
+    "en" to "EN", "eng" to "EN", "english" to "EN",
+    "fr" to "FR", "fre" to "FR", "french" to "FR",
+    "de" to "DE", "ger" to "DE", "german" to "DE",
+    "es" to "ES", "spa" to "ES", "spanish" to "ES",
+    "it" to "IT", "ita" to "IT", "italian" to "IT",
+    "pt" to "PT", "por" to "PT", "portuguese" to "PT",
+    "ru" to "RU", "rus" to "RU", "russian" to "RU",
+    "hi" to "HI", "hin" to "HI", "hindi" to "HI",
+    "ja" to "JA", "jpn" to "JA", "japanese" to "JA",
+    "ko" to "KO", "kor" to "KO", "korean" to "KO",
+    "zh" to "ZH", "chi" to "ZH", "chinese" to "ZH",
+    "ar" to "AR", "ara" to "AR", "arabic" to "AR",
+    "tr" to "TR", "tur" to "TR", "turkish" to "TR",
+    "pl" to "PL", "pol" to "PL", "polish" to "PL",
+    "nl" to "NL", "dut" to "NL", "dutch" to "NL",
+)
+
+private fun languageLabelFor(code: String): String =
+    LANGUAGE_LABEL_BY_CODE[code.lowercase(Locale.US)] ?: code.uppercase(Locale.US)
 
 private fun buildBadges(source: SourceUiModel): List<String> {
     val badges = mutableListOf<String>()
