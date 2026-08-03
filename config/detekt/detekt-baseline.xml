@@ -23,15 +23,7 @@
     <ID>CyclomaticComplexMethod:EpgSyncWorker.kt$EpgSyncWorker$override suspend fun doWork(): Result</ID>
     <ID>CyclomaticComplexMethod:FocusPreservingListUpdate.kt$fun RecyclerView.updatePreservingFocus(applyUpdate: () -&gt; Unit)</ID>
     <ID>CyclomaticComplexMethod:FocusTrapHelper.kt$FocusTrapHelper$private fun findLoopedFocus(container: ViewGroup, current: View, direction: Int): View?</ID>
-    <ID>CyclomaticComplexMethod:HomeFocusManager.kt$HomeFocusManager$fun applyInitialFocusIfNeeded(state: HomeUiState)</ID>
-    <ID>CyclomaticComplexMethod:HomeFocusManager.kt$HomeFocusManager$fun captureContentFocusSnapshot(): ContentFocusSnapshot?</ID>
-    <ID>CyclomaticComplexMethod:HomeFocusManager.kt$HomeFocusManager$fun restoreContentFocus(): Boolean</ID>
-    <ID>CyclomaticComplexMethod:HomeFocusManager.kt$HomeFocusManager$fun restoreContentFocusAfterDataUpdate(snapshot: ContentFocusSnapshot?)</ID>
     <ID>CyclomaticComplexMethod:HomeHeroManager.kt$HomeHeroManager$private fun toggleHeroGlow(buttonId: Int, hasFocus: Boolean)</ID>
-    <ID>CyclomaticComplexMethod:HomeKeyRoutingManager.kt$HomeKeyRoutingManager$fun moveFocusDownFromArea(area: HomeContentFocusArea, position: Int): Boolean</ID>
-    <ID>CyclomaticComplexMethod:HomeKeyRoutingManager.kt$HomeKeyRoutingManager$fun moveFocusUpFromArea(area: HomeContentFocusArea, position: Int): Boolean</ID>
-    <ID>CyclomaticComplexMethod:HomeNavigationRouter.kt$HomeNavigationRouter$fun launchLiveStream( streamId: String?, fallbackTitle: String?, fallbackLogo: String?, fallbackUrl: String?, epgChannelId: String? = null )</ID>
-    <ID>CyclomaticComplexMethod:HomeNavigationRouter.kt$HomeNavigationRouter$fun onContinueWatchingItemClick(item: ContinueWatchingItem)</ID>
     <ID>CyclomaticComplexMethod:HomeViewModel.kt$HomeViewModel$private fun loadHomeData()</ID>
     <ID>CyclomaticComplexMethod:LanguageFilterAdapter.kt$LanguageFilterAdapter.LanguageViewHolder$private fun getFlagEmoji(languageCode: String): String</ID>
     <ID>CyclomaticComplexMethod:LicenseManager.kt$LicenseManager$fun start()</ID>
@@ -102,7 +94,6 @@
     <ID>LongMethod:EpgSyncWorker.kt$EpgSyncWorker$override suspend fun doWork(): Result</ID>
     <ID>LongMethod:FavoritesFragment.kt$FavoritesFragment$private fun handleFavoriteClick(favorite: FavoriteEntity)</ID>
     <ID>LongMethod:HomeHeroManager.kt$HomeHeroManager$fun updateHeroSection(item: FeaturedItem)</ID>
-    <ID>LongMethod:HomeNavigationRouter.kt$HomeNavigationRouter$fun onContinueWatchingItemClick(item: ContinueWatchingItem)</ID>
     <ID>LongMethod:HomeViewModel.kt$HomeViewModel$private fun loadHomeData()</ID>
     <ID>LongMethod:LicenseManager.kt$LicenseManager$fun start()</ID>
     <ID>LongMethod:LiveFragment.kt$LiveFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>

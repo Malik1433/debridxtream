@@ -67,39 +67,44 @@ internal class HomeFocusManager(private var fragment: HomeFragment?) {
             return
         }
 
+        if (respectExistingFocus(frag, state)) return
+
+        if (focusInitialTarget(frag, state)) {
+            hasAppliedInitialFocus = true
+            appliedLoadingFallbackFocus = false
+            didRestoreFocusForThisView = true
+        }
+    }
+
+    // A real user focus already exists (and is not just our loading fallback or the hero
+    // button we are about to re-target): respect it and consider initial focus done.
+    private fun respectExistingFocus(frag: HomeFragment, state: HomeUiState): Boolean {
         val currentFocus = frag.view?.findFocus()
         val hasContentRows = state.continueWatching.isNotEmpty() ||
             state.recentLiveChannels.isNotEmpty() ||
             state.top10Movies.isNotEmpty() ||
             state.top10Series.isNotEmpty()
-        // A real user focus already exists (and is not just our loading fallback or the hero
-        // button we are about to re-target): respect it and consider initial focus done.
         val holdsIntentionalFocus = currentFocus != null && !appliedLoadingFallbackFocus
         val isRetargetableHeroFocus = hasContentRows && currentFocus != null && isHeroButtonFocus(currentFocus)
         if (holdsIntentionalFocus && !isRetargetableHeroFocus) {
             hasAppliedInitialFocus = true
-            return
+            return true
         }
+        return false
+    }
 
-        val focused = when {
-            // Returning to Home restores exactly where the user was.
-            isRememberedContentFocusValid() -> restoreContentFocus()
-            // Fresh open: land on the hero's Play button (owner request) — the hero
-            // banner is the top element, not the Continue Watching / Trending rows below.
-            frag.currentHeroItem != null && requestFocusSafely(frag.view?.findViewById(R.id.btn_hero_watch)) -> true
-            state.continueWatching.isNotEmpty() -> requestContentFocus(frag.rvContinueWatching, 0)
-            state.recentLiveChannels.isNotEmpty() -> requestContentFocus(frag.rvRecentLive, 0)
-            state.top10Movies.isNotEmpty() -> requestContentFocus(frag.rvTop10Movies, 0)
-            state.top10Series.isNotEmpty() -> requestContentFocus(frag.rvTop10Series, 0)
-            returnToSidebar() -> true
-            else -> requestFocusSafely(frag.rvSidebar)
-        }
-
-        if (focused) {
-            hasAppliedInitialFocus = true
-            appliedLoadingFallbackFocus = false
-            didRestoreFocusForThisView = true
-        }
+    private fun focusInitialTarget(frag: HomeFragment, state: HomeUiState): Boolean = when {
+        // Returning to Home restores exactly where the user was.
+        isRememberedContentFocusValid() -> restoreContentFocus()
+        // Fresh open: land on the hero's Play button (owner request) — the hero
+        // banner is the top element, not the Continue Watching / Trending rows below.
+        frag.currentHeroItem != null && requestFocusSafely(frag.view?.findViewById(R.id.btn_hero_watch)) -> true
+        state.continueWatching.isNotEmpty() -> requestContentFocus(frag.rvContinueWatching, 0)
+        state.recentLiveChannels.isNotEmpty() -> requestContentFocus(frag.rvRecentLive, 0)
+        state.top10Movies.isNotEmpty() -> requestContentFocus(frag.rvTop10Movies, 0)
+        state.top10Series.isNotEmpty() -> requestContentFocus(frag.rvTop10Series, 0)
+        returnToSidebar() -> true
+        else -> requestFocusSafely(frag.rvSidebar)
     }
 
     fun isRememberedContentFocusValid(): Boolean {
@@ -129,22 +134,14 @@ internal class HomeFocusManager(private var fragment: HomeFragment?) {
 
         val rememberedRv = recyclerFor(lastContentFocusArea)
         val rememberedIndex = rememberedIndexFor(lastContentFocusArea)
-        val rememberedCount = getItemCount(rememberedRv)
 
-        val targetRv = when {
-            rememberedCount > 0 -> rememberedRv
-            getItemCount(frag.rvContinueWatching) > 0 -> frag.rvContinueWatching
-            getItemCount(frag.rvRecentLive) > 0 -> frag.rvRecentLive
-            getItemCount(frag.rvTop10Movies) > 0 -> frag.rvTop10Movies
-            getItemCount(frag.rvTop10Series) > 0 -> frag.rvTop10Series
-            else -> {
-                returnToSidebar()
-                return false
-            }
+        val targetRv = if (getItemCount(rememberedRv) > 0) {
+            rememberedRv
+        } else {
+            firstAvailableContentArea()?.let { recyclerFor(it) }
         }
-
-        val itemCount = getItemCount(targetRv)
-        if (itemCount <= 0) {
+        val itemCount = targetRv?.let { getItemCount(it) } ?: 0
+        if (targetRv == null || itemCount <= 0) {
             returnToSidebar()
             return false
         }
@@ -156,19 +153,23 @@ internal class HomeFocusManager(private var fragment: HomeFragment?) {
         }
 
         targetRv.scrollToPosition(targetIndex)
-        targetRv.post {
-            val target = targetRv.findViewHolderForAdapterPosition(targetIndex)?.itemView
-            if (requestFocusSafely(target)) return@post
-
-            val firstAttachedChild = (0 until targetRv.childCount)
-                .asSequence()
-                .map { targetRv.getChildAt(it) }
-                .firstOrNull { it?.isFocusable == true }
-            if (!requestFocusSafely(firstAttachedChild)) {
-                returnToSidebar()
-            }
-        }
+        targetRv.post { focusRowChildOrSidebar(targetRv, targetIndex) }
         return true
+    }
+
+    // The post-layout half of restoreContentFocus, verbatim: the remembered card, else the
+    // first focusable attached child, else back to the sidebar.
+    private fun focusRowChildOrSidebar(targetRv: RecyclerView, targetIndex: Int) {
+        val target = targetRv.findViewHolderForAdapterPosition(targetIndex)?.itemView
+        if (requestFocusSafely(target)) return
+
+        val firstAttachedChild = (0 until targetRv.childCount)
+            .asSequence()
+            .map { targetRv.getChildAt(it) }
+            .firstOrNull { it?.isFocusable == true }
+        if (!requestFocusSafely(firstAttachedChild)) {
+            returnToSidebar()
+        }
     }
 
     fun requestContentFocus(targetRv: RecyclerView, targetIndex: Int): Boolean {
@@ -219,48 +220,34 @@ internal class HomeFocusManager(private var fragment: HomeFragment?) {
     fun captureContentFocusSnapshot(): ContentFocusSnapshot? {
         val frag = fragment ?: return null
         val focused = frag.view?.findFocus() ?: return null
-        return when {
-            isDescendantOf(focused, frag.rvContinueWatching) -> {
-                val holder = frag.rvContinueWatching.findContainingViewHolder(focused) ?: return null
-                val position = holder.bindingAdapterPosition
-                if (position == RecyclerView.NO_POSITION) return null
-                ContentFocusSnapshot(
-                    area = HomeContentFocusArea.CONTINUE_WATCHING,
-                    stableId = frag.continueWatchingAdapter.getStableItemIdAt(position),
-                    index = position
-                )
-            }
-            isDescendantOf(focused, frag.rvRecentLive) -> {
-                val holder = frag.rvRecentLive.findContainingViewHolder(focused) ?: return null
-                val position = holder.bindingAdapterPosition
-                if (position == RecyclerView.NO_POSITION) return null
-                ContentFocusSnapshot(
-                    area = HomeContentFocusArea.RECENT_LIVE,
-                    stableId = frag.recentLiveAdapter.getStableItemIdAt(position),
-                    index = position
-                )
-            }
-            isDescendantOf(focused, frag.rvTop10Movies) -> {
-                val holder = frag.rvTop10Movies.findContainingViewHolder(focused) ?: return null
-                val position = holder.bindingAdapterPosition
-                if (position == RecyclerView.NO_POSITION) return null
-                ContentFocusSnapshot(
-                    area = HomeContentFocusArea.MOVIES,
-                    stableId = frag.top10MoviesAdapter.getStableItemIdAt(position),
-                    index = position
-                )
-            }
-            isDescendantOf(focused, frag.rvTop10Series) -> {
-                val holder = frag.rvTop10Series.findContainingViewHolder(focused) ?: return null
-                val position = holder.bindingAdapterPosition
-                if (position == RecyclerView.NO_POSITION) return null
-                ContentFocusSnapshot(
-                    area = HomeContentFocusArea.SERIES,
-                    stableId = frag.top10SeriesAdapter.getStableItemIdAt(position),
-                    index = position
-                )
-            }
-            else -> null
+        val area = contentAreaOf(frag, focused) ?: return null
+        return snapshotIn(recyclerFor(area), area, focused)
+    }
+
+    // Which content row (if any) the focused view sits in — same top-down order as before.
+    private fun contentAreaOf(frag: HomeFragment, focused: View): HomeContentFocusArea? = when {
+        isDescendantOf(focused, frag.rvContinueWatching) -> HomeContentFocusArea.CONTINUE_WATCHING
+        isDescendantOf(focused, frag.rvRecentLive) -> HomeContentFocusArea.RECENT_LIVE
+        isDescendantOf(focused, frag.rvTop10Movies) -> HomeContentFocusArea.MOVIES
+        isDescendantOf(focused, frag.rvTop10Series) -> HomeContentFocusArea.SERIES
+        else -> null
+    }
+
+    private fun snapshotIn(rv: RecyclerView, area: HomeContentFocusArea, focused: View): ContentFocusSnapshot? {
+        val holder = rv.findContainingViewHolder(focused) ?: return null
+        val position = holder.bindingAdapterPosition
+        if (position == RecyclerView.NO_POSITION) return null
+        return ContentFocusSnapshot(area = area, stableId = stableIdAt(area, position), index = position)
+    }
+
+    private fun stableIdAt(area: HomeContentFocusArea, position: Int): Long? {
+        val frag = fragment ?: return null
+        return when (area) {
+            HomeContentFocusArea.CONTINUE_WATCHING -> frag.continueWatchingAdapter.getStableItemIdAt(position)
+            HomeContentFocusArea.RECENT_LIVE -> frag.recentLiveAdapter.getStableItemIdAt(position)
+            HomeContentFocusArea.MOVIES -> frag.top10MoviesAdapter.getStableItemIdAt(position)
+            HomeContentFocusArea.SERIES -> frag.top10SeriesAdapter.getStableItemIdAt(position)
+            HomeContentFocusArea.HERO -> null
         }
     }
 
@@ -268,30 +255,34 @@ internal class HomeFocusManager(private var fragment: HomeFragment?) {
         val frag = fragment ?: return
         if (snapshot == null || !frag.isAdded || frag.view == null) return
 
-        frag.view?.post {
-            val f = fragment ?: return@post
-            if (!f.isAdded || f.view == null) return@post
-            val currentFocus = f.view?.findFocus()
-            if (currentFocus != null && currentFocus.isShown && isFocusedInsideContentRows(currentFocus)) {
-                return@post
-            }
+        frag.view?.post { restoreSnapshotNow(snapshot) }
+    }
 
-            val targetRv = recyclerFor(snapshot.area)
-            val itemCount = getItemCount(targetRv)
-            if (itemCount <= 0) {
-                applyInitialFocusIfNeeded(f.viewModel.uiState.value)
-                return@post
-            }
-
-            val stablePosition = snapshot.stableId?.let { findPositionByStableId(snapshot.area, it) }
-                ?: RecyclerView.NO_POSITION
-            val targetIndex = if (stablePosition != RecyclerView.NO_POSITION) {
-                stablePosition
-            } else {
-                snapshot.index.coerceIn(0, itemCount - 1)
-            }
-            requestContentFocus(targetRv, targetIndex)
+    // The post-layout half of restoreContentFocusAfterDataUpdate, verbatim: keep a live focus
+    // inside the rows, else re-target by stable id (data may have reordered), else by index.
+    private fun restoreSnapshotNow(snapshot: ContentFocusSnapshot) {
+        val f = fragment ?: return
+        if (!f.isAdded || f.view == null) return
+        val currentFocus = f.view?.findFocus()
+        if (currentFocus != null && currentFocus.isShown && isFocusedInsideContentRows(currentFocus)) {
+            return
         }
+
+        val targetRv = recyclerFor(snapshot.area)
+        val itemCount = getItemCount(targetRv)
+        if (itemCount <= 0) {
+            applyInitialFocusIfNeeded(f.viewModel.uiState.value)
+            return
+        }
+
+        val stablePosition = snapshot.stableId?.let { findPositionByStableId(snapshot.area, it) }
+            ?: RecyclerView.NO_POSITION
+        val targetIndex = if (stablePosition != RecyclerView.NO_POSITION) {
+            stablePosition
+        } else {
+            snapshot.index.coerceIn(0, itemCount - 1)
+        }
+        requestContentFocus(targetRv, targetIndex)
     }
 
     fun isDescendantOf(candidate: View?, ancestor: View): Boolean {

@@ -125,63 +125,76 @@ internal class HomeKeyRoutingManager(private var fragment: HomeFragment?) {
     // Visual rail order (top → bottom): CONTINUE_WATCHING, MOVIES, SERIES, RECENT_LIVE
     fun moveFocusUpFromArea(area: HomeContentFocusArea, position: Int): Boolean {
         val frag = fragment ?: return false
-        return when (area) {
-            HomeContentFocusArea.CONTINUE_WATCHING -> {
-                frag.focusManager.focusHeroPrimaryButton()
-            }
-            HomeContentFocusArea.MOVIES -> {
-                when {
-                    frag.isRvContinueWatchingInitialized() && frag.focusManager.getItemCount(frag.rvContinueWatching) > 0 -> frag.focusManager.requestContentFocus(frag.rvContinueWatching, position)
-                    else -> frag.focusManager.focusHeroPrimaryButton()
-                }
-            }
-            HomeContentFocusArea.SERIES -> {
-                when {
-                    frag.isRvTop10MoviesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Movies) > 0 -> frag.focusManager.requestContentFocus(frag.rvTop10Movies, position)
-                    frag.isRvContinueWatchingInitialized() && frag.focusManager.getItemCount(frag.rvContinueWatching) > 0 -> frag.focusManager.requestContentFocus(frag.rvContinueWatching, position)
-                    else -> frag.focusManager.focusHeroPrimaryButton()
-                }
-            }
-            HomeContentFocusArea.RECENT_LIVE -> {
-                when {
-                    frag.isRvTop10SeriesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Series) > 0 -> frag.focusManager.requestContentFocus(frag.rvTop10Series, position)
-                    frag.isRvTop10MoviesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Movies) > 0 -> frag.focusManager.requestContentFocus(frag.rvTop10Movies, position)
-                    frag.isRvContinueWatchingInitialized() && frag.focusManager.getItemCount(frag.rvContinueWatching) > 0 -> frag.focusManager.requestContentFocus(frag.rvContinueWatching, position)
-                    else -> frag.focusManager.focusHeroPrimaryButton()
-                }
-            }
-            HomeContentFocusArea.HERO -> false
-        }
+        if (area == HomeContentFocusArea.HERO) return false
+        // Nearest populated rail above (same column), else up to the hero.
+        return focusFirstPopulatedRail(frag, RAILS_ABOVE.getValue(area), position)
+            ?: frag.focusManager.focusHeroPrimaryButton()
     }
 
     fun moveFocusDownFromArea(area: HomeContentFocusArea, position: Int): Boolean {
         val frag = fragment ?: return false
-        return when (area) {
-            HomeContentFocusArea.HERO -> {
-                frag.focusManager.restoreLastRailFocus() || true
-            }
-            HomeContentFocusArea.CONTINUE_WATCHING -> {
-                when {
-                    frag.isRvTop10MoviesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Movies) > 0 -> frag.focusManager.requestContentFocus(frag.rvTop10Movies, position)
-                    frag.isRvTop10SeriesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Series) > 0 -> frag.focusManager.requestContentFocus(frag.rvTop10Series, position)
-                    frag.isRvRecentLiveInitialized() && frag.focusManager.getItemCount(frag.rvRecentLive) > 0 -> frag.focusManager.requestContentFocus(frag.rvRecentLive, position)
-                    else -> true
-                }
-            }
-            HomeContentFocusArea.MOVIES -> {
-                when {
-                    frag.isRvTop10SeriesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Series) > 0 -> frag.focusManager.requestContentFocus(frag.rvTop10Series, position)
-                    frag.isRvRecentLiveInitialized() && frag.focusManager.getItemCount(frag.rvRecentLive) > 0 -> frag.focusManager.requestContentFocus(frag.rvRecentLive, position)
-                    else -> true
-                }
-            }
-            HomeContentFocusArea.SERIES -> {
-                when {
-                    frag.isRvRecentLiveInitialized() && frag.focusManager.getItemCount(frag.rvRecentLive) > 0 -> frag.focusManager.requestContentFocus(frag.rvRecentLive, position)
-                    else -> true
-                }
-            }
-            HomeContentFocusArea.RECENT_LIVE -> true
+        if (area == HomeContentFocusArea.HERO) {
+            return frag.focusManager.restoreLastRailFocus() || true
         }
+        // Nearest populated rail below; from the bottom (or when nothing is below) the key
+        // is consumed so focus can't escape the content column downwards.
+        return focusFirstPopulatedRail(frag, RAILS_BELOW.getValue(area), position) ?: true
+    }
+
+    // Focus the first populated rail from the ordered candidates, keeping the column position.
+    // Null when no candidate rail can take focus — the caller decides the fallback.
+    private fun focusFirstPopulatedRail(
+        frag: HomeFragment,
+        rails: List<HomeContentFocusArea>,
+        position: Int
+    ): Boolean? {
+        val target = rails.firstOrNull { railHasItems(frag, it) } ?: return null
+        val rv = railRecycler(frag, target) ?: return null
+        return frag.focusManager.requestContentFocus(rv, position)
+    }
+
+    // A rail can take focus only when its view is inflated AND it has items.
+    private fun railHasItems(frag: HomeFragment, rail: HomeContentFocusArea): Boolean = when (rail) {
+        HomeContentFocusArea.CONTINUE_WATCHING ->
+            frag.isRvContinueWatchingInitialized() && frag.focusManager.getItemCount(frag.rvContinueWatching) > 0
+        HomeContentFocusArea.RECENT_LIVE ->
+            frag.isRvRecentLiveInitialized() && frag.focusManager.getItemCount(frag.rvRecentLive) > 0
+        HomeContentFocusArea.MOVIES ->
+            frag.isRvTop10MoviesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Movies) > 0
+        HomeContentFocusArea.SERIES ->
+            frag.isRvTop10SeriesInitialized() && frag.focusManager.getItemCount(frag.rvTop10Series) > 0
+        HomeContentFocusArea.HERO -> false
+    }
+
+    private fun railRecycler(frag: HomeFragment, rail: HomeContentFocusArea): RecyclerView? = when (rail) {
+        HomeContentFocusArea.CONTINUE_WATCHING -> frag.rvContinueWatching
+        HomeContentFocusArea.RECENT_LIVE -> frag.rvRecentLive
+        HomeContentFocusArea.MOVIES -> frag.rvTop10Movies
+        HomeContentFocusArea.SERIES -> frag.rvTop10Series
+        HomeContentFocusArea.HERO -> null
+    }
+
+    private companion object {
+        // The old per-area when-chains as data: candidate rails in the order they were tried.
+        val RAILS_ABOVE = mapOf(
+            HomeContentFocusArea.CONTINUE_WATCHING to emptyList(),
+            HomeContentFocusArea.MOVIES to listOf(HomeContentFocusArea.CONTINUE_WATCHING),
+            HomeContentFocusArea.SERIES to listOf(
+                HomeContentFocusArea.MOVIES, HomeContentFocusArea.CONTINUE_WATCHING
+            ),
+            HomeContentFocusArea.RECENT_LIVE to listOf(
+                HomeContentFocusArea.SERIES, HomeContentFocusArea.MOVIES, HomeContentFocusArea.CONTINUE_WATCHING
+            ),
+        )
+        val RAILS_BELOW = mapOf(
+            HomeContentFocusArea.CONTINUE_WATCHING to listOf(
+                HomeContentFocusArea.MOVIES, HomeContentFocusArea.SERIES, HomeContentFocusArea.RECENT_LIVE
+            ),
+            HomeContentFocusArea.MOVIES to listOf(
+                HomeContentFocusArea.SERIES, HomeContentFocusArea.RECENT_LIVE
+            ),
+            HomeContentFocusArea.SERIES to listOf(HomeContentFocusArea.RECENT_LIVE),
+            HomeContentFocusArea.RECENT_LIVE to emptyList(),
+        )
     }
 }

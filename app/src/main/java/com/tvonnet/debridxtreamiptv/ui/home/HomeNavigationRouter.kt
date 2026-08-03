@@ -187,68 +187,10 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
 
         frag.viewLifecycleOwner.lifecycleScope.launch {
             when (item.contentType) {
-                ContentType.MOVIE, ContentType.EPISODE -> {
-                    val serverUrl = frag.credentialsPrefs.getServerUrl() ?: ""
-                    val canResumeDirectly = (streamUrl != null && !expired) ||
-                        (isDebrid && hasResolutionInfo) ||
-                        canFreshResolveDirectDebrid
-                    
-                    Log.e("HISTORY_DEBUG", "RESUME_DECISION: canResumeDirectly=$canResumeDirectly | isDebrid=$isDebrid | hasResInfo=$hasResolutionInfo | streamUrl=${SensitiveLogRedactor.describeUrl(streamUrl)}")
-
-                    if (!canResumeDirectly) {
-                        Log.e("HISTORY_DEBUG", "RESUME_PATH: FALLBACK to Detail (canResumeDirectly=false)")
-                        openContinueWatchingDetail(item)
-                        return@launch
-                    }
-
-                    Log.e("HISTORY_DEBUG", "RESUME_PATH: DIRECT to PlayerActivity")
-                    val resumeSeriesId = if (item.contentType == ContentType.EPISODE) {
-                        item.seriesId?.takeIf { it.isNotBlank() }
-                            ?: if (!isDebrid) resolveIptvSeriesIdForContinueWatching(item) else null
-                    } else {
-                        null
-                    }
-                    Log.e(
-                        "TASK030_CW_SERIES",
-                        "DIRECT_RESUME type=${item.contentType} source=${item.source} contentId=${item.contentId} seriesId=$resumeSeriesId season=${item.seasonNumber} episode=${item.episodeNumber}"
-                    )
-                    val intent = PlayerActivity.createIntent(
-                        context = context,
-                        streamUrl = if (canFreshResolveDirectDebrid) "" else streamUrl ?: "",
-                        title = item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title,
-                        startPositionMs = item.currentPosition,
-                        contentId = item.tmdbId?.takeIf { it.isNotBlank() } ?: item.contentId,
-                        contentType = item.contentType,
-                        playbackSource = if (isDebrid) {
-                            com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID
-                        } else {
-                            com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.IPTV
-                        },
-                        posterUrl = item.posterUrl,
-                        backdropUrl = item.backdropUrl,
-                        tmdbId = item.tmdbId,
-                        imdbId = item.imdbId,
-                        seriesTitle = item.seriesTitle,
-                        episodeTitle = item.episodeTitle,
-                        seasonNumber = item.seasonNumber,
-                        episodeNumber = item.episodeNumber,
-                        debridInfoHash = item.debridInfoHash,
-                        debridMagnet = item.debridMagnet,
-                        directDebridPlayback = item.directDebridPlayback,
-                        debridProvider = item.debridProvider,
-                        debridSourceType = item.debridSourceType,
-                        debridSourceName = item.debridSourceName,
-                        debridLanguages = item.debridLanguages,
-                        debridQuality = item.debridQuality,
-                        debridStreamId = item.debridStreamId,
-                        debridBingeGroup = item.debridBingeGroup,
-                        debridFileIdx = item.debridFileIdx,
-                        expiresAt = item.expiresAt,
-                        baseServerUrl = serverUrl,
-                        seriesId = resumeSeriesId
-                    )
-                    startActivityPreservingContentFocus(intent)
-                }
+                ContentType.MOVIE, ContentType.EPISODE -> resumeOrOpenCwDetail(
+                    frag, context, item,
+                    CwResumeFacts(streamUrl, isDebrid, hasResolutionInfo, canFreshResolveDirectDebrid, expired)
+                )
                 ContentType.SERIES -> openContinueWatchingDetail(item)
                 else -> {
                     Log.w("HISTORY_DEBUG", "Unsupported content type for resume: ${item.contentType}")
@@ -257,6 +199,99 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
             }
         }
     }
+
+    /** The click-time resume facts for a Continue Watching card, computed once. */
+    private data class CwResumeFacts(
+        val streamUrl: String?,
+        val isDebrid: Boolean,
+        val hasResolutionInfo: Boolean,
+        val canFreshResolveDirectDebrid: Boolean,
+        val expired: Boolean,
+    )
+
+    // The resume rule (play-then-repair): play the link we hold, or anything the player can
+    // repair/re-resolve itself; only a card with nothing playable falls back to the detail page.
+    private suspend fun resumeOrOpenCwDetail(
+        frag: HomeFragment,
+        context: android.content.Context,
+        item: ContinueWatchingItem,
+        facts: CwResumeFacts
+    ) {
+        val serverUrl = frag.credentialsPrefs.getServerUrl() ?: ""
+        val canResumeDirectly = (facts.streamUrl != null && !facts.expired) ||
+            (facts.isDebrid && facts.hasResolutionInfo) ||
+            facts.canFreshResolveDirectDebrid
+
+        Log.e("HISTORY_DEBUG", "RESUME_DECISION: canResumeDirectly=$canResumeDirectly | isDebrid=${facts.isDebrid} | hasResInfo=${facts.hasResolutionInfo} | streamUrl=${SensitiveLogRedactor.describeUrl(facts.streamUrl)}")
+
+        if (!canResumeDirectly) {
+            Log.e("HISTORY_DEBUG", "RESUME_PATH: FALLBACK to Detail (canResumeDirectly=false)")
+            openContinueWatchingDetail(item)
+            return
+        }
+
+        Log.e("HISTORY_DEBUG", "RESUME_PATH: DIRECT to PlayerActivity")
+        val resumeSeriesId = resumeSeriesIdFor(item, facts.isDebrid)
+        Log.e(
+            "TASK030_CW_SERIES",
+            "DIRECT_RESUME type=${item.contentType} source=${item.source} contentId=${item.contentId} seriesId=$resumeSeriesId season=${item.seasonNumber} episode=${item.episodeNumber}"
+        )
+        startActivityPreservingContentFocus(
+            buildCwResumeIntent(context, item, facts, serverUrl, resumeSeriesId)
+        )
+    }
+
+    private suspend fun resumeSeriesIdFor(item: ContinueWatchingItem, isDebrid: Boolean): String? =
+        if (item.contentType == ContentType.EPISODE) {
+            item.seriesId?.takeIf { it.isNotBlank() }
+                ?: if (!isDebrid) resolveIptvSeriesIdForContinueWatching(item) else null
+        } else {
+            null
+        }
+
+    // The direct-resume intent, verbatim — startPositionMs always travels (the detail-page
+    // resume bug was exactly a createIntent path dropping it).
+    private fun buildCwResumeIntent(
+        context: android.content.Context,
+        item: ContinueWatchingItem,
+        facts: CwResumeFacts,
+        serverUrl: String,
+        resumeSeriesId: String?
+    ): Intent = PlayerActivity.createIntent(
+        context = context,
+        streamUrl = if (facts.canFreshResolveDirectDebrid) "" else facts.streamUrl ?: "",
+        title = item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title,
+        startPositionMs = item.currentPosition,
+        contentId = item.tmdbId?.takeIf { it.isNotBlank() } ?: item.contentId,
+        contentType = item.contentType,
+        playbackSource = if (facts.isDebrid) {
+            com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID
+        } else {
+            com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.IPTV
+        },
+        posterUrl = item.posterUrl,
+        backdropUrl = item.backdropUrl,
+        tmdbId = item.tmdbId,
+        imdbId = item.imdbId,
+        seriesTitle = item.seriesTitle,
+        episodeTitle = item.episodeTitle,
+        seasonNumber = item.seasonNumber,
+        episodeNumber = item.episodeNumber,
+        debridInfoHash = item.debridInfoHash,
+        debridMagnet = item.debridMagnet,
+        directDebridPlayback = item.directDebridPlayback,
+        debridProvider = item.debridProvider,
+        debridSourceType = item.debridSourceType,
+        debridSourceName = item.debridSourceName,
+        debridLanguages = item.debridLanguages,
+        debridQuality = item.debridQuality,
+        debridStreamId = item.debridStreamId,
+        debridBingeGroup = item.debridBingeGroup,
+        debridFileIdx = item.debridFileIdx,
+        expiresAt = item.expiresAt,
+        baseServerUrl = serverUrl,
+        seriesId = resumeSeriesId
+    )
 
     suspend fun openContinueWatchingDetail(item: ContinueWatchingItem) {
         val frag = fragment ?: return
@@ -387,23 +422,43 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
                 return@launch
             }
 
-            val finalServerUrl = serverUrl ?: ""
-            val absoluteIcon = (stream?.stream_icon ?: fallbackLogo).toAbsoluteUrl(finalServerUrl)
-
-            val intent = PlayerActivity.createIntent(
-                context = frag.requireContext(),
-                streamUrl = resolvedUrl,
-                title = fallbackTitle ?: stream?.name ?: frag.getString(R.string.player_epg_channel_unknown),
-                channelName = stream?.name ?: fallbackTitle,
-                channelLogo = absoluteIcon,
-                epgChannelId = stream?.epg_channel_id?.takeIf { it.isNotBlank() } ?: epgChannelId ?: streamId,
-                contentId = stream?.stream_id ?: streamId ?: resolvedUrl,
-                contentType = ContentType.LIVE_TV,
-                posterUrl = absoluteIcon,
-                liveCategoryId = stream?.category_id
+            startActivityPreservingContentFocus(
+                buildLiveIntent(
+                    frag, stream, resolvedUrl, serverUrl ?: "",
+                    LiveLaunchFallbacks(streamId, fallbackTitle, fallbackLogo, epgChannelId)
+                )
             )
-            startActivityPreservingContentFocus(intent)
         }
+    }
+
+    /** The caller-supplied fallbacks for a live launch when the DB row is missing fields. */
+    private data class LiveLaunchFallbacks(
+        val streamId: String?,
+        val title: String?,
+        val logo: String?,
+        val epgChannelId: String?,
+    )
+
+    private fun buildLiveIntent(
+        frag: HomeFragment,
+        stream: XtreamStream?,
+        resolvedUrl: String,
+        serverUrl: String,
+        fallbacks: LiveLaunchFallbacks
+    ): Intent {
+        val absoluteIcon = (stream?.stream_icon ?: fallbacks.logo).toAbsoluteUrl(serverUrl)
+        return PlayerActivity.createIntent(
+            context = frag.requireContext(),
+            streamUrl = resolvedUrl,
+            title = fallbacks.title ?: stream?.name ?: frag.getString(R.string.player_epg_channel_unknown),
+            channelName = stream?.name ?: fallbacks.title,
+            channelLogo = absoluteIcon,
+            epgChannelId = stream?.epg_channel_id?.takeIf { it.isNotBlank() } ?: fallbacks.epgChannelId ?: fallbacks.streamId,
+            contentId = stream?.stream_id ?: fallbacks.streamId ?: resolvedUrl,
+            contentType = ContentType.LIVE_TV,
+            posterUrl = absoluteIcon,
+            liveCategoryId = stream?.category_id
+        )
     }
 
     fun startActivityPreservingContentFocus(intent: Intent) {
