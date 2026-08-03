@@ -222,6 +222,12 @@ class SeriesDetailActivity : AppCompatActivity() {
 
     /** SD-1/SD-3/SD-4b: construct the extracted collaborators once views are bound. */
     private fun setupCollaborators() {
+        setupSeasonUi()
+        setupDebridSourceController()
+        setupDebridPlaybackController()
+    }
+
+    private fun setupSeasonUi() {
         trailerController = SeriesTrailerController(this, tmdbRemoteDataSource, btnWatchTrailer) { seriesId }
 
         seriesSeasonUi = SeriesSeasonUi(
@@ -250,6 +256,9 @@ class SeriesDetailActivity : AppCompatActivity() {
             )
         )
 
+    }
+
+    private fun setupDebridSourceController() {
         seriesDebridSources = SeriesDebridSourceController(
             activity = this,
             seasonUi = seriesSeasonUi,
@@ -275,6 +284,9 @@ class SeriesDetailActivity : AppCompatActivity() {
             )
         )
 
+    }
+
+    private fun setupDebridPlaybackController() {
         seriesDebridPlayback = SeriesDebridPlaybackController(
             activity = this,
             seasonUi = seriesSeasonUi,

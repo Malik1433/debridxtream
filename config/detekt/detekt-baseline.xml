@@ -14,8 +14,6 @@
     <ID>CyclomaticComplexMethod:LiveTvGuideViewModel.kt$LiveTvGuideViewModel$private fun loadChannels()</ID>
     <ID>CyclomaticComplexMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playDebridMovie( stream: XtreamVodInfo?, source: MovieSource?, returnToSources: Boolean = false )</ID>
     <ID>CyclomaticComplexMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playMovie(sourceOverride: MovieSource? = null)</ID>
-    <ID>CyclomaticComplexMethod:MovieDetailFragmentV2.kt$MovieDetailFragmentV2$private fun observeEnrichment()</ID>
-    <ID>CyclomaticComplexMethod:MovieDetailViewModelV2.kt$MovieDetailViewModelV2$private suspend fun findBestTmdbMatch(title: String, yearHint: String?): TmdbMatch?</ID>
     <ID>CyclomaticComplexMethod:PlayerActivity.kt$PlayerActivity.Companion$fun createIntent( context: Context, streamUrl: String, title: String? = null, channelName: String? = null, channelLogo: String? = null, epgChannelId: String? = null, startPositionMs: Long? = null, contentId: String? = null, contentType: ContentType? = null, playbackSource: PlaybackSource? = null, posterUrl: String? = null, backdropUrl: String? = null, liveCategoryId: String? = null, liveChannelIds: ArrayList&lt;String&gt;? = null, baseServerUrl: String? = null, headers: Map&lt;String, String&gt;? = null, tmdbId: String? = null, imdbId: String? = null, seriesTitle: String? = null, episodeTitle: String? = null, seasonNumber: Int? = null, episodeNumber: Int? = null, debridInfoHash: String? = null, debridMagnet: String? = null, directDebridPlayback: Boolean = false, debridProvider: String? = null, debridSourceType: String? = null, debridSourceName: String? = null, debridLanguages: List&lt;String&gt;? = null, debridQuality: String? = null, debridStreamId: String? = null, debridBingeGroup: String? = null, debridFileIdx: Int? = null, subtitles: List&lt;String&gt;? = null, expiresAt: Long? = null, seriesId: String? = null, sharedLivePlayer: Boolean = false ): Intent</ID>
     <ID>CyclomaticComplexMethod:PlayerDebridCoordinator.kt$PlayerDebridCoordinator$private fun switchToMovieSource(source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource)</ID>
     <ID>CyclomaticComplexMethod:PlayerHelpers.kt$internal fun resolveMediaMimeType( url: String, sourceHints: List&lt;String?&gt;, streamHeaders: Map&lt;String, String&gt;? ): String?</ID>
@@ -39,24 +37,18 @@
     <ID>LongMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$suspend fun getDebridMovieSources( title: String?, yearHint: String?, providedImdbId: String? = null, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
     <ID>LongMethod:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$suspend fun getSeriesEpisodeSources( seriesId: String?, seasonNumber: Int, episodeNumber: Int, title: String?, yearHint: String?, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
-    <ID>LongMethod:FavoritesFragment.kt$FavoritesFragment$private fun handleFavoriteClick(favorite: FavoriteEntity)</ID>
     <ID>LongMethod:LiveFragment.kt$LiveFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:LiveFragment.kt$LiveFragment$private fun observeViewModel()</ID>
-    <ID>LongMethod:MainActivity.kt$MainActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playDebridMovie( stream: XtreamVodInfo?, source: MovieSource?, returnToSources: Boolean = false )</ID>
     <ID>LongMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playMovie(sourceOverride: MovieSource? = null)</ID>
     <ID>LongMethod:MovieDebridSourceController.kt$MovieDebridSourceController$fun refreshMediaFusionCacheStatus( sources: List&lt;MovieSource&gt;, onUpdated: (List&lt;MovieSource&gt;) -&gt; Unit )</ID>
     <ID>LongMethod:MovieDebridSourceController.kt$MovieDebridSourceController$fun showDebridSourcePicker(returnFocusStreamIds: List&lt;String&gt; = emptyList())</ID>
-    <ID>LongMethod:MovieDetailFragmentV2.kt$MovieDetailFragmentV2$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
-    <ID>LongMethod:MovieInfoSection.kt$@Composable fun MovieInfoSection( movie: MovieUiModel, onPlayClick: () -&gt; Unit, onTrailerClick: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>LongMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handlePlaybackError(error: PlaybackException)</ID>
     <ID>LongMethod:PlayerTrackManager.kt$PlayerTrackManager$private fun showSinglePressTrackSelection( player: Player, title: String, trackType: Int, showDisableOption: Boolean, onDialogReady: (android.app.Dialog) -&gt; Unit )</ID>
     <ID>LongMethod:PreviewPlayerPanel.kt$PreviewPlayerPanel$fun play(stream: XtreamStream, streamUrlOverride: String? = null)</ID>
     <ID>LongMethod:SeriesDebridPlaybackController.kt$SeriesDebridPlaybackController$fun playDebridEpisode(source: MovieSource, episode: EpisodeUiModel)</ID>
     <ID>LongMethod:SeriesDebridSourceController.kt$SeriesDebridSourceController$fun fetchAndShowDebridSources( episode: EpisodeUiModel, returnFocusStreamIds: List&lt;String&gt; = emptyList() )</ID>
     <ID>LongMethod:SeriesDebridSourceController.kt$SeriesDebridSourceController$private fun refreshMediaFusionCacheStatus( episodeId: String, sources: List&lt;MovieSource&gt;, bottomSheet: SourceSelectionBottomSheet )</ID>
-    <ID>LongMethod:SeriesDetailActivity.kt$SeriesDetailActivity$private fun setupCollaborators()</ID>
-    <ID>LongMethod:SettingsFragment.kt$SettingsFragment$private fun updateDetails(state: SettingsUiState)</ID>
     <ID>LongMethod:SyncManager.kt$SyncManager$private suspend fun syncContent( syncType: SyncType, includeLatest: Boolean ): Result&lt;IptvCache&gt;</ID>
     <ID>LongMethod:TrailerActivity.kt$TrailerActivity$private fun loadYoutubeIframe(id: String)</ID>
     <ID>LongMethod:UnifiedSourceProvider.kt$UnifiedSourceProvider$suspend fun getMovieSources( streamId: String?, title: String?, primaryCategoryId: String?, yearHint: String?, imdbId: String? = null, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>

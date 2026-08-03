@@ -187,44 +187,8 @@ class FavoritesFragment : Fragment() {
                 }
                 
                 when (favorite.type) {
-                    "live" -> {
-                        // Look up live stream from cache
-                        val stream = repository.getLiveStreamById(favorite.streamId)
-                        if (stream != null) {
-                            val streamUrl = repository.buildLiveStreamUrl(stream, serverUrl)
-                            val epgId = stream.epg_channel_id?.takeIf { it.isNotBlank() }
-                                ?: stream.stream_id?.toString()
-                            playStream(
-                                streamUrl = streamUrl,
-                                title = favorite.name,
-                                channelName = stream.name ?: favorite.name,
-                                channelLogo = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
-                                epgChannelId = epgId,
-                                contentId = favorite.streamId,
-                                contentType = ContentType.LIVE_TV,
-                                posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon)
-                            )
-                        } else {
-                            showError("Live channel not found in cache")
-                        }
-                    }
-                    "vod" -> {
-                        // Look up VOD from cache
-                        val vod = repository.getVodById(favorite.streamId)
-                        if (vod != null) {
-                        val streamUrl = repository.buildVodStreamUrl(vod, serverUrl)
-                        playStream(
-                            streamUrl = streamUrl,
-                            title = favorite.name,
-                            contentId = favorite.streamId,
-                            contentType = ContentType.MOVIE,
-                            posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(vod.stream_icon),
-                            backdropUrl = vod.cover
-                        )
-                        } else {
-                            showError("Movie not found in cache")
-                        }
-                    }
+                    "live" -> playLiveFavorite(favorite, repository, serverUrl)
+                    "vod" -> playVodFavorite(favorite, repository, serverUrl)
                     "series" -> {
                         // For series, we would navigate to series details
                         // For now, show a toast
@@ -242,6 +206,53 @@ class FavoritesFragment : Fragment() {
                 showError("Failed to play: ${e.message}")
             }
         }
+    }
+
+    // Look up live stream from cache
+    private suspend fun playLiveFavorite(
+        favorite: FavoriteEntity,
+        repository: com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository,
+        serverUrl: String
+    ) {
+        val stream = repository.getLiveStreamById(favorite.streamId)
+        if (stream == null) {
+            showError("Live channel not found in cache")
+            return
+        }
+        val streamUrl = repository.buildLiveStreamUrl(stream, serverUrl)
+        val epgId = stream.epg_channel_id?.takeIf { it.isNotBlank() }
+            ?: stream.stream_id?.toString()
+        playStream(
+            streamUrl = streamUrl,
+            title = favorite.name,
+            channelName = stream.name ?: favorite.name,
+            channelLogo = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon),
+            epgChannelId = epgId,
+            contentId = favorite.streamId,
+            contentType = ContentType.LIVE_TV,
+            posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon)
+        )
+    }
+
+    // Look up VOD from cache
+    private suspend fun playVodFavorite(
+        favorite: FavoriteEntity,
+        repository: com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository,
+        serverUrl: String
+    ) {
+        val vod = repository.getVodById(favorite.streamId)
+        if (vod == null) {
+            showError("Movie not found in cache")
+            return
+        }
+        playStream(
+            streamUrl = repository.buildVodStreamUrl(vod, serverUrl),
+            title = favorite.name,
+            contentId = favorite.streamId,
+            contentType = ContentType.MOVIE,
+            posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(vod.stream_icon),
+            backdropUrl = vod.cover
+        )
     }
     
     private fun playStream(

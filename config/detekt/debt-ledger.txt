@@ -7,7 +7,7 @@
 # See docs/reports/WORLD_CLASS_ROADMAP.md (§1 exit criteria, §5 ledger).
 #
 # key=max_allowed
-TOTAL=66
+TOTAL=58
 NestedBlockDepth=0
 LongParameterList=1
 LargeClass=1

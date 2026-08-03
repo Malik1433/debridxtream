@@ -106,6 +106,35 @@ class MovieDetailFragmentV2 : Fragment() {
         resolvedTmdbId = firstNonBlank(args, ARG_TMDB_ID, "tmdbId")?.toIntOrNull()
         resolvedImdbId = firstNonBlank(args, ARG_IMDB_ID, "imdbId")
 
+        bindArgFields(plot, year, genre, rating)
+
+        setupAdapters()
+        setupWatchedButton(year)
+
+        if (!backdropUrl.isNullOrBlank()) {
+            Glide.with(this)
+                .load(backdropUrl)
+                .transition(DrawableTransitionOptions.withCrossFade(250))
+                .into(binding.ivBackdrop)
+        }
+
+        binding.pbLoadingCentral.visibility = View.GONE
+        wireHeaderButtons(trailer)
+        setupFavoriteButton()
+
+        // Enrich with TMDB (plot/trailer/backdrop/rating + cast/similar/age/imdb).
+        viewModel.start(title = movieTitle, yearHint = year, existingTrailer = trailer)
+        observeEnrichment()
+
+        setupFocusAnimations()
+        setupInitialFocus()
+        refreshResumeState()
+        loadExternalRatings()
+    }
+
+    // The argument-supplied fields render first so the page is never blank while TMDB
+    // enrichment is in flight; applyEnrichment only overwrites what it actually has.
+    private fun bindArgFields(plot: String?, year: String?, genre: String?, rating: String?) {
         binding.tvContentType.text = "FEATURE FILM"
         binding.tvTitle.text = movieTitle ?: "Loading..."
         binding.tvPlot.text = plot?.takeIf { it.isNotBlank() } ?: "No plot available."
@@ -121,19 +150,9 @@ class MovieDetailFragmentV2 : Fragment() {
         } else {
             binding.tvBackHint.visibility = View.GONE
         }
+    }
 
-        setupAdapters()
-        setupWatchedButton(year)
-
-        if (!backdropUrl.isNullOrBlank()) {
-            Glide.with(this)
-                .load(backdropUrl)
-                .transition(DrawableTransitionOptions.withCrossFade(250))
-                .into(binding.ivBackdrop)
-        }
-
-        binding.pbLoadingCentral.visibility = View.GONE
-
+    private fun wireHeaderButtons(trailer: String?) {
         binding.btnBack.setOnClickListener { parentFragmentManager.popBackStack() }
         binding.btnPlay.setOnClickListener { playMovie() }
 
@@ -147,17 +166,6 @@ class MovieDetailFragmentV2 : Fragment() {
                 startActivity(TrailerActivity.createIntent(requireContext(), currentTrailer))
             }
         }
-
-        setupFavoriteButton()
-
-        // Enrich with TMDB (plot/trailer/backdrop/rating + cast/similar/age/imdb).
-        viewModel.start(title = movieTitle, yearHint = year, existingTrailer = trailer)
-        observeEnrichment()
-
-        setupFocusAnimations()
-        setupInitialFocus()
-        refreshResumeState()
-        loadExternalRatings()
     }
 
     private fun setupAdapters() {
@@ -190,72 +198,82 @@ class MovieDetailFragmentV2 : Fragment() {
         startActivity(intent)
     }
 
+    // One enrichment emission, verbatim: every field is written only when the state carries
+    // it, so a later partial emission can never blank an already-populated view.
+    private fun applyEnrichment(state: MovieDetailV2UiState) {
+        resolvedTrailer = state.trailerValue ?: resolvedTrailer
+        updateTrailerButtonState(resolvedTrailer, isLoading = state.isLoading)
+
+        state.plot?.takeIf { it.isNotBlank() }?.let { binding.tvPlot.text = it }
+        state.year?.takeIf { it.isNotBlank() }?.let { binding.tvYear.text = it }
+        state.genre?.takeIf { it.isNotBlank() }?.let { binding.tvGenre.text = it }
+        state.rating?.takeIf { it.isNotBlank() }?.let { binding.tvRating.text = it }
+
+        // Duration from TMDB runtime.
+        state.runtimeMinutes?.takeIf { it > 0 }?.let { minutes ->
+            binding.tvDuration.text = formatRuntime(minutes)
+            binding.tvDuration.visibility = View.VISIBLE
+        }
+
+        // Age rating (TMDB certification).
+        state.ageRating?.takeIf { it.isNotBlank() }?.let {
+            binding.tvAgeRating.text = it
+            binding.tvAgeRating.visibility = View.VISIBLE
+        }
+
+        applyCreditsAndSimilar(state)
+        applyBackdrop(state)
+
+        // Newly-resolved ids let us fetch external ratings + refine resume match.
+        val newImdb = state.imdbId
+        if (!newImdb.isNullOrBlank() && newImdb != resolvedImdbId) {
+            resolvedImdbId = newImdb
+            loadExternalRatings()
+        }
+        state.tmdbId?.let { resolvedTmdbId = it }
+        refreshResumeState()
+    }
+
+    // Director + cast, then the because-you-watched row.
+    private fun applyCreditsAndSimilar(state: MovieDetailV2UiState) {
+        state.director?.takeIf { it.isNotBlank() }?.let {
+            binding.tvDirector.text = it
+            binding.layoutDirector.visibility = View.VISIBLE
+        }
+        if (state.cast.isNotEmpty()) {
+            castAdapter.submitList(state.cast)
+            binding.tvCastTitle.visibility = View.VISIBLE
+            binding.rvCast.visibility = View.VISIBLE
+        }
+
+        if (state.recommendations.isNotEmpty()) {
+            similarAdapter.submitList(state.recommendations)
+            val title = movieTitle?.trim()
+            binding.headerSimilar.text = if (!title.isNullOrBlank()) {
+                "BECAUSE YOU WATCHED ${title.uppercase(Locale.getDefault())}"
+            } else {
+                "SIMILAR MOVIES"
+            }
+            binding.layoutSimilarRow.visibility = View.VISIBLE
+        }
+    }
+
+    // The trailer preview owns the backdrop while it is showing — never overwrite it.
+    private fun applyBackdrop(state: MovieDetailV2UiState) {
+        val url = state.backdropUrl?.takeIf { it.isNotBlank() } ?: return
+        backdropUrl = url
+        if (!trailerPreviewShown) {
+            Glide.with(this@MovieDetailFragmentV2)
+                .load(url)
+                .transition(DrawableTransitionOptions.withCrossFade(250))
+                .into(binding.ivBackdrop)
+        }
+    }
+
     private fun observeEnrichment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.uiState.collect { state ->
-                    resolvedTrailer = state.trailerValue ?: resolvedTrailer
-                    updateTrailerButtonState(resolvedTrailer, isLoading = state.isLoading)
-
-                    state.plot?.takeIf { it.isNotBlank() }?.let { binding.tvPlot.text = it }
-                    state.year?.takeIf { it.isNotBlank() }?.let { binding.tvYear.text = it }
-                    state.genre?.takeIf { it.isNotBlank() }?.let { binding.tvGenre.text = it }
-                    state.rating?.takeIf { it.isNotBlank() }?.let { binding.tvRating.text = it }
-
-                    // Duration from TMDB runtime.
-                    state.runtimeMinutes?.takeIf { it > 0 }?.let { minutes ->
-                        binding.tvDuration.text = formatRuntime(minutes)
-                        binding.tvDuration.visibility = View.VISIBLE
-                    }
-
-                    // Age rating (TMDB certification).
-                    state.ageRating?.takeIf { it.isNotBlank() }?.let {
-                        binding.tvAgeRating.text = it
-                        binding.tvAgeRating.visibility = View.VISIBLE
-                    }
-
-                    // Director + cast.
-                    state.director?.takeIf { it.isNotBlank() }?.let {
-                        binding.tvDirector.text = it
-                        binding.layoutDirector.visibility = View.VISIBLE
-                    }
-                    if (state.cast.isNotEmpty()) {
-                        castAdapter.submitList(state.cast)
-                        binding.tvCastTitle.visibility = View.VISIBLE
-                        binding.rvCast.visibility = View.VISIBLE
-                    }
-
-                    // Because you watched / similar.
-                    if (state.recommendations.isNotEmpty()) {
-                        similarAdapter.submitList(state.recommendations)
-                        val title = movieTitle?.trim()
-                        binding.headerSimilar.text = if (!title.isNullOrBlank()) {
-                            "BECAUSE YOU WATCHED ${title.uppercase(Locale.getDefault())}"
-                        } else {
-                            "SIMILAR MOVIES"
-                        }
-                        binding.layoutSimilarRow.visibility = View.VISIBLE
-                    }
-
-                    state.backdropUrl?.takeIf { it.isNotBlank() }?.let { url ->
-                        backdropUrl = url
-                        if (!trailerPreviewShown) {
-                            Glide.with(this@MovieDetailFragmentV2)
-                                .load(url)
-                                .transition(DrawableTransitionOptions.withCrossFade(250))
-                                .into(binding.ivBackdrop)
-                        }
-                    }
-
-                    // Newly-resolved ids let us fetch external ratings + refine resume match.
-                    val newImdb = state.imdbId
-                    if (!newImdb.isNullOrBlank() && newImdb != resolvedImdbId) {
-                        resolvedImdbId = newImdb
-                        loadExternalRatings()
-                    }
-                    state.tmdbId?.let { resolvedTmdbId = it }
-                    refreshResumeState()
-                }
+                viewModel.uiState.collect { state -> applyEnrichment(state) }
             }
         }
     }

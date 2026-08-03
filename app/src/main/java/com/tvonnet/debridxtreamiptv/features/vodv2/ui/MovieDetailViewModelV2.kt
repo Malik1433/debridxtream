@@ -144,54 +144,55 @@ class MovieDetailViewModelV2 @Inject constructor(
             val results = response.results.orEmpty()
             if (results.isEmpty()) continue
 
-            val normalizedTarget = normalizeTitle(query)
-
-            val best = results
-                .asSequence()
-                .mapNotNull { movie ->
-                    val id = movie.id ?: return@mapNotNull null
-                    val candidateYear = movie.releaseDate?.take(4)?.toIntOrNull()
-                    val candidateTitle = movie.title ?: movie.originalTitle ?: ""
-                    val normalizedCandidate = normalizeTitle(candidateTitle)
-                    val yearScore =
-                        if (targetYear != null && candidateYear != null) kotlin.math.abs(targetYear - candidateYear) else 99
-                    val titleScore =
-                        if (normalizedTarget != null && normalizedCandidate != null && normalizedTarget == normalizedCandidate) 0 else 1
-                    Triple(titleScore, yearScore, id)
-                }
-                .minWithOrNull(compareBy<Triple<Int, Int, Int>> { it.first }.thenBy { it.second })
-                ?: continue
-
-            val details = tmdbRemoteDataSource.getMovieDetails(best.third)
-            val detailsData = details.getOrNull() ?: continue
-
-            val backdropUrl = detailsData.backdropPath?.let { "https://image.tmdb.org/t/p/w1280$it" }
-            val posterUrl = detailsData.posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
-            val genres = detailsData.genres?.joinToString(", ") { it.name.orEmpty() }?.trim()?.takeIf { it.isNotBlank() }
-            val voteAverage = detailsData.voteAverage?.toString()
-            val director = detailsData.credits?.crew
-                ?.firstOrNull { it.job?.equals("Director", ignoreCase = true) == true }
-                ?.name
-            val cast = detailsData.credits?.cast?.take(5) ?: emptyList()
-
-            return TmdbMatch(
-                id = detailsData.id ?: best.third,
-                backdropUrl = backdropUrl,
-                posterUrl = posterUrl,
-                overview = detailsData.overview,
-                releaseDate = detailsData.releaseDate,
-                genres = genres,
-                voteAverage = voteAverage,
-                imdbId = detailsData.imdbId,
-                director = director,
-                cast = cast,
-                ageRating = extractCertification(detailsData.releaseDates),
-                runtime = detailsData.runtime
-            )
+            val bestId = bestCandidateId(results, normalizeTitle(query), targetYear) ?: continue
+            val detailsData = tmdbRemoteDataSource.getMovieDetails(bestId).getOrNull() ?: continue
+            return toTmdbMatch(detailsData, bestId)
         }
 
         return null
     }
+
+    // Exact normalized-title match first, then the nearest release year; a candidate with no
+    // year to compare scores worst (99) so a year match always wins when one exists.
+    private fun bestCandidateId(
+        results: List<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbMovie>,
+        normalizedTarget: String?,
+        targetYear: Int?
+    ): Int? = results
+        .asSequence()
+        .mapNotNull { movie ->
+            val id = movie.id ?: return@mapNotNull null
+            val candidateYear = movie.releaseDate?.take(4)?.toIntOrNull()
+            val candidateTitle = movie.title ?: movie.originalTitle ?: ""
+            val normalizedCandidate = normalizeTitle(candidateTitle)
+            val yearScore =
+                if (targetYear != null && candidateYear != null) kotlin.math.abs(targetYear - candidateYear) else 99
+            val titleScore =
+                if (normalizedTarget != null && normalizedCandidate != null && normalizedTarget == normalizedCandidate) 0 else 1
+            Triple(titleScore, yearScore, id)
+        }
+        .minWithOrNull(compareBy<Triple<Int, Int, Int>> { it.first }.thenBy { it.second })
+        ?.third
+
+    private fun toTmdbMatch(
+        detailsData: com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbMovieDetails,
+        fallbackId: Int
+    ): TmdbMatch = TmdbMatch(
+        id = detailsData.id ?: fallbackId,
+        backdropUrl = detailsData.backdropPath?.let { "https://image.tmdb.org/t/p/w1280$it" },
+        posterUrl = detailsData.posterPath?.let { "https://image.tmdb.org/t/p/w500$it" },
+        overview = detailsData.overview,
+        releaseDate = detailsData.releaseDate,
+        genres = detailsData.genres?.joinToString(", ") { it.name.orEmpty() }?.trim()?.takeIf { it.isNotBlank() },
+        voteAverage = detailsData.voteAverage?.toString(),
+        imdbId = detailsData.imdbId,
+        director = detailsData.credits?.crew
+            ?.firstOrNull { it.job?.equals("Director", ignoreCase = true) == true }
+            ?.name,
+        cast = detailsData.credits?.cast?.take(5) ?: emptyList(),
+        ageRating = extractCertification(detailsData.releaseDates),
+        runtime = detailsData.runtime
+    )
 
     /** Picks a content/age certification, preferring US then GB, else the first available. */
     private fun extractCertification(

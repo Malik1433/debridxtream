@@ -62,35 +62,7 @@ class MainActivity : AppCompatActivity() {
         // Decision is cache-first (instant, survives brief outages); the realtime listener
         // is kept alive so a deactivation propagates to the cache for the next launch, and
         // ActivationActivity auto-advances the moment the admin activates.
-        val license = com.tvonnet.debridxtreamiptv.data.licensing.LicenseManager.getInstance(this)
-        license.start()
-        // Permanent companion channel: the phone/web config page can push updated
-        // settings anytime via the device key (see CompanionConfigSync).
-        com.tvonnet.debridxtreamiptv.ui.companion.CompanionConfigSync.start(this)
-        // Give this device an identity so ownership-based rules become possible (§7 U3).
-        // Fire-and-forget by design — nothing below waits on it, and it is a no-op while
-        // anonymous sign-in is disabled in the console.
-        com.tvonnet.debridxtreamiptv.data.licensing.DeviceIdentity.start(this)
-        // §7 U6: read this account's playlists instead of waiting to be pushed to. Flag-gated,
-        // default OFF — it rewrites the credentials we log in with.
-        com.tvonnet.debridxtreamiptv.ui.companion.AccountPlaylistSync.start(this)
-        if (!license.isEntitledCached()) {
-            startActivity(Intent(this, com.tvonnet.debridxtreamiptv.ui.licensing.ActivationActivity::class.java))
-            finish()
-            return
-        }
-        // Lock promptly if the admin revokes this device WHILE the app is running
-        // (deactivate or delete) — don't wait for the next cold launch.
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                license.state.collect { st ->
-                    if (st is com.tvonnet.debridxtreamiptv.data.licensing.LicenseState.Locked && !isFinishing) {
-                        startActivity(Intent(this@MainActivity, com.tvonnet.debridxtreamiptv.ui.licensing.ActivationActivity::class.java))
-                        finish()
-                    }
-                }
-            }
-        }
+        if (!startBackgroundChannelsAndGate()) return
 
         // Check if already logged in
         val credentialsPrefs = CredentialsPreferences(this)
@@ -121,26 +93,9 @@ class MainActivity : AppCompatActivity() {
             GlobalConfig.baseUrl = serverUrl
             GlobalConfig.username = username
             GlobalConfig.password = password
-
-            // Auto-refresh EPG on app launch so the guide is never empty on first open.
-            // ensureEpgData() is guarded (only syncs when the table is empty or the last
-            // sync is older than the refresh interval), so this does NOT re-download the
-            // full XMLTV on every launch. Also (re)register the periodic background sync
-            // here so EPG stays fresh even if the user never opens Settings.
-            lifecycleScope.launch(Dispatchers.IO) {
-                // ST-7: give the first home render a ~10s head start before the
-                // EPG XMLTV download/parse competes for network + memory on launch.
-                kotlinx.coroutines.delay(10_000)
-                runCatching {
-                    com.tvonnet.debridxtreamiptv.worker.EpgSyncController()
-                        .syncFromPreferences(applicationContext)
-                }
-                runCatching { repository.ensureEpgData() }
-                    .onSuccess { synced -> Log.i("MainActivity", "EPG auto-check on launch: synced=$synced") }
-                    .onFailure { Log.w("MainActivity", "EPG auto-check on launch failed", it) }
-            }
+            scheduleLaunchEpgRefresh()
         }
-        
+
         // Load beautiful cinematic home screen by default
         if (savedInstanceState == null) {
             supportFragmentManager.commit {
@@ -167,6 +122,60 @@ class MainActivity : AppCompatActivity() {
             settingsPreferences.saveNetworkQuality(quality.name)
             Log.i("MainActivity", "Network Quality Optimized: ${quality.name}")
         }
+    }
+
+    // Auto-refresh EPG on app launch so the guide is never empty on first open.
+    // ensureEpgData() is guarded (only syncs when the table is empty or the last
+    // sync is older than the refresh interval), so this does NOT re-download the
+    // full XMLTV on every launch. Also (re)register the periodic background sync
+    // here so EPG stays fresh even if the user never opens Settings.
+    private fun scheduleLaunchEpgRefresh() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            // ST-7: give the first home render a ~10s head start before the
+            // EPG XMLTV download/parse competes for network + memory on launch.
+            kotlinx.coroutines.delay(10_000)
+            runCatching {
+                com.tvonnet.debridxtreamiptv.worker.EpgSyncController()
+                    .syncFromPreferences(applicationContext)
+            }
+            runCatching { repository.ensureEpgData() }
+                .onSuccess { synced -> Log.i("MainActivity", "EPG auto-check on launch: synced=$synced") }
+                .onFailure { Log.w("MainActivity", "EPG auto-check on launch failed", it) }
+        }
+    }
+
+    // Returns false when the licence gate sent us to ActivationActivity and onCreate must stop.
+    private fun startBackgroundChannelsAndGate(): Boolean {
+        val license = com.tvonnet.debridxtreamiptv.data.licensing.LicenseManager.getInstance(this)
+        license.start()
+        // Permanent companion channel: the phone/web config page can push updated
+        // settings anytime via the device key (see CompanionConfigSync).
+        com.tvonnet.debridxtreamiptv.ui.companion.CompanionConfigSync.start(this)
+        // Give this device an identity so ownership-based rules become possible (§7 U3).
+        // Fire-and-forget by design — nothing below waits on it, and it is a no-op while
+        // anonymous sign-in is disabled in the console.
+        com.tvonnet.debridxtreamiptv.data.licensing.DeviceIdentity.start(this)
+        // §7 U6: read this account's playlists instead of waiting to be pushed to. Flag-gated,
+        // default OFF — it rewrites the credentials we log in with.
+        com.tvonnet.debridxtreamiptv.ui.companion.AccountPlaylistSync.start(this)
+        if (!license.isEntitledCached()) {
+            startActivity(Intent(this, com.tvonnet.debridxtreamiptv.ui.licensing.ActivationActivity::class.java))
+            finish()
+            return false
+        }
+        // Lock promptly if the admin revokes this device WHILE the app is running
+        // (deactivate or delete) — don't wait for the next cold launch.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                license.state.collect { st ->
+                    if (st is com.tvonnet.debridxtreamiptv.data.licensing.LicenseState.Locked && !isFinishing) {
+                        startActivity(Intent(this@MainActivity, com.tvonnet.debridxtreamiptv.ui.licensing.ActivationActivity::class.java))
+                        finish()
+                    }
+                }
+            }
+        }
+        return true
     }
 
     override fun onNewIntent(intent: Intent) {
