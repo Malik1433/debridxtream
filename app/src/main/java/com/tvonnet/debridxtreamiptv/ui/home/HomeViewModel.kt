@@ -110,30 +110,19 @@ class HomeViewModel @Inject constructor(
                 // in-memory cache, so the synchronous readCache() below is instant.
                 repository.prewarmCache()
                 val cache = repository.readCache()
+                val local = LocalHistory(continueWatching, recentLiveChannels)
                 if (cache == null) {
-                    val hasLocalContent = continueWatching.isNotEmpty() ||
-                        recentLiveChannels.isNotEmpty()
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = if (hasLocalContent) null else "Content is not available yet.",
-                            isEmpty = !hasLocalContent,
-                            top10Movies = emptyList(),
-                            top10Series = emptyList(),
-                            continueWatching = continueWatching,
-                            recentLiveChannels = recentLiveChannels,
-                            heroItem = null,
-                            sections = emptyList()
-                        )
-                    }
+                    _uiState.update { emptyCacheState(it, local) }
                     return@launch
                 }
 
                 _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-                val serverUrl = credentialsPrefs.getServerUrl() ?: ""
-                val username = credentialsPrefs.getUsername() ?: ""
-                val password = credentialsPrefs.getPassword() ?: ""
+                val creds = HomeCreds(
+                    serverUrl = credentialsPrefs.getServerUrl() ?: "",
+                    username = credentialsPrefs.getUsername() ?: "",
+                    password = credentialsPrefs.getPassword() ?: ""
+                )
                 // Tier gating: NORMAL devices are IPTV-only — the home rows (and hero,
                 // which derives from them) must come from the Xtream catalog, never TMDB
                 // (the debrid-side source). The IPTV path is the same proven fallback
@@ -144,145 +133,12 @@ class HomeViewModel @Inject constructor(
                 val debridAllowed = com.tvonnet.debridxtreamiptv.data.licensing.Entitlements
                     .isDebridConfigured(appContext)
 
-                // ST-2 Phase 1 (instant): build rows straight from the IPTV cache and
-                // emit NOW — cached content appears in ms instead of waiting on the
-                // 2 TMDB round-trips + per-item enrichment below. Emitted directly via
-                // _uiState.update (NOT the guarded onSuccess path, which could collapse
-                // it into the Phase-2 emission). This same snapshot is the fallback if
-                // Phase 2 times out — so hero/top10 are NEVER wiped (audit F2/F10).
-                val phase1Movies = (cache.vod?.streams ?: emptyList())
-                    .sortedByDescending { it.added }.take(10)
-                    .map { it.toFeaturedItem(serverUrl, username, password) }
-                val phase1Series = (cache.series?.streams ?: emptyList()).take(10)
-                    .map { it.toFeaturedItem(serverUrl) }
-                val phase1Hero = (phase1Movies.firstOrNull() ?: phase1Series.firstOrNull())?.let { f ->
-                    HeroContent(
-                        title = f.title,
-                        description = f.description ?: "Experience high-quality streaming on DebridXtream.",
-                        imageUrl = f.backdropUrl ?: f.posterUrl,
-                        rating = f.rating ?: "N/A",
-                        type = if (f.contentType == ContentType.MOVIE) "MOVIE" else "SERIES",
-                        streamId = f.contentId
-                    )
-                }
-                val phase1HasContent = phase1Movies.isNotEmpty() || phase1Series.isNotEmpty() ||
-                    continueWatching.isNotEmpty() || recentLiveChannels.isNotEmpty() || phase1Hero != null
-                val phase1State = HomeUiState(
-                    isLoading = false,
-                    errorMessage = if (phase1HasContent) null else "Content is not available yet.",
-                    isEmpty = !phase1HasContent,
-                    top10Movies = phase1Movies,
-                    top10Series = phase1Series,
-                    continueWatching = continueWatching,
-                    recentLiveChannels = recentLiveChannels,
-                    heroItem = phase1Hero,
-                    sections = emptyList()
-                )
+                val phase1State = buildPhase1State(cache, local, creds)
                 _uiState.update { phase1State }
 
-                val nextState = withTimeoutOrNull(12_000L) { coroutineScope {
-                    // ST-2: fire both TMDB trending calls CONCURRENTLY (were sequential)
-                    // so Phase-2 latency is one round-trip, not two.
-                    val trendingMoviesDeferred = if (debridAllowed) async { tmdbRemoteDataSource.getTrendingMovies() } else null
-                    val trendingSeriesDeferred = if (debridAllowed) async { tmdbRemoteDataSource.getTrendingTvShows() } else null
-
-                    // 1. Trending Movies row — TMDB (premium/trial) or IPTV recently-added
-                    val trendingMoviesResult = trendingMoviesDeferred?.await()
-                    val top10MoviesList = if (trendingMoviesResult?.isSuccess == true) {
-                        val list = trendingMoviesResult.getOrNull()?.results?.take(10)?.map { it.toFeaturedItem() } ?: emptyList()
-                        android.util.Log.e("HISTORY_DEBUG", "Fetched ${list.size} TMDB Trending Movies")
-                        list
-                    } else {
-                        // IPTV VOD sorted by added date (also the normal-tier primary source)
-                        val vods = cache.vod?.streams ?: emptyList()
-                        val list = vods.sortedByDescending { it.added }.take(10).map {
-                            it.toFeaturedItem(serverUrl, username, password)
-                        }
-                        android.util.Log.w("HISTORY_DEBUG", "Movies row from IPTV cache (debridAllowed=$debridAllowed): ${list.size} items")
-                        list
-                    }
-
-                    // 2. Trending Series row — TMDB (premium/trial) or IPTV series
-                    val trendingSeriesResult = trendingSeriesDeferred?.await()
-                    val top10SeriesList = if (trendingSeriesResult?.isSuccess == true) {
-                        val list = trendingSeriesResult.getOrNull()?.results?.take(10)?.map { it.toFeaturedItem() } ?: emptyList()
-                        android.util.Log.e("HISTORY_DEBUG", "Fetched ${list.size} TMDB Trending Series")
-                        list
-                    } else {
-                        // IPTV Series (also the normal-tier primary source)
-                        val series = cache.series?.streams ?: emptyList()
-                        val list = series.take(10).map { it.toFeaturedItem(serverUrl) }
-                        android.util.Log.w("HISTORY_DEBUG", "Series row from IPTV cache (debridAllowed=$debridAllowed): ${list.size} items")
-                        list
-                    }
-
-                    val heroFeatured = top10MoviesList.firstOrNull() ?: top10SeriesList.firstOrNull()
-                    val heroContent = heroFeatured?.let { f ->
-                        HeroContent(
-                            title = f.title,
-                            description = f.description ?: "Experience high-quality streaming on DebridXtream.",
-                            imageUrl = f.backdropUrl ?: f.posterUrl,
-                            rating = f.rating ?: "N/A",
-                            type = if (f.contentType == ContentType.MOVIE) "MOVIE" else "SERIES",
-                            streamId = f.contentId
-                        )
-                    }
-
-                    // 3. Enrich History Data (Artwork Restoration)
-                    android.util.Log.d("HISTORY_DEBUG", "Enriching ${continueWatching.size} Continue Watching items and ${recentLiveChannels.size} Recent Live items")
-
-                    // Phase 2: enrich Continue-Watching artwork CONCURRENTLY (was an N+1 sequence of
-                    // repo/DB lookups re-run on every home load / return). async+awaitAll preserves
-                    // order; N is bounded (CW is capped) so no extra throttle is needed, and a
-                    // Phase-2 timeout cancels these children via structured concurrency.
-                    val enrichedContinueWatching = coroutineScope {
-                        continueWatching.map { item ->
-                            async {
-                                if (needsArtworkEnrichment(item)) {
-                                    enrichContinueWatchingArtwork(item, credentialsPrefs.getServerUrl() ?: "")
-                                } else {
-                                    item
-                                }
-                            }
-                        }.awaitAll()
-                    }
-
-                    val enrichedRecentLive = coroutineScope {
-                        recentLiveChannels.map { item ->
-                            async {
-                                if (item.channelLogo.isNullOrBlank() || !item.channelLogo.startsWith("http")) {
-                                    val serverUrl = credentialsPrefs.getServerUrl() ?: ""
-                                    repository.getLiveStreamById(item.channelId)?.let { stream ->
-                                        val icon = stream.stream_icon.toAbsoluteUrl(ContentType.LIVE_TV, serverUrl)
-                                        item.copy(channelLogo = icon)
-                                    } ?: item
-                                } else {
-                                    item
-                                }
-                            }
-                        }.awaitAll()
-                    }
-
-                    val newSections = emptyList<HomeSection>()
-                    // Legacy rows removed as requested to focus on Cinematic Top 10s
-                    val hasAnyContent = top10MoviesList.isNotEmpty() ||
-                        top10SeriesList.isNotEmpty() ||
-                        enrichedContinueWatching.isNotEmpty() ||
-                        enrichedRecentLive.isNotEmpty() ||
-                        heroContent != null
-
-                    HomeUiState(
-                        isLoading = false,
-                        errorMessage = if (hasAnyContent) null else "Content is not available yet.",
-                        isEmpty = !hasAnyContent,
-                        top10Movies = top10MoviesList,
-                        top10Series = top10SeriesList,
-                        continueWatching = enrichedContinueWatching,
-                        recentLiveChannels = enrichedRecentLive,
-                        heroItem = heroContent,
-                        sections = newSections
-                    )
-                } }
+                val nextState = withTimeoutOrNull(12_000L) {
+                    buildPhase2State(cache, local, creds, debridAllowed)
+                }
 
                 if (nextState != null) {
                     nextState
@@ -313,6 +169,190 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    /** The locally-stored rows (prefs-backed), read once per load. */
+    private data class LocalHistory(
+        val continueWatching: List<ContinueWatchingItem>,
+        val recentLiveChannels: List<RecentLiveChannelItem>,
+    )
+
+    /** Xtream credentials needed to build absolute stream/artwork URLs. */
+    private data class HomeCreds(val serverUrl: String, val username: String, val password: String)
+
+    private fun emptyCacheState(current: HomeUiState, local: LocalHistory): HomeUiState {
+        val hasLocalContent = local.continueWatching.isNotEmpty() ||
+            local.recentLiveChannels.isNotEmpty()
+        return current.copy(
+            isLoading = false,
+            errorMessage = if (hasLocalContent) null else "Content is not available yet.",
+            isEmpty = !hasLocalContent,
+            top10Movies = emptyList(),
+            top10Series = emptyList(),
+            continueWatching = local.continueWatching,
+            recentLiveChannels = local.recentLiveChannels,
+            heroItem = null,
+            sections = emptyList()
+        )
+    }
+
+    private fun heroFrom(featured: FeaturedItem?): HeroContent? = featured?.let { f ->
+        HeroContent(
+            title = f.title,
+            description = f.description ?: "Experience high-quality streaming on DebridXtream.",
+            imageUrl = f.backdropUrl ?: f.posterUrl,
+            rating = f.rating ?: "N/A",
+            type = if (f.contentType == ContentType.MOVIE) "MOVIE" else "SERIES",
+            streamId = f.contentId
+        )
+    }
+
+    // ST-2 Phase 1 (instant): build rows straight from the IPTV cache and emit NOW — cached
+    // content appears in ms instead of waiting on the 2 TMDB round-trips + per-item enrichment.
+    // Emitted directly via _uiState.update (NOT the guarded onSuccess path, which could collapse
+    // it into the Phase-2 emission). This same snapshot is the fallback if Phase 2 times out —
+    // so hero/top10 are NEVER wiped (audit F2/F10).
+    private fun buildPhase1State(cache: IptvCache, local: LocalHistory, creds: HomeCreds): HomeUiState {
+        val phase1Movies = (cache.vod?.streams ?: emptyList())
+            .sortedByDescending { it.added }.take(10)
+            .map { it.toFeaturedItem(creds.serverUrl, creds.username, creds.password) }
+        val phase1Series = (cache.series?.streams ?: emptyList()).take(10)
+            .map { it.toFeaturedItem(creds.serverUrl) }
+        val phase1Hero = heroFrom(phase1Movies.firstOrNull() ?: phase1Series.firstOrNull())
+        val phase1HasContent = phase1Movies.isNotEmpty() || phase1Series.isNotEmpty() ||
+            local.continueWatching.isNotEmpty() || local.recentLiveChannels.isNotEmpty() || phase1Hero != null
+        return HomeUiState(
+            isLoading = false,
+            errorMessage = if (phase1HasContent) null else "Content is not available yet.",
+            isEmpty = !phase1HasContent,
+            top10Movies = phase1Movies,
+            top10Series = phase1Series,
+            continueWatching = local.continueWatching,
+            recentLiveChannels = local.recentLiveChannels,
+            heroItem = phase1Hero,
+            sections = emptyList()
+        )
+    }
+
+    // Phase 2: TMDB rows (when debrid is configured) + artwork enrichment, all bounded by the
+    // caller's 12s timeout — on timeout the caller keeps the Phase-1 snapshot.
+    private suspend fun buildPhase2State(
+        cache: IptvCache,
+        local: LocalHistory,
+        creds: HomeCreds,
+        debridAllowed: Boolean
+    ): HomeUiState = coroutineScope {
+        // ST-2: fire both TMDB trending calls CONCURRENTLY (were sequential)
+        // so Phase-2 latency is one round-trip, not two.
+        val trendingMoviesDeferred = if (debridAllowed) async { tmdbRemoteDataSource.getTrendingMovies() } else null
+        val trendingSeriesDeferred = if (debridAllowed) async { tmdbRemoteDataSource.getTrendingTvShows() } else null
+
+        // 1. Trending Movies row — TMDB (premium/trial) or IPTV recently-added
+        val top10MoviesList = moviesRowFrom(trendingMoviesDeferred?.await(), cache, creds, debridAllowed)
+
+        // 2. Trending Series row — TMDB (premium/trial) or IPTV series
+        val top10SeriesList = seriesRowFrom(trendingSeriesDeferred?.await(), cache, creds, debridAllowed)
+
+        val heroContent = heroFrom(top10MoviesList.firstOrNull() ?: top10SeriesList.firstOrNull())
+
+        // 3. Enrich History Data (Artwork Restoration)
+        android.util.Log.d("HISTORY_DEBUG", "Enriching ${local.continueWatching.size} Continue Watching items and ${local.recentLiveChannels.size} Recent Live items")
+        val enrichedContinueWatching = enrichContinueWatchingRow(local.continueWatching)
+        val enrichedRecentLive = enrichRecentLiveRow(local.recentLiveChannels)
+
+        val newSections = emptyList<HomeSection>()
+        // Legacy rows removed as requested to focus on Cinematic Top 10s
+        val hasAnyContent = top10MoviesList.isNotEmpty() ||
+            top10SeriesList.isNotEmpty() ||
+            enrichedContinueWatching.isNotEmpty() ||
+            enrichedRecentLive.isNotEmpty() ||
+            heroContent != null
+
+        HomeUiState(
+            isLoading = false,
+            errorMessage = if (hasAnyContent) null else "Content is not available yet.",
+            isEmpty = !hasAnyContent,
+            top10Movies = top10MoviesList,
+            top10Series = top10SeriesList,
+            continueWatching = enrichedContinueWatching,
+            recentLiveChannels = enrichedRecentLive,
+            heroItem = heroContent,
+            sections = newSections
+        )
+    }
+
+    // TMDB when it answered, else the IPTV cache — the same proven fallback used when TMDB is
+    // unreachable, and the only source for a device with no debrid service configured.
+    private fun moviesRowFrom(
+        trendingMoviesResult: com.tvonnet.debridxtreamiptv.data.Result<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbMovieResponse>?,
+        cache: IptvCache,
+        creds: HomeCreds,
+        debridAllowed: Boolean
+    ): List<FeaturedItem> {
+        if (trendingMoviesResult?.isSuccess == true) {
+            val list = trendingMoviesResult.getOrNull()?.results?.take(10)?.map { it.toFeaturedItem() } ?: emptyList()
+            android.util.Log.e("HISTORY_DEBUG", "Fetched ${list.size} TMDB Trending Movies")
+            return list
+        }
+        // IPTV VOD sorted by added date (also the normal-tier primary source)
+        val vods = cache.vod?.streams ?: emptyList()
+        val list = vods.sortedByDescending { it.added }.take(10).map {
+            it.toFeaturedItem(creds.serverUrl, creds.username, creds.password)
+        }
+        android.util.Log.w("HISTORY_DEBUG", "Movies row from IPTV cache (debridAllowed=$debridAllowed): ${list.size} items")
+        return list
+    }
+
+    private fun seriesRowFrom(
+        trendingSeriesResult: com.tvonnet.debridxtreamiptv.data.Result<com.tvonnet.debridxtreamiptv.data.debrid.model.TmdbTvShowResponse>?,
+        cache: IptvCache,
+        creds: HomeCreds,
+        debridAllowed: Boolean
+    ): List<FeaturedItem> {
+        if (trendingSeriesResult?.isSuccess == true) {
+            val list = trendingSeriesResult.getOrNull()?.results?.take(10)?.map { it.toFeaturedItem() } ?: emptyList()
+            android.util.Log.e("HISTORY_DEBUG", "Fetched ${list.size} TMDB Trending Series")
+            return list
+        }
+        // IPTV Series (also the normal-tier primary source)
+        val series = cache.series?.streams ?: emptyList()
+        val list = series.take(10).map { it.toFeaturedItem(creds.serverUrl) }
+        android.util.Log.w("HISTORY_DEBUG", "Series row from IPTV cache (debridAllowed=$debridAllowed): ${list.size} items")
+        return list
+    }
+
+    // Phase 2: enrich Continue-Watching artwork CONCURRENTLY (was an N+1 sequence of
+    // repo/DB lookups re-run on every home load / return). async+awaitAll preserves
+    // order; N is bounded (CW is capped) so no extra throttle is needed, and a
+    // Phase-2 timeout cancels these children via structured concurrency.
+    private suspend fun enrichContinueWatchingRow(items: List<ContinueWatchingItem>): List<ContinueWatchingItem> =
+        coroutineScope {
+            items.map { item ->
+                async {
+                    if (needsArtworkEnrichment(item)) {
+                        enrichContinueWatchingArtwork(item, credentialsPrefs.getServerUrl() ?: "")
+                    } else {
+                        item
+                    }
+                }
+            }.awaitAll()
+        }
+
+    private suspend fun enrichRecentLiveRow(items: List<RecentLiveChannelItem>): List<RecentLiveChannelItem> =
+        coroutineScope {
+            items.map { item ->
+                async {
+                    if (item.channelLogo.isNullOrBlank() || !item.channelLogo.startsWith("http")) {
+                        val serverUrl = credentialsPrefs.getServerUrl() ?: ""
+                        repository.getLiveStreamById(item.channelId)?.let { stream ->
+                            val icon = stream.stream_icon.toAbsoluteUrl(ContentType.LIVE_TV, serverUrl)
+                            item.copy(channelLogo = icon)
+                        } ?: item
+                    } else {
+                        item
+                    }
+                }
+            }.awaitAll()
+        }
 
     /**
      * The home-flicker rule (e9e2ca9): hand the UI the SAME state object when nothing it renders

@@ -13,6 +13,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import javax.inject.Inject
 
 /**
@@ -169,82 +170,17 @@ class SearchViewModel @Inject constructor(
 
             try {
                 if (seriesScopeEnabled) {
-                    // Series-only scope: search series (optionally within one category),
-                    // leave Live/VOD/EPG empty so those sections collapse.
-                    val series = repository.searchSeries(query, seriesScopeCategoryId)
-                    android.util.Log.i(
-                        "SearchScope",
-                        "scoped search q='$query' categoryId=$seriesScopeCategoryId -> ${series.size} series"
-                    )
-                    updateState {
-                        copy(
-                            liveResults = emptyList(),
-                            vodResults = emptyList(),
-                            seriesResults = series,
-                            epgResults = emptyList(),
-                            isSearching = false,
-                            error = if (series.isEmpty()) {
-                                "No results found for '$query'. Please ensure content is loaded by browsing categories."
-                            } else null
-                        )
-                    }
+                    searchSeriesScope(query)
                     return@launch
                 }
 
                 if (vodScopeEnabled) {
-                    // Movies-only scope: search movies (optionally within one category),
-                    // leave Live/Series/EPG empty so those sections collapse.
-                    val vod = repository.searchVod(query, vodScopeCategoryId)
-                    android.util.Log.i(
-                        "SearchScope",
-                        "scoped VOD search q='$query' categoryId=$vodScopeCategoryId -> ${vod.size} movies"
-                    )
-                    updateState {
-                        copy(
-                            liveResults = emptyList(),
-                            vodResults = vod,
-                            seriesResults = emptyList(),
-                            epgResults = emptyList(),
-                            isSearching = false,
-                            error = if (vod.isEmpty()) {
-                                "No results found for '$query'. Please ensure content is loaded by browsing categories."
-                            } else null
-                        )
-                    }
+                    searchVodScope(query)
                     return@launch
                 }
 
                 android.util.Log.i("SearchScope", "GLOBAL search q='$query' (scope disabled)")
-
-                // Week 14: Use efficient Database Search (Parallel Execution)
-                // This replaces the memory-intensive cache reading
-
-                val liveResults = async { repository.searchLive(query) }
-                val vodResults = async { repository.searchVod(query) }
-                val seriesResults = async { repository.searchSeries(query) }
-                val epgResults = async { repository.searchEpg(query) }
-
-                val live = liveResults.await()
-                val vod = vodResults.await()
-                val series = seriesResults.await()
-                val epg = epgResults.await()
-
-                // Calculate total results
-                val totalResults = live.size + vod.size + series.size + epg.size
-
-                // Update state with results
-                updateState {
-                    copy(
-                        liveResults = live,
-                        vodResults = vod,
-                        seriesResults = series,
-                        epgResults = epg,
-                        isSearching = false,
-                        error = if (totalResults == 0) {
-                            "No results found for '$query'. Please ensure content is loaded by browsing categories."
-                        } else null
-                    )
-                }
+                searchAllScopes(query)
 
             } catch (e: Exception) {
                 android.util.Log.e("SearchViewModel", "Search failed", e)
@@ -258,6 +194,78 @@ class SearchViewModel @Inject constructor(
         }
     }
     
+    // Series-only scope: search series (optionally within one category),
+    // leave Live/VOD/EPG empty so those sections collapse.
+    private suspend fun searchSeriesScope(query: String) {
+        val series = repository.searchSeries(query, seriesScopeCategoryId)
+        android.util.Log.i(
+            "SearchScope",
+            "scoped search q='$query' categoryId=$seriesScopeCategoryId -> ${series.size} series"
+        )
+        updateState {
+            copy(
+                liveResults = emptyList(),
+                vodResults = emptyList(),
+                seriesResults = series,
+                epgResults = emptyList(),
+                isSearching = false,
+                error = if (series.isEmpty()) noResultsMessage(query) else null
+            )
+        }
+    }
+
+    // Movies-only scope: search movies (optionally within one category),
+    // leave Live/Series/EPG empty so those sections collapse.
+    private suspend fun searchVodScope(query: String) {
+        val vod = repository.searchVod(query, vodScopeCategoryId)
+        android.util.Log.i(
+            "SearchScope",
+            "scoped VOD search q='$query' categoryId=$vodScopeCategoryId -> ${vod.size} movies"
+        )
+        updateState {
+            copy(
+                liveResults = emptyList(),
+                vodResults = vod,
+                seriesResults = emptyList(),
+                epgResults = emptyList(),
+                isSearching = false,
+                error = if (vod.isEmpty()) noResultsMessage(query) else null
+            )
+        }
+    }
+
+    // Week 14: Use efficient Database Search (Parallel Execution)
+    // This replaces the memory-intensive cache reading
+    private suspend fun searchAllScopes(query: String) = coroutineScope {
+        val liveResults = async { repository.searchLive(query) }
+        val vodResults = async { repository.searchVod(query) }
+        val seriesResults = async { repository.searchSeries(query) }
+        val epgResults = async { repository.searchEpg(query) }
+
+        val live = liveResults.await()
+        val vod = vodResults.await()
+        val series = seriesResults.await()
+        val epg = epgResults.await()
+
+        // Calculate total results
+        val totalResults = live.size + vod.size + series.size + epg.size
+
+        // Update state with results
+        updateState {
+            copy(
+                liveResults = live,
+                vodResults = vod,
+                seriesResults = series,
+                epgResults = epg,
+                isSearching = false,
+                error = if (totalResults == 0) noResultsMessage(query) else null
+            )
+        }
+    }
+
+    private fun noResultsMessage(query: String): String =
+        "No results found for '$query'. Please ensure content is loaded by browsing categories."
+
     private fun loadRecentSearches() {
         viewModelScope.launch {
             // Week 10: Load from Room database

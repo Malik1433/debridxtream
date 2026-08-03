@@ -172,9 +172,42 @@ internal class SeriesRepository(
             return Result.Success(cachedDuringCooldown)
         }
 
-        // B-8: a fresh synced copy in Room is served as-is — no network refetch, no L2 preload
-        // rewrite, no delete+insert of an unchanged category. Stale/empty falls through to the
-        // existing network + fallback chain.
+        serveFreshSeriesFromDb(categoryId)?.let { return it }
+
+        return try {
+            if (apiService == null) {
+                return Result.Error(Exception("API service not initialized"))
+            }
+
+        Log.d(TAG, "Fetching series for category: $categoryId")
+
+            preloadSeriesFromLevel2Cache(categoryId)
+
+            handleSeriesResponse(
+                categoryId,
+                apiService!!.getSeries(username, password, categoryId = categoryId)
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching series for category $categoryId", e)
+            updateSeriesCategoryStatus(
+                categoryId,
+                SeriesCategoryState.TEMPORARILY_UNAVAILABLE,
+                e.message ?: "Error fetching series"
+            )
+            val fallbackResult = fallbackSeriesFetch(categoryId)
+            return if (fallbackResult is Result.Success && fallbackResult.data.isNotEmpty()) {
+                markSeriesCategoryHealthy(categoryId)
+                fallbackResult
+            } else {
+                Result.Error(e)
+            }
+        }
+    }
+
+    // B-8: a fresh synced copy in Room is served as-is — no network refetch, no L2 preload
+    // rewrite, no delete+insert of an unchanged category. Stale/empty (or a failed check)
+    // returns null so the caller falls through to the existing network + fallback chain.
+    private suspend fun serveFreshSeriesFromDb(categoryId: String): Result<List<XtreamSeriesInfo>>? {
         try {
             val freshness = seriesDao.getCategoryFreshness(categoryId)
             if (CategoryFetchFreshness.isFresh(
@@ -193,62 +226,43 @@ internal class SeriesRepository(
         } catch (e: Exception) {
             Log.w(TAG, "B-8 freshness check failed for category $categoryId, falling through to network", e)
         }
+        return null
+    }
 
-        return try {
-            if (apiService == null) {
-                return Result.Error(Exception("API service not initialized"))
-            }
-            
-        Log.d(TAG, "Fetching series for category: $categoryId")
-            
-            preloadSeriesFromLevel2Cache(categoryId)
+    // The network response arms, verbatim: a populated list caches + persists; an empty list
+    // and a 404 both fall back rather than surfacing "no series"; other codes are errors.
+    private suspend fun handleSeriesResponse(
+        categoryId: String,
+        response: retrofit2.Response<List<XtreamSeriesInfo>>
+    ): Result<List<XtreamSeriesInfo>> {
+        if (response.isSuccessful) {
+            val streams = response.body() ?: emptyList()
+            if (streams.isNotEmpty()) {
+                Log.d(TAG, "Series fetched for category $categoryId: ${streams.size} series")
+                updateSeriesCacheForCategory(categoryId, streams)
 
-            val response = apiService!!.getSeries(username, password, categoryId = categoryId)
-            
-            if (response.isSuccessful) {
-                val streams = response.body() ?: emptyList()
-                if (streams.isNotEmpty()) {
-                    Log.d(TAG, "Series fetched for category $categoryId: ${streams.size} series")
-                    updateSeriesCacheForCategory(categoryId, streams)
-
-                    // Phase 2: Save to Database
-                    saveSeriesPageToDb(categoryId, streams)
-                    markSeriesCategoryHealthy(categoryId)
-                    Result.Success(streams)
-                } else {
-                    handleSeriesFallback(
-                        categoryId = categoryId,
-                        warningMessage = "Series category $categoryId returned empty list. Attempting fallback fetch.",
-                        failureState = SeriesCategoryState.EMPTY
-                    )
-                }
-            } else if (response.code() == 404) {
-                handleSeries404Fallback(categoryId)
-            } else {
-                val error = HttpException(response)
-                updateSeriesCategoryStatus(
-                    categoryId,
-                    SeriesCategoryState.TEMPORARILY_UNAVAILABLE,
-                    "Failed to fetch series: ${response.code()}"
-                )
-                Log.e(TAG, "Failed to fetch series: ${response.code()}")
-                Result.Error(error)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error fetching series for category $categoryId", e)
-            updateSeriesCategoryStatus(
-                categoryId,
-                SeriesCategoryState.TEMPORARILY_UNAVAILABLE,
-                e.message ?: "Error fetching series"
-            )
-            val fallbackResult = fallbackSeriesFetch(categoryId)
-            return if (fallbackResult is Result.Success && fallbackResult.data.isNotEmpty()) {
+                // Phase 2: Save to Database
+                saveSeriesPageToDb(categoryId, streams)
                 markSeriesCategoryHealthy(categoryId)
-                fallbackResult
-            } else {
-                Result.Error(e)
+                return Result.Success(streams)
             }
+            return handleSeriesFallback(
+                categoryId = categoryId,
+                warningMessage = "Series category $categoryId returned empty list. Attempting fallback fetch.",
+                failureState = SeriesCategoryState.EMPTY
+            )
         }
+        if (response.code() == 404) {
+            return handleSeries404Fallback(categoryId)
+        }
+        val error = HttpException(response)
+        updateSeriesCategoryStatus(
+            categoryId,
+            SeriesCategoryState.TEMPORARILY_UNAVAILABLE,
+            "Failed to fetch series: ${response.code()}"
+        )
+        Log.e(TAG, "Failed to fetch series: ${response.code()}")
+        return Result.Error(error)
     }
 
     // Level 2 Cache: Check if we have "All Series" cached and pre-load DB

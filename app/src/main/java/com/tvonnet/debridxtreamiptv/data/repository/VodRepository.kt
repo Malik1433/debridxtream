@@ -302,26 +302,18 @@ internal class VodRepository(
         if (categories.isEmpty()) return emptyList()
 
         val categoriesById = categories.associateBy { it.category_id.orEmpty() }
-        val candidateOrder = LinkedHashSet<String>()
-        primaryCategoryId?.takeIf { it.isNotBlank() }?.let { candidateOrder.add(it) }
 
         val primaryStream = streamId?.takeIf { it.isNotBlank() }?.let {
             findVodById(it, primaryCategoryId, categories)
         }
 
-        primaryStream?.category_id?.takeIf { !it.isNullOrBlank() }?.let { candidateOrder.add(it) }
-        primaryStream?.category_ids?.orEmpty()?.forEach { candidateOrder.add(it.toString()) }
+        val candidateOrder = buildCandidateCategoryOrder(categories, primaryCategoryId, primaryStream)
 
-        val normalizedTargetName = normalizeTitle(primaryStream?.name ?: title)
-        val targetYear = extractYear(primaryStream?.releaseDate) ?: extractYear(yearHint)
-
-        if (candidateOrder.isEmpty()) {
-            categories.mapNotNull { it.category_id }.forEach { candidateOrder.add(it) }
-        } else {
-            categories.mapNotNull { it.category_id }
-                .filterNot { candidateOrder.contains(it) }
-                .forEach { candidateOrder.add(it) }
-        }
+        val criteria = MovieMatchCriteria(
+            streamId = streamId,
+            normalizedTargetName = normalizeTitle(primaryStream?.name ?: title),
+            targetYear = extractYear(primaryStream?.releaseDate) ?: extractYear(yearHint)
+        )
 
         val sources = LinkedHashMap<String, MovieSource>()
         val comparator = compareBy<MovieSource> { !it.isPrimary }
@@ -337,27 +329,7 @@ internal class VodRepository(
             if (categoryId.isBlank()) continue
             val streams = getVodStreamsForCategoryCached(categoryId)
             if (streams.isEmpty()) continue
-            val category = categoriesById[categoryId]
-            for (stream in streams) {
-                val candidateId = stream.stream_id ?: continue
-                if (sources.containsKey(candidateId)) continue
-
-                val matchesId = streamId != null && streamId == candidateId
-                val candidateNormalized = normalizeTitle(stream.name)
-                val matchesName = normalizedTargetName != null && normalizedTargetName == candidateNormalized
-
-                if (!matchesId && !matchesName) continue
-
-                if (!matchesId && yearVetoesNameMatch(stream, targetYear)) continue
-
-                val label = buildMovieSourceLabel(category, stream)
-                sources[candidateId] = MovieSource(
-                    stream = stream,
-                    category = category,
-                    label = label,
-                    isPrimary = matchesId
-                )
-            }
+            collectMatchesFromCategory(streams, categoriesById[categoryId], criteria, sources)
         }
 
         if (sources.isEmpty() && primaryStream != null) {
@@ -373,6 +345,64 @@ internal class VodRepository(
         }
 
         return sources.values.sortedWith(comparator)
+    }
+
+    // Search order, verbatim: the caller's category first, then the primary stream's own
+    // categories, then every remaining category (dedup preserved by the LinkedHashSet).
+    private fun buildCandidateCategoryOrder(
+        categories: List<XtreamCategory>,
+        primaryCategoryId: String?,
+        primaryStream: XtreamVodInfo?
+    ): LinkedHashSet<String> {
+        val candidateOrder = LinkedHashSet<String>()
+        primaryCategoryId?.takeIf { it.isNotBlank() }?.let { candidateOrder.add(it) }
+        primaryStream?.category_id?.takeIf { !it.isNullOrBlank() }?.let { candidateOrder.add(it) }
+        primaryStream?.category_ids?.orEmpty()?.forEach { candidateOrder.add(it.toString()) }
+
+        if (candidateOrder.isEmpty()) {
+            categories.mapNotNull { it.category_id }.forEach { candidateOrder.add(it) }
+        } else {
+            categories.mapNotNull { it.category_id }
+                .filterNot { candidateOrder.contains(it) }
+                .forEach { candidateOrder.add(it) }
+        }
+        return candidateOrder
+    }
+
+    /** What a candidate stream must match to count as a source for this movie. */
+    private data class MovieMatchCriteria(
+        val streamId: String?,
+        val normalizedTargetName: String?,
+        val targetYear: Int?,
+    )
+
+    // One category's streams: an id match is authoritative (isPrimary), a name match must
+    // also survive the year veto. First writer per stream id wins, as before.
+    private fun collectMatchesFromCategory(
+        streams: List<XtreamVodInfo>,
+        category: XtreamCategory?,
+        criteria: MovieMatchCriteria,
+        sources: LinkedHashMap<String, MovieSource>
+    ) {
+        for (stream in streams) {
+            val candidateId = stream.stream_id ?: continue
+            if (sources.containsKey(candidateId)) continue
+
+            val matchesId = criteria.streamId != null && criteria.streamId == candidateId
+            val candidateNormalized = normalizeTitle(stream.name)
+            val matchesName = criteria.normalizedTargetName != null &&
+                criteria.normalizedTargetName == candidateNormalized
+
+            if (!matchesId && !matchesName) continue
+            if (!matchesId && yearVetoesNameMatch(stream, criteria.targetYear)) continue
+
+            sources[candidateId] = MovieSource(
+                stream = stream,
+                category = category,
+                label = buildMovieSourceLabel(category, stream),
+                isPrimary = matchesId
+            )
+        }
     }
 
     /** A name-only match is rejected when both sides carry a year and they differ by more than 1. */

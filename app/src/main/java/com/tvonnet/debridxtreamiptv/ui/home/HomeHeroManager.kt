@@ -48,13 +48,16 @@ internal class HomeHeroManager(private var fragment: HomeFragment?) {
             frag.view?.findViewById<android.widget.TextView>(R.id.tv_hero_rating)?.text = "$rating ★"
         }
 
-        val heroUrl = item.backdropUrl ?: item.posterUrl
+        loadHeroBackdrop(frag, item.backdropUrl ?: item.posterUrl)
+        wireHeroButtons(frag)
+    }
 
+    // IMG-3: hero rotates every 7s at ~8MB/slide (ARGB_8888, full-screen),
+    // evicting row posters from the 32MB cache. RGB_565 + a downscaled
+    // override (behind a scrim anyway) cuts each slide to ~1MB.
+    private fun loadHeroBackdrop(frag: HomeFragment, heroUrl: String?) {
         Glide.with(frag)
             .load(heroUrl)
-            // IMG-3: hero rotates every 7s at ~8MB/slide (ARGB_8888, full-screen),
-            // evicting row posters from the 32MB cache. RGB_565 + a downscaled
-            // override (behind a scrim anyway) cuts each slide to ~1MB.
             .format(com.bumptech.glide.load.DecodeFormat.PREFER_RGB_565)
             .override(960, 540)
             .transition(DrawableTransitionOptions.withCrossFade())
@@ -75,7 +78,11 @@ internal class HomeHeroManager(private var fragment: HomeFragment?) {
                 ): Boolean = false
             })
             .into(frag.ivHeroBackground)
+    }
 
+    // Click/focus/key wiring for the three hero buttons, verbatim: LEFT from Play returns to
+    // the sidebar, DOWN lands on the LAST focused rail card, focus is remembered when user-driven.
+    private fun wireHeroButtons(frag: HomeFragment) {
         val btnWatch = frag.view?.findViewById<View>(R.id.btn_hero_watch)
         val btnDetails = frag.view?.findViewById<View>(R.id.btn_hero_details)
         val btnFav = frag.view?.findViewById<View>(R.id.btn_hero_fav)
@@ -147,18 +154,7 @@ internal class HomeHeroManager(private var fragment: HomeFragment?) {
             com.tvonnet.debridxtreamiptv.util.FocusGlow.attachAlways(glow)
         }
 
-        // Size the glow to button + 12dp halo on each side (a plain match_parent View
-        // would fill all available space inside the wrap_content wrapper).
-        if (hasFocus && button.width > 0) {
-            val pad = (2 * com.tvonnet.debridxtreamiptv.util.FocusGlow.GLOW_PAD_DP *
-                button.resources.displayMetrics.density).toInt()
-            val lp = glow.layoutParams
-            if (lp.width != button.width + pad || lp.height != button.height + pad) {
-                lp.width = button.width + pad
-                lp.height = button.height + pad
-                glow.layoutParams = lp
-            }
-        }
+        if (hasFocus) sizeGlowToButton(glow, button)
 
         glow.animate().cancel()
         if (hasFocus) {
@@ -169,6 +165,20 @@ internal class HomeHeroManager(private var fragment: HomeFragment?) {
             glow.animate().alpha(0f).setDuration(140)
                 .withEndAction { glow.visibility = View.INVISIBLE }
                 .start()
+        }
+    }
+
+    // Size the glow to button + 12dp halo on each side (a plain match_parent View
+    // would fill all available space inside the wrap_content wrapper).
+    private fun sizeGlowToButton(glow: View, button: View) {
+        if (button.width <= 0) return
+        val pad = (2 * com.tvonnet.debridxtreamiptv.util.FocusGlow.GLOW_PAD_DP *
+            button.resources.displayMetrics.density).toInt()
+        val lp = glow.layoutParams
+        if (lp.width != button.width + pad || lp.height != button.height + pad) {
+            lp.width = button.width + pad
+            lp.height = button.height + pad
+            glow.layoutParams = lp
         }
     }
 

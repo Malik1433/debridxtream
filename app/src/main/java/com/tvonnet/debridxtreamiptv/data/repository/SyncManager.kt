@@ -118,27 +118,10 @@ internal class SyncManager(
                     if (apiService == null) {
                         val cached = cacheHelper.readCache()
                         if (cached != null) {
-                            updateSyncProgress(SyncProgress(
-                                type = syncType,
-                                state = SyncState.SUCCESS,
-                                percent = 100,
-                                liveCount = cached.live?.streams?.size ?: 0,
-                                vodCount = cached.vod?.streams?.size ?: 0,
-                                seriesCount = cached.series?.streams?.size ?: 0,
-                                stage = "Using cached data"
-                            ))
+                            reportCachedSuccess(syncType, cached)
                             return@withContext Result.Success(cached)
                         }
-                        updateSyncProgress(SyncProgress(
-                            type = syncType,
-                            state = SyncState.ERROR,
-                            percent = 0,
-                            liveCount = 0,
-                            vodCount = 0,
-                            seriesCount = 0,
-                            stage = "Sync failed",
-                            errorMessage = "API service not initialized"
-                        ))
+                        reportSyncError(syncType, "API service not initialized")
                         return@withContext Result.Error(Exception("API service not initialized and no cache available"))
                     }
 
@@ -207,36 +190,7 @@ internal class SyncManager(
                         vodData.categories.isEmpty() &&
                         seriesData.categories.isEmpty()
                     if (allCategoriesEmpty) {
-                        Log.w(TAG, "Sync produced zero categories across all types — treating as failure, not overwriting cache")
-                        val existing = memoryCache ?: cacheHelper.readCache()
-                        val existingHasContent = existing != null && (
-                            (existing.live?.categories?.isNotEmpty() == true) ||
-                            (existing.vod?.categories?.isNotEmpty() == true) ||
-                            (existing.series?.categories?.isNotEmpty() == true)
-                        )
-                        if (existingHasContent) {
-                            updateSyncProgress(SyncProgress(
-                                type = syncType,
-                                state = SyncState.SUCCESS,
-                                percent = 100,
-                                liveCount = existing!!.live?.streams?.size ?: 0,
-                                vodCount = existing.vod?.streams?.size ?: 0,
-                                seriesCount = existing.series?.streams?.size ?: 0,
-                                stage = "Using cached data"
-                            ))
-                            return@withContext Result.Success(existing)
-                        }
-                        updateSyncProgress(SyncProgress(
-                            type = syncType,
-                            state = SyncState.ERROR,
-                            percent = 0,
-                            liveCount = 0,
-                            vodCount = 0,
-                            seriesCount = 0,
-                            stage = "Sync failed",
-                            errorMessage = "Could not load your content. Check your connection and try again."
-                        ))
-                        return@withContext Result.Error(Exception("Sync returned no categories (network/auth failure)"))
+                        return@withContext allEmptyOutcome(syncType)
                     }
 
                     val cache = IptvCache(
@@ -257,22 +211,7 @@ internal class SyncManager(
                         stage = "Finalizing cache"
                     ))
 
-                    cacheHelper.writeCache(cache)
-                    memoryCache = cache
-
-                    if (cacheManager != null) {
-                        liveData.let { live ->
-                            cacheManager.putCategories(live.categories, "live")
-                            if (live.streams.isNotEmpty()) {
-                                val firstCategoryId = live.categories.firstOrNull()?.category_id ?: ""
-                                if (firstCategoryId.isNotEmpty()) {
-                                    cacheManager.putChannels(firstCategoryId, live.streams, "live")
-                                }
-                            }
-                        }
-                        cacheManager.putCategories(vodFinal.categories, "vod")
-                        cacheManager.putCategories(seriesFinal.categories, "series")
-                    }
+                    persistCache(cache, liveData, vodFinal, seriesFinal)
 
                     PerformanceMonitor.trackMemory("afterFetchAllAndCache")
                     saveSyncMetadata(syncType)
@@ -296,31 +235,84 @@ internal class SyncManager(
                 Log.e(TAG, "Failed to fetch data", e)
                 val cached = cacheHelper.readCache()
                 if (cached != null) {
-                    updateSyncProgress(SyncProgress(
-                        type = syncType,
-                        state = SyncState.SUCCESS,
-                        percent = 100,
-                        liveCount = cached.live?.streams?.size ?: 0,
-                        vodCount = cached.vod?.streams?.size ?: 0,
-                        seriesCount = cached.series?.streams?.size ?: 0,
-                        stage = "Using cached data"
-                    ))
+                    reportCachedSuccess(syncType, cached)
                     Result.Success(cached)
                 } else {
-                    updateSyncProgress(SyncProgress(
-                        type = syncType,
-                        state = SyncState.ERROR,
-                        percent = 0,
-                        liveCount = 0,
-                        vodCount = 0,
-                        seriesCount = 0,
-                        stage = "Sync failed",
-                        errorMessage = e.message
-                    ))
+                    reportSyncError(syncType, e.message)
                     Result.Error(e)
                 }
             }
         }
+    }
+
+    private fun reportCachedSuccess(syncType: SyncType, cached: IptvCache) {
+        updateSyncProgress(SyncProgress(
+            type = syncType,
+            state = SyncState.SUCCESS,
+            percent = 100,
+            liveCount = cached.live?.streams?.size ?: 0,
+            vodCount = cached.vod?.streams?.size ?: 0,
+            seriesCount = cached.series?.streams?.size ?: 0,
+            stage = "Using cached data"
+        ))
+    }
+
+    private fun reportSyncError(syncType: SyncType, message: String?) {
+        updateSyncProgress(SyncProgress(
+            type = syncType,
+            state = SyncState.ERROR,
+            percent = 0,
+            liveCount = 0,
+            vodCount = 0,
+            seriesCount = 0,
+            stage = "Sync failed",
+            errorMessage = message
+        ))
+    }
+
+    // SY-1: the stage fetchers swallow network/auth failures into empty results (no throw),
+    // so a totally-failed sync would otherwise write an EMPTY cache and report SUCCESS — the
+    // user lands on Home with "No categories". Zero categories across ALL three types is a
+    // strong failure signal (a real account always has some). In that case do NOT overwrite a
+    // good cache: keep the existing one, or report ERROR so the sync screen offers a retry
+    // instead of a silent empty success.
+    private fun allEmptyOutcome(syncType: SyncType): Result<IptvCache> {
+        Log.w(TAG, "Sync produced zero categories across all types — treating as failure, not overwriting cache")
+        val existing = memoryCache ?: cacheHelper.readCache()
+        val existingHasContent = existing != null && (
+            (existing.live?.categories?.isNotEmpty() == true) ||
+            (existing.vod?.categories?.isNotEmpty() == true) ||
+            (existing.series?.categories?.isNotEmpty() == true)
+        )
+        if (existingHasContent) {
+            reportCachedSuccess(syncType, existing!!)
+            return Result.Success(existing)
+        }
+        reportSyncError(syncType, "Could not load your content. Check your connection and try again.")
+        return Result.Error(Exception("Sync returned no categories (network/auth failure)"))
+    }
+
+    private suspend fun persistCache(
+        cache: IptvCache,
+        liveData: LiveCacheData,
+        vodFinal: VodCacheData,
+        seriesFinal: SeriesCacheData
+    ) {
+        cacheHelper.writeCache(cache)
+        memoryCache = cache
+
+        if (cacheManager == null) return
+        liveData.let { live ->
+            cacheManager.putCategories(live.categories, "live")
+            if (live.streams.isNotEmpty()) {
+                val firstCategoryId = live.categories.firstOrNull()?.category_id ?: ""
+                if (firstCategoryId.isNotEmpty()) {
+                    cacheManager.putChannels(firstCategoryId, live.streams, "live")
+                }
+            }
+        }
+        cacheManager.putCategories(vodFinal.categories, "vod")
+        cacheManager.putCategories(seriesFinal.categories, "series")
     }
 
     private fun updateSyncProgress(progress: SyncProgress) {
