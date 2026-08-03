@@ -499,8 +499,23 @@ class DebridFragment : Fragment() {
 
     private fun updateHero(item: DebridContentItem) {
         val heroView = view?.findViewById<View>(R.id.debrid_hero) ?: return
+        makeHeroPassive(heroView)
 
-        // Ensure hero is visible but completely passive (cannot steal focus)
+        val tvTitle = heroView.findViewById<TextView>(R.id.tv_hero_title)
+        val tvSynopsis = heroView.findViewById<TextView>(R.id.tv_hero_synopsis)
+
+        tvTitle?.text = item.title.trim().ifBlank { "Untitled" }
+        bindHeroMetadata(heroView, item)
+
+        val overview = item.overview?.trim().orEmpty()
+        tvSynopsis?.visibility = if (overview.isNotEmpty()) View.VISIBLE else View.GONE
+        if (overview.isNotEmpty()) {
+            tvSynopsis?.text = overview
+        }
+    }
+
+    // Ensure hero is visible but completely passive (cannot steal focus)
+    private fun makeHeroPassive(heroView: View) {
         if (heroView.visibility != View.VISIBLE) {
             heroView.visibility = View.VISIBLE
         }
@@ -515,31 +530,42 @@ class DebridFragment : Fragment() {
             btnPrimary.isFocusableInTouchMode = false
             btnPrimary.isClickable = false
         }
+    }
 
-        val tvTitle = heroView.findViewById<TextView>(R.id.tv_hero_title)
-        val metadataRow = heroView.findViewById<View>(R.id.ll_hero_metadata)
+    // Rating / year / type badges plus the row itself, each shown only with real data.
+    private fun bindHeroMetadata(heroView: View, item: DebridContentItem) {
+        val hasRating = bindHeroRating(heroView, item)
+        val hasYear = bindHeroYear(heroView, item)
+        val hasType = bindHeroType(heroView, item)
+        heroView.findViewById<TextView>(R.id.tv_hero_quality)?.visibility = View.GONE
+        heroView.findViewById<View>(R.id.ll_hero_metadata)?.visibility =
+            if (hasRating || hasYear || hasType) View.VISIBLE else View.GONE
+    }
+
+    private fun bindHeroRating(heroView: View, item: DebridContentItem): Boolean {
         val tvRating = heroView.findViewById<TextView>(R.id.tv_hero_rating)
-        val tvYear = heroView.findViewById<TextView>(R.id.tv_hero_year)
-        val tvType = heroView.findViewById<TextView>(R.id.tv_hero_type)
-        val tvQuality = heroView.findViewById<TextView>(R.id.tv_hero_quality)
-        val tvSynopsis = heroView.findViewById<TextView>(R.id.tv_hero_synopsis)
-
-        tvTitle?.text = item.title.trim().ifBlank { "Untitled" }
-
         val rating = item.rating?.trim().orEmpty()
         val hasRating = rating.isNotEmpty() && rating != "0" && rating != "0.0"
         tvRating?.visibility = if (hasRating) View.VISIBLE else View.GONE
         if (hasRating) {
             tvRating?.text = rating
         }
+        return hasRating
+    }
 
+    private fun bindHeroYear(heroView: View, item: DebridContentItem): Boolean {
+        val tvYear = heroView.findViewById<TextView>(R.id.tv_hero_year)
         val year = item.year?.trim().orEmpty()
         val hasYear = year.isNotEmpty()
         tvYear?.visibility = if (hasYear) View.VISIBLE else View.GONE
         if (hasYear) {
             tvYear?.text = year
         }
+        return hasYear
+    }
 
+    private fun bindHeroType(heroView: View, item: DebridContentItem): Boolean {
+        val tvType = heroView.findViewById<TextView>(R.id.tv_hero_type)
         val typeLabel = when (item.type?.trim()?.lowercase()) {
             "movie" -> "MOVIE"
             "series", "show" -> "SERIES"
@@ -550,14 +576,7 @@ class DebridFragment : Fragment() {
         if (typeLabel != null) {
             tvType?.text = typeLabel
         }
-        tvQuality?.visibility = View.GONE
-        metadataRow?.visibility = if (hasRating || hasYear || hasType) View.VISIBLE else View.GONE
-
-        val overview = item.overview?.trim().orEmpty()
-        tvSynopsis?.visibility = if (overview.isNotEmpty()) View.VISIBLE else View.GONE
-        if (overview.isNotEmpty()) {
-            tvSynopsis?.text = overview
-        }
+        return hasType
     }
 
     /**
@@ -576,58 +595,63 @@ class DebridFragment : Fragment() {
 
                 if (rowHolder != null) {
                     val horizontalRv = rowHolder.itemView.findViewById<RecyclerView>(R.id.rv_row_items)
-                    horizontalRv?.post {
-                        if (!isAdded) return@post
-
-                        var restored = false
-                        // Try by ID first
-                        if (lastFocusedItemId != null) {
-                            val rowData = debridRowsAdapter.currentList.getOrNull(safeRowIndex)
-                            if (rowData != null) {
-                                val indexById = rowData.items.indexOfFirst { it.id == lastFocusedItemId }
-                                if (indexById != -1) {
-                                    val itemHolder = horizontalRv.findViewHolderForAdapterPosition(indexById)
-                                    if (itemHolder != null && itemHolder.itemView.isFocusable) {
-                                        itemHolder.itemView.requestFocus()
-                                        restored = true
-                                    }
-                                }
-                            }
-                        }
-
-                        // Fallback to Index
-                        if (!restored) {
-                            val safeItemIndex = if (lastFocusedItemIndex != RecyclerView.NO_POSITION) lastFocusedItemIndex else 0
-                            val itemHolder = horizontalRv.findViewHolderForAdapterPosition(safeItemIndex)
-                            if (itemHolder != null && itemHolder.itemView.isFocusable) {
-                                itemHolder.itemView.requestFocus()
-                                restored = true
-                            }
-                        }
-
-                        // Fallback to first item in row
-                        if (!restored) {
-                            horizontalRv.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
-                        }
-                        pendingRestoreFocus = false
-                    }
+                    horizontalRv?.post { restoreWithinRow(horizontalRv, safeRowIndex) }
                 } else {
-                    // Fallback to very first card if no memory valid
-                    val firstVisibleRow = rvDebridRows.findViewHolderForAdapterPosition(0) as? DebridRowViewHolder
-                    val firstContentRv = firstVisibleRow?.itemView?.findViewById<RecyclerView>(R.id.rv_row_items)
-                    if (firstContentRv != null) {
-                        firstContentRv.post {
-                            if (!isAdded) return@post
-                            firstContentRv.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
-                            pendingRestoreFocus = false
-                        }
-                    } else {
-                        // Fallback to sidebar
-                        returnToSidebar()
-                        pendingRestoreFocus = false
-                    }
+                    restoreToFirstCardOrSidebar()
                 }
             }
+        }
+    }
+
+    // Inside the remembered row, verbatim: item by id, else by index, else the first card.
+    private fun restoreWithinRow(horizontalRv: RecyclerView, safeRowIndex: Int) {
+        if (!isAdded) return
+
+        // Try by ID first
+        var restored = restoreByRememberedId(horizontalRv, safeRowIndex)
+
+        // Fallback to Index
+        if (!restored) {
+            val safeItemIndex = if (lastFocusedItemIndex != RecyclerView.NO_POSITION) lastFocusedItemIndex else 0
+            val itemHolder = horizontalRv.findViewHolderForAdapterPosition(safeItemIndex)
+            if (itemHolder != null && itemHolder.itemView.isFocusable) {
+                itemHolder.itemView.requestFocus()
+                restored = true
+            }
+        }
+
+        // Fallback to first item in row
+        if (!restored) {
+            horizontalRv.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+        }
+        pendingRestoreFocus = false
+    }
+
+    private fun restoreByRememberedId(horizontalRv: RecyclerView, safeRowIndex: Int): Boolean {
+        if (lastFocusedItemId == null) return false
+        val rowData = debridRowsAdapter.currentList.getOrNull(safeRowIndex) ?: return false
+        val indexById = rowData.items.indexOfFirst { it.id == lastFocusedItemId }
+        if (indexById == -1) return false
+        val itemHolder = horizontalRv.findViewHolderForAdapterPosition(indexById) ?: return false
+        if (!itemHolder.itemView.isFocusable) return false
+        itemHolder.itemView.requestFocus()
+        return true
+    }
+
+    // Fallback to very first card if no memory valid; last resort is the sidebar.
+    private fun restoreToFirstCardOrSidebar() {
+        val firstVisibleRow = rvDebridRows.findViewHolderForAdapterPosition(0) as? DebridRowViewHolder
+        val firstContentRv = firstVisibleRow?.itemView?.findViewById<RecyclerView>(R.id.rv_row_items)
+        if (firstContentRv != null) {
+            firstContentRv.post {
+                if (!isAdded) return@post
+                firstContentRv.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+                pendingRestoreFocus = false
+            }
+        } else {
+            // Fallback to sidebar
+            returnToSidebar()
+            pendingRestoreFocus = false
         }
     }
 

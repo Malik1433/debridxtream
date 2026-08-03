@@ -236,7 +236,34 @@ class DebridItemViewHolder(
         onItemFocused: (DebridContentItem) -> Unit
     ) {
         tvTitle.text = item.title
-        
+
+        bindSubtitleAndRating(item)
+        bindProgress(item)
+        bindPoster(item)
+
+        itemView.setOnClickListener {
+            onItemClick(item)
+        }
+
+        // TV remote focus handling
+        itemView.isFocusable = true
+        itemView.isFocusableInTouchMode = true
+
+        attachFocusAnimation(item, onItemFocused)
+
+        // Component 2: Hardened Left Boundary Support
+        itemView.setOnKeyListener { _, keyCode, event ->
+            if (event.action == android.view.KeyEvent.ACTION_DOWN && keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (bindingAdapterPosition == 0) {
+                    onLeftBoundary()
+                    return@setOnKeyListener true
+                }
+            }
+            false
+        }
+    }
+
+    private fun bindSubtitleAndRating(item: DebridContentItem) {
         // Consolidate metadata (S01E01 / Year)
         val episodeLabel = if (item.seasonNumber != null && item.episodeNumber != null) {
             String.format(java.util.Locale.US, "S%02dE%02d", item.seasonNumber, item.episodeNumber)
@@ -249,8 +276,7 @@ class DebridItemViewHolder(
         }
         tvYear.text = subtitle ?: ""
         tvYear.visibility = if (subtitle.isNullOrBlank()) View.GONE else View.VISIBLE
-        bindProgress(item)
-        
+
         // Rating Badge
         if (!item.rating.isNullOrBlank() && item.rating != "0.0" && item.rating != "0") {
             tvRatingBadge?.text = "⭐ ${item.rating}"
@@ -258,8 +284,10 @@ class DebridItemViewHolder(
         } else {
             tvRatingBadge?.visibility = View.GONE
         }
+    }
 
-        // Aspect ratio and image URL for Continue Watching
+    // Continue Watching cards are 16:9 backdrops; everything else the standard 2:3 poster.
+    private fun bindPoster(item: DebridContentItem) {
         val cardPoster: View? = itemView.findViewById(R.id.card_poster)
         var overrideWidth = 320
         var overrideHeight = 480
@@ -286,7 +314,7 @@ class DebridItemViewHolder(
             }
             cardPoster.layoutParams = params
         }
-        
+
         // Load poster with Glide
         Glide.with(itemView.context)
             .load(imageUrl)
@@ -298,18 +326,12 @@ class DebridItemViewHolder(
             .placeholder(R.drawable.placeholder_poster)
             .error(R.drawable.placeholder_poster)
             .into(ivPoster)
-        
-        itemView.setOnClickListener {
-            onItemClick(item)
-        }
-        
-        // TV remote focus handling
-        itemView.isFocusable = true
-        itemView.isFocusableInTouchMode = true
-        
-        // Cinematic Focus Animation (Sync with Movies/Series)
+    }
+
+    // Cinematic Focus Animation (Sync with Movies/Series)
+    private fun attachFocusAnimation(item: DebridContentItem, onItemFocused: (DebridContentItem) -> Unit) {
         itemView.alpha = 0.8f
-        
+
         itemView.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
             if (hasFocus) {
                 v.animate()
@@ -335,17 +357,6 @@ class DebridItemViewHolder(
                 stopPulsingGlow()
                 tvTitle.isSelected = false
             }
-        }
-
-        // Component 2: Hardened Left Boundary Support
-        itemView.setOnKeyListener { _, keyCode, event ->
-            if (event.action == android.view.KeyEvent.ACTION_DOWN && keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) {
-                if (bindingAdapterPosition == 0) {
-                    onLeftBoundary()
-                    return@setOnKeyListener true
-                }
-            }
-            false
         }
     }
 
