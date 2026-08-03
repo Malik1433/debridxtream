@@ -616,6 +616,49 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
             Log.d("PlayerActivity", "onViewCreated package=${requireActivity().packageName} taskId=${requireActivity().taskId} component=${intent.component}")
         }
 
+        bindPlayerChrome(view)
+
+        val streamUrl = intent.getStringExtra(PlayerActivity.EXTRA_STREAM_URL)
+        val streamTitle = intent.getStringExtra(PlayerActivity.EXTRA_STREAM_TITLE)
+        startPositionMs = intent.getLongExtra(PlayerActivity.EXTRA_START_POSITION, 0L)
+        originalTitle = streamTitle
+        streamHeaders = readStreamHeaders(intent, PlayerActivity.EXTRA_STREAM_HEADERS)
+        subtitleEntries = intent.getStringArrayListExtra(PlayerActivity.EXTRA_SUBTITLE_ENTRIES) ?: emptyList()
+
+        val facts = debridResumeFacts(streamUrl)
+
+        if (facts.isDebridUrlMissing && !facts.canResolverRepair && !facts.canFreshResolveDirectDebrid) {
+            showError("Invalid stream URL")
+            finish()
+            return
+        }
+
+        applyLaunchChrome(streamUrl, streamTitle)
+        loadSeriesPlaylistIfNeeded(facts.isDebrid)
+
+        if (contentType == ContentType.LIVE_TV) {
+            observeLiveEpgAndState()
+        } else {
+            setupVodPlayback(streamTitle)
+        }
+
+        routeInitialPlayback(facts, streamUrl)
+        supportActionBar?.title = streamTitle ?: "Playing"
+
+        if (contentType == ContentType.LIVE_TV) {
+            startLiveZappingAndBrowser()
+        }
+
+        if (contentType == ContentType.LIVE_TV) {
+            seedLiveEpgOverlay()
+        } else {
+            playerView.showController()
+        }
+
+        registerBackHandler()
+    }
+
+    private fun bindPlayerChrome(view: View) {
         trackManager = PlayerTrackManager(requireContext(), settingsPreferences)
         watchHistoryPrefs = WatchHistoryPreferences(requireContext())
         historyManager = PlayerHistoryManager(this, watchHistoryPrefs, viewModel, watchedStateRepository)
@@ -630,21 +673,24 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         reconnectingBannerText = findViewById(R.id.reconnecting_banner_text)
 
         PlayerLaunchArgs.readInto(this, session)
+    }
 
-        val streamUrl = intent.getStringExtra(PlayerActivity.EXTRA_STREAM_URL)
-        val streamTitle = intent.getStringExtra(PlayerActivity.EXTRA_STREAM_TITLE)
-        startPositionMs = intent.getLongExtra(PlayerActivity.EXTRA_START_POSITION, 0L)
-        originalTitle = streamTitle
-        streamHeaders = readStreamHeaders(intent, PlayerActivity.EXTRA_STREAM_HEADERS)
-        subtitleEntries = intent.getStringArrayListExtra(PlayerActivity.EXTRA_SUBTITLE_ENTRIES) ?: emptyList()
+    /** What the launch already knows about resuming this debrid playback. */
+    private data class DebridResumeFacts(
+        val isDebrid: Boolean,
+        val canResolverRepair: Boolean,
+        val isDebridUrlMissing: Boolean,
+        val canFreshResolveDirectDebrid: Boolean,
+        val isExpired: Boolean,
+    )
 
+    private fun debridResumeFacts(streamUrl: String?): DebridResumeFacts {
         val isDebrid = playbackSource == PlaybackSource.DEBRID
         val canResolveDebrid = canUseDebridResolver()
         val hasResInfo = !debridInfoHashExtra.isNullOrBlank() || !debridMagnetExtra.isNullOrBlank()
         // The resolver can only repair this playback if it is usable AND has a hash/magnet to feed it.
         val canResolverRepair = canResolveDebrid && hasResInfo
         val isDebridUrlMissing = streamUrl.isNullOrBlank()
-        val canFreshResolveDirectDebrid = canFreshResolveDirectDebrid()
         // See mustResolveBeforePlaying: a saved position no longer counts as "expired". A resume
         // now plays the link it was handed and repairs on a real 401/403/410, instead of paying a
         // cache-bypassing re-resolution before every first frame.
@@ -654,13 +700,10 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
             expiresAtMs = expiresAtExtra,
             nowMs = System.currentTimeMillis()
         )
+        return DebridResumeFacts(isDebrid, canResolverRepair, isDebridUrlMissing, canFreshResolveDirectDebrid(), isExpired)
+    }
 
-        if (isDebridUrlMissing && !canResolverRepair && !canFreshResolveDirectDebrid) {
-            showError("Invalid stream URL")
-            finish()
-            return
-        }
-
+    private fun applyLaunchChrome(streamUrl: String?, streamTitle: String?) {
         timeoutMs = resolveTimeoutMs(streamUrl ?: "")
         currentUrl = streamUrl
         channelLogoUrl = intent.getStringExtra(PlayerActivity.EXTRA_CHANNEL_LOGO)
@@ -676,7 +719,9 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         liveCategoryId = intent.getStringExtra(PlayerActivity.EXTRA_LIVE_CATEGORY_ID)
         baseServerUrl = intent.getStringExtra(PlayerActivity.EXTRA_BASE_SERVER_URL)
         liveChannelIds = intent.getStringArrayListExtra(PlayerActivity.EXTRA_LIVE_CHANNEL_IDS)
+    }
 
+    private fun loadSeriesPlaylistIfNeeded(isDebrid: Boolean) {
         val seriesId = intent.getStringExtra(PlayerActivity.EXTRA_SERIES_ID) ?: tmdbIdExtra ?: imdbIdExtra
         val seasonNum = intent.getIntExtra(PlayerActivity.EXTRA_SEASON_NUM, -1)
         if (seriesId != null && seasonNum != -1) {
@@ -690,20 +735,19 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
                 }
             }
         }
+    }
 
-        if (contentType == ContentType.LIVE_TV) {
-            observeLiveEpgAndState()
-        } else {
-            setupVodPlayback(streamTitle)
-        }
-
-        if (canFreshResolveDirectDebrid && isExpired) {
+    // The resume rule, routed: fresh-resolve a direct source only when it is KNOWN
+    // expired; resolver-repair when the URL is missing/expired; otherwise play what
+    // we hold (see resume-play-then-repair). Order of these arms is the semantics.
+    private fun routeInitialPlayback(facts: DebridResumeFacts, streamUrl: String?) {
+        if (facts.canFreshResolveDirectDebrid && facts.isExpired) {
             refreshDirectDebridSourceFromMetadata("expired_direct_resume")
-        } else if (canResolverRepair && (isDebridUrlMissing || isExpired)) {
-            Log.i("PlayerActivity", "Debrid resume detected: URL is ${if (isDebridUrlMissing) "missing" else "expired"}. Triggering resolution.")
+        } else if (facts.canResolverRepair && (facts.isDebridUrlMissing || facts.isExpired)) {
+            Log.i("PlayerActivity", "Debrid resume detected: URL is ${if (facts.isDebridUrlMissing) "missing" else "expired"}. Triggering resolution.")
             isResolvingDebrid = true
             viewModel.reResolveDebridUrl(debridInfoHashExtra, debridMagnetExtra, seasonNumberExtra, episodeNumberExtra, episodeTitleExtra)
-        } else if (isDebrid && directDebridPlayback && isExpired) {
+        } else if (facts.isDebrid && directDebridPlayback && facts.isExpired) {
             Log.w("PlayerActivity", "Direct Debrid resume is expired and cannot be refreshed; blocking stale passthrough playback.")
             handleTerminalPlaybackFailure("Expired direct source could not be refreshed")
         } else {
@@ -717,18 +761,9 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
             }
             initializePlayer(streamUrl ?: "")
         }
-        supportActionBar?.title = streamTitle ?: "Playing"
+    }
 
-        if (contentType == ContentType.LIVE_TV) {
-            startLiveZappingAndBrowser()
-        }
-
-        if (contentType == ContentType.LIVE_TV) {
-            seedLiveEpgOverlay()
-        } else {
-            playerView.showController()
-        }
-
+    private fun registerBackHandler() {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (handleLiveBack()) {
@@ -829,6 +864,11 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         if (contentType != ContentType.LIVE_TV && (player?.currentPosition ?: 0L) > 1000L) {
             startPositionMs = player?.currentPosition ?: startPositionMs
         }
+        dispatchDirectDebridRefresh()
+        return true
+    }
+
+    private fun dispatchDirectDebridRefresh() {
         if (contentType == ContentType.EPISODE && seasonNumberExtra != null && episodeNumberExtra != null) {
             viewModel.loadNextDebridEpisode(
                 seriesId = debridSeriesLookupId(),
@@ -848,7 +888,6 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
                 allowDirectHttpPassthrough = true
             )
         }
-        return true
     }
 
     internal fun currentDebridSourceProfile(): DebridSourceProfile? {
@@ -1041,58 +1080,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
             // false → a VOD/non-shared launch always takes the cold-init path below). When it
             // adopts, it has fully set up the player, so we skip cold init entirely.
             if (!adoptSharedLivePlayerIfPresent(streamUrl)) {
-            didPlaybackComplete = false
-            hasAppliedIndexOverride = false
-            timeoutHandler.removeCallbacks(timeoutRunnable)
-            timeoutMs = resolveTimeoutMs(streamUrl)
-            timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
-            armWatchdogBaseline()
-            hasRenderedFirstFrameForCurrentSource = false
-
-            val requestHeaders = effectivePlaybackHeadersFor(streamUrl)
-            PlaybackDiagnosticsRecorder.record(
-                requireContext(),
-                "player_initialize_started",
-                diagnosticsPlaybackFields(streamUrl, requestHeaders)
-            )
-            if (disableTunnelingForSession) {
-                Log.i("PlayerActivity", "Tunneling disabled for this session after video freeze")
-            }
-            val engine = PlayerEngineFactory(requireContext(), playbackOkHttpClient, settingsPreferences).build(
-                config = PlaybackEngineConfig(
-                    streamUrl = streamUrl,
-                    contentType = contentType,
-                    playbackSource = playbackSource,
-                    requestHeaders = requestHeaders,
-                    disableTunneling = disableTunnelingForSession,
-                    preferredAudioLanguage = trackManager.preferredAudioLanguage,
-                    preferredSubtitleLanguage = trackManager.preferredSubtitleLanguage
-                ),
-                loadErrorPolicy = playbackLoadErrorPolicy,
-                codecSelector = dolbyVisionAwareCodecSelector()
-            )
-            bandwidthMeter = engine.bandwidthMeter
-            player = engine.player.also { playerView.player = it }
-            frameRateMatchedForCurrentSource = false
-
-            // LP-D-2: QoE analytics (TTFF / rebuffers / dropped frames / errors).
-            // One tracker per player instance; summary flushed in releasePlayer.
-            qoeTracker = PlaybackQoeTracker(requireContext()) { qoeMode(contentType, playbackSource) }.also { tracker ->
-                player?.addAnalyticsListener(tracker)
-                tracker.markPrepareStart()
-            }
-
-            val mediaItem = buildMediaItem(streamUrl)
-            player?.setMediaItem(mediaItem, /* resetPosition = */ true)
-            PlaybackDiagnosticsRecorder.record(
-                requireContext(),
-                "player_prepare_called",
-                diagnosticsPlaybackFields(streamUrl, requestHeaders)
-            )
-            player?.prepare()
-            if (startPositionMs > 0L) {
-                player?.seekTo(startPositionMs)
-            }
+                coldStartPlayer(streamUrl)
             }
             player?.playWhenReady = true
             // player?.play() removed as playWhenReady=true is sufficient
@@ -1104,20 +1092,81 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
             playerListener = PlayerEventListener(this, session, isSoftwareAudioEnabled)
             playerListener?.let { player?.addListener(it) }
 
-            debugListener?.let { player?.removeListener(it) }
-            debugListener = object : Player.Listener {
-                override fun onPlaybackStateChanged(state: Int) {
-                    debugOverlay.refresh()
-                }
-                override fun onPlayerError(error: PlaybackException) {
-                    if (debugEnabled) debugOverlay.appendError(error.message)
-                }
-            }
-            player?.addListener(debugListener!!)
+            attachDebugListener()
         } catch (e: Exception) {
             timeoutHandler.removeCallbacks(timeoutRunnable)
             recovery.handleInitializationError(e)
         }
+    }
+
+    // The cold-init path: watchdog arming BEFORE the engine build, QoE tracker per
+    // instance, prepare-then-seek. Order is load-bearing — do not rearrange.
+    private fun coldStartPlayer(streamUrl: String) {
+        didPlaybackComplete = false
+        hasAppliedIndexOverride = false
+        timeoutHandler.removeCallbacks(timeoutRunnable)
+        timeoutMs = resolveTimeoutMs(streamUrl)
+        timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
+        armWatchdogBaseline()
+        hasRenderedFirstFrameForCurrentSource = false
+
+        val requestHeaders = effectivePlaybackHeadersFor(streamUrl)
+        PlaybackDiagnosticsRecorder.record(
+            requireContext(),
+            "player_initialize_started",
+            diagnosticsPlaybackFields(streamUrl, requestHeaders)
+        )
+        if (disableTunnelingForSession) {
+            Log.i("PlayerActivity", "Tunneling disabled for this session after video freeze")
+        }
+        val engine = PlayerEngineFactory(requireContext(), playbackOkHttpClient, settingsPreferences).build(
+            config = PlaybackEngineConfig(
+                streamUrl = streamUrl,
+                contentType = contentType,
+                playbackSource = playbackSource,
+                requestHeaders = requestHeaders,
+                disableTunneling = disableTunnelingForSession,
+                preferredAudioLanguage = trackManager.preferredAudioLanguage,
+                preferredSubtitleLanguage = trackManager.preferredSubtitleLanguage
+            ),
+            loadErrorPolicy = playbackLoadErrorPolicy,
+            codecSelector = dolbyVisionAwareCodecSelector()
+        )
+        bandwidthMeter = engine.bandwidthMeter
+        player = engine.player.also { playerView.player = it }
+        frameRateMatchedForCurrentSource = false
+
+        // LP-D-2: QoE analytics (TTFF / rebuffers / dropped frames / errors).
+        // One tracker per player instance; summary flushed in releasePlayer.
+        qoeTracker = PlaybackQoeTracker(requireContext()) { qoeMode(contentType, playbackSource) }.also { tracker ->
+            player?.addAnalyticsListener(tracker)
+            tracker.markPrepareStart()
+        }
+
+        val mediaItem = buildMediaItem(streamUrl)
+        player?.setMediaItem(mediaItem, /* resetPosition = */ true)
+        PlaybackDiagnosticsRecorder.record(
+            requireContext(),
+            "player_prepare_called",
+            diagnosticsPlaybackFields(streamUrl, requestHeaders)
+        )
+        player?.prepare()
+        if (startPositionMs > 0L) {
+            player?.seekTo(startPositionMs)
+        }
+    }
+
+    private fun attachDebugListener() {
+        debugListener?.let { player?.removeListener(it) }
+        debugListener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                debugOverlay.refresh()
+            }
+            override fun onPlayerError(error: PlaybackException) {
+                if (debugEnabled) debugOverlay.appendError(error.message)
+            }
+        }
+        player?.addListener(debugListener!!)
     }
 
 

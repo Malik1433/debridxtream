@@ -2,11 +2,7 @@
 <SmellBaseline>
   <ManuallySuppressedIssues></ManuallySuppressedIssues>
   <CurrentIssues>
-    <ID>CyclomaticComplexMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
-    <ID>CyclomaticComplexMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun refreshDirectDebridSourceFromMetadata(reason: String): Boolean</ID>
     <ID>LargeClass:BasePlayerFragment.kt$BasePlayerFragment : FragmentRecoveryHost</ID>
-    <ID>LongMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun initializePlayer(streamUrl: String)</ID>
-    <ID>LongMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongParameterList:PlayerDiagnosticsFields.kt$( provider: String?, sourceType: String?, sourceName: String?, languages: List&lt;String&gt;?, quality: String?, bingeGroup: String?, fileIdx: Int?, streamId: String?, infoHash: String? )</ID>
     <ID>SpreadOperator:AppModule.kt$AppModule$(*DatabaseMigrations.getAllMigrations())</ID>
     <ID>SpreadOperator:EpgParser.kt$EpgParser.XmlDeclarationStrippingReader$('&lt;', '?', *probe.copyOf(read3))</ID>
