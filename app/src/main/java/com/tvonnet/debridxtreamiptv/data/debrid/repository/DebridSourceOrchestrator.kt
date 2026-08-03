@@ -69,85 +69,16 @@ internal class DebridSourceOrchestrator(
             val contentType = ContentType.MOVIE
             val releaseYear = yearHint?.toIntOrNull()
 
-            // RESUME FAST PATH: the caller already knows which source it will
-            // replay (priorityInfoHash) and which provider served it — ask only
-            // that provider first. Full multi-provider discovery runs only when
-            // the saved source is no longer offered there.
-            val stablePriorityId = stableStreamIdentity(priorityInfoHash)
-            if (stablePriorityId != null && !preferredSourceType.isNullOrBlank()) {
-                val scoped = fetchScopedMovieStreams(preferredSourceType, imdbId, title, yearHint)
-                if (scoped.any { streamMatchesStableIdentity(it, stablePriorityId) }) {
-                    val scopedStreams = prioritizeAddonStreams(
-                        deduplicateStreams(UnifiedSourceProvider.filterMismatchedAddonMovieStreams(scoped, title, yearHint))
-                    )
-                    Log.i(TAG, "Scoped resume fetch hit: provider=$preferredSourceType, streams=${scopedStreams.size} — skipping full discovery")
-                    val cacheStatusByHash = cacheVerifier.verifyRealDebridCacheStatuses(scopedStreams, priorityInfoHash)
-                    return@coroutineScope convertAddonStreamsToMovieSources(scopedStreams, title, cacheStatusByHash)
-                }
-                Log.i(TAG, "Scoped resume fetch miss: provider=$preferredSourceType — falling back to full discovery")
+            val scopedResume = tryScopedMovieResume(title, yearHint, imdbId, priorityInfoHash, preferredSourceType)
+            if (scopedResume != null) {
+                return@coroutineScope scopedResume
             }
 
             // Step 2: Fetch real sources from Enhanced Simplified PureFire (REAL TORRENTIO API) AND MediaFusion
             Log.d(TAG, "🚀 Step 2: Fetching real Torrentio & MediaFusion sources (IMDB: $imdbId, Title: '$title')")
 
-            // PARALLEL EXECUTION: configured Stremio addons run alongside the built-in fetchers
-            val stremioDeferred = async {
-                val stremioUrls = debridPrefs.getStremioAddonUrls()
-                if (stremioUrls.isEmpty()) return@async emptyList<AddonStream>()
-                try {
-                    Log.d(TAG, "Using ${stremioUrls.size} configured Stremio addon(s) alongside fallback movie providers")
-                    val fetchedStreams = addonFetcher.fetchStremioMovieSources(imdbId)
-                    val titleMatchedStreams = UnifiedSourceProvider.filterMismatchedAddonMovieStreams(fetchedStreams, title, yearHint)
-                    val filteredCount = fetchedStreams.size - titleMatchedStreams.size
-                    if (filteredCount > 0) {
-                        Log.w(TAG, "Filtered $filteredCount mismatched configured Stremio movie stream(s) before fallback providers")
-                    }
-                    val addonStreams = deduplicateStreams(titleMatchedStreams)
-                    if (addonStreams.isEmpty()) {
-                        Log.w(TAG, "Configured Stremio movie provider returned no usable streams; continuing fallback providers: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}")
-                    } else {
-                        Log.d(TAG, "Configured Stremio movie provider returned ${addonStreams.size} usable streams; continuing fallback providers")
-                    }
-                    addonStreams
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.e(TAG, "Configured Stremio movie provider failed: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
-                    emptyList()
-                }
-            }
-
-            val mediaFusionDeferred = async {
-                try {
-                    mediaFusionFetcher.fetchMovieSources(imdbId)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.e(TAG, "MediaFusion movie provider failed: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
-                    Log.e(TAG, "❌ MediaFusion fetch failed (Safe Catch)", e)
-                    emptyList()
-                }
-            }
-
-            // DYNAMIC ADDONS: Fetch from all user-configured registries in parallel
-            val dynamicDeferred = async {
-                try {
-                    addonFetcher.fetchDynamicMovieSources(imdbId)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.e(TAG, "Dynamic addon movie providers failed: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
-                    emptyList()
-                }
-            }
-
-            // Wait for all to finish
-            val configuredAddonStreams = stremioDeferred.await()
-            val mediaFusionStreams = mediaFusionDeferred.await()
-            val dynamicStreams = dynamicDeferred.await()
-
             // Merge results (PureFire/Torrentio removed — sources come from the external addons)
-            val fetchedStreams = configuredAddonStreams + mediaFusionStreams + dynamicStreams
+            val fetchedStreams = fetchAllMovieProviderStreams(imdbId, title, yearHint)
             val titleMatchedStreams = UnifiedSourceProvider.filterMismatchedAddonMovieStreams(fetchedStreams, title, yearHint)
             val filteredCount = fetchedStreams.size - titleMatchedStreams.size
             if (filteredCount > 0) {
@@ -158,53 +89,7 @@ internal class DebridSourceOrchestrator(
             )
 
             if (addonStreams.isNotEmpty()) {
-                // Enhanced logging with provider breakdown
-                Log.d(TAG, "PureFire movie sources returned: count=${addonStreams.size}, titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}")
-
-                // Group sources by provider for detailed logging
-                val sourcesByProvider = addonStreams.groupBy { it.source }
-
-                Log.d(TAG, "   ┌─ Provider breakdown:")
-                sourcesByProvider.forEach { (source, streams) ->
-                    val providerName = when (source) {
-                        AddonSourceType.TORRENTIO -> "Torrentio"
-                        AddonSourceType.MEDIA_FUSION -> "MediaFusion"
-                        AddonSourceType.STREMIO -> "Stremio"
-                        AddonSourceType.ZILEAN -> "Zilean"
-                        AddonSourceType.DYNAMIC -> "Dynamic"
-                        AddonSourceType.UNKNOWN -> "PureFire"
-                    }
-                    Log.d(TAG, "   ├─ $providerName: ${streams.size} sources")
-
-                    // Log provider-level metadata without release names.
-                    streams.take(2).forEach { stream ->
-                        val displayTitle = stream.extras["displayTitle"] as? String
-                        val languageFlag = stream.extras["languageFlag"] as? String ?: "🌍"
-                        val sizeFormatted = stream.sizeBytes?.let { formatFileSize(it) }
-                        val seeders = stream.seeders
-
-                        val sampleInfo = buildString {
-                            if (!displayTitle.isNullOrBlank()) {
-                                append("title=${SensitiveLogRedactor.describeSecret(displayTitle)}")
-                            } else {
-                                append("title=${SensitiveLogRedactor.describeSecret(stream.title)}")
-                                append(" $languageFlag")
-                                if (!stream.quality.isNullOrBlank() && stream.quality != "Unknown") {
-                                    append(" ${stream.quality}")
-                                }
-                                if (!sizeFormatted.isNullOrBlank()) {
-                                    append(" ($sizeFormatted)")
-                                }
-                            }
-                            if (seeders != null) {
-                                append(" [$seeders seeders]")
-                            }
-                            append(" 🔗 [$providerName]")
-                        }
-                        Log.d(TAG, "   │  $sampleInfo")
-                    }
-                }
-                Log.d(TAG, "   └─ Total: ${addonStreams.size} enhanced sources")
+                logMovieProviderBreakdown(addonStreams, title, imdbId)
 
                 val cacheStatusByHash = cacheVerifier.verifyRealDebridCacheStatuses(addonStreams, priorityInfoHash)
                 val movieSources = convertAddonStreamsToMovieSources(addonStreams, title, cacheStatusByHash)
@@ -218,18 +103,7 @@ internal class DebridSourceOrchestrator(
 
                 return@coroutineScope movieSources
             } else {
-                Log.i(TAG, "PureFire movie sources received: count=0, titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}")
-                Log.w(TAG, "[NO-SOURCES] PureFire API returned no sources")
-                if (!imdbId.isNullOrBlank()) {
-                    Log.d(TAG, "   Movie identified but no torrents available")
-                } else {
-                    Log.d(TAG, "   Movie identification failed - title-based search unsuccessful")
-                }
-                Log.d(TAG, "💡 This is normal for:")
-                Log.d(TAG, "   - New releases not yet on torrent sites")
-                Log.d(TAG, "   - Content exclusive to streaming platforms")
-                Log.d(TAG, "   - Region-restricted or niche content")
-
+                logNoMovieSources(title, imdbId)
                 return@coroutineScope emptyList()
             }
 
@@ -263,101 +137,24 @@ internal class DebridSourceOrchestrator(
                 return@coroutineScope emptyList()
             }
 
-            // We assume seriesId passed here is the TMDB ID.
-            // We need to resolve it to IMDb ID if possible, but for now we'll assume we might need to fetch it or use TMDB ID if supported.
-            // SimplifiedPureFireFetcher expects IMDb ID.
-            // Let's try to fetch external IDs for the series first using TmdbRemoteDataSource if we only have TMDB ID.
-            
-            val imdbId = if (seriesId.all { it.isDigit() }) {
-                Log.d(TAG, "Series ID looks like TMDB ID. Fetching external IDs.")
-                // It's likely a TMDB ID, fetch external IDs
-                val detailsResult = tmdbRemote.getSeriesDetails(seriesId.toInt())
-                if (detailsResult.isSuccess) {
-                    val resolvedId = detailsResult.getOrNull()?.externalIds?.imdbId
-                    Log.d(TAG, "Resolved IMDb ID from TMDB ID: imdbId=${SensitiveLogRedactor.describeHash(resolvedId)}, seriesId=${SensitiveLogRedactor.describeHash(seriesId)}")
-                    resolvedId
-                } else {
-                    Log.w(TAG, "Failed to fetch series details from TMDB: seriesId=${SensitiveLogRedactor.describeHash(seriesId)}, error=${SensitiveLogRedactor.describeException(detailsResult.exceptionOrNull())}")
-                    null
-                }
-            } else {
-                Log.d(TAG, "Series ID appears to be IMDb/non-numeric. Using provided id=${SensitiveLogRedactor.describeHash(seriesId)}")
-                seriesId // Assume it's already IMDb ID if not all digits (e.g. tt123456)
-            }
+            val imdbId = resolveSeriesImdbId(seriesId)
 
             if (imdbId.isNullOrBlank()) {
-                 Log.w(TAG, "Could not resolve IMDb ID for series=${SensitiveLogRedactor.describeHash(seriesId)}. Aborting source fetch.")
-                 return@coroutineScope emptyList()
+                Log.w(TAG, "Could not resolve IMDb ID for series=${SensitiveLogRedactor.describeHash(seriesId)}. Aborting source fetch.")
+                return@coroutineScope emptyList()
             }
 
-            // RESUME FAST PATH: ask only the provider that served the saved
-            // source; full discovery only when the source vanished from it.
-            val stablePriorityId = stableStreamIdentity(priorityInfoHash)
-            if (stablePriorityId != null && !preferredSourceType.isNullOrBlank()) {
-                val scoped = fetchScopedEpisodeStreams(preferredSourceType, imdbId, seasonNumber, episodeNumber, title)
-                if (scoped.any { streamMatchesStableIdentity(it, stablePriorityId) }) {
-                    val scopedStreams = prioritizeAddonStreams(deduplicateStreams(scoped))
-                    Log.i(TAG, "Scoped resume fetch hit (episode): provider=$preferredSourceType, streams=${scopedStreams.size} — skipping full discovery")
-                    val cacheStatusByHash = cacheVerifier.verifyRealDebridCacheStatuses(scopedStreams, priorityInfoHash)
-                    return@coroutineScope convertAddonStreamsToMovieSources(scopedStreams, title, cacheStatusByHash)
-                }
-                Log.i(TAG, "Scoped resume fetch miss (episode): provider=$preferredSourceType — falling back to full discovery")
+            val query = EpisodeQuery(imdbId, seasonNumber, episodeNumber, title, priorityInfoHash, preferredSourceType)
+            val scopedResume = tryScopedEpisodeResume(query)
+            if (scopedResume != null) {
+                return@coroutineScope scopedResume
             }
 
             // Fetch real sources from Enhanced Simplified PureFire AND MediaFusion
             Log.e(TAG, "🚀 Fetching episode sources from Torrentio & MediaFusion for IMDb ID: $imdbId")
 
-            // PARALLEL EXECUTION: configured Stremio addons run alongside the built-in fetchers
-            val stremioDeferred = async {
-                val stremioUrls = debridPrefs.getStremioAddonUrls()
-                if (stremioUrls.isEmpty()) return@async emptyList<AddonStream>()
-                try {
-                    Log.e(TAG, "Using ${stremioUrls.size} configured Stremio addon(s) alongside fallback episode providers")
-                    val addonStreams = deduplicateStreams(addonFetcher.fetchStremioEpisodeSources(imdbId, seasonNumber, episodeNumber))
-                    if (addonStreams.isEmpty()) {
-                        Log.w(TAG, "Configured Stremio episode provider returned no usable streams; continuing fallback providers: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}")
-                    } else {
-                        Log.d(TAG, "Configured Stremio episode provider returned ${addonStreams.size} usable streams; continuing fallback providers")
-                    }
-                    addonStreams
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.e(TAG, "Configured Stremio episode provider failed: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
-                    emptyList()
-                }
-            }
-
-            val mediaFusionDeferred = async {
-                try {
-                    mediaFusionFetcher.fetchEpisodeSources(imdbId, seasonNumber, episodeNumber)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.e(TAG, "MediaFusion episode provider failed: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
-                    Log.e(TAG, "❌ MediaFusion episode fetch failed (Safe Catch)", e)
-                    emptyList()
-                }
-            }
-
-            // DYNAMIC ADDONS: Fetch from all user-configured registries
-            val dynamicDeferred = async {
-                try {
-                    addonFetcher.fetchDynamicEpisodeSources(imdbId, seasonNumber, episodeNumber)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.e(TAG, "Dynamic addon episode providers failed: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
-                    emptyList()
-                }
-            }
-
-            val configuredAddonStreams = stremioDeferred.await()
-            val mediaFusionStreams = mediaFusionDeferred.await()
-            val dynamicStreams = dynamicDeferred.await()
-
             val addonStreams = prioritizeAddonStreams(
-                deduplicateStreams(configuredAddonStreams + mediaFusionStreams + dynamicStreams)
+                deduplicateStreams(fetchAllEpisodeProviderStreams(query))
             )
 
             if (addonStreams.isNotEmpty()) {
@@ -365,15 +162,7 @@ internal class DebridSourceOrchestrator(
                 val sourcesByProvider = addonStreams.groupBy { it.source }
                 Log.e(TAG, "Provider breakdown (episode):")
                 sourcesByProvider.forEach { (source, streams) ->
-                    val providerName = when (source) {
-                        AddonSourceType.TORRENTIO -> "Torrentio"
-                        AddonSourceType.MEDIA_FUSION -> "MediaFusion"
-                        AddonSourceType.STREMIO -> "Stremio"
-                        AddonSourceType.ZILEAN -> "Zilean"
-                        AddonSourceType.DYNAMIC -> "Dynamic"
-                        AddonSourceType.UNKNOWN -> "PureFire"
-                    }
-                    Log.e(TAG, "   - $providerName: ${streams.size} sources")
+                    Log.e(TAG, "   - ${providerDisplayName(source)}: ${streams.size} sources")
                 }
                 val cacheStatusByHash = cacheVerifier.verifyRealDebridCacheStatuses(addonStreams, priorityInfoHash)
                 return@coroutineScope convertAddonStreamsToMovieSources(addonStreams, title, cacheStatusByHash)
@@ -389,6 +178,255 @@ internal class DebridSourceOrchestrator(
             Log.e(TAG, "⚠️ [GRACEFUL] PureFire source fetch interrupted for Episode", e)
             return@coroutineScope emptyList()
         }
+    }
+
+    /** One episode discovery request: the resolved identity + the caller's resume hints. */
+    private data class EpisodeQuery(
+        val imdbId: String,
+        val seasonNumber: Int,
+        val episodeNumber: Int,
+        val title: String?,
+        val priorityInfoHash: String?,
+        val preferredSourceType: String?,
+    )
+
+    // We assume seriesId passed here is the TMDB ID; SimplifiedPureFireFetcher expects IMDb.
+    // Numeric ids resolve via TMDB external ids; non-numeric (tt...) pass through as IMDb.
+    private suspend fun resolveSeriesImdbId(seriesId: String): String? {
+        return if (seriesId.all { it.isDigit() }) {
+            Log.d(TAG, "Series ID looks like TMDB ID. Fetching external IDs.")
+            // It's likely a TMDB ID, fetch external IDs
+            val detailsResult = tmdbRemote.getSeriesDetails(seriesId.toInt())
+            if (detailsResult.isSuccess) {
+                val resolvedId = detailsResult.getOrNull()?.externalIds?.imdbId
+                Log.d(TAG, "Resolved IMDb ID from TMDB ID: imdbId=${SensitiveLogRedactor.describeHash(resolvedId)}, seriesId=${SensitiveLogRedactor.describeHash(seriesId)}")
+                resolvedId
+            } else {
+                Log.w(TAG, "Failed to fetch series details from TMDB: seriesId=${SensitiveLogRedactor.describeHash(seriesId)}, error=${SensitiveLogRedactor.describeException(detailsResult.exceptionOrNull())}")
+                null
+            }
+        } else {
+            Log.d(TAG, "Series ID appears to be IMDb/non-numeric. Using provided id=${SensitiveLogRedactor.describeHash(seriesId)}")
+            seriesId // Assume it's already IMDb ID if not all digits (e.g. tt123456)
+        }
+    }
+
+    // RESUME FAST PATH: ask only the provider that served the saved
+    // source; full discovery only when the source vanished from it. Null = miss.
+    private suspend fun tryScopedEpisodeResume(q: EpisodeQuery): List<MovieSource>? {
+        val stablePriorityId = stableStreamIdentity(q.priorityInfoHash) ?: return null
+        if (q.preferredSourceType.isNullOrBlank()) return null
+        val scoped = fetchScopedEpisodeStreams(q.preferredSourceType, q.imdbId, q.seasonNumber, q.episodeNumber, q.title)
+        if (scoped.any { streamMatchesStableIdentity(it, stablePriorityId) }) {
+            val scopedStreams = prioritizeAddonStreams(deduplicateStreams(scoped))
+            Log.i(TAG, "Scoped resume fetch hit (episode): provider=${q.preferredSourceType}, streams=${scopedStreams.size} — skipping full discovery")
+            val cacheStatusByHash = cacheVerifier.verifyRealDebridCacheStatuses(scopedStreams, q.priorityInfoHash)
+            return convertAddonStreamsToMovieSources(scopedStreams, q.title, cacheStatusByHash)
+        }
+        Log.i(TAG, "Scoped resume fetch miss (episode): provider=${q.preferredSourceType} — falling back to full discovery")
+        return null
+    }
+
+    // PARALLEL EXECUTION: configured Stremio addons run alongside the built-in fetchers.
+    private suspend fun fetchAllEpisodeProviderStreams(q: EpisodeQuery): List<AddonStream> = coroutineScope {
+        val imdbId = q.imdbId
+        val seasonNumber = q.seasonNumber
+        val episodeNumber = q.episodeNumber
+        val stremioDeferred = async {
+            val stremioUrls = debridPrefs.getStremioAddonUrls()
+            if (stremioUrls.isEmpty()) return@async emptyList<AddonStream>()
+            try {
+                Log.e(TAG, "Using ${stremioUrls.size} configured Stremio addon(s) alongside fallback episode providers")
+                val addonStreams = deduplicateStreams(addonFetcher.fetchStremioEpisodeSources(imdbId, seasonNumber, episodeNumber))
+                if (addonStreams.isEmpty()) {
+                    Log.w(TAG, "Configured Stremio episode provider returned no usable streams; continuing fallback providers: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}")
+                } else {
+                    Log.d(TAG, "Configured Stremio episode provider returned ${addonStreams.size} usable streams; continuing fallback providers")
+                }
+                addonStreams
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Configured Stremio episode provider failed: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
+                emptyList()
+            }
+        }
+
+        val mediaFusionDeferred = async {
+            try {
+                mediaFusionFetcher.fetchEpisodeSources(imdbId, seasonNumber, episodeNumber)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "MediaFusion episode provider failed: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
+                Log.e(TAG, "❌ MediaFusion episode fetch failed (Safe Catch)", e)
+                emptyList()
+            }
+        }
+
+        // DYNAMIC ADDONS: Fetch from all user-configured registries
+        val dynamicDeferred = async {
+            try {
+                addonFetcher.fetchDynamicEpisodeSources(imdbId, seasonNumber, episodeNumber)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Dynamic addon episode providers failed: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
+                emptyList()
+            }
+        }
+
+        stremioDeferred.await() + mediaFusionDeferred.await() + dynamicDeferred.await()
+    }
+
+    // RESUME FAST PATH: the caller already knows which source it will
+    // replay (priorityInfoHash) and which provider served it — ask only
+    // that provider first. Full multi-provider discovery runs only when
+    // the saved source is no longer offered there. Null = miss, fall through.
+    private suspend fun tryScopedMovieResume(
+        title: String?,
+        yearHint: String?,
+        imdbId: String?,
+        priorityInfoHash: String?,
+        preferredSourceType: String?
+    ): List<MovieSource>? {
+        val stablePriorityId = stableStreamIdentity(priorityInfoHash) ?: return null
+        if (preferredSourceType.isNullOrBlank()) return null
+        val scoped = fetchScopedMovieStreams(preferredSourceType, imdbId, title, yearHint)
+        if (scoped.any { streamMatchesStableIdentity(it, stablePriorityId) }) {
+            val scopedStreams = prioritizeAddonStreams(
+                deduplicateStreams(UnifiedSourceProvider.filterMismatchedAddonMovieStreams(scoped, title, yearHint))
+            )
+            Log.i(TAG, "Scoped resume fetch hit: provider=$preferredSourceType, streams=${scopedStreams.size} — skipping full discovery")
+            val cacheStatusByHash = cacheVerifier.verifyRealDebridCacheStatuses(scopedStreams, priorityInfoHash)
+            return convertAddonStreamsToMovieSources(scopedStreams, title, cacheStatusByHash)
+        }
+        Log.i(TAG, "Scoped resume fetch miss: provider=$preferredSourceType — falling back to full discovery")
+        return null
+    }
+
+    // PARALLEL EXECUTION: configured Stremio addons run alongside the built-in fetchers.
+    private suspend fun fetchAllMovieProviderStreams(
+        imdbId: String?,
+        title: String?,
+        yearHint: String?
+    ): List<AddonStream> = coroutineScope {
+        val stremioDeferred = async {
+            val stremioUrls = debridPrefs.getStremioAddonUrls()
+            if (stremioUrls.isEmpty()) return@async emptyList<AddonStream>()
+            try {
+                Log.d(TAG, "Using ${stremioUrls.size} configured Stremio addon(s) alongside fallback movie providers")
+                val fetchedStreams = addonFetcher.fetchStremioMovieSources(imdbId)
+                val titleMatchedStreams = UnifiedSourceProvider.filterMismatchedAddonMovieStreams(fetchedStreams, title, yearHint)
+                val filteredCount = fetchedStreams.size - titleMatchedStreams.size
+                if (filteredCount > 0) {
+                    Log.w(TAG, "Filtered $filteredCount mismatched configured Stremio movie stream(s) before fallback providers")
+                }
+                val addonStreams = deduplicateStreams(titleMatchedStreams)
+                if (addonStreams.isEmpty()) {
+                    Log.w(TAG, "Configured Stremio movie provider returned no usable streams; continuing fallback providers: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}")
+                } else {
+                    Log.d(TAG, "Configured Stremio movie provider returned ${addonStreams.size} usable streams; continuing fallback providers")
+                }
+                addonStreams
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Configured Stremio movie provider failed: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
+                emptyList()
+            }
+        }
+
+        val mediaFusionDeferred = async {
+            try {
+                mediaFusionFetcher.fetchMovieSources(imdbId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "MediaFusion movie provider failed: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
+                Log.e(TAG, "❌ MediaFusion fetch failed (Safe Catch)", e)
+                emptyList()
+            }
+        }
+
+        // DYNAMIC ADDONS: Fetch from all user-configured registries in parallel
+        val dynamicDeferred = async {
+            try {
+                addonFetcher.fetchDynamicMovieSources(imdbId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Dynamic addon movie providers failed: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}, error=${e.message}", e)
+                emptyList()
+            }
+        }
+
+        // Wait for all to finish
+        stremioDeferred.await() + mediaFusionDeferred.await() + dynamicDeferred.await()
+    }
+
+    private fun providerDisplayName(source: AddonSourceType): String = when (source) {
+        AddonSourceType.TORRENTIO -> "Torrentio"
+        AddonSourceType.MEDIA_FUSION -> "MediaFusion"
+        AddonSourceType.STREMIO -> "Stremio"
+        AddonSourceType.ZILEAN -> "Zilean"
+        AddonSourceType.DYNAMIC -> "Dynamic"
+        AddonSourceType.UNKNOWN -> "PureFire"
+    }
+
+    // Enhanced logging with provider breakdown (provider-level metadata, no release names).
+    private fun logMovieProviderBreakdown(addonStreams: List<AddonStream>, title: String?, imdbId: String?) {
+        Log.d(TAG, "PureFire movie sources returned: count=${addonStreams.size}, titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}")
+
+        val sourcesByProvider = addonStreams.groupBy { it.source }
+
+        Log.d(TAG, "   ┌─ Provider breakdown:")
+        sourcesByProvider.forEach { (source, streams) ->
+            val providerName = providerDisplayName(source)
+            Log.d(TAG, "   ├─ $providerName: ${streams.size} sources")
+
+            streams.take(2).forEach { stream ->
+                val displayTitle = stream.extras["displayTitle"] as? String
+                val languageFlag = stream.extras["languageFlag"] as? String ?: "🌍"
+                val sizeFormatted = stream.sizeBytes?.let { formatFileSize(it) }
+                val seeders = stream.seeders
+
+                val sampleInfo = buildString {
+                    if (!displayTitle.isNullOrBlank()) {
+                        append("title=${SensitiveLogRedactor.describeSecret(displayTitle)}")
+                    } else {
+                        append("title=${SensitiveLogRedactor.describeSecret(stream.title)}")
+                        append(" $languageFlag")
+                        if (!stream.quality.isNullOrBlank() && stream.quality != "Unknown") {
+                            append(" ${stream.quality}")
+                        }
+                        if (!sizeFormatted.isNullOrBlank()) {
+                            append(" ($sizeFormatted)")
+                        }
+                    }
+                    if (seeders != null) {
+                        append(" [$seeders seeders]")
+                    }
+                    append(" 🔗 [$providerName]")
+                }
+                Log.d(TAG, "   │  $sampleInfo")
+            }
+        }
+        Log.d(TAG, "   └─ Total: ${addonStreams.size} enhanced sources")
+    }
+
+    private fun logNoMovieSources(title: String?, imdbId: String?) {
+        Log.i(TAG, "PureFire movie sources received: count=0, titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}")
+        Log.w(TAG, "[NO-SOURCES] PureFire API returned no sources")
+        if (!imdbId.isNullOrBlank()) {
+            Log.d(TAG, "   Movie identified but no torrents available")
+        } else {
+            Log.d(TAG, "   Movie identification failed - title-based search unsuccessful")
+        }
+        Log.d(TAG, "💡 This is normal for:")
+        Log.d(TAG, "   - New releases not yet on torrent sites")
+        Log.d(TAG, "   - Content exclusive to streaming platforms")
+        Log.d(TAG, "   - Region-restricted or niche content")
     }
 
     /**
