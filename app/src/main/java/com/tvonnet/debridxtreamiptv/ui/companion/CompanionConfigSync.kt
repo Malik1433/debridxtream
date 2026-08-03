@@ -50,28 +50,34 @@ object CompanionConfigSync {
         listener = docRef.addSnapshotListener { snapshot, e ->
             if (e != null) { Log.w(TAG, "companion listen error", e); return@addSnapshotListener }
             if (snapshot == null || !snapshot.exists()) return@addSnapshotListener
-            val status = snapshot.getString("status")
-            if (status != "completed" && status != "success") return@addSnapshotListener
-
-            // De-dupe: only apply pushes newer than the last one we consumed.
-            val updatedAt = snapshot.getTimestamp("updatedAt")?.toDate()?.time
-                ?: snapshot.getLong("updatedAt") ?: 0L
-            val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            val lastApplied = prefs.getLong(KEY_LAST_APPLIED, 0L)
-            if (updatedAt in 1..lastApplied) return@addSnapshotListener
-            if (updatedAt == 0L && lastApplied != 0L) return@addSnapshotListener
-
-            val applied = try {
-                CompanionConfigApplier.apply(appContext, snapshot.data)
-            } catch (ex: Exception) {
-                Log.e(TAG, "config apply failed", ex); false
-            }
-            prefs.edit().putLong(KEY_LAST_APPLIED, if (updatedAt > 0) updatedAt else System.currentTimeMillis()).apply()
-            Log.i(TAG, "companion config applied (iptv=$applied)")
-            try {
-                Toast.makeText(appContext, "Settings updated from your phone", Toast.LENGTH_LONG).show()
-            } catch (_: Exception) {}
+            onCompanionPush(appContext, snapshot)
         }
+    }
+
+    // One completed companion push, verbatim: de-duped by updatedAt so a Firestore replay of
+    // an already-consumed push can't re-apply (and re-toast) old settings.
+    private fun onCompanionPush(appContext: Context, snapshot: com.google.firebase.firestore.DocumentSnapshot) {
+        val status = snapshot.getString("status")
+        if (status != "completed" && status != "success") return
+
+        // De-dupe: only apply pushes newer than the last one we consumed.
+        val updatedAt = snapshot.getTimestamp("updatedAt")?.toDate()?.time
+            ?: snapshot.getLong("updatedAt") ?: 0L
+        val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val lastApplied = prefs.getLong(KEY_LAST_APPLIED, 0L)
+        if (updatedAt in 1..lastApplied) return
+        if (updatedAt == 0L && lastApplied != 0L) return
+
+        val applied = try {
+            CompanionConfigApplier.apply(appContext, snapshot.data)
+        } catch (ex: Exception) {
+            Log.e(TAG, "config apply failed", ex); false
+        }
+        prefs.edit().putLong(KEY_LAST_APPLIED, if (updatedAt > 0) updatedAt else System.currentTimeMillis()).apply()
+        Log.i(TAG, "companion config applied (iptv=$applied)")
+        try {
+            Toast.makeText(appContext, "Settings updated from your phone", Toast.LENGTH_LONG).show()
+        } catch (_: Exception) {}
     }
 
     fun stop() {

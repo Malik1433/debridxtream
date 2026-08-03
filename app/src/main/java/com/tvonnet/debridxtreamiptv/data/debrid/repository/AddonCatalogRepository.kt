@@ -205,74 +205,102 @@ class AddonCatalogRepository @Inject constructor(
         }
         val yearDateLte = year?.let { "%04d-12-31".format(Locale.US, it) }
 
-        return if (type == "movie") {
-            when (val result = tmdbRemote.discoverMovies(
-                sortBy = effectiveSortBy,
-                page = page,
-                withOriginalLanguage = originalLanguage,
-                withWatchProviders = watchProviders,
-                watchRegion = watchRegion,
-                releaseDateLte = yearDateLte ?: today,
-                releaseDateGte = yearDateGte,
-                voteCountGte = voteCountGte,
-                withGenres = withGenres,
-                withoutKeywords = EXCLUDED_ADULT_KEYWORDS
-            )) {
-                is Success -> {
-                     val items = result.data.results?.filter { it.adult != true }?.mapNotNull { movie ->
-                        movie.title?.let {
-                            CatalogItem(
-                                id = movie.id?.toString() ?: return@mapNotNull null,
-                                title = movie.title,
-                                posterUrl = TmdbImageUrl.getPosterUrl(movie.posterPath),
-                                backdropUrl = TmdbImageUrl.getBackdropUrl(movie.backdropPath),
-                                type = "movie",
-                                year = movie.releaseDate?.take(4), releaseDate = movie.releaseDate,
-                                rating = movie.voteAverage?.toString(),
-                                overview = movie.overview,
-                                genreIds = movie.genreIds
-                            )
-                        }
-                    } ?: emptyList()
-                    Success(items)
-                }
-                is Error -> result
-                else -> Error(Exception("Unknown error"))
+        val params = DiscoverParams(
+            sortBy = effectiveSortBy,
+            page = page,
+            originalLanguage = originalLanguage,
+            watchProviders = watchProviders,
+            watchRegion = watchRegion,
+            dateLte = yearDateLte ?: today,
+            dateGte = yearDateGte,
+            voteCountGte = voteCountGte,
+            withGenres = withGenres,
+        )
+        return if (type == "movie") discoverMovieItems(params) else discoverSeriesItems(params)
+    }
+
+    /** The resolved TMDB discover query, shared verbatim by the movie and series arms. */
+    private data class DiscoverParams(
+        val sortBy: String,
+        val page: Int,
+        val originalLanguage: String?,
+        val watchProviders: String?,
+        val watchRegion: String?,
+        val dateLte: String,
+        val dateGte: String?,
+        val voteCountGte: Int?,
+        val withGenres: String?,
+    )
+
+    private suspend fun discoverMovieItems(p: DiscoverParams): Result<List<CatalogItem>> {
+        return when (val result = tmdbRemote.discoverMovies(
+            sortBy = p.sortBy,
+            page = p.page,
+            withOriginalLanguage = p.originalLanguage,
+            withWatchProviders = p.watchProviders,
+            watchRegion = p.watchRegion,
+            releaseDateLte = p.dateLte,
+            releaseDateGte = p.dateGte,
+            voteCountGte = p.voteCountGte,
+            withGenres = p.withGenres,
+            withoutKeywords = EXCLUDED_ADULT_KEYWORDS
+        )) {
+            is Success -> {
+                 val items = result.data.results?.filter { it.adult != true }?.mapNotNull { movie ->
+                    movie.title?.let {
+                        CatalogItem(
+                            id = movie.id?.toString() ?: return@mapNotNull null,
+                            title = movie.title,
+                            posterUrl = TmdbImageUrl.getPosterUrl(movie.posterPath),
+                            backdropUrl = TmdbImageUrl.getBackdropUrl(movie.backdropPath),
+                            type = "movie",
+                            year = movie.releaseDate?.take(4), releaseDate = movie.releaseDate,
+                            rating = movie.voteAverage?.toString(),
+                            overview = movie.overview,
+                            genreIds = movie.genreIds
+                        )
+                    }
+                } ?: emptyList()
+                Success(items)
             }
-        } else {
-             when (val result = tmdbRemote.discoverTvShows(
-                sortBy = effectiveSortBy,
-                page = page,
-                withOriginalLanguage = originalLanguage,
-                withWatchProviders = watchProviders,
-                watchRegion = watchRegion,
-                firstAirDateLte = yearDateLte ?: today,
-                firstAirDateGte = yearDateGte,
-                voteCountGte = voteCountGte,
-                withGenres = withGenres,
-                withoutKeywords = EXCLUDED_ADULT_KEYWORDS
-            )) {
-                is Success -> {
-                    val items = result.data.results?.mapNotNull { show ->
-                        show.name?.let {
-                            CatalogItem(
-                                id = show.id?.toString() ?: return@mapNotNull null,
-                                title = show.name,
-                                posterUrl = TmdbImageUrl.getPosterUrl(show.posterPath),
-                                backdropUrl = TmdbImageUrl.getBackdropUrl(show.backdropPath),
-                                type = "series",
-                                year = show.firstAirDate?.take(4), releaseDate = show.firstAirDate,
-                                rating = show.voteAverage?.toString(),
-                                overview = show.overview,
-                                genreIds = show.genreIds
-                            )
-                        }
-                    } ?: emptyList()
-                    Success(items)
-                }
-                is Error -> result
-                else -> Error(Exception("Unknown error"))
+            is Error -> result
+            else -> Error(Exception("Unknown error"))
+        }
+    }
+
+    private suspend fun discoverSeriesItems(p: DiscoverParams): Result<List<CatalogItem>> {
+        return when (val result = tmdbRemote.discoverTvShows(
+            sortBy = p.sortBy,
+            page = p.page,
+            withOriginalLanguage = p.originalLanguage,
+            withWatchProviders = p.watchProviders,
+            watchRegion = p.watchRegion,
+            firstAirDateLte = p.dateLte,
+            firstAirDateGte = p.dateGte,
+            voteCountGte = p.voteCountGte,
+            withGenres = p.withGenres,
+            withoutKeywords = EXCLUDED_ADULT_KEYWORDS
+        )) {
+            is Success -> {
+                val items = result.data.results?.mapNotNull { show ->
+                    show.name?.let {
+                        CatalogItem(
+                            id = show.id?.toString() ?: return@mapNotNull null,
+                            title = show.name,
+                            posterUrl = TmdbImageUrl.getPosterUrl(show.posterPath),
+                            backdropUrl = TmdbImageUrl.getBackdropUrl(show.backdropPath),
+                            type = "series",
+                            year = show.firstAirDate?.take(4), releaseDate = show.firstAirDate,
+                            rating = show.voteAverage?.toString(),
+                            overview = show.overview,
+                            genreIds = show.genreIds
+                        )
+                    }
+                } ?: emptyList()
+                Success(items)
             }
+            is Error -> result
+            else -> Error(Exception("Unknown error"))
         }
     }
 

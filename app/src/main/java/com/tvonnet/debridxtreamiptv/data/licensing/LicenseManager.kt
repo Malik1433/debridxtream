@@ -183,8 +183,33 @@ class LicenseManager private constructor(context: Context) {
         // guessing "ancient" would lock out existing users on the very build that ships this.
         if (cache.firstSeenAt <= 0L) cache.firstSeenAt = System.currentTimeMillis()
 
-        // Global enforcement switch (fail-open default). Kept separate so the owner can
-        // roll the gate out safely: ship code with enforce=false, flip to true when ready.
+        attachEnforceConfigListener()
+
+        val docRef = db.collection(COLLECTION).document(installId)
+        registerOrTouchLicenseDoc(docRef)
+
+        listener = docRef.addSnapshotListener { snapshot, e ->
+            if (e != null) { Log.w(TAG, "license listen error", e); return@addSnapshotListener }
+            if (snapshot != null && !snapshot.exists()) {
+                onLicenseDocDeleted()
+                return@addSnapshotListener
+            }
+            // ONLY a real server round-trip counts as "we reached the licence server". Firestore
+            // replays this same listener from its own offline cache, and stamping on that would mean
+            // the online gate never expires — an enforcement mechanism that always says yes.
+            if (snapshot != null && !snapshot.metadata.isFromCache) {
+                cache.lastVerifiedAt = System.currentTimeMillis()
+            }
+            if (snapshot != null && snapshot.exists()) {
+                syncCacheFromSnapshot(snapshot)
+            }
+            _state.value = cachedState()
+        }
+    }
+
+    // Global enforcement switch (fail-open default). Kept separate so the owner can
+    // roll the gate out safely: ship code with enforce=false, flip to true when ready.
+    private fun attachEnforceConfigListener() {
         configListener = db.collection(CONFIG_COLLECTION).document(CONFIG_LICENSING)
             .addSnapshotListener { snap, e ->
                 if (e == null && snap != null && snap.exists()) {
@@ -193,11 +218,11 @@ class LicenseManager private constructor(context: Context) {
                     _state.value = cachedState()
                 }
             }
+    }
 
-        val docRef = db.collection(COLLECTION).document(installId)
-
-        // Create the doc as `pending` ONLY if it doesn't exist yet — never overwrite an
-        // admin-set status. If it exists, only touch telemetry fields (merge).
+    // Create the doc as `pending` ONLY if it doesn't exist yet — never overwrite an
+    // admin-set status. If it exists, only touch telemetry fields (merge).
+    private fun registerOrTouchLicenseDoc(docRef: com.google.firebase.firestore.DocumentReference) {
         docRef.get().addOnSuccessListener { snap ->
             if (snap == null || !snap.exists()) {
                 docRef.set(
@@ -227,55 +252,46 @@ class LicenseManager private constructor(context: Context) {
             }
             cache.docCreated = true
         }.addOnFailureListener { Log.w(TAG, "license doc get failed", it) }
+    }
 
-        listener = docRef.addSnapshotListener { snapshot, e ->
-            if (e != null) { Log.w(TAG, "license listen error", e); return@addSnapshotListener }
-            if (snapshot != null && !snapshot.exists()) {
-                // The admin DELETED this device's license. Under enforcement that is a
-                // revocation — drop entitlement so the gate locks (a fresh pending doc
-                // re-created on next launch won't grant a trial either, see everEntitled).
-                if (cache.enforce && cache.status != LicensePreferences.STATUS_INACTIVE) {
-                    cache.status = LicensePreferences.STATUS_INACTIVE
-                    LicenseIntegrity.seal(cache, installId)
-                }
-                _state.value = cachedState()
-                return@addSnapshotListener
-            }
-            // ONLY a real server round-trip counts as "we reached the licence server". Firestore
-            // replays this same listener from its own offline cache, and stamping on that would mean
-            // the online gate never expires — an enforcement mechanism that always says yes.
-            if (snapshot != null && !snapshot.metadata.isFromCache) {
-                cache.lastVerifiedAt = System.currentTimeMillis()
-            }
-            if (snapshot != null && snapshot.exists()) {
-                cache.docCreated = true
-                cache.status = snapshot.getString("status") ?: cache.status
-                cache.tier = snapshot.getString("tier") ?: LicensePreferences.TIER_NORMAL
-                // Robust to either a Long (millis) or a Firestore Timestamp (both throw via
-                // the typed getters if the stored type differs).
-                cache.expiresAt = when (val raw = snapshot.get("expiresAt")) {
-                    is com.google.firebase.Timestamp -> raw.toDate().time
-                    is Number -> raw.toLong()
-                    else -> 0L
-                }
-                // createdAt is now a server Timestamp (older docs may still hold a Long, and
-                // a brand-new doc's serverTimestamp is null in the local echo until the server
-                // resolves it). getTimestamp()/getLong() THROW on the wrong type, so branch on
-                // the raw value instead and keep the previous value when it's absent/pending.
-                cache.createdAt = when (val raw = snapshot.get("createdAt")) {
-                    is com.google.firebase.Timestamp -> raw.toDate().time
-                    is Number -> raw.toLong()
-                    else -> cache.createdAt
-                }
-                if (cache.isCurrentlyEntitled()) {
-                    cache.lastActiveAt = System.currentTimeMillis()
-                    cache.everEntitled = true // remember activation → no fresh trial after removal
-                }
-                // Seal the freshly-synced entitlement so a later rooted prefs edit is detected.
-                LicenseIntegrity.seal(cache, installId)
-            }
-            _state.value = cachedState()
+    // The admin DELETED this device's license. Under enforcement that is a
+    // revocation — drop entitlement so the gate locks (a fresh pending doc
+    // re-created on next launch won't grant a trial either, see everEntitled).
+    private fun onLicenseDocDeleted() {
+        if (cache.enforce && cache.status != LicensePreferences.STATUS_INACTIVE) {
+            cache.status = LicensePreferences.STATUS_INACTIVE
+            LicenseIntegrity.seal(cache, installId)
         }
+        _state.value = cachedState()
+    }
+
+    // Field sync from a live (existing) snapshot, verbatim — ends with a fresh integrity seal
+    // so a later rooted prefs edit is detected.
+    private fun syncCacheFromSnapshot(snapshot: com.google.firebase.firestore.DocumentSnapshot) {
+        cache.docCreated = true
+        cache.status = snapshot.getString("status") ?: cache.status
+        cache.tier = snapshot.getString("tier") ?: LicensePreferences.TIER_NORMAL
+        // Robust to either a Long (millis) or a Firestore Timestamp (both throw via
+        // the typed getters if the stored type differs).
+        cache.expiresAt = when (val raw = snapshot.get("expiresAt")) {
+            is com.google.firebase.Timestamp -> raw.toDate().time
+            is Number -> raw.toLong()
+            else -> 0L
+        }
+        // createdAt is now a server Timestamp (older docs may still hold a Long, and
+        // a brand-new doc's serverTimestamp is null in the local echo until the server
+        // resolves it). getTimestamp()/getLong() THROW on the wrong type, so branch on
+        // the raw value instead and keep the previous value when it's absent/pending.
+        cache.createdAt = when (val raw = snapshot.get("createdAt")) {
+            is com.google.firebase.Timestamp -> raw.toDate().time
+            is Number -> raw.toLong()
+            else -> cache.createdAt
+        }
+        if (cache.isCurrentlyEntitled()) {
+            cache.lastActiveAt = System.currentTimeMillis()
+            cache.everEntitled = true // remember activation → no fresh trial after removal
+        }
+        LicenseIntegrity.seal(cache, installId)
     }
 
     fun stop() {

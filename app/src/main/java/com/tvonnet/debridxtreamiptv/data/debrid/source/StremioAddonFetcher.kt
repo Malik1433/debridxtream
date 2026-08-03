@@ -173,26 +173,12 @@ class StremioAddonFetcher @Inject constructor(
             ?.takeIf { it.isNotBlank() }
             ?.replaceFirst("stremio://", "https://", ignoreCase = true)
 
-        val magnet = when {
-            !infoHash.isNullOrBlank() -> "magnet:?xt=urn:btih:$infoHash"
-            !normalizedUrl.isNullOrBlank() && normalizedUrl.startsWith("magnet:", ignoreCase = true) -> normalizedUrl
-            else -> null
-        }
+        val magnet = resolveMagnet(infoHash, normalizedUrl)
 
         if (infoHash == null && normalizedUrl.isNullOrBlank() && magnet == null) {
             return null
         }
-
-        // Drop unresolved proxy entries (StremThru/Debridio "Torz"): when the debrid
-        // proxy couldn't match a file it returns a playback URL with file index -1
-        // (".../<hash>/-1/") and no behaviorHints.filename. Selecting one only ever
-        // plays the proxy's static "No Matching File" placeholder. Device-verified:
-        // every such entry has BOTH markers, and no real (filename-bearing) entry does.
-        val hasNoFilename = stream.behaviorHints?.filename.isNullOrBlank()
-        val isNoFileIndexUrl = normalizedUrl != null &&
-            !normalizedUrl.startsWith("magnet:", ignoreCase = true) &&
-            NO_FILE_INDEX_REGEX.containsMatchIn(normalizedUrl)
-        if (infoHash == null && hasNoFilename && isNoFileIndexUrl) {
+        if (isUnresolvedProxyEntry(stream, infoHash, normalizedUrl)) {
             return null
         }
 
@@ -210,15 +196,7 @@ class StremioAddonFetcher @Inject constructor(
             stream.description
         ).joinToString(" ")
 
-        val extras = buildMap<String, Any?> {
-            put("providerName", manifest.name ?: manifest.id ?: "Stremio")
-            put("definitionType", "stremio_manifest")
-            stream.description?.let { put("description", it) }
-            stream.name?.let { put("sourceName", it) }
-            stream.fileIdx?.let { put("fileIdx", it) }
-            stream.behaviorHints?.bingeGroup?.let { put("bingeGroup", it) }
-            manifest.id?.let { put("stremioAddonId", it) }
-        }
+        val extras = buildStreamExtras(manifest, stream)
 
         return AddonStream(
             source = AddonSourceType.STREMIO,
@@ -236,6 +214,36 @@ class StremioAddonFetcher @Inject constructor(
             headers = stream.behaviorHints?.proxyHeaders ?: stream.behaviorHints?.headers
         )
     }
+
+    private fun resolveMagnet(infoHash: String?, normalizedUrl: String?): String? = when {
+        !infoHash.isNullOrBlank() -> "magnet:?xt=urn:btih:$infoHash"
+        !normalizedUrl.isNullOrBlank() && normalizedUrl.startsWith("magnet:", ignoreCase = true) -> normalizedUrl
+        else -> null
+    }
+
+    // Drop unresolved proxy entries (StremThru/Debridio "Torz"): when the debrid
+    // proxy couldn't match a file it returns a playback URL with file index -1
+    // (".../<hash>/-1/") and no behaviorHints.filename. Selecting one only ever
+    // plays the proxy's static "No Matching File" placeholder. Device-verified:
+    // every such entry has BOTH markers, and no real (filename-bearing) entry does.
+    private fun isUnresolvedProxyEntry(stream: StremioStream, infoHash: String?, normalizedUrl: String?): Boolean {
+        val hasNoFilename = stream.behaviorHints?.filename.isNullOrBlank()
+        val isNoFileIndexUrl = normalizedUrl != null &&
+            !normalizedUrl.startsWith("magnet:", ignoreCase = true) &&
+            NO_FILE_INDEX_REGEX.containsMatchIn(normalizedUrl)
+        return infoHash == null && hasNoFilename && isNoFileIndexUrl
+    }
+
+    private fun buildStreamExtras(manifest: StremioManifest, stream: StremioStream): Map<String, Any?> =
+        buildMap {
+            put("providerName", manifest.name ?: manifest.id ?: "Stremio")
+            put("definitionType", "stremio_manifest")
+            stream.description?.let { put("description", it) }
+            stream.name?.let { put("sourceName", it) }
+            stream.fileIdx?.let { put("fileIdx", it) }
+            stream.behaviorHints?.bingeGroup?.let { put("bingeGroup", it) }
+            manifest.id?.let { put("stremioAddonId", it) }
+        }
 
     private fun isValidManifestUrl(url: String): Boolean {
         val lower = url.lowercase()

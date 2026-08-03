@@ -92,141 +92,158 @@ class CompanionConfigServer @Inject constructor(
                     }
                 }
                 routing {
-                    // Manual static file serving for API 21-25 compatibility
-                    // Avoids JarEntry.getLastModifiedTime() crash on older devices
-                    get("/") {
-                        val stream = javaClass.classLoader.getResourceAsStream("web/index.html")
-                        if (stream != null) {
-                            call.respondBytes(stream.readBytes(), ContentType.Text.Html)
-                        } else {
-                            call.respond(HttpStatusCode.NotFound)
-                        }
-                    }
+                    webAndStatusRoutes()
 
-                    get("/{static_path...}") {
-                        val path = call.parameters.getAll("static_path")?.joinToString("/") ?: ""
-                        val resourcePath = "web/$path"
-                        val stream = javaClass.classLoader.getResourceAsStream(resourcePath)
-                        
-                        if (stream != null) {
-                            val mimeType = ContentType.fromFilePath(resourcePath).firstOrNull() 
-                                ?: ContentType.Application.OctetStream
-                            call.respondBytes(stream.readBytes(), mimeType)
-                        } else {
-                            // SPA fallback: return index.html for unknown virtual routes
-                            val indexStream = javaClass.classLoader.getResourceAsStream("web/index.html")
-                            if (indexStream != null) {
-                                call.respondBytes(indexStream.readBytes(), ContentType.Text.Html)
-                            } else {
-                                call.respond(HttpStatusCode.NotFound)
-                            }
-                        }
-                    }
-
-                    // Health check endpoint
-                    get("/api/status") {
-                        call.respond(mapOf(
-                            "status" to "online",
-                            "device" to "DebridXtream TV",
-                            "version" to "1.0"
-                        ))
-                    }
-                    
                     // Main configuration endpoint
-                    post("/api/config") {
-                        try {
-                            if (!isRequestFromLocalNetwork(call)) {
-                                call.respond(HttpStatusCode.Forbidden, mapOf(
-                                    "success" to false,
-                                    "message" to "Companion config is only available from the local network"
-                                ))
-                                return@post
-                            }
-
-                            val now = System.currentTimeMillis()
-                            val lockoutUntilMs = synchronized(pinAbuseLock) { pinLockoutUntilMs }
-                            if (now < lockoutUntilMs) {
-                                val retryAfterSeconds = ((lockoutUntilMs - now + 999) / 1000).coerceAtLeast(1)
-                                call.response.headers.append(HttpHeaders.RetryAfter, retryAfterSeconds.toString())
-                                call.respond(HttpStatusCode.TooManyRequests, mapOf(
-                                    "success" to false,
-                                    "message" to "Too many incorrect PIN attempts. Try again in ${retryAfterSeconds}s."
-                                ))
-                                return@post
-                            }
-
-                            val pinHeader = call.request.header("X-Pairing-PIN")
-                            if (pinHeader != currentPin) {
-                                val lockoutTriggered = synchronized(pinAbuseLock) {
-                                    wrongPinAttempts += 1
-                                    if (wrongPinAttempts >= maxWrongPinAttempts) {
-                                        wrongPinAttempts = 0
-                                        pinLockoutUntilMs = now + pinLockoutDurationMs
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                }
-
-                                if (lockoutTriggered) {
-                                    call.response.headers.append(HttpHeaders.RetryAfter, (pinLockoutDurationMs / 1000).toString())
-                                    call.respond(HttpStatusCode.TooManyRequests, mapOf(
-                                        "success" to false,
-                                        "message" to "Too many incorrect PIN attempts. Try again in ${pinLockoutDurationMs / 1000}s."
-                                    ))
-                                } else {
-                                    call.respond(HttpStatusCode.Unauthorized, mapOf(
-                                        "success" to false,
-                                        "message" to "Incorrect or missing X-Pairing-PIN"
-                                    ))
-                                }
-                                return@post
-                            }
-
-                            synchronized(pinAbuseLock) {
-                                wrongPinAttempts = 0
-                                pinLockoutUntilMs = 0L
-                            }
-
-                            val payload = call.receive<CompanionConfigPayload>()
-                            
-                            // Validate IPTV credentials before saving
-                            if (payload.iptv != null && payload.iptv.serverUrl.isNotBlank() && payload.iptv.username.isNotBlank()) {
-                                val validation = validateIptvCredentials(payload.iptv)
-                                if (!validation.success) {
-                                    call.respond(HttpStatusCode.BadRequest, mapOf(
-                                        "success" to false, 
-                                        "message" to "IPTV Validation Failed: ${validation.message}"
-                                    ))
-                                    return@post
-                                }
-                            }
-                            
-                            saveConfiguration(payload)
-                            
-                            // Notify listeners on the main thread
-                            withContext(Dispatchers.Main) {
-                                onConfigSynced?.invoke()
-                            }
-                            
-                            call.respond(mapOf(
-                                "success" to true, 
-                                "message" to "Configuration synced successfully! TV app will reload now."
-                            ))
-                        } catch (e: Exception) {
-                            Log.e("CompanionServer", "Failed to parse or validate config payload", e)
-                            call.respond(HttpStatusCode.BadRequest, mapOf(
-                                "success" to false, 
-                                "message" to "Invalid config payload"
-                            ))
-                        }
-                    }
+                    post("/api/config") { handleConfigPost(call) }
                 }
             }.start(wait = false)
             Log.d("CompanionServer", "Server started successfully on port 8085")
         } catch (e: Exception) {
             Log.e("CompanionServer", "Failed to start server", e)
         }
+    }
+
+    // Manual static file serving for API 21-25 compatibility
+    // Avoids JarEntry.getLastModifiedTime() crash on older devices
+    private fun Route.webAndStatusRoutes() {
+        get("/") {
+            val stream = javaClass.classLoader.getResourceAsStream("web/index.html")
+            if (stream != null) {
+                call.respondBytes(stream.readBytes(), ContentType.Text.Html)
+            } else {
+                call.respond(HttpStatusCode.NotFound)
+            }
+        }
+
+        get("/{static_path...}") {
+            val path = call.parameters.getAll("static_path")?.joinToString("/") ?: ""
+            val resourcePath = "web/$path"
+            val stream = javaClass.classLoader.getResourceAsStream(resourcePath)
+
+            if (stream != null) {
+                val mimeType = ContentType.fromFilePath(resourcePath).firstOrNull()
+                    ?: ContentType.Application.OctetStream
+                call.respondBytes(stream.readBytes(), mimeType)
+            } else {
+                // SPA fallback: return index.html for unknown virtual routes
+                val indexStream = javaClass.classLoader.getResourceAsStream("web/index.html")
+                if (indexStream != null) {
+                    call.respondBytes(indexStream.readBytes(), ContentType.Text.Html)
+                } else {
+                    call.respond(HttpStatusCode.NotFound)
+                }
+            }
+        }
+
+        // Health check endpoint
+        get("/api/status") {
+            call.respond(mapOf(
+                "status" to "online",
+                "device" to "DebridXtream TV",
+                "version" to "1.0"
+            ))
+        }
+    }
+
+    // The /api/config handler, verbatim: local-network gate, PIN lockout/verification,
+    // optional IPTV validation, then save + notify.
+    private suspend fun handleConfigPost(call: ApplicationCall) {
+        try {
+            if (!isRequestFromLocalNetwork(call)) {
+                call.respond(HttpStatusCode.Forbidden, mapOf(
+                    "success" to false,
+                    "message" to "Companion config is only available from the local network"
+                ))
+                return
+            }
+
+            if (rejectIfPinLockedOut(call)) return
+            if (rejectIfPinWrong(call)) return
+
+            synchronized(pinAbuseLock) {
+                wrongPinAttempts = 0
+                pinLockoutUntilMs = 0L
+            }
+
+            val payload = call.receive<CompanionConfigPayload>()
+
+            // Validate IPTV credentials before saving
+            if (payload.iptv != null && payload.iptv.serverUrl.isNotBlank() && payload.iptv.username.isNotBlank()) {
+                val validation = validateIptvCredentials(payload.iptv)
+                if (!validation.success) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf(
+                        "success" to false,
+                        "message" to "IPTV Validation Failed: ${validation.message}"
+                    ))
+                    return
+                }
+            }
+
+            saveConfiguration(payload)
+
+            // Notify listeners on the main thread
+            withContext(Dispatchers.Main) {
+                onConfigSynced?.invoke()
+            }
+
+            call.respond(mapOf(
+                "success" to true,
+                "message" to "Configuration synced successfully! TV app will reload now."
+            ))
+        } catch (e: Exception) {
+            Log.e("CompanionServer", "Failed to parse or validate config payload", e)
+            call.respond(HttpStatusCode.BadRequest, mapOf(
+                "success" to false,
+                "message" to "Invalid config payload"
+            ))
+        }
+    }
+
+    // 429 with Retry-After while a lockout window is active. True = request handled.
+    private suspend fun rejectIfPinLockedOut(call: ApplicationCall): Boolean {
+        val now = System.currentTimeMillis()
+        val lockoutUntilMs = synchronized(pinAbuseLock) { pinLockoutUntilMs }
+        if (now >= lockoutUntilMs) return false
+        val retryAfterSeconds = ((lockoutUntilMs - now + 999) / 1000).coerceAtLeast(1)
+        call.response.headers.append(HttpHeaders.RetryAfter, retryAfterSeconds.toString())
+        call.respond(HttpStatusCode.TooManyRequests, mapOf(
+            "success" to false,
+            "message" to "Too many incorrect PIN attempts. Try again in ${retryAfterSeconds}s."
+        ))
+        return true
+    }
+
+    // Wrong/missing PIN: 401, or 429 when this attempt tripped the lockout. True = handled.
+    private suspend fun rejectIfPinWrong(call: ApplicationCall): Boolean {
+        val pinHeader = call.request.header("X-Pairing-PIN")
+        if (pinHeader == currentPin) return false
+
+        val now = System.currentTimeMillis()
+        val lockoutTriggered = synchronized(pinAbuseLock) {
+            wrongPinAttempts += 1
+            if (wrongPinAttempts >= maxWrongPinAttempts) {
+                wrongPinAttempts = 0
+                pinLockoutUntilMs = now + pinLockoutDurationMs
+                true
+            } else {
+                false
+            }
+        }
+
+        if (lockoutTriggered) {
+            call.response.headers.append(HttpHeaders.RetryAfter, (pinLockoutDurationMs / 1000).toString())
+            call.respond(HttpStatusCode.TooManyRequests, mapOf(
+                "success" to false,
+                "message" to "Too many incorrect PIN attempts. Try again in ${pinLockoutDurationMs / 1000}s."
+            ))
+        } else {
+            call.respond(HttpStatusCode.Unauthorized, mapOf(
+                "success" to false,
+                "message" to "Incorrect or missing X-Pairing-PIN"
+            ))
+        }
+        return true
     }
 
     private suspend fun validateIptvCredentials(iptv: IptvConfig): ValidationResult {

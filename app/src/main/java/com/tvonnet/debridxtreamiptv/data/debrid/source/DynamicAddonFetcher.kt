@@ -201,21 +201,10 @@ class DynamicAddonFetcher @Inject constructor(
     private fun parseStream(definition: AddonDefinition, element: JsonElement): AddonStream? {
         val obj = element.asJsonObject
 
-        // ── Extract info hash or URL ─────────────────────────────────────
-        val infoHash = definition.infoHashTargetKey?.let { key ->
-            resolveJsonPath(obj, key)?.asString?.trim()?.takeIf { it.length >= 32 }
-        }
-
-        val httpUrl = definition.httpUrlTargetKey?.let { key ->
-            resolveJsonPath(obj, key)?.asString?.trim()?.takeIf { it.isNotBlank() }
-        }
-
-        // Also check for a top-level "url" regardless of definition settings
-        val directUrl = httpUrl
-            ?: obj.get("url")?.asString?.trim()?.takeIf { it.isNotBlank() }
+        val links = resolveStreamLinks(definition, obj)
 
         // ── Require at least one link source ──────────────────────────────
-        if (infoHash == null && directUrl.isNullOrBlank()) {
+        if (links.infoHash == null && links.directUrl.isNullOrBlank()) {
             return null
         }
 
@@ -239,15 +228,8 @@ class DynamicAddonFetcher @Inject constructor(
         // ── Seeders ──────────────────────────────────────────────────────
         val seeders = obj.get("seeders")?.asInt ?: extractSeedersFromText(displayTitle)
 
-        // ── Magnet link ──────────────────────────────────────────────────
-        val magnet = when {
-            !infoHash.isNullOrBlank() -> "magnet:?xt=urn:btih:$infoHash"
-            !directUrl.isNullOrBlank() && directUrl.startsWith("magnet:", ignoreCase = true) -> directUrl
-            else -> null
-        }
-
         // ── URL (for direct http streams, e.g. MediaFusion) ──────────────
-        val streamUrl = directUrl?.replace("stremio://", "https://")
+        val streamUrl = links.directUrl?.replace("stremio://", "https://")
 
         // ── Extras ───────────────────────────────────────────────────────
         val extras = mutableMapOf<String, Any?>(
@@ -260,8 +242,8 @@ class DynamicAddonFetcher @Inject constructor(
             source = AddonSourceType.DYNAMIC,
             title = displayTitle,
             url = streamUrl,
-            infoHash = infoHash,
-            magnet = magnet,
+            infoHash = links.infoHash,
+            magnet = links.magnet,
             sizeBytes = sizeBytes,
             seeders = seeders,
             peers = obj.get("peers")?.asInt ?: 0,
@@ -270,6 +252,32 @@ class DynamicAddonFetcher @Inject constructor(
             subtitles = emptyList(),
             extras = extras
         )
+    }
+
+    /** The three link forms one JSON entry can carry, resolved once, verbatim rules. */
+    private class StreamLinks(val infoHash: String?, val directUrl: String?, val magnet: String?)
+
+    private fun resolveStreamLinks(definition: AddonDefinition, obj: com.google.gson.JsonObject): StreamLinks {
+        // ── Extract info hash or URL ─────────────────────────────────────
+        val infoHash = definition.infoHashTargetKey?.let { key ->
+            resolveJsonPath(obj, key)?.asString?.trim()?.takeIf { it.length >= 32 }
+        }
+
+        val httpUrl = definition.httpUrlTargetKey?.let { key ->
+            resolveJsonPath(obj, key)?.asString?.trim()?.takeIf { it.isNotBlank() }
+        }
+
+        // Also check for a top-level "url" regardless of definition settings
+        val directUrl = httpUrl
+            ?: obj.get("url")?.asString?.trim()?.takeIf { it.isNotBlank() }
+
+        // ── Magnet link ──────────────────────────────────────────────────
+        val magnet = when {
+            !infoHash.isNullOrBlank() -> "magnet:?xt=urn:btih:$infoHash"
+            !directUrl.isNullOrBlank() && directUrl.startsWith("magnet:", ignoreCase = true) -> directUrl
+            else -> null
+        }
+        return StreamLinks(infoHash, directUrl, magnet)
     }
 
     // ── JSON Helpers ─────────────────────────────────────────────────────

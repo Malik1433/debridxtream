@@ -109,26 +109,7 @@ object UpdateManager {
                 val apk = File(dir, "app-update.apk")
                 if (apk.exists()) apk.delete()
 
-                http.newCall(Request.Builder().url(apkUrl).build()).execute().use { resp ->
-                    if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}")
-                    val body = resp.body ?: throw IllegalStateException("empty body")
-                    val total = body.contentLength()
-                    body.byteStream().use { input ->
-                        apk.outputStream().use { out ->
-                            val buf = ByteArray(64 * 1024)
-                            var read: Int
-                            var done = 0L
-                            while (input.read(buf).also { read = it } != -1) {
-                                out.write(buf, 0, read)
-                                done += read
-                                if (total > 0) {
-                                    val pct = ((done * 100) / total).toInt()
-                                    withContext(Dispatchers.Main) { progress.progress = pct }
-                                }
-                            }
-                        }
-                    }
-                }
+                streamApkTo(apk, apkUrl, progress)
 
                 withContext(Dispatchers.Main) {
                     progress.dismiss()
@@ -138,16 +119,59 @@ object UpdateManager {
                 Log.e(TAG, "update download failed", e)
                 withContext(Dispatchers.Main) {
                     progress.dismiss()
-                    AlertDialog.Builder(activity)
-                        .setTitle("Update failed")
-                        .setMessage("Could not download the update. Please try again later.\n(${e.message})")
-                        .setCancelable(!forced)
-                        .setPositiveButton("Retry") { _, _ -> download(activity, apkUrl, forced) }
-                        .apply { if (!forced) setNegativeButton("Later", null) }
-                        .show()
+                    showDownloadFailedDialog(activity, apkUrl, forced, e)
                 }
             }
         }
+    }
+
+    // Streams the APK to disk in 64K chunks, publishing percent progress to the dialog.
+    @Suppress("DEPRECATION")
+    private suspend fun streamApkTo(apk: File, apkUrl: String, progress: ProgressDialog) {
+        http.newCall(Request.Builder().url(apkUrl).build()).execute().use { resp ->
+            if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}")
+            val body = resp.body ?: throw IllegalStateException("empty body")
+            copyBodyToFile(body, apk, progress)
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private suspend fun copyBodyToFile(body: okhttp3.ResponseBody, apk: File, progress: ProgressDialog) {
+        val total = body.contentLength()
+        body.byteStream().use { input ->
+            apk.outputStream().use { out -> copyLoop(input, out, total, progress) }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private suspend fun copyLoop(
+        input: java.io.InputStream,
+        out: java.io.OutputStream,
+        total: Long,
+        progress: ProgressDialog
+    ) {
+        val buf = ByteArray(64 * 1024)
+        var read: Int
+        var done = 0L
+        while (input.read(buf).also { read = it } != -1) {
+            out.write(buf, 0, read)
+            done += read
+            if (total > 0) {
+                val pct = ((done * 100) / total).toInt()
+                withContext(Dispatchers.Main) { progress.progress = pct }
+            }
+        }
+    }
+
+    // A forced update may not be dismissed — retry is the only way forward, as before.
+    private fun showDownloadFailedDialog(activity: Activity, apkUrl: String, forced: Boolean, e: Exception) {
+        AlertDialog.Builder(activity)
+            .setTitle("Update failed")
+            .setMessage("Could not download the update. Please try again later.\n(${e.message})")
+            .setCancelable(!forced)
+            .setPositiveButton("Retry") { _, _ -> download(activity, apkUrl, forced) }
+            .apply { if (!forced) setNegativeButton("Later", null) }
+            .show()
     }
 
     private fun installApk(activity: Activity, apk: File) {

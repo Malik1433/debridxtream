@@ -16,51 +16,57 @@ object CompanionConfigApplier {
     fun apply(context: Context, data: Map<String, Any>?): Boolean {
         if (data == null) return false
 
-        val iptv = data["iptv"] as? Map<*, *>
-        val debridTokenLegacy = data["debrid"] as? String
-        val mediafusionLegacy = data["mediafusion"] as? String
-        val debridConfig = data["debridConfig"] as? Map<*, *>
-        val stremioUrlsLegacy = data["stremioAddonUrls"] as? List<*>
-
-        // Save IPTV config with loggedIn=false so LoginFragment triggers its own validation/login flow.
-        var iptvApplied = false
-        iptv?.let {
-            val server = it["url"] as? String
-            val username = it["username"] as? String
-            val password = it["password"] as? String
-
-            val safeServer = server?.let { url -> CompanionUrlValidator.normalizeSafeHttpUrl(url) }
-            if (safeServer != null && username != null && password != null) {
-                CredentialsPreferences(context.applicationContext)
-                    .saveSyncedCredentials(safeServer, username, password)
-                iptvApplied = true
-            }
-        }
+        val iptvApplied = applyIptvConfig(context, data["iptv"] as? Map<*, *>)
 
         val debridPrefs = DebridPreferences(context.applicationContext)
+        applyDebridConfig(debridPrefs, data["debridConfig"] as? Map<*, *>)
+        applyLegacyDebridFields(debridPrefs, data)
 
-        // New schema: debridConfig { token, mediaFusionUrl, stremioAddonUrls }
-        debridConfig?.let { cfg ->
-            val token = cfg["token"] as? String
-            val mediaFusionUrl = cfg["mediaFusionUrl"] as? String
-            val stremioAddonUrls = CompanionUrlValidator.normalizeSafeAddonUrls(
-                (cfg["stremioAddonUrls"] as? List<*>)
-                    ?.mapNotNull { it as? String }
-            )
+        return iptvApplied
+    }
 
-            if (!token.isNullOrBlank()) {
-                debridPrefs.saveRealDebridToken(token)
-            }
-            val safeMediaFusionUrl = mediaFusionUrl?.let { CompanionUrlValidator.normalizeSafeHttpUrl(it) }
-            if (safeMediaFusionUrl != null) {
-                debridPrefs.saveMediaFusionUrl(safeMediaFusionUrl)
-            }
-            if (stremioAddonUrls.isNotEmpty()) {
-                debridPrefs.setStremioAddonUrls(stremioAddonUrls)
-            }
+    // Save IPTV config with loggedIn=false so LoginFragment triggers its own validation/login flow.
+    private fun applyIptvConfig(context: Context, iptv: Map<*, *>?): Boolean {
+        if (iptv == null) return false
+        val server = iptv["url"] as? String
+        val username = iptv["username"] as? String
+        val password = iptv["password"] as? String
+
+        val safeServer = server?.let { url -> CompanionUrlValidator.normalizeSafeHttpUrl(url) }
+        if (safeServer == null || username == null || password == null) return false
+        CredentialsPreferences(context.applicationContext)
+            .saveSyncedCredentials(safeServer, username, password)
+        return true
+    }
+
+    // New schema: debridConfig { token, mediaFusionUrl, stremioAddonUrls }
+    private fun applyDebridConfig(debridPrefs: DebridPreferences, cfg: Map<*, *>?) {
+        if (cfg == null) return
+        val token = cfg["token"] as? String
+        val mediaFusionUrl = cfg["mediaFusionUrl"] as? String
+        val stremioAddonUrls = CompanionUrlValidator.normalizeSafeAddonUrls(
+            (cfg["stremioAddonUrls"] as? List<*>)
+                ?.mapNotNull { it as? String }
+        )
+
+        if (!token.isNullOrBlank()) {
+            debridPrefs.saveRealDebridToken(token)
         }
+        val safeMediaFusionUrl = mediaFusionUrl?.let { CompanionUrlValidator.normalizeSafeHttpUrl(it) }
+        if (safeMediaFusionUrl != null) {
+            debridPrefs.saveMediaFusionUrl(safeMediaFusionUrl)
+        }
+        if (stremioAddonUrls.isNotEmpty()) {
+            debridPrefs.setStremioAddonUrls(stremioAddonUrls)
+        }
+    }
 
-        // Legacy fields (backward compatible)
+    // Legacy fields (backward compatible)
+    private fun applyLegacyDebridFields(debridPrefs: DebridPreferences, data: Map<String, Any>) {
+        val debridTokenLegacy = data["debrid"] as? String
+        val mediafusionLegacy = data["mediafusion"] as? String
+        val stremioUrlsLegacy = data["stremioAddonUrls"] as? List<*>
+
         debridTokenLegacy?.takeIf { it.isNotBlank() }?.let { debridPrefs.saveRealDebridToken(it) }
         mediafusionLegacy
             ?.let { CompanionUrlValidator.normalizeSafeHttpUrl(it) }
@@ -72,7 +78,5 @@ object CompanionConfigApplier {
         if (stremioAddonUrls.isNotEmpty()) {
             debridPrefs.setStremioAddonUrls(stremioAddonUrls)
         }
-
-        return iptvApplied
     }
 }
