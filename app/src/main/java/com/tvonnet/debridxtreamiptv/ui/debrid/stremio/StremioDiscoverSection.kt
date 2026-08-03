@@ -162,23 +162,29 @@ internal class StremioDiscoverSection(
         }
     }
 
+    private fun isPillActive(key: String): Boolean = when (key) {
+        "source" -> srcLabel.isNotEmpty() && srcLabel != "Popular"
+        "region" -> regionLabel.isNotEmpty()
+        "genre" -> genreLabel.isNotEmpty()
+        else -> yearLabel.isNotEmpty()
+    }
+
+    private fun pillRestingBg(active: Boolean, key: String): GradientDrawable = GradientDrawable().apply {
+        cornerRadius = 6 * d
+        setColor(if (active) 0x1F00F0FF else if (expanded == key) 0x14FFFFFF else 0x0DFFFFFF)
+        setStroke((1 * d).toInt(), if (active) 0x7300F0FF else 0x1AFFFFFF)
+    }
+
     private fun stylePill(pill: LinearLayout, key: String) {
         val focused = pill.hasFocus()
-        val active = when (key) {
-            "source" -> srcLabel.isNotEmpty() && srcLabel != "Popular"
-            "region" -> regionLabel.isNotEmpty(); "genre" -> genreLabel.isNotEmpty(); else -> yearLabel.isNotEmpty()
-        }
+        val active = isPillActive(key)
         val label = pill.getChildAt(0) as TextView
         label.text = pillLabel(key)
         val fg = when { focused -> 0xFFFFFFFF.toInt(); active -> 0xFF00F0FF.toInt(); else -> 0xFF94A3B8.toInt() }
         label.setTextColor(fg)
         StremioFonts.apply(label, if (active || focused) R.font.outfit_bold else R.font.outfit_medium)
         (pill.getChildAt(1) as ImageView).setColorFilter(fg)
-        pill.background = if (focused) glowBg(6f) else GradientDrawable().apply {
-            cornerRadius = 6 * d
-            setColor(if (active) 0x1F00F0FF else if (expanded == key) 0x14FFFFFF else 0x0DFFFFFF)
-            setStroke((1 * d).toInt(), if (active) 0x7300F0FF else 0x1AFFFFFF)
-        }
+        pill.background = if (focused) glowBg(6f) else pillRestingBg(active, key)
     }
 
     private fun pillLabel(key: String) = when (key) {
@@ -202,45 +208,48 @@ internal class StremioDiscoverSection(
         if (expanded.isEmpty()) { expandPanel.isVisible = false; return }
         expandPanel.isVisible = true
         val activePill = pillsRow.getChildAt(pills.indexOf(expanded))
-        val opts: List<Pair<String, () -> Unit>> = when (expanded) {
-            "source" -> listOf<Pair<String, () -> Unit>>(
-                "Movies" to { srcLabel = "Movies"; vm.setType("movie") },
-                "Series" to { srcLabel = "Series"; vm.setType("series") }
-            ) + vm.catalogueOptions.map { c -> c.label to { srcLabel = c.label; vm.setCatalogue(c.value) } }
-            "region" -> vm.regions.map { r -> r.label to { regionLabel = if (r.code == null) "" else r.label; vm.setCustomFilters(r.code, null, null); vm.reload() } }
-            "genre" -> listOf<Pair<String, () -> Unit>>("All" to { genreLabel = ""; vm.setGenre(null) }) +
-                genres.map { g -> (g.name ?: "") to { genreLabel = g.name ?: ""; vm.setGenre(g.id) } }
-            else -> listOf<Pair<String, () -> Unit>>("All" to { yearLabel = ""; vm.setYear(null) }) +
-                vm.yearOptions.filterNotNull().map { y -> y.toString() to { yearLabel = y.toString(); vm.setYear(y) } }
-        }
         val flow = com.google.android.flexbox.FlexboxLayout(ctx).apply {
             flexWrap = com.google.android.flexbox.FlexWrap.WRAP
         }
-        opts.forEach { (label, onSel) ->
-            val restingBg = GradientDrawable().apply { cornerRadius = 4 * d; setColor(0x0FFFFFFF); setStroke((1 * d).toInt(), 0x1AFFFFFF) }
-            val chip = TextView(ctx).apply {
-                text = label; textSize = 6f; gravity = Gravity.CENTER; includeFontPadding = false
-                setTextColor(0xFF94A3B8.toInt())
-                setPadding((7 * d).toInt(), 0, (7 * d).toInt(), 0)
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, (16 * d).toInt())
-                    .apply { marginEnd = (4 * d).toInt(); bottomMargin = (4 * d).toInt() }
-                isFocusable = true
-                background = restingBg
-                nextFocusUpId = activePill?.id ?: View.NO_ID   // UP from an option → its pill
-                setOnClickListener { onSel(); expanded = ""; renderPills(); activePill?.requestFocus() }
-                setOnFocusChangeListener { v, has ->
-                    (v as TextView).setTextColor(if (has) 0xFFFFFFFF.toInt() else 0xFF94A3B8.toInt())
-                    v.background = if (has) glowBg(4f) else restingBg
-                    applyGlow(v, has)
-                }
-            }
-            flow.addView(chip)
-        }
+        expandOptions().forEach { (label, onSel) -> flow.addView(buildOptionChip(label, onSel, activePill)) }
         expandPanel.addView(flow)
         // While open, the active pill's DOWN drops into the first option.
         flow.getChildAt(0)?.let {
             if (it.id == View.NO_ID) it.id = View.generateViewId()
             activePill?.nextFocusDownId = it.id
+        }
+    }
+
+    // The option list for the expanded pill; each entry applies its filter on selection, verbatim.
+    private fun expandOptions(): List<Pair<String, () -> Unit>> = when (expanded) {
+        "source" -> listOf<Pair<String, () -> Unit>>(
+            "Movies" to { srcLabel = "Movies"; vm.setType("movie") },
+            "Series" to { srcLabel = "Series"; vm.setType("series") }
+        ) + vm.catalogueOptions.map { c -> c.label to { srcLabel = c.label; vm.setCatalogue(c.value) } }
+        "region" -> vm.regions.map { r -> r.label to { regionLabel = if (r.code == null) "" else r.label; vm.setCustomFilters(r.code, null, null); vm.reload() } }
+        "genre" -> listOf<Pair<String, () -> Unit>>("All" to { genreLabel = ""; vm.setGenre(null) }) +
+            genres.map { g -> (g.name ?: "") to { genreLabel = g.name ?: ""; vm.setGenre(g.id) } }
+        else -> listOf<Pair<String, () -> Unit>>("All" to { yearLabel = ""; vm.setYear(null) }) +
+            vm.yearOptions.filterNotNull().map { y -> y.toString() to { yearLabel = y.toString(); vm.setYear(y) } }
+    }
+
+    private fun buildOptionChip(label: String, onSel: () -> Unit, activePill: View?): TextView {
+        val restingBg = GradientDrawable().apply { cornerRadius = 4 * d; setColor(0x0FFFFFFF); setStroke((1 * d).toInt(), 0x1AFFFFFF) }
+        return TextView(ctx).apply {
+            text = label; textSize = 6f; gravity = Gravity.CENTER; includeFontPadding = false
+            setTextColor(0xFF94A3B8.toInt())
+            setPadding((7 * d).toInt(), 0, (7 * d).toInt(), 0)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, (16 * d).toInt())
+                .apply { marginEnd = (4 * d).toInt(); bottomMargin = (4 * d).toInt() }
+            isFocusable = true
+            background = restingBg
+            nextFocusUpId = activePill?.id ?: View.NO_ID   // UP from an option → its pill
+            setOnClickListener { onSel(); expanded = ""; renderPills(); activePill?.requestFocus() }
+            setOnFocusChangeListener { v, has ->
+                (v as TextView).setTextColor(if (has) 0xFFFFFFFF.toInt() else 0xFF94A3B8.toInt())
+                v.background = if (has) glowBg(4f) else restingBg
+                applyGlow(v, has)
+            }
         }
     }
 }

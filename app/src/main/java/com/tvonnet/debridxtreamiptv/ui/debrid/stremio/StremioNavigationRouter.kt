@@ -104,49 +104,83 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
 
         frag.viewLifecycleOwner.lifecycleScope.launch {
             when (item.contentType) {
-                ContentType.MOVIE, ContentType.EPISODE -> {
-                    val serverUrl = frag.credentialsPrefs.getServerUrl() ?: ""
-                    val canResumeDirectly = (streamUrl != null && !expired) ||
-                        (isDebrid && hasResolutionInfo) || canFreshResolveDirectDebrid
-                    if (!canResumeDirectly) {
-                        openContinueWatchingDetail(item)
-                        return@launch
-                    }
-                    val resumeSeriesId = if (item.contentType == ContentType.EPISODE) {
-                        item.seriesId?.takeIf { it.isNotBlank() }
-                            ?: if (!isDebrid) resolveIptvSeriesIdForContinueWatching(item) else null
-                    } else null
-                    val intent = PlayerActivity.createIntent(
-                        context = context,
-                        streamUrl = if (canFreshResolveDirectDebrid) "" else streamUrl ?: "",
-                        title = item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title,
-                        startPositionMs = item.currentPosition,
-                        contentId = item.tmdbId?.takeIf { it.isNotBlank() } ?: item.contentId,
-                        contentType = item.contentType,
-                        playbackSource = if (isDebrid) {
-                            com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID
-                        } else {
-                            com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.IPTV
-                        },
-                        posterUrl = item.posterUrl, backdropUrl = item.backdropUrl,
-                        tmdbId = item.tmdbId, imdbId = item.imdbId,
-                        seriesTitle = item.seriesTitle, episodeTitle = item.episodeTitle,
-                        seasonNumber = item.seasonNumber, episodeNumber = item.episodeNumber,
-                        debridInfoHash = item.debridInfoHash, debridMagnet = item.debridMagnet,
-                        directDebridPlayback = item.directDebridPlayback,
-                        debridProvider = item.debridProvider, debridSourceType = item.debridSourceType,
-                        debridSourceName = item.debridSourceName, debridLanguages = item.debridLanguages,
-                        debridQuality = item.debridQuality, debridStreamId = item.debridStreamId,
-                        debridBingeGroup = item.debridBingeGroup, debridFileIdx = item.debridFileIdx,
-                        expiresAt = item.expiresAt, baseServerUrl = serverUrl, seriesId = resumeSeriesId
-                    )
-                    frag.startActivity(intent)
-                }
+                ContentType.MOVIE, ContentType.EPISODE -> resumeOrOpenCwDetail(
+                    frag, item,
+                    CwResumeFacts(streamUrl, isDebrid, hasResolutionInfo, canFreshResolveDirectDebrid, expired)
+                )
                 ContentType.SERIES -> openContinueWatchingDetail(item)
                 else -> showHomeActionUnavailable()
             }
         }
     }
+
+    /** The click-time resume facts for a Continue Watching card, computed once. */
+    private data class CwResumeFacts(
+        val streamUrl: String?,
+        val isDebrid: Boolean,
+        val hasResolutionInfo: Boolean,
+        val canFreshResolveDirectDebrid: Boolean,
+        val expired: Boolean,
+    )
+
+    // The resume rule (play-then-repair): play the link we hold, or anything the player can
+    // repair/re-resolve itself; only a card with nothing playable falls back to the detail page.
+    private suspend fun resumeOrOpenCwDetail(
+        frag: StremioHomeFragment,
+        item: ContinueWatchingItem,
+        facts: CwResumeFacts
+    ) {
+        val context = frag.context ?: return
+        val serverUrl = frag.credentialsPrefs.getServerUrl() ?: ""
+        val canResumeDirectly = (facts.streamUrl != null && !facts.expired) ||
+            (facts.isDebrid && facts.hasResolutionInfo) || facts.canFreshResolveDirectDebrid
+        if (!canResumeDirectly) {
+            openContinueWatchingDetail(item)
+            return
+        }
+        val resumeSeriesId = resumeSeriesIdFor(item, facts.isDebrid)
+        frag.startActivity(buildCwResumeIntent(context, item, facts, serverUrl, resumeSeriesId))
+    }
+
+    private suspend fun resumeSeriesIdFor(item: ContinueWatchingItem, isDebrid: Boolean): String? =
+        if (item.contentType == ContentType.EPISODE) {
+            item.seriesId?.takeIf { it.isNotBlank() }
+                ?: if (!isDebrid) resolveIptvSeriesIdForContinueWatching(item) else null
+        } else {
+            null
+        }
+
+    // The direct-resume intent, verbatim — startPositionMs and every debrid extra travel.
+    private fun buildCwResumeIntent(
+        context: android.content.Context,
+        item: ContinueWatchingItem,
+        facts: CwResumeFacts,
+        serverUrl: String,
+        resumeSeriesId: String?
+    ): Intent = PlayerActivity.createIntent(
+        context = context,
+        streamUrl = if (facts.canFreshResolveDirectDebrid) "" else facts.streamUrl ?: "",
+        title = item.seriesTitle?.takeIf { it.isNotBlank() } ?: item.title,
+        startPositionMs = item.currentPosition,
+        contentId = item.tmdbId?.takeIf { it.isNotBlank() } ?: item.contentId,
+        contentType = item.contentType,
+        playbackSource = if (facts.isDebrid) {
+            com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID
+        } else {
+            com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.IPTV
+        },
+        posterUrl = item.posterUrl, backdropUrl = item.backdropUrl,
+        tmdbId = item.tmdbId, imdbId = item.imdbId,
+        seriesTitle = item.seriesTitle, episodeTitle = item.episodeTitle,
+        seasonNumber = item.seasonNumber, episodeNumber = item.episodeNumber,
+        debridInfoHash = item.debridInfoHash, debridMagnet = item.debridMagnet,
+        directDebridPlayback = item.directDebridPlayback,
+        debridProvider = item.debridProvider, debridSourceType = item.debridSourceType,
+        debridSourceName = item.debridSourceName, debridLanguages = item.debridLanguages,
+        debridQuality = item.debridQuality, debridStreamId = item.debridStreamId,
+        debridBingeGroup = item.debridBingeGroup, debridFileIdx = item.debridFileIdx,
+        expiresAt = item.expiresAt, baseServerUrl = serverUrl, seriesId = resumeSeriesId
+    )
 
     fun showContinueWatchingActions(item: ContinueWatchingItem, anchor: android.view.View? = null) {
         val frag = fragment ?: return
@@ -220,52 +254,66 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
         val context = frag.context ?: return
         val isDebrid = item.source == "debrid"
         when (item.contentType) {
-            ContentType.MOVIE -> {
-                if (isDebrid) {
-                    val movieIntent = Intent(context, MovieDetailActivity::class.java).apply {
-                        putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.tmdbId ?: item.contentId)
-                        putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
-                        putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
-                        putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
-                        putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
-                        putExtra(MovieDetailActivity.EXTRA_SOURCE_RAIL, "Continue Watching")
-                    }
-                    frag.startActivity(movieIntent)
-                } else {
-                    navigateToFragment(
-                        MovieDetailFragmentV2.newInstance(
-                            streamId = item.contentId, title = item.title,
-                            backdropUrl = item.backdropUrl, posterUrl = item.posterUrl
-                        )
-                    )
-                }
-            }
-            ContentType.EPISODE, ContentType.SERIES -> {
-                val seriesId = if (isDebrid) {
-                    item.seriesId?.takeIf { it.isNotBlank() }
-                        ?: item.tmdbId?.takeIf { it.isNotBlank() } ?: item.contentId
-                } else {
-                    resolveIptvSeriesIdForContinueWatching(item) ?: item.contentId
-                }
-                if (isDebrid) {
-                    val seriesIntent = Intent(context, SeriesDetailActivity::class.java).apply {
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, seriesId)
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.seriesTitle ?: item.title)
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
-                        putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
-                    }
-                    frag.startActivity(seriesIntent)
-                } else {
-                    navigateToFragment(
-                        SeriesDetailFragmentV2.newInstance(
-                            seriesId = seriesId, title = item.seriesTitle ?: item.title,
-                            backdropUrl = item.backdropUrl, posterUrl = item.posterUrl
-                        )
-                    )
-                }
-            }
+            ContentType.MOVIE -> openCwMovieDetail(frag, context, item, isDebrid)
+            ContentType.EPISODE, ContentType.SERIES -> openCwSeriesDetail(frag, context, item, isDebrid)
             else -> showHomeActionUnavailable()
+        }
+    }
+
+    private fun openCwMovieDetail(
+        frag: StremioHomeFragment,
+        context: android.content.Context,
+        item: ContinueWatchingItem,
+        isDebrid: Boolean
+    ) {
+        if (isDebrid) {
+            val movieIntent = Intent(context, MovieDetailActivity::class.java).apply {
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.tmdbId ?: item.contentId)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
+                putExtra(MovieDetailActivity.EXTRA_SOURCE_RAIL, "Continue Watching")
+            }
+            frag.startActivity(movieIntent)
+        } else {
+            navigateToFragment(
+                MovieDetailFragmentV2.newInstance(
+                    streamId = item.contentId, title = item.title,
+                    backdropUrl = item.backdropUrl, posterUrl = item.posterUrl
+                )
+            )
+        }
+    }
+
+    private suspend fun openCwSeriesDetail(
+        frag: StremioHomeFragment,
+        context: android.content.Context,
+        item: ContinueWatchingItem,
+        isDebrid: Boolean
+    ) {
+        val seriesId = if (isDebrid) {
+            item.seriesId?.takeIf { it.isNotBlank() }
+                ?: item.tmdbId?.takeIf { it.isNotBlank() } ?: item.contentId
+        } else {
+            resolveIptvSeriesIdForContinueWatching(item) ?: item.contentId
+        }
+        if (isDebrid) {
+            val seriesIntent = Intent(context, SeriesDetailActivity::class.java).apply {
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, seriesId)
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.seriesTitle ?: item.title)
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
+                putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
+            }
+            frag.startActivity(seriesIntent)
+        } else {
+            navigateToFragment(
+                SeriesDetailFragmentV2.newInstance(
+                    seriesId = seriesId, title = item.seriesTitle ?: item.title,
+                    backdropUrl = item.backdropUrl, posterUrl = item.posterUrl
+                )
+            )
         }
     }
 
@@ -295,19 +343,40 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
                 Toast.makeText(frag.requireContext(), "Stream unavailable", Toast.LENGTH_SHORT).show()
                 return@launch
             }
-            val finalServerUrl = serverUrl ?: ""
-            val absoluteIcon = (stream?.stream_icon ?: fallbackLogo).toAbsoluteUrl(finalServerUrl)
-            val intent = PlayerActivity.createIntent(
-                context = frag.requireContext(), streamUrl = resolvedUrl,
-                title = fallbackTitle ?: stream?.name ?: frag.getString(R.string.player_epg_channel_unknown),
-                channelName = stream?.name ?: fallbackTitle, channelLogo = absoluteIcon,
-                epgChannelId = stream?.epg_channel_id?.takeIf { it.isNotBlank() } ?: epgChannelId ?: streamId,
-                contentId = stream?.stream_id ?: streamId ?: resolvedUrl,
-                contentType = ContentType.LIVE_TV, posterUrl = absoluteIcon,
-                liveCategoryId = stream?.category_id
+            frag.startActivity(
+                buildLiveIntent(
+                    frag, stream, resolvedUrl, serverUrl ?: "",
+                    LiveLaunchFallbacks(streamId, fallbackTitle, fallbackLogo, epgChannelId)
+                )
             )
-            frag.startActivity(intent)
         }
+    }
+
+    /** The caller-supplied fallbacks for a live launch when the DB row is missing fields. */
+    private data class LiveLaunchFallbacks(
+        val streamId: String?,
+        val title: String?,
+        val logo: String?,
+        val epgChannelId: String?,
+    )
+
+    private fun buildLiveIntent(
+        frag: StremioHomeFragment,
+        stream: XtreamStream?,
+        resolvedUrl: String,
+        serverUrl: String,
+        fallbacks: LiveLaunchFallbacks
+    ): Intent {
+        val absoluteIcon = (stream?.stream_icon ?: fallbacks.logo).toAbsoluteUrl(serverUrl)
+        return PlayerActivity.createIntent(
+            context = frag.requireContext(), streamUrl = resolvedUrl,
+            title = fallbacks.title ?: stream?.name ?: frag.getString(R.string.player_epg_channel_unknown),
+            channelName = stream?.name ?: fallbacks.title, channelLogo = absoluteIcon,
+            epgChannelId = stream?.epg_channel_id?.takeIf { it.isNotBlank() } ?: fallbacks.epgChannelId ?: fallbacks.streamId,
+            contentId = stream?.stream_id ?: fallbacks.streamId ?: resolvedUrl,
+            contentType = ContentType.LIVE_TV, posterUrl = absoluteIcon,
+            liveCategoryId = stream?.category_id
+        )
     }
 
     fun showHomeActionUnavailable() {

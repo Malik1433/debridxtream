@@ -59,13 +59,6 @@
     <ID>CyclomaticComplexMethod:SeriesSeasonUi.kt$SeriesSeasonUi$private fun loadSeasonWatchedProgress()</ID>
     <ID>CyclomaticComplexMethod:SpatialNavigationEngine.kt$SpatialNavigationEngine$private fun findNearestOrthogonalFocus(container: ViewGroup, current: View, direction: Int): View?</ID>
     <ID>CyclomaticComplexMethod:StremioAddonFetcher.kt$StremioAddonFetcher$private fun mapStream(manifest: StremioManifest, stream: StremioStream): AddonStream?</ID>
-    <ID>CyclomaticComplexMethod:StremioDiscoverSection.kt$StremioDiscoverSection$private fun renderExpandPanel()</ID>
-    <ID>CyclomaticComplexMethod:StremioDiscoverSection.kt$StremioDiscoverSection$private fun stylePill(pill: LinearLayout, key: String)</ID>
-    <ID>CyclomaticComplexMethod:StremioHomeFragment.kt$StremioHomeFragment$internal fun selectNav(key: String, initial: Boolean = false)</ID>
-    <ID>CyclomaticComplexMethod:StremioHomeFragment.kt$StremioHomeFragment$private fun wireContentFocus()</ID>
-    <ID>CyclomaticComplexMethod:StremioNavigationRouter.kt$StremioNavigationRouter$fun launchLiveStream( streamId: String?, fallbackTitle: String?, fallbackLogo: String?, fallbackUrl: String?, epgChannelId: String? = null )</ID>
-    <ID>CyclomaticComplexMethod:StremioNavigationRouter.kt$StremioNavigationRouter$fun onContinueWatchingItemClick(item: ContinueWatchingItem)</ID>
-    <ID>CyclomaticComplexMethod:StremioNavigationRouter.kt$StremioNavigationRouter$private suspend fun openContinueWatchingDetail(item: ContinueWatchingItem)</ID>
     <ID>CyclomaticComplexMethod:SyncManager.kt$SyncManager$private suspend fun syncContent( syncType: SyncType, includeLatest: Boolean ): Result&lt;IptvCache&gt;</ID>
     <ID>CyclomaticComplexMethod:UpdateManager.kt$UpdateManager$private fun download(activity: Activity, apkUrl: String, forced: Boolean)</ID>
     <ID>CyclomaticComplexMethod:VodFragment.kt$VodFragment$private fun setupObservers()</ID>

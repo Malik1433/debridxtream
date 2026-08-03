@@ -239,20 +239,28 @@ class StremioHomeFragment : Fragment() {
         if (key == "discover") discoverSection?.onShown()
 
         val view = view ?: return
-
-        // The hero is a Home feature. Hide it on Discover for a cleaner, less busy page and pull the
-        // content up to just below the nav bar.
-        val density0 = resources.displayMetrics.density
         val showHero = key != "discover"
+        applyHeroVisibility(view, showHero)
+        styleNavTabs(view, key)
+        wireContentFocus()
+        wireNavDownTargets(view, showHero)
+    }
+
+    // The hero is a Home feature. Hide it on Discover for a cleaner, less busy page and pull the
+    // content up to just below the nav bar.
+    private fun applyHeroVisibility(view: View, showHero: Boolean) {
+        val density = resources.displayMetrics.density
         view.findViewById<View>(R.id.heroBanner)?.isVisible = showHero
         if (showHero) heroManager.onResumeTimer() else heroManager.onPauseTimer()
         view.findViewById<View>(R.id.content_host)?.let { host ->
             (host.layoutParams as ViewGroup.MarginLayoutParams).let { lp ->
-                lp.topMargin = ((if (showHero) 318 else 52) * density0).toInt()
+                lp.topMargin = ((if (showHero) 318 else 52) * density).toInt()
                 host.layoutParams = lp
             }
         }
+    }
 
+    private fun styleNavTabs(view: View, key: String) {
         val tabViews = mapOf(
             "home" to view.findViewById<View>(R.id.navTabHome),
             "discover" to view.findViewById<View>(R.id.navTabDiscover),
@@ -269,10 +277,11 @@ class StremioHomeFragment : Fragment() {
             icon.setColorFilter(if (active) 0xFFF1F5F9.toInt() else 0xFF64748B.toInt())
             animateIndicator(tab.findViewById(R.id.nav_tab_indicator), if (active) (10f * density).toInt() else 0)
         }
-        wireContentFocus()
+    }
 
-        // With the hero hidden on Discover, nav DOWN must reach the content directly (the hero Play
-        // button is GONE and can't be focused).
+    // With the hero hidden on Discover, nav DOWN must reach the content directly (the hero Play
+    // button is GONE and can't be focused).
+    private fun wireNavDownTargets(view: View, showHero: Boolean) {
         val navDownId = if (showHero) R.id.heroPlayBtn else {
             val f = discoverSection?.firstFocusable()
             if (f != null) { if (f.id == View.NO_ID) f.id = View.generateViewId(); f.id } else R.id.heroPlayBtn
@@ -282,9 +291,7 @@ class StremioHomeFragment : Fragment() {
         }
     }
 
-    /** hero buttons DOWN → the active tab's first content focusable; UP → active nav tab. */
-    private fun wireContentFocus() {
-        val v = view ?: return
+    private fun firstContentFocusable(): View? {
         val first = when (activeNav) {
             "home" -> homeSection?.firstFocusable()
             "discover" -> discoverSection?.firstFocusable()
@@ -292,12 +299,20 @@ class StremioHomeFragment : Fragment() {
             else -> null
         }
         if (first != null && first.id == View.NO_ID) first.id = View.generateViewId()
-        val downId = first?.id ?: View.NO_ID
-        val upId = when (activeNav) {
-            "discover" -> R.id.navTabDiscover
-            "library" -> R.id.navTabLibrary
-            else -> R.id.navTabHome
-        }
+        return first
+    }
+
+    private fun activeNavTabId(): Int = when (activeNav) {
+        "discover" -> R.id.navTabDiscover
+        "library" -> R.id.navTabLibrary
+        else -> R.id.navTabHome
+    }
+
+    /** hero buttons DOWN → the active tab's first content focusable; UP → active nav tab. */
+    private fun wireContentFocus() {
+        val v = view ?: return
+        val downId = firstContentFocusable()?.id ?: View.NO_ID
+        val upId = activeNavTabId()
         listOf(R.id.heroPlayBtn, R.id.heroTrailerBtn, R.id.heroWatchlistBtn).forEach { id ->
             v.findViewById<View>(id)?.apply {
                 nextFocusUpId = upId
