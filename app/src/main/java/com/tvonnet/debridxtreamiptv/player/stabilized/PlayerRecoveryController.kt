@@ -210,41 +210,7 @@ internal class PlayerRecoveryController(
         // Bounded by AUDIO_SINK_MAX_RECOVERIES so a genuinely dead audio device fails
         // cleanly instead of looping a frozen frame.
         if (isAudioSinkInitFailure(error)) {
-            if (audioSinkRecoveryCount < AUDIO_SINK_MAX_RECOVERIES && canAttemptReconnect()) {
-                audioSinkRecoveryCount++
-                val tunnelingWasOn = !disableTunnelingForSession
-                disableTunnelingForSession = true
-                Log.w(
-                    "PlayerActivity",
-                    "AudioTrack init failed — audio-device recovery $audioSinkRecoveryCount/${AUDIO_SINK_MAX_RECOVERIES} (tunnelingWasOn=$tunnelingWasOn), cool-off ${AUDIO_SINK_COOLOFF_MS}ms"
-                )
-                PlaybackDiagnosticsRecorder.record(
-                    activity,
-                    "audio_sink_recovery",
-                    diagnosticsPlaybackFields() + mapOf(
-                        "errorCode" to error.errorCode,
-                        "recovery" to audioSinkRecoveryCount,
-                        "tunnelingWasOn" to tunnelingWasOn
-                    )
-                )
-                if (contentType != ContentType.LIVE_TV && (player?.currentPosition ?: 0L) > 1000L) {
-                    startPositionMs = player!!.currentPosition
-                }
-                player?.release(); player = null
-                retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, AUDIO_SINK_COOLOFF_MS)
-                return
-            }
-            // The single recovery didn't help → the audio output is saturated (leaked
-            // AudioTracks the firmware won't reclaim). Release OUR track so we stop
-            // holding a slot, and stop retrying — more re-inits only leak more. Tell the
-            // user the one thing that actually clears it.
-            player?.release(); player = null
-            PlaybackDiagnosticsRecorder.record(
-                activity,
-                "audio_sink_exhausted",
-                diagnosticsPlaybackFields() + mapOf("errorCode" to error.errorCode)
-            )
-            handleTerminalPlaybackFailure("Audio unavailable — please restart your Fire TV (the device ran out of audio channels)")
+            recoverAudioSinkFailure(error)
             return
         }
         val cause = error.cause
@@ -274,17 +240,70 @@ internal class PlayerRecoveryController(
             canFreshResolveDirect = canFreshResolveDirectDebrid()
         )
 
+        if (handleTerminalHttpBranches(error, errorMessage, repairableExpiredLink)) return
+        if (handleRateLimitCoolOff(error, errorMessage)) return
+        retryOrFail(errorMessage, hasDurableDebridIdentity)
+    }
+
+    // ROOT CAUSE (device-verified via logcat 2026-07-18, both .35/.64 Amlogic): the OS
+    // refuses to allocate even a plain AudioTrack because the HAL's output slot is still
+    // held by a prior session. Recovery: drop tunneling, fully release, cool off before
+    // re-init; bounded so a genuinely dead audio device fails cleanly.
+    private fun recoverAudioSinkFailure(error: PlaybackException) {
+        if (audioSinkRecoveryCount < AUDIO_SINK_MAX_RECOVERIES && canAttemptReconnect()) {
+            audioSinkRecoveryCount++
+            val tunnelingWasOn = !disableTunnelingForSession
+            disableTunnelingForSession = true
+            Log.w(
+                "PlayerActivity",
+                "AudioTrack init failed — audio-device recovery $audioSinkRecoveryCount/${AUDIO_SINK_MAX_RECOVERIES} (tunnelingWasOn=$tunnelingWasOn), cool-off ${AUDIO_SINK_COOLOFF_MS}ms"
+            )
+            PlaybackDiagnosticsRecorder.record(
+                activity,
+                "audio_sink_recovery",
+                diagnosticsPlaybackFields() + mapOf(
+                    "errorCode" to error.errorCode,
+                    "recovery" to audioSinkRecoveryCount,
+                    "tunnelingWasOn" to tunnelingWasOn
+                )
+            )
+            if (contentType != ContentType.LIVE_TV && (player?.currentPosition ?: 0L) > 1000L) {
+                startPositionMs = player!!.currentPosition
+            }
+            player?.release(); player = null
+            retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, AUDIO_SINK_COOLOFF_MS)
+            return
+        }
+        // The single recovery didn't help → the audio output is saturated (leaked
+        // AudioTracks the firmware won't reclaim). Release OUR track so we stop
+        // holding a slot, and stop retrying — more re-inits only leak more. Tell the
+        // user the one thing that actually clears it.
+        player?.release(); player = null
+        PlaybackDiagnosticsRecorder.record(
+            activity,
+            "audio_sink_exhausted",
+            diagnosticsPlaybackFields() + mapOf("errorCode" to error.errorCode)
+        )
+        handleTerminalPlaybackFailure("Audio unavailable — please restart your Fire TV (the device ran out of audio channels)")
+    }
+
+    // The three fail-fast HTTP branches, in their original order. True = handled.
+    private fun handleTerminalHttpBranches(
+        error: PlaybackException,
+        errorMessage: String,
+        repairableExpiredLink: Boolean
+    ): Boolean {
         if (!repairableExpiredLink && isTerminalDirectHttpPlaybackError(error, directDebridPlayback)) {
             if ((error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode == 404) {
                 recordDirectAddonProxyFailure()
             }
             handleTerminalPlaybackFailure(errorMessage)
-            return
+            return true
         }
         if (hasRepeatedDirectAddonProxyServerError(error)) {
             recordDirectAddonProxyFailure()
             handleTerminalPlaybackFailure(errorMessage, preferReturnToSources = true)
-            return
+            return true
         }
         // Definitive client errors (removed/nonexistent listing, wrong method) never
         // recover by retrying. Plain IPTV/Xtream playback had NO terminal-HTTP path —
@@ -292,44 +311,51 @@ internal class PlayerRecoveryController(
         // dead listing (e.g. a provider that answers 405/500 for an unavailable movie id)
         // looped the "Reconnecting…" banner until the whole retry budget drained.
         // Fail fast for non-live sources instead. 429 (rate-limit) is excluded — handled
-        // below with a cool-off.
+        // separately with a cool-off.
         val terminalClientCode =
             (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
         if (!repairableExpiredLink && isTerminalHttpForNonLive(terminalClientCode, contentType, playbackSource)) {
             handleTerminalPlaybackFailure(errorMessage, preferReturnToSources = true)
-            return
+            return true
         }
-        // HTTP 429 for plain IPTV/Xtream (QA fix 4): the provider WAF is rate-limiting
-        // this IP. Fast-backoff retries only deepen the ban, so cool off — honor a
-        // Retry-After header if the server sent one, else a fixed 20s. The direct-
-        // debrid path treats 429 as terminal separately (isTerminalDirectHttpPlaybackError).
+        return false
+    }
+
+    // HTTP 429 for plain IPTV/Xtream (QA fix 4): the provider WAF is rate-limiting
+    // this IP. Fast-backoff retries only deepen the ban, so cool off — honor a
+    // Retry-After header if the server sent one, else a fixed 20s. The direct-
+    // debrid path treats 429 as terminal separately (isTerminalDirectHttpPlaybackError).
+    // True = the 429 path consumed the error.
+    private fun handleRateLimitCoolOff(error: PlaybackException, errorMessage: String): Boolean {
         val responseCode = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
-        if (isRateLimitCoolOff(responseCode, directDebridPlayback)) {
-            if (retryCount < maxRetriesFor(contentType, LIVE_MAX_RETRIES, maxRetries) &&
-                canAttemptReconnect()
-            ) {
-                retryCount++
-                val coolOffMs = parseRetryAfterMs(error) ?: HTTP_429_COOLOFF_MS
-                Log.i("PlayerActivity", "HTTP 429 (rate limited) — cooling off ${coolOffMs}ms before reconnect")
-                PlaybackDiagnosticsRecorder.record(
-                    activity,
-                    "retry_triggered",
-                    diagnosticsPlaybackFields(retry = retryCount) + mapOf(
-                        "reasonCode" to "HTTP_429",
-                        "retrySource" to "rate_limit_cooloff",
-                        "coolOffMs" to coolOffMs
-                    )
+        if (!isRateLimitCoolOff(responseCode, directDebridPlayback)) return false
+        if (retryCount < maxRetriesFor(contentType, LIVE_MAX_RETRIES, maxRetries) &&
+            canAttemptReconnect()
+        ) {
+            retryCount++
+            val coolOffMs = parseRetryAfterMs(error) ?: HTTP_429_COOLOFF_MS
+            Log.i("PlayerActivity", "HTTP 429 (rate limited) — cooling off ${coolOffMs}ms before reconnect")
+            PlaybackDiagnosticsRecorder.record(
+                activity,
+                "retry_triggered",
+                diagnosticsPlaybackFields(retry = retryCount) + mapOf(
+                    "reasonCode" to "HTTP_429",
+                    "retrySource" to "rate_limit_cooloff",
+                    "coolOffMs" to coolOffMs
                 )
-                if (contentType != ContentType.LIVE_TV && player != null && player!!.currentPosition > 1000L) {
-                    startPositionMs = player!!.currentPosition
-                }
-                player?.release(); player = null
-                retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, coolOffMs)
-            } else {
-                handleTerminalPlaybackFailure(errorMessage)
+            )
+            if (contentType != ContentType.LIVE_TV && player != null && player!!.currentPosition > 1000L) {
+                startPositionMs = player!!.currentPosition
             }
-            return
+            player?.release(); player = null
+            retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, coolOffMs)
+        } else {
+            handleTerminalPlaybackFailure(errorMessage)
         }
+        return true
+    }
+
+    private fun retryOrFail(errorMessage: String, hasDurableDebridIdentity: Boolean) {
         if (retryCount < maxRetriesFor(contentType, LIVE_MAX_RETRIES, maxRetries)) {
             // Aggregate budget gate (fix 2): even under the per-source retry cap, refuse
             // to reconnect once the rolling window is spent. Records the attempt + shows
@@ -351,17 +377,17 @@ internal class PlayerRecoveryController(
                 return
             }
             if (canUseDebridResolver() && !isResolvingDebrid && hasDurableDebridIdentity) {
-                  isResolvingDebrid = true
-                  if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
-                  reResolveDebridUrl(
-                      debridInfoHashExtra,
-                      debridMagnetExtra,
-                      seasonNumberExtra,
-                      episodeNumberExtra,
-                      episodeTitleExtra,
-                      allowDirectHttpPassthrough = false
-                  )
-                  return
+                isResolvingDebrid = true
+                if (player != null && player!!.currentPosition > 1000L) startPositionMs = player!!.currentPosition
+                reResolveDebridUrl(
+                    debridInfoHashExtra,
+                    debridMagnetExtra,
+                    seasonNumberExtra,
+                    episodeNumberExtra,
+                    episodeTitleExtra,
+                    allowDirectHttpPassthrough = false
+                )
+                return
             }
             // No "Retrying…" toast here: canAttemptReconnect() already drives the single
             // unified "RECONNECTING… (n/N)" banner. A second toast with a DIFFERENT counter

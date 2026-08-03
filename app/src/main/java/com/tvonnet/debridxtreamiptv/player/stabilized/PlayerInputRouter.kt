@@ -61,31 +61,7 @@ internal class PlayerInputRouter(
         }
 
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
-            // In-player TV Guide: BACK closes the grid instead of exiting.
-            if (liveOsd?.isGuideOpen == true) {
-                if (event.action == KeyEvent.ACTION_UP) liveOsd?.handleGuideBack()
-                return true
-            }
-            // Surf drawer: BACK steps categories→channels→close; else exits (spec §8).
-            if (liveOsd?.isDrawerOpen == true) {
-                if (event.action == KeyEvent.ACTION_UP) liveOsd?.handleDrawerBack()
-                return true
-            }
-            // VOD Player redesign: BACK cancels the "Up Next" auto-play prompt instead of exiting.
-            if (activity.isNextEpisodePromptVisible()) {
-                if (event.action == KeyEvent.ACTION_UP) activity.hideNextEpisodePromptIfInitialized()
-                return true
-            }
-            // The episode browser isn't handled by onBackPressedDispatcher, so dismiss it here.
-            if (activity.isEpisodeBrowserVisible()) {
-                if (event.action == KeyEvent.ACTION_UP) episodeBrowserController.hide()
-                return true
-            }
-            // Long-press BACK -> PiP (if supported).
-            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0 && supportsPictureInPicture()) {
-                enterPictureInPictureModeInternal()
-                return true
-            }
+            overlayBackResult(event)?.let { return it }
             // VOD (movie/episode): consume BACK here — media3's controller would otherwise swallow it
             // so onBackPressedDispatcher never runs (the "BACK doesn't exit" bug). 1st press hides the
             // controls, 2nd runs the real exit (records history, sets manualExit).
@@ -98,6 +74,37 @@ internal class PlayerInputRouter(
 
         if (event.action == KeyEvent.ACTION_DOWN) {
             return handleActionDownKey(event)
+        }
+        return null
+    }
+
+    // The overlay/PiP BACK consumers, in their original priority order. Every branch that
+    // fires CONSUMES the event (true); null means "no overlay claimed it — keep routing".
+    private fun overlayBackResult(event: KeyEvent): Boolean? {
+        // In-player TV Guide: BACK closes the grid instead of exiting.
+        if (liveOsd?.isGuideOpen == true) {
+            if (event.action == KeyEvent.ACTION_UP) liveOsd?.handleGuideBack()
+            return true
+        }
+        // Surf drawer: BACK steps categories→channels→close; else exits (spec §8).
+        if (liveOsd?.isDrawerOpen == true) {
+            if (event.action == KeyEvent.ACTION_UP) liveOsd?.handleDrawerBack()
+            return true
+        }
+        // VOD Player redesign: BACK cancels the "Up Next" auto-play prompt instead of exiting.
+        if (activity.isNextEpisodePromptVisible()) {
+            if (event.action == KeyEvent.ACTION_UP) activity.hideNextEpisodePromptIfInitialized()
+            return true
+        }
+        // The episode browser isn't handled by onBackPressedDispatcher, so dismiss it here.
+        if (activity.isEpisodeBrowserVisible()) {
+            if (event.action == KeyEvent.ACTION_UP) episodeBrowserController.hide()
+            return true
+        }
+        // Long-press BACK -> PiP (if supported).
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0 && supportsPictureInPicture()) {
+            enterPictureInPictureModeInternal()
+            return true
         }
         return null
     }

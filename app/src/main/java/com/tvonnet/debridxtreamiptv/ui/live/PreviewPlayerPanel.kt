@@ -180,58 +180,7 @@ class PreviewPlayerPanel(
         val password = credentialsPrefs.getPassword() ?: return
         val streamUrl = streamUrlOverride ?: stream.toLiveStreamUrl(serverUrl, username, password)
         
-        // Setup/reuse Player. Built with the SAME tuned engine as the fullscreen
-        // PlayerActivity (LP-ADOPT): ffmpeg software-audio renderer (so EAC3/DTS/AC4
-        // channels have audio), low-RAM LoadControl (OOM byte-cap guard), and the 429
-        // cool-off load-error policy. This lets the guide→fullscreen hand-off ADOPT
-        // this already-running instance with ZERO reconnect (one provider connection,
-        // no 403 on max_connections=1 accounts) while still being fully tuned.
-        val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
-            .setUserAgent("IPTVSmartersPlayer")
-
-        val player = previewPlayer ?: run {
-            val settings = SettingsPreferences(context)
-            val renderersFactory = DefaultRenderersFactory(context)
-                .setExtensionRendererMode(
-                    if (settings.isSoftwareAudioEnabled())
-                        DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
-                    else
-                        DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
-                )
-                .setEnableDecoderFallback(true)
-            val bufferConfig = PlayerBufferConfigFactory.buildConfig(
-                context, settings, ContentType.LIVE_TV, streamUrl, isDebrid = false
-            )
-            val loadControl = DefaultLoadControl.Builder()
-                .setBufferDurationsMs(
-                    bufferConfig.minBufferMs, bufferConfig.maxBufferMs,
-                    bufferConfig.startPlaybackMs, bufferConfig.rebufferPlaybackMs
-                )
-                .setTargetBufferBytes(PlayerBufferConfigFactory.resolveTargetBufferBytes(context, false))
-                .setPrioritizeTimeOverSizeThresholds(!DeviceProfile.isLowRamDevice(context))
-                .setBackBuffer(0, /* retainBackBufferFromKeyframe= */ true)
-                .build()
-            val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
-                .setLoadErrorHandlingPolicy(LivePlaybackLoadErrorPolicy())
-            val audioAttributes = AudioAttributes.Builder()
-                .setUsage(C.USAGE_MEDIA)
-                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                .build()
-            ExoPlayer.Builder(context)
-                .setRenderersFactory(renderersFactory)
-                .setMediaSourceFactory(mediaSourceFactory)
-                .setLoadControl(loadControl)
-                // Audible preview: the mini/preview player plays with sound, so request
-                // audio focus (ducks other apps) just like fullscreen. PlayerActivity also
-                // calls setAudioAttributes(handleAudioFocus=true) when it adopts for fullscreen.
-                .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ true)
-                .build().also { created ->
-                    created.volume = 1f // Preview plays with sound
-                    created.addListener(playerListener)
-                    previewPlayer = created
-                    previewPlayerView?.player = created
-                }
-        }
+        val player = previewPlayer ?: buildTunedPreviewPlayer(streamUrl)
         player.setMediaItem(MediaItem.fromUri(streamUrl))
         player.prepare()
         player.playWhenReady = true
@@ -242,6 +191,58 @@ class PreviewPlayerPanel(
         updatePlaceholder(context.getString(R.string.player_epg_syncing))
     }
     
+    // Built with the SAME tuned engine as the fullscreen PlayerActivity (LP-ADOPT):
+    // ffmpeg software-audio renderer (so EAC3/DTS/AC4 channels have audio), low-RAM
+    // LoadControl (OOM byte-cap guard), and the 429 cool-off load-error policy. This
+    // lets the guide→fullscreen hand-off ADOPT this already-running instance with
+    // ZERO reconnect (one provider connection, no 403 on max_connections=1 accounts)
+    // while still being fully tuned.
+    private fun buildTunedPreviewPlayer(streamUrl: String): ExoPlayer {
+        val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+            .setUserAgent("IPTVSmartersPlayer")
+        val settings = SettingsPreferences(context)
+        val renderersFactory = DefaultRenderersFactory(context)
+            .setExtensionRendererMode(
+                if (settings.isSoftwareAudioEnabled())
+                    DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+                else
+                    DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+            )
+            .setEnableDecoderFallback(true)
+        val bufferConfig = PlayerBufferConfigFactory.buildConfig(
+            context, settings, ContentType.LIVE_TV, streamUrl, isDebrid = false
+        )
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                bufferConfig.minBufferMs, bufferConfig.maxBufferMs,
+                bufferConfig.startPlaybackMs, bufferConfig.rebufferPlaybackMs
+            )
+            .setTargetBufferBytes(PlayerBufferConfigFactory.resolveTargetBufferBytes(context, false))
+            .setPrioritizeTimeOverSizeThresholds(!DeviceProfile.isLowRamDevice(context))
+            .setBackBuffer(0, /* retainBackBufferFromKeyframe= */ true)
+            .build()
+        val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+            .setLoadErrorHandlingPolicy(LivePlaybackLoadErrorPolicy())
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+            .build()
+        return ExoPlayer.Builder(context)
+            .setRenderersFactory(renderersFactory)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .setLoadControl(loadControl)
+            // Audible preview: the mini/preview player plays with sound, so request
+            // audio focus (ducks other apps) just like fullscreen. PlayerActivity also
+            // calls setAudioAttributes(handleAudioFocus=true) when it adopts for fullscreen.
+            .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ true)
+            .build().also { created ->
+                created.volume = 1f // Preview plays with sound
+                created.addListener(playerListener)
+                previewPlayer = created
+                previewPlayerView?.player = created
+            }
+    }
+
     fun updateEpg(nowProgram: EpgEntity?, nextProgram: EpgEntity?) {
         this.nextProgram = nextProgram
         
