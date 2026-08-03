@@ -8,6 +8,25 @@ import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.databinding.ItemLanguageChipBinding
 import com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper
 
+// The old when-chain as data; unknown codes (and "multi") fall back to the globe.
+private val FLAG_EMOJI_BY_LANGUAGE = mapOf(
+    "en" to "🇬🇧", "eng" to "🇬🇧", "english" to "🇬🇧",
+    "fr" to "🇫🇷", "fre" to "🇫🇷", "french" to "🇫🇷",
+    "de" to "🇩🇪", "ger" to "🇩🇪", "german" to "🇩🇪",
+    "es" to "🇪🇸", "spa" to "🇪🇸", "spanish" to "🇪🇸",
+    "it" to "🇮🇹", "ita" to "🇮🇹", "italian" to "🇮🇹",
+    "pt" to "🇵🇹", "por" to "🇵🇹", "portuguese" to "🇵🇹",
+    "ru" to "🇷🇺", "rus" to "🇷🇺", "russian" to "🇷🇺",
+    "hi" to "🇮🇳", "hin" to "🇮🇳", "hindi" to "🇮🇳",
+    "ja" to "🇯🇵", "jpn" to "🇯🇵", "japanese" to "🇯🇵",
+    "ko" to "🇰🇷", "kor" to "🇰🇷", "korean" to "🇰🇷",
+    "zh" to "🇨🇳", "chi" to "🇨🇳", "chinese" to "🇨🇳",
+    "ar" to "🇸🇦", "ara" to "🇸🇦", "arabic" to "🇸🇦",
+    "tr" to "🇹🇷", "tur" to "🇹🇷", "turkish" to "🇹🇷",
+    "pl" to "🇵🇱", "pol" to "🇵🇱", "polish" to "🇵🇱",
+    "nl" to "🇳🇱", "dut" to "🇳🇱", "dutch" to "🇳🇱",
+)
+
 class LanguageFilterAdapter(
     private val onLanguageSelected: (String) -> Unit
 ) : ListAdapter<String, LanguageFilterAdapter.LanguageViewHolder>(DiffCallback) {
@@ -89,27 +108,8 @@ class LanguageFilterAdapter(
             return "$flag ${code.uppercase()}"
         }
 
-        private fun getFlagEmoji(languageCode: String): String {
-            return when (languageCode.lowercase()) {
-                "en", "eng", "english" -> "🇬🇧"
-                "fr", "fre", "french" -> "🇫🇷"
-                "de", "ger", "german" -> "🇩🇪"
-                "es", "spa", "spanish" -> "🇪🇸"
-                "it", "ita", "italian" -> "🇮🇹"
-                "pt", "por", "portuguese" -> "🇵🇹"
-                "ru", "rus", "russian" -> "🇷🇺"
-                "hi", "hin", "hindi" -> "🇮🇳"
-                "ja", "jpn", "japanese" -> "🇯🇵"
-                "ko", "kor", "korean" -> "🇰🇷"
-                "zh", "chi", "chinese" -> "🇨🇳"
-                "ar", "ara", "arabic" -> "🇸🇦"
-                "tr", "tur", "turkish" -> "🇹🇷"
-                "pl", "pol", "polish" -> "🇵🇱"
-                "nl", "dut", "dutch" -> "🇳🇱"
-                "multi" -> "🌍"
-                else -> "🌍"
-            }
-        }
+        private fun getFlagEmoji(languageCode: String): String =
+            FLAG_EMOJI_BY_LANGUAGE[languageCode.lowercase()] ?: "🌍"
     }
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {

@@ -157,27 +157,11 @@ class WavySeekBar @JvmOverloads constructor(
         
         when (keyCode) {
             KeyEvent.KEYCODE_DPAD_LEFT -> {
-                val newPos = (if (isScrubbing) scrubPosition else position) - increment
-                val seekPos = newPos.coerceIn(0, duration)
-                if (!isScrubbing) {
-                    isScrubbing = true
-                    listeners.forEach { it.onScrubStart(this, position) }
-                }
-                scrubPosition = seekPos
-                listeners.forEach { it.onScrubMove(this, seekPos) }
-                invalidate()
+                scrubBy(-increment)
                 handled = true
             }
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                val newPos = (if (isScrubbing) scrubPosition else position) + increment
-                val seekPos = newPos.coerceIn(0, duration)
-                if (!isScrubbing) {
-                    isScrubbing = true
-                    listeners.forEach { it.onScrubStart(this, position) }
-                }
-                scrubPosition = seekPos
-                listeners.forEach { it.onScrubMove(this, seekPos) }
-                invalidate()
+                scrubBy(increment)
                 handled = true
             }
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
@@ -193,6 +177,20 @@ class WavySeekBar @JvmOverloads constructor(
         
         if (handled) return true
         return super.onKeyDown(keyCode, event)
+    }
+
+    // One D-pad scrub step, verbatim: first press enters scrubbing (onScrubStart from the
+    // committed position), then the scrub position moves clamped to the duration.
+    private fun scrubBy(delta: Long) {
+        val newPos = (if (isScrubbing) scrubPosition else position) + delta
+        val seekPos = newPos.coerceIn(0, duration)
+        if (!isScrubbing) {
+            isScrubbing = true
+            listeners.forEach { it.onScrubStart(this, position) }
+        }
+        scrubPosition = seekPos
+        listeners.forEach { it.onScrubMove(this, seekPos) }
+        invalidate()
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {

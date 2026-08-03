@@ -540,34 +540,44 @@ class EpgGridView @JvmOverloads constructor(
     // ────────────────────────────────────────────────────────────────────
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (channels.isEmpty()) return super.onKeyDown(keyCode, event)
-        when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                if (focusProg > 0) { focusProg--; onFocusMoved(); return true }
-                if (focusProg == 0) { focusProg = -1; onFocusMoved(); return true }
-                listener?.onExitLeft(); return true
-            }
-            KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                val progs = channels[focusRow].programs
-                if (focusProg == -1 && progs.isNotEmpty()) { focusProg = firstVisibleProgramIndex(focusRow); onFocusMoved(); return true }
-                if (focusProg < progs.size - 1) { focusProg++; onFocusMoved(); return true }
-                return true
-            }
-            KeyEvent.KEYCODE_DPAD_UP -> {
-                if (focusRow > 0) { focusRow--; adjustProgForRow(); onFocusMoved(); return true }
-                listener?.onExitTop(); return true // hand focus to the category chips
-            }
-            KeyEvent.KEYCODE_DPAD_DOWN -> {
-                if (focusRow < channels.size - 1) { focusRow++; adjustProgForRow(); onFocusMoved(); return true }
-                return false // release focus downward
-            }
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_BUTTON_A -> {
-                val ch = channels[focusRow]
-                if (focusProg == -1) listener?.onChannelSelected(ch)
-                else listener?.onProgramSelected(ch, ch.programs.getOrNull(focusProg))
-                return true
-            }
+        return when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT -> moveFocusLeft()
+            KeyEvent.KEYCODE_DPAD_RIGHT -> moveFocusRight()
+            KeyEvent.KEYCODE_DPAD_UP -> moveFocusUp()
+            KeyEvent.KEYCODE_DPAD_DOWN -> moveFocusDown()
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_BUTTON_A -> selectFocused()
+            else -> super.onKeyDown(keyCode, event)
         }
-        return super.onKeyDown(keyCode, event)
+    }
+
+    private fun moveFocusLeft(): Boolean {
+        if (focusProg > 0) { focusProg--; onFocusMoved(); return true }
+        if (focusProg == 0) { focusProg = -1; onFocusMoved(); return true }
+        listener?.onExitLeft(); return true
+    }
+
+    private fun moveFocusRight(): Boolean {
+        val progs = channels[focusRow].programs
+        if (focusProg == -1 && progs.isNotEmpty()) { focusProg = firstVisibleProgramIndex(focusRow); onFocusMoved(); return true }
+        if (focusProg < progs.size - 1) { focusProg++; onFocusMoved(); return true }
+        return true
+    }
+
+    private fun moveFocusUp(): Boolean {
+        if (focusRow > 0) { focusRow--; adjustProgForRow(); onFocusMoved(); return true }
+        listener?.onExitTop(); return true // hand focus to the category chips
+    }
+
+    private fun moveFocusDown(): Boolean {
+        if (focusRow < channels.size - 1) { focusRow++; adjustProgForRow(); onFocusMoved(); return true }
+        return false // release focus downward
+    }
+
+    private fun selectFocused(): Boolean {
+        val ch = channels[focusRow]
+        if (focusProg == -1) listener?.onChannelSelected(ch)
+        else listener?.onProgramSelected(ch, ch.programs.getOrNull(focusProg))
+        return true
     }
 
     private fun adjustProgForRow() {

@@ -55,25 +55,9 @@ class EpgSyncWorker @AssistedInject constructor(
                 return@withContext Result.success()
             }
 
-            // Get credentials
-            val credentialsPrefs = CredentialsPreferences(applicationContext)
-            val serverUrl = credentialsPrefs.getServerUrl()
-            val username = credentialsPrefs.getUsername()
-            val password = credentialsPrefs.getPassword()
-
-            if (serverUrl == null || username == null || password == null) {
-                Log.w(TAG, "EPG Sync skipped: No credentials found")
+            if (!initializeFromCredentials()) {
                 return@withContext Result.success()
             }
-
-            // Check for cancellation before repository initialization
-            if (isStopped) {
-                Log.w(TAG, "EPG Sync cancelled during credential check")
-                return@withContext Result.success()
-            }
-
-            // Initialize repository
-            repository.initialize(serverUrl, username, password)
 
             // Check for cancellation before network operation
             if (isStopped) {
@@ -90,38 +74,7 @@ class EpgSyncWorker @AssistedInject constructor(
                 return@withContext Result.success()
             }
 
-            when (result) {
-                is com.tvonnet.debridxtreamiptv.data.Result.Success -> {
-                    val programCount = result.data
-                    Log.d(TAG, "EPG Sync successful: $programCount programs updated")
-
-                    // Check for cancellation before cleanup
-                    if (!isStopped) {
-                        // Cleanup old EPG data
-                        cleanupOldEpgData()
-
-                        // Week 14: Save last sync time for settings display
-                        saveLastSyncTime()
-                    }
-
-                    Result.success()
-                }
-                is com.tvonnet.debridxtreamiptv.data.Result.Error -> {
-                    Log.e(TAG, "EPG Sync failed: ${result.exception.message}")
-                    // Check if error is due to cancellation
-                    if (isStopped || result.exception is kotlinx.coroutines.CancellationException) {
-                        Log.w(TAG, "EPG Sync cancelled by system")
-                    }
-                    // Return success to avoid retry spam
-                    // EPG failure is non-critical
-                    Result.success()
-                }
-                is com.tvonnet.debridxtreamiptv.data.Result.Loading -> {
-                    // Should not happen in repository call
-                    Log.w(TAG, "EPG Sync loading state unexpected")
-                    Result.success()
-                }
-            }
+            handleSyncResult(result)
         } catch (e: kotlinx.coroutines.CancellationException) {
             // WorkManager stopped us (or the heap-pressure abort fired) — report success so the job is
             // not retried in a loop; the next scheduled run picks it up.
@@ -138,6 +91,62 @@ class EpgSyncWorker @AssistedInject constructor(
         }
     }
     
+    // False when the sync must be skipped (no credentials, or cancellation mid-check);
+    // the caller then reports success so the job is not retried.
+    private fun initializeFromCredentials(): Boolean {
+        // Get credentials
+        val credentialsPrefs = CredentialsPreferences(applicationContext)
+        val serverUrl = credentialsPrefs.getServerUrl()
+        val username = credentialsPrefs.getUsername()
+        val password = credentialsPrefs.getPassword()
+
+        if (serverUrl == null || username == null || password == null) {
+            Log.w(TAG, "EPG Sync skipped: No credentials found")
+            return false
+        }
+
+        // Check for cancellation before repository initialization
+        if (isStopped) {
+            Log.w(TAG, "EPG Sync cancelled during credential check")
+            return false
+        }
+
+        // Initialize repository
+        repository.initialize(serverUrl, username, password)
+        return true
+    }
+
+    // Every arm returns success — EPG failure is non-critical and must not retry-spam.
+    private suspend fun handleSyncResult(result: com.tvonnet.debridxtreamiptv.data.Result<Int>): Result {
+        when (result) {
+            is com.tvonnet.debridxtreamiptv.data.Result.Success -> {
+                val programCount = result.data
+                Log.d(TAG, "EPG Sync successful: $programCount programs updated")
+
+                // Check for cancellation before cleanup
+                if (!isStopped) {
+                    // Cleanup old EPG data
+                    cleanupOldEpgData()
+
+                    // Week 14: Save last sync time for settings display
+                    saveLastSyncTime()
+                }
+            }
+            is com.tvonnet.debridxtreamiptv.data.Result.Error -> {
+                Log.e(TAG, "EPG Sync failed: ${result.exception.message}")
+                // Check if error is due to cancellation
+                if (isStopped || result.exception is kotlinx.coroutines.CancellationException) {
+                    Log.w(TAG, "EPG Sync cancelled by system")
+                }
+            }
+            is com.tvonnet.debridxtreamiptv.data.Result.Loading -> {
+                // Should not happen in repository call
+                Log.w(TAG, "EPG Sync loading state unexpected")
+            }
+        }
+        return Result.success()
+    }
+
     /**
      * Cleanup EPG entries older than 24 hours
      * Keeps database size manageable

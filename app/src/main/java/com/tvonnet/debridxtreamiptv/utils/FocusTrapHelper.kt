@@ -94,34 +94,29 @@ object FocusTrapHelper {
             val loc = IntArray(2)
             candidate.getLocationOnScreen(loc)
 
-            when (searchDirection) {
-                View.FOCUS_UP -> { // Finding the top-most view
-                    if (loc[1] < extremeValue) {
-                        extremeValue = loc[1]
-                        furthestView = candidate
-                    }
-                }
-                View.FOCUS_DOWN -> { // Finding the bottom-most view
-                    if (loc[1] > extremeValue) {
-                        extremeValue = loc[1]
-                        furthestView = candidate
-                    }
-                }
-                View.FOCUS_LEFT -> { // Finding the left-most view
-                    if (loc[0] < extremeValue) {
-                        extremeValue = loc[0]
-                        furthestView = candidate
-                    }
-                }
-                View.FOCUS_RIGHT -> { // Finding the right-most view
-                    if (loc[0] > extremeValue) {
-                        extremeValue = loc[0]
-                        furthestView = candidate
-                    }
-                }
+            if (isMoreExtreme(searchDirection, loc, extremeValue)) {
+                extremeValue = coordinateFor(searchDirection, loc)
+                furthestView = candidate
             }
         }
 
         return furthestView
     }
+
+    // UP/LEFT hunt for the smallest x/y on screen, DOWN/RIGHT for the largest — the loop
+    // above keeps whichever candidate is furthest in the wrap-around direction.
+    private fun isMoreExtreme(searchDirection: Int, loc: IntArray, extremeValue: Int): Boolean =
+        when (searchDirection) {
+            View.FOCUS_UP -> loc[1] < extremeValue
+            View.FOCUS_DOWN -> loc[1] > extremeValue
+            View.FOCUS_LEFT -> loc[0] < extremeValue
+            View.FOCUS_RIGHT -> loc[0] > extremeValue
+            else -> false
+        }
+
+    private fun coordinateFor(searchDirection: Int, loc: IntArray): Int =
+        when (searchDirection) {
+            View.FOCUS_UP, View.FOCUS_DOWN -> loc[1]
+            else -> loc[0]
+        }
 }

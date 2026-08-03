@@ -61,27 +61,38 @@ fun RecyclerView.updatePreservingFocus(applyUpdate: () -> Unit) {
     // framework then drops focus to row 0. That is exactly the CC-1 jump this helper exists to
     // prevent, so the restore has to wait for the new layout.
     OneShotPreDrawListener.add(this) {
-        val a = adapter ?: return@add
-        val count = a.itemCount
-        if (count <= 0) return@add                  // nothing to focus; leave as-is
-
-        var target = RecyclerView.NO_POSITION
-        if (focusedId != RecyclerView.NO_ID && a.hasStableIds()) {
-            var i = 0
-            while (i < count) {
-                if (a.getItemId(i) == focusedId) { target = i; break }
-                i++
-            }
-        }
-        if (target == RecyclerView.NO_POSITION) {
-            if (focusedIndex == RecyclerView.NO_POSITION) return@add
-            target = focusedIndex.coerceIn(0, count - 1) // focused item vanished → nearest surviving row
-        }
-        // Only correct focus when it is not already on the right item — when RecyclerView's own
-        // recovery got it right there is nothing to do, and we must not fight it.
-        if (isFocusOnItemAt(target)) return@add
-        focusItemAt(target)
+        restoreFocusAfterLayout(focusedId, focusedIndex)
     }
+}
+
+// The post-layout restore half of updatePreservingFocus, verbatim: stable id first, then the
+// nearest surviving index; never fight a recovery RecyclerView already got right.
+private fun RecyclerView.restoreFocusAfterLayout(focusedId: Long, focusedIndex: Int) {
+    val a = adapter ?: return
+    val count = a.itemCount
+    if (count <= 0) return                  // nothing to focus; leave as-is
+
+    var target = RecyclerView.NO_POSITION
+    if (focusedId != RecyclerView.NO_ID && a.hasStableIds()) {
+        target = positionForStableId(a, count, focusedId)
+    }
+    if (target == RecyclerView.NO_POSITION) {
+        if (focusedIndex == RecyclerView.NO_POSITION) return
+        target = focusedIndex.coerceIn(0, count - 1) // focused item vanished → nearest surviving row
+    }
+    // Only correct focus when it is not already on the right item — when RecyclerView's own
+    // recovery got it right there is nothing to do, and we must not fight it.
+    if (isFocusOnItemAt(target)) return
+    focusItemAt(target)
+}
+
+private fun positionForStableId(a: RecyclerView.Adapter<*>, count: Int, focusedId: Long): Int {
+    var i = 0
+    while (i < count) {
+        if (a.getItemId(i) == focusedId) return i
+        i++
+    }
+    return RecyclerView.NO_POSITION
 }
 
 /** True when the currently focused view is (inside) the item at [position]. */

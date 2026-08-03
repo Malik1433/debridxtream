@@ -185,50 +185,69 @@ object EpgCache {
 
         cacheScope.launch {
             val now = System.currentTimeMillis()
+            val byChannel = batchedDbPrograms(repo, entries, now)
+            val needShortEpg = applyDbWarm(entries, byChannel, now)
+            fetchShortEpgLeftovers(repo, needShortEpg)
+        }
+    }
 
-            // 1) One batched DB read for everything with a real XMLTV channel id.
-            val epgIds = entries.mapNotNull { it.epgChannelId?.takeIf { id -> id.isNotBlank() } }.distinct()
-            val byChannel: Map<String, List<EpgEntity>> = if (epgIds.isNotEmpty()) {
-                runCatching {
-                    repo.getProgramsByEpgIdInRange(
-                        epgIds,
-                        now - TimeUnit.HOURS.toMillis(1),
-                        now + TimeUnit.HOURS.toMillis(6)
-                    )
-                }.getOrNull().orEmpty()
-            } else {
-                emptyMap()
+    // 1) One batched DB read for everything with a real XMLTV channel id.
+    private suspend fun batchedDbPrograms(
+        repo: XtreamRepository,
+        entries: List<WarmEntry>,
+        now: Long
+    ): Map<String, List<EpgEntity>> {
+        val epgIds = entries.mapNotNull { it.epgChannelId?.takeIf { id -> id.isNotBlank() } }.distinct()
+        if (epgIds.isEmpty()) return emptyMap()
+        return runCatching {
+            repo.getProgramsByEpgIdInRange(
+                epgIds,
+                now - TimeUnit.HOURS.toMillis(1),
+                now + TimeUnit.HOURS.toMillis(6)
+            )
+        }.getOrNull().orEmpty()
+    }
+
+    // Publish DB-backed now/next; return the entries with nothing usable in the DB yet.
+    private fun applyDbWarm(
+        entries: List<WarmEntry>,
+        byChannel: Map<String, List<EpgEntity>>,
+        now: Long
+    ): List<WarmEntry> {
+        val needShortEpg = mutableListOf<WarmEntry>()
+        for (e in entries) {
+            val list = e.epgChannelId?.let { byChannel[it] }
+            val (current, next) = nowNextFrom(list, now)
+            if (current != null || next != null) {
+                epgCache[e.cacheKey] = current to next
+                lastUpdateTimes[e.cacheKey] = now
+                _updates.tryEmit(e.cacheKey)
+            } else if (!hasRealEpg(e.cacheKey)) {
+                needShortEpg.add(e)
             }
+        }
+        return needShortEpg
+    }
 
-            val needShortEpg = mutableListOf<WarmEntry>()
-            for (e in entries) {
-                val list = e.epgChannelId?.let { byChannel[it] }
-                val (current, next) = nowNextFrom(list, now)
-                if (current != null || next != null) {
-                    epgCache[e.cacheKey] = current to next
-                    lastUpdateTimes[e.cacheKey] = now
-                    _updates.tryEmit(e.cacheKey)
-                } else if (!hasRealEpg(e.cacheKey)) {
-                    needShortEpg.add(e)
-                }
-            }
-
-            // 2) Provider short-EPG only for the leftovers, capped concurrency.
-            needShortEpg.forEach { e ->
-                val streamId = e.streamId?.takeIf { it.isNotBlank() } ?: return@forEach
-                launch {
-                    shortEpgGate.withPermit {
-                        if (hasRealEpg(e.cacheKey)) return@withPermit
-                        val result = runCatching {
-                            repo.fetchShortEpgNowNext(streamId = streamId, channelKey = e.cacheKey)
-                        }.getOrNull()
-                        if (result is Result.Success) {
-                            val (current, next) = result.data
-                            if (current != null || next != null) {
-                                epgCache[e.cacheKey] = current to next
-                                lastUpdateTimes[e.cacheKey] = System.currentTimeMillis()
-                                _updates.tryEmit(e.cacheKey)
-                            }
+    // 2) Provider short-EPG only for the leftovers, capped concurrency.
+    private fun CoroutineScope.fetchShortEpgLeftovers(
+        repo: XtreamRepository,
+        needShortEpg: List<WarmEntry>
+    ) {
+        needShortEpg.forEach { e ->
+            val streamId = e.streamId?.takeIf { it.isNotBlank() } ?: return@forEach
+            launch {
+                shortEpgGate.withPermit {
+                    if (hasRealEpg(e.cacheKey)) return@withPermit
+                    val result = runCatching {
+                        repo.fetchShortEpgNowNext(streamId = streamId, channelKey = e.cacheKey)
+                    }.getOrNull()
+                    if (result is Result.Success) {
+                        val (current, next) = result.data
+                        if (current != null || next != null) {
+                            epgCache[e.cacheKey] = current to next
+                            lastUpdateTimes[e.cacheKey] = System.currentTimeMillis()
+                            _updates.tryEmit(e.cacheKey)
                         }
                     }
                 }
