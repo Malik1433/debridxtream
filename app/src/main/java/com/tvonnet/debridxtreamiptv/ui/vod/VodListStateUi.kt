@@ -74,12 +74,22 @@ class VodListStateUi(
                 !isPagingRefreshLoading
         showEmptyState(isListEmpty)
 
-        val errorState = loadState.source.refresh as? LoadState.Error
+        applyLoadError(firstLoadError(loadState), itemCount)
+
+        if (!isPagingRefreshLoading && loadState.refresh is LoadState.NotLoading) {
+            onRefreshSettled()
+        }
+    }
+
+    // Any error across the paging surfaces counts; source errors are checked first, as before.
+    private fun firstLoadError(loadState: CombinedLoadStates): LoadState.Error? =
+        loadState.source.refresh as? LoadState.Error
             ?: loadState.source.append as? LoadState.Error
             ?: loadState.source.prepend as? LoadState.Error
             ?: loadState.refresh as? LoadState.Error
             ?: loadState.mediator?.refresh as? LoadState.Error
 
+    private fun applyLoadError(errorState: LoadState.Error?, itemCount: Int) {
         if (errorState != null) {
             hasLoadError = true
             Toast.makeText(
@@ -91,10 +101,6 @@ class VodListStateUi(
             if (itemCount == 0) showEmptyState(true)
         } else if (itemCount > 0) {
             hasLoadError = false
-        }
-
-        if (!isPagingRefreshLoading && loadState.refresh is LoadState.NotLoading) {
-            onRefreshSettled()
         }
     }
 

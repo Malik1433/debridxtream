@@ -223,6 +223,12 @@ class MovieDetailActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
+        bindViewRefs()
+        setupSimilarRow()
+        setupControllers()
+    }
+
+    private fun bindViewRefs() {
         ivBackdrop = findViewById(R.id.iv_backdrop)
 
         tvTitle = findViewById(R.id.tv_title)
@@ -271,7 +277,9 @@ class MovieDetailActivity : AppCompatActivity() {
         tvResumeElapsed = findViewById(R.id.tv_resume_elapsed)
         tvResumeRemaining = findViewById(R.id.tv_resume_remaining)
         pbResume = findViewById(R.id.pb_resume)
+    }
 
+    private fun setupSimilarRow() {
         similarAdapter = SimilarMoviesAdapter { movie ->
             val tmdbId = movie.id?.toString() ?: return@SimilarMoviesAdapter
             val intent = android.content.Intent(this, MovieDetailActivity::class.java).apply {
@@ -289,7 +297,15 @@ class MovieDetailActivity : AppCompatActivity() {
             layoutManager = LinearLayoutManager(this@MovieDetailActivity, LinearLayoutManager.HORIZONTAL, false)
             adapter = similarAdapter
         }
+    }
 
+    private fun setupControllers() {
+        setupTrailerAndSourceControllers()
+        setupPlaybackController()
+        setupMetadataController()
+    }
+
+    private fun setupTrailerAndSourceControllers() {
         movieTrailerController = MovieTrailerController(
             activity = this,
             tmdbRemoteDataSource = tmdbRemoteDataSource,
@@ -338,7 +354,9 @@ class MovieDetailActivity : AppCompatActivity() {
             )
         )
         movieDebridSources.setupSourceViews()
+    }
 
+    private fun setupPlaybackController() {
         moviePlayback = MovieDebridPlaybackController(
             activity = this,
             sources = movieDebridSources,
@@ -370,6 +388,9 @@ class MovieDetailActivity : AppCompatActivity() {
             adapter = castAdapter
         }
 
+    }
+
+    private fun setupMetadataController() {
         movieMetadata = MovieMetadataController(
             activity = this,
             tmdbRemoteDataSource = tmdbRemoteDataSource,
@@ -431,8 +452,25 @@ class MovieDetailActivity : AppCompatActivity() {
 
     private fun displayMovieDetails() {
         tvTitle.text = movieName ?: getString(R.string.movie_detail_unknown_movie)
+        displayBackHint()
+        displayContentTypeLabel()
+        displayMetadataRow()
+        displayDirectorAndPlot()
 
-        // Back-to-rail context hint (shown when the caller told us where we came from)
+        if (!movieBackdrop.isNullOrBlank()) {
+            Glide.with(this)
+                .load(movieBackdrop)
+                .centerCrop()
+                .into(ivBackdrop)
+        }
+
+        // RD CONNECTED status pill removed per updated design — keep hidden.
+        layoutRdStatus.visibility = View.GONE
+        tvBreadcrumbType.text = if (isDebridMovie) "/ MOVIES" else "/ VOD"
+    }
+
+    // Back-to-rail context hint (shown when the caller told us where we came from)
+    private fun displayBackHint() {
         val rail = movieSourceRail?.trim()
         if (!rail.isNullOrBlank()) {
             tvBackHint.text = "◄ BACK TO ${rail.uppercase(java.util.Locale.getDefault())}"
@@ -440,16 +478,21 @@ class MovieDetailActivity : AppCompatActivity() {
         } else {
             tvBackHint.visibility = View.GONE
         }
+    }
 
-        // Content type label
+    // Content type label
+    private fun displayContentTypeLabel() {
         if (isDebridMovie) {
             tvContentType.text = "FEATURE FILM"
             tvContentType.visibility = View.VISIBLE
         } else {
             tvContentType.visibility = View.GONE
         }
+    }
 
-        // Rating
+    // Rating / year / genre / age badges, each hidden when its field is absent; the row
+    // itself hides only when every field is.
+    private fun displayMetadataRow() {
         val rating = movieRating?.toDoubleOrNull() ?: 0.0
         val hasRating = rating > 0.0
         tvRatingPercentage.visibility = if (hasRating) View.VISIBLE else View.GONE
@@ -479,11 +522,17 @@ class MovieDetailActivity : AppCompatActivity() {
             tvAgeRating.visibility = View.GONE
         }
 
+        // Duration in compact format
+        val durationText = movieDuration?.takeIf { it.isNotBlank() }?.let { formatDurationCompact(it) }
+        tvDuration.text = durationText.orEmpty()
+        tvDuration.visibility = if (durationText.isNullOrBlank()) View.GONE else View.VISIBLE
+
         val hasMetadataRow = hasRating || !movieGenre.isNullOrBlank() || !movieDuration.isNullOrBlank() ||
             !movieYear.isNullOrBlank() || !ageRating.isNullOrBlank()
         layoutMetadataRow.visibility = if (hasMetadataRow) View.VISIBLE else View.GONE
+    }
 
-        // Director
+    private fun displayDirectorAndPlot() {
         if (!movieDirector.isNullOrBlank()) {
             tvDirector.text = movieDirector
             tvDirector.visibility = View.VISIBLE
@@ -494,22 +543,6 @@ class MovieDetailActivity : AppCompatActivity() {
         val descriptionText = moviePlot?.takeIf { it.isNotBlank() }
         tvDescription.text = descriptionText.orEmpty()
         tvDescription.visibility = if (descriptionText.isNullOrBlank()) View.GONE else View.VISIBLE
-
-        // Duration in compact format
-        val durationText = movieDuration?.takeIf { it.isNotBlank() }?.let { formatDurationCompact(it) }
-        tvDuration.text = durationText.orEmpty()
-        tvDuration.visibility = if (durationText.isNullOrBlank()) View.GONE else View.VISIBLE
-
-        if (!movieBackdrop.isNullOrBlank()) {
-            Glide.with(this)
-                .load(movieBackdrop)
-                .centerCrop()
-                .into(ivBackdrop)
-        }
-
-        // RD CONNECTED status pill removed per updated design — keep hidden.
-        layoutRdStatus.visibility = View.GONE
-        tvBreadcrumbType.text = if (isDebridMovie) "/ MOVIES" else "/ VOD"
     }
 
     /**

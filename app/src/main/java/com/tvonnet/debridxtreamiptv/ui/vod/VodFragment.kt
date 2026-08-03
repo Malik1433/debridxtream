@@ -450,62 +450,7 @@ class VodFragment : Fragment() {
             // toasts) while the fragment is STOPPED; the StateFlow replays the latest value on
             // re-START so nothing is missed.
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            viewModel.uiState.collect { state ->
-                val displayCategories = buildSidebarCategories(state.categories)
-                val categoryAdapter = rvCategoriesSidebar.adapter as? CategorySidebarAdapter
-                if (categoryAdapter == null && displayCategories.isNotEmpty()) {
-                    currentCategories = displayCategories
-                    setupCategorySidebar(displayCategories)
-                } else if (categoryAdapter != null && displayCategories != currentCategories) {
-                    currentCategories = displayCategories
-                    categoryAdapter.updateCategories(displayCategories, state.selectedCategoryId)
-                }
-
-                // Sidebar count badges — refresh rows when the counts change.
-                if (state.categoryCounts != categoryCounts) {
-                    categoryCounts = state.categoryCounts
-                    rvCategoriesSidebar.adapter?.notifyDataSetChanged()
-                    refreshSectionCount()
-                }
-
-                state.selectedCategoryId?.let { selectedId ->
-                    selectedCategoryId = selectedId
-                    (rvCategoriesSidebar.adapter as? CategorySidebarAdapter)?.setSelectedById(selectedId)
-                }
-
-                if (isMoviesLoadingFromViewModel != state.isLoadingMovies || state.isSwitchingCategory) {
-                    isMoviesLoadingFromViewModel = state.isLoadingMovies
-                    lastLoadStates?.let { listState.updateListLoadingAndEmptyStates(it, state.isSwitchingCategory) }
-                }
-
-                if (state.error != null) {
-                    listState.hasLoadError = true
-                    Toast.makeText(context, state.error, Toast.LENGTH_SHORT).show()
-                    if (vodAdapter.itemCount == 0 && !state.isLoadingMovies) listState.showEmptyState(true)
-                } else if (vodAdapter.itemCount > 0) {
-                    listState.hasLoadError = false
-                }
-
-                state.selectedCategoryId?.let { id ->
-                    val title = when (id) {
-                        FAVORITES_CATEGORY_ID -> getString(R.string.favorites)
-                        VodViewModel.ALL_MOVIES_CATEGORY_ID -> "All Movies"
-                        VodViewModel.RECENTLY_ADDED_VOD_CATEGORY_ID -> "Recently Added"
-                        else -> state.categories.find { it.category_id == id }?.category_name ?: "Movies"
-                    }
-                    currentCategoryName = title
-                    if (focus.lastFocusTarget == VodFocusController.FocusTarget.CATEGORIES) {
-                        resetSectionHeader()
-                    }
-                }
-
-                tvOfflineLabel?.visibility = if (state.error != null) View.VISIBLE else View.GONE
-
-                if (state.isLoadingMovies && vodAdapter.itemCount == 0) {
-                    listState.showEmptyState(false)
-                    listState.showLoadingState(true)
-                }
-            }
+                viewModel.uiState.collect { state -> renderVodState(state) }
             }
         }
 
@@ -515,6 +460,72 @@ class VodFragment : Fragment() {
                 vodAdapter.submitData(pagingData)
             }
             }
+        }
+    }
+
+    // One VodUiState emission, verbatim: sidebar rows + counts, selection, the loading/empty
+    // handoff, the error toast, and the section header title.
+    private fun renderVodState(state: VodUiState) {
+        syncSidebarCategories(state)
+
+        // Sidebar count badges — refresh rows when the counts change.
+        if (state.categoryCounts != categoryCounts) {
+            categoryCounts = state.categoryCounts
+            rvCategoriesSidebar.adapter?.notifyDataSetChanged()
+            refreshSectionCount()
+        }
+
+        state.selectedCategoryId?.let { selectedId ->
+            selectedCategoryId = selectedId
+            (rvCategoriesSidebar.adapter as? CategorySidebarAdapter)?.setSelectedById(selectedId)
+        }
+
+        if (isMoviesLoadingFromViewModel != state.isLoadingMovies || state.isSwitchingCategory) {
+            isMoviesLoadingFromViewModel = state.isLoadingMovies
+            lastLoadStates?.let { listState.updateListLoadingAndEmptyStates(it, state.isSwitchingCategory) }
+        }
+
+        if (state.error != null) {
+            listState.hasLoadError = true
+            Toast.makeText(context, state.error, Toast.LENGTH_SHORT).show()
+            if (vodAdapter.itemCount == 0 && !state.isLoadingMovies) listState.showEmptyState(true)
+        } else if (vodAdapter.itemCount > 0) {
+            listState.hasLoadError = false
+        }
+
+        updateSectionHeaderTitle(state)
+
+        tvOfflineLabel?.visibility = if (state.error != null) View.VISIBLE else View.GONE
+
+        if (state.isLoadingMovies && vodAdapter.itemCount == 0) {
+            listState.showEmptyState(false)
+            listState.showLoadingState(true)
+        }
+    }
+
+    private fun syncSidebarCategories(state: VodUiState) {
+        val displayCategories = buildSidebarCategories(state.categories)
+        val categoryAdapter = rvCategoriesSidebar.adapter as? CategorySidebarAdapter
+        if (categoryAdapter == null && displayCategories.isNotEmpty()) {
+            currentCategories = displayCategories
+            setupCategorySidebar(displayCategories)
+        } else if (categoryAdapter != null && displayCategories != currentCategories) {
+            currentCategories = displayCategories
+            categoryAdapter.updateCategories(displayCategories, state.selectedCategoryId)
+        }
+    }
+
+    private fun updateSectionHeaderTitle(state: VodUiState) {
+        val id = state.selectedCategoryId ?: return
+        val title = when (id) {
+            FAVORITES_CATEGORY_ID -> getString(R.string.favorites)
+            VodViewModel.ALL_MOVIES_CATEGORY_ID -> "All Movies"
+            VodViewModel.RECENTLY_ADDED_VOD_CATEGORY_ID -> "Recently Added"
+            else -> state.categories.find { it.category_id == id }?.category_name ?: "Movies"
+        }
+        currentCategoryName = title
+        if (focus.lastFocusTarget == VodFocusController.FocusTarget.CATEGORIES) {
+            resetSectionHeader()
         }
     }
 

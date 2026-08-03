@@ -204,68 +204,13 @@ class SeriesSeasonUi(
         }
 
         episodeKeys.forEachIndexed { index, key ->
-            val seasonNum = key.toIntOrNull() ?: (index + 1)
-            val epCount = currentDetail?.episodes?.get(key)?.size ?: 0
-            val isActive = key == selectedSeasonKey
-
-            val itemBg = android.graphics.drawable.GradientDrawable().apply {
-                setColor(if (isActive) 0x1400F0FF else 0x00000000)
-                cornerRadius = dp(5).toFloat()
-            }
-            val itemView = LinearLayout(activity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(12), 0, dp(10), 0)
-                minimumHeight = dp(40)
-                isFocusable = true
-                isClickable = true
-                background = itemBg
-                setOnClickListener {
-                    selectedSeasonKey = key
-                    showEpisodesForSeason(key)
-                    updateSeasonButton()
-                    popup.dismiss()
-                }
-                setOnFocusChangeListener { _, hasFocus ->
-                    itemBg.setColor(
-                        when {
-                            hasFocus -> 0x2400F0FF
-                            isActive -> 0x1400F0FF
-                            else -> 0x00000000
-                        }
-                    )
-                }
-            }
-
-            val labelTv = TextView(activity).apply {
-                text = "Season $seasonNum"
-                setTextColor(if (isActive) 0xFF00F0FF.toInt() else 0xFFE2E8F0.toInt())
-                textSize = 14f
-                setTypeface(typeface, android.graphics.Typeface.BOLD)
-                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-            }
-            itemView.addView(labelTv)
-
-            val countTv = TextView(activity).apply {
-                text = "$epCount EP"
-                setTextColor(0xFF64748B.toInt())
-                textSize = 11f
-                typeface = android.graphics.Typeface.MONOSPACE
-                setPadding(0, 0, dp(8), 0)
-            }
-            itemView.addView(countTv)
-
-            val check = TextView(activity).apply {
-                text = if (isActive) "●" else ""
-                setTextColor(0xFF00F0FF.toInt())
-                textSize = 11f
-            }
-            itemView.addView(check)
-
-            popupView.addView(itemView, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(2) })
+            popupView.addView(
+                buildSeasonRow(key, index, popup),
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(2) }
+            )
         }
 
         popupView.measure(
@@ -278,6 +223,69 @@ class SeriesSeasonUi(
             -btnSeasonSelector.height - popupView.measuredHeight - dp(4),
             Gravity.START or Gravity.BOTTOM
         )
+    }
+
+    // One season row in the popup, verbatim: cyan wash when active, brighter on focus,
+    // click selects the season and dismisses. Layout values are the design's.
+    private fun buildSeasonRow(key: String, index: Int, popup: PopupWindow): LinearLayout {
+        val seasonNum = key.toIntOrNull() ?: (index + 1)
+        val epCount = currentDetail?.episodes?.get(key)?.size ?: 0
+        val isActive = key == selectedSeasonKey
+
+        val itemBg = android.graphics.drawable.GradientDrawable().apply {
+            setColor(if (isActive) 0x1400F0FF else 0x00000000)
+            cornerRadius = dp(5).toFloat()
+        }
+        val itemView = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(12), 0, dp(10), 0)
+            minimumHeight = dp(40)
+            isFocusable = true
+            isClickable = true
+            background = itemBg
+            setOnClickListener {
+                selectedSeasonKey = key
+                showEpisodesForSeason(key)
+                updateSeasonButton()
+                popup.dismiss()
+            }
+            setOnFocusChangeListener { _, hasFocus ->
+                itemBg.setColor(
+                    when {
+                        hasFocus -> 0x2400F0FF
+                        isActive -> 0x1400F0FF
+                        else -> 0x00000000
+                    }
+                )
+            }
+        }
+
+        val labelTv = TextView(activity).apply {
+            text = "Season $seasonNum"
+            setTextColor(if (isActive) 0xFF00F0FF.toInt() else 0xFFE2E8F0.toInt())
+            textSize = 14f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        itemView.addView(labelTv)
+
+        val countTv = TextView(activity).apply {
+            text = "$epCount EP"
+            setTextColor(0xFF64748B.toInt())
+            textSize = 11f
+            typeface = android.graphics.Typeface.MONOSPACE
+            setPadding(0, 0, dp(8), 0)
+        }
+        itemView.addView(countTv)
+
+        val check = TextView(activity).apply {
+            text = if (isActive) "●" else ""
+            setTextColor(0xFF00F0FF.toInt())
+            textSize = 11f
+        }
+        itemView.addView(check)
+        return itemView
     }
 
     private fun updateSeasonButton() {
@@ -394,64 +402,13 @@ class SeriesSeasonUi(
         if (episodes.isEmpty()) return
         val seasonNumber = selectedSeasonKey?.toIntOrNull()
         activity.lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                val progress = HashMap<String, Int>()
-                val progressMs = HashMap<String, Long>()
-                val watched = HashSet<String>()
-                for (ep in episodes) {
-                    var pct: Int? = null
-                    var posMs: Long? = null
-                    var isW = ep.isWatched
-                    // 1) resume position carried by the episode model (Xtream)
-                    val durMin = ep.durationMinutes ?: 0
-                    if (ep.resumePosition > 0 && durMin > 0) {
-                        pct = ((ep.resumePosition.toFloat() / (durMin * 60_000L)) * 100).toInt().coerceIn(0, 100)
-                        posMs = ep.resumePosition
-                    }
-                    // 2) watched-state store (Debrid + anything with a saved position)
-                    if (seasonNumber != null) {
-                        val key = if (isDebrid()) {
-                            com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder.debridEpisode(
-                                seriesIdentity = seriesId(),
-                                seasonNumber = seasonNumber,
-                                episodeNumber = ep.episodeNumber,
-                                seriesTitle = seriesName(),
-                                seriesYear = seriesReleaseDate()?.take(4),
-                                fallbackDiscriminator = ep.id.ifBlank { ep.title }
-                            )
-                        } else {
-                            com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder.iptvEpisode(
-                                episodeId = ep.id,
-                                seriesId = seriesId(),
-                                seasonNumber = seasonNumber,
-                                episodeNumber = ep.episodeNumber,
-                                fallbackDiscriminator = ep.id.ifBlank { ep.title }
-                            )
-                        }
-                        val state = watchedStateRepository.getState(key)
-                        if (state != null) {
-                            if (state.isWatched) isW = true
-                            if (!state.isWatched && state.durationMs > 0 && state.progressMs > 0) {
-                                pct = ((state.progressMs.toFloat() / state.durationMs) * 100).toInt().coerceIn(0, 100)
-                                posMs = state.progressMs
-                            }
-                        }
-                    }
-                    if (isW) {
-                        watched.add(ep.id)
-                    } else if (pct != null && pct in 1..99) {
-                        progress[ep.id] = pct
-                        posMs?.let { progressMs[ep.id] = it }
-                    }
-                }
-                Triple(progress, progressMs, watched)
-            }
+            val result = withContext(Dispatchers.IO) { readSeasonProgress(episodes, seasonNumber) }
             episodeProgress.clear()
-            episodeProgress.putAll(result.first)
+            episodeProgress.putAll(result.percentById)
             episodeProgressMs.clear()
-            episodeProgressMs.putAll(result.second)
+            episodeProgressMs.putAll(result.positionMsById)
             episodeWatched.clear()
-            episodeWatched.addAll(result.third)
+            episodeWatched.addAll(result.watchedIds)
             // CC-1: applyOverrides() does a blanket notifyDataSetChanged; on return from the
             // player this fires and would drop focus off the just-watched episode. Preserve
             // the user's focused card (restores to the same episode by stable id).
@@ -462,6 +419,79 @@ class SeriesSeasonUi(
             updateWatchNowState()
         }
     }
+
+    /** Per-episode resume percent, resume position and watched ids for one season. */
+    private class SeasonProgress(
+        val percentById: Map<String, Int>,
+        val positionMsById: Map<String, Long>,
+        val watchedIds: Set<String>,
+    )
+
+    // Two progress sources, verbatim precedence: the episode model's own resume position
+    // (Xtream), then the watched-state store (Debrid + anything with a saved position),
+    // which also wins on "watched". Runs on IO — it hits the DB once per episode.
+    private suspend fun readSeasonProgress(
+        episodes: List<EpisodeUiModel>,
+        seasonNumber: Int?
+    ): SeasonProgress {
+        val progress = HashMap<String, Int>()
+        val progressMs = HashMap<String, Long>()
+        val watched = HashSet<String>()
+        for (ep in episodes) {
+            val resolved = resolveEpisodeProgress(ep, seasonNumber)
+            if (resolved.isWatched) {
+                watched.add(ep.id)
+            } else if (resolved.percent != null && resolved.percent in 1..99) {
+                progress[ep.id] = resolved.percent
+                resolved.positionMs?.let { progressMs[ep.id] = it }
+            }
+        }
+        return SeasonProgress(progress, progressMs, watched)
+    }
+
+    private class EpisodeProgress(val percent: Int?, val positionMs: Long?, val isWatched: Boolean)
+
+    private suspend fun resolveEpisodeProgress(ep: EpisodeUiModel, seasonNumber: Int?): EpisodeProgress {
+        var pct: Int? = null
+        var posMs: Long? = null
+        var isW = ep.isWatched
+        // 1) resume position carried by the episode model (Xtream)
+        val durMin = ep.durationMinutes ?: 0
+        if (ep.resumePosition > 0 && durMin > 0) {
+            pct = ((ep.resumePosition.toFloat() / (durMin * 60_000L)) * 100).toInt().coerceIn(0, 100)
+            posMs = ep.resumePosition
+        }
+        // 2) watched-state store (Debrid + anything with a saved position)
+        val state = seasonNumber?.let { watchedStateRepository.getState(watchedKeyFor(ep, it)) }
+        if (state != null) {
+            if (state.isWatched) isW = true
+            if (!state.isWatched && state.durationMs > 0 && state.progressMs > 0) {
+                pct = ((state.progressMs.toFloat() / state.durationMs) * 100).toInt().coerceIn(0, 100)
+                posMs = state.progressMs
+            }
+        }
+        return EpisodeProgress(pct, posMs, isW)
+    }
+
+    private fun watchedKeyFor(ep: EpisodeUiModel, seasonNumber: Int): String =
+        if (isDebrid()) {
+            com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder.debridEpisode(
+                seriesIdentity = seriesId(),
+                seasonNumber = seasonNumber,
+                episodeNumber = ep.episodeNumber,
+                seriesTitle = seriesName(),
+                seriesYear = seriesReleaseDate()?.take(4),
+                fallbackDiscriminator = ep.id.ifBlank { ep.title }
+            )
+        } else {
+            com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder.iptvEpisode(
+                episodeId = ep.id,
+                seriesId = seriesId(),
+                seasonNumber = seasonNumber,
+                episodeNumber = ep.episodeNumber,
+                fallbackDiscriminator = ep.id.ifBlank { ep.title }
+            )
+        }
 
     private fun updateSeasonProgress(episodes: List<EpisodeUiModel>) {
         val watchedCount = episodes.count { it.isWatched }
