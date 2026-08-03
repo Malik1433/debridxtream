@@ -9,9 +9,6 @@
     <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$private fun observeViewModel()</ID>
     <ID>CyclomaticComplexMethod:LiveFragment.kt$LiveFragment$private fun restoreInitialFocusIfNeeded(state: LiveUiState)</ID>
-    <ID>CyclomaticComplexMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playDebridMovie( stream: XtreamVodInfo?, source: MovieSource?, returnToSources: Boolean = false )</ID>
-    <ID>CyclomaticComplexMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playMovie(sourceOverride: MovieSource? = null)</ID>
-    <ID>CyclomaticComplexMethod:PlayerDebridCoordinator.kt$PlayerDebridCoordinator$private fun switchToMovieSource(source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource)</ID>
     <ID>CyclomaticComplexMethod:PlayerInputRouter.kt$PlayerInputRouter$fun dispatchKeyEvent(event: KeyEvent): Boolean?</ID>
     <ID>CyclomaticComplexMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handlePlaybackError(error: PlaybackException)</ID>
     <ID>CyclomaticComplexMethod:PlayerSeriesController.kt$PlayerSeriesController$fun playNextEpisode()</ID>
@@ -26,10 +23,6 @@
     <ID>LongMethod:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$suspend fun getSeriesEpisodeSources( seriesId: String?, seasonNumber: Int, episodeNumber: Int, title: String?, yearHint: String?, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
     <ID>LongMethod:LiveFragment.kt$LiveFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:LiveFragment.kt$LiveFragment$private fun observeViewModel()</ID>
-    <ID>LongMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playDebridMovie( stream: XtreamVodInfo?, source: MovieSource?, returnToSources: Boolean = false )</ID>
-    <ID>LongMethod:MovieDebridPlaybackController.kt$MovieDebridPlaybackController$fun playMovie(sourceOverride: MovieSource? = null)</ID>
-    <ID>LongMethod:MovieDebridSourceController.kt$MovieDebridSourceController$fun refreshMediaFusionCacheStatus( sources: List&lt;MovieSource&gt;, onUpdated: (List&lt;MovieSource&gt;) -&gt; Unit )</ID>
-    <ID>LongMethod:MovieDebridSourceController.kt$MovieDebridSourceController$fun showDebridSourcePicker(returnFocusStreamIds: List&lt;String&gt; = emptyList())</ID>
     <ID>LongMethod:PlayerRecoveryController.kt$PlayerRecoveryController$fun handlePlaybackError(error: PlaybackException)</ID>
     <ID>LongMethod:PlayerTrackManager.kt$PlayerTrackManager$private fun showSinglePressTrackSelection( player: Player, title: String, trackType: Int, showDisableOption: Boolean, onDialogReady: (android.app.Dialog) -&gt; Unit )</ID>
     <ID>LongMethod:PreviewPlayerPanel.kt$PreviewPlayerPanel$fun play(stream: XtreamStream, streamUrlOverride: String? = null)</ID>

@@ -303,7 +303,21 @@ class MovieDebridSourceController(
     }
 
     fun showDebridSourcePicker(returnFocusStreamIds: List<String> = emptyList()) {
-        val bottomSheet = SourceSelectionBottomSheet(
+        val bottomSheet = buildSourceBottomSheet(returnFocusStreamIds)
+
+        bottomSheet.show(activity.supportFragmentManager, SourceSelectionBottomSheet.TAG)
+
+        if (debridSources.isNotEmpty()) {
+            showCachedDebridSources(bottomSheet)
+            return
+        }
+
+        bottomSheet.showLoading()
+        loadAndShowDebridSources(bottomSheet)
+    }
+
+    private fun buildSourceBottomSheet(returnFocusStreamIds: List<String>): SourceSelectionBottomSheet =
+        SourceSelectionBottomSheet(
             onSourceSelected = { source, adjacentStreamIds ->
                 selectedDebridStreamId = source.stream.stream_id
                 pendingDebridReturnFocusStreamIds = adjacentStreamIds
@@ -334,59 +348,35 @@ class MovieDebridSourceController(
             preferredAudioLang = credentialsPrefs.preferredAudioLang
         )
 
-        bottomSheet.show(activity.supportFragmentManager, SourceSelectionBottomSheet.TAG)
+    private fun recordSourceListLoaded(sources: List<MovieSource>) {
+        PlaybackDiagnosticsRecorder.record(
+            activity,
+            "source_list_loaded",
+            PlaybackDiagnosticsRecorder.contentFields(
+                kind = "movie",
+                tmdbId = movieId()?.takeIf { it.toIntOrNull() != null },
+                imdbId = currentImdbId()
+            ) + PlaybackDiagnosticsRecorder.sourceListFields(activity, sources)
+        )
+    }
 
-        if (debridSources.isNotEmpty()) {
-            PlaybackDiagnosticsRecorder.record(
-                activity,
-                "source_list_loaded",
-                PlaybackDiagnosticsRecorder.contentFields(
-                    kind = "movie",
-                    tmdbId = movieId()?.takeIf { it.toIntOrNull() != null },
-                    imdbId = currentImdbId()
-                ) + PlaybackDiagnosticsRecorder.sourceListFields(activity, debridSources)
-            )
-            bottomSheet.showSources(debridSources)
-            refreshMediaFusionCacheStatus(debridSources) { updated ->
-                debridSources = updated
-                if (bottomSheet.isAdded) {
-                    bottomSheet.showSources(updated)
-                }
+    private fun showCachedDebridSources(bottomSheet: SourceSelectionBottomSheet) {
+        recordSourceListLoaded(debridSources)
+        bottomSheet.showSources(debridSources)
+        refreshMediaFusionCacheStatus(debridSources) { updated ->
+            debridSources = updated
+            if (bottomSheet.isAdded) {
+                bottomSheet.showSources(updated)
             }
-            return
         }
+    }
 
-        bottomSheet.showLoading()
+    private fun loadAndShowDebridSources(bottomSheet: SourceSelectionBottomSheet) {
         activity.lifecycleScope.launch {
             try {
-                val sources = withContext(Dispatchers.IO) {
-                    val debrid = unifiedSourceProvider.getMovieSources(
-                        streamId = movieId(),
-                        title = movieName(),
-                        primaryCategoryId = movieCategoryId(),
-                        yearHint = movieYear(),
-                        imdbId = currentImdbId()
-                    )
-                    // Like the series stream panel: surface the same movie's IPTV (Xtream)
-                    // listings alongside the debrid sources, badged "IPTV".
-                    val iptv = try {
-                        fetchIptvMovieSources(movieName())
-                    } catch (e: Exception) {
-                        android.util.Log.w("MovieDetailActivity", "IPTV source lookup failed: ${e.message}")
-                        emptyList()
-                    }
-                    debrid + iptv
-                }
+                val sources = withContext(Dispatchers.IO) { fetchDebridPlusIptvSources() }
                 debridSources = sources
-                PlaybackDiagnosticsRecorder.record(
-                    activity,
-                    "source_list_loaded",
-                    PlaybackDiagnosticsRecorder.contentFields(
-                        kind = "movie",
-                        tmdbId = movieId()?.takeIf { it.toIntOrNull() != null },
-                        imdbId = currentImdbId()
-                    ) + PlaybackDiagnosticsRecorder.sourceListFields(activity, sources)
-                )
+                recordSourceListLoaded(sources)
                 if (sources.isEmpty()) {
                     bottomSheet.showError(activity.getString(R.string.movie_detail_sources_empty))
                 } else {
@@ -407,6 +397,25 @@ class MovieDebridSourceController(
                 bottomSheet.showError(e.message ?: activity.getString(R.string.movie_detail_sources_empty))
             }
         }
+    }
+
+    private suspend fun fetchDebridPlusIptvSources(): List<MovieSource> {
+        val debrid = unifiedSourceProvider.getMovieSources(
+            streamId = movieId(),
+            title = movieName(),
+            primaryCategoryId = movieCategoryId(),
+            yearHint = movieYear(),
+            imdbId = currentImdbId()
+        )
+        // Like the series stream panel: surface the same movie's IPTV (Xtream)
+        // listings alongside the debrid sources, badged "IPTV".
+        val iptv = try {
+            fetchIptvMovieSources(movieName())
+        } catch (e: Exception) {
+            android.util.Log.w("MovieDetailActivity", "IPTV source lookup failed: ${e.message}")
+            emptyList()
+        }
+        return debrid + iptv
     }
 
     /**
@@ -529,59 +538,70 @@ class MovieDebridSourceController(
         if (mediaFusionSources.isEmpty()) return
 
         activity.lifecycleScope.launch {
-            val updates = withContext(Dispatchers.IO) {
-                val semaphore = Semaphore(4)
-                coroutineScope {
-                    mediaFusionSources.map { source ->
-                        async {
-                            semaphore.withPermit {
-                                val url = source.stream.direct_source ?: return@withPermit null
-                                val result = debridPlaybackRepository.getAddonProxyPlaybackReadiness(
-                                    url,
-                                    source.headers,
-                                    source.provider,
-                                    source.sourceName,
-                                    source.sourceType,
-                                    diagnosticsContext = activity
-                                )
-                                val readiness =
-                                    (result as? Result.Success)?.data ?: AddonProxyReadiness.UNCERTAIN
-                                source.stream.stream_id to readiness
-                            }
-                        }
-                    }.awaitAll().filterNotNull().toMap()
-                }
-            }
+            val updates = withContext(Dispatchers.IO) { probeAddonProxyReadiness(mediaFusionSources) }
             if (updates.isEmpty()) return@launch
 
-            val updatedSources = sources.map { source ->
-                when (updates[source.stream.stream_id]) {
-                    AddonProxyReadiness.READY -> if (source.cacheStatus != DebridCacheStatus.DIRECT_STREAM) {
-                        source.copy(
-                            isCached = true,
-                            cacheStatus = DebridCacheStatus.DIRECT_STREAM
-                        )
-                    } else {
-                        source
-                    }
-                    AddonProxyReadiness.TERMINAL -> {
-                        source.stream.stream_id?.let { failedDebridStreamIds.add(it) }
-                        if (source.cacheStatus != DebridCacheStatus.NOT_CACHED) {
-                            source.copy(
-                                isCached = false,
-                                cacheStatus = DebridCacheStatus.NOT_CACHED
-                            )
-                        } else {
-                            source
-                        }
-                    }
-                    AddonProxyReadiness.UNCERTAIN,
-                    null -> source
-                }
-            }
+            val updatedSources = applyReadinessUpdates(sources, updates)
             if (updatedSources != sources) {
                 onUpdated(updatedSources)
             }
+        }
+    }
+
+    // Bounded fan-out (4 at a time) over the proxy-backed sources; UNCERTAIN on any miss.
+    private suspend fun probeAddonProxyReadiness(
+        mediaFusionSources: List<MovieSource>
+    ): Map<String?, AddonProxyReadiness> {
+        val semaphore = Semaphore(4)
+        return coroutineScope {
+            mediaFusionSources.map { source ->
+                async {
+                    semaphore.withPermit {
+                        val url = source.stream.direct_source ?: return@withPermit null
+                        val result = debridPlaybackRepository.getAddonProxyPlaybackReadiness(
+                            url,
+                            source.headers,
+                            source.provider,
+                            source.sourceName,
+                            source.sourceType,
+                            diagnosticsContext = activity
+                        )
+                        val readiness =
+                            (result as? Result.Success)?.data ?: AddonProxyReadiness.UNCERTAIN
+                        source.stream.stream_id to readiness
+                    }
+                }
+            }.awaitAll().filterNotNull().toMap()
+        }
+    }
+
+    // UNCERTAIN never downgrades a source; TERMINAL also records the failed stream id.
+    private fun applyReadinessUpdates(
+        sources: List<MovieSource>,
+        updates: Map<String?, AddonProxyReadiness>
+    ): List<MovieSource> = sources.map { source ->
+        when (updates[source.stream.stream_id]) {
+            AddonProxyReadiness.READY -> if (source.cacheStatus != DebridCacheStatus.DIRECT_STREAM) {
+                source.copy(
+                    isCached = true,
+                    cacheStatus = DebridCacheStatus.DIRECT_STREAM
+                )
+            } else {
+                source
+            }
+            AddonProxyReadiness.TERMINAL -> {
+                source.stream.stream_id?.let { failedDebridStreamIds.add(it) }
+                if (source.cacheStatus != DebridCacheStatus.NOT_CACHED) {
+                    source.copy(
+                        isCached = false,
+                        cacheStatus = DebridCacheStatus.NOT_CACHED
+                    )
+                } else {
+                    source
+                }
+            }
+            AddonProxyReadiness.UNCERTAIN,
+            null -> source
         }
     }
 

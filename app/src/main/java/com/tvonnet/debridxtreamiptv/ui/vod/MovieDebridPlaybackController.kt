@@ -126,38 +126,84 @@ class MovieDebridPlaybackController(
         val username = credentialsPrefs.getUsername() ?: return
         val password = credentialsPrefs.getPassword() ?: return
 
-        // Check if it's a Debrid source (magnet link or explicit label)
-        // BUT exclude direct HTTP streams (which should be played directly)
-        val isDirectHttp = stream?.direct_source?.startsWith("http") == true &&
-                           stream?.direct_source?.endsWith(".torrent") == false
-
-        val isDebrid = !isDirectHttp && (
-                       stream?.direct_source?.startsWith("magnet:") == true ||
-                       sourceOverride?.label?.contains("Torrentio") == true ||
-                       sourceOverride?.label?.contains("MediaFusion") == true ||
-                       sourceOverride?.label?.contains("PureFire") == true)
-
-        if (isDebrid) {
+        val isDirectHttp = isDirectHttpStream(stream)
+        if (isDebridSelection(stream, sourceOverride, isDirectHttp)) {
             playDebridMovie(stream, sourceOverride)
             return
         }
 
-        val streamUrl = if (isDirectHttp) {
-             stream!!.direct_source!!
-        } else if (stream != null) {
-            repository.buildVodStreamUrl(stream, serverUrl)
-        } else {
-            val baseUrl = serverUrl.trimEnd('/')
-            "$baseUrl/movie/$username/$password/$streamId.$containerExt"
-        }
+        val streamUrl = buildXtreamStreamUrl(
+            XtreamUrlFacts(stream, isDirectHttp, serverUrl, username, password, streamId, containerExt)
+        )
         android.util.Log.d(
             "MovieDetailActivity",
             "Playing movie: ${stream?.name ?: movieName()} - URL: ${SensitiveLogRedactor.describeUrl(streamUrl)}"
         )
 
-        val tmdbId = movieId()?.takeIf { it.toIntOrNull() != null }
-        // An IPTV row picked from the debrid source sheet is plain Xtream playback:
-        // never route it through the debrid resolver machinery.
+        val flags = moviePlaybackFlags(isDirectHttp, sourceOverride)
+        val launchPlayer = {
+            launchIptvOrDirectMovie(
+                IptvMovieLaunch(stream, sourceOverride, streamUrl, streamId, flags)
+            )
+        }
+
+        if (sources.isAddonProxyPlaybackUrl(streamUrl)) {
+            gateOnAddonProxyReadiness(streamUrl, sourceOverride, stream, launchPlayer)
+            return
+        }
+
+        launchPlayer()
+    }
+
+    // Check if it's a Debrid source (magnet link or explicit label)
+    // BUT exclude direct HTTP streams (which should be played directly)
+    private fun isDirectHttpStream(stream: XtreamVodInfo?): Boolean =
+        stream?.direct_source?.startsWith("http") == true &&
+            stream.direct_source?.endsWith(".torrent") == false
+
+    private fun isDebridSelection(
+        stream: XtreamVodInfo?,
+        sourceOverride: MovieSource?,
+        isDirectHttp: Boolean
+    ): Boolean =
+        !isDirectHttp && (
+            stream?.direct_source?.startsWith("magnet:") == true ||
+                sourceOverride?.label?.contains("Torrentio") == true ||
+                sourceOverride?.label?.contains("MediaFusion") == true ||
+                sourceOverride?.label?.contains("PureFire") == true
+            )
+
+    /** Everything the non-debrid stream-URL choice depends on, bundled. */
+    private data class XtreamUrlFacts(
+        val stream: XtreamVodInfo?,
+        val isDirectHttp: Boolean,
+        val serverUrl: String,
+        val username: String,
+        val password: String,
+        val streamId: String,
+        val containerExt: String,
+    )
+
+    private fun buildXtreamStreamUrl(facts: XtreamUrlFacts): String {
+        return if (facts.isDirectHttp) {
+            facts.stream!!.direct_source!!
+        } else if (facts.stream != null) {
+            repository.buildVodStreamUrl(facts.stream, facts.serverUrl)
+        } else {
+            val baseUrl = facts.serverUrl.trimEnd('/')
+            "$baseUrl/movie/${facts.username}/${facts.password}/${facts.streamId}.${facts.containerExt}"
+        }
+    }
+
+    private data class MoviePlaybackFlags(
+        val playbackSource: com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource?,
+        val directDebridPlayback: Boolean,
+        val resolverBackedDebridPlayback: Boolean,
+    )
+
+    // An IPTV row picked from the debrid source sheet is plain Xtream playback:
+    // never route it through the debrid resolver machinery.
+    private fun moviePlaybackFlags(isDirectHttp: Boolean, sourceOverride: MovieSource?): MoviePlaybackFlags {
         val isIptvSource = sourceOverride?.sourceType == "IPTV"
         val playbackSource =
             if (movieCategoryId() == "debrid" && !isIptvSource) {
@@ -166,88 +212,100 @@ class MovieDebridPlaybackController(
                 null
             }
         val directDebridPlayback = isDirectHttp && movieCategoryId() == "debrid" && !isIptvSource
-        val resolverBackedDebridPlayback = playbackSource != null && !directDebridPlayback
+        return MoviePlaybackFlags(playbackSource, directDebridPlayback, playbackSource != null && !directDebridPlayback)
+    }
 
-        val launchPlayer = {
-            PlaybackDiagnosticsRecorder.record(
-                activity,
-                "playback_launch",
-                PlaybackDiagnosticsRecorder.contentFields(
-                    kind = "movie",
-                    tmdbId = tmdbId,
-                    imdbId = currentImdbId()
-                ) + PlaybackDiagnosticsRecorder.sourceFields(activity, sourceOverride) +
-                    PlaybackDiagnosticsRecorder.playbackFields(
-                        context = activity,
-                        url = streamUrl,
-                        headers = sourceOverride?.headers,
-                        playbackSource = playbackSource?.name,
-                        directDebridPlayback = directDebridPlayback
-                    ) + mapOf("launchPath" to "direct_or_iptv")
-            )
-            val intent = PlayerActivity.createIntent(
-                context = activity,
-                streamUrl = streamUrl,
-                title = stream?.name ?: movieName() ?: activity.getString(R.string.movie_detail_unknown_movie),
-                contentId = stream?.stream_id ?: streamId,
-                contentType = ContentType.MOVIE,
-                posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream?.stream_icon) ?: movieIcon(),
-                backdropUrl = stream?.cover ?: movieBackdrop(),
-                headers = sourceOverride?.headers,
+    private data class IptvMovieLaunch(
+        val stream: XtreamVodInfo?,
+        val sourceOverride: MovieSource?,
+        val streamUrl: String,
+        val streamId: String,
+        val flags: MoviePlaybackFlags,
+    )
+
+    private fun launchIptvOrDirectMovie(plan: IptvMovieLaunch) {
+        val (stream, sourceOverride, streamUrl, streamId, flags) = plan
+        val tmdbId = movieId()?.takeIf { it.toIntOrNull() != null }
+        PlaybackDiagnosticsRecorder.record(
+            activity,
+            "playback_launch",
+            PlaybackDiagnosticsRecorder.contentFields(
+                kind = "movie",
                 tmdbId = tmdbId,
-                imdbId = currentImdbId(),
-                debridInfoHash = if (resolverBackedDebridPlayback) stream?.stream_id else null,
-                debridMagnet = if (resolverBackedDebridPlayback) stream?.direct_source else null,
-                directDebridPlayback = directDebridPlayback,
-                debridProvider = sourceOverride?.provider,
-                debridSourceType = sourceOverride?.sourceType,
-                debridSourceName = sourceOverride?.sourceName,
-                debridLanguages = sourceOverride?.languages,
-                debridQuality = sourceOverride?.quality,
-                debridStreamId = sourceOverride?.stream?.stream_id,
-                debridBingeGroup = sourceOverride?.bingeGroup,
-                debridFileIdx = sourceOverride?.fileIdx,
-                playbackSource = playbackSource,
-                startPositionMs = resumePositionMs()
-            )
-            activity.startActivity(intent)
-        }
+                imdbId = currentImdbId()
+            ) + PlaybackDiagnosticsRecorder.sourceFields(activity, sourceOverride) +
+                PlaybackDiagnosticsRecorder.playbackFields(
+                    context = activity,
+                    url = streamUrl,
+                    headers = sourceOverride?.headers,
+                    playbackSource = flags.playbackSource?.name,
+                    directDebridPlayback = flags.directDebridPlayback
+                ) + mapOf("launchPath" to "direct_or_iptv")
+        )
+        val intent = PlayerActivity.createIntent(
+            context = activity,
+            streamUrl = streamUrl,
+            title = stream?.name ?: movieName() ?: activity.getString(R.string.movie_detail_unknown_movie),
+            contentId = stream?.stream_id ?: streamId,
+            contentType = ContentType.MOVIE,
+            posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream?.stream_icon) ?: movieIcon(),
+            backdropUrl = stream?.cover ?: movieBackdrop(),
+            headers = sourceOverride?.headers,
+            tmdbId = tmdbId,
+            imdbId = currentImdbId(),
+            debridInfoHash = if (flags.resolverBackedDebridPlayback) stream?.stream_id else null,
+            debridMagnet = if (flags.resolverBackedDebridPlayback) stream?.direct_source else null,
+            directDebridPlayback = flags.directDebridPlayback,
+            debridProvider = sourceOverride?.provider,
+            debridSourceType = sourceOverride?.sourceType,
+            debridSourceName = sourceOverride?.sourceName,
+            debridLanguages = sourceOverride?.languages,
+            debridQuality = sourceOverride?.quality,
+            debridStreamId = sourceOverride?.stream?.stream_id,
+            debridBingeGroup = sourceOverride?.bingeGroup,
+            debridFileIdx = sourceOverride?.fileIdx,
+            playbackSource = flags.playbackSource,
+            startPositionMs = resumePositionMs()
+        )
+        activity.startActivity(intent)
+    }
 
-        if (sources.isAddonProxyPlaybackUrl(streamUrl)) {
-            activity.lifecycleScope.launch {
-                val readyResult = withContext(Dispatchers.IO) {
-                    debridPlaybackRepository.getAddonProxyPlaybackReadiness(
-                        streamUrl,
-                        sourceOverride?.headers,
-                        sourceOverride?.provider,
-                        sourceOverride?.sourceName,
-                        sourceOverride?.sourceType,
-                        diagnosticsContext = activity
-                    )
-                }
-                val readiness = (readyResult as? Result.Success)?.data ?: AddonProxyReadiness.UNCERTAIN
-                if (readiness == AddonProxyReadiness.TERMINAL) {
-                    stream?.stream_id?.let { sources.failedDebridStreamIds.add(it) }
-                    sources.markDebridSourceStatus(stream?.stream_id, DebridCacheStatus.NOT_CACHED)
-                    Toast.makeText(
-                        activity,
-                        "Source is unavailable. Choose another source.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    if (sourceOverride != null) {
-                        sources.showDebridSourcePicker(sources.consumeDebridReturnFocusStreamIds())
-                    }
-                    return@launch
-                }
-                if (readiness == AddonProxyReadiness.READY) {
-                    sources.markDebridSourceStatus(stream?.stream_id, DebridCacheStatus.DIRECT_STREAM)
-                }
-                launchPlayer()
+    private fun gateOnAddonProxyReadiness(
+        streamUrl: String,
+        sourceOverride: MovieSource?,
+        stream: XtreamVodInfo?,
+        launchPlayer: () -> Unit
+    ) {
+        activity.lifecycleScope.launch {
+            val readyResult = withContext(Dispatchers.IO) {
+                debridPlaybackRepository.getAddonProxyPlaybackReadiness(
+                    streamUrl,
+                    sourceOverride?.headers,
+                    sourceOverride?.provider,
+                    sourceOverride?.sourceName,
+                    sourceOverride?.sourceType,
+                    diagnosticsContext = activity
+                )
             }
-            return
+            val readiness = (readyResult as? Result.Success)?.data ?: AddonProxyReadiness.UNCERTAIN
+            if (readiness == AddonProxyReadiness.TERMINAL) {
+                stream?.stream_id?.let { sources.failedDebridStreamIds.add(it) }
+                sources.markDebridSourceStatus(stream?.stream_id, DebridCacheStatus.NOT_CACHED)
+                Toast.makeText(
+                    activity,
+                    "Source is unavailable. Choose another source.",
+                    Toast.LENGTH_LONG
+                ).show()
+                if (sourceOverride != null) {
+                    sources.showDebridSourcePicker(sources.consumeDebridReturnFocusStreamIds())
+                }
+                return@launch
+            }
+            if (readiness == AddonProxyReadiness.READY) {
+                sources.markDebridSourceStatus(stream?.stream_id, DebridCacheStatus.DIRECT_STREAM)
+            }
+            launchPlayer()
         }
-
-        launchPlayer()
     }
 
     private fun autoPlayNextDebridSource(failedStreamId: String) {
@@ -300,111 +358,155 @@ class MovieDebridPlaybackController(
         val infoHash = stream?.stream_id // UnifiedSourceProvider sets stream_id to infoHash for Debrid sources
 
         if (magnet.isNullOrBlank() && infoHash.isNullOrBlank()) {
-             Toast.makeText(activity, "Invalid Debrid source", Toast.LENGTH_SHORT).show()
-             return
+            Toast.makeText(activity, "Invalid Debrid source", Toast.LENGTH_SHORT).show()
+            return
         }
 
         val isDirectHttp = magnet?.startsWith("http", ignoreCase = true) == true &&
             magnet.endsWith(".torrent", ignoreCase = true).not()
         if (isDirectHttp && !magnet.isNullOrBlank()) {
-            val directUrl = magnet
-            val tmdbId = movieId()?.takeIf { it.toIntOrNull() != null }
-            val launchDirectMovie = {
-                PlaybackDiagnosticsRecorder.record(
-                    activity,
-                    "playback_launch",
-                    PlaybackDiagnosticsRecorder.contentFields(
-                        kind = "movie",
-                        tmdbId = tmdbId,
-                        imdbId = currentImdbId()
-                    ) + PlaybackDiagnosticsRecorder.sourceFields(activity, source) +
-                        PlaybackDiagnosticsRecorder.playbackFields(
-                            context = activity,
-                            url = directUrl,
-                            headers = source?.headers,
-                            playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID.name,
-                            directDebridPlayback = true
-                        ) + mapOf("launchPath" to "direct")
-                )
-                val intent = PlayerActivity.createIntent(
-                    context = activity,
-                    streamUrl = directUrl,
-                    title = stream?.name ?: movieName() ?: activity.getString(R.string.movie_detail_unknown_movie),
-                    contentId = infoHash ?: movieId() ?: "",
-                    contentType = ContentType.MOVIE,
-                    posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream?.stream_icon) ?: movieIcon(),
-                    backdropUrl = stream?.cover ?: movieBackdrop(),
-                    headers = source?.headers,
-                    playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
-                    tmdbId = tmdbId,
-                    imdbId = currentImdbId(),
-                    directDebridPlayback = true,
-                    debridProvider = source?.provider,
-                    debridSourceType = source?.sourceType,
-                    debridSourceName = source?.sourceName,
-                    debridLanguages = source?.languages,
-                    debridQuality = source?.quality,
-                    debridStreamId = source?.stream?.stream_id,
-                    debridBingeGroup = source?.bingeGroup,
-                    debridFileIdx = source?.fileIdx,
-                    // Resume from the saved position when the user pressed "Resume".
-                    startPositionMs = resumePositionMs()
-                )
-                if (returnToSources) {
-                    intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
-                    launch(intent)
-                } else {
-                    activity.startActivity(intent)
-                }
-            }
-
-            if (debridPlaybackRepository.requiresDirectProxyReadinessCheck(
-                    directUrl,
-                    source?.provider,
-                    source?.sourceName,
-                    source?.sourceType
-                )
-            ) {
-                activity.lifecycleScope.launch {
-                    tvSourcesStatus.visibility = View.VISIBLE
-                    tvSourcesStatus.text = "Checking source..."
-                    val readyResult = withContext(Dispatchers.IO) {
-                        debridPlaybackRepository.getAddonProxyPlaybackReadiness(
-                            directUrl,
-                            source?.headers,
-                            source?.provider,
-                            source?.sourceName,
-                            source?.sourceType,
-                            diagnosticsContext = activity
-                        )
-                    }
-                    tvSourcesStatus.visibility = View.GONE
-                    val readiness = (readyResult as? Result.Success)?.data ?: AddonProxyReadiness.UNCERTAIN
-                    if (readiness == AddonProxyReadiness.TERMINAL) {
-                        infoHash?.let { sources.failedDebridStreamIds.add(it) }
-                        sources.markDebridSourceStatus(infoHash, DebridCacheStatus.NOT_CACHED)
-                        Toast.makeText(activity, "Source is unavailable. Choose another source.", Toast.LENGTH_LONG).show()
-                        sources.showDebridSourcePicker(sources.consumeDebridReturnFocusStreamIds())
-                        return@launch
-                    }
-                    if (readiness == AddonProxyReadiness.READY) {
-                        sources.markDebridSourceStatus(infoHash, DebridCacheStatus.DIRECT_STREAM)
-                    }
-                    launchDirectMovie()
-                }
-                return
-            }
-
-            launchDirectMovie()
+            playDirectHttpDebridMovie(stream, source, magnet, infoHash, returnToSources)
             return
         }
 
+        resolveAndPlayDebridMovie(stream, source, magnet, infoHash, returnToSources)
+    }
+
+    /** What actually goes into the player intent for a debrid movie launch. */
+    private data class DebridMovieLaunch(
+        val stream: XtreamVodInfo?,
+        val source: MovieSource?,
+        val streamUrl: String,
+        val contentId: String,
+        val intentInfoHash: String?,
+        val intentMagnet: String?,
+        val directDebridPlayback: Boolean,
+        val launchPath: String,
+        val returnToSources: Boolean,
+    )
+
+    private fun launchDebridMovie(plan: DebridMovieLaunch) {
+        val tmdbId = movieId()?.takeIf { it.toIntOrNull() != null }
+        PlaybackDiagnosticsRecorder.record(
+            activity,
+            "playback_launch",
+            PlaybackDiagnosticsRecorder.contentFields(
+                kind = "movie",
+                tmdbId = tmdbId,
+                imdbId = currentImdbId()
+            ) + PlaybackDiagnosticsRecorder.sourceFields(activity, plan.source) +
+                PlaybackDiagnosticsRecorder.playbackFields(
+                    context = activity,
+                    url = plan.streamUrl,
+                    headers = plan.source?.headers,
+                    playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID.name,
+                    directDebridPlayback = plan.directDebridPlayback
+                ) + mapOf("launchPath" to plan.launchPath)
+        )
+        val intent = PlayerActivity.createIntent(
+            context = activity,
+            streamUrl = plan.streamUrl,
+            title = plan.stream?.name ?: movieName() ?: activity.getString(R.string.movie_detail_unknown_movie),
+            contentId = plan.contentId,
+            contentType = ContentType.MOVIE,
+            posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(plan.stream?.stream_icon) ?: movieIcon(),
+            backdropUrl = plan.stream?.cover ?: movieBackdrop(),
+            headers = plan.source?.headers,
+            playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
+            tmdbId = tmdbId,
+            imdbId = currentImdbId(),
+            debridInfoHash = plan.intentInfoHash,
+            debridMagnet = plan.intentMagnet,
+            directDebridPlayback = plan.directDebridPlayback,
+            debridProvider = plan.source?.provider,
+            debridSourceType = plan.source?.sourceType,
+            debridSourceName = plan.source?.sourceName,
+            debridLanguages = plan.source?.languages,
+            debridQuality = plan.source?.quality,
+            debridStreamId = plan.source?.stream?.stream_id,
+            debridBingeGroup = plan.source?.bingeGroup,
+            debridFileIdx = plan.source?.fileIdx,
+            // Resume from the saved position when the user pressed "Resume".
+            startPositionMs = resumePositionMs()
+        )
+        if (plan.returnToSources) {
+            intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
+            launch(intent)
+        } else {
+            activity.startActivity(intent)
+        }
+    }
+
+    private fun playDirectHttpDebridMovie(
+        stream: XtreamVodInfo?,
+        source: MovieSource?,
+        directUrl: String,
+        infoHash: String?,
+        returnToSources: Boolean
+    ) {
+        val plan = DebridMovieLaunch(
+            stream = stream,
+            source = source,
+            streamUrl = directUrl,
+            contentId = infoHash ?: movieId() ?: "",
+            intentInfoHash = null,
+            intentMagnet = null,
+            directDebridPlayback = true,
+            launchPath = "direct",
+            returnToSources = returnToSources,
+        )
+
+        if (debridPlaybackRepository.requiresDirectProxyReadinessCheck(
+                directUrl,
+                source?.provider,
+                source?.sourceName,
+                source?.sourceType
+            )
+        ) {
+            activity.lifecycleScope.launch {
+                tvSourcesStatus.visibility = View.VISIBLE
+                tvSourcesStatus.text = "Checking source..."
+                val readyResult = withContext(Dispatchers.IO) {
+                    debridPlaybackRepository.getAddonProxyPlaybackReadiness(
+                        directUrl,
+                        source?.headers,
+                        source?.provider,
+                        source?.sourceName,
+                        source?.sourceType,
+                        diagnosticsContext = activity
+                    )
+                }
+                tvSourcesStatus.visibility = View.GONE
+                val readiness = (readyResult as? Result.Success)?.data ?: AddonProxyReadiness.UNCERTAIN
+                if (readiness == AddonProxyReadiness.TERMINAL) {
+                    infoHash?.let { sources.failedDebridStreamIds.add(it) }
+                    sources.markDebridSourceStatus(infoHash, DebridCacheStatus.NOT_CACHED)
+                    Toast.makeText(activity, "Source is unavailable. Choose another source.", Toast.LENGTH_LONG).show()
+                    sources.showDebridSourcePicker(sources.consumeDebridReturnFocusStreamIds())
+                    return@launch
+                }
+                if (readiness == AddonProxyReadiness.READY) {
+                    sources.markDebridSourceStatus(infoHash, DebridCacheStatus.DIRECT_STREAM)
+                }
+                launchDebridMovie(plan)
+            }
+            return
+        }
+
+        launchDebridMovie(plan)
+    }
+
+    private fun resolveAndPlayDebridMovie(
+        stream: XtreamVodInfo?,
+        source: MovieSource?,
+        magnet: String?,
+        infoHash: String?,
+        returnToSources: Boolean
+    ) {
         activity.lifecycleScope.launch {
             // Show loading indicator
             tvSourcesStatus.visibility = View.VISIBLE
             tvSourcesStatus.text = "Resolving Debrid link..."
-
-            val tmdbId = movieId()?.takeIf { it.toIntOrNull() != null }
 
             val result = withContext(Dispatchers.IO) {
                 playbackResolver.resolve(
@@ -423,53 +525,19 @@ class MovieDebridPlaybackController(
 
             when (result) {
                 is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Success -> {
-                    PlaybackDiagnosticsRecorder.record(
-                        activity,
-                        "playback_launch",
-                        PlaybackDiagnosticsRecorder.contentFields(
-                            kind = "movie",
-                            tmdbId = tmdbId,
-                            imdbId = currentImdbId()
-                        ) + PlaybackDiagnosticsRecorder.sourceFields(activity, source) +
-                            PlaybackDiagnosticsRecorder.playbackFields(
-                                context = activity,
-                                url = result.url,
-                                headers = source?.headers,
-                                playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID.name,
-                                directDebridPlayback = false
-                            ) + mapOf("launchPath" to "resolver_backed")
+                    launchDebridMovie(
+                        DebridMovieLaunch(
+                            stream = stream,
+                            source = source,
+                            streamUrl = result.url,
+                            contentId = infoHash ?: movieId() ?: "",
+                            intentInfoHash = infoHash,
+                            intentMagnet = magnet,
+                            directDebridPlayback = false,
+                            launchPath = "resolver_backed",
+                            returnToSources = returnToSources,
+                        )
                     )
-                    val intent = PlayerActivity.createIntent(
-                        context = activity,
-                        streamUrl = result.url,
-                        title = stream?.name ?: movieName() ?: activity.getString(R.string.movie_detail_unknown_movie),
-                        contentId = infoHash ?: movieId() ?: "",
-                        contentType = ContentType.MOVIE,
-                        posterUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream?.stream_icon) ?: movieIcon(),
-                        backdropUrl = stream?.cover ?: movieBackdrop(),
-                        headers = source?.headers,
-                        playbackSource = com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource.DEBRID,
-                        tmdbId = tmdbId,
-                        imdbId = currentImdbId(),
-                        debridInfoHash = infoHash,
-                        debridMagnet = magnet,
-                        debridProvider = source?.provider,
-                        debridSourceType = source?.sourceType,
-                        debridSourceName = source?.sourceName,
-                        debridLanguages = source?.languages,
-                        debridQuality = source?.quality,
-                        debridStreamId = source?.stream?.stream_id,
-                        debridBingeGroup = source?.bingeGroup,
-                        debridFileIdx = source?.fileIdx,
-                        // Resume from the saved position when the user pressed "Resume".
-                        startPositionMs = resumePositionMs()
-                    )
-                    if (returnToSources) {
-                        intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
-                        launch(intent)
-                    } else {
-                        activity.startActivity(intent)
-                    }
                 }
                 is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
                     Toast.makeText(activity, "Source expired, please refresh", Toast.LENGTH_SHORT).show()

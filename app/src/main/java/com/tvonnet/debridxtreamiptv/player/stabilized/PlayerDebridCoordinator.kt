@@ -99,14 +99,40 @@ internal class PlayerDebridCoordinator(
         val stream = source.stream
         val magnet = stream.direct_source
         val infoHash = stream.stream_id
-        val isIptv = source.sourceType == "IPTV"
-        val isDirectHttp = !isIptv && magnet?.startsWith("http", ignoreCase = true) == true &&
-            !magnet.endsWith(".torrent", ignoreCase = true)
-        val resolverBacked = !isIptv && !isDirectHttp
-        if (resolverBacked && magnet.isNullOrBlank() && infoHash.isNullOrBlank()) {
+        val route = sourceSwitchRoute(source, magnet)
+        if (route.resolverBacked && magnet.isNullOrBlank() && infoHash.isNullOrBlank()) {
             showToast("Invalid source"); return
         }
 
+        applySwitchedSourceIdentity(stream, route.isIptv)
+
+        when {
+            route.isIptv -> switchToIptvSource(stream)
+            route.isDirectHttp -> switchToDirectHttpSource(magnet!!)
+            else -> switchToResolverBackedSource(infoHash, magnet)
+        }
+    }
+
+    private data class SourceSwitchRoute(
+        val isIptv: Boolean,
+        val isDirectHttp: Boolean,
+        val resolverBacked: Boolean,
+    )
+
+    private fun sourceSwitchRoute(
+        source: com.tvonnet.debridxtreamiptv.data.repository.MovieSource,
+        magnet: String?
+    ): SourceSwitchRoute {
+        val isIptv = source.sourceType == "IPTV"
+        val isDirectHttp = !isIptv && magnet?.startsWith("http", ignoreCase = true) == true &&
+            !magnet.endsWith(".torrent", ignoreCase = true)
+        return SourceSwitchRoute(isIptv, isDirectHttp, !isIptv && !isDirectHttp)
+    }
+
+    private fun applySwitchedSourceIdentity(
+        stream: com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo,
+        isIptv: Boolean
+    ) {
         // Resume the new source from where we are now.
         startPositionMs = (player?.currentPosition ?: startPositionMs).coerceAtLeast(0L)
         playbackSource = if (isIptv) PlaybackSource.IPTV else PlaybackSource.DEBRID
@@ -115,40 +141,40 @@ internal class PlayerDebridCoordinator(
         // Refresh the on-screen title so the controller shows the source we just switched to,
         // not the previous one.
         bindModernMetadata(stream.name ?: originalTitle)
+    }
 
-        when {
-            isIptv -> {
-                val prefs = CredentialsPreferences(activity.requireContext())
-                val server = prefs.getServerUrl()?.trimEnd('/')
-                val user = prefs.getUsername()
-                val pass = prefs.getPassword()
-                val credentialsIncomplete =
-                    server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank()
-                if (credentialsIncomplete || stream.stream_id.isNullOrBlank()) {
-                    showToast("Missing credentials"); return
-                }
-                directDebridPlayback = false
-                debridInfoHashExtra = null; debridMagnetExtra = null
-                val ext = stream.container_extension?.takeIf { it.isNotBlank() } ?: "mp4"
-                showCinematicLoader()
-                initializePlayer("$server/movie/$user/$pass/${stream.stream_id}.$ext")
-            }
-            isDirectHttp -> {
-                directDebridPlayback = true
-                debridInfoHashExtra = null; debridMagnetExtra = null
-                showCinematicLoader()
-                initializePlayer(magnet!!)
-            }
-            else -> {
-                // Resolver-backed magnet: set the new identity and let the player resolve it.
-                directDebridPlayback = false
-                debridInfoHashExtra = infoHash
-                debridMagnetExtra = magnet
-                isResolvingDebrid = true
-                showCinematicLoader()
-                viewModel.reResolveDebridUrl(infoHash, magnet, null, null, originalTitle)
-            }
+    private fun switchToIptvSource(stream: com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo) {
+        val prefs = CredentialsPreferences(activity.requireContext())
+        val server = prefs.getServerUrl()?.trimEnd('/')
+        val user = prefs.getUsername()
+        val pass = prefs.getPassword()
+        val credentialsIncomplete =
+            server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank()
+        if (credentialsIncomplete || stream.stream_id.isNullOrBlank()) {
+            showToast("Missing credentials"); return
         }
+        directDebridPlayback = false
+        debridInfoHashExtra = null; debridMagnetExtra = null
+        val ext = stream.container_extension?.takeIf { it.isNotBlank() } ?: "mp4"
+        showCinematicLoader()
+        initializePlayer("$server/movie/$user/$pass/${stream.stream_id}.$ext")
+    }
+
+    private fun switchToDirectHttpSource(directUrl: String) {
+        directDebridPlayback = true
+        debridInfoHashExtra = null; debridMagnetExtra = null
+        showCinematicLoader()
+        initializePlayer(directUrl)
+    }
+
+    // Resolver-backed magnet: set the new identity and let the player resolve it.
+    private fun switchToResolverBackedSource(infoHash: String?, magnet: String?) {
+        directDebridPlayback = false
+        debridInfoHashExtra = infoHash
+        debridMagnetExtra = magnet
+        isResolvingDebrid = true
+        showCinematicLoader()
+        viewModel.reResolveDebridUrl(infoHash, magnet, null, null, originalTitle)
     }
 
     /**
