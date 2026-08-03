@@ -852,6 +852,8 @@ Carried from hard-won incidents; every phase must respect them.
 
 | 2026-08-03 | **E1p batch 15 — 10 EPG + focus-utils sites.** EpgSyncWorker.doWork (cancellation checkpoints + never-retry policy intact), EpgSyncManager.fetchAndSaveEpg → 4 stages with the **generational replace byte-identical** (EpgGenerationalReplaceTest green), EpgCache.warmNowNext → DB-warm/short-EPG stages, EpgGridView per-direction movers, WavySeekBar's twin scrub branches → one `scrubBy` (seek-snap fix ordering kept), FocusPreservingListUpdate pre-draw restore named (B2.2 timing untouched), FocusTrapHelper extremes when → predicates, LanguageFilterAdapter flag map. Baseline diff 10 del / 0 add; full suite green. Device: guide open + preview → fullscreen live play (~14-16 Mbps) PASS on .64. **Remaining: CCM 55 + LM 45 + TMF 4 + Spread 2 + the 2 pinned singles** | **108** | **1** | 0 | 43 | `f17c68a` |
 
+| 2026-08-03 | **E1p batch 16 — DebridFragment + rows adapter (4 sites).** updateHero → passive-hero + per-badge binders; restoreFocusIfPossible → id→index→first-card ladder named + flattened; DebridItemViewHolder.bind → subtitle/poster/focus-animation helpers (16:9 CW sizing + IMG-1/IMG-5 Glide flags in place). Mid-batch detekt caught 2 overshoots (a CCM-15 helper, an NBD fire) — **fixed by further splitting, not baselined**. Baseline diff 4 del / 0 add; full suite green; launch stability PASS on .64. **Remaining: CCM 52 + LM 44 + TMF 4 + Spread 2 + the 2 pinned singles** | **104** | **1** | 0 | 43 | `38a43a58` |
+
 *(Append one row per landed phase. The three numeric columns may never increase.)*
 
 **Tier C is complete at LargeClass = 1.** The remaining one is `BasePlayerFragment`, by the C9
