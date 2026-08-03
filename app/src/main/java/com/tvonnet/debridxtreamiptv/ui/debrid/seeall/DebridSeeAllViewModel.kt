@@ -78,29 +78,53 @@ class DebridSeeAllViewModel @Inject constructor(
         }
     }
 
+    /**
+     * One See-All row's discovery query — the old when-chain as data. Defaults mirror
+     * AddonCatalogRepository.getDiscoveryContent (watchRegion defaults to "US" there too),
+     * so a row that omitted a param behaves exactly as before. An unknown rowId returns
+     * an empty page. Mirror the home-row params in DebridViewModel (appendRow) — three
+     * rows once existed on Home with no "See All" case, and their screen came up blank.
+     */
+    private data class DiscoveryQuery(
+        val type: String,
+        val sortBy: String? = null,
+        val originalLanguage: String? = null,
+        val watchProviders: String? = null,
+        val watchRegion: String? = "US",
+        val releaseDateGte: String? = null,
+    )
+
+    private val discoveryQueries = mapOf(
+        "trending_movies" to DiscoveryQuery(type = "movie", sortBy = "popularity.desc"),
+        "trending_series" to DiscoveryQuery(type = "series", sortBy = "popularity.desc"),
+        "bollywood_movies" to DiscoveryQuery(type = "movie", originalLanguage = "hi", watchRegion = "IN", releaseDateGte = "2024-01-01"),
+        "bollywood_series" to DiscoveryQuery(type = "series", originalLanguage = "hi", watchRegion = "IN", releaseDateGte = "2024-01-01"),
+        "punjabi_movies" to DiscoveryQuery(type = "movie", originalLanguage = "pa", watchRegion = "IN", releaseDateGte = "2024-01-01"),
+        "tamil_movies" to DiscoveryQuery(type = "movie", originalLanguage = "ta", watchRegion = "IN", releaseDateGte = "2024-01-01"),
+        "tamil_series" to DiscoveryQuery(type = "series", originalLanguage = "ta", watchRegion = "IN", releaseDateGte = "2024-01-01"),
+        "netflix_movies" to DiscoveryQuery(type = "movie", watchProviders = "8", releaseDateGte = "2024-01-01"),
+        "netflix_series" to DiscoveryQuery(type = "series", watchProviders = "8", releaseDateGte = "2024-01-01"),
+        "prime_movies" to DiscoveryQuery(type = "movie", watchProviders = "9|119", releaseDateGte = "2024-01-01"),
+        "prime_series" to DiscoveryQuery(type = "series", watchProviders = "9|119", releaseDateGte = "2024-01-01"),
+        "disney_movies" to DiscoveryQuery(type = "movie", watchProviders = "337", releaseDateGte = "2024-01-01"),
+        "disney_series" to DiscoveryQuery(type = "series", watchProviders = "337", releaseDateGte = "2024-01-01"),
+        "apple_movies" to DiscoveryQuery(type = "movie", watchProviders = "2", releaseDateGte = "2024-01-01"),
+        "apple_series" to DiscoveryQuery(type = "series", watchProviders = "2", releaseDateGte = "2024-01-01"),
+        "hbo_series" to DiscoveryQuery(type = "series", watchProviders = "384", releaseDateGte = "2024-01-01"),
+        "hollywood_movies" to DiscoveryQuery(type = "movie", originalLanguage = "en", releaseDateGte = "2024-01-01"),
+        "hollywood_series" to DiscoveryQuery(type = "series", originalLanguage = "en", releaseDateGte = "2024-01-01"),
+    )
+
     private suspend fun getDiscoveryContent(rowId: String, page: Int): Result<List<CatalogItem>> {
-        return when (rowId) {
-            "trending_movies" -> catalogRepo.getDiscoveryContent(type = "movie", sortBy = "popularity.desc", page = page)
-            "trending_series" -> catalogRepo.getDiscoveryContent(type = "series", sortBy = "popularity.desc", page = page)
-            "bollywood_movies" -> catalogRepo.getDiscoveryContent(type = "movie", originalLanguage = "hi", watchRegion = "IN", releaseDateGte = "2024-01-01", page = page)
-            "bollywood_series" -> catalogRepo.getDiscoveryContent(type = "series", originalLanguage = "hi", watchRegion = "IN", releaseDateGte = "2024-01-01", page = page)
-            "punjabi_movies" -> catalogRepo.getDiscoveryContent(type = "movie", originalLanguage = "pa", watchRegion = "IN", releaseDateGte = "2024-01-01", page = page)
-            "tamil_movies" -> catalogRepo.getDiscoveryContent(type = "movie", originalLanguage = "ta", watchRegion = "IN", releaseDateGte = "2024-01-01", page = page)
-            "tamil_series" -> catalogRepo.getDiscoveryContent(type = "series", originalLanguage = "ta", watchRegion = "IN", releaseDateGte = "2024-01-01", page = page)
-            "netflix_movies" -> catalogRepo.getDiscoveryContent(type = "movie", watchProviders = "8", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
-            "netflix_series" -> catalogRepo.getDiscoveryContent(type = "series", watchProviders = "8", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
-            "prime_movies" -> catalogRepo.getDiscoveryContent(type = "movie", watchProviders = "9|119", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
-            "prime_series" -> catalogRepo.getDiscoveryContent(type = "series", watchProviders = "9|119", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
-            "disney_movies" -> catalogRepo.getDiscoveryContent(type = "movie", watchProviders = "337", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
-            "disney_series" -> catalogRepo.getDiscoveryContent(type = "series", watchProviders = "337", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
-            "apple_movies" -> catalogRepo.getDiscoveryContent(type = "movie", watchProviders = "2", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
-            "apple_series" -> catalogRepo.getDiscoveryContent(type = "series", watchProviders = "2", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
-            // Mirror the home-row params in DebridViewModel (appendRow) — these three rows existed
-            // on Home but had no "See All" case, so their See-All screen came up blank.
-            "hbo_series" -> catalogRepo.getDiscoveryContent(type = "series", watchProviders = "384", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
-            "hollywood_movies" -> catalogRepo.getDiscoveryContent(type = "movie", originalLanguage = "en", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
-            "hollywood_series" -> catalogRepo.getDiscoveryContent(type = "series", originalLanguage = "en", watchRegion = "US", releaseDateGte = "2024-01-01", page = page)
-            else -> Result.Success(emptyList())
-        }
+        val query = discoveryQueries[rowId] ?: return Result.Success(emptyList())
+        return catalogRepo.getDiscoveryContent(
+            type = query.type,
+            page = page,
+            sortBy = query.sortBy,
+            originalLanguage = query.originalLanguage,
+            watchProviders = query.watchProviders,
+            watchRegion = query.watchRegion,
+            releaseDateGte = query.releaseDateGte
+        )
     }
 }

@@ -88,42 +88,52 @@ class DebridSeeAllActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
-                    when (state) {
-                        is com.tvonnet.debridxtreamiptv.ui.debrid.seeall.DebridSeeAllUiState.Content -> {
-                            progressBar.visibility = android.view.View.GONE
-                            tvError.visibility = android.view.View.GONE
-                            recyclerView.visibility = android.view.View.VISIBLE
-                            adapter.submitItems(state.items, state.canLoadMore)
-
-                            // Restore focus memory if available
-                            if (lastFocusedPosition != -1 && lastFocusedPosition < state.items.size) {
-                                recyclerView.post {
-                                    val view = layoutManager.findViewByPosition(lastFocusedPosition)
-                                    view?.requestFocus()
-                                }
-                            }
-                        }
-                        is com.tvonnet.debridxtreamiptv.ui.debrid.seeall.DebridSeeAllUiState.Error -> {
-                            progressBar.visibility = android.view.View.GONE
-                            recyclerView.visibility = android.view.View.GONE
-                            tvError.visibility = android.view.View.VISIBLE
-                            tvError.text = state.message
-                        }
-                        com.tvonnet.debridxtreamiptv.ui.debrid.seeall.DebridSeeAllUiState.Loading -> {
-                            // Only show full loader if empty
-                            if (adapter.itemCount == 0) {
-                                progressBar.visibility = android.view.View.VISIBLE
-                                tvError.visibility = android.view.View.GONE
-                                recyclerView.visibility = android.view.View.GONE
-                            }
-                        }
-                    }
+                    renderSeeAllState(state, recyclerView, layoutManager, progressBar, tvError)
                 }
             }
         }
 
         if (savedInstanceState == null) {
             viewModel.initRow(rowId)
+        }
+    }
+
+    private fun renderSeeAllState(
+        state: DebridSeeAllUiState,
+        recyclerView: RecyclerView,
+        layoutManager: GridLayoutManager,
+        progressBar: android.widget.ProgressBar,
+        tvError: TextView
+    ) {
+        when (state) {
+            is com.tvonnet.debridxtreamiptv.ui.debrid.seeall.DebridSeeAllUiState.Content -> {
+                progressBar.visibility = android.view.View.GONE
+                tvError.visibility = android.view.View.GONE
+                recyclerView.visibility = android.view.View.VISIBLE
+                adapter.submitItems(state.items, state.canLoadMore)
+
+                // Restore focus memory if available
+                if (lastFocusedPosition != -1 && lastFocusedPosition < state.items.size) {
+                    recyclerView.post {
+                        val view = layoutManager.findViewByPosition(lastFocusedPosition)
+                        view?.requestFocus()
+                    }
+                }
+            }
+            is com.tvonnet.debridxtreamiptv.ui.debrid.seeall.DebridSeeAllUiState.Error -> {
+                progressBar.visibility = android.view.View.GONE
+                recyclerView.visibility = android.view.View.GONE
+                tvError.visibility = android.view.View.VISIBLE
+                tvError.text = state.message
+            }
+            com.tvonnet.debridxtreamiptv.ui.debrid.seeall.DebridSeeAllUiState.Loading -> {
+                // Only show full loader if empty
+                if (adapter.itemCount == 0) {
+                    progressBar.visibility = android.view.View.VISIBLE
+                    tvError.visibility = android.view.View.GONE
+                    recyclerView.visibility = android.view.View.GONE
+                }
+            }
         }
     }
 

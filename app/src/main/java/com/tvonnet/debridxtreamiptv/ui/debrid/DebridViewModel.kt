@@ -91,34 +91,45 @@ class DebridViewModel @Inject constructor(
         loadJob = viewModelScope.launch {
             try {
                 val result = withTimeoutOrNull(15_000L) { fetchCatalogRows() }
-
-                if (result == null) {
-                    if (requestVersion != catalogStateVersion) return@launch
-                    _uiState.value = if (hasCache) {
-                        DebridUiState.Content(cachedSnapshot, DebridRefreshState.Failed)
-                    } else {
-                        DebridUiState.Error("Timed out loading Debrid catalog. Check your connection and try again.")
-                    }
-                    return@launch
-                }
-
-                if (result.rows.isNotEmpty()) {
-                    if (requestVersion != catalogStateVersion) return@launch
-                    cachedRows = result.rows
-                    catalogStateVersion++
-                    _uiState.value = DebridUiState.Content(result.rows, DebridRefreshState.Idle)
-                } else if (hasCache) {
-                    if (requestVersion != catalogStateVersion) return@launch
-                    _uiState.value = DebridUiState.Content(cachedSnapshot, DebridRefreshState.Failed)
-                } else {
-                    if (requestVersion != catalogStateVersion) return@launch
-                    _uiState.value = DebridUiState.Error(buildErrorMessage(result.errors))
-                }
+                applyCatalogResult(result, cachedSnapshot, hasCache, requestVersion)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _uiState.value = DebridUiState.Error(e.message ?: "Failed to load content")
             }
+        }
+    }
+
+    // Verbatim from loadCatalog. Every terminal branch re-checks the state version so a
+    // superseded request can never clobber newer rows; a timed-out or all-empty fetch keeps
+    // the populated cache (the "failed refresh never destroys good data" rule).
+    private fun applyCatalogResult(
+        result: CatalogLoadResult?,
+        cachedSnapshot: List<DebridRow>,
+        hasCache: Boolean,
+        requestVersion: Long
+    ) {
+        if (result == null) {
+            if (requestVersion != catalogStateVersion) return
+            _uiState.value = if (hasCache) {
+                DebridUiState.Content(cachedSnapshot, DebridRefreshState.Failed)
+            } else {
+                DebridUiState.Error("Timed out loading Debrid catalog. Check your connection and try again.")
+            }
+            return
+        }
+
+        if (result.rows.isNotEmpty()) {
+            if (requestVersion != catalogStateVersion) return
+            cachedRows = result.rows
+            catalogStateVersion++
+            _uiState.value = DebridUiState.Content(result.rows, DebridRefreshState.Idle)
+        } else if (hasCache) {
+            if (requestVersion != catalogStateVersion) return
+            _uiState.value = DebridUiState.Content(cachedSnapshot, DebridRefreshState.Failed)
+        } else {
+            if (requestVersion != catalogStateVersion) return
+            _uiState.value = DebridUiState.Error(buildErrorMessage(result.errors))
         }
     }
 

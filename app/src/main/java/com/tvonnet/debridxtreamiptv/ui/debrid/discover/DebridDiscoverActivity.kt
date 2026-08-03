@@ -152,12 +152,20 @@ class DebridDiscoverActivity : AppCompatActivity() {
     }
 
     private fun setupSelectors() {
+        wireSelectorFocusAndKeys()
+        wireTypeSelector()
+        wireCatalogueSelector()
+        wireGenreSelector()
+        wireYearSelector()
+    }
+
+    private fun wireSelectorFocusAndKeys() {
         listOf(btnType, btnCatalogue, btnGenre, btnYear).forEach { selector ->
             applySelectorFocusStyle(selector, false)
             selector.setOnFocusChangeListener { view, hasFocus ->
                 val textView = view as TextView
                 applySelectorFocusStyle(textView, hasFocus)
-                // SECURE FOCUS: Track the exact selector currently focused so we can reliably return to it 
+                // SECURE FOCUS: Track the exact selector currently focused so we can reliably return to it
                 // from the grid without relying on Android's unpredictable global focus-search
                 if (hasFocus) lastFocusedSelector = textView
             }
@@ -170,7 +178,7 @@ class DebridDiscoverActivity : AppCompatActivity() {
                             return@setOnKeyListener true
                         }
                         KeyEvent.KEYCODE_DPAD_UP -> {
-                            // SECURE FOCUS: Block UP from escaping the layout entirely, preventing 
+                            // SECURE FOCUS: Block UP from escaping the layout entirely, preventing
                             // focus from jumping to unseen System UI elements
                             return@setOnKeyListener true
                         }
@@ -179,7 +187,9 @@ class DebridDiscoverActivity : AppCompatActivity() {
                 false
             }
         }
+    }
 
+    private fun wireTypeSelector() {
         btnType.setOnClickListener {
             val currentState = viewModel.filterState.value
             showDropdown(
@@ -194,7 +204,9 @@ class DebridDiscoverActivity : AppCompatActivity() {
                 }
             }
         }
+    }
 
+    private fun wireCatalogueSelector() {
         btnCatalogue.setOnClickListener {
             val currentState = viewModel.filterState.value
             showDropdown(
@@ -209,7 +221,9 @@ class DebridDiscoverActivity : AppCompatActivity() {
                 }
             }
         }
+    }
 
+    private fun wireGenreSelector() {
         btnGenre.setOnClickListener {
             val currentState = viewModel.filterState.value
             val options = buildList {
@@ -227,7 +241,9 @@ class DebridDiscoverActivity : AppCompatActivity() {
                 }
             }
         }
+    }
 
+    private fun wireYearSelector() {
         btnYear.setOnClickListener {
             val currentState = viewModel.filterState.value
             val options = viewModel.yearOptions.map { year ->
@@ -371,97 +387,109 @@ class DebridDiscoverActivity : AppCompatActivity() {
         var initialViewToFocus: View? = null
 
         options.forEachIndexed { index, option ->
-            val selected = option.value == selectedValue
-            val textView = TextView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(DROPDOWN_ROW_HEIGHT_DP)).apply {
-                    setMargins(dp(8), dp(2), dp(8), dp(2)) // Add some margin so scaling doesn't overlap
-                }
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(16), 0, dp(16), 0)
-                textSize = 16f
-                isFocusable = true
-                isFocusableInTouchMode = true
-                text = if (selected) "\u2713 ${option.label}" else option.label
-                typeface = anchor.typeface // standard btnType fallback
-                background = ColorDrawable(Color.TRANSPARENT)
-                setTextColor(Color.parseColor("#B3FFFFFF"))
-                
-                setOnClickListener {
-                    // SECURE FOCUS: Safely dismiss popup and synchronously return focus to the anchor button
-                    activePopup?.dismiss()
-                    anchor.requestFocus()
-                    val sanitizedLabel = option.label.replace("\u2713 ", "")
-                    onSelected(option.copy(label = sanitizedLabel))
-                }
-                
-                setOnKeyListener { _, keyCode, event ->
-                    if (event.action == KeyEvent.ACTION_DOWN) {
-                        when (keyCode) {
-                            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                                callOnClick()
-                                return@setOnKeyListener true
-                            }
-                            KeyEvent.KEYCODE_DPAD_UP -> {
-                                // SECURE FOCUS: If at the top of the list, pressing UP dismisses the menu and safely returns to anchor
-                                if (index == 0) {
-                                    activePopup?.dismiss()
-                                    anchor.requestFocus()
-                                    return@setOnKeyListener true
-                                }
-                            }
-                            KeyEvent.KEYCODE_DPAD_DOWN -> {
-                                // SECURE FOCUS: If at the bottom, intercept DOWN to prevent focus from falling into the black hole of the underlying layout
-                                if (index == options.size - 1) {
-                                    return@setOnKeyListener true
-                                }
-                            }
-                            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                                // SECURE FOCUS: Block horizontal navigation completely so focus doesn't mysteriously jump to background elements
-                                return@setOnKeyListener true
-                            }
-                        }
-                    }
-                    false
-                }
-                
-                setOnFocusChangeListener { view, hasFocus ->
-                    if (hasFocus) {
-                        view.background = dropdownRowFocusSelector()
-                        setTextColor(Color.parseColor("#000000"))
-                        setTypeface(typeface, android.graphics.Typeface.BOLD)
-                        view.animate().scaleX(1.05f).scaleY(1.05f).translationZ(10f).setDuration(150).start()
-                    } else {
-                        view.background = ColorDrawable(Color.TRANSPARENT)
-                        setTextColor(Color.parseColor("#B3FFFFFF"))
-                        setTypeface(typeface, android.graphics.Typeface.NORMAL)
-                        view.animate().scaleX(1.0f).scaleY(1.0f).translationZ(0f).setDuration(150).start()
-                    }
-                }
+            val textView = buildDropdownRow(anchor, option, option.value == selectedValue)
+            textView.setOnClickListener {
+                // SECURE FOCUS: Safely dismiss popup and synchronously return focus to the anchor button
+                activePopup?.dismiss()
+                anchor.requestFocus()
+                val sanitizedLabel = option.label.replace("\u2713 ", "")
+                onSelected(option.copy(label = sanitizedLabel))
             }
+            wireDropdownRowKeys(textView, anchor, index, options.size)
             linearLayout.addView(textView)
             if (index == initialPosition) initialViewToFocus = textView
         }
 
+        showDropdownPopup(anchor, scrollView, options.size)
+
+        // SECURE FOCUS: Post the initial focus request to the layout queue so it triggers *after* the popup window is fully attached to the screen.
+        // This eliminates the race condition where focus drops back to the underlying activity while the popup is still rendering.
+        scrollView.post {
+            initialViewToFocus?.requestFocus()
+        }
+    }
+
+    private fun buildDropdownRow(anchor: TextView, option: FilterOption, selected: Boolean): TextView =
+        TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(DROPDOWN_ROW_HEIGHT_DP)).apply {
+                setMargins(dp(8), dp(2), dp(8), dp(2)) // Add some margin so scaling doesn't overlap
+            }
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), 0, dp(16), 0)
+            textSize = 16f
+            isFocusable = true
+            isFocusableInTouchMode = true
+            text = if (selected) "\u2713 ${option.label}" else option.label
+            typeface = anchor.typeface // standard btnType fallback
+            background = ColorDrawable(Color.TRANSPARENT)
+            setTextColor(Color.parseColor("#B3FFFFFF"))
+
+            setOnFocusChangeListener { view, hasFocus ->
+                applyDropdownRowFocus(this, view, hasFocus)
+            }
+        }
+
+    private fun applyDropdownRowFocus(row: TextView, view: View, hasFocus: Boolean) {
+        if (hasFocus) {
+            view.background = dropdownRowFocusSelector()
+            row.setTextColor(Color.parseColor("#000000"))
+            row.setTypeface(row.typeface, android.graphics.Typeface.BOLD)
+            view.animate().scaleX(1.05f).scaleY(1.05f).translationZ(10f).setDuration(150).start()
+        } else {
+            view.background = ColorDrawable(Color.TRANSPARENT)
+            row.setTextColor(Color.parseColor("#B3FFFFFF"))
+            row.setTypeface(row.typeface, android.graphics.Typeface.NORMAL)
+            view.animate().scaleX(1.0f).scaleY(1.0f).translationZ(0f).setDuration(150).start()
+        }
+    }
+
+    private fun wireDropdownRowKeys(row: TextView, anchor: TextView, index: Int, optionCount: Int) {
+        row.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                        row.callOnClick()
+                        return@setOnKeyListener true
+                    }
+                    KeyEvent.KEYCODE_DPAD_UP -> {
+                        // SECURE FOCUS: If at the top of the list, pressing UP dismisses the menu and safely returns to anchor
+                        if (index == 0) {
+                            activePopup?.dismiss()
+                            anchor.requestFocus()
+                            return@setOnKeyListener true
+                        }
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        // SECURE FOCUS: If at the bottom, intercept DOWN to prevent focus from falling into the black hole of the underlying layout
+                        if (index == optionCount - 1) {
+                            return@setOnKeyListener true
+                        }
+                    }
+                    KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        // SECURE FOCUS: Block horizontal navigation completely so focus doesn't mysteriously jump to background elements
+                        return@setOnKeyListener true
+                    }
+                }
+            }
+            false
+        }
+    }
+
+    private fun showDropdownPopup(anchor: TextView, scrollView: ScrollView, optionCount: Int) {
         val popupWidth = maxOf(anchor.width, dp(220))
-        val popupHeight = minOf(dp(360), options.size * dp(DROPDOWN_ROW_HEIGHT_DP))
+        val popupHeight = minOf(dp(360), optionCount * dp(DROPDOWN_ROW_HEIGHT_DP))
         activePopup = PopupWindow(scrollView, popupWidth, popupHeight, true).apply {
             isFocusable = true
             setBackgroundDrawable(ContextCompat.getDrawable(this@DebridDiscoverActivity, R.drawable.bg_dropdown_smooth))
             animationStyle = R.style.DropdownAnimationStyle
             isOutsideTouchable = false
             setOnDismissListener {
-                // SECURE FOCUS: Guarantee that no matter how the popup closes (Back button, loss of focus), 
+                // SECURE FOCUS: Guarantee that no matter how the popup closes (Back button, loss of focus),
                 // the focus shifts back to the specific selector button that spawned it.
                 activePopup = null
                 anchor.requestFocus()
             }
             showAsDropDown(anchor, 0, dp(6), Gravity.NO_GRAVITY)
-        }
-        
-        // SECURE FOCUS: Post the initial focus request to the layout queue so it triggers *after* the popup window is fully attached to the screen.
-        // This eliminates the race condition where focus drops back to the underlying activity while the popup is still rendering.
-        scrollView.post {
-            initialViewToFocus?.requestFocus()
         }
     }
 

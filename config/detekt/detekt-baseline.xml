@@ -8,11 +8,8 @@
     <ID>CyclomaticComplexMethod:CompanionConfigApplier.kt$CompanionConfigApplier$fun apply(context: Context, data: Map&lt;String, Any&gt;?): Boolean</ID>
     <ID>CyclomaticComplexMethod:CompanionConfigServer.kt$CompanionConfigServer$fun start()</ID>
     <ID>CyclomaticComplexMethod:CompanionConfigSync.kt$CompanionConfigSync$fun start(context: Context)</ID>
-    <ID>CyclomaticComplexMethod:DebridDiscoverActivity.kt$DebridDiscoverActivity$private fun showDropdown( anchor: TextView, options: List&lt;FilterOption&gt;, selectedValue: Any?, onSelected: (FilterOption) -&gt; Unit )</ID>
-    <ID>CyclomaticComplexMethod:DebridSeeAllViewModel.kt$DebridSeeAllViewModel$private suspend fun getDiscoveryContent(rowId: String, page: Int): Result&lt;List&lt;CatalogItem&gt;&gt;</ID>
     <ID>CyclomaticComplexMethod:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$suspend fun getDebridMovieSources( title: String?, yearHint: String?, providedImdbId: String? = null, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
     <ID>CyclomaticComplexMethod:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$suspend fun getSeriesEpisodeSources( seriesId: String?, seasonNumber: Int, episodeNumber: Int, title: String?, yearHint: String?, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
-    <ID>CyclomaticComplexMethod:DebridViewModel.kt$DebridViewModel$fun loadCatalog(force: Boolean = false)</ID>
     <ID>CyclomaticComplexMethod:DynamicAddonFetcher.kt$DynamicAddonFetcher$private fun parseStream(definition: AddonDefinition, element: JsonElement): AddonStream?</ID>
     <ID>CyclomaticComplexMethod:HomeHeroManager.kt$HomeHeroManager$private fun toggleHeroGlow(buttonId: Int, hasFocus: Boolean)</ID>
     <ID>CyclomaticComplexMethod:HomeViewModel.kt$HomeViewModel$private fun loadHomeData()</ID>
@@ -60,10 +57,6 @@
     <ID>LongMethod:BasePlayerFragment.kt$BasePlayerFragment$override fun onViewCreated(view: View, savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:CompanionConfigServer.kt$CompanionConfigServer$fun start()</ID>
     <ID>LongMethod:CompanionSetupActivity.kt$CompanionSetupActivity$private fun startListening()</ID>
-    <ID>LongMethod:DebridDiscoverActivity.kt$DebridDiscoverActivity$private fun setupSelectors()</ID>
-    <ID>LongMethod:DebridDiscoverActivity.kt$DebridDiscoverActivity$private fun showDropdown( anchor: TextView, options: List&lt;FilterOption&gt;, selectedValue: Any?, onSelected: (FilterOption) -&gt; Unit )</ID>
-    <ID>LongMethod:DebridSearchActivity.kt$DebridSearchActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
-    <ID>LongMethod:DebridSeeAllActivity.kt$DebridSeeAllActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
     <ID>LongMethod:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$suspend fun getDebridMovieSources( title: String?, yearHint: String?, providedImdbId: String? = null, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
     <ID>LongMethod:DebridSourceOrchestrator.kt$DebridSourceOrchestrator$suspend fun getSeriesEpisodeSources( seriesId: String?, seasonNumber: Int, episodeNumber: Int, title: String?, yearHint: String?, priorityInfoHash: String? = null, preferredSourceType: String? = null ): List&lt;MovieSource&gt;</ID>
     <ID>LongMethod:FavoritesFragment.kt$FavoritesFragment$private fun handleFavoriteClick(favorite: FavoriteEntity)</ID>
