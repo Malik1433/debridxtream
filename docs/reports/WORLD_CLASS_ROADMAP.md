@@ -854,6 +854,8 @@ Carried from hard-won incidents; every phase must respect them.
 
 | 2026-08-03 | **E1p batch 16 — DebridFragment + rows adapter (4 sites).** updateHero → passive-hero + per-badge binders; restoreFocusIfPossible → id→index→first-card ladder named + flattened; DebridItemViewHolder.bind → subtitle/poster/focus-animation helpers (16:9 CW sizing + IMG-1/IMG-5 Glide flags in place). Mid-batch detekt caught 2 overshoots (a CCM-15 helper, an NBD fire) — **fixed by further splitting, not baselined**. Baseline diff 4 del / 0 add; full suite green; launch stability PASS on .64. **Remaining: CCM 52 + LM 44 + TMF 4 + Spread 2 + the 2 pinned singles** | **104** | **1** | 0 | 43 | `38a43a58` |
 
+| 2026-08-03 | **E1p batch 17 — 7 Debrid activity/viewmodel sites; the ledger crosses under 100.** SeeAll's 18-row discovery when-chain → `DiscoveryQuery` data map (defaults mirror the repo signature so omitted params behave identically); DebridDiscoverActivity dropdown/selectors decomposed with every SECURE-FOCUS rule verbatim; DebridViewModel.loadCatalog → `applyCatalogResult` (per-branch version re-check + the failed-refresh-never-destroys-good-data rule intact); the two onCreate state-collectors named. Baseline diff 7 del / 0 add; full suite green; launch stability PASS on .64. **Remaining: CCM 49 + LM 40 + TMF 4 + Spread 2 + the 2 pinned singles — the bulk of what's left is player-path, deliberately saved for last** | **97** | **1** | 0 | 43 | `94d296a0` |
+
 *(Append one row per landed phase. The three numeric columns may never increase.)*
 
 **Tier C is complete at LargeClass = 1.** The remaining one is `BasePlayerFragment`, by the C9
