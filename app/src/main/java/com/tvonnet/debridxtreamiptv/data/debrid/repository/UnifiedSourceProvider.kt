@@ -163,44 +163,8 @@ class UnifiedSourceProvider @Inject constructor(
 
                     Log.d(TAG, "📊 [RESULT] Found ${sources.size} sources before filtering")
 
-                    // Refined filtering: Apply Language and Quality prioritization
-                    val finalSources = if (sources.isNotEmpty()) {
-                        Log.d(TAG, "🔍 [FILTER] Applying SourceFilterUtils logic...")
-                        val preferredLang = settingsPrefs.getPreferredAudioLanguage()
-                        val filterState = com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterState(
-                            sortLanguage = preferredLang
-                        )
-                        com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils.apply(sources, filterState)
-                    } else {
-                        Log.d(TAG, "📭 [NO-SOURCES] No sources available to filter")
-                        sources
-                    }
-                    // Final summary with graceful handling
-                    Log.d(TAG, "✅ [COMPLETE] Source resolution finished")
-                    Log.d(TAG, "📈 [SUMMARY] Final source count: ${finalSources.size}")
-
-                    if (finalSources.isNotEmpty()) {
-                        val primaryCount = finalSources.count { it.isPrimary }
-                        Log.d(TAG, "[SUCCESS] Sources available: count=${finalSources.size}, primary=$primaryCount")
-                    } else {
-                        // Only log "NO-SOURCES" if we actually tried all providers and got nothing
-                        if (isDebridMovie) {
-                            Log.w(TAG, "📭 [NO-SOURCES] All PureFire providers returned empty for '$title'")
-                            Log.d(TAG, "   This means: Torrentio, Comet, and MediaFusion all had no sources")
-                            Log.d(TAG, "💡 This is normal for:")
-                            Log.d(TAG, "   - New releases not yet available on torrent sites")
-                            Log.d(TAG, "   - Content exclusive to streaming platforms")
-                            Log.d(TAG, "   - Region-restricted or niche content")
-                            Log.d(TAG, "   - Temporary provider unavailability")
-                        } else {
-                            Log.w(TAG, "📭 [NO-SOURCES] IPTV provider returned no sources for '$title'")
-                            Log.d(TAG, "💡 This could mean:")
-                            Log.d(TAG, "   - Content not available on current IPTV service")
-                            Log.d(TAG, "   - Movie is too new or region-restricted")
-                            Log.d(TAG, "   - IPTV provider doesn't carry this content")
-                        }
-                    }
-
+                    val finalSources = applyPreferredLanguageFilter(sources)
+                    logResolutionOutcome(finalSources, isDebridMovie, title)
 
                     finalSources
                 }
@@ -210,29 +174,74 @@ class UnifiedSourceProvider @Inject constructor(
                 coroutineContext.ensureActive()
 
                 // Graceful error handling - don't crash the app, just return empty list
-                when (e) {
-                    is kotlinx.coroutines.TimeoutCancellationException -> {
-                        Log.w(TAG, "⏰ [TIMEOUT] Source resolution timed out for '$title'")
-                        Log.d(TAG, "   Sources took longer than ${TIMEOUT_MS}ms to load")
-                    }
-                    is java.net.UnknownHostException -> {
-                        Log.w(TAG, "🌐 [NETWORK] No internet connection for '$title'")
-                        Log.d(TAG, "   DNS resolution failed - check network connectivity")
-                    }
-                    is java.net.SocketTimeoutException -> {
-                        Log.w(TAG, "🌐 [NETWORK] Slow server response for '$title'")
-                        Log.d(TAG, "   Server took too long to respond - will retry later")
-                    }
-                    else -> {
-                        Log.w(TAG, "⚠️ [GRACEFUL] Issue loading sources for '$title': ${e.javaClass.simpleName}")
-                        Log.d(TAG, "   Details: ${e.message}")
-                    }
-                }
-
-                Log.w(TAG, "📭 [GRACEFUL] Returning empty source list for '$title'")
+                logGracefulFailure(e, title)
                 return@coroutineScope emptyList<MovieSource>()
             }
         }
+    }
+
+    // Refined filtering: Apply Language and Quality prioritization
+    private fun applyPreferredLanguageFilter(sources: List<MovieSource>): List<MovieSource> {
+        if (sources.isEmpty()) {
+            Log.d(TAG, "📭 [NO-SOURCES] No sources available to filter")
+            return sources
+        }
+        Log.d(TAG, "🔍 [FILTER] Applying SourceFilterUtils logic...")
+        val preferredLang = settingsPrefs.getPreferredAudioLanguage()
+        val filterState = com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterState(
+            sortLanguage = preferredLang
+        )
+        return com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils.apply(sources, filterState)
+    }
+
+    // Final summary with graceful handling
+    private fun logResolutionOutcome(finalSources: List<MovieSource>, isDebridMovie: Boolean, title: String?) {
+        Log.d(TAG, "✅ [COMPLETE] Source resolution finished")
+        Log.d(TAG, "📈 [SUMMARY] Final source count: ${finalSources.size}")
+
+        if (finalSources.isNotEmpty()) {
+            val primaryCount = finalSources.count { it.isPrimary }
+            Log.d(TAG, "[SUCCESS] Sources available: count=${finalSources.size}, primary=$primaryCount")
+            return
+        }
+        // Only log "NO-SOURCES" if we actually tried all providers and got nothing
+        if (isDebridMovie) {
+            Log.w(TAG, "📭 [NO-SOURCES] All PureFire providers returned empty for '$title'")
+            Log.d(TAG, "   This means: Torrentio, Comet, and MediaFusion all had no sources")
+            Log.d(TAG, "💡 This is normal for:")
+            Log.d(TAG, "   - New releases not yet available on torrent sites")
+            Log.d(TAG, "   - Content exclusive to streaming platforms")
+            Log.d(TAG, "   - Region-restricted or niche content")
+            Log.d(TAG, "   - Temporary provider unavailability")
+        } else {
+            Log.w(TAG, "📭 [NO-SOURCES] IPTV provider returned no sources for '$title'")
+            Log.d(TAG, "💡 This could mean:")
+            Log.d(TAG, "   - Content not available on current IPTV service")
+            Log.d(TAG, "   - Movie is too new or region-restricted")
+            Log.d(TAG, "   - IPTV provider doesn't carry this content")
+        }
+    }
+
+    private fun logGracefulFailure(e: Exception, title: String?) {
+        when (e) {
+            is kotlinx.coroutines.TimeoutCancellationException -> {
+                Log.w(TAG, "⏰ [TIMEOUT] Source resolution timed out for '$title'")
+                Log.d(TAG, "   Sources took longer than ${TIMEOUT_MS}ms to load")
+            }
+            is java.net.UnknownHostException -> {
+                Log.w(TAG, "🌐 [NETWORK] No internet connection for '$title'")
+                Log.d(TAG, "   DNS resolution failed - check network connectivity")
+            }
+            is java.net.SocketTimeoutException -> {
+                Log.w(TAG, "🌐 [NETWORK] Slow server response for '$title'")
+                Log.d(TAG, "   Server took too long to respond - will retry later")
+            }
+            else -> {
+                Log.w(TAG, "⚠️ [GRACEFUL] Issue loading sources for '$title': ${e.javaClass.simpleName}")
+                Log.d(TAG, "   Details: ${e.message}")
+            }
+        }
+        Log.w(TAG, "📭 [GRACEFUL] Returning empty source list for '$title'")
     }
 
     /** Stable part of a saved stream id — strips the volatile "_<index>" suffix. */

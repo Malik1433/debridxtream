@@ -197,44 +197,7 @@ class LiveTvGuideViewModel @Inject constructor(
             val window = dayWindow(state.dayIndex)
             val now = System.currentTimeMillis()
 
-            val result = withContext(Dispatchers.IO) {
-                val cache = repository.readCache()
-                val allStreams = cache?.live?.streams ?: emptyList()
-                val favIds = favoriteIds()
-
-                // Match the classic screen: fetch a real category's channels on demand
-                // (API/DB), not just whatever happens to be in the cache.
-                val filtered = when (state.selectedCategoryId) {
-                    // Full catalog from the index; fall back to the partial cache
-                    // if the index hasn't synced yet (never worse than before).
-                    GuideUiState.CATEGORY_ALL -> repository.getAllLiveChannels().ifEmpty { allStreams }
-                    FAVORITES_CATEGORY_ID -> favIds.mapNotNull { id ->
-                        runCatching { repository.getLiveStreamById(id) }.getOrNull()
-                    }
-                    else -> when (val r = repository.fetchLiveStreamsForCategoryStrict(state.selectedCategoryId)) {
-                        is com.tvonnet.debridxtreamiptv.data.Result.Success -> r.data
-                        else -> emptyList()
-                    }
-                }.take(MAX_CHANNELS)
-
-                // EPG is stored keyed by epg_channel_id (XMLTV "channel" id), NOT stream_id.
-                val epgKey = { s: XtreamStream -> s.epg_channel_id?.takeIf { it.isNotBlank() } ?: s.stream_id.orEmpty() }
-                val channelIds = filtered.map { epgKey(it) }.filter { it.isNotEmpty() }.distinct()
-                val programsByKey: Map<String, List<EpgEntity>> = if (channelIds.isEmpty()) {
-                    emptyMap()
-                } else {
-                    epgDao.getProgramsByChannels(channelIds).firstOrNull()
-                        ?.filter { it.stop > window.first && it.start < window.second }
-                        ?.groupBy { it.channelId }
-                        ?: emptyMap()
-                }
-
-                filtered.mapIndexed { idx, stream ->
-                    val ch = toGuideChannel(stream, programsByKey[epgKey(stream)].orEmpty(), favIds)
-                    // Per-category API responses often omit channel numbers; fall back to row order.
-                    if (ch.number == null || ch.number <= 0) ch.copy(number = idx + 1) else ch
-                }
-            }
+            val result = withContext(Dispatchers.IO) { buildGuideChannels(state, window) }
 
             _uiState.update {
                 it.copy(
@@ -247,6 +210,52 @@ class LiveTvGuideViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private suspend fun buildGuideChannels(state: GuideUiState, window: Pair<Long, Long>): List<GuideChannel> {
+        val favIds = favoriteIds()
+        val filtered = channelsForCategory(state.selectedCategoryId, favIds)
+        val programsByKey = programsForWindow(filtered, window)
+        return filtered.mapIndexed { idx, stream ->
+            val ch = toGuideChannel(stream, programsByKey[epgKeyOf(stream)].orEmpty(), favIds)
+            // Per-category API responses often omit channel numbers; fall back to row order.
+            if (ch.number == null || ch.number <= 0) ch.copy(number = idx + 1) else ch
+        }
+    }
+
+    // Match the classic screen: fetch a real category's channels on demand
+    // (API/DB), not just whatever happens to be in the cache.
+    private suspend fun channelsForCategory(selectedCategoryId: String, favIds: Set<String>): List<XtreamStream> {
+        val cache = repository.readCache()
+        val allStreams = cache?.live?.streams ?: emptyList()
+        return when (selectedCategoryId) {
+            // Full catalog from the index; fall back to the partial cache
+            // if the index hasn't synced yet (never worse than before).
+            GuideUiState.CATEGORY_ALL -> repository.getAllLiveChannels().ifEmpty { allStreams }
+            FAVORITES_CATEGORY_ID -> favIds.mapNotNull { id ->
+                runCatching { repository.getLiveStreamById(id) }.getOrNull()
+            }
+            else -> when (val r = repository.fetchLiveStreamsForCategoryStrict(selectedCategoryId)) {
+                is com.tvonnet.debridxtreamiptv.data.Result.Success -> r.data
+                else -> emptyList()
+            }
+        }.take(MAX_CHANNELS)
+    }
+
+    // EPG is stored keyed by epg_channel_id (XMLTV "channel" id), NOT stream_id.
+    private fun epgKeyOf(s: XtreamStream): String =
+        s.epg_channel_id?.takeIf { it.isNotBlank() } ?: s.stream_id.orEmpty()
+
+    private suspend fun programsForWindow(
+        filtered: List<XtreamStream>,
+        window: Pair<Long, Long>
+    ): Map<String, List<EpgEntity>> {
+        val channelIds = filtered.map { epgKeyOf(it) }.filter { it.isNotEmpty() }.distinct()
+        if (channelIds.isEmpty()) return emptyMap()
+        return epgDao.getProgramsByChannels(channelIds).firstOrNull()
+            ?.filter { it.stop > window.first && it.start < window.second }
+            ?.groupBy { it.channelId }
+            ?: emptyMap()
     }
 
     private fun toGuideChannel(

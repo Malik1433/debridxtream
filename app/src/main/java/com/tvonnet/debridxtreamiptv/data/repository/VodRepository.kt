@@ -315,10 +315,25 @@ internal class VodRepository(
             targetYear = extractYear(primaryStream?.releaseDate) ?: extractYear(yearHint)
         )
 
-        val sources = LinkedHashMap<String, MovieSource>()
+        val sources = collectSourcesAcrossCategories(candidateOrder, categoriesById, criteria)
+
+        if (sources.isEmpty() && primaryStream != null) {
+            addPrimaryFallback(sources, primaryStream, categoriesById)
+        }
+
         val comparator = compareBy<MovieSource> { !it.isPrimary }
             .thenBy { it.label.lowercase(Locale.US) }
+        return sources.values.sortedWith(comparator)
+    }
 
+    // Walks the candidate categories in order; stops looking once the lookup budget is
+    // spent AND something was found (the budget never truncates an empty result).
+    private suspend fun collectSourcesAcrossCategories(
+        candidateOrder: LinkedHashSet<String>,
+        categoriesById: Map<String, XtreamCategory>,
+        criteria: MovieMatchCriteria
+    ): LinkedHashMap<String, MovieSource> {
+        val sources = LinkedHashMap<String, MovieSource>()
         var lookedUpCategories = 0
         for (categoryId in candidateOrder) {
             coroutineContext.ensureActive()
@@ -331,20 +346,24 @@ internal class VodRepository(
             if (streams.isEmpty()) continue
             collectMatchesFromCategory(streams, categoriesById[categoryId], criteria, sources)
         }
+        return sources
+    }
 
-        if (sources.isEmpty() && primaryStream != null) {
-            val category = primaryStream.category_id?.let { categoriesById[it] }
-            val label = buildMovieSourceLabel(category, primaryStream)
-            val key = primaryStream.stream_id ?: primaryStream.name ?: "primary"
-            sources[key] = MovieSource(
-                stream = primaryStream,
-                category = category,
-                label = label,
-                isPrimary = true
-            )
-        }
-
-        return sources.values.sortedWith(comparator)
+    // No match anywhere: the primary stream itself is still a playable source.
+    private fun addPrimaryFallback(
+        sources: LinkedHashMap<String, MovieSource>,
+        primaryStream: XtreamVodInfo,
+        categoriesById: Map<String, XtreamCategory>
+    ) {
+        val category = primaryStream.category_id?.let { categoriesById[it] }
+        val label = buildMovieSourceLabel(category, primaryStream)
+        val key = primaryStream.stream_id ?: primaryStream.name ?: "primary"
+        sources[key] = MovieSource(
+            stream = primaryStream,
+            category = category,
+            label = label,
+            isPrimary = true
+        )
     }
 
     // Search order, verbatim: the caller's category first, then the primary stream's own

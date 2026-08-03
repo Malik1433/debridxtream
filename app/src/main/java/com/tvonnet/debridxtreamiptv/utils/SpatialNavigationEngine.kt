@@ -115,51 +115,58 @@ object SpatialNavigationEngine {
         var nearest: View? = null
         var minDistance = Int.MAX_VALUE
 
-        val currentLoc = IntArray(2)
-        current.getLocationOnScreen(currentLoc)
-        val currentMidX = currentLoc[0] + current.width / 2
-        val currentMidY = currentLoc[1] + current.height / 2
-        
-        val currentLeft = currentLoc[0]
-        val currentRight = currentLoc[0] + current.width
-        val currentTop = currentLoc[1]
-        val currentBottom = currentLoc[1] + current.height
+        val currentBox = ViewBox(current)
 
         for (candidate in focusables) {
             if (candidate === current) continue
 
-            val candidateLoc = IntArray(2)
-            candidate.getLocationOnScreen(candidateLoc)
-            val candidateMidX = candidateLoc[0] + candidate.width / 2
-            val candidateMidY = candidateLoc[1] + candidate.height / 2
-            
-            val candidateLeft = candidateLoc[0]
-            val candidateRight = candidateLoc[0] + candidate.width
-            val candidateTop = candidateLoc[1]
-            val candidateBottom = candidateLoc[1] + candidate.height
+            val candidateBox = ViewBox(candidate)
+            if (!isOrthogonalCandidate(currentBox, candidateBox, direction)) continue
 
-            val isOrthogonal = when (direction) {
-                View.FOCUS_UP -> candidateMidY < currentMidY && (candidateRight > currentLeft && candidateLeft < currentRight)
-                View.FOCUS_DOWN -> candidateMidY > currentMidY && (candidateRight > currentLeft && candidateLeft < currentRight)
-                View.FOCUS_LEFT -> candidateMidX < currentMidX && (candidateBottom > currentTop && candidateTop < currentBottom)
-                View.FOCUS_RIGHT -> candidateMidX > currentMidX && (candidateBottom > currentTop && candidateTop < currentBottom)
-                else -> false
-            }
-
-            if (isOrthogonal) {
-                // Calculate distance based on the PRIMARY axis of movement
-                val distance = when (direction) {
-                    View.FOCUS_UP, View.FOCUS_DOWN -> Math.abs(candidateMidY - currentMidY)
-                    View.FOCUS_LEFT, View.FOCUS_RIGHT -> Math.abs(candidateMidX - currentMidX)
-                    else -> Int.MAX_VALUE
-                }
-
-                if (distance < minDistance) {
-                    minDistance = distance
-                    nearest = candidate
-                }
+            val distance = primaryAxisDistance(currentBox, candidateBox, direction)
+            if (distance < minDistance) {
+                minDistance = distance
+                nearest = candidate
             }
         }
         return nearest
     }
+
+    /** A view's on-screen bounds + midpoints, captured once per comparison. */
+    private class ViewBox(view: View) {
+        val left: Int
+        val top: Int
+        val right: Int
+        val bottom: Int
+        val midX: Int
+        val midY: Int
+
+        init {
+            val loc = IntArray(2)
+            view.getLocationOnScreen(loc)
+            left = loc[0]
+            top = loc[1]
+            right = loc[0] + view.width
+            bottom = loc[1] + view.height
+            midX = loc[0] + view.width / 2
+            midY = loc[1] + view.height / 2
+        }
+    }
+
+    private fun isOrthogonalCandidate(current: ViewBox, candidate: ViewBox, direction: Int): Boolean =
+        when (direction) {
+            View.FOCUS_UP -> candidate.midY < current.midY && (candidate.right > current.left && candidate.left < current.right)
+            View.FOCUS_DOWN -> candidate.midY > current.midY && (candidate.right > current.left && candidate.left < current.right)
+            View.FOCUS_LEFT -> candidate.midX < current.midX && (candidate.bottom > current.top && candidate.top < current.bottom)
+            View.FOCUS_RIGHT -> candidate.midX > current.midX && (candidate.bottom > current.top && candidate.top < current.bottom)
+            else -> false
+        }
+
+    // Distance based on the PRIMARY axis of movement.
+    private fun primaryAxisDistance(current: ViewBox, candidate: ViewBox, direction: Int): Int =
+        when (direction) {
+            View.FOCUS_UP, View.FOCUS_DOWN -> Math.abs(candidate.midY - current.midY)
+            View.FOCUS_LEFT, View.FOCUS_RIGHT -> Math.abs(candidate.midX - current.midX)
+            else -> Int.MAX_VALUE
+        }
 }

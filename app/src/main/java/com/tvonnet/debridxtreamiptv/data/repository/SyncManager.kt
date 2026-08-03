@@ -103,26 +103,12 @@ internal class SyncManager(
         includeLatest: Boolean
     ): Result<IptvCache> {
         return syncMutex.withLock {
-            updateSyncProgress(SyncProgress(
-                type = syncType,
-                state = SyncState.RUNNING,
-                percent = 0,
-                liveCount = 0,
-                vodCount = 0,
-                seriesCount = 0,
-                stage = "Preparing data"
-            ))
+            reportRunning(syncType, 0, "Preparing data")
 
             try {
                 withContext(Dispatchers.IO) {
                     if (apiService == null) {
-                        val cached = cacheHelper.readCache()
-                        if (cached != null) {
-                            reportCachedSuccess(syncType, cached)
-                            return@withContext Result.Success(cached)
-                        }
-                        reportSyncError(syncType, "API service not initialized")
-                        return@withContext Result.Error(Exception("API service not initialized and no cache available"))
+                        return@withContext apiUnavailableOutcome(syncType)
                     }
 
                     Log.d(TAG, "Sync started (type=$syncType, includeLatest=$includeLatest)")
@@ -130,54 +116,10 @@ internal class SyncManager(
                     // SY-2: bound each stage so one hung provider stage can't stall the
                     // whole sync. A timeout falls to empty for that stage; if ALL stages
                     // come back empty, the SY-1 all-empty guard below reports it honestly.
-                    val liveResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { liveRepository.fetchLiveCategoriesAndStreams() }
-                    val liveData = liveResult?.getOrNull() ?: LiveCacheData(emptyList(), emptyList())
+                    val liveData = fetchLiveStage(syncType)
                     val liveCount = liveData.streams.size
-                    updateSyncProgress(SyncProgress(
-                        type = syncType,
-                        state = SyncState.RUNNING,
-                        percent = 25,
-                        liveCount = liveCount,
-                        vodCount = 0,
-                        seriesCount = 0,
-                        stage = "Downloading live channels"
-                    ))
-
-                    val vodResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { vodRepository.fetchVodCategoriesAndStreams() }
-                    val vodData = vodResult?.getOrNull() ?: VodCacheData(emptyList(), emptyList())
-                    val vodStreams = if (includeLatest) {
-                        vodRepository.fetchLatestVodStreams(vodData.categories)
-                    } else {
-                        vodData.streams
-                    }
-                    val vodFinal = vodData.copy(streams = vodStreams)
-                    updateSyncProgress(SyncProgress(
-                        type = syncType,
-                        state = SyncState.RUNNING,
-                        percent = 50,
-                        liveCount = liveCount,
-                        vodCount = vodStreams.size,
-                        seriesCount = 0,
-                        stage = "Downloading movies"
-                    ))
-
-                    val seriesResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { seriesRepository.fetchSeriesCategoriesAndStreams() }
-                    val seriesData = seriesResult?.getOrNull() ?: SeriesCacheData(emptyList(), emptyList())
-                    val seriesStreams = if (includeLatest) {
-                        seriesRepository.fetchLatestSeriesStreams(seriesData.categories)
-                    } else {
-                        seriesData.streams
-                    }
-                    val seriesFinal = seriesData.copy(streams = seriesStreams)
-                    updateSyncProgress(SyncProgress(
-                        type = syncType,
-                        state = SyncState.RUNNING,
-                        percent = 75,
-                        liveCount = liveCount,
-                        vodCount = vodStreams.size,
-                        seriesCount = seriesStreams.size,
-                        stage = "Downloading series"
-                    ))
+                    val vodFinal = fetchVodStage(syncType, includeLatest, liveCount)
+                    val seriesFinal = fetchSeriesStage(syncType, includeLatest, liveCount, vodFinal.streams.size)
 
                     // SY-1: the stage fetchers swallow network/auth failures into empty
                     // results (no throw), so a totally-failed sync would otherwise write an
@@ -187,8 +129,8 @@ internal class SyncManager(
                     // overwrite a good cache: keep the existing one, or report ERROR so the
                     // sync screen offers a retry instead of a silent empty success.
                     val allCategoriesEmpty = liveData.categories.isEmpty() &&
-                        vodData.categories.isEmpty() &&
-                        seriesData.categories.isEmpty()
+                        vodFinal.categories.isEmpty() &&
+                        seriesFinal.categories.isEmpty()
                     if (allCategoriesEmpty) {
                         return@withContext allEmptyOutcome(syncType)
                     }
@@ -201,15 +143,7 @@ internal class SyncManager(
                         epg = null
                     )
 
-                    updateSyncProgress(SyncProgress(
-                        type = syncType,
-                        state = SyncState.RUNNING,
-                        percent = 90,
-                        liveCount = liveCount,
-                        vodCount = vodStreams.size,
-                        seriesCount = seriesStreams.size,
-                        stage = "Finalizing cache"
-                    ))
+                    reportRunning(syncType, 90, "Finalizing cache", liveCount, vodFinal.streams.size, seriesFinal.streams.size)
 
                     persistCache(cache, liveData, vodFinal, seriesFinal)
 
@@ -219,15 +153,7 @@ internal class SyncManager(
                     // background so Search covers categories the user never
                     // opened. Fire-and-forget; idempotent via REPLACE upserts.
                     scheduleSearchIndexSyncIfStale()
-                    updateSyncProgress(SyncProgress(
-                        type = syncType,
-                        state = SyncState.SUCCESS,
-                        percent = 100,
-                        liveCount = liveCount,
-                        vodCount = vodStreams.size,
-                        seriesCount = seriesStreams.size,
-                        stage = "Complete"
-                    ))
+                    reportComplete(syncType, liveCount, vodFinal.streams.size, seriesFinal.streams.size)
 
                     Result.Success(cache)
                 }
@@ -243,6 +169,86 @@ internal class SyncManager(
                 }
             }
         }
+    }
+
+    private fun reportRunning(
+        syncType: SyncType,
+        percent: Int,
+        stage: String,
+        liveCount: Int = 0,
+        vodCount: Int = 0,
+        seriesCount: Int = 0
+    ) {
+        updateSyncProgress(SyncProgress(
+            type = syncType,
+            state = SyncState.RUNNING,
+            percent = percent,
+            liveCount = liveCount,
+            vodCount = vodCount,
+            seriesCount = seriesCount,
+            stage = stage
+        ))
+    }
+
+    // No API client and no cache — nothing to sync from. Cache wins when it exists.
+    private fun apiUnavailableOutcome(syncType: SyncType): Result<IptvCache> {
+        val cached = cacheHelper.readCache()
+        if (cached != null) {
+            reportCachedSuccess(syncType, cached)
+            return Result.Success(cached)
+        }
+        reportSyncError(syncType, "API service not initialized")
+        return Result.Error(Exception("API service not initialized and no cache available"))
+    }
+
+    private fun reportComplete(syncType: SyncType, liveCount: Int, vodCount: Int, seriesCount: Int) {
+        updateSyncProgress(SyncProgress(
+            type = syncType,
+            state = SyncState.SUCCESS,
+            percent = 100,
+            liveCount = liveCount,
+            vodCount = vodCount,
+            seriesCount = seriesCount,
+            stage = "Complete"
+        ))
+    }
+
+    private suspend fun fetchLiveStage(syncType: SyncType): LiveCacheData {
+        val liveResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { liveRepository.fetchLiveCategoriesAndStreams() }
+        val liveData = liveResult?.getOrNull() ?: LiveCacheData(emptyList(), emptyList())
+        reportRunning(syncType, 25, "Downloading live channels", liveCount = liveData.streams.size)
+        return liveData
+    }
+
+    private suspend fun fetchVodStage(syncType: SyncType, includeLatest: Boolean, liveCount: Int): VodCacheData {
+        val vodResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { vodRepository.fetchVodCategoriesAndStreams() }
+        val vodData = vodResult?.getOrNull() ?: VodCacheData(emptyList(), emptyList())
+        val vodStreams = if (includeLatest) {
+            vodRepository.fetchLatestVodStreams(vodData.categories)
+        } else {
+            vodData.streams
+        }
+        val vodFinal = vodData.copy(streams = vodStreams)
+        reportRunning(syncType, 50, "Downloading movies", liveCount = liveCount, vodCount = vodStreams.size)
+        return vodFinal
+    }
+
+    private suspend fun fetchSeriesStage(
+        syncType: SyncType,
+        includeLatest: Boolean,
+        liveCount: Int,
+        vodCount: Int
+    ): SeriesCacheData {
+        val seriesResult = withTimeoutOrNull(SYNC_STAGE_TIMEOUT_MS) { seriesRepository.fetchSeriesCategoriesAndStreams() }
+        val seriesData = seriesResult?.getOrNull() ?: SeriesCacheData(emptyList(), emptyList())
+        val seriesStreams = if (includeLatest) {
+            seriesRepository.fetchLatestSeriesStreams(seriesData.categories)
+        } else {
+            seriesData.streams
+        }
+        val seriesFinal = seriesData.copy(streams = seriesStreams)
+        reportRunning(syncType, 75, "Downloading series", liveCount = liveCount, vodCount = vodCount, seriesCount = seriesStreams.size)
+        return seriesFinal
     }
 
     private fun reportCachedSuccess(syncType: SyncType, cached: IptvCache) {

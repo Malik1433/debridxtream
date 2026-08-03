@@ -226,10 +226,31 @@ class LiveEpgPreviewController(
         }.getOrNull()
         val historyStreamId = historyItem?.channelId?.takeIf { it.isNotBlank() }
         val streamId = historyStreamId ?: state.lastPlayedChannelId ?: return
+        val restoredStream = buildRestoredStream(historyItem, state, streamId)
+
+        val sameStream = previewPanel()?.getCurrentStream()?.stream_id == streamId
+        val isPlaying = previewPanel()?.isPlaying() == true
+        if (!sameStream || !isPlaying) {
+            previewPanel()?.play(restoredStream)
+        }
+        updatePreviewEpg(restoredStream)
+        onUpdateFavoriteButton(restoredStream)
+        if (shouldSyncHistory(historyItem, historyStreamId, state)) {
+            viewModel.onEvent(LiveEvent.RememberPreviewStream(restoredStream))
+        }
+        markPreviewRestored()
+    }
+
+    // History wins per field, state fills the gaps — same precedence as the old inline block.
+    private fun buildRestoredStream(
+        historyItem: com.tvonnet.debridxtreamiptv.data.model.RecentLiveChannelItem?,
+        state: LiveUiState,
+        streamId: String,
+    ): XtreamStream {
         val resolvedName = historyItem?.channelName?.takeIf { it.isNotBlank() } ?: state.lastPlayedChannelName
         val resolvedLogo = historyItem?.channelLogo ?: state.lastPlayedChannelLogo
         val resolvedEpgId = historyItem?.epgChannelId ?: state.lastPlayedEpgChannelId
-        val restoredStream = XtreamStream(
+        return XtreamStream(
             num = null,
             name = resolvedName,
             stream_type = "live",
@@ -245,24 +266,20 @@ class LiveEpgPreviewController(
             tv_archive = null,
             tv_archive_duration = null
         )
+    }
 
-        val sameStream = previewPanel()?.getCurrentStream()?.stream_id == streamId
-        val isPlaying = previewPanel()?.isPlaying() == true
-        if (!sameStream || !isPlaying) {
-            previewPanel()?.play(restoredStream)
-        }
-        updatePreviewEpg(restoredStream)
-        onUpdateFavoriteButton(restoredStream)
-        val shouldSyncHistory = historyItem != null && historyStreamId != null && (
+    // Only push the restored identity back into state when the history row genuinely differs.
+    private fun shouldSyncHistory(
+        historyItem: com.tvonnet.debridxtreamiptv.data.model.RecentLiveChannelItem?,
+        historyStreamId: String?,
+        state: LiveUiState,
+    ): Boolean {
+        return historyItem != null && historyStreamId != null && (
             historyStreamId != state.lastPlayedChannelId ||
                 (historyItem.channelName.isNotBlank() && historyItem.channelName != state.lastPlayedChannelName) ||
                 (historyItem.channelLogo != null && historyItem.channelLogo != state.lastPlayedChannelLogo) ||
                 (!historyItem.epgChannelId.isNullOrBlank() && historyItem.epgChannelId != state.lastPlayedEpgChannelId)
             )
-        if (shouldSyncHistory) {
-            viewModel.onEvent(LiveEvent.RememberPreviewStream(restoredStream))
-        }
-        markPreviewRestored()
     }
 
     fun setupEpgStrip() {

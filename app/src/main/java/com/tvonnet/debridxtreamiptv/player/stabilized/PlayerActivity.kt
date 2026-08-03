@@ -163,44 +163,143 @@ class PlayerActivity : AppCompatActivity() {
             seriesId: String? = null,
             sharedLivePlayer: Boolean = false
         ): Intent {
+            val extras = LaunchExtras(
+                streamUrl = streamUrl,
+                title = title,
+                channelName = channelName,
+                channelLogo = channelLogo,
+                epgChannelId = epgChannelId,
+                startPositionMs = startPositionMs,
+                contentId = contentId,
+                contentType = contentType,
+                playbackSource = playbackSource,
+                posterUrl = posterUrl,
+                backdropUrl = backdropUrl,
+                liveCategoryId = liveCategoryId,
+                liveChannelIds = liveChannelIds,
+                baseServerUrl = baseServerUrl,
+                headers = headers,
+                tmdbId = tmdbId,
+                imdbId = imdbId,
+                seriesTitle = seriesTitle,
+                episodeTitle = episodeTitle,
+                seasonNumber = seasonNumber,
+                episodeNumber = episodeNumber,
+                debridInfoHash = debridInfoHash,
+                debridMagnet = debridMagnet,
+                directDebridPlayback = directDebridPlayback,
+                debridProvider = debridProvider,
+                debridSourceType = debridSourceType,
+                debridSourceName = debridSourceName,
+                debridLanguages = debridLanguages,
+                debridQuality = debridQuality,
+                debridStreamId = debridStreamId,
+                debridBingeGroup = debridBingeGroup,
+                debridFileIdx = debridFileIdx,
+                subtitles = subtitles,
+                expiresAt = expiresAt,
+                seriesId = seriesId,
+                sharedLivePlayer = sharedLivePlayer
+            )
             return Intent(context, PlayerActivity::class.java).apply {
-                putExtra(EXTRA_STREAM_URL, streamUrl)
-                putExtra(EXTRA_STREAM_TITLE, title)
-                putExtra(EXTRA_CHANNEL_NAME, channelName)
-                putExtra(EXTRA_CHANNEL_LOGO, channelLogo)
-                putExtra(EXTRA_EPG_CHANNEL_ID, epgChannelId)
-                putExtra(EXTRA_CONTENT_ID, contentId)
-                putExtra(EXTRA_CONTENT_TYPE, contentType?.name)
-                putExtra(EXTRA_PLAYBACK_SOURCE, playbackSource?.name)
-                putExtra(EXTRA_POSTER_URL, posterUrl)
-                putExtra(EXTRA_BACKDROP_URL, backdropUrl)
-                liveCategoryId?.let { putExtra(EXTRA_LIVE_CATEGORY_ID, it) }
-                liveChannelIds?.let { putStringArrayListExtra(EXTRA_LIVE_CHANNEL_IDS, it) }
-                baseServerUrl?.let { putExtra(EXTRA_BASE_SERVER_URL, it) }
-                putExtra(EXTRA_SERIES_ID, seriesId)
-                putExtra(EXTRA_SHARED_LIVE_PLAYER, sharedLivePlayer)
-                startPositionMs?.let { putExtra(EXTRA_START_POSITION, it) }
-                headers?.let { putExtra(EXTRA_STREAM_HEADERS, HashMap(it)) }
-                tmdbId?.let { putExtra(EXTRA_TMDB_ID, it) }
-                imdbId?.let { putExtra(EXTRA_IMDB_ID, it) }
-                seriesTitle?.let { putExtra(EXTRA_SERIES_TITLE, it) }
-                episodeTitle?.let { putExtra(EXTRA_EPISODE_TITLE, it) }
-                seasonNumber?.let { putExtra(EXTRA_SEASON_NUM, it) }
-                episodeNumber?.let { putExtra(EXTRA_EPISODE_NUM, it) }
-                debridInfoHash?.let { putExtra(EXTRA_DEBRID_INFOHASH, it) }
-                debridMagnet?.let { putExtra(EXTRA_DEBRID_MAGNET, it) }
-                putExtra(EXTRA_DIRECT_DEBRID_PLAYBACK, directDebridPlayback)
-                debridProvider?.let { putExtra(EXTRA_DEBRID_PROVIDER, it) }
-                debridSourceType?.let { putExtra(EXTRA_DEBRID_SOURCE_TYPE, it) }
-                debridSourceName?.let { putExtra(EXTRA_DEBRID_SOURCE_NAME, it) }
-                debridLanguages?.let { putStringArrayListExtra(EXTRA_DEBRID_LANGUAGES, ArrayList(it)) }
-                debridQuality?.let { putExtra(EXTRA_DEBRID_QUALITY, it) }
-                debridStreamId?.let { putExtra(EXTRA_DEBRID_STREAM_ID, it) }
-                debridBingeGroup?.let { putExtra(EXTRA_DEBRID_BINGE_GROUP, it) }
-                debridFileIdx?.let { putExtra(EXTRA_DEBRID_FILE_IDX, it) }
-                expiresAt?.let { putExtra(EXTRA_EXPIRES_AT, it) }
-                subtitles?.let { putStringArrayListExtra(EXTRA_SUBTITLE_ENTRIES, ArrayList(it)) }
+                putCoreExtras(extras)
+                putSessionExtras(extras)
+                putIdentityExtras(extras)
+                putDebridSourceExtras(extras)
+                putDebridStreamExtras(extras)
             }
+        }
+
+        /** Everything createIntent accepts, bundled so the put* helpers stay parameter-light. */
+        private data class LaunchExtras(
+            val streamUrl: String,
+            val title: String?,
+            val channelName: String?,
+            val channelLogo: String?,
+            val epgChannelId: String?,
+            val startPositionMs: Long?,
+            val contentId: String?,
+            val contentType: ContentType?,
+            val playbackSource: PlaybackSource?,
+            val posterUrl: String?,
+            val backdropUrl: String?,
+            val liveCategoryId: String?,
+            val liveChannelIds: ArrayList<String>?,
+            val baseServerUrl: String?,
+            val headers: Map<String, String>?,
+            val tmdbId: String?,
+            val imdbId: String?,
+            val seriesTitle: String?,
+            val episodeTitle: String?,
+            val seasonNumber: Int?,
+            val episodeNumber: Int?,
+            val debridInfoHash: String?,
+            val debridMagnet: String?,
+            val directDebridPlayback: Boolean,
+            val debridProvider: String?,
+            val debridSourceType: String?,
+            val debridSourceName: String?,
+            val debridLanguages: List<String>?,
+            val debridQuality: String?,
+            val debridStreamId: String?,
+            val debridBingeGroup: String?,
+            val debridFileIdx: Int?,
+            val subtitles: List<String>?,
+            val expiresAt: Long?,
+            val seriesId: String?,
+            val sharedLivePlayer: Boolean
+        )
+
+        // The always-set extras (nullable values are put as-is, same as before).
+        private fun Intent.putCoreExtras(e: LaunchExtras) {
+            putExtra(EXTRA_STREAM_URL, e.streamUrl)
+            putExtra(EXTRA_STREAM_TITLE, e.title)
+            putExtra(EXTRA_CHANNEL_NAME, e.channelName)
+            putExtra(EXTRA_CHANNEL_LOGO, e.channelLogo)
+            putExtra(EXTRA_EPG_CHANNEL_ID, e.epgChannelId)
+            putExtra(EXTRA_CONTENT_ID, e.contentId)
+            putExtra(EXTRA_CONTENT_TYPE, e.contentType?.name)
+            putExtra(EXTRA_PLAYBACK_SOURCE, e.playbackSource?.name)
+            putExtra(EXTRA_POSTER_URL, e.posterUrl)
+            putExtra(EXTRA_BACKDROP_URL, e.backdropUrl)
+            putExtra(EXTRA_SERIES_ID, e.seriesId)
+            putExtra(EXTRA_SHARED_LIVE_PLAYER, e.sharedLivePlayer)
+            putExtra(EXTRA_DIRECT_DEBRID_PLAYBACK, e.directDebridPlayback)
+        }
+
+        private fun Intent.putSessionExtras(e: LaunchExtras) {
+            e.liveCategoryId?.let { putExtra(EXTRA_LIVE_CATEGORY_ID, it) }
+            e.liveChannelIds?.let { putStringArrayListExtra(EXTRA_LIVE_CHANNEL_IDS, it) }
+            e.baseServerUrl?.let { putExtra(EXTRA_BASE_SERVER_URL, it) }
+            e.startPositionMs?.let { putExtra(EXTRA_START_POSITION, it) }
+            e.headers?.let { putExtra(EXTRA_STREAM_HEADERS, HashMap(it)) }
+        }
+
+        private fun Intent.putIdentityExtras(e: LaunchExtras) {
+            e.tmdbId?.let { putExtra(EXTRA_TMDB_ID, it) }
+            e.imdbId?.let { putExtra(EXTRA_IMDB_ID, it) }
+            e.seriesTitle?.let { putExtra(EXTRA_SERIES_TITLE, it) }
+            e.episodeTitle?.let { putExtra(EXTRA_EPISODE_TITLE, it) }
+            e.seasonNumber?.let { putExtra(EXTRA_SEASON_NUM, it) }
+            e.episodeNumber?.let { putExtra(EXTRA_EPISODE_NUM, it) }
+        }
+
+        private fun Intent.putDebridSourceExtras(e: LaunchExtras) {
+            e.debridProvider?.let { putExtra(EXTRA_DEBRID_PROVIDER, it) }
+            e.debridSourceType?.let { putExtra(EXTRA_DEBRID_SOURCE_TYPE, it) }
+            e.debridSourceName?.let { putExtra(EXTRA_DEBRID_SOURCE_NAME, it) }
+            e.debridLanguages?.let { putStringArrayListExtra(EXTRA_DEBRID_LANGUAGES, ArrayList(it)) }
+            e.debridQuality?.let { putExtra(EXTRA_DEBRID_QUALITY, it) }
+            e.debridBingeGroup?.let { putExtra(EXTRA_DEBRID_BINGE_GROUP, it) }
+        }
+
+        private fun Intent.putDebridStreamExtras(e: LaunchExtras) {
+            e.debridInfoHash?.let { putExtra(EXTRA_DEBRID_INFOHASH, it) }
+            e.debridMagnet?.let { putExtra(EXTRA_DEBRID_MAGNET, it) }
+            e.debridStreamId?.let { putExtra(EXTRA_DEBRID_STREAM_ID, it) }
+            e.debridFileIdx?.let { putExtra(EXTRA_DEBRID_FILE_IDX, it) }
+            e.expiresAt?.let { putExtra(EXTRA_EXPIRES_AT, it) }
+            e.subtitles?.let { putStringArrayListExtra(EXTRA_SUBTITLE_ENTRIES, ArrayList(it)) }
         }
     }
 }

@@ -150,6 +150,12 @@ class LiveNavRail(
             if (value) R.drawable.livev2_rail_bg_expanded else R.drawable.livev2_rail_bg
         )
 
+        animateRailWidth(view, from, to)
+        animateLabels(value)
+        animateScrim(value)
+    }
+
+    private fun animateRailWidth(view: View, from: Int, to: Int) {
         widthAnimator?.cancel()
         widthAnimator = ValueAnimator.ofInt(from, to).apply {
             duration = 320L
@@ -161,7 +167,9 @@ class LiveNavRail(
             }
             start()
         }
+    }
 
+    private fun animateLabels(value: Boolean) {
         val targetAlpha = if (value) 1f else 0f
         listOfNotNull(brandText, sectionLabel).forEach { label ->
             label.animate().cancel()
@@ -172,7 +180,10 @@ class LiveNavRail(
             label.animate().cancel()
             label.animate().alpha(targetAlpha).setDuration(if (value) 200L else 140L).start()
         }
+    }
 
+    private fun animateScrim(value: Boolean) {
+        val targetAlpha = if (value) 1f else 0f
         scrim?.let { s ->
             s.animate().cancel()
             if (value) s.isVisible = true
