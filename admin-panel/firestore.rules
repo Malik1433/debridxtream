@@ -261,6 +261,30 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── Learned release languages (Tier H5) ─────────────────────────────
+    // Community knowledge: "release <infoHash> carries these audio languages",
+    // learned by a device that actually PLAYED the file. Zero PII — the doc id is
+    // a public torrent infoHash and the payload is language codes.
+    //
+    // TVs are unauthenticated (same posture as `licenses` create), so writes are
+    // open but tightly shaped: 40-hex id, only the three known keys, languages a
+    // small MAP of codes (set-union under merge — codes only widen), and
+    // reports/updatedAt server-anchored types.
+    // Poisoning is bounded by design: the app's LOCAL observations always outrank
+    // shared rows, and a bad row can only mislabel chips until someone plays the
+    // release.
+    match /release_languages/{hash} {
+      allow get, list: if true;
+      allow create, update: if
+        hash.matches('^[a-f0-9]{40}$') &&
+        request.resource.data.keys().hasOnly(['languages', 'reports', 'updatedAt']) &&
+        request.resource.data.languages is map &&
+        request.resource.data.languages.keys().size() <= 12 &&
+        request.resource.data.reports is int &&
+        request.resource.data.updatedAt == request.time;
+      allow delete: if isAdmin();
+    }
+
     // Everything else: locked.
     match /{document=**} {
       allow read, write: if false;

@@ -14,6 +14,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.coroutineContext
@@ -59,6 +60,9 @@ class UnifiedSourceProvider @Inject constructor(
         private const val TAG = "UnifiedSourceProvider"
         private const val TIMEOUT_MS = 30000L // 30 second timeout
         private const val SCOPED_FETCH_TIMEOUT_MS = 10000L // resume fast-path: single-provider fetch budget
+        // H5: shared-language lookup is best-effort — top rows only, hard-bounded.
+        private const val SHARED_LOOKUP_LIMIT = 30
+        private const val SHARED_LOOKUP_TIMEOUT_MS = 2500L
         private const val BATCH_SIZE = 10 // Process sources in batches
         private val MOVIE_YEAR_REGEX = Regex("\\b(?:19|20)\\d{2}\\b")
 
@@ -267,15 +271,25 @@ class UnifiedSourceProvider @Inject constructor(
     )
 
     /**
-     * H4: replace CLAIMED languages with the ones the player actually heard for
-     * releases we (or, via H5, someone) have played. A lookup miss leaves the
-     * claimed chips untouched; a failure degrades to the un-overlaid list.
+     * H4: replace CLAIMED languages with the ones a player actually heard. Local
+     * knowledge first; H5 then asks the shared Firestore table about the top rows
+     * this device knows nothing about (bounded — the sheet must never wait on the
+     * network). A lookup miss leaves the claimed chips untouched; a failure
+     * degrades to the un-overlaid list.
      */
     private suspend fun overlayVerifiedLanguages(sources: List<MovieSource>): List<MovieSource> {
         if (sources.isEmpty()) return sources
         val hashBySource = sources.associateWith { stableStreamIdentity(it.stream.stream_id) }
         val verified = try {
-            releaseLanguageRepository.verifiedLanguagesFor(hashBySource.values.filterNotNull())
+            val allHashes = hashBySource.values.filterNotNull()
+            val local = releaseLanguageRepository.verifiedLanguagesFor(allHashes)
+            val missing = allHashes.filter { it !in local }.take(SHARED_LOOKUP_LIMIT)
+            val shared =
+                if (missing.isEmpty()) emptyMap()
+                else withTimeoutOrNull(SHARED_LOOKUP_TIMEOUT_MS) {
+                    releaseLanguageRepository.fetchAndCacheShared(missing)
+                }.orEmpty()
+            shared + local // local wins on any overlap
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
