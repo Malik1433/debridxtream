@@ -384,8 +384,10 @@ class AddonCatalogRepository @Inject constructor(
         const val CATALOGUE_NEWEST = "newest"
         private const val TOP_RATED_MIN_VOTE_COUNT = 200
         private const val POPULAR_MIN_VOTE_COUNT = 200
-        // Language-scoped grids (hi at 10 ≈ 1.5k titles, pa goes from 0 to dozens).
-        private const val REGIONAL_POPULAR_MIN_VOTE_COUNT = 10
+        // Language-scoped grids. Measured on TMDB live: Punjabi has 14 titles at a floor
+        // of 10 but 129 at 3; Tamil ~675 -> ~1.5k. Three votes still parks the zero-vote
+        // junk while letting thinly-voted industries actually fill their catalog.
+        private const val REGIONAL_POPULAR_MIN_VOTE_COUNT = 3
         private const val REGIONAL_TOP_RATED_MIN_VOTE_COUNT = 50
         // TMDB keyword ids for adult/erotica that aren't caught by `adult=true` (softcore, erotic movie,
         // pornography, hardcore) — excluded from all discover queries via `without_keywords` (OR-joined).
