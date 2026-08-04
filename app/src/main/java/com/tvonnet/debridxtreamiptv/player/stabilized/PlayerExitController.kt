@@ -89,6 +89,8 @@ internal class PlayerExitController(
                 "httpStatusCode" to PlaybackDiagnosticsRecorder.httpStatusCode(reason)
             )
         )
+        // H6: the helper itself skips sources that already rendered a frame.
+        activity.recordAddonReliability(success = false)
         // autoPlayNext=true: the detail screens auto-try the next ranked source
         // (capped there) instead of dropping the user at the picker.
         if (preferReturnToSources && finishWithReturnToSources(autoPlayNext = true, reason = reason)) {

@@ -155,6 +155,11 @@ class MainActivity : AppCompatActivity() {
         // Fire-and-forget by design — nothing below waits on it, and it is a no-op while
         // anonymous sign-in is disabled in the console.
         com.tvonnet.debridxtreamiptv.data.licensing.DeviceIdentity.start(this)
+        // H6: load the per-addon delivery record off the main thread so the first source
+        // sheet of this process can already break same-file ties by reliability.
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            com.tvonnet.debridxtreamiptv.ui.sources.AddonReliabilityStore.init(applicationContext)
+        }
         // §7 U6: read this account's playlists instead of waiting to be pushed to. Flag-gated,
         // default OFF — it rewrites the credentials we log in with.
         com.tvonnet.debridxtreamiptv.ui.companion.AccountPlaylistSync.start(this)

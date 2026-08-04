@@ -123,4 +123,28 @@ class StreamGroupingTest {
         val soloGroups = groups.filter { it.alternates.isEmpty() }
         soloGroups.forEach { assertTrue(it.primary !in map) }
     }
+
+    // ── H6: reliability is the FIRST same-file tiebreak ──
+
+    @Test
+    fun `a more reliable addon's copy becomes the primary even with poorer metadata`() {
+        // STREMIO's copy carries richer metadata (size+seeders+quality) but DYNAMIC's
+        // addon family is more reliable — reliability outranks metadataScore.
+        val rich = stream(AddonSourceType.STREMIO, infoHash = hashA, sizeBytes = 2_000_000_000, seeders = 40, quality = "1080p", url = "https://a.example/f.mkv")
+        val poor = stream(AddonSourceType.DYNAMIC, infoHash = hashA)
+        val groups = groupStreamsByFile(listOf(rich, poor)) { s ->
+            if (s.source == AddonSourceType.DYNAMIC) 0.9 else 0.2
+        }
+        assertEquals(1, groups.size)
+        assertEquals(poor, groups.first().primary)
+        assertEquals(listOf(rich), groups.first().alternates)
+    }
+
+    @Test
+    fun `neutral reliability leaves the metadata order untouched`() {
+        val rich = stream(AddonSourceType.STREMIO, infoHash = hashA, sizeBytes = 2_000_000_000, seeders = 40, quality = "1080p", url = "https://a.example/f.mkv")
+        val poor = stream(AddonSourceType.DYNAMIC, infoHash = hashA)
+        val groups = groupStreamsByFile(listOf(poor, rich)) { 0.5 }
+        assertEquals(rich, groups.first().primary)
+    }
 }

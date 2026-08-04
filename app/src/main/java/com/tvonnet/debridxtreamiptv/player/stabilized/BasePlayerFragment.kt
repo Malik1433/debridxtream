@@ -1051,6 +1051,23 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     }
 
     /**
+     * H6: persistent per-addon-family delivery record. Success = first frame rendered
+     * (called once per source by the event listener); failure = the source died
+     * terminally without EVER producing a frame — a link that played and later stalled
+     * is a network story, not an addon story, so it is not counted here.
+     */
+    internal fun recordAddonReliability(success: Boolean) {
+        val providerLabel = debridProviderExtra ?: debridSourceNameExtra ?: return
+        val appContext = context?.applicationContext ?: return
+        if (success) {
+            com.tvonnet.debridxtreamiptv.ui.sources.AddonReliabilityStore.recordSuccess(appContext, providerLabel)
+        } else {
+            if (hasRenderedFirstFrameForCurrentSource) return
+            com.tvonnet.debridxtreamiptv.ui.sources.AddonReliabilityStore.recordFailure(appContext, providerLabel)
+        }
+    }
+
+    /**
      * P27-e: if this is a shared live session launched from the EPG guide, adopt the guide's
      * running preview player (assign it + take audio focus + cover with its last frame) and
      * return true so [initializePlayer] skips cold init. Overridden only by [LivePlayerFragment];

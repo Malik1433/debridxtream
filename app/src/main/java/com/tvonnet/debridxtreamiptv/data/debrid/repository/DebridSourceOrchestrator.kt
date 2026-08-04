@@ -86,7 +86,7 @@ internal class DebridSourceOrchestrator(
             }
             // H1: collapse to one stream per real file BEFORE cache verification, so the
             // verifier's 10-hash budget is spent on 10 distinct files, not copies.
-            val fileGroups = groupStreamsByFile(titleMatchedStreams)
+            val fileGroups = groupStreamsByFile(titleMatchedStreams, ::addonReliability)
             Log.i(TAG, "H1 grouping: ${titleMatchedStreams.size} streams → ${fileGroups.size} files (${fileGroups.count { it.alternates.isNotEmpty() }} with alternates)")
             val addonStreams = prioritizeAddonStreams(fileGroups.map { it.primary })
 
@@ -159,7 +159,7 @@ internal class DebridSourceOrchestrator(
 
             // H1: collapse to one stream per real file BEFORE cache verification.
             val fetched = fetchAllEpisodeProviderStreams(query)
-            val fileGroups = groupStreamsByFile(fetched)
+            val fileGroups = groupStreamsByFile(fetched, ::addonReliability)
             Log.i(TAG, "H1 grouping (episode): ${fetched.size} streams → ${fileGroups.size} files (${fileGroups.count { it.alternates.isNotEmpty() }} with alternates)")
             val addonStreams = prioritizeAddonStreams(fileGroups.map { it.primary })
 
@@ -218,6 +218,14 @@ internal class DebridSourceOrchestrator(
             seriesId // Assume it's already IMDb ID if not all digits (e.g. tt123456)
         }
     }
+
+    // H6: the same-file tiebreak — which addon family's copy becomes the row. The label
+    // derivation matches MovieSourceConversion (providerName extra, else the source label)
+    // so the score learned at playback time applies to the same family here.
+    private fun addonReliability(stream: AddonStream): Double =
+        com.tvonnet.debridxtreamiptv.ui.sources.AddonReliabilityStore.scoreFor(
+            (stream.extras["providerName"] as? String) ?: getSourceLabel(stream.source)
+        )
 
     // RESUME FAST PATH: ask only the provider that served the saved
     // source; full discovery only when the source vanished from it. Null = miss.

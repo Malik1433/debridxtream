@@ -238,8 +238,15 @@ internal class PlayerEventListener(
             maybeSnapToLiveEdge()
         }
     }
+    // H6: one reliability observation per source attempt (this listener is per-init).
+    private var hasRecordedReliabilitySuccess = false
+
     override fun onRenderedFirstFrame() {
         hasRenderedFirstFrameForCurrentSource = true
+        if (!hasRecordedReliabilitySuccess) {
+            hasRecordedReliabilitySuccess = true
+            activity.recordAddonReliability(success = true)
+        }
         timeoutHandler.removeCallbacks(blackVideoCheckRunnable)
         liveOsd?.hideZapBackdrop()
         // First rendered frame = the source is genuinely playing; clear the
