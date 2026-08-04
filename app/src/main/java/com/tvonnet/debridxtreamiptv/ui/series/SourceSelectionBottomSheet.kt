@@ -33,7 +33,8 @@ class SourceSelectionBottomSheet(
     initialReturnFocusStreamIds: List<String> = emptyList(),
     private val contentTitle: String? = null,
     private val backdropUrl: String? = null,
-    private val preferredAudioLang: String = "ALL"
+    private val preferredAudioLang: String = "ALL",
+    private val preferredAudioLang2: String = "NONE"
 ) : DialogFragment() {
 
     private lateinit var tvTitle: TextView
@@ -134,7 +135,12 @@ class SourceSelectionBottomSheet(
         return code.isNotEmpty() && !code.equals("ALL", ignoreCase = true)
     }
 
-    private fun languagePriorityCode(): String = preferredAudioLang.trim().uppercase()
+    /** H9: "HI+DE" when a secondary priority is set, else just the primary. */
+    private fun languagePriorityCode(): String {
+        val primary = preferredAudioLang.trim().uppercase()
+        val secondary = preferredAudioLang2.trim().uppercase()
+        return if (secondary.isNotEmpty() && secondary != "NONE") "$primary+$secondary" else primary
+    }
 
     private fun setupAdapters() {
         // Sources Adapter
@@ -156,8 +162,8 @@ class SourceSelectionBottomSheet(
             },
             onNavigateUpFromFirstRow = { focusTopControl() }
         )
-        // H8: the preferred audio language leads every row's chip strip.
-        sourcesAdapter.setPreferredLanguage(preferredAudioLang)
+        // H8/H9: the priority pair leads every row's chip strip.
+        sourcesAdapter.setPreferredLanguages(preferredAudioLang, preferredAudioLang2)
         rvSources.layoutManager = LinearLayoutManager(context)
         rvSources.setHasFixedSize(true)
         rvSources.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
@@ -233,7 +239,7 @@ class SourceSelectionBottomSheet(
         isLoading = false
         // Sort by preferred-language score BEFORE any filters are applied so the
         // ordering is stable regardless of the in-panel filter chips.
-        allSources = SourceSorter.sort(newSources, preferredAudioLang)
+        allSources = SourceSorter.sort(newSources, preferredAudioLang, preferredAudioLang2)
 
         if (allSources.isEmpty()) {
             displayedSources = emptyList()

@@ -151,8 +151,11 @@ class MovieDebridSourceController(
                     rvLanguageFilters.requestFocus()
             }
         )
-        // H8: the preferred audio language leads every row's chip strip.
-        sourcesAdapter.setPreferredLanguage(credentialsPrefs.preferredAudioLang)
+        // H8/H9: the priority pair leads every row's chip strip.
+        sourcesAdapter.setPreferredLanguages(
+            credentialsPrefs.preferredAudioLang,
+            credentialsPrefs.preferredAudioLang2
+        )
         rvSources.apply {
             layoutManager = LinearLayoutManager(activity)
             adapter = sourcesAdapter
@@ -347,7 +350,8 @@ class MovieDebridSourceController(
             initialReturnFocusStreamIds = returnFocusStreamIds,
             contentTitle = movieName(),
             backdropUrl = movieBackdrop(),
-            preferredAudioLang = credentialsPrefs.preferredAudioLang
+            preferredAudioLang = credentialsPrefs.preferredAudioLang,
+            preferredAudioLang2 = credentialsPrefs.preferredAudioLang2
         )
 
     private fun recordSourceListLoaded(sources: List<MovieSource>) {

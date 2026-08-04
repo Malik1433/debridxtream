@@ -112,6 +112,17 @@ class CredentialsPreferences(private val context: Context) {
             prefs.edit().putString(KEY_PREFERRED_AUDIO_LANG, value).apply()
         }
 
+    /**
+     * H9: the SECONDARY priority — ranks a source when the primary language is not
+     * available in it ("Hindi na mile to German"). "NONE" disables it.
+     */
+    var preferredAudioLang2: String
+        get() = prefs.getString(KEY_PREFERRED_AUDIO_LANG_2, DEFAULT_PREFERRED_AUDIO_LANG_2)
+            ?: DEFAULT_PREFERRED_AUDIO_LANG_2
+        set(value) {
+            prefs.edit().putString(KEY_PREFERRED_AUDIO_LANG_2, value).apply()
+        }
+
     fun getSyncCode(): String? {
         return prefs.getString(KEY_SYNC_CODE, null) ?: identityPrefs.getLegacySyncCode()
     }
@@ -150,6 +161,8 @@ class CredentialsPreferences(private val context: Context) {
         const val KEY_DEVICE_ID = "device_id"
         const val KEY_PREFERRED_AUDIO_LANG = "preferred_audio_lang"
         const val DEFAULT_PREFERRED_AUDIO_LANG = "EN"
+        const val KEY_PREFERRED_AUDIO_LANG_2 = "preferred_audio_lang_2"
+        const val DEFAULT_PREFERRED_AUDIO_LANG_2 = "NONE"
         private const val KEY_IPTV_EXP_DATE = "iptv_exp_date"
         private const val KEY_IPTV_EXP_CACHED_AT = "iptv_exp_cached_at"
         private const val IPTV_EXP_TTL_MS = 12L * 60 * 60 * 1000 // 12h

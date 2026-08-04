@@ -26,6 +26,7 @@ data class SettingsUiState(
     val epgSyncIntervalHours: String = "6",
     val isSoftwareAudioEnabled: Boolean = true,
     val preferredAudioLang: String = "EN",
+    val preferredAudioLang2: String = "NONE",
     val liveTvStyle: String = "guide",
     val epgTimelineZoom: String = "standard",
     val epgRowDensity: String = "standard",
@@ -73,6 +74,7 @@ class SettingsViewModel @Inject constructor(
                 epgSyncIntervalHours = defaultPrefs.getString("epg_sync_interval", "6") ?: "6",
                 isSoftwareAudioEnabled = audioPrefs.isSoftwareAudioEnabled(),
                 preferredAudioLang = credentialsPrefs.preferredAudioLang,
+                preferredAudioLang2 = credentialsPrefs.preferredAudioLang2,
                 liveTvStyle = audioPrefs.getLiveTvStyle(),
                 epgTimelineZoom = audioPrefs.getEpgTimelineZoom(),
                 epgRowDensity = audioPrefs.getEpgRowDensity(),
@@ -85,6 +87,12 @@ class SettingsViewModel @Inject constructor(
     fun setPreferredAudioLang(lang: String) {
         com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences(context).preferredAudioLang = lang
         _uiState.update { it.copy(preferredAudioLang = lang) }
+    }
+
+    /** H9: the secondary priority ("Hindi na mile to German"). "NONE" = off. */
+    fun setPreferredAudioLang2(lang: String) {
+        com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences(context).preferredAudioLang2 = lang
+        _uiState.update { it.copy(preferredAudioLang2 = lang) }
     }
 
     fun selectCategory(category: SettingCategory) {

@@ -34,6 +34,20 @@ class SettingsSelectorDialogs(
             .show()
     }
 
+    /** H9: the fallback priority — used when the primary language is not in a source. */
+    fun showPreferredAudioLang2Selector(current: String) {
+        AlertDialog.Builder(context)
+            .setTitle("Secondary Audio Language")
+            .setSingleChoiceItems(
+                SettingsOptionLabels.audioLang2Labels,
+                SettingsOptionLabels.audioLang2Index(current)
+            ) { dialog, which ->
+                viewModel.setPreferredAudioLang2(SettingsOptionLabels.audioLang2Values[which])
+                dialog.dismiss()
+            }
+            .show()
+    }
+
     fun showEpgIntervalSelector(current: String) {
         AlertDialog.Builder(context)
             .setTitle("Select EPG Sync Interval")

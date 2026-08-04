@@ -73,9 +73,10 @@ internal class PlayerDebridCoordinator(
             onSourceSelected = { source, _ -> switchToMovieSource(source) },
             contentTitle = originalTitle,
             backdropUrl = backdropUrlExtra,
-            // H3: the in-player picker was defaulting to "ALL" — order it by the same
-            // preferred audio language as the detail-screen picker.
-            preferredAudioLang = CredentialsPreferences(activity.requireContext()).preferredAudioLang
+            // H3/H9: the in-player picker orders by the same priority pair as the
+            // detail-screen picker.
+            preferredAudioLang = CredentialsPreferences(activity.requireContext()).preferredAudioLang,
+            preferredAudioLang2 = CredentialsPreferences(activity.requireContext()).preferredAudioLang2
         )
         sheet.show(supportFragmentManager, "player_movie_sources")
         lifecycleScope.launch {

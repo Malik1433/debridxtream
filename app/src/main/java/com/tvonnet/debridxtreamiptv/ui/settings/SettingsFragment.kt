@@ -161,6 +161,12 @@ class SettingsFragment : Fragment() {
                 currentValue = SettingsOptionLabels.audioLangName(state.preferredAudioLang),
                 onClick = { dialogs.showPreferredAudioLangSelector(state.preferredAudioLang) }
             ),
+            SettingItem.Selection(
+                key = "preferred_audio_lang_2",
+                title = "Secondary Audio Language",
+                currentValue = SettingsOptionLabels.audioLang2Name(state.preferredAudioLang2),
+                onClick = { dialogs.showPreferredAudioLang2Selector(state.preferredAudioLang2) }
+            ),
             SettingItem.Toggle(
                 key = "software_audio",
                 title = "Smart Audio Fallback",

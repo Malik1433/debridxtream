@@ -228,7 +228,8 @@ class SeriesDebridSourceController(
             initialReturnFocusStreamIds = returnFocusStreamIds,
             contentTitle = seriesName(),
             backdropUrl = seriesBackdrop(),
-            preferredAudioLang = credentialsPreferences.preferredAudioLang
+            preferredAudioLang = credentialsPreferences.preferredAudioLang,
+            preferredAudioLang2 = credentialsPreferences.preferredAudioLang2
         )
     }
 

@@ -75,6 +75,45 @@ class SourceSorterTest {
         assertEquals(60.0, SourceSorter.score(multi, "HI") - SourceSorter.score(none, "HI"), 0.001)
     }
 
+    // ── H9: the secondary priority ("Hindi na mile to German") ──
+
+    @Test
+    fun `secondary-language row ranks between primary and MULTI`() {
+        val primary = source(languages = listOf("hi"))
+        val secondary = source(languages = listOf("de"))
+        val multi = source(languages = listOf("multi"))
+        val none = source(languages = listOf("fr"))
+
+        assertEquals(80.0, SourceSorter.score(primary, "HI", "DE") - SourceSorter.score(none, "HI", "DE"), 0.001)
+        assertEquals(70.0, SourceSorter.score(secondary, "HI", "DE") - SourceSorter.score(none, "HI", "DE"), 0.001)
+        assertEquals(60.0, SourceSorter.score(multi, "HI", "DE") - SourceSorter.score(none, "HI", "DE"), 0.001)
+    }
+
+    @Test
+    fun `verified secondary still ranks below claimed primary`() {
+        val claimedPrimary = source(languages = listOf("hi"))
+        val verifiedSecondary = source(languages = listOf("de"), languagesVerified = true)
+
+        assertTrue(
+            SourceSorter.score(claimedPrimary, "HI", "DE") >
+                SourceSorter.score(verifiedSecondary, "HI", "DE")
+        )
+        assertEquals(75.0, SourceSorter.score(verifiedSecondary, "HI", "DE") - SourceSorter.score(source(languages = listOf("fr")), "HI", "DE"), 0.001)
+    }
+
+    @Test
+    fun `a row carrying BOTH priorities scores as a primary match`() {
+        val both = source(languages = listOf("hi", "de"))
+        val primaryOnly = source(languages = listOf("hi"))
+        assertEquals(SourceSorter.score(primaryOnly, "HI", "DE"), SourceSorter.score(both, "HI", "DE"), 0.001)
+    }
+
+    @Test
+    fun `NONE secondary changes nothing`() {
+        val german = source(languages = listOf("de"))
+        assertEquals(SourceSorter.score(german, "HI"), SourceSorter.score(german, "HI", "NONE"), 0.001)
+    }
+
     // H3: honestly-unknown languages (empty list) get no boost — and no penalty.
     @Test
     fun `unknown languages score like no match`() {

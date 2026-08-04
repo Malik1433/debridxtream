@@ -42,7 +42,8 @@ class UnifiedSourceProvider @Inject constructor(
     private val debridPrefs: DebridPreferences,
     private val realDebridRemote: RealDebridRemoteDataSource,
     private val realDebridRateLimiter: RealDebridRateLimiter,
-    private val releaseLanguageRepository: com.tvonnet.debridxtreamiptv.data.debrid.language.ReleaseLanguageRepository
+    private val releaseLanguageRepository: com.tvonnet.debridxtreamiptv.data.debrid.language.ReleaseLanguageRepository,
+    private val credentialsPrefs: com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 ) {
 
     /** USP-5: registry + dynamic/Stremio addon discovery (owns the scrape limit). */
@@ -192,9 +193,12 @@ class UnifiedSourceProvider @Inject constructor(
             return sources
         }
         Log.d(TAG, "🔍 [FILTER] Applying SourceFilterUtils logic...")
-        val preferredLang = settingsPrefs.getPreferredAudioLanguage()
+        // H9: the SAME priority pair the detail sheets sort by (the settings screen
+        // writes CredentialsPreferences; the old SettingsPreferences key was never set,
+        // so the facade used to sort language-blind and the sheet re-sorted it anyway).
         val filterState = com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterState(
-            sortLanguage = preferredLang
+            sortLanguage = credentialsPrefs.preferredAudioLang,
+            sortLanguage2 = credentialsPrefs.preferredAudioLang2,
         )
         return com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils.apply(sources, filterState)
     }

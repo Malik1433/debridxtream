@@ -26,17 +26,19 @@ class MovieSourceAdapter(
     private var selectedStreamId: String? = null
     private var bestStreamId: String? = null
 
-    /** H8: the language that leads every chip strip (setting value or 2-letter code). */
+    /** H8/H9: the priority pair that leads every chip strip (setting values or codes). */
     private var preferredLanguage: String? = null
+    private var secondaryLanguage: String? = null
 
     init {
         setHasStableIds(true)
     }
 
     /** Call before submitList; a later change re-renders the visible strips. */
-    fun setPreferredLanguage(language: String?) {
-        if (preferredLanguage == language) return
-        preferredLanguage = language
+    fun setPreferredLanguages(primary: String?, secondary: String? = null) {
+        if (preferredLanguage == primary && secondaryLanguage == secondary) return
+        preferredLanguage = primary
+        secondaryLanguage = secondary
         @Suppress("NotifyDataSetChanged")
         notifyDataSetChanged()
     }
@@ -309,13 +311,23 @@ class MovieSourceAdapter(
             }
         }
 
-        /** The user's preferred audio language leads the strip when the row carries it. */
+        /**
+         * H9: BOTH priority languages lead the strip — primary first, then secondary,
+         * then the rest. With 2 visible slots this guarantees any priority language a
+         * row carries is NAMED, never hidden inside "+N".
+         */
         private fun orderPreferredFirst(codes: List<String>): List<String> {
-            val pref = StreamLanguage.parse(preferredLanguage)
-            if (pref == StreamLanguage.ALL || pref == StreamLanguage.UNKNOWN) return codes
-            val (match, rest) = codes.partition { StreamLanguage.parse(it) == pref }
-            return match + rest
+            val pref = priorityEnum(preferredLanguage)
+            val second = priorityEnum(secondaryLanguage)
+            if (pref == null && second == null) return codes
+            val (primary, notPrimary) = codes.partition { pref != null && StreamLanguage.parse(it) == pref }
+            val (secondary, rest) = notPrimary.partition { second != null && StreamLanguage.parse(it) == second }
+            return primary + secondary + rest
         }
+
+        private fun priorityEnum(language: String?): StreamLanguage? =
+            StreamLanguage.parse(language)
+                .takeIf { it != StreamLanguage.ALL && it != StreamLanguage.UNKNOWN }
 
         private fun getFlagEmoji(languageCode: String): String =
             FLAG_EMOJI_BY_CODE[languageCode.lowercase()] ?: "🌐 UNK"

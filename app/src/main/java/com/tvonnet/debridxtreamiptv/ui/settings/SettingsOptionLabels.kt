@@ -14,11 +14,28 @@ package com.tvonnet.debridxtreamiptv.ui.settings
  */
 object SettingsOptionLabels {
 
-    val audioLangValues = arrayOf("EN", "HI", "FR", "ES", "MULTI", "ALL")
-    val audioLangLabels = arrayOf(
-        "English (EN)", "Hindi (HI)", "French (FR)", "Spanish (ES)",
-        "Multilingual (MULTI)", "No preference (ALL)"
+    // H9: the full priority vocabulary — Hindi/English plus the major European and
+    // Indian languages the source scorer (StreamLanguage) can actually match.
+    val audioLangValues = arrayOf(
+        "EN", "HI", "DE", "FR", "IT", "ES", "PT", "RU", "NL", "PL", "TR",
+        "UR", "PA", "TA", "TE", "ML", "KN", "MULTI", "ALL"
     )
+    val audioLangLabels = arrayOf(
+        "English (EN)", "Hindi (HI)", "German (DE)", "French (FR)", "Italian (IT)",
+        "Spanish (ES)", "Portuguese (PT)", "Russian (RU)", "Dutch (NL)", "Polish (PL)",
+        "Turkish (TR)", "Urdu (UR)", "Punjabi (PA)", "Tamil (TA)", "Telugu (TE)",
+        "Malayalam (ML)", "Kannada (KN)", "Multilingual (MULTI)", "No preference (ALL)"
+    )
+
+    /** H9: secondary priority — same languages, led by the "off" option. */
+    val audioLang2Values = arrayOf("NONE") + audioLangValues.filter { it != "ALL" && it != "MULTI" }
+    val audioLang2Labels = arrayOf("No secondary (off)") +
+        audioLangLabels.filterIndexed { i, _ -> audioLangValues[i] != "ALL" && audioLangValues[i] != "MULTI" }
+
+    fun audioLang2Index(code: String): Int =
+        audioLang2Values.indexOf(code.uppercase()).takeIf { it != -1 } ?: 0
+
+    fun audioLang2Name(code: String): String = audioLang2Labels[audioLang2Index(code)]
 
     val epgIntervalValues = arrayOf("3", "6", "12", "24")
     val epgIntervalLabels = arrayOf("Every 3 hours", "Every 6 hours", "Every 12 hours", "Every 24 hours")

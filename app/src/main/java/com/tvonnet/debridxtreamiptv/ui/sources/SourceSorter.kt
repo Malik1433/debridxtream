@@ -24,23 +24,29 @@ object SourceSorter {
 
     private const val GB_BYTES = 1024.0 * 1024.0 * 1024.0
 
-    fun sort(sources: List<MovieSource>, preferredLang: String): List<MovieSource> {
+    fun sort(
+        sources: List<MovieSource>,
+        preferredLang: String,
+        secondaryLang: String = "NONE"
+    ): List<MovieSource> {
         if (sources.size <= 1) return sources
         // Stable descending sort keeps original relative order for equal scores.
-        return sources.sortedByDescending { score(it, preferredLang) }
+        return sources.sortedByDescending { score(it, preferredLang, secondaryLang) }
     }
 
-    fun score(source: MovieSource, preferredLang: String): Double {
+    fun score(source: MovieSource, preferredLang: String, secondaryLang: String = "NONE"): Double {
         var score = 0.0
 
-        // H3/H4 tiering (must agree with SourceFilterUtils.getLanguageMatchScore — the
-        // sheet sorts twice and the two would otherwise fight): VERIFIED match 100
-        // (the player heard it) > exact CLAIMED match 80 (title said so) >
-        // MULTI-claimed 60 > nothing. MULTI now MATCHES specific language filters,
-        // so it needs a real (but lower) boost here too.
+        // H3/H4/H9 tiering (must agree with SourceFilterUtils.getLanguageMatchScore —
+        // the sheet sorts twice and the two would otherwise fight): PRIMARY verified
+        // 100 > primary claimed 80 > SECONDARY verified 75 > secondary claimed 70 >
+        // MULTI-claimed 60 > nothing. "Hindi na mile to German": a row carrying only
+        // the secondary language still outranks every maybe-MULTI row.
         if (matchesPreferredLanguage(source, preferredLang)) {
             score += if (source.languagesVerified) 100.0 else 80.0
-        } else if (claimsMultiFor(source, preferredLang)) {
+        } else if (matchesPreferredLanguage(source, secondaryLang)) {
+            score += if (source.languagesVerified) 75.0 else 70.0
+        } else if (claimsMultiFor(source, preferredLang) || claimsMultiFor(source, secondaryLang)) {
             score += 60.0
         }
         if (isCached(source)) score += 50.0

@@ -10,7 +10,9 @@ data class SourceFilterState(
     val preferredLanguage: String? = null,
     val preferredQuality: String? = null,
     val preferredType: String? = null,
-    val sortLanguage: String? = null
+    val sortLanguage: String? = null,
+    /** H9: the secondary priority — ranks when [sortLanguage] does not match a row. */
+    val sortLanguage2: String? = null,
 )
 
 data class SizeFilterOption(
@@ -62,6 +64,11 @@ enum class StreamLanguage(val label: String) {
     ITALIAN("Italian"),
     RUSSIAN("Russian"),
     SPANISH("Spanish"),
+    // H9: the major European languages the settings priority list now offers.
+    PORTUGUESE("Portuguese"),
+    DUTCH("Dutch"),
+    POLISH("Polish"),
+    TURKISH("Turkish"),
     ALL("All"),
     UNKNOWN("Unknown");
 
@@ -82,6 +89,10 @@ enum class StreamLanguage(val label: String) {
             "it" to ITALIAN, "ita" to ITALIAN, "italian" to ITALIAN,
             "ru" to RUSSIAN, "rus" to RUSSIAN, "russian" to RUSSIAN,
             "es" to SPANISH, "spa" to SPANISH, "spanish" to SPANISH,
+            "pt" to PORTUGUESE, "por" to PORTUGUESE, "portuguese" to PORTUGUESE,
+            "nl" to DUTCH, "dut" to DUTCH, "nld" to DUTCH, "dutch" to DUTCH,
+            "pl" to POLISH, "pol" to POLISH, "polish" to POLISH,
+            "tr" to TURKISH, "tur" to TURKISH, "turkish" to TURKISH,
             "multi" to MULTI, "multilanguage" to MULTI, "multi audio" to MULTI,
             "multi-audio" to MULTI, "dual audio" to MULTI, "dual-audio" to MULTI,
             "dualaudio" to MULTI,
@@ -183,16 +194,11 @@ object SourceFilterUtils {
 
     fun apply(sources: List<MovieSource>, state: SourceFilterState): List<MovieSource> {
         val filtered = filter(sources, state)
-        val selectedSortLang = state.preferredLanguage
-            ?.takeIf { it != "All" }
-            ?.let { StreamLanguage.parse(it) }
-        val globalSortLang = state.sortLanguage?.let { StreamLanguage.parse(it) }
-        val sortLangEnum = selectedSortLang ?: globalSortLang
-
-        val scores = computeScores(filtered, sortLangEnum)
+        val langs = resolveSortLanguages(state)
+        val scores = computeScores(filtered, langs.primary, langs.secondary)
 
         // A language the user selected leads the sort; otherwise cache priority does.
-        val lead = if (selectedSortLang != null) {
+        val lead = if (langs.userSelected) {
             compareByDescending<MovieSource> { scores.lang[it] ?: 0 }
                 .thenByDescending { scores.cache[it] ?: 0 }
         } else {
@@ -207,6 +213,29 @@ object SourceFilterUtils {
         )
     }
 
+    /** Which languages drive the sort, and whether the user picked one explicitly. */
+    private class SortLanguages(
+        val primary: StreamLanguage?,
+        val secondary: StreamLanguage?,
+        val userSelected: Boolean,
+    )
+
+    private fun resolveSortLanguages(state: SourceFilterState): SortLanguages {
+        // A language the user explicitly filtered by is a single deliberate choice —
+        // the global priority pair steps aside entirely.
+        val selected = state.preferredLanguage
+            ?.takeIf { it != "All" }
+            ?.let { StreamLanguage.parse(it) }
+        if (selected != null) return SortLanguages(selected, null, userSelected = true)
+        // H9: the settings pair. ALL ("no preference") and unparseable values (incl.
+        // the secondary's "NONE") disable the boost exactly like a null sortLanguage.
+        return SortLanguages(parsePriority(state.sortLanguage), parsePriority(state.sortLanguage2), userSelected = false)
+    }
+
+    private fun parsePriority(value: String?): StreamLanguage? =
+        value?.let { StreamLanguage.parse(it) }
+            ?.takeIf { it != StreamLanguage.ALL && it != StreamLanguage.UNKNOWN }
+
     /** Per-source sort scores, keyed by identity so equal-looking sources stay distinct. */
     private class SourceScores(size: Int) {
         val cache = IdentityHashMap<MovieSource, Int>(size)
@@ -217,7 +246,11 @@ object SourceFilterUtils {
 
     // PRE-COMPUTE SCORES (O(N)): Calculate all heavy object mapping operations upfront.
     // By mapping strings to Enums once here, we guarantee O(1) lookups during the O(N log N) sorting phase.
-    private fun computeScores(filtered: List<MovieSource>, sortLangEnum: StreamLanguage?): SourceScores {
+    private fun computeScores(
+        filtered: List<MovieSource>,
+        sortLangEnum: StreamLanguage?,
+        sortLang2Enum: StreamLanguage? = null
+    ): SourceScores {
         val scores = SourceScores(filtered.size)
         filtered.forEach { source ->
             // Parse to strictly-typed languages array once per source
@@ -225,7 +258,11 @@ object SourceFilterUtils {
 
             scores.cache[source] = getCachePriority(source)
             scores.lang[source] =
-                if (sortLangEnum != null) getLanguageMatchScore(source, parsedLanguages, sortLangEnum) else 0
+                if (sortLangEnum != null) {
+                    getLanguageMatchScore(source, parsedLanguages, sortLangEnum, sortLang2Enum)
+                } else {
+                    0
+                }
             scores.session[source] = SessionSourcePreference.score(source)
             scores.recovery[source] = getRecoveryLanguageScore(parsedLanguages)
         }
@@ -252,13 +289,18 @@ object SourceFilterUtils {
     private fun getLanguageMatchScore(
         source: MovieSource,
         languages: List<StreamLanguage>,
-        preferred: StreamLanguage
+        preferred: StreamLanguage,
+        secondary: StreamLanguage? = null
     ): Int {
         if (languages.isEmpty()) return 0
         return when {
-            // H4: player-verified match beats a title-claimed one (agrees with
-            // SourceSorter.score's 100 > 80 > 60 tiering — the sheet sorts twice).
-            languages.contains(preferred) -> if (source.languagesVerified) 4 else 3
+            // H4/H9 tiering (agrees with SourceSorter.score — the sheet sorts twice):
+            // primary verified > primary claimed > secondary verified > secondary
+            // claimed > MULTI. A row that only carries the SECONDARY language still
+            // outranks a maybe-MULTI row — "Hindi na mile to German" is a real claim.
+            languages.contains(preferred) -> if (source.languagesVerified) 6 else 5
+            secondary != null && languages.contains(secondary) ->
+                if (source.languagesVerified) 4 else 3
             languages.contains(StreamLanguage.MULTI) -> 1
             else -> 0
         }
