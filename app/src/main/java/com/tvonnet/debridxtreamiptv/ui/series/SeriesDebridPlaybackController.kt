@@ -83,6 +83,10 @@ class SeriesDebridPlaybackController(
     private var autoFallbackAttempts = 0
     var openedFromPlaybackFailure: Boolean = false
 
+    // H2: same-file failover state (SourceAlternates) — retries the SAME file via
+    // another addon's copy, silently, before the file is blacklisted.
+    private val alternateFailover = com.tvonnet.debridxtreamiptv.ui.sources.AlternateFailover()
+
     /** Body of the Activity's `playerLauncher` ActivityResult callback (registration stays in the Activity). */
     fun handlePlayerResult(result: ActivityResult) {
         val data = result.data
@@ -95,9 +99,8 @@ class SeriesDebridPlaybackController(
             val failedStreamId = data?.getStringExtra(PlayerActivity.EXTRA_FAILED_STREAM_ID)
             val failReason = data?.getStringExtra(PlayerActivity.EXTRA_FAIL_REASON)
             val episode = sources.lastDebridEpisode
-            if (!failedStreamId.isNullOrBlank() && episode != null) {
-                sources.failedDebridStreamIdsByEpisode.getOrPut(episode.id) { linkedSetOf() }.add(failedStreamId)
-                sources.markDebridEpisodeSourceCached(episode.id, failedStreamId, false)
+            if (retriedViaAlternate(failedStreamId, episode)) {
+                return
             }
             val allowAutoPlayNext = autoPlayNext && !openedFromPlaybackFailure &&
                 autoFallbackAttempts < MAX_AUTO_FALLBACK_ATTEMPTS
@@ -113,11 +116,31 @@ class SeriesDebridPlaybackController(
                 autoPlayNextDebridEpisodeSource(episode, failedStreamId)
             } else {
                 autoFallbackAttempts = 0
+                alternateFailover.reset()
                 sources.lastDebridEpisode?.let {
                     sources.fetchAndShowDebridSources(it, sources.consumeDebridReturnFocusStreamIds(it.id))
                 }
             }
         }
+    }
+
+    // H2: before declaring the FILE dead, silently retry it via another addon's copy
+    // (no toast, no blacklist, no auto-fallback budget spent). True = a replay was
+    // launched; false = no failure to handle, or the copies ran out (then the file
+    // is blacklisted here and the caller falls through to its normal advance).
+    private fun retriedViaAlternate(failedStreamId: String?, episode: EpisodeUiModel?): Boolean {
+        if (failedStreamId.isNullOrBlank() || episode == null) return false
+        val alternate = alternateFailover.nextFor(
+            failedStreamId,
+            sources.cachedDebridSourcesByEpisode[episode.id].orEmpty()
+        )
+        if (alternate != null) {
+            playDebridEpisode(alternate, episode)
+            return true
+        }
+        sources.failedDebridStreamIdsByEpisode.getOrPut(episode.id) { linkedSetOf() }.add(failedStreamId)
+        sources.markDebridEpisodeSourceCached(episode.id, failedStreamId, false)
+        return false
     }
 
     /**

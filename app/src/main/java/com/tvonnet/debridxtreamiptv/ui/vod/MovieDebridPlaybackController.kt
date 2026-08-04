@@ -82,6 +82,10 @@ class MovieDebridPlaybackController(
     private var autoFallbackAttempts = 0
     var openedFromPlaybackFailure: Boolean = false
 
+    // H2: same-file failover state (SourceAlternates) — retries the SAME file via
+    // another addon's copy, silently, before the file is blacklisted.
+    private val alternateFailover = com.tvonnet.debridxtreamiptv.ui.sources.AlternateFailover()
+
     /** Body of the Activity's `playerLauncher` ActivityResult callback (registration stays in the Activity). */
     fun handlePlayerResult(result: ActivityResult) {
         val data = result.data
@@ -94,6 +98,13 @@ class MovieDebridPlaybackController(
             val failedStreamId = data?.getStringExtra(PlayerActivity.EXTRA_FAILED_STREAM_ID)
             val failReason = data?.getStringExtra(PlayerActivity.EXTRA_FAIL_REASON)
             if (!failedStreamId.isNullOrBlank()) {
+                // H2: before declaring the FILE dead, silently retry it via another
+                // addon's copy (no toast, no blacklist, no auto-fallback budget spent).
+                val alternate = alternateFailover.nextFor(failedStreamId, sources.debridSources)
+                if (alternate != null) {
+                    playDebridMovie(alternate.stream, alternate, returnToSources = true)
+                    return
+                }
                 sources.failedDebridStreamIds.add(failedStreamId)
                 sources.markDebridSourceStatus(failedStreamId, DebridCacheStatus.NOT_CACHED)
             }
@@ -111,6 +122,7 @@ class MovieDebridPlaybackController(
                 autoPlayNextDebridSource(failedStreamId)
             } else {
                 autoFallbackAttempts = 0
+                alternateFailover.reset()
                 sources.showDebridSourcePicker(sources.consumeDebridReturnFocusStreamIds())
             }
         }
