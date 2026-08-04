@@ -67,6 +67,7 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
             "software_audio" -> R.drawable.ic_player_volume
             "preferred_audio_lang" -> R.drawable.ic_player_language
             "preferred_audio_lang_2" -> R.drawable.ic_player_language
+            "ui_mode" -> R.drawable.ic_settings
             "live_tv_style", "resume_last_live", "epg_zoom", "epg_density", "epg_genre_tint",
             "epg_auto_sync", "epg_sync_interval", "epg_sync_now", "home_custom_live" -> R.drawable.ic_live_tv
             "home_custom_movie", "home_custom_series" -> R.drawable.ic_movie

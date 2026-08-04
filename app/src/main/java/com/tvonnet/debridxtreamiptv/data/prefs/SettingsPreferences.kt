@@ -189,8 +189,33 @@ class SettingsPreferences(private val context: Context) {
         prefs.edit().putString(KEY_LAST_LIVE_CATEGORY_ID, categoryId).apply()
     }
 
+    /**
+     * M0: which UI layout to render — "auto" (detect the device), "tv" or "mobile".
+     * Presentation only; it never gates data, playback or licensing.
+     */
+    fun getUiModeOverride(): String {
+        return prefs.getString(KEY_UI_MODE_OVERRIDE, DEFAULT_UI_MODE_OVERRIDE) ?: DEFAULT_UI_MODE_OVERRIDE
+    }
+
+    fun setUiModeOverride(value: String) {
+        prefs.edit().putString(KEY_UI_MODE_OVERRIDE, value).apply()
+    }
+
+    /** True until the one-time chooser has been answered on an ambiguous device. */
+    fun isUiModeChooserPending(): Boolean {
+        return getUiModeOverride() == DEFAULT_UI_MODE_OVERRIDE &&
+            !prefs.getBoolean(KEY_UI_MODE_CHOOSER_SHOWN, false)
+    }
+
+    fun markUiModeChooserShown() {
+        prefs.edit().putBoolean(KEY_UI_MODE_CHOOSER_SHOWN, true).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "iptv_settings"
+        private const val KEY_UI_MODE_OVERRIDE = "ui_mode_override"
+        private const val KEY_UI_MODE_CHOOSER_SHOWN = "ui_mode_chooser_shown"
+        private const val DEFAULT_UI_MODE_OVERRIDE = "auto"
         private const val KEY_REFRESH_INTERVAL = "refresh_interval_hours"
         private const val DEFAULT_REFRESH_INTERVAL = 24
         private const val KEY_NETWORK_QUALITY = "network_quality"

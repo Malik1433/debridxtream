@@ -27,6 +27,8 @@ data class SettingsUiState(
     val isSoftwareAudioEnabled: Boolean = true,
     val preferredAudioLang: String = "EN",
     val preferredAudioLang2: String = "NONE",
+    /** M0: "auto" | "tv" | "mobile" — which layout the app renders. */
+    val uiMode: String = "auto",
     val liveTvStyle: String = "guide",
     val epgTimelineZoom: String = "standard",
     val epgRowDensity: String = "standard",
@@ -75,6 +77,7 @@ class SettingsViewModel @Inject constructor(
                 isSoftwareAudioEnabled = audioPrefs.isSoftwareAudioEnabled(),
                 preferredAudioLang = credentialsPrefs.preferredAudioLang,
                 preferredAudioLang2 = credentialsPrefs.preferredAudioLang2,
+                uiMode = audioPrefs.getUiModeOverride(),
                 liveTvStyle = audioPrefs.getLiveTvStyle(),
                 epgTimelineZoom = audioPrefs.getEpgTimelineZoom(),
                 epgRowDensity = audioPrefs.getEpgRowDensity(),
@@ -87,6 +90,15 @@ class SettingsViewModel @Inject constructor(
     fun setPreferredAudioLang(lang: String) {
         com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences(context).preferredAudioLang = lang
         _uiState.update { it.copy(preferredAudioLang = lang) }
+    }
+
+    /**
+     * M0: TV vs mobile layout. Recorded here; the routing that reads it happens at
+     * activity start (M1+), so today this only persists the choice.
+     */
+    fun setUiMode(mode: String) {
+        com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(context).setUiModeOverride(mode)
+        _uiState.update { it.copy(uiMode = mode) }
     }
 
     /** H9: the secondary priority ("Hindi na mile to German"). "NONE" = off. */

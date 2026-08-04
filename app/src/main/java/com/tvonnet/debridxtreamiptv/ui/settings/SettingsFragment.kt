@@ -229,6 +229,12 @@ class SettingsFragment : Fragment() {
             )
         )
     private fun homeItems(state: SettingsUiState): List<SettingItem> = listOf(
+            SettingItem.Selection(
+                key = "ui_mode",
+                title = "App Layout",
+                currentValue = SettingsOptionLabels.uiModeName(state.uiMode),
+                onClick = { dialogs.showUiModeSelector(state.uiMode) }
+            ),
             SettingItem.Action(
                 key = "home_custom_movie",
                 title = "Movie Rows",

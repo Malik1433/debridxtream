@@ -34,6 +34,23 @@ class SettingsSelectorDialogs(
             .show()
     }
 
+    /**
+     * M0: TV vs mobile layout. Changing it restarts the app's UI, so the dialog says so
+     * rather than leaving the user on a half-switched screen.
+     */
+    fun showUiModeSelector(current: String) {
+        AlertDialog.Builder(context)
+            .setTitle("App Layout")
+            .setSingleChoiceItems(
+                SettingsOptionLabels.uiModeLabels,
+                SettingsOptionLabels.uiModeIndex(current)
+            ) { dialog, which ->
+                viewModel.setUiMode(SettingsOptionLabels.uiModeValues[which])
+                dialog.dismiss()
+            }
+            .show()
+    }
+
     /** H9: the fallback priority — used when the primary language is not in a source. */
     fun showPreferredAudioLang2Selector(current: String) {
         AlertDialog.Builder(context)

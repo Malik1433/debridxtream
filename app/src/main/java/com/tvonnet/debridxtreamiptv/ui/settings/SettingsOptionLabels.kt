@@ -37,6 +37,14 @@ object SettingsOptionLabels {
 
     fun audioLang2Name(code: String): String = audioLang2Labels[audioLang2Index(code)]
 
+    // M0 (MOBILE_DUAL_MODE_PLAN): which layout the app renders.
+    val uiModeValues = arrayOf("auto", "tv", "mobile")
+    val uiModeLabels = arrayOf("Automatic (detect device)", "TV layout (D-pad)", "Mobile layout (touch)")
+
+    fun uiModeIndex(value: String): Int = uiModeValues.indexOf(value.lowercase()).takeIf { it != -1 } ?: 0
+
+    fun uiModeName(value: String): String = uiModeLabels[uiModeIndex(value)]
+
     val epgIntervalValues = arrayOf("3", "6", "12", "24")
     val epgIntervalLabels = arrayOf("Every 3 hours", "Every 6 hours", "Every 12 hours", "Every 24 hours")
 
