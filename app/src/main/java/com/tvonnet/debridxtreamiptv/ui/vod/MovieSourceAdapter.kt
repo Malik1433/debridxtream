@@ -238,19 +238,32 @@ class MovieSourceAdapter(
 
         private fun bindLanguages(source: MovieSource) {
             binding.llLanguages.removeAllViews()
-            val languages = source.languages ?: listOf("multi")
-            
+            val languages = source.languages.orEmpty()
+
+            // H3: honestly unknown — one neutral chip, not "UNK" (reads as a language)
+            // and not "MULTI" (a lie the parser used to invent).
+            if (languages.isEmpty()) {
+                val chip = LayoutInflater.from(binding.root.context).inflate(
+                    R.layout.item_lang_chip, binding.llLanguages, false
+                )
+                chip.findViewById<TextView>(R.id.tv_flag).text = "🌐"
+                chip.findViewById<TextView>(R.id.tv_code).text = "?"
+                chip.contentDescription = "Language unknown"
+                binding.llLanguages.addView(chip)
+                return
+            }
+
             languages.distinct().forEach { langCode ->
                 val chip = LayoutInflater.from(binding.root.context).inflate(
                     R.layout.item_lang_chip, binding.llLanguages, false
                 )
                 val tvFlag = chip.findViewById<TextView>(R.id.tv_flag)
                 val tvCode = chip.findViewById<TextView>(R.id.tv_code)
-                
+
                 val flagParts = getFlagEmoji(langCode).split(" ")
                 val emoji = flagParts.firstOrNull() ?: "🌐"
                 val code = if (flagParts.size > 1) flagParts[1] else "UNK"
-                
+
                 tvFlag.text = emoji
                 tvCode.text = code
                 binding.llLanguages.addView(chip)

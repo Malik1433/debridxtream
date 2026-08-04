@@ -22,24 +22,28 @@ class LanguageParserTest {
         expected.forEach { assert(languages.contains(it)) }
     }
 
+    // H3: no invented languages — a title that names no language is honestly UNKNOWN
+    // (empty), not "English". The old listOf("en") default made nearly every row claim
+    // English and left the Unknown filter unreachable.
     @Test
-    fun `detects English by default if no other language found`() {
+    fun `no language markers means honestly unknown, not English`() {
         val title = "Inception.2010.1080p.BluRay.x264-SPARKS"
         val languages = LanguageParser.extractLanguages(title)
-        assertEquals(listOf("en"), languages)
+        assertEquals(emptyList<String>(), languages)
     }
 
+    // H3: a MULTI-only tag stays MULTI — the old "en" injection was a guess.
     @Test
-    fun `detects Multi Audio tag`() {
+    fun `detects Multi Audio tag without inventing English`() {
         val title = "Some.Movie.2024.Multi.Audio.1080p.WEB-DL"
         val languages = LanguageParser.extractLanguages(title)
-        assert(languages.contains("multi"))
+        assertEquals(listOf("multi"), languages)
     }
 
     @Test
     fun `handles empty title safely`() {
         val languages = LanguageParser.extractLanguages("")
-        assertEquals(listOf("en"), languages)
+        assertEquals(emptyList<String>(), languages)
     }
 
     @Test

@@ -160,7 +160,11 @@ object SourceFilterUtils {
             when (langEnum) {
                 StreamLanguage.MULTI -> sourceLangs.contains(StreamLanguage.MULTI)
                 StreamLanguage.UNKNOWN -> sourceLangs.isEmpty() || sourceLangs.all { it == StreamLanguage.UNKNOWN }
-                else -> sourceLangs.contains(langEnum)
+                // H3: MULTI means "several languages, unspecified" — it must match any
+                // specific language filter (it sorts BELOW exact matches via
+                // getLanguageMatchScore). Without this, dropping the invented "en"
+                // would make the English filter HIDE rows it used to show.
+                else -> sourceLangs.contains(langEnum) || sourceLangs.contains(StreamLanguage.MULTI)
             }
         }
     }

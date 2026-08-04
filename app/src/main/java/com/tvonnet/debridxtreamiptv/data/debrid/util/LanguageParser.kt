@@ -41,7 +41,10 @@ object LanguageParser {
     )
 
     fun extractLanguages(title: String?): List<String> {
-        if (title.isNullOrBlank()) return listOf("en")
+        // H3: no invented languages — a blank title tells us NOTHING about audio.
+        // Claiming "en" here made nearly every row claim English, which both
+        // polluted the English filter and made "Unknown" unreachable.
+        if (title.isNullOrBlank()) return emptyList()
 
         val languages = mutableSetOf<String>()
         val lowerTitle = title.lowercase()
@@ -68,16 +71,9 @@ object LanguageParser {
             }
         }
 
-        // If no languages found, default to English
-        if (languages.isEmpty()) {
-            return listOf("en")
-        }
-
-        // If "multi" is the only tag, try to infer English as well if not explicitly present
-        if (languages.size == 1 && languages.contains("multi")) {
-             languages.add("en")
-        }
-
+        // H3: no languages found = honestly unknown (renders as one neutral chip,
+        // filter-side MULTI/unknown handling keeps such rows reachable). A MULTI-only
+        // result stays MULTI — inferring "en" was a guess dressed up as data.
         return languages.toList()
     }
 

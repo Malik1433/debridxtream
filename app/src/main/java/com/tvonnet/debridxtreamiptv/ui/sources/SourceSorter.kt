@@ -33,7 +33,15 @@ object SourceSorter {
     fun score(source: MovieSource, preferredLang: String): Double {
         var score = 0.0
 
-        if (matchesPreferredLanguage(source, preferredLang)) score += 100.0
+        // H3 tiering (must agree with SourceFilterUtils.getLanguageMatchScore — the
+        // sheet sorts twice and the two would otherwise fight): exact claimed match
+        // 100 > MULTI-claimed 60 > nothing. MULTI now MATCHES specific language
+        // filters, so it needs a real (but lower) boost here too.
+        if (matchesPreferredLanguage(source, preferredLang)) {
+            score += 100.0
+        } else if (claimsMultiFor(source, preferredLang)) {
+            score += 60.0
+        }
         if (isCached(source)) score += 50.0
 
         score += when (VideoQuality.parse(source.quality)) {
@@ -59,5 +67,14 @@ object SourceSorter {
         if (pref == StreamLanguage.ALL || pref == StreamLanguage.UNKNOWN) return false
         val sourceLangs = source.languages?.map { StreamLanguage.parse(it) } ?: return false
         return sourceLangs.contains(pref)
+    }
+
+    // H3: a MULTI row might carry the preferred language — rank it above rows that
+    // claim nothing, below rows that claim the language explicitly.
+    private fun claimsMultiFor(source: MovieSource, preferredLang: String): Boolean {
+        val pref = StreamLanguage.parse(preferredLang)
+        if (pref == StreamLanguage.ALL || pref == StreamLanguage.UNKNOWN || pref == StreamLanguage.MULTI) return false
+        val sourceLangs = source.languages?.map { StreamLanguage.parse(it) } ?: return false
+        return sourceLangs.contains(StreamLanguage.MULTI)
     }
 }

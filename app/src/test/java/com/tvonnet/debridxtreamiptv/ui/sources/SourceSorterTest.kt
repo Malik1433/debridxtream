@@ -50,6 +50,25 @@ class SourceSorterTest {
         assertEquals(100.0, SourceSorter.score(withLang, "EN") - SourceSorter.score(withoutLang, "EN"), 0.001)
     }
 
+    // H3 tiering: exact claimed match 100 > MULTI-claimed 60 > nothing.
+    @Test
+    fun `MULTI-claimed row ranks between exact match and none`() {
+        val exact = source(languages = listOf("hi"))
+        val multi = source(languages = listOf("multi"))
+        val none = source(languages = listOf("fr"))
+
+        assertEquals(100.0, SourceSorter.score(exact, "HI") - SourceSorter.score(none, "HI"), 0.001)
+        assertEquals(60.0, SourceSorter.score(multi, "HI") - SourceSorter.score(none, "HI"), 0.001)
+    }
+
+    // H3: honestly-unknown languages (empty list) get no boost — and no penalty.
+    @Test
+    fun `unknown languages score like no match`() {
+        val unknown = source(languages = emptyList())
+        val none = source(languages = listOf("fr"))
+        assertEquals(SourceSorter.score(none, "EN"), SourceSorter.score(unknown, "EN"), 0.001)
+    }
+
     @Test
     fun `ALL preferred language disables the language boost`() {
         val english = source(languages = listOf("en"))

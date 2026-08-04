@@ -72,7 +72,10 @@ internal class PlayerDebridCoordinator(
         val sheet = com.tvonnet.debridxtreamiptv.ui.series.SourceSelectionBottomSheet(
             onSourceSelected = { source, _ -> switchToMovieSource(source) },
             contentTitle = originalTitle,
-            backdropUrl = backdropUrlExtra
+            backdropUrl = backdropUrlExtra,
+            // H3: the in-player picker was defaulting to "ALL" — order it by the same
+            // preferred audio language as the detail-screen picker.
+            preferredAudioLang = CredentialsPreferences(activity.requireContext()).preferredAudioLang
         )
         sheet.show(supportFragmentManager, "player_movie_sources")
         lifecycleScope.launch {
