@@ -225,7 +225,13 @@ class MovieSourceAdapter(
             val badge = PROVIDER_BADGE_RULES.firstOrNull { it.matches(provider, sourceName, label) }
                 ?: GENERIC_PROVIDER_BADGE
 
-            binding.tvProvider.text = badge.text
+            // H1: collapsed-copies count — "×4" means four addons offer this same file
+            // (a reliability signal, and the silent-failover pool).
+            binding.tvProvider.text = if (source.addonCount > 1) {
+                "${badge.text} ×${source.addonCount}"
+            } else {
+                badge.text
+            }
             binding.tvProvider.setBackgroundResource(badge.bg)
             binding.tvProvider.setTextColor(badge.textColor)
         }

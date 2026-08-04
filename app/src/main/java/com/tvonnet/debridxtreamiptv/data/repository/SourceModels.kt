@@ -22,6 +22,21 @@ data class AddableTorrentIdentity(
     val magnet: String? = null
 )
 
+/**
+ * H1: another addon's copy of the SAME file, retained behind the collapsed picker row.
+ * Deliberately NOT a nested [MovieSource] — a recursive data class breaks DiffUtil
+ * equality and doubles list memory. Holds exactly what the H2 failover needs to swap in.
+ */
+data class SourceAlternate(
+    val provider: String?,
+    val sourceType: String?,
+    val sourceName: String?,
+    val directSource: String?,
+    val headers: Map<String, String>? = null,
+    val cacheStatus: DebridCacheStatus = DebridCacheStatus.UNKNOWN,
+    val identityKey: String? = null,
+)
+
 data class MovieSource(
     val stream: XtreamVodInfo,
     val category: XtreamCategory?,
@@ -40,8 +55,13 @@ data class MovieSource(
     val bingeGroup: String? = null,
     val fileIdx: Int? = null,
     val headers: Map<String, String>? = null,
-    val addableTorrentIdentity: AddableTorrentIdentity? = null
-)
+    val addableTorrentIdentity: AddableTorrentIdentity? = null,
+    /** H1: other addons' copies of this same file (failover path, count badge). */
+    val alternates: List<SourceAlternate> = emptyList(),
+) {
+    /** How many addons offered this file — the "4 sources" badge. */
+    val addonCount: Int get() = alternates.size + 1
+}
 
 // Phase 7: pure VOD title-matching helpers lifted verbatim out of XtreamRepository.getMovieSources.
 // They carry their own regexes (previously the repository's companion NON_ALPHANUMERIC_REGEX /

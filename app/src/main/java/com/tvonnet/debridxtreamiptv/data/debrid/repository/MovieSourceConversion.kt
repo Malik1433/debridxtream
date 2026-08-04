@@ -47,16 +47,39 @@ private val ADDON_ERROR_MARKERS = listOf(
 internal fun convertAddonStreamsToMovieSources(
     addonStreams: List<AddonStream>,
     title: String?,
-    cacheStatusByHash: Map<String, DebridCacheStatus>
+    cacheStatusByHash: Map<String, DebridCacheStatus>,
+    // H1: other addons' copies of the same file, keyed by the group primary.
+    alternatesByStream: Map<AddonStream, List<AddonStream>> = emptyMap()
 ): List<MovieSource> {
     val movieTitle = title ?: "Unknown Movie"
     Log.d(TAG, "🔄 Converting ${addonStreams.size} enhanced addon streams to MovieSource objects")
 
     return addonStreams.mapIndexedNotNull { index, addonStream ->
         convertOneStream(index, addonStream, movieTitle, cacheStatusByHash)
+            ?.withAlternates(alternatesByStream[addonStream])
     }.also { filteredSources ->
         logConversionStats(addonStreams, filteredSources)
     }
+}
+
+// H1: carry the collapsed copies onto the picker row (count badge now, H2 failover later).
+private fun MovieSource.withAlternates(alternates: List<AddonStream>?): MovieSource {
+    if (alternates.isNullOrEmpty()) return this
+    return copy(alternates = alternates.map { it.toSourceAlternate() })
+}
+
+private fun AddonStream.toSourceAlternate(): com.tvonnet.debridxtreamiptv.data.repository.SourceAlternate {
+    val ids = resolveTorrentIdentifiers(this)
+    val mediaFusionUrl = url?.takeIf { source == AddonSourceType.MEDIA_FUSION && it.isNotBlank() }
+    val directUrl = url?.takeIf { source != AddonSourceType.MEDIA_FUSION && isDirectStreamUrl(it) }
+    return com.tvonnet.debridxtreamiptv.data.repository.SourceAlternate(
+        provider = (extras["providerName"] as? String) ?: getSourceLabel(source),
+        sourceType = source.name,
+        sourceName = extras["sourceName"] as? String,
+        directSource = resolveDirectSource(this, ids, mediaFusionUrl, directUrl),
+        headers = headers,
+        identityKey = StreamIdentity.fileIdentity(this).key,
+    )
 }
 
 // Filter out Addon error streams (e.g. MediaFusion/Torrentio API limits)

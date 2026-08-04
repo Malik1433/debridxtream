@@ -103,68 +103,22 @@ internal fun getSourceLabel(source: AddonSourceType): String {
     }
 }
 
+/**
+ * H1: one stream per REAL file. Thin wrapper over [groupStreamsByFile] — the identity
+ * (StreamIdentity) carries nothing but the file itself, so the same torrent offered by
+ * several addons collapses to one row wherever this is called (full discovery, the scoped
+ * resume paths, and the per-fetch pre-dedups). The old per-variant key (languages/
+ * delivery/bingeGroup inside the key) lived here until H1; delivery preference survives
+ * as the primary-pick tiebreak in [groupStreamsByFile].
+ */
 internal fun deduplicateStreams(streams: List<AddonStream>): List<AddonStream> {
     if (streams.size <= 1) return streams
-
-    val seen = mutableMapOf<String, AddonStream>()
-    val noHashStreams = mutableListOf<AddonStream>()
-
-    for (stream in streams) {
-        val hash = stream.infoHash?.trim()?.lowercase()
-        if (hash.isNullOrBlank()) {
-            noHashStreams.add(stream)
-            continue
-        }
-        val dedupKey = buildStreamVariantKey(hash, stream)
-        val existing = seen[dedupKey]
-        if (existing == null) {
-            seen[dedupKey] = stream
-        } else {
-            // Keep the one with more useful metadata; cache is verified later.
-            val existingScore = metadataScore(existing)
-            val newScore = metadataScore(stream)
-            if (newScore > existingScore) {
-                seen[dedupKey] = stream
-            }
-        }
-    }
-
-    val result = seen.values.toList() + noHashStreams
+    val result = groupStreamsByFile(streams).map { it.primary }
     val removed = streams.size - result.size
     if (removed > 0) {
         Log.d(TAG, "🔄 Dedup removed $removed duplicate streams (${streams.size} → ${result.size})")
     }
     return result
-}
-
-internal fun buildStreamVariantKey(hash: String, stream: AddonStream): String {
-    val languageKey = normalizeVariantPart(
-        stream.languages?.joinToString(",")?.lowercase()
-    )
-    // The same torrent offered by two providers is only a real choice when the
-    // DELIVERY differs: an addon-proxy direct URL streams immediately, while a
-    // magnet goes through the RD resolution chain. Provider names alone must
-    // not duplicate picker rows for an identical torrent.
-    val deliveryKey = if (stream.url.isNullOrBlank()) "magnet" else "direct"
-    val fileIdxKey = (stream.extras["fileIdx"] as? Number)?.toString()
-        ?: (stream.extras["fileIdx"] as? String)?.trim()?.takeIf { it.isNotBlank() }
-    val bingeGroupKey = normalizeVariantPart(stream.extras["bingeGroup"] as? String)
-
-    return buildString {
-        append(hash)
-        append('|')
-        append(languageKey)
-        append('|')
-        append(deliveryKey)
-        append('|')
-        append(fileIdxKey.orEmpty())
-        append('|')
-        append(bingeGroupKey)
-    }
-}
-
-internal fun normalizeVariantPart(value: String?): String {
-    return value?.trim()?.lowercase()?.takeIf { it.isNotBlank() } ?: ""
 }
 
 internal fun getAddonLanguageScore(stream: AddonStream, preferredLanguages: List<String>): Int {

@@ -84,15 +84,19 @@ internal class DebridSourceOrchestrator(
             if (filteredCount > 0) {
                 Log.w(TAG, "Filtered $filteredCount mismatched addon movie stream(s) before picker conversion")
             }
-            val addonStreams = prioritizeAddonStreams(
-                deduplicateStreams(titleMatchedStreams)
-            )
+            // H1: collapse to one stream per real file BEFORE cache verification, so the
+            // verifier's 10-hash budget is spent on 10 distinct files, not copies.
+            val fileGroups = groupStreamsByFile(titleMatchedStreams)
+            Log.i(TAG, "H1 grouping: ${titleMatchedStreams.size} streams → ${fileGroups.size} files (${fileGroups.count { it.alternates.isNotEmpty() }} with alternates)")
+            val addonStreams = prioritizeAddonStreams(fileGroups.map { it.primary })
 
             if (addonStreams.isNotEmpty()) {
                 logMovieProviderBreakdown(addonStreams, title, imdbId)
 
                 val cacheStatusByHash = cacheVerifier.verifyRealDebridCacheStatuses(addonStreams, priorityInfoHash)
-                val movieSources = convertAddonStreamsToMovieSources(addonStreams, title, cacheStatusByHash)
+                val movieSources = convertAddonStreamsToMovieSources(
+                    addonStreams, title, cacheStatusByHash, alternatesByPrimary(fileGroups)
+                )
                 Log.d(TAG, "🔄 Converted ${addonStreams.size} enhanced addon streams to ${movieSources.size} movie sources")
 
                 // Log conversion success rate
@@ -153,9 +157,11 @@ internal class DebridSourceOrchestrator(
             // Fetch real sources from Enhanced Simplified PureFire AND MediaFusion
             Log.e(TAG, "🚀 Fetching episode sources from Torrentio & MediaFusion for IMDb ID: $imdbId")
 
-            val addonStreams = prioritizeAddonStreams(
-                deduplicateStreams(fetchAllEpisodeProviderStreams(query))
-            )
+            // H1: collapse to one stream per real file BEFORE cache verification.
+            val fetched = fetchAllEpisodeProviderStreams(query)
+            val fileGroups = groupStreamsByFile(fetched)
+            Log.i(TAG, "H1 grouping (episode): ${fetched.size} streams → ${fileGroups.size} files (${fileGroups.count { it.alternates.isNotEmpty() }} with alternates)")
+            val addonStreams = prioritizeAddonStreams(fileGroups.map { it.primary })
 
             if (addonStreams.isNotEmpty()) {
                 Log.e(TAG, "✅ PureFire API returned ${addonStreams.size} sources for Episode")
@@ -165,7 +171,9 @@ internal class DebridSourceOrchestrator(
                     Log.e(TAG, "   - ${providerDisplayName(source)}: ${streams.size} sources")
                 }
                 val cacheStatusByHash = cacheVerifier.verifyRealDebridCacheStatuses(addonStreams, priorityInfoHash)
-                return@coroutineScope convertAddonStreamsToMovieSources(addonStreams, title, cacheStatusByHash)
+                return@coroutineScope convertAddonStreamsToMovieSources(
+                    addonStreams, title, cacheStatusByHash, alternatesByPrimary(fileGroups)
+                )
             } else {
                 Log.e(TAG, "📭 [NO-SOURCES] PureFire API returned no sources for Episode")
                 return@coroutineScope emptyList()
@@ -237,7 +245,8 @@ internal class DebridSourceOrchestrator(
             if (stremioUrls.isEmpty()) return@async emptyList<AddonStream>()
             try {
                 Log.e(TAG, "Using ${stremioUrls.size} configured Stremio addon(s) alongside fallback episode providers")
-                val addonStreams = deduplicateStreams(addonFetcher.fetchStremioEpisodeSources(imdbId, seasonNumber, episodeNumber))
+                // H1: no pre-dedup here — the copies ARE the alternates for the final grouping pass.
+                val addonStreams = addonFetcher.fetchStremioEpisodeSources(imdbId, seasonNumber, episodeNumber)
                 if (addonStreams.isEmpty()) {
                     Log.w(TAG, "Configured Stremio episode provider returned no usable streams; continuing fallback providers: season=$seasonNumber, episode=$episodeNumber, hasImdbId=${!imdbId.isNullOrBlank()}")
                 } else {
@@ -322,7 +331,9 @@ internal class DebridSourceOrchestrator(
                 if (filteredCount > 0) {
                     Log.w(TAG, "Filtered $filteredCount mismatched configured Stremio movie stream(s) before fallback providers")
                 }
-                val addonStreams = deduplicateStreams(titleMatchedStreams)
+                // H1: no pre-dedup here — the copies ARE the alternates. The final
+                // groupStreamsByFile pass collapses the merged list and keeps them.
+                val addonStreams = titleMatchedStreams
                 if (addonStreams.isEmpty()) {
                     Log.w(TAG, "Configured Stremio movie provider returned no usable streams; continuing fallback providers: titlePresent=${!title.isNullOrBlank()}, hasImdbId=${!imdbId.isNullOrBlank()}")
                 } else {
