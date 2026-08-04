@@ -229,8 +229,20 @@ exports.claimDevice = onCall(async (req) => {
 
     let subscriptionId = license.subscriptionId || null;
 
-    if (license.resellerId) {
-      // Reseller-entitled: management binding only. Deliberately no status/tier/expiresAt here.
+    // A device can already be entitled WITHOUT a consumer subscription in two ways: a
+    // reseller activated it, or staff activated it straight from the admin panel. Both are
+    // management-binding-only claims — the entitlement exists already, so linking must not
+    // demand a subscription and must not touch status/tier/expiresAt.
+    //
+    // Missing the admin case made every admin-activated device unlinkable: it fell into the
+    // consumer branch below and answered "You don't have an active subscription yet" to a
+    // customer whose TV was, in fact, already active.
+    const entitledOutsideSubscription =
+      Boolean(license.resellerId) ||
+      (license.status === "active" && !license.subscriptionId);
+
+    if (entitledOutsideSubscription) {
+      // Management binding only. Deliberately no status/tier/expiresAt here.
       subscriptionId = null;
     } else {
       if (subsSnap.empty) {
