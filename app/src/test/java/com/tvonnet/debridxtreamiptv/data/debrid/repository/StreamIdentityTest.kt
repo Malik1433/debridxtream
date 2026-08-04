@@ -127,4 +127,25 @@ class StreamIdentityTest {
         val id = StreamIdentity.fileIdentity(stream(title = "Unknown", sizeBytes = 900L * 1024 * 1024))
         assertTrue(id is FileIdentity.Unique)
     }
+
+    // ── H5b: scoped-resume matching for URL-hash rows ──
+
+    @Test
+    fun `stream with the hash only in its url matches that hash as stable identity`() {
+        val byUrl = stream(url = "https://proxy.example/stream/$hash/0/file.mkv")
+        assertTrue(streamMatchesStableIdentity(byUrl, hash))
+    }
+
+    @Test
+    fun `url-hash stream still matches a pre-H5b title-hash id`() {
+        val byUrl = stream(url = "https://proxy.example/stream/$hash/0/file.mkv")
+        val legacyId = byUrl.title.hashCode().toString()
+        assertTrue(streamMatchesStableIdentity(byUrl, legacyId))
+    }
+
+    @Test
+    fun `url-hash stream does not match a different hash`() {
+        val byUrl = stream(url = "https://proxy.example/stream/$hash/0/file.mkv")
+        assertTrue(!streamMatchesStableIdentity(byUrl, "b".repeat(40)))
+    }
 }

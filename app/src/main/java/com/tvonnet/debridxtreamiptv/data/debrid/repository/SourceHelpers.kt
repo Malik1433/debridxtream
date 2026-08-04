@@ -175,9 +175,15 @@ internal fun metadataScore(stream: AddonStream): Int {
     }
 
     internal fun streamMatchesStableIdentity(stream: AddonStream, stableId: String): Boolean {
-        val hash = normalizeInfoHash(stream.infoHash) ?: extractInfoHashFromMagnet(stream.magnet)
+        val hash = normalizeInfoHash(stream.infoHash)
+            ?: extractInfoHashFromMagnet(stream.magnet)
+            // H5b: debrid-proxy rows carry the hash only in the URL path; saved ids for
+            // them are now that hash, so scoped resume must parse it here too.
+            ?: StreamIdentity.urlHashAndIdx(stream.url)?.first
         if (hash == stableId) return true
-        // Sources without an infoHash use title.hashCode() as the stable id part.
+        // Sources without any hash use title.hashCode() as the stable id part — and
+        // history saved BEFORE H5b still carries title-hash ids for URL-hash rows,
+        // so this fallback also keeps old resumes matching.
         return stream.title?.hashCode()?.toString() == stableId
     }
 

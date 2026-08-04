@@ -202,7 +202,11 @@ private fun streamIdFor(
 ): String = if (mediaFusionUrl != null) {
     mediaFusionUrl.hashCode().toString() + "_$index"
 } else {
-    (ids.validInfoHash ?: addonStream.title.hashCode().toString()) + "_$index"
+    // H5b: debrid-proxy rows (StremThru/Debridio "DIR") carry the torrent hash only in
+    // the URL path — parse it (H0's rule) before falling back to the title hash, so
+    // these rows share a real 40-hex identity with H4/H5 learned languages.
+    val urlHash = StreamIdentity.urlHashAndIdx(addonStream.url)?.first
+    (ids.validInfoHash ?: urlHash ?: addonStream.title.hashCode().toString()) + "_$index"
 }
 
 private fun buildSourceLabel(
