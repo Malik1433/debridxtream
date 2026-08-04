@@ -31,6 +31,9 @@ object AddonStreamMapper {
         val headers = source.behaviorHints?.proxyHeaders ?: source.behaviorHints?.headers
 
         val extras = mutableMapOf<String, Any?>()
+        // H0: every fetcher must carry a stable provider key (the reliability store keys
+        // off it); MediaFusion was the only one without it.
+        extras["providerName"] = "MediaFusion"
         source.description?.let { extras["description"] = it }
         source.name?.let { extras["sourceName"] = it }
         source.behaviorHints?.let {
