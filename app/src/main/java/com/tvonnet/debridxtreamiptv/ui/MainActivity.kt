@@ -160,6 +160,9 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             com.tvonnet.debridxtreamiptv.ui.sources.AddonReliabilityStore.init(applicationContext)
         }
+        // M1: ask TV-or-phone only on a device whose own signals contradict each other.
+        // A Fire TV or an ordinary phone detects cleanly and is never asked.
+        com.tvonnet.debridxtreamiptv.ui.mode.UiModeChooser.showIfNeeded(this)
         // §7 U6: read this account's playlists instead of waiting to be pushed to. Flag-gated,
         // default OFF — it rewrites the credentials we log in with.
         com.tvonnet.debridxtreamiptv.ui.companion.AccountPlaylistSync.start(this)
