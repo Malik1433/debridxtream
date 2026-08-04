@@ -17,6 +17,9 @@ import com.tvonnet.debridxtreamiptv.ui.debrid.DebridContentItem
 import com.tvonnet.debridxtreamiptv.ui.debrid.discover.DebridDiscoverViewModel
 import com.tvonnet.debridxtreamiptv.ui.debrid.discover.DiscoverUiState
 
+/** Grid keeps auto-filling until this many items (or the catalog runs dry). */
+private const val MIN_GRID_FILL = 40
+
 /** Discover tab: Top 10 (real trending) + mood/filter chrome wired to [DebridDiscoverViewModel]. */
 internal class StremioDiscoverSection(
     private val fragment: StremioHomeFragment,
@@ -53,6 +56,19 @@ internal class StremioDiscoverSection(
         gridRv.layoutManager = androidx.recyclerview.widget.GridLayoutManager(ctx, span)
         gridRv.adapter = gridAdapter
         gridRv.itemAnimator = null
+        // Endless grid: the ViewModel always had loadNextPage() but this grid never
+        // called it, so every filter combination stopped at TMDB page 1 (~20 items).
+        // D-pad focus movement scrolls the RecyclerView, so this fires on TV too.
+        gridRv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
+                val lm = rv.layoutManager as? androidx.recyclerview.widget.GridLayoutManager ?: return
+                if (lm.itemCount > 0 &&
+                    lm.findLastVisibleItemPosition() >= lm.itemCount - lm.spanCount * 2
+                ) {
+                    vm.loadNextPage()
+                }
+            }
+        })
         buildPills()
     }
 
@@ -103,7 +119,13 @@ internal class StremioDiscoverSection(
 
     fun onDiscoverState(state: DiscoverUiState) {
         when (state) {
-            is DiscoverUiState.Content -> gridAdapter.submit(state.items.map { it.toItem() })
+            is DiscoverUiState.Content -> {
+                gridAdapter.submit(state.items.map { it.toItem() })
+                // A single TMDB page barely fills two grid rows — keep fetching until
+                // the grid opens with a real catalog. Each response re-enters here, so
+                // this self-limits at the threshold (or when the catalog runs dry).
+                if (state.items.size < MIN_GRID_FILL && state.canLoadMore) vm.loadNextPage()
+            }
             else -> { /* keep last */ }
         }
     }
