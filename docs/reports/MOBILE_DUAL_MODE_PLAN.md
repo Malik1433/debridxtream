@@ -107,5 +107,6 @@ that feedback round.
 
 | Date | Batch | What landed | QA (phone / TV smoke) | Commit |
 |---|---|---|---|---|
+| 2026-08-04 | **M0** | `UiModeResolver` (override > UiModeManager/Configuration TELEVISION > leanback-&&-!touchscreen heuristics) + `isAmbiguous()` as the gate for M1's one-time chooser; `SettingsPreferences.ui_mode_override` + chooser-pending flag; Settings → Home Screen → **"App Layout"** selector (Automatic / TV / Mobile). **No screen routed yet — by design, so TV cannot regress.** 8 unit tests, one per precedence rung | TV smoke on .64: launch, home/hero/CW identical, new row reads "Automatic (detect device)", H9 rows still German (DE) / Hindi (HI), 0 FATAL. Phone: n/a this batch | `c7da970e` |
 
 *(TV regression rule: any batch that breaks a TV flow is reverted first, discussed second.)*
