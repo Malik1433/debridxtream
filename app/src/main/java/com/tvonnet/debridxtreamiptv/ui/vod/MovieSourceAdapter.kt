@@ -253,7 +253,8 @@ class MovieSourceAdapter(
                 return
             }
 
-            languages.distinct().forEach { langCode ->
+            val distinctLanguages = languages.distinct()
+            distinctLanguages.forEachIndexed { index, langCode ->
                 val chip = LayoutInflater.from(binding.root.context).inflate(
                     R.layout.item_lang_chip, binding.llLanguages, false
                 )
@@ -265,7 +266,16 @@ class MovieSourceAdapter(
                 val code = if (flagParts.size > 1) flagParts[1] else "UNK"
 
                 tvFlag.text = emoji
-                tvCode.text = code
+                // H4: check-mark on the FIRST chip when the player itself verified these
+                // languages during playback (vs parsed claims from the release title) —
+                // first, because the chip strip clips on the right when a release
+                // carries many languages and the mark must stay visible.
+                tvCode.text = if (source.languagesVerified && index == 0) {
+                    "$code ✓"
+                } else {
+                    code
+                }
+                if (source.languagesVerified) chip.contentDescription = "Verified language $code"
                 binding.llLanguages.addView(chip)
             }
         }

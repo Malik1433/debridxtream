@@ -6,6 +6,7 @@ import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
+import com.tvonnet.debridxtreamiptv.data.debrid.repository.stableStreamIdentity
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 
@@ -257,12 +258,16 @@ internal class PlayerEventListener(
         timeoutHandler.postDelayed(captureRunnable, 1500)
     }
 
+    // H4: record once per source (this listener is recreated per initializePlayer).
+    private var hasRecordedVerifiedLanguages = false
+
     override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
         PlaybackDiagnosticsRecorder.record(
             activity.requireContext(),
             "track_discovery",
             diagnosticsPlaybackFields() + trackDiagnosticsFields(tracks)
         )
+        maybeRecordVerifiedLanguages(tracks)
         if (!hasAppliedIndexOverride) {
             applyTrackIndexOverrides()
             hasAppliedIndexOverride = true
@@ -274,6 +279,18 @@ internal class PlayerEventListener(
         if (isSoftwareAudioEnabled) {
             maybeAutoSelectSupportedAudio(tracks)
         }
+    }
+
+    // H4: the player's own track list is the ground truth for what languages a debrid
+    // release carries — learn it so the source list can replace "MULTI" with real chips.
+    // Debrid-only by construction: non-debrid playback has neither extra set.
+    private fun maybeRecordVerifiedLanguages(tracks: androidx.media3.common.Tracks) {
+        if (hasRecordedVerifiedLanguages) return
+        val hash = stableStreamIdentity(activity.debridInfoHashExtra ?: activity.debridStreamIdExtra) ?: return
+        val languages = availableAudioLanguages(tracks)
+        if (languages.isEmpty()) return
+        hasRecordedVerifiedLanguages = true
+        viewModel.recordVerifiedLanguages(hash, languages)
     }
 
     private fun maybeAutoSelectSupportedAudio(tracks: androidx.media3.common.Tracks) {

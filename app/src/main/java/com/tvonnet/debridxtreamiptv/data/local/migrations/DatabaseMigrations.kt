@@ -177,8 +177,29 @@ object DatabaseMigrations {
             MIGRATION_10_11,
             MIGRATION_11_12,
             MIGRATION_12_13,
-            MIGRATION_13_14
+            MIGRATION_13_14,
+            MIGRATION_14_15
         )
+    }
+
+    /**
+     * Migration 14 -> 15 (H4): `release_languages` table — audio languages learned
+     * from actual playback, keyed by the release's stable debrid identity.
+     * Purely additive: CREATE TABLE only, nothing existing touched.
+     */
+    val MIGRATION_14_15 = object : Migration(14, 15) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `release_languages` (
+                    `hash` TEXT NOT NULL,
+                    `languages` TEXT NOT NULL,
+                    `origin` TEXT NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`hash`)
+                )
+            """)
+            android.util.Log.d("DatabaseMigration", "Successfully migrated database from version 14 to 15 (release_languages)")
+        }
     }
 
     /**

@@ -56,6 +56,7 @@ open class PlayerViewModelDebridDirectPassthroughTest {
             unifiedSourceProvider = unifiedSourceProvider,
             playbackResolver = playbackResolver,
             tmdbRemote = mockk<TmdbRemoteDataSource>(relaxed = true),
+            releaseLanguageRepository = mockk(relaxed = true),
             context = mockk<Context>(relaxed = true)
         )
     }

@@ -9,7 +9,8 @@ import org.junit.Test
 /**
  * Phase 8: unit tests for the debrid source ranking the user actually sees. SourceSorter is a pure
  * object (score/sort/isCached), so no Room/Robolectric needed — this pins the scoring weights
- * (language +100, cached +50, quality tier, size penalty) and the stable descending sort.
+ * (verified language +100, claimed +80, MULTI +60, cached +50, quality tier, size penalty)
+ * and the stable descending sort.
  */
 class SourceSorterTest {
 
@@ -27,7 +28,8 @@ class SourceSorterTest {
         quality: String? = null,
         sizeBytes: Long? = null,
         isCached: Boolean? = null,
-        cacheStatus: DebridCacheStatus = DebridCacheStatus.UNKNOWN
+        cacheStatus: DebridCacheStatus = DebridCacheStatus.UNKNOWN,
+        languagesVerified: Boolean = false
     ) = MovieSource(
         stream = emptyVod(),
         category = null,
@@ -37,27 +39,39 @@ class SourceSorterTest {
         quality = quality,
         sizeBytes = sizeBytes,
         isCached = isCached,
-        cacheStatus = cacheStatus
+        cacheStatus = cacheStatus,
+        languagesVerified = languagesVerified
     )
 
     // ── score ────────────────────────────────────────────────────────────────────────────────────
 
     @Test
-    fun `preferred-language match adds 100`() {
+    fun `claimed preferred-language match adds 80`() {
         val withLang = source(languages = listOf("en"))
         val withoutLang = source(languages = listOf("fr"))
 
-        assertEquals(100.0, SourceSorter.score(withLang, "EN") - SourceSorter.score(withoutLang, "EN"), 0.001)
+        assertEquals(80.0, SourceSorter.score(withLang, "EN") - SourceSorter.score(withoutLang, "EN"), 0.001)
     }
 
-    // H3 tiering: exact claimed match 100 > MULTI-claimed 60 > nothing.
+    // H4 tiering: verified match 100 > claimed match 80 > MULTI-claimed 60 > nothing.
+    @Test
+    fun `verified match outranks claimed match`() {
+        val verified = source(languages = listOf("hi"), languagesVerified = true)
+        val claimed = source(languages = listOf("hi"))
+        val none = source(languages = listOf("fr"))
+
+        assertEquals(100.0, SourceSorter.score(verified, "HI") - SourceSorter.score(none, "HI"), 0.001)
+        assertEquals(80.0, SourceSorter.score(claimed, "HI") - SourceSorter.score(none, "HI"), 0.001)
+    }
+
+    // H3 tiering: exact claimed match > MULTI-claimed 60 > nothing.
     @Test
     fun `MULTI-claimed row ranks between exact match and none`() {
         val exact = source(languages = listOf("hi"))
         val multi = source(languages = listOf("multi"))
         val none = source(languages = listOf("fr"))
 
-        assertEquals(100.0, SourceSorter.score(exact, "HI") - SourceSorter.score(none, "HI"), 0.001)
+        assertEquals(80.0, SourceSorter.score(exact, "HI") - SourceSorter.score(none, "HI"), 0.001)
         assertEquals(60.0, SourceSorter.score(multi, "HI") - SourceSorter.score(none, "HI"), 0.001)
     }
 

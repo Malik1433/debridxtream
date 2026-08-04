@@ -91,4 +91,33 @@ class PlayerDiagnosticsFieldsTest {
             )
         )
     }
+
+    // ── H4: audio-language normalization (what turns a track tag into a chip code) ──
+
+    @Test
+    fun `three-letter codes map to the two-letter chips the source list uses`() {
+        assertEquals("hi", normalizeAudioLanguageCode("hin"))
+        assertEquals("en", normalizeAudioLanguageCode("eng"))
+        // Both the bibliographic and terminological ISO 639-2 variants converge.
+        assertEquals("de", normalizeAudioLanguageCode("ger"))
+        assertEquals("de", normalizeAudioLanguageCode("deu"))
+    }
+
+    @Test
+    fun `two-letter and region-tagged codes pass through normalized`() {
+        assertEquals("en", normalizeAudioLanguageCode("EN"))
+        assertEquals("hi", normalizeAudioLanguageCode("hi-IN"))
+        assertEquals("pt", normalizeAudioLanguageCode("pt-BR"))
+    }
+
+    @Test
+    fun `undetermined and junk tags are dropped, never recorded as a language`() {
+        assertNull(normalizeAudioLanguageCode(null))
+        assertNull(normalizeAudioLanguageCode(""))
+        assertNull(normalizeAudioLanguageCode("  "))
+        assertNull(normalizeAudioLanguageCode("und"))
+        assertNull(normalizeAudioLanguageCode("qwerty"))
+        // An unmapped 3-letter code is dropped rather than guessed.
+        assertNull(normalizeAudioLanguageCode("xxx"))
+    }
 }

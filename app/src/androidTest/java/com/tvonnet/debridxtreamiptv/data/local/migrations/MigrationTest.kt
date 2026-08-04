@@ -42,12 +42,12 @@ class MigrationTest {
 
     /**
      * The real migration container (DatabaseMigrations.getAllMigrations) + the current entity set
-     * open cleanly and land on v14. This catches an entity/query change that was shipped without a
-     * matching migration (Room throws IllegalStateException on schema mismatch).
+     * open cleanly and land on the current version. This catches an entity/query change that was
+     * shipped without a matching migration (Room throws IllegalStateException on schema mismatch).
      */
     @Test
     @Throws(IOException::class)
-    fun realDatabaseOpensAtV14() {
+    fun realDatabaseOpensAtCurrentVersion() {
         val db = Room.databaseBuilder(
             ApplicationProvider.getApplicationContext(),
             AppDatabase::class.java,
@@ -59,7 +59,7 @@ class MigrationTest {
             .build()
         try {
             val version = db.openHelper.readableDatabase.version
-            assertEquals(14, version)
+            assertEquals(15, version)
         } finally {
             db.close()
             ApplicationProvider.getApplicationContext<android.content.Context>()
@@ -93,7 +93,7 @@ class MigrationTest {
 
         val db = openWithProductionMigrations(TEST_DB)
         try {
-            assertEquals(14, db.openHelper.readableDatabase.version)
+            assertEquals(15, db.openHelper.readableDatabase.version)
 
             db.openHelper.readableDatabase.query(
                 "SELECT progress_ms FROM watched_state WHERE identity_key = 'movie:inception'"
@@ -165,18 +165,35 @@ class MigrationTest {
         ApplicationProvider.getApplicationContext<android.content.Context>().deleteDatabase(name)
     }
 
-    // ── Forward-looking scaffold (uncomment + adapt when you bump to v15) ─────────────────────────
-    // The chain itself (every bump has a registered migration) is guarded on the JVM side by
-    // DatabaseMigrationChainTest, which fails the moment @Database(version=…) moves ahead of
-    // getAllMigrations().
-    //
-    // @Test
-    // @Throws(IOException::class)
-    // fun migrate14To15() {
-    //     helper.createDatabase(TEST_DB, 14).apply {
-    //         // insert a v14-shaped row with raw SQL so the migration has real data to carry over
-    //         close()
-    //     }
-    //     helper.runMigrationsAndValidate(TEST_DB, 15, true, DatabaseMigrations.MIGRATION_14_15)
-    // }
+    /**
+     * H4: v14 -> v15 adds the release_languages table. Validated against the exported
+     * v15 schema, with a pre-existing v14 row proving the migration is additive.
+     */
+    @Test
+    @Throws(IOException::class)
+    fun migrate14To15() {
+        helper.createDatabase(TEST_DB, 14).apply {
+            execSQL(
+                "INSERT INTO favorites (streamId, type, addedAt, name, iconUrl) " +
+                    "VALUES ('9911', 'live', 1, 'BBC News HD', NULL)"
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 15, true, DatabaseMigrations.MIGRATION_14_15)
+        db.query("SELECT name FROM favorites WHERE streamId = '9911'").use { cursor ->
+            assertTrue("v14 data must survive the v15 migration", cursor.moveToFirst())
+            assertEquals("BBC News HD", cursor.getString(0))
+        }
+        db.execSQL(
+            "INSERT INTO release_languages (hash, languages, origin, updatedAt) " +
+                "VALUES ('abc123', 'hi,en', 'local', 1)"
+        )
+        db.query("SELECT languages FROM release_languages WHERE hash = 'abc123'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("hi,en", cursor.getString(0))
+        }
+        db.close()
+        deleteTestDb(TEST_DB)
+    }
 }

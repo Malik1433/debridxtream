@@ -33,12 +33,13 @@ object SourceSorter {
     fun score(source: MovieSource, preferredLang: String): Double {
         var score = 0.0
 
-        // H3 tiering (must agree with SourceFilterUtils.getLanguageMatchScore — the
-        // sheet sorts twice and the two would otherwise fight): exact claimed match
-        // 100 > MULTI-claimed 60 > nothing. MULTI now MATCHES specific language
-        // filters, so it needs a real (but lower) boost here too.
+        // H3/H4 tiering (must agree with SourceFilterUtils.getLanguageMatchScore — the
+        // sheet sorts twice and the two would otherwise fight): VERIFIED match 100
+        // (the player heard it) > exact CLAIMED match 80 (title said so) >
+        // MULTI-claimed 60 > nothing. MULTI now MATCHES specific language filters,
+        // so it needs a real (but lower) boost here too.
         if (matchesPreferredLanguage(source, preferredLang)) {
-            score += 100.0
+            score += if (source.languagesVerified) 100.0 else 80.0
         } else if (claimsMultiFor(source, preferredLang)) {
             score += 60.0
         }

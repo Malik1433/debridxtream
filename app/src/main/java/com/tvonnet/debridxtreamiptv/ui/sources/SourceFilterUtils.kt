@@ -224,7 +224,8 @@ object SourceFilterUtils {
             val parsedLanguages = source.languages?.map { StreamLanguage.parse(it) } ?: emptyList()
 
             scores.cache[source] = getCachePriority(source)
-            scores.lang[source] = if (sortLangEnum != null) getLanguageMatchScore(parsedLanguages, sortLangEnum) else 0
+            scores.lang[source] =
+                if (sortLangEnum != null) getLanguageMatchScore(source, parsedLanguages, sortLangEnum) else 0
             scores.session[source] = SessionSourcePreference.score(source)
             scores.recovery[source] = getRecoveryLanguageScore(parsedLanguages)
         }
@@ -248,11 +249,16 @@ object SourceFilterUtils {
         }
     }
 
-    private fun getLanguageMatchScore(languages: List<StreamLanguage>, preferred: StreamLanguage): Int {
+    private fun getLanguageMatchScore(
+        source: MovieSource,
+        languages: List<StreamLanguage>,
+        preferred: StreamLanguage
+    ): Int {
         if (languages.isEmpty()) return 0
         return when {
-            // Type-safe O(1) enum identity check replaces slow string manipulation
-            languages.contains(preferred) -> 3
+            // H4: player-verified match beats a title-claimed one (agrees with
+            // SourceSorter.score's 100 > 80 > 60 tiering — the sheet sorts twice).
+            languages.contains(preferred) -> if (source.languagesVerified) 4 else 3
             languages.contains(StreamLanguage.MULTI) -> 1
             else -> 0
         }

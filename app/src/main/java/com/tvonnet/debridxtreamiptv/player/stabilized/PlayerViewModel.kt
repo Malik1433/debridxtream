@@ -131,8 +131,27 @@ class PlayerViewModel @Inject constructor(
     private val unifiedSourceProvider: UnifiedSourceProvider,
     private val playbackResolver: com.tvonnet.debridxtreamiptv.data.debrid.repository.PlaybackResolver,
     private val tmdbRemote: com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource,
+    private val releaseLanguageRepository: com.tvonnet.debridxtreamiptv.data.debrid.language.ReleaseLanguageRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    /**
+     * H4: persist the audio languages the player actually exposed for this debrid
+     * release, keyed by its stable identity. Fire-and-forget off the main thread;
+     * the source list overlays these over claimed/MULTI chips next time.
+     */
+    fun recordVerifiedLanguages(hash: String, languages: List<String>) {
+        viewModelScope.launch {
+            try {
+                releaseLanguageRepository.recordVerified(hash, languages)
+                android.util.Log.i("PlayerViewModel", "H4 learned languages for $hash: $languages")
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("PlayerViewModel", "H4 language record failed", e)
+            }
+        }
+    }
 
     /** Every EPG surface in the player: now/next overlay, surf strip, guide grid (C10). */
     private val epg = PlayerEpgController(

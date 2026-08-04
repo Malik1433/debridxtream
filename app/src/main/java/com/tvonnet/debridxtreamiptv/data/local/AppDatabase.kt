@@ -23,6 +23,8 @@ import com.tvonnet.debridxtreamiptv.data.local.entity.VodEntity
 import com.tvonnet.debridxtreamiptv.data.local.entity.SeasonEntity
 import com.tvonnet.debridxtreamiptv.data.local.entity.EpisodeEntity
 import com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity
+import com.tvonnet.debridxtreamiptv.data.debrid.language.ReleaseLanguageDao
+import com.tvonnet.debridxtreamiptv.data.debrid.language.ReleaseLanguageEntity
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.SeriesEntityV2
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.SeriesDaoV2
 
@@ -58,9 +60,10 @@ import com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.SeriesDaoV2
         EpisodeEntity::class,
         SeriesEntityV2::class,
         com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2::class,
-        WatchedStateEntity::class
+        WatchedStateEntity::class,
+        ReleaseLanguageEntity::class
     ],
-    version = 14,
+    version = 15,
     // Phase 8: export the schema JSON (room.schemaLocation in build.gradle) so Room migrations become
     // testable via MigrationTestHelper — the gate that allowed removing fallbackToDestructiveMigration
     // (Phase 7.5, done: an unhandled version now fails loudly instead of wiping).
@@ -117,7 +120,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun seriesDaoV2(): SeriesDaoV2
     abstract fun episodeDaoV2(): com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.EpisodeDaoV2
     abstract fun watchedStateDao(): WatchedStateDao
-    
+
+    /**
+     * H4: languages learned from actual playback (release_languages, v15).
+     */
+    abstract fun releaseLanguageDao(): ReleaseLanguageDao
+
     companion object {
         const val DATABASE_NAME = "debrid_xtream_db"
     }

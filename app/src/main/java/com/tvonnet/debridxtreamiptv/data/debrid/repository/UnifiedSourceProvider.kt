@@ -40,7 +40,8 @@ class UnifiedSourceProvider @Inject constructor(
     private val stremioAddonFetcher: StremioAddonFetcher,
     private val debridPrefs: DebridPreferences,
     private val realDebridRemote: RealDebridRemoteDataSource,
-    private val realDebridRateLimiter: RealDebridRateLimiter
+    private val realDebridRateLimiter: RealDebridRateLimiter,
+    private val releaseLanguageRepository: com.tvonnet.debridxtreamiptv.data.debrid.language.ReleaseLanguageRepository
 ) {
 
     /** USP-5: registry + dynamic/Stremio addon discovery (owns the scrape limit). */
@@ -163,7 +164,7 @@ class UnifiedSourceProvider @Inject constructor(
 
                     Log.d(TAG, "📊 [RESULT] Found ${sources.size} sources before filtering")
 
-                    val finalSources = applyPreferredLanguageFilter(sources)
+                    val finalSources = applyPreferredLanguageFilter(overlayVerifiedLanguages(sources))
                     logResolutionOutcome(finalSources, isDebridMovie, title)
 
                     finalSources
@@ -259,9 +260,38 @@ class UnifiedSourceProvider @Inject constructor(
         yearHint: String?,
         priorityInfoHash: String? = null,
         preferredSourceType: String? = null
-    ): List<MovieSource> = orchestrator.getSeriesEpisodeSources(
-        seriesId, seasonNumber, episodeNumber, title, yearHint, priorityInfoHash, preferredSourceType
+    ): List<MovieSource> = overlayVerifiedLanguages(
+        orchestrator.getSeriesEpisodeSources(
+            seriesId, seasonNumber, episodeNumber, title, yearHint, priorityInfoHash, preferredSourceType
+        )
     )
+
+    /**
+     * H4: replace CLAIMED languages with the ones the player actually heard for
+     * releases we (or, via H5, someone) have played. A lookup miss leaves the
+     * claimed chips untouched; a failure degrades to the un-overlaid list.
+     */
+    private suspend fun overlayVerifiedLanguages(sources: List<MovieSource>): List<MovieSource> {
+        if (sources.isEmpty()) return sources
+        val hashBySource = sources.associateWith { stableStreamIdentity(it.stream.stream_id) }
+        val verified = try {
+            releaseLanguageRepository.verifiedLanguagesFor(hashBySource.values.filterNotNull())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "H4 verified-language lookup failed", e)
+            return sources
+        }
+        if (verified.isEmpty()) return sources
+        var overlaid = 0
+        val result = sources.map { source ->
+            val learned = hashBySource[source]?.let { verified[it] }
+            if (learned.isNullOrEmpty()) source
+            else source.copy(languages = learned, languagesVerified = true).also { overlaid++ }
+        }
+        Log.i(TAG, "H4 overlay: $overlaid/${sources.size} sources got verified languages")
+        return result
+    }
 
     /**
      * Get IPTV sources (original functionality)

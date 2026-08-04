@@ -305,5 +305,16 @@ object AppModule {
     fun provideWatchedStateDao(database: AppDatabase): WatchedStateDao {
         return database.watchedStateDao()
     }
+
+    /**
+     * H4: learned release languages (release_languages, v15).
+     */
+    @Provides
+    @Singleton
+    fun provideReleaseLanguageDao(
+        database: AppDatabase
+    ): com.tvonnet.debridxtreamiptv.data.debrid.language.ReleaseLanguageDao {
+        return database.releaseLanguageDao()
+    }
 }
 

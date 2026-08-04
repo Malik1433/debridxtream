@@ -58,6 +58,8 @@ data class MovieSource(
     val addableTorrentIdentity: AddableTorrentIdentity? = null,
     /** H1: other addons' copies of this same file (failover path, count badge). */
     val alternates: List<SourceAlternate> = emptyList(),
+    /** H4: true when [languages] were HEARD by the player, not parsed from the title. */
+    val languagesVerified: Boolean = false,
 ) {
     /** How many addons offered this file — the "4 sources" badge. */
     val addonCount: Int get() = alternates.size + 1
