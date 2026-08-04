@@ -151,6 +151,8 @@ class MovieDebridSourceController(
                     rvLanguageFilters.requestFocus()
             }
         )
+        // H8: the preferred audio language leads every row's chip strip.
+        sourcesAdapter.setPreferredLanguage(credentialsPrefs.preferredAudioLang)
         rvSources.apply {
             layoutManager = LinearLayoutManager(activity)
             adapter = sourcesAdapter

@@ -12,6 +12,8 @@ import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.databinding.ItemMovieSourceBinding
+import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
+import com.tvonnet.debridxtreamiptv.ui.sources.StreamLanguage
 import com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper
 import java.util.Locale
 
@@ -24,8 +26,19 @@ class MovieSourceAdapter(
     private var selectedStreamId: String? = null
     private var bestStreamId: String? = null
 
+    /** H8: the language that leads every chip strip (setting value or 2-letter code). */
+    private var preferredLanguage: String? = null
+
     init {
         setHasStableIds(true)
+    }
+
+    /** Call before submitList; a later change re-renders the visible strips. */
+    fun setPreferredLanguage(language: String?) {
+        if (preferredLanguage == language) return
+        preferredLanguage = language
+        @Suppress("NotifyDataSetChanged")
+        notifyDataSetChanged()
     }
 
     override fun getItemId(position: Int): Long {
@@ -253,8 +266,13 @@ class MovieSourceAdapter(
                 return
             }
 
-            val distinctLanguages = languages.distinct()
-            distinctLanguages.forEachIndexed { index, langCode ->
+            // H8: many-language rows get a deterministic pattern instead of clipping —
+            // the preferred language leads, at most MAX_LANG_CHIPS codes render, and the
+            // rest collapse into a "+N" counter. On overflow rows only the FIRST chip
+            // keeps its flag emoji so the strip stays within its 52dp column.
+            val ordered = orderPreferredFirst(languages.distinct())
+            val overflow = (ordered.size - MAX_LANG_CHIPS).coerceAtLeast(0)
+            ordered.take(MAX_LANG_CHIPS).forEachIndexed { index, langCode ->
                 val chip = LayoutInflater.from(binding.root.context).inflate(
                     R.layout.item_lang_chip, binding.llLanguages, false
                 )
@@ -266,18 +284,37 @@ class MovieSourceAdapter(
                 val code = if (flagParts.size > 1) flagParts[1] else "UNK"
 
                 tvFlag.text = emoji
+                if (overflow > 0 && index > 0) tvFlag.visibility = android.view.View.GONE
                 // H4: check-mark on the FIRST chip when the player itself verified these
                 // languages during playback (vs parsed claims from the release title) —
-                // first, because the chip strip clips on the right when a release
-                // carries many languages and the mark must stay visible.
+                // first, because that chip is the one guaranteed visible.
                 tvCode.text = if (source.languagesVerified && index == 0) {
                     "$code ✓"
                 } else {
                     code
                 }
-                if (source.languagesVerified) chip.contentDescription = "Verified language $code"
                 binding.llLanguages.addView(chip)
             }
+            if (overflow > 0) {
+                val chip = LayoutInflater.from(binding.root.context).inflate(
+                    R.layout.item_lang_chip, binding.llLanguages, false
+                )
+                chip.findViewById<TextView>(R.id.tv_flag).visibility = android.view.View.GONE
+                chip.findViewById<TextView>(R.id.tv_code).text = "+$overflow"
+                binding.llLanguages.addView(chip)
+            }
+            binding.llLanguages.contentDescription = buildString {
+                append(if (source.languagesVerified) "Verified languages: " else "Languages: ")
+                append(ordered.joinToString(", ") { SourceFilterUtils.mapLanguageCodeToName(it) })
+            }
+        }
+
+        /** The user's preferred audio language leads the strip when the row carries it. */
+        private fun orderPreferredFirst(codes: List<String>): List<String> {
+            val pref = StreamLanguage.parse(preferredLanguage)
+            if (pref == StreamLanguage.ALL || pref == StreamLanguage.UNKNOWN) return codes
+            val (match, rest) = codes.partition { StreamLanguage.parse(it) == pref }
+            return match + rest
         }
 
         private fun getFlagEmoji(languageCode: String): String =
@@ -361,6 +398,8 @@ class MovieSourceAdapter(
     }
 
     companion object {
+        /** H8: codes rendered before the "+N" overflow chip (the strip is 52dp wide). */
+        private const val MAX_LANG_CHIPS = 2
         private const val SIZE_BAR_WIDTH_DP = 40f
         private const val SIZE_COLOR_CYAN = 0xFF00F0FF.toInt()
         private const val SIZE_COLOR_AMBER = 0x99FFAA00.toInt()
@@ -414,6 +453,17 @@ class MovieSourceAdapter(
             "tr" to "🇹🇷 TR", "tur" to "🇹🇷 TR", "turkish" to "🇹🇷 TR",
             "pl" to "🇵🇱 PL", "pol" to "🇵🇱 PL", "polish" to "🇵🇱 PL",
             "nl" to "🇳🇱 NL", "dut" to "🇳🇱 NL", "dutch" to "🇳🇱 NL",
+            // H8: the Indian-language codes the parser and H4 learning actually emit —
+            // they rendered as "UNK" before this row existed.
+            "ta" to "🇮🇳 TA", "tam" to "🇮🇳 TA", "tamil" to "🇮🇳 TA",
+            "te" to "🇮🇳 TE", "tel" to "🇮🇳 TE", "telugu" to "🇮🇳 TE",
+            "ml" to "🇮🇳 ML", "mal" to "🇮🇳 ML", "malayalam" to "🇮🇳 ML",
+            "kn" to "🇮🇳 KN", "kan" to "🇮🇳 KN", "kannada" to "🇮🇳 KN",
+            "pa" to "🇮🇳 PA", "pun" to "🇮🇳 PA", "punjabi" to "🇮🇳 PA",
+            "bn" to "🇮🇳 BN", "ben" to "🇮🇳 BN", "bengali" to "🇮🇳 BN",
+            "mr" to "🇮🇳 MR", "mar" to "🇮🇳 MR", "marathi" to "🇮🇳 MR",
+            "gu" to "🇮🇳 GU", "guj" to "🇮🇳 GU", "gujarati" to "🇮🇳 GU",
+            "ur" to "🇵🇰 UR", "urd" to "🇵🇰 UR", "urdu" to "🇵🇰 UR",
             "multi" to "🌎 MULTI",
         )
 

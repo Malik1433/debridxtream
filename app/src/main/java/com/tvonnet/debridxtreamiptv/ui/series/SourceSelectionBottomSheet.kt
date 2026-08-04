@@ -156,6 +156,8 @@ class SourceSelectionBottomSheet(
             },
             onNavigateUpFromFirstRow = { focusTopControl() }
         )
+        // H8: the preferred audio language leads every row's chip strip.
+        sourcesAdapter.setPreferredLanguage(preferredAudioLang)
         rvSources.layoutManager = LinearLayoutManager(context)
         rvSources.setHasFixedSize(true)
         rvSources.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
