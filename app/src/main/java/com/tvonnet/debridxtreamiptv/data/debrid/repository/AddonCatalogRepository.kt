@@ -195,12 +195,18 @@ class AddonCatalogRepository @Inject constructor(
         val effectiveSortBy = sortBy ?: resolveDiscoverSort(type = type, catalogue = catalogue)
         val yearDateGte = year?.let { "%04d-01-01".format(Locale.US, it) } ?: releaseDateGte
         val voteCountGte = when {
-            catalogue == CATALOGUE_TOP_RATED -> TOP_RATED_MIN_VOTE_COUNT
+            // Regional catalogs are voted far more thinly on TMDB than the global one —
+            // at the global floor of 200 ALL of Bollywood is ~107 titles, Tamil is 5 and
+            // Punjabi is ZERO. A language pick is already a deliberate filter, so a much
+            // lower floor keeps the junk out without starving the catalog.
+            catalogue == CATALOGUE_TOP_RATED ->
+                if (originalLanguage == null) TOP_RATED_MIN_VOTE_COUNT else REGIONAL_TOP_RATED_MIN_VOTE_COUNT
             // The all-years "Popular" grid (Discover "Trending Everywhere") has no date bound, so obscure
             // old titles — e.g. softcore films TMDB doesn't flag `adult` — ride inflated popularity into it
             // with almost no votes. Require a real vote count there. Date-scoped rows (regional/new, 2024+)
             // keep no floor so genuinely new films still show.
-            catalogue == CATALOGUE_POPULAR && yearDateGte == null -> POPULAR_MIN_VOTE_COUNT
+            catalogue == CATALOGUE_POPULAR && yearDateGte == null ->
+                if (originalLanguage == null) POPULAR_MIN_VOTE_COUNT else REGIONAL_POPULAR_MIN_VOTE_COUNT
             else -> null
         }
         val yearDateLte = year?.let { "%04d-12-31".format(Locale.US, it) }
@@ -378,6 +384,9 @@ class AddonCatalogRepository @Inject constructor(
         const val CATALOGUE_NEWEST = "newest"
         private const val TOP_RATED_MIN_VOTE_COUNT = 200
         private const val POPULAR_MIN_VOTE_COUNT = 200
+        // Language-scoped grids (hi at 10 ≈ 1.5k titles, pa goes from 0 to dozens).
+        private const val REGIONAL_POPULAR_MIN_VOTE_COUNT = 10
+        private const val REGIONAL_TOP_RATED_MIN_VOTE_COUNT = 50
         // TMDB keyword ids for adult/erotica that aren't caught by `adult=true` (softcore, erotic movie,
         // pornography, hardcore) — excluded from all discover queries via `without_keywords` (OR-joined).
         private const val EXCLUDED_ADULT_KEYWORDS = "190370|155477|445|260863"

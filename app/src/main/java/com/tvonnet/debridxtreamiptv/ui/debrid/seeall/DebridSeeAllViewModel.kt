@@ -66,6 +66,8 @@ class DebridSeeAllViewModel @Inject constructor(
                         _uiState.value = DebridSeeAllUiState.Content(currentItems.toList(), false)
                     }
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e // never mistake teardown for "no more pages"
             } catch (e: Exception) {
                 if (currentItems.isEmpty()) {
                     _uiState.value = DebridSeeAllUiState.Error(e.message ?: "Unknown error")

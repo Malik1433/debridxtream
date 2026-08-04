@@ -189,6 +189,12 @@ class DebridDiscoverViewModel @Inject constructor(
                         canLoadMore = canLoadMore
                     )
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // A filter change cancels the in-flight page via loadJob.cancel(). Catching
+                // that here used to run AFTER the new load's reset and stamp
+                // canLoadMore=false onto it — freezing the grid at page 1 forever (the
+                // "Discover shows barely any content" bug). Cancellation must propagate.
+                throw e
             } catch (e: Exception) {
                 if (items.isEmpty()) {
                     _uiState.value = DiscoverUiState.Error(e.message ?: "Failed to load content")
