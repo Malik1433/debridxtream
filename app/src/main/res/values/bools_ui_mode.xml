@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M2 (MOBILE_DUAL_MODE_PLAN): layout facts the CODE needs, expressed as resources so the
+  qualifier decides them — no mode plumbing through fragments.
+
+  Default (here) = the TV rail: vertical, on the left.
+  values-port overrides it for the phone bottom bar.
+-->
+<resources>
+    <bool name="home_nav_is_horizontal">false</bool>
+</resources>

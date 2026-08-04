@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Phone (portrait): the nav is a bottom bar, so its list runs horizontally. -->
+<resources>
+    <bool name="home_nav_is_horizontal">true</bool>
+</resources>

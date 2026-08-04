@@ -308,7 +308,13 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupRecyclerViews() {
-        rvSidebar.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
+        // M2: the nav is a left rail on TV and a bottom bar on the phone. The layout
+        // qualifier already picks the geometry; this reads the same decision as a bool so
+        // no mode has to be plumbed through the fragment.
+        val navOrientation =
+            if (resources.getBoolean(R.bool.home_nav_is_horizontal)) LinearLayoutManager.HORIZONTAL
+            else LinearLayoutManager.VERTICAL
+        rvSidebar.layoutManager = LinearLayoutManager(context, navOrientation, false)
         rvContinueWatching.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
         rvRecentLive.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
         
