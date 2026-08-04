@@ -35,7 +35,12 @@ class ActivationActivity : AppCompatActivity() {
         val retry = findViewById<Button>(R.id.btn_activation_retry)
 
         codeTv.text = manager.activationCode
-        deviceTv.text = "Device ID: ${manager.installId.take(8)}"
+        // The code above is the ONLY thing a provider can look a device up by. This line used
+        // to print installId.take(8) — a fragment that matches nothing, which sent people off
+        // to activate with a string no lookup accepts. Show the full id, labelled as support
+        // detail, so it can be read out when someone genuinely needs it (and never mistaken
+        // for the code).
+        deviceTv.text = "Support ID: ${manager.installId}"
 
         retry.setOnClickListener {
             statusTv.text = "Checking…"
@@ -52,7 +57,14 @@ class ActivationActivity : AppCompatActivity() {
                     is LicenseState.Active -> goToApp()
                     is LicenseState.Loading -> statusTv.text = "Checking…"
                     is LicenseState.Locked -> when (state.reason) {
-                        LicenseState.Reason.PENDING -> {
+                        // Until the licence doc reaches the server the provider's lookup by
+                        // code returns "no device found", so asking the customer to go and
+                        // activate would send them into exactly that wall. Say what is
+                        // actually happening instead; this clears itself in a second or two.
+                        LicenseState.Reason.PENDING -> if (!manager.isRegisteredOnServer) {
+                            titleTv.text = "Registering this device…"
+                            statusTv.text = "Give it a moment, then share the code with your provider"
+                        } else {
                             titleTv.text = "Share this code with your provider"
                             statusTv.text = "Waiting for activation…"
                         }

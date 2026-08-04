@@ -72,6 +72,13 @@ class LicenseManager private constructor(context: Context) {
     /** Human-readable code the user reads out to the admin (XXXX-XXXX). */
     val activationCode: String = deriveActivationCode(installId)
 
+    /**
+     * True once this device's licence doc is confirmed ON THE SERVER — i.e. the provider
+     * can actually find it by [activationCode]. Until then the activation screen must not
+     * tell the customer to go and get activated, because the lookup will fail.
+     */
+    val isRegisteredOnServer: Boolean get() = cache.docCreated
+
     private val _state = MutableStateFlow(cachedState())
     val state: StateFlow<LicenseState> = _state.asStateFlow()
 
@@ -238,7 +245,16 @@ class LicenseManager private constructor(context: Context) {
                         "createdAt" to FieldValue.serverTimestamp(),
                         "lastSeenAt" to FieldValue.serverTimestamp()
                     )
-                ).addOnFailureListener { Log.w(TAG, "license doc create failed", it) }
+                )
+                    // docCreated is what the activation screen reads to tell the customer
+                    // whether this device is findable by their provider yet, so it may only
+                    // flip once the SERVER has the doc. Setting it when the write was merely
+                    // queued told people to go and activate a device nobody could look up.
+                    .addOnSuccessListener {
+                        cache.docCreated = true
+                        _state.value = cachedState()
+                    }
+                    .addOnFailureListener { Log.w(TAG, "license doc create failed", it) }
             } else {
                 docRef.set(
                     mapOf(
@@ -249,8 +265,10 @@ class LicenseManager private constructor(context: Context) {
                     ),
                     SetOptions.merge()
                 )
+                // The doc was already on the server, so it is findable right now.
+                cache.docCreated = true
+                _state.value = cachedState()
             }
-            cache.docCreated = true
         }.addOnFailureListener { Log.w(TAG, "license doc get failed", it) }
     }
 

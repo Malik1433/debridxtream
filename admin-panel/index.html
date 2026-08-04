@@ -315,7 +315,7 @@ function renderDevices(){
       <td class="code" title="${d.id}">${d.activationCode||d.id.slice(0,8)}</td>
       <td>${statusChip}</td>
       <td><span class="chip ${tier}">${tier.toUpperCase()}</span></td>
-      <td>${d.expiresAt ? new Date(d.expiresAt).toLocaleDateString() : '—'}</td>
+      <td>${Number.isFinite(d.expiresAt) && d.expiresAt > 0 ? new Date(d.expiresAt).toLocaleDateString() : '—'}</td>
       <td class="muted">${fmtTime(d.lastSeenAt)}</td>
       <td class="muted">${d.appVersionName||'—'}</td>
       <td></td><td></td>`;
@@ -333,8 +333,21 @@ function renderDevices(){
     b2.textContent = tier==='premium' ? '→ Normal' : '→ Premium';
     b2.onclick=()=>upd(d.id,{tier: tier==='premium'?'normal':'premium'},'Tier changed');
     const b3=document.createElement('button'); b3.className='ghost'; b3.textContent='Expiry';
-    b3.onclick=()=>{ const v=prompt('Expiry date (YYYY-MM-DD), empty = no expiry', d.expiresAt?new Date(d.expiresAt).toISOString().slice(0,10):'');
-      if (v===null) return; upd(d.id,{expiresAt: v.trim()? new Date(v.trim()+'T23:59:59').getTime() : 0},'Expiry saved'); };
+    b3.onclick=()=>{
+      // Only render a prefill when the stored value is a real date. A doc that already
+      // holds NaN (see below) would otherwise throw inside toISOString and eat the click.
+      const cur = Number.isFinite(d.expiresAt) && d.expiresAt > 0
+        ? new Date(d.expiresAt).toISOString().slice(0,10) : '';
+      const v=prompt('Expiry date (YYYY-MM-DD), empty = no expiry', cur);
+      if (v===null) return;
+      const raw = v.trim();
+      if (!raw) { upd(d.id,{expiresAt: 0},'Expiry cleared'); return; }
+      // VALIDATE before writing. `new Date('11-08-2026').getTime()` is NaN, and a NaN
+      // written here reads back as "no expiry" on both the panel and the app — so a device
+      // the owner meant to time-limit silently became unlimited. Refuse instead.
+      const ms = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(raw+'T23:59:59').getTime() : NaN;
+      if (!Number.isFinite(ms)) { toast('Use the format YYYY-MM-DD, e.g. 2026-08-11'); return; }
+      upd(d.id,{expiresAt: ms},'Expiry saved'); };
     // Permanent companion config link — the client can open this anytime on their
     // phone to update the TV's Xtream/addon settings (same device key).
     const b5=document.createElement('button'); b5.className='ghost'; b5.textContent='Link';
