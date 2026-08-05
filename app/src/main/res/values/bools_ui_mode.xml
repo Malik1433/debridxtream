@@ -10,4 +10,17 @@
     <bool name="home_nav_is_horizontal">false</bool>
     <!-- M3: browse category list — a left rail on TV, a top chip rail on the phone. -->
     <bool name="browse_categories_are_horizontal">false</bool>
+    <!--
+      M5: the play circle on a source row. On TV it is a FOCUS affordance — it appears on
+      the focused row and marks where CENTER will act. A touch device has no focused row,
+      so the same rule would hide it forever; there it is a permanent tap affordance.
+    -->
+    <bool name="source_row_play_always_visible">false</bool>
+    <!--
+      M5: tapping the dimmed area behind a sheet closes it. TV leaves this off on purpose —
+      there is nothing to tap, and attaching a click listener would make the backdrop
+      clickable, which lets it into the D-pad focus order and adds a dead stop to the
+      ladder. BACK already closes the panel there.
+    -->
+    <bool name="dismiss_on_backdrop_tap">false</bool>
 </resources>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M5: SourcePanelAnimation, overridden for the phone.
+
+  The sheet's window animation is set in code (SourceSelectionBottomSheet.onStart), so the
+  direction cannot come from the layout — but the STYLE can be qualified. On TV the panel
+  slides in from the right edge it occupies; in portrait it is a bottom sheet, and a
+  right-edge slide reads as the wrong surface arriving.
+-->
+<resources>
+    <style name="SourcePanelAnimation">
+        <item name="android:windowEnterAnimation">@anim/panel_slide_in_bottom</item>
+        <item name="android:windowExitAnimation">@anim/panel_slide_out_bottom</item>
+    </style>
+</resources>

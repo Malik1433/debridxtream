@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M5 (MOBILE_DUAL_MODE_PLAN): the source picker on the PHONE.
+
+  All 18 ids at their landscape KINDS and default visibilities — including
+  `barrier_header_left`, a ConstraintLayout Barrier, so `layout_header_container` stays a
+  ConstraintLayout here too. `chip_lang_priority` starts `gone`; the sheet reveals it only
+  when a language priority is set. `tv_source_count` starts visible (the sheet hides it
+  while searching and shows it again with the result), and `progress_bar`/`tv_status`
+  start visible because the sheet opens straight into "Searching for sources…".
+
+  Roles, which are easy to get backwards: `tv_header_title` is the static SELECT SOURCE
+  eyebrow (never touched by code); `tv_dialog_title` is the film name the sheet sets.
+
+  Shape: the TV's 410dp right-hand panel becomes a bottom sheet filling everything below a
+  100dp peek — a source list is long and every row is a tap target, so it takes the height.
+  The three filter chips move into a horizontal scroller; at 411dp they no longer fit a
+  fixed row once the labels grow ("Language: Hindi").
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#99000000">
+
+    <View
+        android:id="@+id/v_backdrop_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/transparent" />
+
+    <LinearLayout
+        android:id="@+id/panel_sources"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="bottom"
+        android:layout_marginTop="100dp"
+        android:background="#0E0D15"
+        android:orientation="vertical">
+
+        <View
+            android:layout_width="44dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="10dp"
+            android:background="#33FFFFFF" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_header_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#0E0D15"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="12dp">
+
+            <TextView
+                android:id="@+id/tv_header_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="0.10"
+                android:text="SELECT SOURCE"
+                android:textColor="@color/neon_cyan"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_dialog_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="@color/source_text_primary"
+                android:textSize="19sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_header_title"
+                tools:text="Dune: Part Two (2024)" />
+
+            <TextView
+                android:id="@+id/tv_source_count"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="7dp"
+                android:layout_marginEnd="8dp"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.04"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp"
+                app:layout_constrainedWidth="true"
+                app:layout_constraintEnd_toStartOf="@id/chip_lang_priority"
+                app:layout_constraintHorizontal_bias="0"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_dialog_title"
+                tools:text="9 sources found · 6 cached" />
+
+            <LinearLayout
+                android:id="@+id/chip_lang_priority"
+                android:layout_width="wrap_content"
+                android:layout_height="24dp"
+                android:background="@drawable/cin_lang_priority_chip"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="9dp"
+                android:paddingEnd="9dp"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="@id/tv_source_count"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/tv_source_count"
+                tools:visibility="visible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="🌐"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/tv_lang_priority"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.08"
+                    android:textColor="@color/neon_cyan"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    tools:text="DE+HI PRIORITY" />
+            </LinearLayout>
+
+            <androidx.constraintlayout.widget.Barrier
+                android:id="@+id/barrier_header_left"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:barrierDirection="end"
+                app:constraint_referenced_ids="tv_header_title,tv_source_count" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <FrameLayout
+            android:id="@+id/filter_bar_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#0E0D15">
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipToPadding="false"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/layout_source_filters"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingBottom="12dp">
+
+                    <TextView
+                        android:id="@+id/chip_quality"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:layout_marginEnd="8dp"
+                        android:background="@drawable/cin_detail_btn_glass"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp"
+                        android:text="Quality: All"
+                        android:textColor="@color/source_text_secondary"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/chip_language"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:layout_marginEnd="8dp"
+                        android:background="@drawable/cin_detail_btn_glass"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp"
+                        android:text="Language: All"
+                        android:textColor="@color/source_text_secondary"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/chip_type"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:background="@drawable/cin_detail_btn_glass"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp"
+                        android:text="Type: All"
+                        android:textColor="@color/source_text_secondary"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </HorizontalScrollView>
+        </FrameLayout>
+
+        <View
+            android:id="@+id/v_filter_divider"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#1AFFFFFF" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_sources"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:overScrollMode="never"
+                android:paddingTop="6dp"
+                android:paddingBottom="16dp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
+
+                <ProgressBar
+                    android:id="@+id/progress_bar"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:indeterminateTint="@color/neon_cyan" />
+
+                <TextView
+                    android:id="@+id/tv_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:textColor="@color/text_muted"
+                    android:textSize="13sp"
+                    tools:text="Searching for sources..." />
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+</FrameLayout>

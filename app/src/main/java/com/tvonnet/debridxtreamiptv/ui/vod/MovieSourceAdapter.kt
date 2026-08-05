@@ -169,13 +169,17 @@ class MovieSourceAdapter(
 
         // Focus management
         private fun bindFocusHandling(source: MovieSource, isBestItem: Boolean) {
+            // M5: on TV the play circle marks the FOCUSED row, so it rides focus. A touch
+            // device never focuses a row, and the same rule would hide it forever — there
+            // it is a standing tap affordance instead.
+            val alwaysShown = binding.root.resources.getBoolean(R.bool.source_row_play_always_visible)
+
             FocusGlintHelper.updateListener(binding.root) { _, hasFocus ->
                 val stillSelected = source.stream.stream_id == selectedStreamId
                 binding.root.isSelected = stillSelected
 
                 // Best row keeps its badge instead of the play circle.
-                binding.ivPlay.isVisible = hasFocus && !isBestItem
-                binding.ivPlay.alpha = if (hasFocus) 1.0f else 0.0f
+                showPlayAffordance(hasFocus || alwaysShown, isBestItem)
 
                 if (hasFocus) {
                     onSourceFocused(source)
@@ -186,11 +190,15 @@ class MovieSourceAdapter(
 
             if (binding.root.isFocused) {
                 FocusGlintHelper.attach(binding.root)
-                binding.ivPlay.isVisible = !isBestItem
-                binding.ivPlay.alpha = 1.0f
+                showPlayAffordance(shown = true, isBestItem = isBestItem)
             } else {
-                binding.ivPlay.isVisible = false
+                showPlayAffordance(shown = alwaysShown, isBestItem = isBestItem)
             }
+        }
+
+        private fun showPlayAffordance(shown: Boolean, isBestItem: Boolean) {
+            binding.ivPlay.isVisible = shown && !isBestItem
+            binding.ivPlay.alpha = if (shown) 1.0f else 0.0f
         }
 
         // CENTER plays; UP/DOWN move row-by-row with an explicit scroll+focus (a plain focus

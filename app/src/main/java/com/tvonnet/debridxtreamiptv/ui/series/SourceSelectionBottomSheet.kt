@@ -108,6 +108,13 @@ class SourceSelectionBottomSheet(
         // Quality/Language/Type chips.
         com.tvonnet.debridxtreamiptv.utils.FocusGlintHelper.markClipBoundary(rvSources)
 
+        // M5: on a touch device the dimmed area above the sheet is a close affordance. Left
+        // off on TV deliberately — a click listener would make the backdrop clickable and so
+        // reachable by D-pad, adding a dead stop to the ladder for no gain.
+        if (resources.getBoolean(R.bool.dismiss_on_backdrop_tap)) {
+            view.findViewById<View>(R.id.v_backdrop_overlay)?.setOnClickListener { dismiss() }
+        }
+
         setupAdapters()
         setupContentInfo()
         updateUi()
