@@ -115,13 +115,15 @@ that feedback round.
 
 ## 6. Findings parked for their own batch
 
-- **M2 follow-up — the bottom bar shows one stretched item, not five tabs.** `item_sidebar_nav`
-  is sized for a vertical rail, so under a horizontal LayoutManager its width fills the list
-  (measured: `rv_sidebar` 796px wide holding a single 796px `nav_container`). Needs a
-  width for the horizontal case — a `values-port` dimen the item reads, same trick as
-  `home_nav_is_horizontal`.
-- **M2 follow-up — the phone status strip renders under the system status bar** (the app's
-  clock overlaps the OS clock). The portrait root needs the top window inset applied.
+- ~~M2 follow-up — the bottom bar shows one stretched item~~ **FIXED in M2b (`4116bd3d`)**:
+  `layout-port/item_sidebar_nav.xml` (64dp column, 22dp icon, label under it) + the adapter's
+  `applyIdleState` no longer force-hides `tv_title` when `home_nav_is_horizontal`. Six labelled
+  cells measured on device.
+- ~~M2 follow-up — the phone status strip renders under the system status bar~~ **FIXED in M2b**
+  via `fitsSystemWindows` on the portrait home root.
+- **M2c (open) — the TV focus/quick-info bubble appears on the phone.** The poster that holds
+  focus pops the "title / MOVIE" bubble over the rail header even under touch, where nothing
+  is focused by intent. It should be suppressed in mobile mode.
 - **QA trap that cost a cycle (2026-08-05):** an "APK is fresh" watcher keyed on
   `mtime > <epoch>` fired on the PREVIOUS build because that build's timestamp was inside the
   same minute, so M2 was installed and "verified" as the old APK on both devices — the phone
