@@ -121,8 +121,12 @@ class SidebarAdapter(
             ivIcon.setColorFilter(idleColor(isSelected))
             viewSelectionIndicator.visibility =
                 if (isSelected && !itemView.hasFocus()) View.VISIBLE else View.INVISIBLE
-            tvTitle.alpha = 0f
-            tvTitle.visibility = View.GONE
+            // M2b: on TV the label lives in the shared nav_flyout, which appears on FOCUS —
+            // so the in-item title is hidden there. A touch bar has no focus to hang a
+            // flyout on, so on the phone the label stays under the icon.
+            val labelInItem = itemView.resources.getBoolean(R.bool.home_nav_is_horizontal)
+            tvTitle.alpha = if (labelInItem) 1f else 0f
+            tvTitle.visibility = if (labelInItem) View.VISIBLE else View.GONE
         }
 
         private fun idleColor(isSelected: Boolean): Int =
