@@ -34,14 +34,20 @@
             android:fontFamily="sans-serif-condensed"
             android:layout_marginBottom="28dp" />
 
-        <!-- The activation code the user reads out -->
+        <!--
+            The activation code the user reads out. It MUST stay on one line: at 56sp it does
+            not fit a phone's width and wrapped as "BFKN-S / BBE", which a customer reading it
+            out to their provider can easily get wrong. The size is a qualified dimen (smaller
+            in values-port) and maxLines=1 makes a wrap impossible; TV keeps 56sp exactly.
+        -->
         <TextView
             android:id="@+id/tv_activation_code"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:maxLines="1"
             android:text="----&#8211;----"
             android:textColor="#FFFFFF"
-            android:textSize="56sp"
+            android:textSize="@dimen/activation_code_text_size"
             android:textStyle="bold"
             android:fontFamily="monospace"
             android:letterSpacing="0.12"

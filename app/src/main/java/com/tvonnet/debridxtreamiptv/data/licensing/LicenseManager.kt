@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.MetadataChanges
 import com.google.firebase.firestore.SetOptions
 import com.tvonnet.debridxtreamiptv.BuildConfig
 import com.tvonnet.debridxtreamiptv.data.prefs.IdentityPreferences
@@ -84,6 +85,19 @@ class LicenseManager private constructor(context: Context) {
 
     private var listener: ListenerRegistration? = null
     private var configListener: ListenerRegistration? = null
+
+    /** Single-shot guard for [recoverMissingRegistration] — see the note there. */
+    private var registrationRecoveryAttempted: Boolean = false
+
+    /**
+     * True while [registerOrTouchLicenseDoc] has a round-trip outstanding. `start()` fires that
+     * registration and attaches the listener straight after, so the listener can deliver a
+     * server "doc does not exist" while the create is still in flight. Recovering on that would
+     * issue a SECOND full `set()` against a doc the first one just created — and a full set on
+     * an existing doc is an update, which the rules reject (they allow only telemetry keys).
+     */
+    @Volatile
+    private var registrationInFlight: Boolean = false
 
     /**
      * Instant, cache-based decision for the launch gate. Fail-open: when global
@@ -195,10 +209,18 @@ class LicenseManager private constructor(context: Context) {
         val docRef = db.collection(COLLECTION).document(installId)
         registerOrTouchLicenseDoc(docRef)
 
-        listener = docRef.addSnapshotListener { snapshot, e ->
+        // METADATA changes included on purpose. A device whose first registration failed has no
+        // doc, and a doc that did not exist and still does not exist never CHANGES — so a default
+        // listener is never called again and the "we are back online" moment is invisible. What
+        // does change is the snapshot's metadata: `isFromCache` flips to false the instant the
+        // listener syncs with the server. That flip is the signal both the recovery below and
+        // `lastVerifiedAt` actually need. (Measured: without this the device stayed unregistered
+        // two minutes after the network returned.)
+        listener = docRef.addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, e ->
             if (e != null) { Log.w(TAG, "license listen error", e); return@addSnapshotListener }
             if (snapshot != null && !snapshot.exists()) {
-                onLicenseDocDeleted()
+                if (needsFirstRegistration(snapshot)) recoverMissingRegistration(docRef)
+                else onLicenseDocDeleted()
                 return@addSnapshotListener
             }
             // ONLY a real server round-trip counts as "we reached the licence server". Firestore
@@ -230,6 +252,7 @@ class LicenseManager private constructor(context: Context) {
     // Create the doc as `pending` ONLY if it doesn't exist yet — never overwrite an
     // admin-set status. If it exists, only touch telemetry fields (merge).
     private fun registerOrTouchLicenseDoc(docRef: com.google.firebase.firestore.DocumentReference) {
+        registrationInFlight = true
         docRef.get().addOnSuccessListener { snap ->
             if (snap == null || !snap.exists()) {
                 docRef.set(
@@ -251,10 +274,14 @@ class LicenseManager private constructor(context: Context) {
                     // flip once the SERVER has the doc. Setting it when the write was merely
                     // queued told people to go and activate a device nobody could look up.
                     .addOnSuccessListener {
+                        registrationInFlight = false
                         cache.docCreated = true
                         _state.value = cachedState()
                     }
-                    .addOnFailureListener { Log.w(TAG, "license doc create failed", it) }
+                    .addOnFailureListener {
+                        registrationInFlight = false
+                        Log.w(TAG, "license doc create failed", it)
+                    }
             } else {
                 docRef.set(
                     mapOf(
@@ -266,10 +293,41 @@ class LicenseManager private constructor(context: Context) {
                     SetOptions.merge()
                 )
                 // The doc was already on the server, so it is findable right now.
+                registrationInFlight = false
                 cache.docCreated = true
                 _state.value = cachedState()
             }
-        }.addOnFailureListener { Log.w(TAG, "license doc get failed", it) }
+        }.addOnFailureListener {
+            registrationInFlight = false
+            Log.w(TAG, "license doc get failed", it)
+        }
+    }
+
+    /**
+     * A server-confirmed "this doc does not exist" for a device that has NEVER been on the
+     * server is not a revocation — it is a registration that never landed. `start()` creates
+     * the doc behind a single `get()`, and if that `get()` fails (the phone hasn't finished
+     * joining the network on a cold start, DNS is slow, a captive portal is in the way) it
+     * only logs: nothing retries, so the device stays invisible to the provider for the whole
+     * session and the activation code cannot be looked up. Reported from a real phone.
+     *
+     * Both guards matter. `docCreated` and `everEntitled` are what keep an ADMIN DELETE a
+     * revocation: a device that has ever been registered or entitled takes the delete path
+     * and locks, exactly as before. Only a never-seen device is re-registered here.
+     */
+    private fun needsFirstRegistration(snapshot: com.google.firebase.firestore.DocumentSnapshot): Boolean =
+        !snapshot.metadata.isFromCache &&
+            !registrationInFlight &&
+            !registrationRecoveryAttempted &&
+            !cache.docCreated &&
+            !cache.everEntitled
+
+    // Once per process: the create's own failure path only logs, and retrying on every
+    // listener callback would hammer a rejecting server.
+    private fun recoverMissingRegistration(docRef: com.google.firebase.firestore.DocumentReference) {
+        registrationRecoveryAttempted = true
+        Log.w(TAG, "license doc missing on server for an unregistered device — registering now")
+        registerOrTouchLicenseDoc(docRef)
     }
 
     // The admin DELETED this device's license. Under enforcement that is a

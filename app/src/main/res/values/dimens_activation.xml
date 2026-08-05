@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The activation code's type size. Default is the TV size — read from across a room, so it is
+  deliberately huge. values-port brings it down to what actually fits a phone's width on ONE
+  line; a code that wraps mid-token is a code the customer reads out wrong.
+-->
+<resources>
+    <dimen name="activation_code_text_size">56sp</dimen>
+</resources>
