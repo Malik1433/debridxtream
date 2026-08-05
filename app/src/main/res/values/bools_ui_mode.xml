@@ -8,4 +8,6 @@
 -->
 <resources>
     <bool name="home_nav_is_horizontal">false</bool>
+    <!-- M3: browse category list — a left rail on TV, a top chip rail on the phone. -->
+    <bool name="browse_categories_are_horizontal">false</bool>
 </resources>

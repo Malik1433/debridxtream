@@ -246,7 +246,14 @@ class VodFragment : Fragment() {
     }
 
     private fun setupRecyclerViews() {
-        rvCategoriesSidebar.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
+        // M3: a left rail on TV, a top chip rail on the phone. The layout qualifier already
+        // moved the list; this reads the same decision so the axis follows it.
+        rvCategoriesSidebar.layoutManager = LinearLayoutManager(
+            context,
+            if (resources.getBoolean(R.bool.browse_categories_are_horizontal)) LinearLayoutManager.HORIZONTAL
+            else LinearLayoutManager.VERTICAL,
+            false
+        )
 
         val gridLayoutManager = GridLayoutManager(context, gridColumnCount)
         gridLayoutManager.initialPrefetchItemCount = 10
