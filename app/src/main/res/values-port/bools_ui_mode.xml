@@ -5,4 +5,5 @@
     <bool name="browse_categories_are_horizontal">true</bool>
     <bool name="source_row_play_always_visible">true</bool>
     <bool name="dismiss_on_backdrop_tap">true</bool>
+    <bool name="live_defaults_to_classic">true</bool>
 </resources>

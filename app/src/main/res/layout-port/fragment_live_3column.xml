@@ -1,0 +1,649 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M7 (MOBILE_DUAL_MODE_PLAN): Live TV on the PHONE.
+
+  Why this file exists at all: touch on Live was reported as "not working", and the code was
+  never the problem — a channel tap already fires LiveEvent.PlayChannel, the fullscreen button
+  already has a click listener, and a long-press already toggles a favourite. What failed was
+  the SHAPE. The landscape file is three side-by-side columns; squeezed into 411dp they
+  collapse to slivers, so there was nothing big enough to hit.
+
+  So this is the list-first pattern the plan calls for, stacked instead of columned:
+
+      search + clock
+      category chips (already a horizontal strip in code — no LayoutManager change)
+      16:9 preview with its now/next, progress and actions underneath
+      NOW ON <category>            (n channels)
+      the channel list, taking every remaining pixel
+
+  All 42 ids are present at their landscape KIND and their landscape DEFAULT VISIBILITY —
+  this fragment toggles most of them, so a drifted default either shows chrome it never
+  fills or hides a view it never turns on. `et_channel_search`, `ll_loading_state`,
+  `tv_empty_state`, `tv_quick_jump`, `preview_loading_container`, `tv_preview_description`,
+  `livev2_rail_scrim` and `live_fullscreen_bridge_cover` all start hidden, exactly as on TV.
+
+  The nav rail stays an <include> with NO id — an id on <include> replaces the included root's
+  own id, which would hide @id/livev2_rail from findViewById and silently no-op the expand
+  animation (that comment is in the landscape file; it applies here verbatim). It is also the
+  only navigation this screen has on a phone — the bottom bar lives in the home fragment, so
+  browse screens carry none. The content is inset past it rather than hidden behind it.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/livev2_screen_bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginStart="58dp"
+        android:orientation="vertical">
+
+        <!-- ── Header: live dot, search pill, clock ─────────────────────────── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:paddingStart="4dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="8dp">
+
+            <View
+                android:id="@+id/livev2_live_dot"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/livev2_live_dot" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="@font/outfit_extrabold"
+                android:letterSpacing="0.04"
+                android:maxLines="1"
+                android:text="@string/livev2_title"
+                android:textColor="@color/stremio_text_primary"
+                android:textSize="17sp" />
+
+            <LinearLayout
+                android:id="@+id/chip_search"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/livev2_search_pill_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <ImageView
+                    android:id="@+id/iv_search_icon"
+                    android:layout_width="15dp"
+                    android:layout_height="15dp"
+                    android:src="@drawable/ic_search"
+                    app:tint="@color/stremio_text_muted" />
+
+                <TextView
+                    android:id="@+id/tv_search_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="7dp"
+                    android:fontFamily="@font/inter"
+                    android:text="@string/livev2_search_label"
+                    android:textColor="@color/stremio_text_muted"
+                    android:textSize="13sp" />
+
+                <EditText
+                    android:id="@+id/et_channel_search"
+                    android:layout_width="150dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="7dp"
+                    android:background="@null"
+                    android:fontFamily="@font/inter"
+                    android:hint="@string/livev2_search_hint"
+                    android:imeOptions="actionSearch"
+                    android:inputType="text"
+                    android:maxLines="1"
+                    android:textColor="@color/stremio_text_primary"
+                    android:textColorHint="@color/stremio_text_faint"
+                    android:textSize="14sp"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_header_clock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:fontFamily="@font/share_tech_mono"
+                android:textColor="@color/stremio_text_secondary"
+                android:textSize="13sp"
+                tools:text="21:40" />
+        </LinearLayout>
+
+        <!-- ── Category chips (code already gives this a HORIZONTAL manager) ── -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_category_chips"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipToPadding="false"
+            android:overScrollMode="never"
+            android:paddingStart="4dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="10dp" />
+
+        <!-- ── Preview: 16:9 video, then its own info and actions ───────────── -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/preview_panel_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="14dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/livev2_preview_frame">
+
+            <FrameLayout
+                android:id="@+id/preview_video_container"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                app:layout_constraintDimensionRatio="16:9"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <!-- Attributes copied from the landscape file deliberately: surface_type and
+                     resize_mode are not cosmetic here, the fullscreen hand-off depends on them. -->
+                <androidx.media3.ui.PlayerView
+                    android:id="@+id/preview_player_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    app:resize_mode="zoom"
+                    app:show_buffering="when_playing"
+                    app:surface_type="texture_view"
+                    app:use_controller="false" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="64dp"
+                    android:layout_gravity="bottom"
+                    android:background="@drawable/livev2_lower_third_scrim" />
+
+                <LinearLayout
+                    android:id="@+id/badge_live"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top|start"
+                    android:layout_margin="10dp"
+                    android:background="@drawable/bg_live_badge_live"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp">
+
+                    <View
+                        android:id="@+id/livev2_badge_dot"
+                        android:layout_width="4dp"
+                        android:layout_height="4dp"
+                        android:layout_marginEnd="5dp"
+                        android:background="@drawable/livev2_badge_dot_white" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/outfit_bold"
+                        android:letterSpacing="0.08"
+                        android:text="@string/livev2_live_badge"
+                        android:textColor="@color/white"
+                        android:textSize="9sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/badge_quality"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="10dp"
+                    android:background="@drawable/bg_live_badge_quality_hd"
+                    android:fontFamily="@font/outfit_bold"
+                    android:paddingStart="7dp"
+                    android:paddingEnd="7dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp"
+                    android:textColor="@color/white"
+                    android:textSize="9sp"
+                    tools:text="HD" />
+
+                <FrameLayout
+                    android:id="@+id/preview_loading_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="#CC04070C"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <ProgressBar
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:layout_gravity="center"
+                        android:indeterminateTint="@color/stremio_cyan" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="46dp"
+                        android:fontFamily="@font/inter"
+                        android:text="@string/live_preview_loading_state"
+                        android:textColor="@color/stremio_text_muted"
+                        android:textSize="12sp" />
+                </FrameLayout>
+            </FrameLayout>
+
+            <!-- Now playing, its progress, and the description the fragment may reveal -->
+            <LinearLayout
+                android:id="@+id/preview_info_container"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="10dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/preview_video_container">
+
+                <TextView
+                    android:id="@+id/tv_preview_now_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/share_tech_mono"
+                    android:letterSpacing="0.14"
+                    android:text="@string/live_preview_label_now"
+                    android:textColor="@color/stremio_cyan"
+                    android:textSize="10sp" />
+
+                <TextView
+                    android:id="@+id/tv_preview_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/outfit_semibold"
+                    android:maxLines="2"
+                    android:textColor="@color/stremio_text_primary"
+                    android:textSize="16sp"
+                    tools:text="Match of the Day: Highlights" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="7dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/tv_current_time_preview"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:textColor="@color/stremio_text_secondary"
+                        android:textSize="11sp"
+                        tools:text="21:00" />
+
+                    <ProgressBar
+                        android:id="@+id/preview_progress_bar"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="0dp"
+                        android:layout_height="3dp"
+                        android:layout_marginStart="9dp"
+                        android:layout_marginEnd="9dp"
+                        android:layout_weight="1"
+                        android:progressDrawable="@drawable/livev2_progress_cyan"
+                        tools:progress="45" />
+
+                    <TextView
+                        android:id="@+id/tv_total_time_preview"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:textColor="@color/stremio_text_secondary"
+                        android:textSize="11sp"
+                        tools:text="22:00" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_preview_description"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="7dp"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/inter"
+                    android:maxLines="3"
+                    android:textColor="@color/stremio_text_muted"
+                    android:textSize="12sp"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+            </LinearLayout>
+
+            <!-- Actions: next-up, WATCH, favourite — all at finger height -->
+            <LinearLayout
+                android:id="@+id/livev2_actions"
+                android:layout_width="0dp"
+                android:layout_height="46dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/preview_info_container">
+
+                <LinearLayout
+                    android:id="@+id/livev2_next_bar"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/livev2_next_bar_bg"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp">
+
+                    <TextView
+                        android:id="@+id/tv_next_time"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:text="@string/livev2_next_up"
+                        android:textColor="@color/stremio_text_faint"
+                        android:textSize="10sp" />
+
+                    <TextView
+                        android:id="@+id/btn_epg_next"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="7dp"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/inter"
+                        android:maxLines="1"
+                        android:textColor="@color/stremio_text_secondary"
+                        android:textSize="12sp"
+                        tools:text="The Ten O'Clock News" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/btn_fullscreen"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/livev2_watch_btn_bg"
+                    android:clickable="true"
+                    android:contentDescription="@string/live_preview_fullscreen"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp">
+
+                    <ImageView
+                        android:layout_width="13dp"
+                        android:layout_height="13dp"
+                        android:src="@drawable/ic_play"
+                        app:tint="@color/white" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:fontFamily="@font/outfit_bold"
+                        android:letterSpacing="0.06"
+                        android:text="@string/livev2_watch"
+                        android:textColor="@color/white"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <FrameLayout
+                    android:id="@+id/btn_favorite"
+                    android:layout_width="46dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/livev2_fav_btn_bg"
+                    android:clickable="true"
+                    android:contentDescription="@string/livev2_favorite_toggle_description"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:id="@+id/iv_favorite_icon"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_live_star"
+                        app:tint="@color/stremio_text_muted" />
+                </FrameLayout>
+            </LinearLayout>
+
+            <!-- Programme guide strip for the previewed channel -->
+            <LinearLayout
+                android:id="@+id/livev2_guide_header"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/livev2_actions">
+
+                <View
+                    android:layout_width="2dp"
+                    android:layout_height="12dp"
+                    android:layout_marginEnd="7dp"
+                    android:background="@drawable/livev2_accent_bar" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/outfit_bold"
+                    android:letterSpacing="0.10"
+                    android:text="@string/livev2_program_guide"
+                    android:textColor="@color/stremio_text_primary"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/tv_epg_strip_subtitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/inter"
+                    android:gravity="end"
+                    android:layout_weight="1"
+                    android:maxLines="1"
+                    android:textColor="@color/stremio_text_faint"
+                    android:textSize="10sp"
+                    tools:text="Tonight" />
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_epg_strip"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="10dp"
+                android:clipToPadding="false"
+                android:overScrollMode="never"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/livev2_guide_header" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- ── Channel list header ──────────────────────────────────────────── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="4dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="6dp">
+
+            <TextView
+                android:id="@+id/tv_category_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="@font/outfit_bold"
+                android:letterSpacing="0.06"
+                android:maxLines="1"
+                android:textColor="@color/stremio_text_primary"
+                android:textSize="13sp"
+                tools:text="SPORTS" />
+
+            <TextView
+                android:id="@+id/tv_channel_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/livev2_count_pill"
+                android:fontFamily="@font/share_tech_mono"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textColor="@color/stremio_text_muted"
+                android:textSize="10sp"
+                tools:text="128" />
+        </LinearLayout>
+
+        <!-- ── The channel list: every remaining pixel ──────────────────────── -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_channels_horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:overScrollMode="never"
+                android:paddingEnd="14dp"
+                android:paddingBottom="14dp" />
+
+            <LinearLayout
+                android:id="@+id/ll_loading_state"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <ProgressBar
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:indeterminateTint="@color/stremio_cyan" />
+
+                <TextView
+                    android:id="@+id/tv_loading_message"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:fontFamily="@font/inter"
+                    android:text="@string/live_loading_channels"
+                    android:textColor="@color/stremio_text_muted"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_empty_state"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:fontFamily="@font/inter"
+                android:gravity="center"
+                android:text="@string/live_no_channels"
+                android:textColor="@color/stremio_text_muted"
+                android:textSize="13sp"
+                android:visibility="gone"
+                tools:visibility="visible" />
+
+            <TextView
+                android:id="@+id/tv_quick_jump"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:background="@drawable/livev2_count_pill"
+                android:fontFamily="@font/share_tech_mono"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
+                android:textColor="@color/stremio_text_primary"
+                android:textSize="22sp"
+                android:visibility="gone"
+                tools:text="24"
+                tools:visibility="visible" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <View
+        android:id="@+id/livev2_rail_scrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0"
+        android:background="#A604070C"
+        android:visibility="gone" />
+
+    <!-- No android:id here on purpose — see the header note. -->
+    <include
+        layout="@layout/view_livev2_nav_rail"
+        android:layout_width="44dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:layout_marginStart="6dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="10dp" />
+
+    <FrameLayout
+        android:id="@+id/live_fullscreen_bridge"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.media3.ui.PlayerView
+            android:id="@+id/live_fullscreen_bridge_player"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:focusable="false"
+            app:keep_content_on_player_reset="true"
+            app:resize_mode="zoom"
+            app:shutter_background_color="@android:color/transparent"
+            app:surface_type="texture_view"
+            app:use_controller="false" />
+
+        <ImageView
+            android:id="@+id/live_fullscreen_bridge_cover"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
+    </FrameLayout>
+</FrameLayout>

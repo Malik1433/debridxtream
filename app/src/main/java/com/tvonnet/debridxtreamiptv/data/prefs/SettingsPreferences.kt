@@ -2,6 +2,7 @@ package com.tvonnet.debridxtreamiptv.data.prefs
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.tvonnet.debridxtreamiptv.R
 
 class SettingsPreferences(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -110,8 +111,21 @@ class SettingsPreferences(private val context: Context) {
     }
 
     // ── Live TV layout (Classic 3-column vs new EPG Guide) ───────────────
+    /**
+     * M7: only the DEFAULT is configuration-dependent — an explicit choice always wins.
+     *
+     * The EPG guide is a multi-day timeline GRID: it needs width, and on a 411dp phone there
+     * is none, which is why Live read as "touch doesn't work" there. The classic screen is a
+     * channel LIST with a preview above it — the shape a phone actually wants — so that is the
+     * default in portrait. TV is untouched: `values` still says guide.
+     */
     fun getLiveTvStyle(): String {
-        return prefs.getString(KEY_LIVE_TV_STYLE, STYLE_GUIDE) ?: STYLE_GUIDE
+        val fallback = if (context.resources.getBoolean(R.bool.live_defaults_to_classic)) {
+            STYLE_CLASSIC
+        } else {
+            STYLE_GUIDE
+        }
+        return prefs.getString(KEY_LIVE_TV_STYLE, fallback) ?: fallback
     }
 
     fun saveLiveTvStyle(style: String) {

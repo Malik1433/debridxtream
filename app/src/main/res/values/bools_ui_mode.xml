@@ -23,4 +23,11 @@
       ladder. BACK already closes the panel there.
     -->
     <bool name="dismiss_on_backdrop_tap">false</bool>
+    <!--
+      M7: which Live screen a "live" hop opens WHEN THE USER HAS NOT CHOSEN. The EPG guide is a
+      multi-day timeline grid and needs width; the classic screen is a channel list with a
+      preview above it. TV keeps the guide, a phone gets the list. An explicit choice in
+      Settings still wins on both.
+    -->
+    <bool name="live_defaults_to_classic">false</bool>
 </resources>
