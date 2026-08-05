@@ -8,6 +8,6 @@
     android:textColor="#FFFFFFFF"
     android:background="@drawable/tv_menu_item_bg"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:layout_marginEnd="8dp" />
 

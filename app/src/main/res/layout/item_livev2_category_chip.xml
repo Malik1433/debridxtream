@@ -10,7 +10,7 @@
     android:background="@drawable/livev2_chip_bg"
     android:clickable="true"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingStart="13dp"

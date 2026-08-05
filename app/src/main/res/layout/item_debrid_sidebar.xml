@@ -9,7 +9,7 @@
     android:paddingStart="0dp"
     android:paddingEnd="0dp"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:clickable="true"
     android:clipChildren="false"
     android:clipToPadding="false">

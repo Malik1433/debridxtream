@@ -10,7 +10,7 @@
     android:paddingEnd="18dp"
     android:layout_marginBottom="3dp"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:clickable="true">
 
     <View

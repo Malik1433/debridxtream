@@ -11,5 +11,5 @@
     android:textSize="13sp"
     android:fontFamily="sans-serif-medium"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:layout_marginEnd="8dp" />

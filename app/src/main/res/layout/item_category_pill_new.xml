@@ -11,7 +11,7 @@
     android:paddingEnd="24dp"
     android:layout_marginEnd="12dp"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:clickable="true"
     android:stateListAnimator="@animator/category_pill_animator"
     android:nextFocusDown="@+id/rv_channels">

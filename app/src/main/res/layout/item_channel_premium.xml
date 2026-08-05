@@ -13,7 +13,7 @@
     android:layout_marginBottom="12dp"
     android:layout_marginHorizontal="8dp"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:clickable="true"
     android:clipChildren="false"
     android:clipToPadding="false">

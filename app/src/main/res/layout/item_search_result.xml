@@ -14,7 +14,7 @@
     android:foreground="@drawable/search_result_focus_highlight"
     android:foregroundGravity="fill"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:outlineProvider="background"
     android:stateListAnimator="@animator/search_result_focus_animator">
 

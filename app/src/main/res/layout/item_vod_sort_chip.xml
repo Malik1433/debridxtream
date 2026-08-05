@@ -12,5 +12,5 @@
     android:fontFamily="monospace"
     android:letterSpacing="0.06"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:layout_marginStart="6dp" />

@@ -7,7 +7,7 @@
     android:layout_height="wrap_content"
     android:padding="8dp"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:clipToPadding="false"
     android:clipChildren="false">
 

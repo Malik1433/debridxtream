@@ -7,7 +7,7 @@
     android:layout_height="wrap_content"
     android:layout_marginBottom="12dp"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     app:cardBackgroundColor="@color/card_background"
     app:cardCornerRadius="8dp"
     app:cardElevation="4dp">

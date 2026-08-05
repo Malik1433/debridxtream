@@ -7,7 +7,7 @@
     android:layout_marginBottom="2dp"
     android:layout_marginHorizontal="8dp"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:background="@drawable/category_sidebar_item_bg"
     android:stateListAnimator="@animator/sidebar_item_animator"
     android:minHeight="48dp">

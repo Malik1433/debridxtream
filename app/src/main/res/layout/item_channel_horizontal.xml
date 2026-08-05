@@ -14,7 +14,7 @@
     android:background="@drawable/livev2_row_bg"
     android:clickable="true"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:stateListAnimator="@null">
 
     <!-- per-channel colour wash, behind everything -->

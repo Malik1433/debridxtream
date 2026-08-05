@@ -30,4 +30,12 @@
       Settings still wins on both.
     -->
     <bool name="live_defaults_to_classic">false</bool>
+    <!--
+      M7b: may a list row take focus FROM A TOUCH? On TV, yes — focus is the whole interaction
+      model. On a phone it is the wrong model outright (the rulebook in CLAUDE.md says one tap
+      acts), and a row that grabs focus on ACTION_DOWN can have its click cancelled when the
+      list scrolls the newly-focused row into view. Rows stay `focusable` in both cases; this
+      only governs focus acquired by touching.
+    -->
+    <bool name="rows_focusable_in_touch_mode">true</bool>
 </resources>

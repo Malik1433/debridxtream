@@ -173,11 +173,23 @@ class PreviewPlayerPanel(
         currentStream = stream
         playbackErrorRetries = 0   // a new channel starts with a full retry budget
 
-        // Get Credentials
+        // Get Credentials. These used to be bare `?: return`s — a preview that could not start
+        // said nothing at all, to the user or to the log, which is exactly what made the phone's
+        // "first tap does nothing" so hard to pin down. Now a miss is at least visible.
         val credentialsPrefs = CredentialsPreferences(context)
-        val serverUrl = credentialsPrefs.getServerUrl() ?: return
-        val username = credentialsPrefs.getUsername() ?: return
-        val password = credentialsPrefs.getPassword() ?: return
+        val serverUrl = credentialsPrefs.getServerUrl()
+        val username = credentialsPrefs.getUsername()
+        val password = credentialsPrefs.getPassword()
+        if (serverUrl == null || username == null || password == null) {
+            android.util.Log.w(
+                "PreviewPlayerPanel",
+                "preview cannot start — missing credentials (server=${serverUrl != null} " +
+                    "user=${username != null} pass=${password != null})"
+            )
+            updatePlaceholder(context.getString(R.string.player_epg_syncing))
+            return
+        }
+        android.util.Log.d("PreviewPlayerPanel", "preview play() building player for id=${stream.stream_id}")
         val streamUrl = streamUrlOverride ?: stream.toLiveStreamUrl(serverUrl, username, password)
         
         val player = previewPlayer ?: buildTunedPreviewPlayer(streamUrl)

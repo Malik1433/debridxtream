@@ -13,7 +13,7 @@
     android:gravity="center_vertical"
     android:paddingHorizontal="16dp"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:clickable="true"
     android:background="@drawable/cin_premium_sidebar_item_bg">
 

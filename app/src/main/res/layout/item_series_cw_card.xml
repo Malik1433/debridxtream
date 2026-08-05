@@ -7,7 +7,7 @@
     android:orientation="vertical"
     android:layout_marginEnd="12dp"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:clickable="true">
 
     <androidx.cardview.widget.CardView

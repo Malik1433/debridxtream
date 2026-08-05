@@ -9,7 +9,7 @@
     android:clipChildren="false"
     android:clipToPadding="false"
     android:focusable="true"
-    android:focusableInTouchMode="true">
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode">
 
     <!-- Cyan bloom behind the card (visible on focus; drawable set in code) -->
     <View

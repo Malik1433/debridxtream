@@ -10,7 +10,7 @@
     android:layout_marginTop="10dp"
     android:layout_marginBottom="15dp"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
     android:background="@drawable/card_flat_background"
     android:stateListAnimator="@animator/card_focus_flat">
 
