@@ -477,10 +477,12 @@
                     tools:text="Tonight" />
             </LinearLayout>
 
+            <!-- M8: the channel's day, read downwards. Tall enough for ~3 programmes at a
+                 glance and scrollable for the rest, without pushing the channel list off. -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_epg_strip"
                 android:layout_width="0dp"
-                android:layout_height="64dp"
+                android:layout_height="196dp"
                 android:layout_marginTop="6dp"
                 android:layout_marginBottom="10dp"
                 android:clipToPadding="false"

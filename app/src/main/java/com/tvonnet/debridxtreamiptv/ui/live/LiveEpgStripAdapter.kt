@@ -77,15 +77,7 @@ class LiveEpgStripAdapter(
                 ?: context.getString(R.string.epg_no_info)
             tvOnAir?.isVisible = isNow
 
-            // Design buckets card width by length: long programmes get the wider card.
-            val durationMin = TimeUnit.MILLISECONDS.toMinutes(
-                (program.stop - program.start).coerceAtLeast(0L)
-            )
-            val density = context.resources.displayMetrics.density
-            val widthDp = if (durationMin >= 60) WIDE_CARD_WIDTH_DP else NARROW_CARD_WIDTH_DP
-            itemView.layoutParams = itemView.layoutParams?.apply {
-                width = (widthDp * density).toInt()
-            }
+            applyCardWidth(program, context)
 
             // The current programme is emphasised; already-aired ones recede (the design mock
             // always starts at "now" — real EPG carries an hour of lookback).
@@ -127,6 +119,27 @@ class LiveEpgStripAdapter(
             itemView.setOnKeyListener { _, keyCode, event ->
                 val position = bindingAdapterPosition
                 position != RecyclerView.NO_POSITION && onKey?.invoke(position, keyCode, event) == true
+            }
+        }
+
+        /**
+         * The design buckets a card's width by its length, so that in the HORIZONTAL strip width
+         * reads as duration. M8 turns the strip vertical on a phone, where that same rule strands
+         * every row at ~40% of the screen with its ON AIR pill clipped — so there the row simply
+         * fills the list instead.
+         */
+        private fun applyCardWidth(program: EpgEntity, context: android.content.Context) {
+            itemView.layoutParams = itemView.layoutParams?.apply {
+                width = if (context.resources.getBoolean(R.bool.epg_strip_is_horizontal)) {
+                    val durationMin = TimeUnit.MILLISECONDS.toMinutes(
+                        (program.stop - program.start).coerceAtLeast(0L)
+                    )
+                    val widthDp =
+                        if (durationMin >= 60) WIDE_CARD_WIDTH_DP else NARROW_CARD_WIDTH_DP
+                    (widthDp * context.resources.displayMetrics.density).toInt()
+                } else {
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                }
             }
         }
 

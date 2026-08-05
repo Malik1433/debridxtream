@@ -305,7 +305,14 @@ class LiveEpgPreviewController(
             }
         )
         rvEpgStrip?.apply {
-            layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+            // M8: a strip of tiles across the screen on TV, the channel's day read DOWN the page
+            // on a phone. The data is the same either way — guideEpg is already the whole day.
+            val horizontal = resources.getBoolean(R.bool.epg_strip_is_horizontal)
+            layoutManager = LinearLayoutManager(
+                context,
+                if (horizontal) LinearLayoutManager.HORIZONTAL else LinearLayoutManager.VERTICAL,
+                false
+            )
             itemAnimator = null
             adapter = epgStripAdapter
             isFocusable = false

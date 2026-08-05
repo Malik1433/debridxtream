@@ -41,4 +41,12 @@
     <!-- M6: Settings categories — a vertical rail beside the detail panel on TV, a top chip
          rail above it on the phone (there is no room for two columns at 411dp). -->
     <bool name="settings_categories_are_horizontal">false</bool>
+    <!--
+      M8: the selected channel's guide. On TV it is a horizontal strip of tiles beside the
+      preview. On a phone it becomes the plan's "day timeline per channel" — the same data
+      (viewModel.guideEpg is already the whole day) read down the page instead of across it.
+      The TV's own EPG grid is not portable: EpgGridView handles onKeyDown and nothing else,
+      so on a touchscreen it would render and then ignore every finger.
+    -->
+    <bool name="epg_strip_is_horizontal">true</bool>
 </resources>
