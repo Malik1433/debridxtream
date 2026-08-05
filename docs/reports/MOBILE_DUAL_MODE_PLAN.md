@@ -148,8 +148,21 @@ that feedback round.
   in Settings on a phone still gets the unusable grid.
 - **Stale note corrected:** the memory that both Fire TVs run the *classic* Live style was wrong
   as of 2026-08-05 — `.64` holds an explicit `live_tv_style=guide`.
-- **Touch needs two taps to open a card (open).** Confirmed on the Live channel list too, not
-  just posters: the first tap selects, the second plays. On the phone the first tap only moves
+- **Touch needs two taps to open a card (open — this is M7b).** Confirmed on the Live channel list
+  as well as posters. **Measured on the device, so M7b starts from evidence rather than a guess:**
+  - a single tap on a channel row produces **no `PlayChannel`, no focus, no selection change** —
+    the only log line is `LiveFragment: renderState`. The click listener does not fire at all.
+  - a second tap on the SAME row plays it immediately.
+  - it is not a one-off "entering touch mode" event: after a swallowed tap on row 003, a single
+    tap on row 004 was swallowed too.
+  - nothing intercepts touch — there is no `setOnTouchListener` anywhere in the live package or
+    in `FocusGlintHelper`; the rows only carry `onFocusChangeListener` + `FocusGlintHelper.attach`.
+  - `focusableInTouchMode="true"` IS set on both channel-row layouts (`item_channel_card`,
+    `item_channel_card_new`) and on ~20 other layouts, so it is a suspect but not proven.
+  - **Leading hypothesis, NOT yet verified:** the window keeps being pulled back OUT of touch mode
+    by a programmatic `requestFocus()` (`LiveChannelFocusController` is the obvious candidate, and
+    `renderState` fires repeatedly), and Android consumes the first touch of each return to touch
+    mode. M7b should test that before changing any layout. On the phone the first tap only moves
   selection (the TV focus model) and the second one activates. Same root cause as M2c below;
   worth fixing together — under touch, a tap should act, not focus.
 - **M2c (open) — the TV focus/quick-info bubble appears on the phone.** The poster that holds
