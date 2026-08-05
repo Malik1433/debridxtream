@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M6: a Settings category as a CHIP for the phone's horizontal rail.
+
+  The landscape row is `match_parent` x 54dp — the same trap M2b and M3 hit: laid out
+  horizontally it stretches to the full width and only one is ever visible. Here it wraps its
+  content and is 56dp tall, comfortably past the 48dp minimum the phone rulebook sets.
+
+  All six ids at their landscape kinds and default visibilities, so SettingsCategoryAdapter
+  binds unchanged — including `v_cat_bar`, which the adapter tints per category, and
+  `iv_arrow`, which is a chevron on TV and reads here as a quiet affordance on the trailing
+  edge. Title and subtitle stack inside the chip so a chip stays narrow enough that several
+  fit on screen at once.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/cat_root"
+    android:layout_width="wrap_content"
+    android:layout_height="56dp"
+    android:layout_marginEnd="8dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="0dp"
+    android:paddingEnd="10dp">
+
+    <View
+        android:id="@+id/v_cat_bar"
+        android:layout_width="3dp"
+        android:layout_height="30dp"
+        android:layout_marginEnd="9dp" />
+
+    <ImageView
+        android:id="@+id/iv_icon"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:layout_marginEnd="9dp" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:textColor="#F1F5F9"
+            android:textSize="14sp"
+            tools:text="Playback" />
+
+        <TextView
+            android:id="@+id/tv_sub"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/share_tech_mono"
+            android:letterSpacing="0.06"
+            android:maxLines="1"
+            android:textColor="#64748B"
+            android:textSize="9sp"
+            tools:text="AUDIO · LANGUAGE" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/iv_arrow"
+        android:layout_width="12dp"
+        android:layout_height="12dp"
+        android:layout_marginStart="8dp"
+        android:alpha="0.45" />
+</LinearLayout>

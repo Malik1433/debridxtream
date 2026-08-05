@@ -104,7 +104,17 @@ class SettingsFragment : Fragment() {
                 .isDebridAllowed(requireContext())
         )
         binding.rvSettingsCategories.apply {
-            layoutManager = LinearLayoutManager(context)
+            // M6: a vertical rail beside the detail panel on TV, a top chip rail on the phone —
+            // two columns do not fit 411dp, which is why Settings was unreachable there at all.
+            layoutManager = LinearLayoutManager(
+                context,
+                if (resources.getBoolean(R.bool.settings_categories_are_horizontal)) {
+                    LinearLayoutManager.HORIZONTAL
+                } else {
+                    LinearLayoutManager.VERTICAL
+                },
+                false
+            )
             adapter = categoryAdapter
         }
 

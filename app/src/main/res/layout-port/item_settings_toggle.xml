@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M6: a Settings toggle row on the PHONE.
+
+  Same change as the value row: the title gets two lines instead of ellipsising, and the row
+  grows to fit rather than being pinned at 74dp. Everything else is deliberately identical.
+
+  The pill is EXACTLY 56x30 with a 22dp dot, as in landscape — SettingsDetailAdapter.styleToggle
+  computes the dot's travel from those numbers, so changing them here would put the knob in the
+  wrong place. Same six ids, same kinds, same default visibilities.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/row_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
+    android:gravity="center_vertical"
+    android:minHeight="72dp"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingEnd="14dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp">
+
+    <ImageView
+        android:id="@+id/iv_icon"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:layout_marginEnd="14dp"
+        android:padding="8dp"
+        android:scaleType="fitCenter" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="@font/outfit_semibold"
+            android:maxLines="2"
+            android:textColor="#F1F5F9"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tv_description"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/inter_regular"
+            android:maxLines="2"
+            android:textColor="#94A3B8"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/v_toggle_pill"
+        android:layout_width="56dp"
+        android:layout_height="30dp"
+        android:layout_marginStart="14dp">
+
+        <View
+            android:id="@+id/v_toggle_dot"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center_vertical" />
+    </FrameLayout>
+</LinearLayout>

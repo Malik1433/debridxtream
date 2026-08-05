@@ -38,4 +38,7 @@
       only governs focus acquired by touching.
     -->
     <bool name="rows_focusable_in_touch_mode">true</bool>
+    <!-- M6: Settings categories — a vertical rail beside the detail panel on TV, a top chip
+         rail above it on the phone (there is no room for two columns at 411dp). -->
+    <bool name="settings_categories_are_horizontal">false</bool>
 </resources>

@@ -7,4 +7,5 @@
     <bool name="dismiss_on_backdrop_tap">true</bool>
     <bool name="live_defaults_to_classic">true</bool>
     <bool name="rows_focusable_in_touch_mode">false</bool>
+    <bool name="settings_categories_are_horizontal">true</bool>
 </resources>
