@@ -166,7 +166,15 @@ that feedback round.
   in Settings on a phone still gets the unusable grid.
 - **Stale note corrected:** the memory that both Fire TVs run the *classic* Live style was wrong
   as of 2026-08-05 — `.64` holds an explicit `live_tv_style=guide`.
-- **The Movies/Series poster grid STILL needs two taps (open).** M7b fixed the Live channel list —
+- **The Movies/Series poster grid STILL needs two taps (open).** Groundwork done so the next
+  session does not start from zero: the grid uses `VodAdapter` (not `VodPagingAdapter`), whose
+  click path is a plain `itemView.setOnClickListener { onClick(movie) }` → `VodFragment.onMovieClick`
+  → the detail. There is no select-then-activate model in that path, and `item_movie_card` already
+  carries `rows_focusable_in_touch_mode` (false in portrait) — so **both of the causes that
+  explained Live are excluded here**. What is different from Live: `VodAdapter` also sets an
+  `OnFocusChangeListener` and the fragment drives `onItemFocused` (backdrop + header). The next
+  step is the one that settled Live — a temporary log at the click listener to see whether the
+  first tap reaches it at all, rather than another theory. M7b fixed the Live channel list —
   cause found and verified — but the same fix did not cure the VOD grid: on a settled grid, a single
   tap on a fresh poster still does nothing and the second opens the detail. `item_movie_card` does
   carry the new bool, so the mechanism there is something else in the VOD path (its own
