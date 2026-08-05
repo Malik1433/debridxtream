@@ -78,6 +78,41 @@ Apply these while touching a file; don't leave them for a later pass.
 - **This is an Android TV app:** every interactive element must be D-pad reachable and must not steal
   focus on data refresh. Verify focus behaviour on the device, not in an emulator screenshot.
 
+## Two platforms, two rulebooks — never mix them (owner rule, 2026-08-05)
+
+This is ONE app on two form factors, so every screen must obey **the conventions of the device it is
+running on**. Phone work follows phone standards; TV work follows TV standards. Carrying one
+platform's idiom onto the other is a defect even when it "works" — and it has already happened here
+(the Live screen shipped a TV focus-then-activate model onto a touchscreen, and Settings still
+renders a 10-foot two-column layout on a 411dp phone, where nothing is reachable).
+
+**How they stay apart:** configuration-qualified resources (`layout-port/`, `values-port/`), not
+runtime branches. Same view ids, same view KINDS, same default visibilities — so shared code binds
+to either without knowing which it got. Only genuinely behavioural differences go through a resource
+`bool` read in code.
+
+**Phone (Material / Android handset conventions)**
+- Touch targets **≥48dp**; body text ≥12sp. The 6-9sp "px÷2" trick is a 10-foot rule and is
+  unreadable in the hand.
+- **One tap acts.** No focus-first, no select-then-activate, no D-pad legends ("PRESS OK").
+- Bottom navigation for top-level destinations; **Back goes up**, and every screen must be leavable.
+- Vertical scrolling lists and grids — never fixed side-by-side columns.
+- Pickers and long option lists are **bottom sheets**, not centre panels; tapping the scrim closes.
+- Respect system insets (status bar, gesture nav). Nothing under the bars, nothing behind the pill.
+- The **native soft keyboard**, never an on-screen D-pad keyboard.
+- Long-press is a shortcut, never the only route to an action.
+- Every list has a visible loading / empty / error state, and a failure says something.
+
+**TV (10-foot / Android TV conventions)**
+- Everything **D-pad reachable**, in a predictable ladder; nothing touch-only.
+- Focus is always **visible**, and never stolen on a data refresh.
+- Overscan-safe margins; type sized to read from ~3 metres.
+- Landscape-locked; no gestures, no soft-keyboard dependence.
+- BACK goes up the hierarchy and never traps the user.
+
+**Before calling any UI batch done, state which rulebook it was checked against and on which device.**
+A TV smoke does not certify the phone, and a phone QA does not certify the TV.
+
 ## Agent Comms — Reality-Based Coordination
 
 **Tool-availability asymmetry:** `SendMessage` works **lead↔subagent** and lead↔lead, but **NOT subagent↔subagent**. Subagents spawned via the `Agent` tool are stateless one-shot workers — they have no inbox, cannot wait for events, and `SendMessage`/`TaskUpdate` are typically not in their tool allowlists. The `hive-mind_*` MCP tools provide coordination **metadata** (registry, consensus state) but do NOT grant subagents communication channels. Patterns that assume peer messaging will silently fail — agents either abort cleanly or run open-loop with stale assumptions. (See ruvnet/ruflo#2028 for the diagnosis.)

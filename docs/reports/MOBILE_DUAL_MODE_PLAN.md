@@ -26,6 +26,14 @@ is ambiguous.
 
 ## 1. Non-negotiables (same discipline as the debt ratchet)
 
+- ⭐ **Each form factor obeys its OWN rulebook (owner, 2026-08-05).** Phone screens follow phone
+  standards, TV screens follow TV standards, and neither borrows the other's idioms — "it works"
+  is not the bar. The checklist is in the repo's `CLAUDE.md` under *"Two platforms, two rulebooks"*
+  (≥48dp targets and one-tap-acts on a phone; D-pad reachability and visible, unstolen focus on TV).
+  This rule exists because both directions were already violated here: Live shipped a TV
+  focus-then-activate model onto a touchscreen, and Settings still draws a 10-foot two-column
+  layout at 411dp where nothing is reachable. **Every batch must say which rulebook it was checked
+  against, and on which device.**
 - **TV stays untouched.** Mobile UI lives in NEW files (`ui/mobile/` + `res/layout` with
   `mobile_` prefix, or resource qualifiers where cleaner). Any shared-file edit must be
   provably inert on TV. Every batch's QA includes a TV smoke check.
