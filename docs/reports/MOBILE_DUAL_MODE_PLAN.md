@@ -159,10 +159,28 @@ that feedback round.
     in `FocusGlintHelper`; the rows only carry `onFocusChangeListener` + `FocusGlintHelper.attach`.
   - `focusableInTouchMode="true"` IS set on both channel-row layouts (`item_channel_card`,
     `item_channel_card_new`) and on ~20 other layouts, so it is a suspect but not proven.
-  - **Leading hypothesis, NOT yet verified:** the window keeps being pulled back OUT of touch mode
-    by a programmatic `requestFocus()` (`LiveChannelFocusController` is the obvious candidate, and
-    `renderState` fires repeatedly), and Android consumes the first touch of each return to touch
-    mode. M7b should test that before changing any layout. On the phone the first tap only moves
+  **Round 2 — two theories tested and BOTH KILLED, so nobody retries them:**
+  - *"the window is out of touch mode"* — **disproved**: `dumpsys window` reads `mInTouchMode=true`.
+  - *"the list is rebinding under the finger"* — **disproved**: the list sat quiet for 25s (zero
+    `renderState`), and a single tap still did nothing.
+
+  **What the tap actually does.** `LivePlaybackLauncher.navigateToPlayer` is explicit —
+  *"1st click = preview, 2nd click = fullscreen"*. So two taps is the DESIGN (and it matches this
+  plan's own "tap to play in mini-player, expand to fullscreen"). The defect is narrower and worse:
+  **the first tap's preview never starts.** The tap does reach the app — `renderState` fires, which
+  can only come from the `RememberPreviewStream` event at the END of that same else-branch — yet
+  `previewPanel()?.play(stream)`, one line above it, produces no ExoPlayer init and no codec
+  activity even 35 seconds later.
+
+  So something between the branch running and the player starting is swallowed. Two candidates, in
+  order, both cheap to instrument next round:
+  1. `previewPanel()` is **null** at that moment and the `?.` eats the call silently.
+  2. `PreviewPlayerPanel.play()` **returns early**: it reads server URL / username / password from
+     prefs and `?: return`s on any null, with nothing logged and nothing shown to the user.
+
+  Either way there is a product bug worth fixing on its own: **a preview that cannot start says
+  nothing at all.** Note also that a single tap failed on fresh rows even AFTER another channel had
+  previewed successfully, so "cold prefs on first read" alone does not explain it. On the phone the first tap only moves
   selection (the TV focus model) and the second one activates. Same root cause as M2c below;
   worth fixing together — under touch, a tap should act, not focus.
 - **M2c (open) — the TV focus/quick-info bubble appears on the phone.** The poster that holds
