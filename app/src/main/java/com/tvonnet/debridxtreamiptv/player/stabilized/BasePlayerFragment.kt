@@ -1389,6 +1389,12 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     // P26: these were Activity overrides — the thin host forwards its callbacks here.
     fun hostDispatchKeyEvent(event: KeyEvent): Boolean? = inputRouter.dispatchKeyEvent(event)
 
+    /**
+     * M9b: every touch on the player, observed from the Activity so an overlay stacked above the
+     * video cannot hide it. The base ignores them; [LivePlayerFragment] turns them into keys.
+     */
+    open fun hostTouchEvent(event: android.view.MotionEvent) = Unit
+
     fun hostKeyLongPress(keyCode: Int, event: KeyEvent): Boolean? = inputRouter.onKeyLongPress(keyCode, event)
 
     fun hostUserInteraction() {

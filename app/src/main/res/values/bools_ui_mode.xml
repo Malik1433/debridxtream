@@ -37,7 +37,7 @@
       list scrolls the newly-focused row into view. Rows stay `focusable` in both cases; this
       only governs focus acquired by touching.
     -->
-    <bool name="rows_focusable_in_touch_mode">true</bool>
+    <bool name="rows_focusable_in_touch_mode">false</bool>
     <!-- M6: Settings categories — a vertical rail beside the detail panel on TV, a top chip
          rail above it on the phone (there is no room for two columns at 411dp). -->
     <bool name="settings_categories_are_horizontal">false</bool>
@@ -55,5 +55,12 @@
       opposite of the rulebook: a tap must act, and a poster that takes focus instead of opening
       is exactly why every card needed two taps.
     -->
-    <bool name="ui_uses_dpad_focus">true</bool>
+    <!--
+      NOTE the qualifier: the TRUE value lives in `values-television`, not here, because this one
+      is a DEVICE question rather than an orientation one. A fullscreen player is landscape on a
+      phone as well, so keying it on `-port` gave the player the TV answer and left it without any
+      touch handling at all. Everything else in this file is genuinely about orientation and stays
+      `values` / `values-port`.
+    -->
+    <bool name="ui_uses_dpad_focus">false</bool>
 </resources>

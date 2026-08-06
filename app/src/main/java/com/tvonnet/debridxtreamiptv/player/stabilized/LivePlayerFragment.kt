@@ -43,10 +43,18 @@ class LivePlayerFragment : BasePlayerFragment() {
      * auto-hide — is already wired to those keys and has been device-tested for months; routing a
      * gesture through a second, parallel path is how the two drift apart.
      */
+    /** Set only in mobile mode; the Activity feeds every touch through it. */
+    private var touchGestures: GestureDetector? = null
+
+    override fun hostTouchEvent(event: MotionEvent) {
+        touchGestures?.onTouchEvent(event)
+    }
+
     private fun attachTouchGesturesIfMobile() {
         if (resources.getBoolean(R.bool.ui_uses_dpad_focus)) return
+        if (touchGestures != null) return
 
-        val detector = GestureDetector(
+        touchGestures = GestureDetector(
             requireContext(),
             object : GestureDetector.SimpleOnGestureListener() {
                 override fun onSingleTapUp(e: MotionEvent): Boolean {
@@ -74,11 +82,6 @@ class LivePlayerFragment : BasePlayerFragment() {
             }
         )
 
-        playerView.setOnTouchListener { v, event ->
-            val handled = detector.onTouchEvent(event)
-            if (event.actionMasked == MotionEvent.ACTION_UP) v.performClick()
-            handled
-        }
     }
 
     private fun sendKey(keyCode: Int) {

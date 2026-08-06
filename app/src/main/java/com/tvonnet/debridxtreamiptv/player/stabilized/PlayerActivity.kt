@@ -60,6 +60,23 @@ class PlayerActivity : AppCompatActivity() {
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent): Boolean =
         screen?.hostKeyLongPress(keyCode, event) ?: super.onKeyLongPress(keyCode, event)
 
+    /**
+     * M9b: touch gestures have to be seen HERE, not on the PlayerView.
+     *
+     * The first attempt put the detector on the PlayerView and the handset reported no change:
+     * the Live OSD is a full-screen overlay sitting above it, so a finger never reaches the
+     * video at all. `dispatchTouchEvent` is the one place every touch passes through regardless
+     * of what is stacked on top.
+     *
+     * It only OBSERVES — `super` still runs, so the OSD's own buttons keep working; the fragment
+     * turns a tap or a vertical fling into the same key the remote sends. On TV nothing attaches,
+     * so this is a null check per event.
+     */
+    override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
+        screen?.hostTouchEvent(event)
+        return super.dispatchTouchEvent(event)
+    }
+
     override fun onUserInteraction() {
         super.onUserInteraction()
         screen?.hostUserInteraction()
