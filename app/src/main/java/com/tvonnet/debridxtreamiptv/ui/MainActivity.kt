@@ -186,6 +186,14 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
+    override fun onResume() {
+        super.onResume()
+        // If an update was downloaded but the device blocked the install, the user was sent to
+        // grant "install unknown apps". Coming back is the moment to finish — the APK is already
+        // in the cache, so this resumes at the install rather than making them start over.
+        com.tvonnet.debridxtreamiptv.update.UpdateManager.resumePendingInstall(this)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleNavigationIntent(intent)

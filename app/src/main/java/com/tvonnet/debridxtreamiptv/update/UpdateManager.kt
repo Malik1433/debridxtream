@@ -5,6 +5,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import android.app.ProgressDialog
 import android.content.Intent
+import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import androidx.core.content.FileProvider
 import com.google.firebase.firestore.FirebaseFirestore
@@ -38,6 +40,9 @@ object UpdateManager {
 
     private const val TAG = "UpdateManager"
     private var checkedThisProcess = false
+
+    /** A downloaded APK waiting only on the user granting the install permission. */
+    private var pendingApk: File? = null
 
     // Long timeouts: APKs are ~35 MB and TV Wi-Fi can be slow.
     private val http by lazy {
@@ -208,6 +213,68 @@ object UpdateManager {
     }
 
     private fun installApk(activity: Activity, apk: File) {
+        if (!canInstallPackages(activity)) {
+            promptForInstallPermission(activity, apk)
+            return
+        }
+        launchPackageInstaller(activity, apk)
+    }
+
+    /**
+     * Found on the Fire TV, and it defeated the whole feature: the download finished, the installer
+     * opened, and the system answered "your TV is not allowed to install unknown apps from this
+     * source" — a dead end with no way forward from inside the app. Every sideloaded install hits
+     * this until the user grants the per-app permission ONCE, so the app has to ask for it and
+     * take them there rather than hand the user to a wall.
+     */
+    private fun canInstallPackages(activity: Activity): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+            activity.packageManager.canRequestPackageInstalls()
+
+    private fun promptForInstallPermission(activity: Activity, apk: File) {
+        AlertDialog.Builder(activity)
+            .setTitle(R.string.update_permission_title)
+            .setMessage(R.string.update_permission_message)
+            .setPositiveButton(R.string.update_permission_open_settings) { _, _ ->
+                // The APK is already downloaded and stays in the cache, so returning here after
+                // granting the permission resumes at the install step rather than re-downloading.
+                pendingApk = apk
+                openUnknownSourcesSettings(activity)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun openUnknownSourcesSettings(activity: Activity) {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent(
+                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                android.net.Uri.parse("package:${BuildConfig.APPLICATION_ID}")
+            )
+        } else {
+            Intent(Settings.ACTION_SECURITY_SETTINGS)
+        }
+        try {
+            activity.startActivity(intent)
+        } catch (e: Exception) {
+            // Some TV builds ship no such settings screen; the generic one is better than nothing.
+            Log.w(TAG, "unknown-sources settings unavailable", e)
+            runCatching { activity.startActivity(Intent(Settings.ACTION_SETTINGS)) }
+        }
+    }
+
+    /**
+     * Call when the app comes back to the foreground: if the user has just granted the permission,
+     * the already-downloaded APK is installed without making them start the update again.
+     */
+    fun resumePendingInstall(activity: Activity) {
+        val apk = pendingApk ?: return
+        if (!apk.exists() || !canInstallPackages(activity)) return
+        pendingApk = null
+        launchPackageInstaller(activity, apk)
+    }
+
+    private fun launchPackageInstaller(activity: Activity, apk: File) {
         val uri = FileProvider.getUriForFile(
             activity, "${BuildConfig.APPLICATION_ID}.updates", apk
         )

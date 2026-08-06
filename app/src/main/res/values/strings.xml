@@ -315,4 +315,7 @@
     <string name="update_up_to_date">You are on the latest build</string>
     <string name="update_none_configured">No update has been published yet</string>
     <string name="update_check_failed">Could not reach the update server</string>
+    <string name="update_permission_title">Allow app installs</string>
+    <string name="update_permission_message">The update has been downloaded, but this device blocks installs from unknown sources. Open settings and allow DebridXtream to install apps, then come back — the update will continue automatically.</string>
+    <string name="update_permission_open_settings">Open settings</string>
 </resources>
