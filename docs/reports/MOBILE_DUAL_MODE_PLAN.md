@@ -234,3 +234,27 @@ that feedback round.
 
 - **The activation screen shows a TRUNCATED device id** (`installId.take(8)`, e.g. "hw-1178c") while the real Firestore doc id is 35 chars (`hw-1178c5260d5ba0b06a38c630050d29ed`). Nobody can act on the short form — support/activation must use the **activation code** (LYQS-BVXW). Worth either showing the full id, labelling it "(partial)", or dropping it in favour of the code alone.
 - **A device is invisible to activation until it has registered itself.** `activateClient` looks a device up by `activationCode`; before the app's first successful Firestore write there is no doc, so the reseller sees "No device found for that activation code". That is correct behaviour but the app gives no hint that registration is still in flight — a "registering…" state on the activation screen would save a support round-trip. (Diagnosed 2026-08-04 on the emulator: the doc only appeared on the app's second launch.)
+
+### M9 addendum (2026-08-06) — the player on touch
+
+Three defects reported from the owner's own handset, all one root cause: the player screen was
+still listening only for keys.
+
+1. **"the movie player doesn't go back."** `vodBackAction` spends the first BACK hiding the
+   controls and only exits on the second — correct for a remote, wrong for a back GESTURE, where
+   it reads as nothing happening. On a phone BACK now leaves immediately (PiP still passes
+   through). Covered by a new unit test; the TV cases are unchanged and still pass.
+2. **"touching Live shows no controls."** A tap on the video now sends the same KEYCODE_DPAD_CENTER
+   the remote's OK sends.
+3. **"how do you zap?"** A vertical fling sends DPAD_UP / DPAD_DOWN — swipe up for the next
+   channel. Horizontal flings are ignored, and anything under 120px is treated as a stray finger.
+
+Gestures deliberately SYNTHESISE the existing key events instead of calling the handlers directly:
+the zap debouncer, the warm-zap adopt path and the OSD's auto-hide are all wired to those keys and
+have months of device testing behind them — a second parallel path is how the two drift apart.
+TV is untouched by construction: the gesture layer is never attached when `ui_uses_dpad_focus`.
+
+**QA honesty:** built green (unit tests + detekt), TV smoke on .64 launches with 0 FATAL. The Live
+player's touch behaviour could NOT be verified on the emulator — its window is a secure surface, so
+uiautomator cannot see the OSD and a synthetic swipe produced no zap in the log. That part is
+verifiable only on a real handset.

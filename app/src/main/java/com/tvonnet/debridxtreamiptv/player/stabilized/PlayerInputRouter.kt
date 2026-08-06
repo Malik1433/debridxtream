@@ -1,5 +1,6 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
+import com.tvonnet.debridxtreamiptv.R
 import android.util.Log
 import android.view.KeyEvent
 import com.tvonnet.debridxtreamiptv.BuildConfig
@@ -111,7 +112,15 @@ internal class PlayerInputRouter(
 
     private fun handleVodBack(event: KeyEvent): Boolean? {
         if (event.action == KeyEvent.ACTION_UP) {
-            when (vodBackAction(isInPictureInPictureMode, isControllerVisible, backHideArmed)) {
+            val holdBackForControls = playerView.resources.getBoolean(R.bool.ui_uses_dpad_focus)
+            when (
+                vodBackAction(
+                    isInPictureInPictureMode,
+                    isControllerVisible,
+                    backHideArmed,
+                    consumeFirstBackToHideControls = holdBackForControls,
+                )
+            ) {
                 VodBackAction.PASS_THROUGH -> return null
                 VodBackAction.HIDE_CONTROLLER -> {
                     playerView.hideController()

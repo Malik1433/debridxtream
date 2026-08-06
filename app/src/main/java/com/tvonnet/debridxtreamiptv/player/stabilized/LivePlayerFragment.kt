@@ -1,8 +1,12 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
+import android.view.GestureDetector
+import android.view.KeyEvent
+import android.view.MotionEvent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
+import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -26,6 +30,66 @@ class LivePlayerFragment : BasePlayerFragment() {
         bindChannelMeta(channelName)
         // Backdrop covers the black surface until the first frame renders.
         liveOsd?.showZapBackdrop()
+        attachTouchGesturesIfMobile()
+    }
+
+    /**
+     * M9: the phone's equivalents of the two things a remote does here — OK shows the chrome, and
+     * UP/DOWN change channel. Reported from a real handset: tapping the video did nothing and
+     * there was no way to zap at all, because this screen only ever listened for keys.
+     *
+     * It deliberately SYNTHESISES the same key events rather than calling the handlers directly.
+     * Everything downstream — the zap debouncer, the warm-zap adopt path, the OSD's own show and
+     * auto-hide — is already wired to those keys and has been device-tested for months; routing a
+     * gesture through a second, parallel path is how the two drift apart.
+     */
+    private fun attachTouchGesturesIfMobile() {
+        if (resources.getBoolean(R.bool.ui_uses_dpad_focus)) return
+
+        val detector = GestureDetector(
+            requireContext(),
+            object : GestureDetector.SimpleOnGestureListener() {
+                override fun onSingleTapUp(e: MotionEvent): Boolean {
+                    sendKey(KeyEvent.KEYCODE_DPAD_CENTER)
+                    return true
+                }
+
+                override fun onFling(
+                    e1: MotionEvent?,
+                    e2: MotionEvent,
+                    velocityX: Float,
+                    velocityY: Float,
+                ): Boolean {
+                    val start = e1 ?: return false
+                    val dy = e2.y - start.y
+                    val dx = e2.x - start.x
+                    // Vertical only: a horizontal fling is a seek gesture elsewhere and must not
+                    // change channel by accident.
+                    if (kotlin.math.abs(dy) < kotlin.math.abs(dx)) return false
+                    if (kotlin.math.abs(dy) < MIN_ZAP_FLING_PX) return false
+                    // Swipe UP = next channel, matching the remote's UP.
+                    sendKey(if (dy < 0) KeyEvent.KEYCODE_DPAD_UP else KeyEvent.KEYCODE_DPAD_DOWN)
+                    return true
+                }
+            }
+        )
+
+        playerView.setOnTouchListener { v, event ->
+            val handled = detector.onTouchEvent(event)
+            if (event.actionMasked == MotionEvent.ACTION_UP) v.performClick()
+            handled
+        }
+    }
+
+    private fun sendKey(keyCode: Int) {
+        val activity = activity ?: return
+        activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+        activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
+    }
+
+    private companion object {
+        /** Below this a vertical drag is a stray finger, not a deliberate zap. */
+        const val MIN_ZAP_FLING_PX = 120f
     }
 
     override fun observeLiveEpgAndState() {

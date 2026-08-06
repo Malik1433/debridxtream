@@ -774,7 +774,14 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
                     // (reset on any explicit show) keeps this reliable even if media3 re-shows the
                     // controller while paused. Uses the tracked isControllerVisible, not the
                     // sometimes-stale isControllerFullyVisible.
-                    if (isControllerVisible && !backHideArmed) {
+                    //
+                    // M9: NOT on a phone. This is also the path a back GESTURE takes, and spending
+                    // the first one on hiding chrome is why the handset reported "the movie player
+                    // doesn't go back" — the swipe appeared to do nothing. A tap already hides the
+                    // controls there.
+                    val holdBackForControls =
+                        resources.getBoolean(R.bool.ui_uses_dpad_focus)
+                    if (holdBackForControls && isControllerVisible && !backHideArmed) {
                         playerView.hideController()
                         backHideArmed = true
                         return

@@ -102,9 +102,18 @@ internal enum class VodBackAction {
 internal fun vodBackAction(
     isInPictureInPictureMode: Boolean,
     isControllerVisible: Boolean,
-    backHideArmed: Boolean
+    backHideArmed: Boolean,
+    /**
+     * M9: does BACK spend its first press hiding the controls? On TV, yes — that is the expected
+     * remote behaviour and the controls are the only chrome. On a phone it reads as broken:
+     * reported from a real handset as "the movie player doesn't go back", because a back gesture
+     * with the controls up looks like nothing happened at all. There a tap already hides the
+     * controls, so BACK should simply leave.
+     */
+    consumeFirstBackToHideControls: Boolean,
 ): VodBackAction = when {
     isInPictureInPictureMode -> VodBackAction.PASS_THROUGH
-    isControllerVisible && !backHideArmed -> VodBackAction.HIDE_CONTROLLER
+    consumeFirstBackToHideControls && isControllerVisible && !backHideArmed ->
+        VodBackAction.HIDE_CONTROLLER
     else -> VodBackAction.EXIT
 }

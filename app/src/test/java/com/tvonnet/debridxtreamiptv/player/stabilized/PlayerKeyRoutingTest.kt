@@ -95,15 +95,15 @@ class PlayerKeyRoutingTest {
     fun `VOD back hides the controller first, then exits`() {
         assertEquals(
             VodBackAction.HIDE_CONTROLLER,
-            vodBackAction(isInPictureInPictureMode = false, isControllerVisible = true, backHideArmed = false)
+            vodBackAction(isInPictureInPictureMode = false, isControllerVisible = true, backHideArmed = false, consumeFirstBackToHideControls = true)
         )
         assertEquals(
             VodBackAction.EXIT,
-            vodBackAction(isInPictureInPictureMode = false, isControllerVisible = true, backHideArmed = true)
+            vodBackAction(isInPictureInPictureMode = false, isControllerVisible = true, backHideArmed = true, consumeFirstBackToHideControls = true)
         )
         assertEquals(
             VodBackAction.EXIT,
-            vodBackAction(isInPictureInPictureMode = false, isControllerVisible = false, backHideArmed = false)
+            vodBackAction(isInPictureInPictureMode = false, isControllerVisible = false, backHideArmed = false, consumeFirstBackToHideControls = true)
         )
     }
 
@@ -111,7 +111,33 @@ class PlayerKeyRoutingTest {
     fun `PiP lets the system handle back`() {
         assertEquals(
             VodBackAction.PASS_THROUGH,
-            vodBackAction(isInPictureInPictureMode = true, isControllerVisible = true, backHideArmed = false)
+            vodBackAction(isInPictureInPictureMode = true, isControllerVisible = true, backHideArmed = false, consumeFirstBackToHideControls = true)
+        )
+    }
+
+
+    @Test
+    fun `on a phone BACK leaves straight away, controls or not`() {
+        // M9: reported from a real handset as "the movie player doesn't go back" — the back
+        // GESTURE spent itself hiding chrome, which looks like nothing happening at all.
+        assertEquals(
+            VodBackAction.EXIT,
+            vodBackAction(
+                isInPictureInPictureMode = false,
+                isControllerVisible = true,
+                backHideArmed = false,
+                consumeFirstBackToHideControls = false,
+            )
+        )
+        // PiP still wins, on either form factor.
+        assertEquals(
+            VodBackAction.PASS_THROUGH,
+            vodBackAction(
+                isInPictureInPictureMode = true,
+                isControllerVisible = true,
+                backHideArmed = false,
+                consumeFirstBackToHideControls = false,
+            )
         )
     }
 
