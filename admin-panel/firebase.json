@@ -1,7 +1,34 @@
 {
   "hosting": {
     "public": ".",
-    "ignore": ["firebase.json", "**/.*", "SETUP.md", "firestore.rules", "functions/**"]
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "SETUP.md",
+      "firestore.rules",
+      "functions/**"
+    ],
+    "headers": [
+      {
+        "comment": "The panel is a single HTML file, so a cached copy means the operator keeps using an OLD admin panel after a fix ships \u2014 which is exactly what happened with the update-form guard: it was deployed and live, but the browser kept serving the previous page and let a bad value through anyway. NOTE the source list: Hosting matches headers on the REQUEST PATH, and the panel is opened as `/`, which `**/*.html` does NOT match \u2014 that miss is why the first attempt at this changed nothing.",
+        "source": "/",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "**/*.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      }
+    ]
   },
   "firestore": {
     "rules": "firestore.rules"

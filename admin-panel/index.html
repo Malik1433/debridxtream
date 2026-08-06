@@ -390,8 +390,17 @@ function saveVersion(){
   // asks "latest > mine?" and quietly goes home. That is exactly how a release was lost — 37 was
   // typed into the NAME box and 2 was left in the code box, so nothing ever offered an update.
   const code=parseInt(uVersionCode.value)||0;
+  const name=uVersionName.value.trim();
   const seen=highestSeenVersionCode();
   if(code<=0){ toast('versionCode must be a positive integer'); return; }
+  // The mistake that actually happened, twice: the build number typed into the NAME box while the
+  // code box kept an old, smaller value. The app then asks "is 2 newer than 37?", correctly says
+  // no, and offers nothing — and it reads as a broken updater. A bare integer in the name box that
+  // is LARGER than the code box is that swap, near enough always.
+  if(/^\d+$/.test(name) && parseInt(name)>code){
+    toast('Looks swapped: "'+name+'" is in the Version NAME box but is bigger than the versionCode ('+code+'). Put '+name+' in versionCode and a display name like 2.2.1 in Version name.');
+    return;
+  }
   if(seen && code<=seen){
     toast('versionCode '+code+' is not newer than '+seen+', which devices already run — no one would be offered this update');
     return;
