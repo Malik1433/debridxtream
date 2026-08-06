@@ -126,6 +126,7 @@
     <div id="updates" class="card hidden" style="max-width:640px">
       <h3>App update (<span class="code">app_config/version</span>)</h3>
       <label class="field"><span>Latest versionCode (integer — app updates when this is greater than its own)</span><input type="text" id="uVersionCode" class="code"></label>
+      <div id="uVersionHint" class="muted" style="margin:-8px 0 14px">&nbsp;</div>
       <label class="field"><span>Latest versionName (display, e.g. 2.1.0)</span><input type="text" id="uVersionName" class="code"></label>
       <label class="field"><span>APK URL (Firebase Storage download URL)</span><input type="text" id="uApkUrl" class="code"></label>
       <label class="field"><span>Changelog (shown to the user)</span><textarea id="uChangelog" rows="4"></textarea></label>
@@ -369,9 +370,34 @@ async function loadVersion(){
   const d=s.exists?s.data():{};
   uVersionCode.value=d.latestVersionCode??''; uVersionName.value=d.latestVersionName??'';
   uApkUrl.value=d.apkUrl??''; uChangelog.value=d.changelog??''; uMinCode.value=d.minSupportedVersionCode??'0'; uForce.checked=!!d.forceUpdate;
+  renderVersionHint();
 }
+// The devices list already carries appVersionCode from every check-in, so the panel can say what
+// is actually out there rather than making the operator guess.
+function highestSeenVersionCode(){
+  return devices.reduce((m,d)=>Math.max(m, parseInt(d.appVersionCode)||0), 0);
+}
+function renderVersionHint(){
+  const el=document.getElementById('uVersionHint'); if(!el) return;
+  const seen=highestSeenVersionCode();
+  el.textContent = seen
+    ? 'Devices are running versionCode '+seen+' — publish a HIGHER number than this, or nothing will be offered.'
+    : 'No device has reported a versionCode yet.';
+}
+
 function saveVersion(){
-  const data={ latestVersionCode:parseInt(uVersionCode.value)||0, latestVersionName:uVersionName.value.trim(),
+  // A versionCode at or below what devices already run is a publish that can never fire: the app
+  // asks "latest > mine?" and quietly goes home. That is exactly how a release was lost — 37 was
+  // typed into the NAME box and 2 was left in the code box, so nothing ever offered an update.
+  const code=parseInt(uVersionCode.value)||0;
+  const seen=highestSeenVersionCode();
+  if(code<=0){ toast('versionCode must be a positive integer'); return; }
+  if(seen && code<=seen){
+    toast('versionCode '+code+' is not newer than '+seen+', which devices already run — no one would be offered this update');
+    return;
+  }
+  if(!uApkUrl.value.trim()){ toast('APK URL is required, or the update cannot be downloaded'); return; }
+  const data={ latestVersionCode:code, latestVersionName:uVersionName.value.trim(),
     apkUrl:uApkUrl.value.trim(), changelog:uChangelog.value.trim(),
     minSupportedVersionCode:parseInt(uMinCode.value)||0, forceUpdate:uForce.checked, updatedAt:Date.now() };
   db.collection('app_config').doc('version').set(data).then(()=>toast('Update config saved')).catch(e=>toast('Failed: '+e.message));

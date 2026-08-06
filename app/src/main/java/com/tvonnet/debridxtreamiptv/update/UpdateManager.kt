@@ -1,6 +1,7 @@
 package com.tvonnet.debridxtreamiptv.update
 
 import android.app.Activity
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import android.app.ProgressDialog
 import android.content.Intent
@@ -8,6 +9,7 @@ import android.util.Log
 import androidx.core.content.FileProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tvonnet.debridxtreamiptv.BuildConfig
+import com.tvonnet.debridxtreamiptv.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -49,15 +51,40 @@ object UpdateManager {
     fun checkOnLaunch(activity: Activity) {
         if (checkedThisProcess) return
         checkedThisProcess = true
+        fetchAndOffer(activity, announceResult = false)
+    }
 
+    /**
+     * Settings → About → "Check for Update". Deliberately IGNORES [checkedThisProcess]: that guard
+     * exists so the launch check runs once per process, and reusing it here would make the button
+     * do nothing on the second press — a new bug wearing the old one's clothes.
+     *
+     * It also always ANSWERS. A silent check is what hid the original problem: the config carried
+     * `latestVersionCode = 2` against an app on 37 (37 had been typed into the versionName box),
+     * so the app correctly decided there was nothing to offer and said nothing at all, and it read
+     * as "update is broken". On demand, "you are on the latest build" is a result too.
+     */
+    fun checkNow(activity: Activity) {
+        Toast.makeText(activity, activity.getString(R.string.update_checking), Toast.LENGTH_SHORT).show()
+        fetchAndOffer(activity, announceResult = true)
+    }
+
+    private fun fetchAndOffer(activity: Activity, announceResult: Boolean) {
         FirebaseFirestore.getInstance().collection("app_config").document("version")
             .get()
             .addOnSuccessListener { snap ->
-                if (snap == null || !snap.exists() || activity.isFinishing) return@addOnSuccessListener
+                if (activity.isFinishing) return@addOnSuccessListener
+                if (snap == null || !snap.exists()) {
+                    if (announceResult) toast(activity, R.string.update_none_configured)
+                    return@addOnSuccessListener
+                }
                 val latest = (snap.getLong("latestVersionCode") ?: 0L).toInt()
                 val minSupported = (snap.getLong("minSupportedVersionCode") ?: 0L).toInt()
                 val apkUrl = snap.getString("apkUrl").orEmpty()
-                if (latest <= BuildConfig.VERSION_CODE || apkUrl.isBlank()) return@addOnSuccessListener
+                if (latest <= BuildConfig.VERSION_CODE || apkUrl.isBlank()) {
+                    if (announceResult) toast(activity, R.string.update_up_to_date)
+                    return@addOnSuccessListener
+                }
 
                 val forced = (snap.getBoolean("forceUpdate") == true) ||
                     BuildConfig.VERSION_CODE < minSupported
@@ -69,8 +96,14 @@ object UpdateManager {
                     forced = forced
                 )
             }
-            .addOnFailureListener { Log.w(TAG, "update check failed", it) }
+            .addOnFailureListener {
+                Log.w(TAG, "update check failed", it)
+                if (announceResult && !activity.isFinishing) toast(activity, R.string.update_check_failed)
+            }
     }
+
+    private fun toast(activity: Activity, resId: Int) =
+        Toast.makeText(activity, activity.getString(resId), Toast.LENGTH_LONG).show()
 
     private fun promptUpdate(
         activity: Activity,

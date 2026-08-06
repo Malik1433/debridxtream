@@ -311,4 +311,8 @@
     <string name="livev2_no_guide_dash">—</string>
     <string name="livev2_rail_expand_description">Main navigation</string>
     <string name="livev2_favorite_toggle_description">Toggle favourite</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_up_to_date">You are on the latest build</string>
+    <string name="update_none_configured">No update has been published yet</string>
+    <string name="update_check_failed">Could not reach the update server</string>
 </resources>

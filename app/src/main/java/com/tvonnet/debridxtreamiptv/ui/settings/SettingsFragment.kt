@@ -311,7 +311,15 @@ class SettingsFragment : Fragment() {
         )
     private fun aboutItems(state: SettingsUiState): List<SettingItem> = listOf(
             SettingItem.Info(key = "version", title = "App Version", value = BuildConfig.VERSION_NAME),
-            SettingItem.Info(key = "build", title = "Build", value = BuildConfig.VERSION_CODE.toString())
+            SettingItem.Info(key = "build", title = "Build", value = BuildConfig.VERSION_CODE.toString()),
+            SettingItem.Action(
+                key = "check_update",
+                title = "Check for Update",
+                description = "Ask the server whether a newer build has been published",
+                onClick = {
+                    com.tvonnet.debridxtreamiptv.update.UpdateManager.checkNow(requireActivity())
+                }
+            )
         )
     private fun accountItems(state: SettingsUiState): List<SettingItem> = listOfNotNull(
             state.accountUsername?.takeIf { it.isNotBlank() }?.let { user ->
