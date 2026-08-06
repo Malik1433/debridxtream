@@ -258,3 +258,14 @@ TV is untouched by construction: the gesture layer is never attached when `ui_us
 player's touch behaviour could NOT be verified on the emulator — its window is a secure surface, so
 uiautomator cannot see the OSD and a synthetic swipe produced no zap in the log. That part is
 verifiable only on a real handset.
+
+**M9 / M9b — CONFIRMED ON THE OWNER'S HANDSET (2026-08-06).** All three reports are closed:
+BACK leaves the movie player, a tap on Live shows the controls, and swipe up/down zaps. This is
+the QA my own commits could not provide — the Live player's window is a secure surface, so the
+emulator showed neither the OSD nor a zap in the log. Recorded here because two of those commits
+say "not verified by me", and this is what verified them.
+
+⭐ **The qualifier lesson, worth more than the batch:** `-port` answers "is this screen portrait?",
+NOT "is this a phone?". Fullscreen playback is landscape on a phone, so any device-level flag on
+`-port` silently gives the TV answer exactly where it matters most. Device-level flags belong on
+`-television`; only true layout-orientation flags belong on `-port`.
