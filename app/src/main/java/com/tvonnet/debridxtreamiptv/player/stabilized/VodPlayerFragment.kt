@@ -1,11 +1,15 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
 import android.content.Context
+import android.view.GestureDetector
+import android.view.KeyEvent
+import android.view.MotionEvent
 import android.media.AudioManager
 import android.view.View
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -21,10 +25,55 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class VodPlayerFragment : BasePlayerFragment() {
 
+    /** Set only on a touch device; the Activity feeds every touch through it (M9b's hook). */
+    private var touchGestures: GestureDetector? = null
+
+    override fun hostTouchEvent(event: MotionEvent) {
+        touchGestures?.onTouchEvent(event)
+    }
+
+    /**
+     * M10: double-tap to skip, the one gesture every phone player has. Left half rewinds, right
+     * half goes forward.
+     *
+     * It sends KEYCODE_MEDIA_REWIND / _FAST_FORWARD rather than seeking directly, so the skip is
+     * the SAME one the remote's buttons perform — `onRewind`/`onForward` set the directional
+     * SeekParameters first, and that detail is load-bearing: dropping it is what once made seeks
+     * snap back to the start. A second seek path would have re-opened that.
+     *
+     * Single taps are deliberately left alone: media3's own controller already shows and hides
+     * the chrome on a tap here, and adding a second handler would fight it.
+     */
+    private fun attachTouchGesturesIfMobile() {
+        if (resources.getBoolean(R.bool.ui_uses_dpad_focus)) return
+        if (touchGestures != null) return
+
+        touchGestures = GestureDetector(
+            requireContext(),
+            object : GestureDetector.SimpleOnGestureListener() {
+                override fun onDoubleTap(e: MotionEvent): Boolean {
+                    val forward = e.x > playerView.width / 2f
+                    sendKey(
+                        if (forward) KeyEvent.KEYCODE_MEDIA_FAST_FORWARD
+                        else KeyEvent.KEYCODE_MEDIA_REWIND
+                    )
+                    return true
+                }
+            }
+        )
+    }
+
+    private fun sendKey(keyCode: Int) {
+        val host = activity ?: return
+        host.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+        host.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
+    }
+
     override fun setupVodPlayback(streamTitle: String?) {
         playerView.useController = true
         playerView.controllerAutoShow = true
         playerView.controllerHideOnTouch = true
+        attachTouchGesturesIfMobile()
         // Black-video-on-episode-switch fix: a mid-stream episode switch calls player.stop()
         // (inside performSeamlessSwitch), which makes PlayerView drop the "shutter" (a black
         // view) over the surface until a new frame renders. On this Amlogic HW path the
