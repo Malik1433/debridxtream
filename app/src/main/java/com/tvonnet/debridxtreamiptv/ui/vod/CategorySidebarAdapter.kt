@@ -126,7 +126,7 @@ class CategorySidebarAdapter(
         fun bind(row: RowBind) {
             val (category, isSelected, activeBgRes, accentColor, count, onItemFocused, onClick) = row
             itemView.isFocusable = true
-            itemView.isFocusableInTouchMode = true
+            itemView.isFocusableInTouchMode = itemView.resources.getBoolean(R.bool.ui_uses_dpad_focus)
             itemView.setTag(R.id.tag_category_id, category.category_id)
 
             // Show the category name AS-IS (default) — do NOT strip provider/country

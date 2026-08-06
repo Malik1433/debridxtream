@@ -161,7 +161,7 @@ class MovieDebridSourceController(
             adapter = sourcesAdapter
             setHasFixedSize(true)
             isFocusable = true
-            isFocusableInTouchMode = true
+            isFocusableInTouchMode = resources.getBoolean(R.bool.ui_uses_dpad_focus)
         }
         sizeFilterAdapter = SizeFilterAdapter { option ->
             selectedSizeOption = option

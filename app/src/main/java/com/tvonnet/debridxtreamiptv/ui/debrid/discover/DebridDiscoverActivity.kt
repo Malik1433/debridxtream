@@ -418,7 +418,7 @@ class DebridDiscoverActivity : AppCompatActivity() {
             setPadding(dp(16), 0, dp(16), 0)
             textSize = 16f
             isFocusable = true
-            isFocusableInTouchMode = true
+            isFocusableInTouchMode = resources.getBoolean(R.bool.ui_uses_dpad_focus)
             text = if (selected) "\u2713 ${option.label}" else option.label
             typeface = anchor.typeface // standard btnType fallback
             background = ColorDrawable(Color.TRANSPARENT)

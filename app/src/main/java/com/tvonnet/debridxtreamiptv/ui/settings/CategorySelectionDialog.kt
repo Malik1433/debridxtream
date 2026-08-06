@@ -1,5 +1,7 @@
 package com.tvonnet.debridxtreamiptv.ui.settings
 
+import com.tvonnet.debridxtreamiptv.R
+
 import android.app.Dialog
 import android.os.Bundle
 import androidx.appcompat.app.AlertDialog
@@ -137,7 +139,7 @@ class CategorySelectionDialog : DialogFragment() {
                 setTextColor(android.graphics.Color.WHITE)
                 buttonTintList = android.content.res.ColorStateList.valueOf(0xFF00F0FF.toInt())
                 isFocusable = true
-                isFocusableInTouchMode = true
+                isFocusableInTouchMode = resources.getBoolean(R.bool.ui_uses_dpad_focus)
                 // Focus has to be obvious on a D-pad list this long.
                 setOnFocusChangeListener { v, hasFocus ->
                     v.background = if (hasFocus) {

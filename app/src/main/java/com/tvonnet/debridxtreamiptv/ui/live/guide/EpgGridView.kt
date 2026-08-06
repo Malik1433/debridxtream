@@ -144,7 +144,7 @@ class EpgGridView @JvmOverloads constructor(
 
     init {
         isFocusable = true
-        isFocusableInTouchMode = true
+        isFocusableInTouchMode = resources.getBoolean(R.bool.ui_uses_dpad_focus)
         setBackgroundColor(cBg)
     }
 

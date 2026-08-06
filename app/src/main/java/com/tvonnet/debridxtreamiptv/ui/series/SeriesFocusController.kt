@@ -1,5 +1,7 @@
 package com.tvonnet.debridxtreamiptv.ui.series
 
+import com.tvonnet.debridxtreamiptv.R
+
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
@@ -381,7 +383,7 @@ class SeriesFocusController(
         val s = views.searchButton() ?: return
         // Make sure the pill itself is the d-pad focus target.
         s.isFocusable = true
-        s.isFocusableInTouchMode = true
+        s.isFocusableInTouchMode = s.resources.getBoolean(R.bool.ui_uses_dpad_focus)
 
         if (!s.requestFocus()) s.requestFocus(View.FOCUS_UP)
 

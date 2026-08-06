@@ -77,7 +77,7 @@ class EpgAdapter(
             
             // TV focus handling
             itemView.isFocusable = true
-            itemView.isFocusableInTouchMode = true
+            itemView.isFocusableInTouchMode = itemView.resources.getBoolean(R.bool.ui_uses_dpad_focus)
         }
     }
     

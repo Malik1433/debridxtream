@@ -177,7 +177,7 @@ class VodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     ) {
         val (isFavorite, isWatched, progress) = overlays
         itemView.isFocusable = true
-        itemView.isFocusableInTouchMode = true
+        itemView.isFocusableInTouchMode = itemView.resources.getBoolean(R.bool.ui_uses_dpad_focus)
         itemView.setTag(R.id.tag_vod_id, movie.stream_id?.toString())
 
         val cardText = parseVodCardText(movie.name)

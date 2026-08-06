@@ -262,13 +262,13 @@ class VodFragment : Fragment() {
 
         rvCategoriesSidebar.setHasFixedSize(true)
         rvCategoriesSidebar.isFocusable = true
-        rvCategoriesSidebar.isFocusableInTouchMode = true
+        rvCategoriesSidebar.isFocusableInTouchMode = rvCategoriesSidebar.resources.getBoolean(R.bool.ui_uses_dpad_focus)
         rvCategoriesSidebar.itemAnimator = null
         rvCategoriesSidebar.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
 
         rvMoviesGrid.setHasFixedSize(true)
         rvMoviesGrid.isFocusable = true
-        rvMoviesGrid.isFocusableInTouchMode = true
+        rvMoviesGrid.isFocusableInTouchMode = rvMoviesGrid.resources.getBoolean(R.bool.ui_uses_dpad_focus)
         rvMoviesGrid.itemAnimator = null
         rvMoviesGrid.setItemViewCacheSize(20)
         rvMoviesGrid.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
@@ -373,7 +373,7 @@ class VodFragment : Fragment() {
     private fun setupSearch() {
         btnSearch?.apply {
             isFocusable = true
-            isFocusableInTouchMode = true
+            isFocusableInTouchMode = resources.getBoolean(R.bool.ui_uses_dpad_focus)
             setOnClickListener { openSearch() }
             // Visible focus highlight (bg_vod_search_bar has no focus state).
             setOnFocusChangeListener { v, hasFocus ->

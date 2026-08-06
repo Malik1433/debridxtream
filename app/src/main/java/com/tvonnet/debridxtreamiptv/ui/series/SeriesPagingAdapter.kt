@@ -86,7 +86,7 @@ class SeriesPagingViewHolder(itemView: android.view.View) : RecyclerView.ViewHol
         onLongClick: ((XtreamSeriesInfo) -> Unit)? = null
     ) {
         itemView.isFocusable = true
-        itemView.isFocusableInTouchMode = true
+        itemView.isFocusableInTouchMode = itemView.resources.getBoolean(R.bool.ui_uses_dpad_focus)
         itemView.setTag(R.id.tag_series_id, series.series_id)
 
         tvTitle.text = com.tvonnet.debridxtreamiptv.util.MediaTitleCleaner.clean(series.name)

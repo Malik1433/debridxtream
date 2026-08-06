@@ -184,7 +184,7 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
             binding.root.setOnFocusChangeListener { v, has -> v.background = RowStyle.rowBg(v, has) }
             // Rows are recycled between actionable and read-only kinds — restore the default.
             binding.root.isFocusable = true
-            binding.root.isFocusableInTouchMode = true
+            binding.root.isFocusableInTouchMode = binding.root.resources.getBoolean(R.bool.ui_uses_dpad_focus)
             binding.root.isClickable = true
             binding.ivChevron.isVisible = true
         }

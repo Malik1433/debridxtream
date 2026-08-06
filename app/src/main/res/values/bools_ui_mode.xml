@@ -49,4 +49,11 @@
       so on a touchscreen it would render and then ignore every finger.
     -->
     <bool name="epg_strip_is_horizontal">true</bool>
+    <!--
+      M7c: may screen code MOVE FOCUS on its own? On TV that is the interaction model — focus is
+      remembered, restored after a refresh, and routed by D-pad. On a touchscreen it is the
+      opposite of the rulebook: a tap must act, and a poster that takes focus instead of opening
+      is exactly why every card needed two taps.
+    -->
+    <bool name="ui_uses_dpad_focus">true</bool>
 </resources>

@@ -247,7 +247,7 @@ class DebridItemViewHolder(
 
         // TV remote focus handling
         itemView.isFocusable = true
-        itemView.isFocusableInTouchMode = true
+        itemView.isFocusableInTouchMode = itemView.resources.getBoolean(R.bool.ui_uses_dpad_focus)
 
         attachFocusAnimation(item, onItemFocused)
 
@@ -434,7 +434,7 @@ class DebridLoadingViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView
         // The focus stays on this item (pushed to the right) or moves naturally.
         // This prevents "Jumping Up" because there is always a valid focus target.
         itemView.isFocusable = true
-        itemView.isFocusableInTouchMode = true
+        itemView.isFocusableInTouchMode = itemView.resources.getBoolean(R.bool.ui_uses_dpad_focus)
     }
     
     fun bind() {

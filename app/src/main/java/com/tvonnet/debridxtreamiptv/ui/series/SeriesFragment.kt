@@ -232,13 +232,13 @@ class SeriesFragment : Fragment() {
 
         rvCategoriesSidebar.setHasFixedSize(true)
         rvCategoriesSidebar.isFocusable = true
-        rvCategoriesSidebar.isFocusableInTouchMode = true
+        rvCategoriesSidebar.isFocusableInTouchMode = rvCategoriesSidebar.resources.getBoolean(R.bool.ui_uses_dpad_focus)
         rvCategoriesSidebar.itemAnimator = null
         rvCategoriesSidebar.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
 
         rvSeriesGrid.setHasFixedSize(true)
         rvSeriesGrid.isFocusable = true
-        rvSeriesGrid.isFocusableInTouchMode = true
+        rvSeriesGrid.isFocusableInTouchMode = rvSeriesGrid.resources.getBoolean(R.bool.ui_uses_dpad_focus)
         rvSeriesGrid.itemAnimator = null
         rvSeriesGrid.setItemViewCacheSize(20)
         rvSeriesGrid.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
@@ -338,7 +338,7 @@ class SeriesFragment : Fragment() {
     private fun setupSearch() {
         btnSearch?.apply {
             isFocusable = true
-            isFocusableInTouchMode = true
+            isFocusableInTouchMode = resources.getBoolean(R.bool.ui_uses_dpad_focus)
             setOnClickListener { openSearch() }
             // Visible focus highlight for the search pill (bg_vod_search_bar has no focus state).
             setOnFocusChangeListener { v, hasFocus ->

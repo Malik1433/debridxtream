@@ -91,7 +91,7 @@ class BrowserCategoryAdapter(
 
         fun bind(category: XtreamCategory, isSelected: Boolean) {
             itemView.isFocusable = true
-            itemView.isFocusableInTouchMode = true
+            itemView.isFocusableInTouchMode = itemView.resources.getBoolean(R.bool.ui_uses_dpad_focus)
 
             val rawName = category.category_name ?: "Unknown"
             tvName.text = rawName

@@ -9,4 +9,5 @@
     <bool name="rows_focusable_in_touch_mode">false</bool>
     <bool name="settings_categories_are_horizontal">true</bool>
     <bool name="epg_strip_is_horizontal">false</bool>
+    <bool name="ui_uses_dpad_focus">false</bool>
 </resources>

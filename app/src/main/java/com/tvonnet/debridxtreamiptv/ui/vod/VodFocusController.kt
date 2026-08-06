@@ -1,5 +1,6 @@
 package com.tvonnet.debridxtreamiptv.ui.vod
 
+import com.tvonnet.debridxtreamiptv.R
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
@@ -41,6 +42,18 @@ class VodFocusController(
     private val rvCategoriesSidebar get() = views.sidebar
     private val rvMoviesGrid get() = views.grid
     private val llSortChips get() = views.sortChips
+
+    /**
+     * M7c: this whole class is the TV interaction model — remember where focus was, put it back
+     * after a refresh, and route D-pad keys between the rail, the grid and the chips. On a
+     * touchscreen none of that is wanted, and it is actively harmful: measured on the phone, a
+     * tap on a poster delivered DOWN and UP to the card and then a FOCUS event, and the click
+     * was never fired — the poster took focus instead of opening, which is what made every card
+     * need two taps. So on a phone the controller keeps its bookkeeping and simply never moves
+     * focus. TV is unchanged: `values` says true.
+     */
+    private val dpadFocusEnabled: Boolean
+        get() = views.grid.resources.getBoolean(R.bool.ui_uses_dpad_focus)
 
     enum class FocusTarget { CATEGORIES, MOVIES }
 
@@ -119,6 +132,7 @@ class VodFocusController(
     // ── returning to the screen ──────────────────────────────────────────────
 
     fun restoreFocusIfPossible() {
+        if (!dpadFocusEnabled) return
         if (!pendingRestoreFocus) return
 
         FocusCoordinator.requestFocus("VOD_RESTORE") {
@@ -199,6 +213,7 @@ class VodFocusController(
      * sidebar, the sort chips or search. Returning-to-screen focus is [restoreFocusIfPossible].
      */
     fun reassertGridFocus() {
+        if (!dpadFocusEnabled) return
         if (!rvMoviesGrid.hasFocus()) return
         rvMoviesGrid.post {
             val positionToFocus =
@@ -217,6 +232,7 @@ class VodFocusController(
     // ── the D-pad map ────────────────────────────────────────────────────────
 
     fun setupDpadNavigation() {
+        if (!dpadFocusEnabled) return
         rvMoviesGrid.setOnKeyListener { _, keyCode, event ->
             if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
 
@@ -292,9 +308,10 @@ class VodFocusController(
 
     /** Move focus to the search pill (its own view is the focus target). */
     fun focusSearchBar() {
+        if (!dpadFocusEnabled) return
         val s = views.searchButton() ?: return
         s.isFocusable = true
-        s.isFocusableInTouchMode = true
+        s.isFocusableInTouchMode = s.resources.getBoolean(R.bool.ui_uses_dpad_focus)
         if (!s.requestFocus()) s.requestFocus(View.FOCUS_UP)
         // Retry next frame in case layout wasn't settled / focus bounced.
         s.post {
