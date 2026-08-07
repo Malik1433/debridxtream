@@ -1,19 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  M9b: the D-pad flag keyed on the DEVICE, not on the orientation.
+  ⭐ THE TV ANSWERS. `-television` matches an Android TV / Fire TV in EITHER orientation and never
+  matches a phone, which is exactly the question these flags ask. `values/` holds the phone answers.
 
-  Every other bool here is a layout question, and for those `-port` is exactly right: a phone
-  browses in portrait. But "does this device drive the UI with a D-pad?" is not an orientation
-  question, and the player is where that bites — a fullscreen video player is LANDSCAPE on a
-  phone too, so it resolved to the `values/` (TV) answer and the touch gesture layer was never
-  attached. That is why the handset reported Live still had no tap and no zapping after M9.
-
-  `-television` is Android's own uiMode qualifier: a Fire TV / Google TV always matches it, a
-  phone never does, in any orientation. So TV keeps the D-pad model everywhere, and a phone gets
-  the touch model everywhere — including fullscreen playback.
+  This file used to carry only the two flags M9b/M7c added. M11 moved the rest here from
+  `values-port`, because keying a DEVICE question on ORIENTATION meant a rotated handset got the
+  TV answer for all of them — that is what made the Live channel list vanish on rotate.
 -->
 <resources>
+    <bool name="home_nav_is_horizontal">false</bool>
+    <bool name="browse_categories_are_horizontal">false</bool>
+    <bool name="source_row_play_always_visible">false</bool>
+    <bool name="dismiss_on_backdrop_tap">false</bool>
+    <bool name="live_defaults_to_classic">false</bool>
+    <bool name="settings_categories_are_horizontal">false</bool>
+    <bool name="epg_strip_is_horizontal">true</bool>
     <bool name="ui_uses_dpad_focus">true</bool>
-    <!-- Same reasoning: a row taking focus from a touch is a TV behaviour, not a portrait one. -->
     <bool name="rows_focusable_in_touch_mode">true</bool>
 </resources>

@@ -3,33 +3,39 @@
   M2 (MOBILE_DUAL_MODE_PLAN): layout facts the CODE needs, expressed as resources so the
   qualifier decides them — no mode plumbing through fragments.
 
-  Default (here) = the TV rail: vertical, on the left.
-  values-port overrides it for the phone bottom bar.
+  ⭐ M11: every flag here is a DEVICE question, so the defaults below are the PHONE answers and
+  `values-television` carries the TV ones. They used to be split `values` (TV) / `values-port`
+  (phone), and that was wrong for the same reason `ui_uses_dpad_focus` was: **`-port` asks "is this
+  screen portrait?", not "is this a phone?"**. Rotate a handset and every one of these silently
+  flipped to the TV answer — the Live screen lost its channel list, the bottom bar became a side
+  rail, the source sheet stopped closing on a backdrop tap. `-television` matches a TV in either
+  orientation and never matches a phone, which is the question actually being asked.
 -->
 <resources>
-    <bool name="home_nav_is_horizontal">false</bool>
-    <!-- M3: browse category list — a left rail on TV, a top chip rail on the phone. -->
-    <bool name="browse_categories_are_horizontal">false</bool>
+    <!-- Top-level navigation: a bottom bar on a phone, a vertical rail on TV. -->
+    <bool name="home_nav_is_horizontal">true</bool>
+    <!-- M3: browse category list — a top chip rail on the phone, a left rail on TV. -->
+    <bool name="browse_categories_are_horizontal">true</bool>
     <!--
       M5: the play circle on a source row. On TV it is a FOCUS affordance — it appears on
       the focused row and marks where CENTER will act. A touch device has no focused row,
       so the same rule would hide it forever; there it is a permanent tap affordance.
     -->
-    <bool name="source_row_play_always_visible">false</bool>
+    <bool name="source_row_play_always_visible">true</bool>
     <!--
       M5: tapping the dimmed area behind a sheet closes it. TV leaves this off on purpose —
       there is nothing to tap, and attaching a click listener would make the backdrop
       clickable, which lets it into the D-pad focus order and adds a dead stop to the
       ladder. BACK already closes the panel there.
     -->
-    <bool name="dismiss_on_backdrop_tap">false</bool>
+    <bool name="dismiss_on_backdrop_tap">true</bool>
     <!--
       M7: which Live screen a "live" hop opens WHEN THE USER HAS NOT CHOSEN. The EPG guide is a
       multi-day timeline grid and needs width; the classic screen is a channel list with a
       preview above it. TV keeps the guide, a phone gets the list. An explicit choice in
       Settings still wins on both.
     -->
-    <bool name="live_defaults_to_classic">false</bool>
+    <bool name="live_defaults_to_classic">true</bool>
     <!--
       M7b: may a list row take focus FROM A TOUCH? On TV, yes — focus is the whole interaction
       model. On a phone it is the wrong model outright (the rulebook in CLAUDE.md says one tap
@@ -38,29 +44,22 @@
       only governs focus acquired by touching.
     -->
     <bool name="rows_focusable_in_touch_mode">false</bool>
-    <!-- M6: Settings categories — a vertical rail beside the detail panel on TV, a top chip
-         rail above it on the phone (there is no room for two columns at 411dp). -->
-    <bool name="settings_categories_are_horizontal">false</bool>
+    <!-- M6: Settings categories — a top chip rail on the phone (there is no room for two
+         columns at 411dp), a vertical rail beside the detail panel on TV. -->
+    <bool name="settings_categories_are_horizontal">true</bool>
     <!--
-      M8: the selected channel's guide. On TV it is a horizontal strip of tiles beside the
-      preview. On a phone it becomes the plan's "day timeline per channel" — the same data
-      (viewModel.guideEpg is already the whole day) read down the page instead of across it.
-      The TV's own EPG grid is not portable: EpgGridView handles onKeyDown and nothing else,
-      so on a touchscreen it would render and then ignore every finger.
+      M8: the selected channel's guide. On a phone it is the plan's "day timeline per channel" —
+      the same data (viewModel.guideEpg is already the whole day) read DOWN the page. On TV it is
+      a horizontal strip of tiles beside the preview. The TV's own EPG grid is not portable:
+      EpgGridView handles onKeyDown and nothing else, so on a touchscreen it would render and
+      then ignore every finger.
     -->
-    <bool name="epg_strip_is_horizontal">true</bool>
+    <bool name="epg_strip_is_horizontal">false</bool>
     <!--
       M7c: may screen code MOVE FOCUS on its own? On TV that is the interaction model — focus is
       remembered, restored after a refresh, and routed by D-pad. On a touchscreen it is the
       opposite of the rulebook: a tap must act, and a poster that takes focus instead of opening
       is exactly why every card needed two taps.
-    -->
-    <!--
-      NOTE the qualifier: the TRUE value lives in `values-television`, not here, because this one
-      is a DEVICE question rather than an orientation one. A fullscreen player is landscape on a
-      phone as well, so keying it on `-port` gave the player the TV answer and left it without any
-      touch handling at all. Everything else in this file is genuinely about orientation and stays
-      `values` / `values-port`.
     -->
     <bool name="ui_uses_dpad_focus">false</bool>
 </resources>

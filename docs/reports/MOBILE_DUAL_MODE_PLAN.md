@@ -405,3 +405,55 @@ landscape.**
 
 **Also seen (open, not this batch):** in landscape a phone falls back to the TV home layout — side
 rail, "OK SELECT / BACK EXIT" legend — because `layout-port` by definition does not apply there.
+
+---
+
+### M11 — a phone stays a phone when you rotate it (2026-08-07)
+
+Owner report: rotate the handset and the Live channel list disappears. It reproduced immediately,
+and the cause is the qualifier system, not the Live screen.
+
+**Two distinct failures, one root.** `layout-port/` and `values-port/` mean **PORTRAIT**, not
+**PHONE**:
+1. An activity **created** in landscape inflates `layout/` — the 10-foot TV design. Cold-launching
+   the app sideways gave the phone the TV home: side rail, "OK SELECT / BACK EXIT" legend.
+2. `MainActivity` declares `configChanges="orientation|screenSize|…"`, so **rotating** it does not
+   re-inflate. The portrait layout stays, and its vertical stack (chips → preview → Now Playing →
+   Program Guide → channel list) is simply taller than a 411dp-tall landscape viewport, so the
+   channel list sits below the fold with nothing to suggest it is there.
+
+**Fix, part 1 — the bools are DEVICE questions, so they moved to the device qualifier.** All seven
+remaining flags left `values-port` for `values` (phone answers) + `values-television` (TV answers).
+Keyed on orientation, a rotated handset silently got the TV answer for every one of them: the
+bottom bar became a side rail, browse categories became a left rail, the source sheet stopped
+closing on a backdrop tap, and Live's default flipped from the channel list to the D-pad-only EPG
+guide. `-television` matches a TV in either orientation and never matches a phone — which is the
+question actually being asked. `values-port/bools_ui_mode.xml` is deleted.
+
+**Fix, part 2 — the browse screens stay portrait on a touch device.** `lockPortraitOnTouchDevices()`
+in the four activities that HAVE a portrait design (Main, MovieDetail, SeriesDetail, Activation).
+Fullscreen playback still rotates; nothing else is locked into a layout it does not have.
+
+⭐ **The call site is `super.onCreate`-first, and that ordering is load-bearing.** Placed after it,
+the lock rotated the WINDOW to portrait but the TV layout had already been inflated — and with
+`configChanges` swallowing the change it never re-inflated, so the phone showed the TV design inside
+a portrait window: worse than before. Screenshotted both ways before moving the call.
+
+**Why not simply write `layout-land/` phone variants:** orientation outranks UI mode in Android's
+qualifier precedence, so a TV — which is landscape — would pick `layout-land` over
+`layout-television` and every TV screen would regress. Freeing the default bucket would mean
+migrating ~150 TV layouts into `-television`. That is a migration, not a fix.
+
+**QA — phone (Material rulebook), Pixel emulator:**
+- cold launch with the device rotated to landscape → phone home, bottom nav, no TV rail
+- Live TV → rotate → rotate back: stays portrait, **channel list still on screen** (the reported bug)
+- 0 FATAL
+
+**QA — TV (10-foot rulebook), Fire TV .64, versionCode 43:** home renders the vertical rail and
+horizontal rows exactly as before — which is also the direct evidence that `values-television` is
+the file being read, since all seven flags come from it. 0 FATAL.
+
+**Open, not this batch:** `DebridDiscoverActivity`, `DebridSeeAllActivity`, `CompanionSetupActivity`
+and `TrailerActivity` are `screenOrientation="landscape"` in the manifest and have no portrait
+design, so on a phone they are still forced into the TV layout. And the in-player source sheet runs
+in landscape with the player, so it uses the TV panel rather than `layout-port/dialog_source_selection`.

@@ -35,6 +35,7 @@ import javax.inject.Inject
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider
 import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
 import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
+import com.tvonnet.debridxtreamiptv.util.lockPortraitOnTouchDevices
 
 @AndroidEntryPoint
 class MovieDetailActivity : AppCompatActivity() {
@@ -172,6 +173,10 @@ class MovieDetailActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // M11: BEFORE super.onCreate on purpose. This screen has a portrait design
+        // (layout-port), and the orientation has to be settled before the first inflate —
+        // asking for it afterwards leaves the TV layout on screen inside a portrait window.
+        lockPortraitOnTouchDevices()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.fragment_movie_detail)
 

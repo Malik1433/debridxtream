@@ -12,6 +12,7 @@ import com.tvonnet.debridxtreamiptv.data.licensing.LicenseState
 import com.tvonnet.debridxtreamiptv.ui.MainActivity
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import com.tvonnet.debridxtreamiptv.util.lockPortraitOnTouchDevices
 
 /**
  * Full-screen gate shown when the device is not activated. Displays the activation
@@ -24,6 +25,10 @@ class ActivationActivity : AppCompatActivity() {
     private var navigated = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // M11: BEFORE super.onCreate on purpose. This screen has a portrait design
+        // (layout-port), and the orientation has to be settled before the first inflate —
+        // asking for it afterwards leaves the TV layout on screen inside a portrait window.
+        lockPortraitOnTouchDevices()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_activation)
         manager = LicenseManager.getInstance(this)

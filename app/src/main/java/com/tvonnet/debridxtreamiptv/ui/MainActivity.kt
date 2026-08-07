@@ -30,6 +30,7 @@ import com.tvonnet.debridxtreamiptv.data.network.NetworkQualityManager
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.tvonnet.debridxtreamiptv.util.lockPortraitOnTouchDevices
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -56,6 +57,10 @@ class MainActivity : AppCompatActivity() {
     lateinit var settingsPreferences: SettingsPreferences
     
     override fun onCreate(savedInstanceState: Bundle?) {
+        // M11: BEFORE super.onCreate on purpose. This screen has a portrait design
+        // (layout-port), and the orientation has to be settled before the first inflate —
+        // asking for it afterwards leaves the TV layout on screen inside a portrait window.
+        lockPortraitOnTouchDevices()
         super.onCreate(savedInstanceState)
 
         // Licensing gate: this device must be activated (admin-controlled via Firestore).

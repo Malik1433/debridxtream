@@ -39,6 +39,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import com.tvonnet.debridxtreamiptv.util.lockPortraitOnTouchDevices
 
 @AndroidEntryPoint
 class SeriesDetailActivity : AppCompatActivity() {
@@ -151,6 +152,10 @@ class SeriesDetailActivity : AppCompatActivity() {
     ) { result -> seriesDebridPlayback.handlePlayerResult(result) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // M11: BEFORE super.onCreate on purpose. This screen has a portrait design
+        // (layout-port), and the orientation has to be settled before the first inflate —
+        // asking for it afterwards leaves the TV layout on screen inside a portrait window.
+        lockPortraitOnTouchDevices()
         super.onCreate(savedInstanceState)
         
         setContentView(R.layout.fragment_series_detail)
