@@ -35,7 +35,9 @@ import javax.inject.Inject
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider
 import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
 import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
+import android.content.Context
 import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
+import com.tvonnet.debridxtreamiptv.util.phoneScaledContext
 
 @AndroidEntryPoint
 class MovieDetailActivity : AppCompatActivity() {
@@ -170,6 +172,12 @@ class MovieDetailActivity : AppCompatActivity() {
         const val EXTRA_MOVIE_CATEGORY_ID = "MOVIE_CATEGORY_ID"
         const val EXTRA_MOVIE_TRAILER = "MOVIE_TRAILER"
         const val EXTRA_SOURCE_RAIL = "SOURCE_RAIL"
+    }
+
+
+    // M13 (option B): the TV layout's type is sized for three metres; scale it up on a handset.
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(phoneScaledContext(newBase))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

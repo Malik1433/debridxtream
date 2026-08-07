@@ -39,7 +39,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import android.content.Context
 import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
+import com.tvonnet.debridxtreamiptv.util.phoneScaledContext
 
 @AndroidEntryPoint
 class SeriesDetailActivity : AppCompatActivity() {
@@ -150,6 +152,12 @@ class SeriesDetailActivity : AppCompatActivity() {
     private val playerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result -> seriesDebridPlayback.handlePlayerResult(result) }
+
+
+    // M13 (option B): the TV layout's type is sized for three metres; scale it up on a handset.
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(phoneScaledContext(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // M13: BEFORE super.onCreate on purpose — the orientation has to be settled before the
