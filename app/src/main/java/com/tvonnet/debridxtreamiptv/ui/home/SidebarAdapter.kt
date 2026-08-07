@@ -124,7 +124,11 @@ class SidebarAdapter(
             // M2b: on TV the label lives in the shared nav_flyout, which appears on FOCUS —
             // so the in-item title is hidden there. A touch bar has no focus to hang a
             // flyout on, so on the phone the label stays under the icon.
-            val labelInItem = itemView.resources.getBoolean(R.bool.home_nav_is_horizontal)
+            //
+            // M13: keyed on FOCUS, not on the bar's orientation. The phone now uses the TV's
+            // vertical rail, and asking the orientation would have hidden the label there while
+            // the flyout that was supposed to supply it never opens — icons with no names at all.
+            val labelInItem = !itemView.resources.getBoolean(R.bool.ui_uses_dpad_focus)
             tvTitle.alpha = if (labelInItem) 1f else 0f
             tvTitle.visibility = if (labelInItem) View.VISIBLE else View.GONE
         }
