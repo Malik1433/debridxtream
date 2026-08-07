@@ -48,6 +48,35 @@ is ambiguous.
 - Landmines respected as ever: play-then-repair resume order, TS extractor flags,
   never-destructive Room migrations, rethrow CancellationException, no main-thread I/O.
 
+## 1b. ⭐ ORIENTATION — LANDSCAPE ONLY (owner decision, 2026-08-07, overrides everything above)
+
+> "जैसे ही app खुले तो वह portrait ना हो, landscape ही हो … उसको हम configure करें ही नहीं portrait में."
+
+**The phone app is landscape. There is no portrait mode.** Every screen — home, Live TV, browse,
+detail, Settings, player — opens and stays landscape however the handset is held. The user watches
+video with the phone sideways anyway, and the app should look on a phone the way it looks on the TV.
+
+What this rewrites in the rest of this plan:
+
+- **Seasons 1–3 were written "in portrait" and that wording is now void.** Read every "in portrait"
+  as "in landscape, using the TV layout".
+- **The 21 `layout-port/` files (M1–M8) are dead** — that qualifier only matches portrait. They are
+  left on disk so the decision stays reversible; nothing loads them.
+- **M11 is superseded.** It locked the browse screens to PORTRAIT to solve the same complaint from
+  the other side. M13 locks them to LANDSCAPE instead. The reasoning M11 recorded is still correct
+  and worth keeping — only the direction changed.
+- **The bools are split SHAPE vs BEHAVIOUR, not phone vs TV.** Shape flags (nav/category
+  orientation, EPG strip, Live default) must match the layout, which is now the TV one on both
+  devices, so they live in `values` with no override. Only the four interaction flags
+  (`ui_uses_dpad_focus`, `rows_focusable_in_touch_mode`, `source_row_play_always_visible`,
+  `dismiss_on_backdrop_tap`) are overridden in `values-television`. **Looks like TV, driven by a
+  finger.**
+- **Text is scaled up on the phone (owner chose option B, 2026-08-07).** The TV layouts are sized to
+  read from three metres; ~1.6× on a handset. Caveat to verify, not assume: a scale layer only
+  reaches sizes that come from `sp` dimens, and many TV layouts hard-code `textSize="7sp"` inline.
+- **`values-port/` is banned for device questions** and `layout-land/` is not an option — orientation
+  outranks UI mode in Android's qualifier table, so a TV would pick `-land` over `-television`.
+
 ## 2. Architecture decision (locked)
 
 **Single APK, runtime dual-mode.**
