@@ -304,6 +304,13 @@ class HomeFragment : Fragment() {
         rvTop10Movies = view.findViewById(R.id.rv_top_10_movies)
         rvTop10Series = view.findViewById(R.id.rv_top_10_series)
 
+        // M14: D-pad legends are a 10-foot idiom and the phone rulebook bans them outright
+        // ("no focus-first, no D-pad legends"). The layout is shared with TV now, so the hint bar
+        // is hidden here rather than removed.
+        if (!resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
+            view.findViewById<View>(R.id.hint_bar)?.visibility = View.GONE
+        }
+
         setupRecyclerViews()
     }
 
