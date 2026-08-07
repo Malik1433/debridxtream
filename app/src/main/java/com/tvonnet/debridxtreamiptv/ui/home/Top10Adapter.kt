@@ -163,6 +163,10 @@ class Top10Adapter(
 
         /** Dwell quick-info: bubble appears only after ~450ms of resting on the card. */
         private fun scheduleDwellInfo() {
+            // M2c: focus-dwell is a 10-foot idiom (there is no "resting" with a finger). Under
+            // touch the card is not focusable so this never fires today; the guard keeps it that
+            // way if focus behaviour ever changes again.
+            if (!itemView.resources.getBoolean(R.bool.ui_uses_dpad_focus)) return
             val bubble = quickInfo ?: return
             cancelDwellInfo()
             val runnable = Runnable {

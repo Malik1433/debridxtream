@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.R
@@ -98,6 +99,9 @@ class ContinueWatchingAdapter(
         private val tvContinueProgress: TextView = itemView.findViewById(R.id.tv_continue_progress)
         private val tvContinueTypeBadge: TextView = itemView.findViewById(R.id.tv_continue_type_badge)
         private val quickInfo: View? = itemView.findViewById(R.id.quick_info_bubble)
+        private val btnMore: View? = itemView.findViewById(R.id.btn_cw_more)
+        private val usesDpadFocus: Boolean =
+            itemView.resources.getBoolean(R.bool.ui_uses_dpad_focus)
         private val qiInfo: View? = quickInfo?.findViewById(R.id.qi_info)
         private val qiActions: View? = quickInfo?.findViewById(R.id.qi_actions)
         private val qiOpen: TextView? = quickInfo?.findViewById(R.id.qi_open)
@@ -168,11 +172,31 @@ class ContinueWatchingAdapter(
                 if (!longPressHandled && !inActionsMode) {
                     longPressHandled = true
                     suppressNextClick = true
-                    enterActionsMode(item, onOpenDetail, onRemoveItem, fromKey = false)
+                    openOptions(item, onOpenDetail, onRemoveItem, fromKey = false)
                 }
                 true
             }
 
+            // M2c: the phone also gets a VISIBLE way in, because the rulebook is explicit that a
+            // long-press may be a shortcut but never the only route to an action. On TV the button
+            // stays gone — the bubble is reached by holding OK, and an extra tile would only be one
+            // more thing for the D-pad to stop at.
+            btnMore?.let { button ->
+                button.isVisible = !usesDpadFocus
+                button.setOnClickListener {
+                    openOptions(item, onOpenDetail, onRemoveItem, fromKey = false)
+                }
+            }
+
+            attachCardKeyListener(item, onOpenDetail, onRemoveItem)
+        }
+
+        /** Holding OK on the remote is the TV's long-press. */
+        private fun attachCardKeyListener(
+            item: ContinueWatchingItem,
+            onOpenDetail: (ContinueWatchingItem) -> Unit,
+            onRemoveItem: (ContinueWatchingItem) -> Unit
+        ) {
             itemView.setOnKeyListener { _, keyCode, event ->
                 val isSelectKey =
                     keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
@@ -184,7 +208,7 @@ class ContinueWatchingAdapter(
                         isSelectKey && !longPressHandled && !inActionsMode -> {
                         longPressHandled = true
                         suppressNextClick = true
-                        enterActionsMode(item, onOpenDetail, onRemoveItem, fromKey = true)
+                        openOptions(item, onOpenDetail, onRemoveItem, fromKey = true)
                         true
                     }
                     event.action == KeyEvent.ACTION_UP && isSelectKey -> {
@@ -261,8 +285,33 @@ class ContinueWatchingAdapter(
             }
         }
 
-        /** Dwell quick-info: bubble appears only after ~450ms of resting on the card. */
+        /**
+         * M2c: one entry point, two shapes. TV keeps the in-card bubble; a touch device gets a
+         * bottom sheet. Routing here rather than at each call site means the D-pad long-press, the
+         * touch long-press and the new options button can never drift apart.
+         */
+        private fun openOptions(
+            item: ContinueWatchingItem,
+            onOpenDetail: (ContinueWatchingItem) -> Unit,
+            onRemoveItem: (ContinueWatchingItem) -> Unit,
+            fromKey: Boolean
+        ) {
+            if (usesDpadFocus) {
+                enterActionsMode(item, onOpenDetail, onRemoveItem, fromKey)
+                return
+            }
+            ContinueWatchingOptionsSheet.show(itemView.context, item, onOpenDetail, onRemoveItem)
+        }
+
+        /**
+         * Dwell quick-info: bubble appears only after ~450ms of resting on the card.
+         *
+         * Focus-dwell is a 10-foot idiom — there is no "resting" with a finger — and under touch
+         * the card is not focusable anyway (M7c), so this never fires on a phone today. The guard
+         * is here so that stays true if focus behaviour ever changes again.
+         */
         private fun scheduleDwellInfo() {
+            if (!usesDpadFocus) return
             val bubble = quickInfo ?: return
             cancelDwellInfo()
             val runnable = Runnable {

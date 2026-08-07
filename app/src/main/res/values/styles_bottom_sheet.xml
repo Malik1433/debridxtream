@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+      M2c: a BottomSheetDialog built with only a Context uses Material's own dialog theme, and that
+      default is the LIGHT one. Everything inside the sheet is styled by our layout, so the only
+      thing that shows through is the window's navigation-bar area — a pale band under a dark sheet.
+      Painting the sheet container in code does not reach it, because the band belongs to the
+      dialog's WINDOW, not to its content.
+    -->
+    <style name="ThemeOverlay.DebridXtream.BottomSheetDialog" parent="ThemeOverlay.MaterialComponents.BottomSheetDialog">
+        <item name="android:navigationBarColor">@color/cin_ink_900</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="bottomSheetStyle">@style/Widget.DebridXtream.BottomSheet</item>
+    </style>
+
+    <style name="Widget.DebridXtream.BottomSheet" parent="Widget.MaterialComponents.BottomSheet">
+        <item name="android:background">@color/cin_ink_900</item>
+    </style>
+
+</resources>

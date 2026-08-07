@@ -318,4 +318,9 @@
     <string name="update_permission_title">Allow app installs</string>
     <string name="update_permission_message">The update has been downloaded, but this device blocks installs from unknown sources. Open settings and allow DebridXtream to install apps, then come back — the update will continue automatically.</string>
     <string name="update_permission_open_settings">Open settings</string>
+
+    <!-- M2c: Continue Watching options (phone bottom sheet; TV keeps the bubble chips) -->
+    <string name="cw_options_title">Options</string>
+    <string name="cw_options_details">Details</string>
+    <string name="cw_options_remove">Remove from Continue Watching</string>
 </resources>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M2c: the phone's replacement for the TV quick-actions bubble.
+
+  The bubble is a 10-foot control — 5.5-7.5sp text and 20dp chips that you reach with a D-pad and
+  activate with OK. In the hand it is unreadable and barely tappable, and its chips call
+  requestFocus(), which does nothing in touch mode. This sheet is the same two actions in the shape
+  a handset expects: full-width rows, 56dp tall, 16sp, one tap acts, scrim tap closes.
+
+  Phone-only by construction — nothing inflates it unless R.bool.ui_uses_dpad_focus is false.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/cin_ink_900"
+    android:paddingBottom="24dp">
+
+    <View
+        android:layout_width="32dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="6dp"
+        android:background="#3AFFFFFF" />
+
+    <TextView
+        android:id="@+id/tv_sheet_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="10dp"
+        android:text="@string/cw_options_title"
+        android:textColor="#F1F5F9"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:maxLines="2"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/tv_sheet_details"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:text="@string/cw_options_details"
+        android:textColor="#E2E8F0"
+        android:textSize="16sp"
+        android:fontFamily="@font/plus_jakarta_sans" />
+
+    <TextView
+        android:id="@+id/tv_sheet_remove"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:text="@string/cw_options_remove"
+        android:textColor="#E2E8F0"
+        android:textSize="16sp"
+        android:fontFamily="@font/plus_jakarta_sans" />
+
+</LinearLayout>

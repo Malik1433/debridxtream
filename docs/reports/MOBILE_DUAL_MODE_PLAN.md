@@ -305,3 +305,58 @@ perfectly plausible badge). The fix is to hold the value the gesture *started* f
 (Silo S1:E1, 4K debrid), the OSD shows with the focus ring on the play button, and D-pad RIGHT
 seeks (13:05 → 13:54). 0 FATAL. Nothing about the TV path changed — by construction the gesture
 layer is never attached there.
+
+---
+
+### M2c — the Continue Watching options stop being a TV control (2026-08-07)
+
+The quick-info bubble was the last 10-foot control still reachable with a finger. Long-pressing a
+Continue Watching card opened it on a phone too: **5.5-7.5sp text, 20dp chips**, and its entry point
+calls `qiOpen.requestFocus()` — a no-op in touch mode, so the menu opened with nothing focused.
+Three separate breaches of the phone rulebook in one control.
+
+**What the phone gets now:** a Material bottom sheet — full-width **56dp** rows, **16sp**, one tap
+acts, scrim tap closes — and a **visible ⋮ button on the card**, because the rulebook says a
+long-press may be a shortcut but never the only route to an action. The button is a 48dp touch
+target with 12dp padding, so it keeps the Material minimum without swallowing a 144×81dp card.
+Long-press still works and opens the same sheet.
+
+**What TV gets: nothing new.** `openOptions()` is the single entry point and branches on
+`ui_uses_dpad_focus`, so the D-pad long-press still reaches `enterActionsMode` and the bubble. The
+⋮ button stays GONE there (it would only be one more stop for the D-pad). The focus-dwell bubble is
+now explicitly gated too — under touch the card has not been focusable since M7c, so it could not
+fire anyway; the guard keeps that true if focus behaviour changes again. Also fixed:
+`view_card_quick_info.xml` still hard-coded `focusableInTouchMode="true"` on both chips, which M7b's
+sweep missed because it only covered `item_*.xml`.
+
+⭐ **A `BottomSheetDialog` built from a Context alone gets Material's LIGHT dialog theme.** Our
+layout paints everything inside the sheet, so the only thing that showed was the window's
+navigation-bar area — a pale band under a dark sheet. Colouring the sheet container in code does
+**not** reach it, and neither does setting `navigationBarColor` on the dialog window (before or
+after `show()`, with or without `isNavigationBarContrastEnforced=false` — all three were tried and
+all three measured identical). The fix is an explicit `ThemeOverlay.MaterialComponents.
+BottomSheetDialog` overlay passed to the constructor.
+
+**QA — phone (Material rulebook), Pixel emulator, portrait:**
+- ⋮ button present and correctly sized — uiautomator reports `btn_cw_more` at `[294,1328][420,1454]`
+  = **126px = 48dp** at density 420, `clickable="true"`.
+- tapping it opens the sheet; **long-press opens the same sheet**; both screenshotted.
+- **Details** opens the movie detail page with the resume bar reading `RESUME FROM 15:30`.
+- **Remove** dismisses the sheet, drops the row, and persists — `continue_watching` in
+  `shared_prefs/watch_history.xml` reads `[]` afterwards.
+- 0 FATAL.
+- Residual, measured not guessed: sheet content is `#050608`, the gesture-bar band `#2D2D2D`
+  (it was `#353535` before the theme overlay). That band is the system's contrast treatment over
+  the sheet, not our colour; it is cosmetic and it is not fixed.
+
+**QA — TV (10-foot rulebook), Fire TV .64:** launches, Continue Watching intact (13 titles),
+**no ⋮ button on any card**, OK on a card still starts playback (Silo S01E05), BACK returns, 0 FATAL.
+**Not verified by me: the TV bubble's long-press.** `adb input keyevent --longpress` sets the
+long-press FLAG but leaves `repeatCount` at 0, which is exactly what the card's key listener tests,
+so the synthetic press lands as an ordinary select and starts playback instead. The listener body
+was moved verbatim into `attachCardKeyListener` with no logic change, but that is an argument, not
+a test — the bubble needs a real remote. (Same limitation already recorded in the CW bubble notes.)
+
+**Also confirmed while testing, still open:** the Movies browse screen has no bottom navigation, so
+from there Home is reachable only with the system Back gesture. That is the M3 follow-up, untouched
+by this batch.
