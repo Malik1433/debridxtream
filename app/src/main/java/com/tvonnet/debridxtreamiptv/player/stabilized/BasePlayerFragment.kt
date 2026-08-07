@@ -1399,7 +1399,15 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
 
     fun hostUserInteraction() {
         // Live/PiP never auto-show the controller chrome on interaction.
-        val chromeSuppressed = contentType == ContentType.LIVE_TV || isInPictureInPictureMode
+        //
+        // M10c: nor does a touch device, and that one was a real defect. `onUserInteraction` fires
+        // on ACTION_DOWN, so a tap showed the controller — and then PlayerView's own
+        // `controllerHideOnTouch` toggle fired on ACTION_UP, saw it visible, and hid it again. Show
+        // and hide inside a single tap, so on a phone the VOD chrome never appeared at all. On TV
+        // nobody taps, which is why it went unseen. A touch device already has a working
+        // show/hide — PlayerView's tap toggle — and this must not fight it.
+        val chromeSuppressed = contentType == ContentType.LIVE_TV || isInPictureInPictureMode ||
+            !resources.getBoolean(R.bool.ui_uses_dpad_focus)
         val nextEpisodePromptShowing =
             ::nextEpisodeManager.isInitialized && nextEpisodeManager.isPromptVisible
         if (chromeSuppressed || !playerView.useController || nextEpisodePromptShowing) {

@@ -360,3 +360,48 @@ a test — the bubble needs a real remote. (Same limitation already recorded in 
 **Also confirmed while testing, still open:** the Movies browse screen has no bottom navigation, so
 from there Home is reachable only with the system Back gesture. That is the M3 follow-up, untouched
 by this batch.
+
+---
+
+### M10c — the VOD controller never appeared on a phone (2026-08-07)
+
+Owner report: "controller aur gestures VOD mein sahi se kaam nahi kar rahe." It reproduced on the
+first try, and it was a real defect — not a gesture problem at all.
+
+**Root cause, two handlers fighting inside one tap.** `Activity.onUserInteraction()` fires on
+ACTION_DOWN, and `hostUserInteraction()` showed the VOD controller from there. Then on ACTION_UP,
+media3's own `controllerHideOnTouch` toggle ran, saw a visible controller, and hid it again. Show
+and hide inside a single tap, so **on a phone the VOD chrome never appeared at all.** On TV nobody
+taps — the chrome comes up on a D-pad key — which is why months of TV QA never saw it.
+
+Proof it was that and not something else: logcat showed `PLAYER_SEEK_FOCUS: show controller` and
+`focus transport target=exo_pause` on every tap — the controller genuinely was being shown — while
+screenshots 0.7s later showed bare video.
+
+**Fix:** `hostUserInteraction()` now treats a touch device the same way it already treats Live and
+PiP — chrome suppressed. A touch device already has a correct show/hide (PlayerView's tap toggle);
+the job was to stop competing with it, not to add a third path.
+
+**QA — phone (Material rulebook), Pixel emulator, LANDSCAPE (the orientation the player actually
+runs in on a handset, which earlier batches never tested):**
+- one tap → full controller: title, seek bar, transport row, all buttons (screenshot)
+- tap again → hides (screenshot)
+- volume swipe on the right half: `STREAM_MUSIC` **13 → 15**
+- brightness drag on the left half: badge `☀ 100%`
+- 0 FATAL
+
+**Not verified: double-tap-to-skip.** `adb input tap` spawns a process per call, so two taps land
+~300-400ms apart — at or beyond the platform's double-tap window — and the OSD's toggle-on-every-tap
+makes reading the position back unreliable. The key path the gesture uses is fine
+(`KEYCODE_MEDIA_FAST_FORWARD` moved 08:02 → 08:39 across two presses), and the same GestureDetector's
+`onScroll` demonstrably works, so only stock double-tap recognition is unproven. It needs a real
+finger.
+
+⭐ **The lesson, and it is the M9b lesson again from the other side:** M10a's comment claimed
+"media3's own controller already shows and hides the chrome on a tap here" — an assumption written
+into a code comment and never exercised, because that batch's QA only covered the double-tap's
+target, not the chrome. **Every batch that touches the player must include one plain tap, in
+landscape.**
+
+**Also seen (open, not this batch):** in landscape a phone falls back to the TV home layout — side
+rail, "OK SELECT / BACK EXIT" legend — because `layout-port` by definition does not apply there.
