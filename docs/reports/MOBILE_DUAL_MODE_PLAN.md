@@ -77,6 +77,39 @@ What this rewrites in the rest of this plan:
 - **`values-port/` is banned for device questions** and `layout-land/` is not an option — orientation
   outranks UI mode in Android's qualifier table, so a TV would pick `-land` over `-television`.
 
+## 1c. ⭐ LANDSCAPE SHAPE, MOBILE STANDARDS (owner decision, 2026-08-07)
+
+Landscape (§1b) settled the ORIENTATION. It did not make the phone a television. The layout
+arrangement comes from the TV design; **everything about how it behaves and how it is sized must
+still meet ordinary mobile-app standards.** Both halves are binding — "it looks like the TV" is
+never a reason to ship something a handset user cannot operate.
+
+**The standard, screen by screen — this is the checklist a batch is measured against:**
+
+- **A primary action is never unreachable.** If a form scrolls, its Save / Confirm / Continue must
+  stay reachable — pinned footer, or a scroll container that includes it. *(Live defect: pasting a
+  long link into a Settings item pushes Save below the fold and there is no way to get to it. This
+  is the standard being broken, not a cosmetic nit.)*
+- **Touch targets ≥48dp**, and text readable at arm's length — the `fontScale` layer (M13) is a
+  floor, not a finish. Anywhere it clips a fixed-height row, the row gets fixed.
+- **Scrolling, insets, and keyboard:** nothing under the status bar or the gesture pill; when the
+  soft keyboard opens, the focused field and its action stay visible.
+- **One tap acts.** No focus-then-confirm, no D-pad legends, no "PRESS OK" anywhere a finger goes.
+- **Pickers and long option lists are bottom sheets**, and the scrim closes them.
+- **Back always goes up** and every screen is leavable.
+- **Every list has a visible loading / empty / error state**, and a failure says something.
+
+**Screens explicitly owed this pass (owner, 2026-08-07):**
+
+| Batch | Screen | Why |
+|---|---|---|
+| **M14** | **Settings — a complete pass** | The Save-below-the-fold defect above; item editors, text fields, keyboard behaviour, and the category/detail split all need to be operable in the hand |
+| **M15** | **Home** | Sizing and density read as 10-foot; wants a handset pass over hero, rows, and card metrics |
+| **M16** | Movies / Series browse and detail | Same standard applied to the remaining browse surfaces |
+
+This supersedes the earlier "Two platforms, two rulebooks" split ONLY on orientation and layout
+arrangement. Every behavioural line of the phone rulebook in `CLAUDE.md` still applies unchanged.
+
 ## 2. Architecture decision (locked)
 
 **Single APK, runtime dual-mode.**
