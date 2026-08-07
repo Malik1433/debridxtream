@@ -1,31 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Live TV EPG Guide dimensions.
+  Live TV EPG Guide dimensions (from "Live TV EPG - Spec.md").
 
-  ⭐ M12: these are the PHONE values; the TV ones (the original spec, "Live TV EPG - Spec.md")
-  now live in values-television. Same rule as the bools: this is a device question, not an
-  orientation one.
-
-  The number that mattered is `epg_channel_col_width`. At the TV's 300dp it ate three quarters of
-  a 411dp handset, leaving ~111dp of programme lane — the guide rendered, and there was nothing
-  readable in it.
+  M13: one set again, for both devices. M12 had split these because a phone was portrait and the
+  300dp channel column ate three quarters of a 411dp-wide screen. Landscape gives the phone ~891dp,
+  so the TV spec fits and the guide looks the same on both — which is the point of the decision.
+  The two `epg_channel_*` values below are still resources rather than literals because the draw
+  code reads them; that stays useful if a small-screen override is ever needed again.
 -->
 <resources>
-    <dimen name="epg_nav_rail_width">72dp</dimen>
-    <dimen name="epg_detail_height">140dp</dimen>
-    <dimen name="epg_channel_col_width">136dp</dimen>
-    <dimen name="epg_header_height">40dp</dimen>
-    <!-- The channel cell is number + logo + name. At the TV's 38dp indent and 40dp tile there
-         were 16dp left for the name in a phone-width column, so every channel read "|...". -->
-    <dimen name="epg_channel_number_indent">20dp</dimen>
-    <dimen name="epg_channel_logo_size">26dp</dimen>
+    <dimen name="epg_nav_rail_width">148dp</dimen>
+    <dimen name="epg_detail_height">176dp</dimen>
+    <dimen name="epg_channel_col_width">300dp</dimen>
+    <dimen name="epg_header_height">44dp</dimen>
+    <dimen name="epg_channel_number_indent">38dp</dimen>
+    <dimen name="epg_channel_logo_size">40dp</dimen>
 
-    <!-- Row density (spec §7), scaled for the hand: every row is still a 48dp+ touch target. -->
-    <dimen name="epg_row_cozy">52dp</dimen>
-    <dimen name="epg_row_standard">60dp</dimen>
-    <dimen name="epg_row_roomy">76dp</dimen>
+    <!-- Row density (spec §7) -->
+    <dimen name="epg_row_cozy">58dp</dimen>
+    <dimen name="epg_row_standard">70dp</dimen>
+    <dimen name="epg_row_roomy">96dp</dimen>
 
-    <dimen name="epg_preview_tile_width">160dp</dimen>
+    <dimen name="epg_preview_tile_width">300dp</dimen>
     <dimen name="epg_chip_height">40dp</dimen>
     <dimen name="epg_day_tab_height">34dp</dimen>
 </resources>

@@ -12,10 +12,13 @@ import android.widget.TextView
 import com.tvonnet.debridxtreamiptv.ui.MainActivity
 import java.io.File
 import kotlin.system.exitProcess
+import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
 
 class RecoveryActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // M13: one orientation for the whole app on a phone — landscape, like the TV.
+        lockLandscapeOnTouchDevices()
         super.onCreate(savedInstanceState)
         
         val layout = LinearLayout(this).apply {

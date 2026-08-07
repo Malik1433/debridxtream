@@ -20,6 +20,7 @@ import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
 
 @AndroidEntryPoint
 class DebridSearchActivity : AppCompatActivity() {
@@ -30,6 +31,8 @@ class DebridSearchActivity : AppCompatActivity() {
     private lateinit var tvMessage: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // M13: one orientation for the whole app on a phone — landscape, like the TV.
+        lockLandscapeOnTouchDevices()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_debrid_search)
 

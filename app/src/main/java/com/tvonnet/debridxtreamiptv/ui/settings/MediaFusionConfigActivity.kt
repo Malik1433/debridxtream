@@ -14,6 +14,7 @@ import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
 
 @AndroidEntryPoint
 class MediaFusionConfigActivity : AppCompatActivity() {
@@ -25,6 +26,8 @@ class MediaFusionConfigActivity : AppCompatActivity() {
     private lateinit var qrCodeImage: ImageView
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // M13: one orientation for the whole app on a phone — landscape, like the TV.
+        lockLandscapeOnTouchDevices()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_webview) // Layout file name preserved
 

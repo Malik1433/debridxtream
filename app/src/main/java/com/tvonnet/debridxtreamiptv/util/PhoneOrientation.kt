@@ -5,27 +5,28 @@ import android.content.pm.ActivityInfo
 import com.tvonnet.debridxtreamiptv.R
 
 /**
- * M11 — keep the browse screens portrait on a handset.
+ * M13 — the phone runs LANDSCAPE, like the TV. Owner decision, 2026-08-07:
  *
- * The phone UI lives in `layout-port/`, and that qualifier means PORTRAIT: rotate the device and
- * Android loads `layout/` instead, which is the 10-foot TV design. The Live screen was the visible
- * casualty — turn the phone sideways and the channel list simply vanished, because the TV layout
- * puts it in a fixed-width side column sized for a 960dp screen.
+ *   "जैसे ही app खुले तो वह portrait ना हो, landscape ही हो … उसको हम configure करें ही नहीं portrait में."
  *
- * The obvious alternative — author `layout-land/` phone variants — does not work: **orientation
- * outranks UI mode in the qualifier table**, so a TV (which is landscape) would pick `layout-land`
- * over `layout-television` and every screen would regress there. Duplicating ~150 TV layouts into
- * `-television` to free up the default bucket is a migration, not a fix.
+ * This replaces M11's portrait lock, which solved the same complaint the other way round (rotating
+ * a handset lost the Live channel list because `layout-port` stopped applying). Locking the other
+ * way settles it just as firmly: there is now exactly ONE orientation on a phone, so a layout can
+ * never be swapped underneath the user.
  *
- * So the browse screens do what every handset media app does: they stay portrait, and only
- * FULLSCREEN PLAYBACK rotates. Call this from the activities that actually have a portrait design;
- * anything else keeps whatever the manifest says, so nothing is locked into a layout that does not
- * exist for it.
+ * **Consequence, stated plainly:** every `layout-port/` file is now dead — those load only in
+ * portrait. A phone renders the same `layout/` the TV does. They are left on disk rather than
+ * deleted, so the decision stays reversible.
  *
- * On TV this is a no-op — those activities are landscape by nature and `ui_uses_dpad_focus` is
- * true there.
+ * SENSOR_LANDSCAPE, not LANDSCAPE, so the device works held either way round.
+ *
+ * What does NOT change: the UI-mode bools are keyed on `-television`, a DEVICE question, so a phone
+ * keeps its touch behaviour (one tap acts, no focus-first, backdrop-tap dismiss) even while wearing
+ * the TV's layout.
+ *
+ * On TV this is a no-op — it is landscape already, and `ui_uses_dpad_focus` is true there.
  */
-fun Activity.lockPortraitOnTouchDevices() {
+fun Activity.lockLandscapeOnTouchDevices() {
     if (resources.getBoolean(R.bool.ui_uses_dpad_focus)) return
-    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
 }

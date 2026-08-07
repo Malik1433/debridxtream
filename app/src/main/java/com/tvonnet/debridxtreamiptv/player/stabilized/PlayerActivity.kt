@@ -9,6 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.media3.common.util.UnstableApi
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import dagger.hilt.android.AndroidEntryPoint
+import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
 
 /**
  * Thin host for the player screen (P26 fragment split).
@@ -32,6 +33,8 @@ class PlayerActivity : AppCompatActivity() {
         get() = supportFragmentManager.findFragmentById(android.R.id.content) as? BasePlayerFragment
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // M13: one orientation for the whole app on a phone — landscape, like the TV.
+        lockLandscapeOnTouchDevices()
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {
             // P27: pick the Live vs VOD player screen by content type. Both currently subclass
