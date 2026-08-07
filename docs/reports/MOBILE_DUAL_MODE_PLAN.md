@@ -498,3 +498,28 @@ header. 0 FATAL.
 (`fragment_live_tv_guide.xml` has no `layout-port` variant) — the preview tile is small, the
 "ON AIR NOW" label renders vertically because its column is squeezed, and the strip runs under the
 status bar. The grid itself is usable; the frame around it needs a portrait design.
+
+---
+
+### M13 (IN PROGRESS, branch `mobile-landscape`) — the phone runs landscape, like the TV
+
+Owner decision 2026-08-07, and it reverses M11: **the phone is never portrait.** The app opens
+landscape however the handset is held, and looks like the TV — driven by a finger. Owner also chose
+**option B**: TV shape, but phone text scaled up (~1.6×), because the TV layouts are sized for 3
+metres.
+
+**Done on the branch:** `lockLandscapeOnTouchDevices()` in all eight activities (before
+`super.onCreate`), verified — the app opens landscape with the device held portrait. Bools
+re-split into **SHAPE** (matches the layout, same on both devices) and **BEHAVIOUR** (touch vs
+D-pad, `-television` override). EPG dimens back to the single TV spec set.
+
+**Blocking issue, and the first diagnosis was wrong.** Home renders with a wide panel across the
+middle of the hero. I first read that as "the phone shell was built for portrait and needs a
+rework". Grepping it says otherwise: the home nav rail is an `<include>` of `view_home_sidebar`
+inside the TV layout and its orientation already follows `home_nav_is_horizontal` (now false), while
+the panel in the screenshot carries `nav_flyout_title` — it is **`@id/nav_flyout`**, the
+focus-driven external flyout from the home redesign, showing while nothing is focused. That is a
+much smaller fix than a shell rebuild, and it is unverified: confirm before building on it.
+
+**Remaining:** gate the nav flyout on `ui_uses_dpad_focus`; add the phone text-scale layer; retire
+the 21 now-dead `layout-port/` files (leave on disk); QA phone + TV; merge.
