@@ -457,3 +457,44 @@ the file being read, since all seven flags come from it. 0 FATAL.
 and `TrailerActivity` are `screenOrientation="landscape"` in the manifest and have no portrait
 design, so on a phone they are still forced into the TV layout. And the in-player source sheet runs
 in landscape with the player, so it uses the TV panel rather than `layout-port/dialog_source_selection`.
+
+---
+
+### M12 — the EPG guide answers a finger (2026-08-07)
+
+The "New EPG Guide" was the last screen that rendered on a phone and then ignored every touch:
+`EpgGridView` is a custom `View` whose only input was `onKeyDown`. Two things were wrong, and both
+had to be fixed for the screen to be usable at all.
+
+**Input.** A `GestureDetector` + `OverScroller`, installed only when `!ui_uses_dpad_focus`:
+- drag pans **both axes** — it is a 2-D grid, not a list
+- fling continues through `computeScroll()`
+- **one tap acts**: hit-test → set `focusRow`/`focusProg` → the same `selectFocused()` the remote's
+  CENTER calls, so the two input models route through one listener and cannot drift apart
+- `requestDisallowInterceptTouchEvent` on ACTION_DOWN, or the scrolling host steals the vertical
+  drag as soon as it crosses its slop and the grid stops panning mid-gesture
+
+On TV the detector is never constructed, so the D-pad traversal is reached exactly as before.
+
+**Size.** `epg_channel_col_width` was **300dp** — three quarters of a 411dp handset, leaving ~111dp
+of programme lane. Worse, the channel cell is number + logo + name at a 38dp indent and a 40dp tile,
+so every channel read `"|..."`. The EPG dimens moved to `values-television` (the original spec
+values) with phone values in `values/`: 136dp column, 20dp indent, 26dp logo, rows 52/60/76dp (every
+row still a 48dp+ target). Same device-not-orientation rule as M11.
+
+**QA — phone (Material rulebook), Pixel emulator, portrait, real EPG data:**
+- horizontal drag moved the time header NOW/19:00 → 19:30/20:00
+- vertical drag moved the visible channels from 1-11 → 6-16
+- tapping the "Bettys Diagnose" block moved the selection to that row and flipped the detail panel
+  from ON AIR NOW to UP NEXT — i.e. `onFocusChanged` + `onProgramSelected` both fired
+- channel names read `"|WC| BEIN …"` / `"|WC| DAZ…"` instead of `"|..."`
+- 0 FATAL
+
+**QA — TV (10-foot rulebook), Fire TV .64, versionCode 44:** the guide is unchanged — 300dp channel
+column, 40dp logos, full names, focus ring on the D-pad-selected row, preview + detail panel, time
+header. 0 FATAL.
+
+**Open, not this batch:** the guide's SURROUNDING chrome is still the TV layout
+(`fragment_live_tv_guide.xml` has no `layout-port` variant) — the preview tile is small, the
+"ON AIR NOW" label renders vertically because its column is squeezed, and the strip runs under the
+status bar. The grid itself is usable; the frame around it needs a portrait design.

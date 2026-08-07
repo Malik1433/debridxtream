@@ -11,6 +11,9 @@ import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
 import android.util.TypedValue
+import android.view.GestureDetector
+import android.view.MotionEvent
+import android.widget.OverScroller
 import android.view.KeyEvent
 import android.view.View
 import android.view.animation.OvershootInterpolator
@@ -57,6 +60,8 @@ class EpgGridView @JvmOverloads constructor(
     private var nowMs: Long = System.currentTimeMillis()
 
     private val channelColWidth = dimen(R.dimen.epg_channel_col_width)
+    private val channelNumberIndent = dimen(R.dimen.epg_channel_number_indent)
+    private val channelLogoSize = dimen(R.dimen.epg_channel_logo_size)
     private val headerHeight = dimen(R.dimen.epg_header_height)
     private var rowHeight = dimen(R.dimen.epg_row_standard)
     private var ppm = dp(5f)                 // px per minute (standard zoom)
@@ -436,8 +441,8 @@ class EpgGridView @JvmOverloads constructor(
             textMono.textSize = sp(11f)
             canvas.drawText(ch.number?.toString() ?: "", dp(10f), top + rowHeight / 2 + sp(4f), textMono)
             // logo tile (real logo via Glide, initials until it loads)
-            val tileSize = dp(40f)
-            val tileLeft = dp(38f)
+            val tileSize = channelLogoSize
+            val tileLeft = channelNumberIndent
             val tileTop = top + (rowHeight - tileSize) / 2
             rect.set(tileLeft, tileTop, tileLeft + tileSize, tileTop + tileSize)
             fill.color = withAlpha(if (genreTint) color(ch.genre.colorRes) else cGenreGeneral, 60)
@@ -538,6 +543,97 @@ class EpgGridView @JvmOverloads constructor(
     // ────────────────────────────────────────────────────────────────────
     // Focus + key handling
     // ────────────────────────────────────────────────────────────────────
+    // ── M12: touch ──────────────────────────────────────────────────────
+    // The grid drew itself perfectly on a phone and then ignored every finger, because the only
+    // input it had was onKeyDown. Drag pans both axes (it is a 2-D grid, not a list), a fling
+    // keeps going, and ONE TAP ACTS — no focus-then-confirm, which is the TV model.
+    //
+    // Attached only on a touch device. On TV nothing is installed, so the D-pad traversal below is
+    // reached exactly as before and cannot be perturbed by a stray MotionEvent.
+    private val usesDpadFocus = resources.getBoolean(R.bool.ui_uses_dpad_focus)
+    private val flinger = OverScroller(context)
+
+    private val touchGestures: GestureDetector? =
+        if (usesDpadFocus) null else GestureDetector(
+            context,
+            object : GestureDetector.SimpleOnGestureListener() {
+                override fun onDown(e: MotionEvent): Boolean {
+                    flinger.forceFinished(true)
+                    return true
+                }
+
+                override fun onScroll(
+                    e1: MotionEvent?,
+                    e2: MotionEvent,
+                    distanceX: Float,
+                    distanceY: Float,
+                ): Boolean {
+                    scrollX += distanceX
+                    scrollY += distanceY
+                    clampScroll()
+                    invalidate()
+                    return true
+                }
+
+                override fun onFling(
+                    e1: MotionEvent?,
+                    e2: MotionEvent,
+                    velocityX: Float,
+                    velocityY: Float,
+                ): Boolean {
+                    flinger.fling(
+                        scrollX.toInt(), scrollY.toInt(),
+                        -velocityX.toInt(), -velocityY.toInt(),
+                        0, maxScrollX.toInt(), 0, maxScrollY.toInt()
+                    )
+                    postInvalidateOnAnimation()
+                    return true
+                }
+
+                override fun onSingleTapUp(e: MotionEvent): Boolean = actOnTap(e.x, e.y)
+            }
+        )
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val detector = touchGestures ?: return super.onTouchEvent(event)
+        // The guide sits inside a scrolling host on a phone; without this the parent steals the
+        // vertical drag the moment it crosses its slop and the grid stops panning mid-gesture.
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            parent?.requestDisallowInterceptTouchEvent(true)
+        }
+        return detector.onTouchEvent(event) || super.onTouchEvent(event)
+    }
+
+    override fun computeScroll() {
+        if (!flinger.computeScrollOffset()) return
+        scrollX = flinger.currX.toFloat()
+        scrollY = flinger.currY.toFloat()
+        clampScroll()
+        postInvalidateOnAnimation()
+    }
+
+    /**
+     * Tap a programme block to select it, or the frozen channel cell to select the channel — the
+     * same two outcomes CENTER produces on the remote, routed through the same listener so the two
+     * input models can never drift apart.
+     */
+    private fun actOnTap(x: Float, y: Float): Boolean {
+        if (channels.isEmpty() || y < headerHeight) return false
+        val row = ((y - headerHeight + scrollY) / rowHeight).toInt()
+        if (row !in channels.indices) return false
+        focusRow = row
+        focusProg = if (x < channelColWidth) -1 else programIndexAt(row, x)
+        onFocusMoved()
+        return selectFocused()
+    }
+
+    /** Which programme covers this x, or -1 (the channel cell) when the gap has none. */
+    private fun programIndexAt(row: Int, x: Float): Int {
+        val minute = (x - channelColWidth + scrollX) / ppm
+        val at = windowStartMs + (minute * 60_000L).toLong()
+        return channels[row].programs.indexOfFirst { at >= it.startMs && at < it.stopMs }
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (channels.isEmpty()) return super.onKeyDown(keyCode, event)
         return when (keyCode) {
