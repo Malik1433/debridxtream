@@ -171,12 +171,22 @@ class SettingsSelectorDialogs(
             setTextColor(android.graphics.Color.WHITE)
             setHintTextColor(android.graphics.Color.GRAY)
             setPadding(40, 30, 40, 30)
+            // M14: a URL is ONE line. Left to grow, a pasted manifest URL wrapped to five or six
+            // lines, the dialog outgrew a 411dp-tall landscape screen, and "Add" ended up below
+            // the fold with nothing to scroll — the action was simply unreachable. Single-line +
+            // horizontal scrolling means the dialog height cannot depend on what was pasted.
+            setSingleLine()
+            setHorizontallyScrolling(true)
+            inputType = android.text.InputType.TYPE_TEXT_VARIATION_URI
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_DONE
         }
 
         AlertDialog.Builder(context)
             .setTitle("Add Stremio Addon")
             .setMessage("Paste the full Stremio manifest.json URL:")
-            .setView(input)
+            // Belt and braces: even single-line, the title + message + field can exceed a short
+            // landscape screen once fontScale is applied, and a dialog does not scroll by itself.
+            .setView(android.widget.ScrollView(context).apply { addView(input) })
             .setPositiveButton("Add") { dialog, _ ->
                 val url = input.text.toString().trim()
                 if (SettingsOptionLabels.isValidStremioManifestUrl(url)) {
