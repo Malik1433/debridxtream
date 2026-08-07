@@ -1,20 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  ⭐ THE TV ANSWERS. `-television` matches an Android TV / Fire TV in EITHER orientation and never
-  matches a phone, which is exactly the question these flags ask. `values/` holds the phone answers.
+  M13: only BEHAVIOUR is overridden here now. The shape flags moved back to `values` because a
+  phone runs the TV layout too (owner decision 2026-08-07, landscape everywhere) — they describe
+  the layout, not the device, so they must be identical on both.
 
-  This file used to carry only the two flags M9b/M7c added. M11 moved the rest here from
-  `values-port`, because keying a DEVICE question on ORIENTATION meant a rotated handset got the
-  TV answer for all of them — that is what made the Live channel list vanish on rotate.
+  `-television` matches a TV in either orientation and never matches a phone, which is exactly the
+  question the four flags below ask: is this thing driven by a D-pad, or by a finger?
 -->
 <resources>
-    <bool name="home_nav_is_horizontal">false</bool>
-    <bool name="browse_categories_are_horizontal">false</bool>
-    <bool name="source_row_play_always_visible">false</bool>
-    <bool name="dismiss_on_backdrop_tap">false</bool>
-    <bool name="live_defaults_to_classic">false</bool>
-    <bool name="settings_categories_are_horizontal">false</bool>
-    <bool name="epg_strip_is_horizontal">true</bool>
     <bool name="ui_uses_dpad_focus">true</bool>
     <bool name="rows_focusable_in_touch_mode">true</bool>
+    <bool name="source_row_play_always_visible">false</bool>
+    <bool name="dismiss_on_backdrop_tap">false</bool>
 </resources>

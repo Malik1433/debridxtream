@@ -124,6 +124,11 @@ class SidebarAdapter(
             // M2b: on TV the label lives in the shared nav_flyout, which appears on FOCUS —
             // so the in-item title is hidden there. A touch bar has no focus to hang a
             // flyout on, so on the phone the label stays under the icon.
+            //
+            // M13 (second pass): labels stay OUT of the item on both devices. Putting them in on
+            // the phone made them wrap inside the 60dp rail — "Sear/ch", "Movi/es" — and the whole
+            // point of the landscape decision is that the phone looks like the TV, whose resting
+            // rail is icons only.
             val labelInItem = itemView.resources.getBoolean(R.bool.home_nav_is_horizontal)
             tvTitle.alpha = if (labelInItem) 1f else 0f
             tvTitle.visibility = if (labelInItem) View.VISIBLE else View.GONE

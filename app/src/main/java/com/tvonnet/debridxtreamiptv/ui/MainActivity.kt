@@ -30,7 +30,9 @@ import com.tvonnet.debridxtreamiptv.data.network.NetworkQualityManager
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import com.tvonnet.debridxtreamiptv.util.lockPortraitOnTouchDevices
+import android.content.Context
+import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
+import com.tvonnet.debridxtreamiptv.util.phoneScaledContext
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -56,11 +58,17 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var settingsPreferences: SettingsPreferences
     
+
+    // M13 (option B): the TV layout's type is sized for three metres; scale it up on a handset.
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(phoneScaledContext(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        // M11: BEFORE super.onCreate on purpose. This screen has a portrait design
-        // (layout-port), and the orientation has to be settled before the first inflate —
-        // asking for it afterwards leaves the TV layout on screen inside a portrait window.
-        lockPortraitOnTouchDevices()
+        // M13: BEFORE super.onCreate on purpose — the orientation has to be settled before the
+        // first inflate, or the layout chosen for the old one stays on screen inside the new
+        // window (M11 proved that the hard way, in the opposite direction).
+        lockLandscapeOnTouchDevices()
         super.onCreate(savedInstanceState)
 
         // Licensing gate: this device must be activated (admin-controlled via Firestore).

@@ -48,6 +48,35 @@ is ambiguous.
 - Landmines respected as ever: play-then-repair resume order, TS extractor flags,
   never-destructive Room migrations, rethrow CancellationException, no main-thread I/O.
 
+## 1b. ⭐ ORIENTATION — LANDSCAPE ONLY (owner decision, 2026-08-07, overrides everything above)
+
+> "जैसे ही app खुले तो वह portrait ना हो, landscape ही हो … उसको हम configure करें ही नहीं portrait में."
+
+**The phone app is landscape. There is no portrait mode.** Every screen — home, Live TV, browse,
+detail, Settings, player — opens and stays landscape however the handset is held. The user watches
+video with the phone sideways anyway, and the app should look on a phone the way it looks on the TV.
+
+What this rewrites in the rest of this plan:
+
+- **Seasons 1–3 were written "in portrait" and that wording is now void.** Read every "in portrait"
+  as "in landscape, using the TV layout".
+- **The 21 `layout-port/` files (M1–M8) are dead** — that qualifier only matches portrait. They are
+  left on disk so the decision stays reversible; nothing loads them.
+- **M11 is superseded.** It locked the browse screens to PORTRAIT to solve the same complaint from
+  the other side. M13 locks them to LANDSCAPE instead. The reasoning M11 recorded is still correct
+  and worth keeping — only the direction changed.
+- **The bools are split SHAPE vs BEHAVIOUR, not phone vs TV.** Shape flags (nav/category
+  orientation, EPG strip, Live default) must match the layout, which is now the TV one on both
+  devices, so they live in `values` with no override. Only the four interaction flags
+  (`ui_uses_dpad_focus`, `rows_focusable_in_touch_mode`, `source_row_play_always_visible`,
+  `dismiss_on_backdrop_tap`) are overridden in `values-television`. **Looks like TV, driven by a
+  finger.**
+- **Text is scaled up on the phone (owner chose option B, 2026-08-07).** The TV layouts are sized to
+  read from three metres; ~1.6× on a handset. Caveat to verify, not assume: a scale layer only
+  reaches sizes that come from `sp` dimens, and many TV layouts hard-code `textSize="7sp"` inline.
+- **`values-port/` is banned for device questions** and `layout-land/` is not an option — orientation
+  outranks UI mode in Android's qualifier table, so a TV would pick `-land` over `-television`.
+
 ## 2. Architecture decision (locked)
 
 **Single APK, runtime dual-mode.**
@@ -498,3 +527,28 @@ header. 0 FATAL.
 (`fragment_live_tv_guide.xml` has no `layout-port` variant) — the preview tile is small, the
 "ON AIR NOW" label renders vertically because its column is squeezed, and the strip runs under the
 status bar. The grid itself is usable; the frame around it needs a portrait design.
+
+---
+
+### M13 (IN PROGRESS, branch `mobile-landscape`) — the phone runs landscape, like the TV
+
+Owner decision 2026-08-07, and it reverses M11: **the phone is never portrait.** The app opens
+landscape however the handset is held, and looks like the TV — driven by a finger. Owner also chose
+**option B**: TV shape, but phone text scaled up (~1.6×), because the TV layouts are sized for 3
+metres.
+
+**Done on the branch:** `lockLandscapeOnTouchDevices()` in all eight activities (before
+`super.onCreate`), verified — the app opens landscape with the device held portrait. Bools
+re-split into **SHAPE** (matches the layout, same on both devices) and **BEHAVIOUR** (touch vs
+D-pad, `-television` override). EPG dimens back to the single TV spec set.
+
+**Blocking issue, and the first diagnosis was wrong.** Home renders with a wide panel across the
+middle of the hero. I first read that as "the phone shell was built for portrait and needs a
+rework". Grepping it says otherwise: the home nav rail is an `<include>` of `view_home_sidebar`
+inside the TV layout and its orientation already follows `home_nav_is_horizontal` (now false), while
+the panel in the screenshot carries `nav_flyout_title` — it is **`@id/nav_flyout`**, the
+focus-driven external flyout from the home redesign, showing while nothing is focused. That is a
+much smaller fix than a shell rebuild, and it is unverified: confirm before building on it.
+
+**Remaining:** gate the nav flyout on `ui_uses_dpad_focus`; add the phone text-scale layer; retire
+the 21 now-dead `layout-port/` files (leave on disk); QA phone + TV; merge.

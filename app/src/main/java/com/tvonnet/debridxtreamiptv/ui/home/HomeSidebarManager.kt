@@ -98,6 +98,11 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
     private fun showFlyout(title: String, sub: String?, anchor: View) {
         val frag = fragment ?: return
         val root = frag.view ?: return
+        // M13: the flyout is a FOCUS affordance — it names the rail item the D-pad is sitting on.
+        // A touch device has no focused item, so on a phone it opened with nothing to describe and
+        // parked itself across the middle of the hero. The rail's own labels are shown there
+        // instead (SidebarAdapter puts them in the item).
+        if (!root.resources.getBoolean(R.bool.ui_uses_dpad_focus)) return
         val flyout = root.findViewById<View>(R.id.nav_flyout) ?: return
         val tvTitle = root.findViewById<TextView>(R.id.nav_flyout_title) ?: return
         val tvSub = root.findViewById<TextView>(R.id.nav_flyout_sub)
