@@ -1,6 +1,14 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
 import android.content.Context
+import android.graphics.drawable.GradientDrawable
+import android.os.Handler
+import android.os.Looper
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.TextView
+import androidx.core.view.isVisible
 import android.view.GestureDetector
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -28,8 +36,140 @@ class VodPlayerFragment : BasePlayerFragment() {
     /** Set only on a touch device; the Activity feeds every touch through it (M9b's hook). */
     private var touchGestures: GestureDetector? = null
 
+    /** Which half a vertical drag started in — brightness on the left, volume on the right. */
+    private var dragSide: DragSide = DragSide.NONE
+    private var levelBadge: TextView? = null
+    private val badgeHider = Handler(Looper.getMainLooper())
+
+    /** Accumulated fraction of the range this gesture has travelled, and where it started from. */
+    private var dragTravel = 0f
+    private var volumeAtDragStart = -1
+    private var brightnessAtDragStart = -1f
+
+    private enum class DragSide { NONE, BRIGHTNESS, VOLUME }
+
+    private companion object {
+        /** Half a screen of travel covers the whole range. */
+        const val DRAG_RANGE_FACTOR = 2f
+        const val BADGE_LINGER_MS = 700L
+    }
+
     override fun hostTouchEvent(event: MotionEvent) {
         touchGestures?.onTouchEvent(event)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> resetDragState()
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                resetDragState()
+                hideLevelBadgeSoon()
+            }
+        }
+    }
+
+    private fun resetDragState() {
+        dragSide = DragSide.NONE
+        dragTravel = 0f
+        volumeAtDragStart = -1
+        brightnessAtDragStart = -1f
+    }
+
+    /**
+     * M10b: the two adjustments every phone player has and this one had none of — brightness by
+     * dragging the left half, volume by dragging the right half.
+     *
+     * Seeking is NOT added here on purpose. media3's DefaultTimeBar already scrubs on touch, and
+     * the app already listens to it (PlayerVodControlsUi's OnScrubListener) — a second seek path
+     * over the video would fight the one that exists and is already device-tested.
+     *
+     * The badge is built in code rather than added to the player layout, because that layout is
+     * shared with TV: nothing new can appear there by accident.
+     */
+    private fun handleVerticalDrag(start: MotionEvent, distanceY: Float): Boolean {
+        val width = playerView.width.takeIf { it > 0 } ?: return false
+        val height = playerView.height.takeIf { it > 0 } ?: return false
+        if (dragSide == DragSide.NONE) {
+            dragSide = if (start.x < width / 2f) DragSide.BRIGHTNESS else DragSide.VOLUME
+        }
+        // Travel is accumulated across the whole gesture, not applied per event — see adjustVolume.
+        // Half a screen of travel covers the full range, which keeps small corrections possible.
+        dragTravel += distanceY / height * DRAG_RANGE_FACTOR
+        return when (dragSide) {
+            DragSide.BRIGHTNESS -> adjustBrightness(dragTravel)
+            DragSide.VOLUME -> adjustVolume(dragTravel)
+            DragSide.NONE -> false
+        }
+    }
+
+    private fun adjustBrightness(travel: Float): Boolean {
+        val window = activity?.window ?: return false
+        val attrs = window.attributes
+        // A window that has never been set reports -1 ("follow the system"); start from half so the
+        // first drag moves from somewhere sensible instead of jumping.
+        if (brightnessAtDragStart < 0f) {
+            brightnessAtDragStart = attrs.screenBrightness.takeIf { it >= 0f } ?: 0.5f
+        }
+        val next = (brightnessAtDragStart + travel).coerceIn(0.01f, 1f)
+        attrs.screenBrightness = next
+        window.attributes = attrs
+        showLevelBadge("☀ ${(next * 100).toInt()}%")
+        return true
+    }
+
+    /**
+     * Volume is a small integer (0..15 here), so it MUST be computed from where the drag started
+     * plus the total travel. Applying each scroll delta to the current value instead loses every
+     * one of them to the truncation — a 15-step scale means one delta is worth ~0.15 of a step,
+     * `toInt()` throws it away, and the gesture does nothing at all. That is exactly what the
+     * first version did on the emulator: swipe after swipe, the volume never moved.
+     */
+    private fun adjustVolume(travel: Float): Boolean {
+        val audio = context?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).takeIf { it > 0 } ?: return false
+        val start = volumeAtDragStart.takeIf { it >= 0 }
+            ?: audio.getStreamVolume(AudioManager.STREAM_MUSIC).also { volumeAtDragStart = it }
+        val next = Math.round(start + travel * max).coerceIn(0, max)
+        if (next != audio.getStreamVolume(AudioManager.STREAM_MUSIC)) {
+            audio.setStreamVolume(AudioManager.STREAM_MUSIC, next, 0)
+        }
+        showLevelBadge("🔊 ${(next * 100 / max)}%")
+        return true
+    }
+
+    private fun showLevelBadge(text: String) {
+        val badge = levelBadge ?: createLevelBadge() ?: return
+        badge.text = text
+        badge.isVisible = true
+        badgeHider.removeCallbacksAndMessages(null)
+    }
+
+    private fun hideLevelBadgeSoon() {
+        badgeHider.removeCallbacksAndMessages(null)
+        badgeHider.postDelayed({ levelBadge?.isVisible = false }, BADGE_LINGER_MS)
+    }
+
+    private fun createLevelBadge(): TextView? {
+        val parent = playerView.parent as? ViewGroup ?: return null
+        val badge = TextView(requireContext()).apply {
+            // Drawn in code too — a new drawable resource would be visible to the TV build, and
+            // this pill exists only for the phone.
+            background = GradientDrawable().apply {
+                cornerRadius = 12 * resources.displayMetrics.density
+                setColor(0xCC000000.toInt())
+            }
+            setTextColor(android.graphics.Color.WHITE)
+            textSize = 16f
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad / 2, pad, pad / 2)
+            isVisible = false
+        }
+        parent.addView(
+            badge,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            ).apply { gravity = Gravity.CENTER }
+        )
+        levelBadge = badge
+        return badge
     }
 
     /**
@@ -58,6 +198,19 @@ class VodPlayerFragment : BasePlayerFragment() {
                         else KeyEvent.KEYCODE_MEDIA_REWIND
                     )
                     return true
+                }
+
+                override fun onScroll(
+                    e1: MotionEvent?,
+                    e2: MotionEvent,
+                    distanceX: Float,
+                    distanceY: Float,
+                ): Boolean {
+                    val start = e1 ?: return false
+                    // Vertical only: a horizontal drag belongs to the seek bar, which handles its
+                    // own touch, and stealing it here would make scrubbing unreliable.
+                    if (kotlin.math.abs(distanceY) <= kotlin.math.abs(distanceX)) return false
+                    return handleVerticalDrag(start, distanceY)
                 }
             }
         )

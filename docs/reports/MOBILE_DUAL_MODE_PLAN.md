@@ -269,3 +269,39 @@ say "not verified by me", and this is what verified them.
 NOT "is this a phone?". Fullscreen playback is landscape on a phone, so any device-level flag on
 `-port` silently gives the TV answer exactly where it matters most. Device-level flags belong on
 `-television`; only true layout-orientation flags belong on `-port`.
+
+---
+
+### M10b — brightness and volume by dragging the video (2026-08-07)
+
+The last two gestures a phone player is expected to have. Drag the **left** half vertically for
+screen brightness, the **right** half for volume; a pill in the middle of the video shows the level
+and fades ~0.7s after the finger lifts. Both live in the same `GestureDetector` M10a added, behind
+the same `!ui_uses_dpad_focus` gate, so the TV attaches nothing.
+
+**Seeking was deliberately NOT added.** media3's `DefaultTimeBar` already scrubs on touch and
+`PlayerVodControlsUi.setupSeekOverlay()` already listens to it — a second seek path over the video
+would fight the one that is already device-tested (and that path carries the directional
+`SeekParameters` that stopped seeks snapping back to the start). Horizontal drags are therefore
+passed straight through: `onScroll` returns false whenever |dx| >= |dy|.
+
+⭐ **The bug this batch nearly shipped, and the rule behind it.** The first version applied each
+scroll delta to the *current* volume. Volume is an integer 0..15, one scroll delta is worth ~0.15 of
+a step, and `toInt()` throws that away — **every single time**. The gesture compiled, ran, called
+`setStreamVolume` on every move event, and the volume never changed by one unit. It was silently
+dead, and only a before/after `dumpsys audio` read caught it (a screenshot would have shown a
+perfectly plausible badge). The fix is to hold the value the gesture *started* from and apply the
+*accumulated* travel: **on a coarse integer scale, always integrate the gesture, never the deltas.**
+
+**QA — phone (Material rulebook), Pixel emulator, portrait, real playback:**
+- volume: `STREAM_MUSIC` **0 → 8** on a swipe up, **8 → 0** on a swipe down (`dumpsys audio`), and
+  **13/15** after a long drag; badge screenshotted mid-drag reading `🔊 53%`.
+- brightness: badge screenshotted mid-drag reading `☀ 99%`, video still playing underneath.
+- the seek bar still scrubs: dragging the thumb moved **06:14 → 51:37** and playback continued
+  there, so the new layer did not steal horizontal touches.
+- 0 FATAL in logcat.
+
+**QA — TV (10-foot rulebook), Fire TV .64, versionCode 40:** app launches, Continue Watching plays
+(Silo S1:E1, 4K debrid), the OSD shows with the focus ring on the play button, and D-pad RIGHT
+seeks (13:05 → 13:54). 0 FATAL. Nothing about the TV path changed — by construction the gesture
+layer is never attached there.
