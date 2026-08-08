@@ -339,6 +339,13 @@ class StremioHomeFragment : Fragment() {
 
     private fun tickClock() {
         val tv = view?.findViewById<TextView>(R.id.nav_clock) ?: return
+        // D2: a television has no system status bar, so this bar draws its own clock. A phone
+        // already shows the time a few hundred pixels away — the same duplication M15 removed from
+        // the IPTV home, and the same flag decides it.
+        if (!resources.getBoolean(R.bool.home_shows_tv_status_strip)) {
+            tv.visibility = View.GONE
+            return
+        }
         val cal = Calendar.getInstance()
         tv.text = String.format(java.util.Locale.US, "%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
     }

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  D2 — the TV's Debrid metrics, EXACTLY the literals that were inline in `item_debrid_content.xml`
+  and `fragment_stremio_home.xml` before this batch. Nothing here is a new decision.
+  The hero line cap is 10, which no plot in the design reaches — it is "unbounded" spelled as a
+  number, because `maxLines` needs one.
+-->
+<resources>
+    <dimen name="debrid_card_title_size">14sp</dimen>
+    <dimen name="debrid_card_year_size">12sp</dimen>
+    <dimen name="debrid_card_overlay_padding_top">32dp</dimen>
+    <dimen name="stremio_top_bar_inset">0dp</dimen>
+    <integer name="stremio_hero_desc_lines">10</integer>
+</resources>

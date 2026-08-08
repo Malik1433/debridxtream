@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  D2 — the Debrid section sized for the HAND. PHONE values; the TV keeps its own set verbatim in
+  `values-television/dimens_debrid.xml`.
+
+  D1 gave Discover / See All / Search the M13 font scale they had never had, which took them from
+  unreadable (6-9sp) to overshooting: on the See All grid a 14sp caption became 22sp inside a 128dp
+  card, so titles broke mid-word — "Spider-M / an: Bran…", "Obsessio / n" — and the bottom overlay
+  swallowed most of the poster. These are the sizes that fix D1's own overshoot.
+
+  The top bar is inset because the Debrid nav tabs sit UNDER the system status bar: measured, a tap
+  at y=60px is taken by the system and Discover only opens at y=82px.
+-->
+<resources>
+    <dimen name="debrid_card_title_size">9sp</dimen>
+    <dimen name="debrid_card_year_size">7sp</dimen>
+    <dimen name="debrid_card_overlay_padding_top">16dp</dimen>
+    <dimen name="stremio_top_bar_inset">22dp</dimen>
+    <!-- The hero plot is unbounded in the design. At 1.6x it ran to six lines and painted under
+         the Play Now row, which is the same overflow M16a fixed on the movie detail page. -->
+    <integer name="stremio_hero_desc_lines">3</integer>
+</resources>
