@@ -13,26 +13,26 @@
     <ImageView
         android:id="@+id/iv_hero_background"
         android:layout_width="match_parent"
-        android:layout_height="360dp"
+        android:layout_height="@dimen/home_hero_band_height"
         android:scaleType="centerCrop"
         tools:src="@tools:sample/backgrounds/scenic" />
 
     <!-- Gradient: left → right fade -->
     <View
         android:layout_width="match_parent"
-        android:layout_height="360dp"
+        android:layout_height="@dimen/home_hero_band_height"
         android:background="@drawable/gradient_hero_lr" />
 
     <!-- Gradient: bottom → top fade -->
     <View
         android:layout_width="match_parent"
-        android:layout_height="360dp"
+        android:layout_height="@dimen/home_hero_band_height"
         android:background="@drawable/gradient_hero_bt" />
 
     <!-- Radial cyan glow (top-right) -->
     <View
         android:layout_width="match_parent"
-        android:layout_height="360dp"
+        android:layout_height="@dimen/home_hero_band_height"
         android:background="@drawable/gradient_hero_radial" />
 
     <!-- ══════ SCROLLING CONTENT (full-bleed; nav rail floats above) ══════ -->
@@ -54,7 +54,7 @@
             <!-- ─── HERO (340dp = 720px hero − 40px rail overlap) ─── -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
-                android:layout_height="340dp">
+                android:layout_height="@dimen/home_hero_section_height">
 
                 <LinearLayout
                     android:id="@+id/hero_content"
@@ -99,7 +99,7 @@
                         android:fontFamily="@font/plus_jakarta_sans"
                         android:text="Featured Title"
                         android:textColor="#F1F5F9"
-                        android:textSize="38sp"
+                        android:textSize="@dimen/home_hero_title_size"
                         android:textStyle="bold"
                         android:letterSpacing="-0.03"
                         android:lineSpacingMultiplier="0.98"
@@ -184,7 +184,7 @@
                         android:layout_height="wrap_content"
                         android:text="A short description of the featured content."
                         android:textColor="#CBD5E1"
-                        android:textSize="9.5sp"
+                        android:textSize="@dimen/home_hero_desc_size"
                         android:lineSpacingMultiplier="1.4"
                         android:maxLines="2"
                         android:ellipsize="end"
@@ -221,16 +221,16 @@
                             <LinearLayout
                                 android:id="@+id/btn_hero_watch"
                                 android:layout_width="wrap_content"
-                                android:layout_height="30dp"
-                                android:layout_margin="12dp"
+                                android:layout_height="@dimen/home_hero_btn_height"
+                                android:layout_margin="@dimen/home_hero_btn_margin"
                                 android:orientation="horizontal"
                                 android:gravity="center"
                                 android:paddingStart="17dp"
                                 android:paddingEnd="17dp"
                                 android:background="@drawable/bg_hero_play_gradient"
                                 android:focusable="true"
-                                android:focusableInTouchMode="true"
-                                android:focusedByDefault="true"
+                                android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
+                                android:focusedByDefault="@bool/ui_uses_dpad_focus"
                                 android:nextFocusDown="@+id/rv_top_10_movies">
 
                                 <ImageView
@@ -269,15 +269,15 @@
                             <LinearLayout
                                 android:id="@+id/btn_hero_details"
                                 android:layout_width="wrap_content"
-                                android:layout_height="30dp"
-                                android:layout_margin="12dp"
+                                android:layout_height="@dimen/home_hero_btn_height"
+                                android:layout_margin="@dimen/home_hero_btn_margin"
                                 android:orientation="horizontal"
                                 android:gravity="center"
                                 android:paddingStart="15dp"
                                 android:paddingEnd="15dp"
                                 android:background="@drawable/bg_hero_glass_btn"
                                 android:focusable="true"
-                                android:focusableInTouchMode="true"
+                                android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
                                 android:nextFocusDown="@+id/rv_top_10_movies">
 
                                 <ImageView
@@ -315,12 +315,12 @@
 
                             <FrameLayout
                                 android:id="@+id/btn_hero_fav"
-                                android:layout_width="30dp"
-                                android:layout_height="30dp"
-                                android:layout_margin="12dp"
+                                android:layout_width="@dimen/home_hero_fav_size"
+                                android:layout_height="@dimen/home_hero_fav_size"
+                                android:layout_margin="@dimen/home_hero_btn_margin"
                                 android:background="@drawable/bg_hero_glass_btn"
                                 android:focusable="true"
-                                android:focusableInTouchMode="true">
+                                android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode">
 
                                 <ImageView
                                     android:layout_width="12dp"

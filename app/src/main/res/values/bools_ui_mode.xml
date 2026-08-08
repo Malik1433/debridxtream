@@ -51,4 +51,19 @@
       already closes the panel there.
     -->
     <bool name="dismiss_on_backdrop_tap">true</bool>
+    <!--
+      M15. Home's own top-right strip — clock, DEVICE KEY, IPTV badge, expiry chip. A television has
+      no system status bar, so the app draws its own; a phone already has one, and the app's clock
+      simply duplicates the system clock a few hundred pixels away.
+
+      It also actively broke the hero: the strip occupies x 372..882dp, the hero text column runs to
+      476dp, and on a 411dp-tall screen a two-line featured title is pushed up into it — measured,
+      "|AR| WC PSG VS Real Madrid Semi Final" rendered straight through the KEY chip. Insetting the
+      hero below the strip does not fit either: it needs a 280dp hero section, which pushes Continue
+      Watching off the bottom.
+
+      Nothing is lost on the phone: the device key and the expiry date are both on the Settings
+      screen (Account / About), and the expiry warning still arrives as a dialog at launch.
+    -->
+    <bool name="home_shows_tv_status_strip">false</bool>
 </resources>

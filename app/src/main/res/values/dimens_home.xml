@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M15 — the home screen sized for the HAND. PHONE values; the TV keeps its own set verbatim in
+  `values-television/dimens_home.xml`, so the 10-foot design does not move.
+
+  Measured on a 914x411dp landscape handset before anything was changed:
+
+  - The hero BAND is a fixed 360dp. That is 67% of a 540dp television and **88% of this phone**,
+    which is why Continue Watching was a sliver at the bottom edge with the gesture pill over it.
+    This is the density complaint in one number.
+  - Every action on the screen was under the 48dp touch minimum: Play Now 125x31.6dp, More Info
+    112x30dp, the favourite button 30x30dp, and each nav rail item 34x34dp.
+
+  One honest shortfall, stated rather than glossed: the rail cannot give all of its items 48dp.
+  Six destinations plus Settings plus the profile mark in a 411dp column need ~431dp at 48dp each.
+  They get 40dp instead, across the rail's full 60dp width — a 60x40dp target, still larger in area
+  than the 48x48dp minimum but 8dp short in one dimension. 40dp is what the arithmetic allows once
+  the header, divider, Settings row and profile mark are subtracted; 44dp overflowed by 30dp. The
+  alternative was making a six-item nav rail scroll, which is worse. Raised for the owner rather
+  than hidden.
+
+  The rail's spacing is then arithmetic, not taste. Measured, the list gets 236dp between the logo
+  and the divider; six items at 40dp + a 3dp gap need 258dp, and the sixth destination was sliced in
+  half. Item gap 0 (a rail's items are meant to be contiguous — the highlight capsule separates
+  them), a 4dp list inset and a 34dp profile mark bring the requirement to 240dp inside 243dp.
+  NOTE: that fits SIX destinations. A seventh will scroll rather than clip, because rv_sidebar is
+  now bottom-constrained, but it should be re-measured.
+
+  The hero band keeps the design's 20dp overhang over the text section (268 vs 248, as 360 vs 340
+  on the TV). 248dp is sized for the WORST case, not the average one: a featured title that wraps
+  to two lines. At 22sp that case needed a 262dp section and pushed Continue Watching 9dp off the
+  bottom, so the title is 18sp here — which the 1.6x scale still renders at ~29sp.
+-->
+<resources>
+    <!-- Hero -->
+    <dimen name="home_hero_band_height">268dp</dimen>
+    <dimen name="home_hero_section_height">248dp</dimen>
+    <dimen name="home_hero_title_size">18sp</dimen>
+    <dimen name="home_hero_desc_size">8sp</dimen>
+    <dimen name="home_hero_btn_height">48dp</dimen>
+    <dimen name="home_hero_btn_margin">6dp</dimen>
+    <dimen name="home_hero_fav_size">48dp</dimen>
+
+    <!-- Navigation rail -->
+    <dimen name="home_nav_item_height">40dp</dimen>
+    <dimen name="home_nav_item_margin">0dp</dimen>
+    <dimen name="home_nav_item_width">60dp</dimen>
+    <dimen name="home_nav_item_inset">0dp</dimen>
+    <dimen name="home_nav_header_size">28dp</dimen>
+    <dimen name="home_nav_list_margin_top">4dp</dimen>
+    <dimen name="home_nav_profile_size">34dp</dimen>
+</resources>

@@ -12,4 +12,6 @@
     <bool name="rows_focusable_in_touch_mode">true</bool>
     <bool name="source_row_play_always_visible">false</bool>
     <bool name="dismiss_on_backdrop_tap">false</bool>
+    <!-- M15: a TV has no system status bar, so home draws its own clock / key / expiry strip. -->
+    <bool name="home_shows_tv_status_strip">true</bool>
 </resources>

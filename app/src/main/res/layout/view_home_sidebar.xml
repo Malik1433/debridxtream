@@ -15,8 +15,8 @@
     <!-- Logo mark "DX" -->
     <FrameLayout
         android:id="@+id/sidebar_header"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
+        android:layout_width="@dimen/home_nav_header_size"
+        android:layout_height="@dimen/home_nav_header_size"
         android:background="@drawable/bg_logo_mark"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -38,8 +38,8 @@
     <!-- Magnetic sliding highlight capsule (behind nav icons) -->
     <View
         android:id="@+id/sidebar_capsule"
-        android:layout_width="34dp"
-        android:layout_height="34dp"
+        android:layout_width="@dimen/home_nav_item_width"
+        android:layout_height="@dimen/home_nav_item_height"
         android:background="@drawable/bg_nav_item_focused"
         android:alpha="0"
         app:layout_constraintStart_toStartOf="parent"
@@ -50,16 +50,18 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_sidebar"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="18dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="@dimen/home_nav_list_margin_top"
         android:clipChildren="false"
         android:clipToPadding="false"
         android:overScrollMode="never"
-        android:paddingStart="13dp"
-        android:paddingEnd="13dp"
+        android:paddingStart="@dimen/home_nav_item_inset"
+        android:paddingEnd="@dimen/home_nav_item_inset"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/sidebar_header" />
+        app:layout_constraintTop_toBottomOf="@id/sidebar_header"
+        app:layout_constraintBottom_toTopOf="@id/sidebar_settings_divider"
+        app:layout_constraintVertical_bias="0" />
 
     <!-- Divider before settings -->
     <View
@@ -77,9 +79,9 @@
         android:id="@+id/sidebar_settings_item"
         layout="@layout/item_sidebar_nav"
         android:layout_width="0dp"
-        android:layout_height="34dp"
-        android:layout_marginStart="13dp"
-        android:layout_marginEnd="13dp"
+        android:layout_height="@dimen/home_nav_item_height"
+        android:layout_marginStart="@dimen/home_nav_item_inset"
+        android:layout_marginEnd="@dimen/home_nav_item_inset"
         android:layout_marginBottom="6dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -88,11 +90,11 @@
     <!-- Profile mark -->
     <FrameLayout
         android:id="@+id/sidebar_profile_mark"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
+        android:layout_width="@dimen/home_nav_profile_size"
+        android:layout_height="@dimen/home_nav_profile_size"
         android:background="@drawable/bg_profile_mark"
         android:focusable="true"
-        android:focusableInTouchMode="true"
+        android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">

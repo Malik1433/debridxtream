@@ -294,6 +294,12 @@ class HomeFragment : Fragment() {
         ivHeroBackground = view.findViewById(R.id.iv_hero_background)
         tvHeroTitle = view.findViewById(R.id.tv_hero_title)
         tvHeroDescription = view.findViewById(R.id.tv_hero_description)
+
+        // M15: home's own clock / key / expiry strip is TV chrome — a television has no system
+        // status bar. On a phone it duplicates the system clock AND the hero's two-line title
+        // renders straight through it. See R.bool.home_shows_tv_status_strip for the measurement.
+        view.findViewById<View>(R.id.status_bar)?.isVisible =
+            resources.getBoolean(R.bool.home_shows_tv_status_strip)
         
         rvSidebar = view.findViewById(R.id.rv_sidebar)
         sectionContinueWatching = view.findViewById(R.id.section_continue_watching)

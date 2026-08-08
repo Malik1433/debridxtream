@@ -59,6 +59,13 @@ internal class HomeFocusManager(private var fragment: HomeFragment?) {
     fun applyInitialFocusIfNeeded(state: HomeUiState) {
         val frag = fragment ?: return
         if (hasAppliedInitialFocus || !frag.isAdded || frag.view == null) return
+        // M15, same rule M7c applied to VodFocusController: a touch device must not MOVE focus on
+        // its own. Landing focus on Play Now is a 10-foot affordance; on a phone it only means the
+        // first tap is spent acquiring focus instead of acting.
+        if (!frag.resources.getBoolean(com.tvonnet.debridxtreamiptv.R.bool.ui_uses_dpad_focus)) {
+            hasAppliedInitialFocus = true
+            return
+        }
 
         if (state.isLoading) {
             if (frag.view?.findFocus() == null && returnToSidebar()) {
