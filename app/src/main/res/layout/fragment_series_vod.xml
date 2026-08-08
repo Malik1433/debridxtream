@@ -116,7 +116,7 @@
             <FrameLayout
                 android:id="@+id/btn_search"
                 android:layout_width="match_parent"
-                android:layout_height="38dp"
+                android:layout_height="@dimen/vod_search_height"
                 android:layout_marginStart="14dp"
                 android:layout_marginEnd="14dp"
                 android:layout_marginBottom="16dp"
@@ -141,12 +141,16 @@
                         app:tint="#64748B" />
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_weight="1"
                         android:layout_marginStart="8dp"
+                        android:layout_marginEnd="12dp"
+                        android:maxLines="1"
+                        android:ellipsize="end"
                         android:text="Search series…"
                         android:textColor="@color/vod_text_faint"
-                        android:textSize="13sp" />
+                        android:textSize="@dimen/vod_search_hint_size" />
                 </LinearLayout>
             </FrameLayout>
 
@@ -245,7 +249,7 @@
                         android:layout_height="wrap_content"
                         android:text="All Series"
                         android:textColor="@color/vod_text_primary"
-                        android:textSize="24sp"
+                        android:textSize="@dimen/vod_section_title_size"
                         android:textStyle="bold"
                         android:fontFamily="sans-serif-condensed"
                         android:letterSpacing="-0.015"
@@ -258,14 +262,14 @@
                         android:layout_marginTop="2dp"
                         android:text="0 titles"
                         android:textColor="@color/vod_text_faint"
-                        android:textSize="12sp"
+                        android:textSize="@dimen/vod_section_meta_size"
                         android:fontFamily="sans-serif" />
                 </LinearLayout>
 
                 <!-- Right: sort chips (scrollable so they never clip) -->
                 <HorizontalScrollView
                     android:layout_width="wrap_content"
-                    android:layout_height="28dp"
+                    android:layout_height="@dimen/vod_sort_chip_height"
                     android:scrollbars="none"
                     android:clipToPadding="false"
                     android:overScrollMode="never">
@@ -273,7 +277,7 @@
                     <LinearLayout
                         android:id="@+id/ll_sort_chips"
                         android:layout_width="wrap_content"
-                        android:layout_height="28dp"
+                        android:layout_height="@dimen/vod_sort_chip_height"
                         android:orientation="horizontal"
                         android:gravity="center_vertical" />
                 </HorizontalScrollView>

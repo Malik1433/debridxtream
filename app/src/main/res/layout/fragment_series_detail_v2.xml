@@ -9,9 +9,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#06090E"
-    android:clipChildren="false"
-    android:clipToPadding="false">
+    android:background="#06090E">
 
     <!-- Full-bleed backdrop -->
     <ImageView
@@ -42,7 +40,7 @@
         android:layout_height="20dp"
         android:layout_marginStart="44dp"
         android:layout_marginEnd="44dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="@dimen/series_top_strip_margin_top"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         app:layout_constraintTop_toTopOf="parent"
@@ -95,18 +93,37 @@
             android:letterSpacing="0.08" />
     </LinearLayout>
 
-    <!-- ══ LEFT: SERIES INFO ══ -->
+    <!-- ══ LEFT: SERIES INFO ══
+
+         M16: bounded and scrollable, for the reason proved on the movie page — a wrap_content
+         LinearLayout anchored only at the top runs straight past the bottom of the screen, and
+         with `clipChildren="false"` anywhere above it that overflow is PAINTED OVER whatever sits
+         below. On a 411dp handset the metadata, the season row and the plot all landed on top of
+         each other and the episode strip landed on top of the action buttons.
+
+         `container_header` keeps its id and kind; only the new scroll view carries the
+         constraints, and `layout_credits` moved inside it (it used to be a sibling anchored to the
+         header's bottom, which would have been a constraint cycle). On a 540dp television the
+         content is shorter than the viewport, so nothing scrolls and nothing moves. -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll_series_header"
+        android:layout_width="410dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="44dp"
+        android:layout_marginTop="@dimen/series_header_margin_top"
+        android:clipChildren="true"
+        android:clipToPadding="true"
+        android:overScrollMode="never"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/section_episodes"
+        app:layout_constraintVertical_bias="0.0">
+
     <LinearLayout
         android:id="@+id/container_header"
-        android:layout_width="410dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="44dp"
-        android:layout_marginTop="69dp"
-        android:orientation="vertical"
-        android:clipChildren="false"
-        android:clipToPadding="false"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        android:orientation="vertical">
 
         <TextView
             android:id="@+id/tv_content_type"
@@ -393,22 +410,24 @@
             android:ellipsize="end"
             tools:text="When a deep-space relay goes dark, a decommissioned analyst is pulled back to trace a signal that shouldn't exist." />
 
-        <!-- Action buttons -->
-        <LinearLayout
+        <!-- Action buttons. M16: a FlexboxLayout that WRAPS — on a 914dp handset the row runs out
+             of width and the last button was squeezed until its label sliced. On a 960dp television
+             they still fit one line, so this renders identically there. -->
+        <com.google.android.flexbox.FlexboxLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:layout_marginStart="-3dp"
             android:clipChildren="false"
             android:clipToPadding="false"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
+            app:flexWrap="wrap"
+            app:alignItems="center"
             android:padding="3dp">
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_play"
                 android:layout_width="wrap_content"
-                android:layout_height="29dp"
+                android:layout_height="@dimen/series_action_height"
                 android:background="@drawable/cin_detail_btn_watch"
                 android:drawableStart="@drawable/ic_play_arrow_24"
                 android:drawablePadding="6dp"
@@ -428,7 +447,7 @@
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_trailer"
                 android:layout_width="wrap_content"
-                android:layout_height="29dp"
+                android:layout_height="@dimen/series_action_height"
                 android:layout_marginStart="8dp"
                 android:background="@drawable/cin_detail_btn_glass"
                 android:focusable="true"
@@ -445,8 +464,8 @@
 
             <ImageButton
                 android:id="@+id/btn_favorite"
-                android:layout_width="29dp"
-                android:layout_height="29dp"
+                android:layout_width="@dimen/series_fav_size"
+                android:layout_height="@dimen/series_fav_size"
                 android:layout_marginStart="8dp"
                 android:background="@drawable/cin_detail_btn_glass"
                 android:focusable="true"
@@ -454,8 +473,7 @@
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_favorite_border"
                 app:tint="#F1F5F9" />
-        </LinearLayout>
-    </LinearLayout>
+        </com.google.android.flexbox.FlexboxLayout>
 
     <!-- Director / Creator + Cast (TMDB enrichment). Anchored directly BELOW the hero
          (action buttons) and constrained above the episodes section, so it can never
@@ -465,17 +483,11 @@
         android:id="@+id/layout_credits"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="44dp"
         android:layout_marginTop="14dp"
         android:orientation="horizontal"
         android:clipChildren="false"
         android:clipToPadding="false"
         android:visibility="gone"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/container_header"
-        app:layout_constraintBottom_toTopOf="@id/section_episodes"
-        app:layout_constraintVertical_bias="0"
-        app:layout_constrainedHeight="true"
         tools:visibility="visible">
 
         <LinearLayout
@@ -538,6 +550,9 @@
     </LinearLayout>
 
     <!-- ══ EPISODES SECTION (bottom) ══ -->
+    </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
     <LinearLayout
         android:id="@+id/section_episodes"
         android:layout_width="0dp"

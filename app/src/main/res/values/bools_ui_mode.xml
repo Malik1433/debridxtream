@@ -66,4 +66,13 @@
       screen (Account / About), and the expiry warning still arrives as a dialog at launch.
     -->
     <bool name="home_shows_tv_status_strip">false</bool>
+    <!--
+      M16. The detail page's "Because you watched" rail is pinned to the bottom of the screen, and
+      on a 411dp-tall handset it takes 169dp of it. What is left for the film's own column is 158dp
+      — not enough for the title, the metadata, the plot AND the Watch Now button, so the primary
+      action ended up below the fold. §1c's first rule is that a primary action is never
+      unreachable, and a recommendation rail is the one thing on this page that can go: its content
+      is reachable from browse and search, and this flag turns it back on in one line.
+    -->
+    <bool name="detail_shows_similar_row">false</bool>
 </resources>

@@ -34,7 +34,7 @@
         android:layout_marginStart="13dp"
         android:text="Category"
         android:textColor="@color/vod_text_muted"
-        android:textSize="14sp"
+        android:textSize="@dimen/vod_category_name_size"
         android:fontFamily="sans-serif-medium"
         android:singleLine="true"
         android:ellipsize="end" />
@@ -46,7 +46,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:textColor="@color/vod_text_ghost"
-        android:textSize="11sp"
+        android:textSize="@dimen/vod_category_count_size"
         android:fontFamily="monospace"
         android:letterSpacing="0.06"
         android:singleLine="true"

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M16 — the TV's browse metrics, EXACTLY the literals that were inline in `fragment_vod.xml`,
+  `fragment_series_vod.xml`, `item_vod_sort_chip.xml`, the two category rows and the two cards
+  before this batch. Nothing here is a new decision.
+
+  If a value here stops matching the design, that is a bug in this file.
+-->
+<resources>
+    <dimen name="vod_search_height">38dp</dimen>
+    <dimen name="vod_search_hint_size">13sp</dimen>
+    <dimen name="vod_section_title_size">24sp</dimen>
+    <dimen name="vod_section_meta_size">12sp</dimen>
+    <dimen name="vod_sort_chip_height">28dp</dimen>
+    <dimen name="vod_sort_chip_text_size">11sp</dimen>
+    <dimen name="vod_category_name_size">14sp</dimen>
+    <dimen name="vod_category_count_size">11sp</dimen>
+    <dimen name="vod_card_title_size">14sp</dimen>
+    <integer name="vod_card_title_lines">1</integer>
+</resources>

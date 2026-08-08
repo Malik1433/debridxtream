@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M16 — the TV's detail-page metrics, EXACTLY the literals that were inline in
+  `fragment_movie_detail_v2.xml` and `fragment_series_detail_v2.xml` before this batch.
+  Nothing here is a new decision.
+-->
+<resources>
+    <dimen name="detail_action_height">38dp</dimen>
+    <dimen name="detail_fav_width">42dp</dimen>
+    <dimen name="series_action_height">29dp</dimen>
+    <dimen name="series_fav_size">29dp</dimen>
+    <!-- The phone draws under the system status bar; the TV has none. -->
+    <dimen name="detail_top_bar_inset">0dp</dimen>
+    <!-- Series' own top strip: 20dp on TV, plus the phone's status-bar clearance. -->
+    <dimen name="series_top_strip_margin_top">20dp</dimen>
+    <!-- The series info column starts below that strip. -->
+    <dimen name="series_header_margin_top">69dp</dimen>
+</resources>

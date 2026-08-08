@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M16 — the movie and series detail pages sized for the HAND. PHONE values; the TV keeps its own
+  set verbatim in `values-television/dimens_detail.xml`.
+
+  Measured on a 914x411dp landscape handset: the movie page's actions are 38dp tall and the series
+  page's are **29dp** — both well under the 48dp minimum. And the row runs out of width: the four
+  movie actions need more than the 480dp info column, so "Mark Watched" was squeezed to 93dp, its
+  label wrapped, and the second line was sliced by the button's own bottom edge.
+
+  The height is answered here; the width is answered by making `container_actions` a FlexboxLayout
+  that WRAPS. On a 960dp television the four buttons still fit on one line, so that change renders
+  identically there — verified on .64.
+-->
+<resources>
+    <!-- fragment_movie_detail_v2 -->
+    <dimen name="detail_action_height">48dp</dimen>
+    <dimen name="detail_fav_width">48dp</dimen>
+    <!-- fragment_series_detail_v2 (its own, smaller, set on TV) -->
+    <dimen name="series_action_height">48dp</dimen>
+    <dimen name="series_fav_size">48dp</dimen>
+    <!-- The phone draws under the system status bar; the TV has none. -->
+    <dimen name="detail_top_bar_inset">22dp</dimen>
+    <!-- Series' own top strip: 20dp on TV, plus the phone's status-bar clearance. -->
+    <dimen name="series_top_strip_margin_top">42dp</dimen>
+    <!-- The series info column starts below that strip. -->
+    <dimen name="series_header_margin_top">91dp</dimen>
+</resources>

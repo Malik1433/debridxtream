@@ -75,11 +75,11 @@
                 android:id="@+id/tv_series_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:maxLines="1"
+                android:maxLines="@integer/vod_card_title_lines"
                 android:ellipsize="end"
                 android:text="Series Title"
                 android:textColor="#F1F5F9"
-                android:textSize="14sp"
+                android:textSize="@dimen/vod_card_title_size"
                 android:fontFamily="sans-serif-medium" />
         </LinearLayout>
 

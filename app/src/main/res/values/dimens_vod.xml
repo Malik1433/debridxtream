@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M16 — the Movies and Series browse screens sized for the HAND. PHONE values; the TV keeps its own
+  set verbatim in `values-television/dimens_vod.xml`. Same viewing-distance question M14c and M15
+  answered for Settings and Home.
+
+  Measured on a 914x411dp landscape handset before anything was changed. At the M13 1.6x scale the
+  screen had stopped being readable rather than merely tight:
+
+  - The sidebar's search box is a fixed 38dp and its hint wraps: "Search movies…" rendered as
+    "Search" over a half-sliced "movies…". It is also a 38dp touch target.
+  - Category names truncate to nothing useful — "All Mo… 141308", "Recently…", "WORLD CU… 93",
+    "F1 / MOT… 121".
+  - The section title, `singleLine`, became "All…" because the sort chips take the row's width
+    first.
+  - Every poster caption was cut: "NL The …", "The Ne…", "The Od…", "Spider-…", "Water P…". A card
+    is 99dp wide and a 14sp title at 1.6x is ~22sp — about nine characters.
+  - Sort chips are 28dp tall.
+
+  Both browse screens are the same layout twice over, so one set of values serves
+  fragment_vod / fragment_series_vod, item_vod_category / item_series_category and
+  item_movie_card / item_series_card.
+-->
+<resources>
+    <dimen name="vod_search_height">48dp</dimen>
+    <dimen name="vod_search_hint_size">9sp</dimen>
+    <dimen name="vod_section_title_size">15sp</dimen>
+    <dimen name="vod_section_meta_size">8sp</dimen>
+    <dimen name="vod_sort_chip_height">48dp</dimen>
+    <dimen name="vod_sort_chip_text_size">8sp</dimen>
+    <dimen name="vod_category_name_size">10sp</dimen>
+    <dimen name="vod_category_count_size">8sp</dimen>
+    <dimen name="vod_card_title_size">9sp</dimen>
+    <!-- Two lines on a phone: at 99dp a poster caption cannot hold a film title on one. -->
+    <integer name="vod_card_title_lines">2</integer>
+</resources>

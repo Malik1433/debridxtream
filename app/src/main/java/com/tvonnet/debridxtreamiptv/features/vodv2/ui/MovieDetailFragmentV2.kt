@@ -246,7 +246,11 @@ class MovieDetailFragmentV2 : Fragment() {
             binding.rvCast.visibility = View.VISIBLE
         }
 
-        if (state.recommendations.isNotEmpty()) {
+        // M16: see R.bool.detail_shows_similar_row — on a phone this rail costs the film's own
+        // column 169dp of a 411dp screen and pushes Watch Now below the fold.
+        if (state.recommendations.isNotEmpty() &&
+            resources.getBoolean(R.bool.detail_shows_similar_row)
+        ) {
             similarAdapter.submitList(state.recommendations)
             val title = movieTitle?.trim()
             binding.headerSimilar.text = if (!title.isNullOrBlank()) {

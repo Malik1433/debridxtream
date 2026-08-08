@@ -106,6 +106,12 @@ class SeriesDetailFragmentV2 : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // M16, same rule as M14b on Home: a D-pad legend ("◄ ► ▲ ▼ NAVIGATE | OK / ENTER SELECT")
+        // is a 10-foot idiom the phone rulebook bans by name. The layout is shared, so it is hidden
+        // here rather than removed — the TV still gets it.
+        if (!resources.getBoolean(com.tvonnet.debridxtreamiptv.R.bool.ui_uses_dpad_focus)) {
+            binding.layoutHintBar.visibility = View.GONE
+        }
         buildCollaborators()
         setupOptimisticUI()
         setupEpisodes()
