@@ -202,7 +202,15 @@ class MovieMetadataController(
                                 } else {
                                     "SIMILAR MOVIES"
                                 }
-                            layoutSimilarRow.visibility = View.VISIBLE
+                            // D4: same arithmetic as M16a — the rail is pinned to the bottom and
+                            // takes 169dp of a 411dp screen, which pushes Watch Now below the fold.
+                            // See R.bool.detail_shows_similar_row.
+                            if (activity.resources.getBoolean(
+                                    com.tvonnet.debridxtreamiptv.R.bool.detail_shows_similar_row
+                                )
+                            ) {
+                                layoutSimilarRow.visibility = View.VISIBLE
+                            }
                         }
                     }
                     else -> {}

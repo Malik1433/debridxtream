@@ -16,9 +16,11 @@
     <dimen name="debrid_card_year_size">7sp</dimen>
     <dimen name="debrid_card_overlay_padding_top">16dp</dimen>
     <dimen name="stremio_top_bar_inset">22dp</dimen>
-    <!-- The hero plot is unbounded in the design. At 1.6x it ran to six lines and painted under
-         the Play Now row, which is the same overflow M16a fixed on the movie detail page. -->
-    <integer name="stremio_hero_desc_lines">3</integer>
+    <!-- The hero plot is unbounded in the design. At 1.6x it ran to SIX lines and painted under the
+         Play Now row. Three still overlapped — measured on "Obsession", whose third line was sliced
+         by the button row — because the hero content needs 70dp of inset + 14 + 46 + 22 + plot + 40
+         and the band is 250dp. Two lines fit; three do not. -->
+    <integer name="stremio_hero_desc_lines">2</integer>
     <!-- D3: the Top-10 rail. The rank was an 18dp box holding 13sp, which at 1.6x wrapped "01" to
          two lines and the fixed 42dp row sliced it; the title had ~60dp and stopped at ten
          characters ("Spider…", "The La…"). The row is also a touch target. -->

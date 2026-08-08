@@ -10,7 +10,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#06090E"
-    android:clipChildren="false"
     android:clipToPadding="false">
 
     <!-- Full-bleed backdrop -->
@@ -43,7 +42,7 @@
         android:layout_height="20dp"
         android:layout_marginStart="44dp"
         android:layout_marginEnd="44dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="@dimen/series_top_strip_margin_top"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         app:layout_constraintTop_toTopOf="parent"
@@ -100,18 +99,30 @@
             tools:text="PREMIUM · 224 DAYS" />
     </LinearLayout>
 
-    <!-- ══ LEFT: SERIES INFO ══ -->
+    <!-- ══ LEFT: SERIES INFO ══
+         D4: same recipe as M16a's IPTV series page — a wrap_content column anchored only at the top
+         runs past the bottom of the screen and, with `clipChildren="false"` above it, paints over
+         the episode strip. Easier here than on the IPTV twin: the action row already lives INSIDE
+         this column, so nothing had to be moved. -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll_details"
+        android:layout_width="410dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="44dp"
+        android:layout_marginTop="@dimen/series_header_margin_top"
+        android:clipChildren="true"
+        android:clipToPadding="true"
+        android:overScrollMode="never"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/layout_episodes_section"
+        app:layout_constraintVertical_bias="0.0">
+
     <LinearLayout
         android:id="@+id/group_details"
-        android:layout_width="410dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="44dp"
-        android:layout_marginTop="69dp"
-        android:orientation="vertical"
-        android:clipChildren="false"
-        android:clipToPadding="false"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        android:orientation="vertical">
 
         <!-- Content type label -->
         <TextView
@@ -398,7 +409,7 @@
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_watch_now"
                 android:layout_width="wrap_content"
-                android:layout_height="38dp"
+                android:layout_height="@dimen/detail_action_height"
                 android:background="@drawable/cin_detail_btn_watch"
                 android:drawableStart="@drawable/ic_play_arrow_24"
                 android:drawablePadding="8dp"
@@ -419,7 +430,7 @@
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_watch_trailer"
                 android:layout_width="wrap_content"
-                android:layout_height="38dp"
+                android:layout_height="@dimen/detail_action_height"
                 android:layout_marginStart="10dp"
                 android:background="@drawable/cin_detail_btn_glass"
                 android:focusable="true"
@@ -438,7 +449,7 @@
             <ImageButton
                 android:id="@+id/btn_add_favorite"
                 android:layout_width="38dp"
-                android:layout_height="38dp"
+                android:layout_height="@dimen/detail_action_height"
                 android:layout_marginStart="10dp"
                 android:background="@drawable/cin_detail_btn_glass"
                 android:focusable="true"
@@ -448,6 +459,7 @@
                 app:tint="@color/cin_detail_focus_text" />
         </LinearLayout>
     </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
     <!-- ══ EPISODES SECTION (bottom) ══ -->
     <LinearLayout

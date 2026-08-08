@@ -24,4 +24,7 @@
     <dimen name="series_episode_card_width">192dp</dimen>
     <dimen name="series_episode_thumb_width">184dp</dimen>
     <dimen name="series_episode_thumb_height">100dp</dimen>
+    <!-- D4: with the similar rail hidden on a phone the info column runs to the screen edge and the
+         action row sat flush against it (and grazed the gesture pill). -->
+    <dimen name="detail_column_margin_bottom">4dp</dimen>
 </resources>

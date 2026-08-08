@@ -167,6 +167,11 @@ class SeriesDetailActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         
         setContentView(R.layout.fragment_series_detail)
+        // D4: "◄ ► ▲ ▼ NAVIGATE | BACK / ESC RETURN" — the FOURTH D-pad legend found on a touch
+        // device (M14b home, M16a IPTV series, D3 debrid setup gate). The phone rulebook bans them.
+        if (!resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
+            findViewById<android.view.View>(R.id.layout_hint_bar)?.visibility = android.view.View.GONE
+        }
 
         // Repository and credentials are now injected via Hilt
         // No need to manually create instances
