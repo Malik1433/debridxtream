@@ -15,4 +15,13 @@
     <dimen name="series_top_strip_margin_top">20dp</dimen>
     <!-- The series info column starts below that strip. -->
     <dimen name="series_header_margin_top">69dp</dimen>
+    <!--
+      M16b: the phone's series page gave its info column only 92dp — Play S01 · E01 and the plot
+      were below the fold. Two measured reclaims: the header started 91dp down when the top strip
+      only occupies 62dp, and the episode thumbnail is a 10-foot 184x100dp. A 110x62dp card still
+      shows the still and the episode title, which is what identifies an episode.
+    -->
+    <dimen name="series_episode_card_width">192dp</dimen>
+    <dimen name="series_episode_thumb_width">184dp</dimen>
+    <dimen name="series_episode_thumb_height">100dp</dimen>
 </resources>

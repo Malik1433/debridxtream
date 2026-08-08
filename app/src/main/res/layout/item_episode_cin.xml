@@ -7,7 +7,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="192dp"
+    android:layout_width="@dimen/series_episode_card_width"
     android:layout_height="wrap_content"
     android:focusable="true"
     android:clickable="true"
@@ -23,8 +23,8 @@
 
         <!-- Thumbnail container: 368x207 -> 184x104dp (100dp for 540dp vertical fit) -->
         <FrameLayout
-            android:layout_width="184dp"
-            android:layout_height="100dp"
+            android:layout_width="@dimen/series_episode_thumb_width"
+            android:layout_height="@dimen/series_episode_thumb_height"
             android:clipChildren="false">
 
             <ImageView

@@ -415,6 +415,11 @@ class VodFragment : Fragment() {
         vodAdapter.addLoadStateListener { loadState ->
             lastLoadStates = loadState
             listState.updateListLoadingAndEmptyStates(loadState)
+            // M16b: the header count falls back to the adapter's loaded-so-far total whenever the
+            // category id has no entry in categoryCounts, and at first render that total is 0 — the
+            // header read "0 titles" beside a sidebar reading 37277. A page load does not emit a
+            // UI state, so nothing re-ran the count. It does now.
+            refreshSectionCount()
         }
     }
 
@@ -446,7 +451,15 @@ class VodFragment : Fragment() {
      */
     private fun refreshSectionCount() {
         val count = categoryCounts[selectedCategoryId] ?: vodAdapter.itemCount
-        if (focus.lastFocusTarget != VodFocusController.FocusTarget.MOVIES) {
+        // M16b, and this is the ACTUAL cause of "0 titles" — my first two attempts at it were
+        // wrong. The guard exists so the count does not clobber the meta line that a FOCUSED
+        // poster writes. But `lastFocusTarget` is initialised to MOVIES, and a touch device never
+        // moves focus, so on a phone the condition was false forever and the count was never
+        // written at all: the header kept the layout's literal "0 titles" beside a sidebar reading
+        // 141308. On TV the bool is true, so this resolves to exactly the condition it replaces.
+        val focusOwnsMetaLine = resources.getBoolean(R.bool.ui_uses_dpad_focus) &&
+            focus.lastFocusTarget == VodFocusController.FocusTarget.MOVIES
+        if (!focusOwnsMetaLine) {
             tvSectionMeta.text = "$count titles"
         }
     }
@@ -475,17 +488,23 @@ class VodFragment : Fragment() {
     private fun renderVodState(state: VodUiState) {
         syncSidebarCategories(state)
 
-        // Sidebar count badges — refresh rows when the counts change.
-        if (state.categoryCounts != categoryCounts) {
-            categoryCounts = state.categoryCounts
-            rvCategoriesSidebar.adapter?.notifyDataSetChanged()
-            refreshSectionCount()
-        }
-
+        // M16b: the selected category is applied FIRST. It used to be the other way round, and
+        // refreshSectionCount() then looked the count up under a selectedCategoryId that had not
+        // been assigned yet — it missed, fell back to the paging adapter's loaded-so-far count of
+        // 0, and the header read "0 titles" beside a sidebar reading 141308. On TV the mistake was
+        // invisible because focus landing on a poster rewrites the meta line; a touch device never
+        // focuses, so it stayed wrong. Refreshing on every emission is one text assignment.
         state.selectedCategoryId?.let { selectedId ->
             selectedCategoryId = selectedId
             (rvCategoriesSidebar.adapter as? CategorySidebarAdapter)?.setSelectedById(selectedId)
         }
+
+        // Sidebar count badges — refresh rows when the counts change.
+        if (state.categoryCounts != categoryCounts) {
+            categoryCounts = state.categoryCounts
+            rvCategoriesSidebar.adapter?.notifyDataSetChanged()
+        }
+        refreshSectionCount()
 
         if (isMoviesLoadingFromViewModel != state.isLoadingMovies || state.isSwitchingCategory) {
             isMoviesLoadingFromViewModel = state.isLoadingMovies

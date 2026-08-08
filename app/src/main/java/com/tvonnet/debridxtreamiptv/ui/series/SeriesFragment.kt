@@ -380,6 +380,11 @@ class SeriesFragment : Fragment() {
         seriesPagingAdapter.addLoadStateListener { loadState ->
             lastLoadStates = loadState
             listState.updateListLoadingAndEmptyStates(loadState)
+            // M16b: the header count falls back to the adapter's loaded-so-far total whenever the
+            // category id has no entry in categoryCounts, and at first render that total is 0 — the
+            // header read "0 titles" beside a sidebar reading 37277. A page load does not emit a
+            // UI state, so nothing re-ran the count. It does now.
+            refreshSectionCount()
         }
     }
 
@@ -423,18 +428,21 @@ class SeriesFragment : Fragment() {
     private fun renderSeriesState(state: SeriesUiState) {
         syncSidebarCategories(state)
 
-        // Sidebar count badges — refresh rows when the counts change.
-        if (state.categoryCounts != categoryCounts) {
-            categoryCounts = state.categoryCounts
-            rvCategoriesSidebar.adapter?.notifyDataSetChanged()
-            // Keep the section "N TITLES" in sync with the sidebar total.
-            refreshSectionCount()
-        }
-
+        // M16b: selection FIRST — see the note in VodFragment.renderVodState. Looking the count up
+        // before selectedCategoryId was assigned is what produced "0 titles" next to a sidebar
+        // total, and only a touch device showed it because TV focus rewrites the meta line.
         state.selectedCategoryId?.let { selectedId ->
             selectedCategoryId = selectedId
             (rvCategoriesSidebar.adapter as? CategorySidebarAdapter)?.setSelectedById(selectedId)
         }
+
+        // Sidebar count badges — refresh rows when the counts change.
+        if (state.categoryCounts != categoryCounts) {
+            categoryCounts = state.categoryCounts
+            rvCategoriesSidebar.adapter?.notifyDataSetChanged()
+        }
+        // Keep the section "N TITLES" in sync with the sidebar total.
+        refreshSectionCount()
 
         if (isSeriesLoadingFromViewModel != state.isLoadingSeries || state.isSwitchingCategory) {
             isSeriesLoadingFromViewModel = state.isLoadingSeries
@@ -531,7 +539,12 @@ class SeriesFragment : Fragment() {
     private fun refreshSectionCount() {
         val count = categoryCounts[selectedCategoryId] ?: seriesPagingAdapter.itemCount
         // Don't clobber the focused-series meta line; only refresh the plain count.
-        if (focus.lastFocusTarget != SeriesFocusController.FocusTarget.SERIES) {
+        // M16b: see the note in VodFragment.refreshSectionCount — `lastFocusTarget` starts at
+        // SERIES and a touch device never changes it, so on a phone this never ran and the header
+        // kept the layout's literal "0 titles". TV resolves to the same condition as before.
+        val focusOwnsMetaLine = resources.getBoolean(R.bool.ui_uses_dpad_focus) &&
+            focus.lastFocusTarget == SeriesFocusController.FocusTarget.SERIES
+        if (!focusOwnsMetaLine) {
             tvSectionMeta.text = "$count titles"
         }
     }
