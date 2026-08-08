@@ -34,7 +34,14 @@
     <dimen name="series_episode_card_width">118dp</dimen>
     <dimen name="series_episode_thumb_width">110dp</dimen>
     <dimen name="series_episode_thumb_height">62dp</dimen>
-    <!-- D4: with the similar rail hidden on a phone the info column runs to the screen edge and the
-         action row sat flush against it (and grazed the gesture pill). -->
-    <dimen name="detail_column_margin_bottom">20dp</dimen>
+    <!-- D5, and this is a correction of D4. I set this to 20dp to give the action row "breathing
+         room" once the similar rail is hidden — and it did the OPPOSITE: the column is bottom-
+         limited, so a bigger bottom margin makes the VIEWPORT shorter and pushes the actions
+         further out of sight. Measured: Watch Now went from flush-but-readable to a sliver. Back to
+         4dp; the ~16dp reclaimed from the column's internal margins is what actually buys the room. -->
+    <dimen name="detail_column_margin_bottom">4dp</dimen>
+    <!-- D5: the Debrid movie page can carry a resume bar AND a three-line plot, and that worst case
+         left Watch Now flush against the screen edge. Two lines frees ~22dp and the action row
+         clears it. The TV keeps three — it has the height. -->
+    <integer name="detail_plot_lines">2</integer>
 </resources>

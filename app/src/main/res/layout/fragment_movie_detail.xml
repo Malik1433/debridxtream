@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- D5: this info column is bounded above the "Because you watched" rail, and on a film with a
+     long plot AND a cast row the cast NAMES were clipped by about 4-8dp at the column edge.
+     Sized to fit rather than left clipped: ~16dp reclaimed from vertical margins inside the
+     column: credits block and actions row 14dp to 8dp, cast rail and director line 5dp to 3dp.
+     No type size changed. -->
 <!--
     DEBRID MOVIE DETAIL — Redesigned per Claude Design handoff.
     1920×1080 TV-optimized, full-bleed backdrop, left-aligned info.
@@ -425,7 +430,7 @@
             android:textColor="@color/source_text_secondary"
             android:textSize="12sp"
             android:lineSpacingMultiplier="1.35"
-            android:maxLines="3"
+            android:maxLines="@integer/detail_plot_lines"
             android:ellipsize="end"
             android:includeFontPadding="false"
             tools:text="Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family." />
@@ -507,7 +512,7 @@
             app:alignItems="center"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
+            android:layout_marginTop="8dp"
             android:paddingTop="6dp"
             android:paddingBottom="6dp"
             android:paddingStart="10dp"
@@ -588,7 +593,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
+            android:layout_marginTop="8dp"
             android:orientation="horizontal">
 
             <!-- Director -->
@@ -611,7 +616,7 @@
                     android:id="@+id/tv_director"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="5dp"
+                    android:layout_marginTop="3dp"
                     android:textColor="@color/source_text_primary"
                     android:textSize="12sp"
                     tools:text="Denis Villeneuve" />
@@ -640,7 +645,7 @@
                     android:id="@+id/rv_cast"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="5dp"
+                    android:layout_marginTop="3dp"
                     android:orientation="horizontal"
                     android:clipToPadding="false"
                     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
