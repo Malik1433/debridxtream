@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M14 — Settings chrome, sized for the HAND. These are the PHONE numbers; the TV keeps its own set
+  verbatim in `values-television/dimens_settings.xml`, so nothing on the television moves.
+
+  Why a device split is right here, when the M13 bools deliberately are not: the bools describe the
+  LAYOUT (which is now the TV's on both form factors) while these describe the VIEWING DISTANCE. A
+  10-foot screen title and a 40dp overscan margin are correct at three metres and wrong at thirty
+  centimetres — and measured on the phone the two headers ate 144dp of a 411dp-tall landscape
+  screen, 35% of it, before a single setting was visible. Only about 2.5 rows fitted underneath.
+
+  `-television` is the same device question the four behaviour bools already ask, and it never
+  matches a phone in either orientation.
+-->
+<resources>
+    <!-- Left category rail -->
+    <dimen name="settings_rail_padding_start">16dp</dimen>
+    <dimen name="settings_rail_padding_top">12dp</dimen>
+    <dimen name="settings_rail_padding_bottom">10dp</dimen>
+    <dimen name="settings_screen_title_size">15sp</dimen>
+    <dimen name="settings_version_size">8sp</dimen>
+    <dimen name="settings_version_margin_top">2dp</dimen>
+    <dimen name="settings_version_margin_bottom">6dp</dimen>
+    <!-- Category row type. At 18sp/12sp the 1.6x scale pushed "MOVIE · SERIES · LIVE" past the
+         195dp the rail leaves for it, so it ellipsised. -->
+    <dimen name="settings_cat_title_size">14sp</dimen>
+    <dimen name="settings_cat_sub_size">10sp</dimen>
+
+    <!-- Row breathing space. Zero on TV, and that is not laziness: measured on the Fire TV, adding
+         6dp/10dp pushed the category row 54dp -> 56dp and the toggle row 74dp -> 85.5dp, because
+         wrap_content + padding beat the minHeight floor. The phone needs the padding (its content
+         is taller than the floor); the TV must land on its old numbers exactly. -->
+    <dimen name="settings_cat_row_padding_v">6dp</dimen>
+    <dimen name="settings_row_padding_v">10dp</dimen>
+
+    <!-- Right detail panel -->
+    <dimen name="settings_panel_padding_start">20dp</dimen>
+    <dimen name="settings_panel_padding_end">20dp</dimen>
+    <dimen name="settings_panel_padding_top">14dp</dimen>
+    <dimen name="settings_panel_padding_bottom">10dp</dimen>
+    <dimen name="settings_panel_title_size">15sp</dimen>
+    <dimen name="settings_panel_desc_size">9sp</dimen>
+    <dimen name="settings_panel_desc_margin_top">2dp</dimen>
+    <dimen name="settings_panel_desc_margin_bottom">8dp</dimen>
+</resources>

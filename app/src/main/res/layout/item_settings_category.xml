@@ -1,12 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Settings category row — "Settings Screen.dc.html". 64px/2 = 32dp. Bg/focus set in adapter. -->
+<!-- Settings category row — "Settings Screen.dc.html". 64px/2 = 32dp. Bg/focus set in adapter.
+     M14: the height was a fixed 54dp. On a phone the M13 font scale (1.6x) makes title + subtitle
+     taller than that, so "AUDIO · LANGUAGE" was sliced mid-glyph by the row's own bottom edge, and
+     the TextViews were wrap_content inside a weighted column — which CLIPS rather than ellipsises,
+     so it also lost its tail horizontally ("AUDIO · LANGU"). wrap_content + minHeight keeps the TV
+     at exactly 54dp (its content is smaller than the floor) and lets the phone row grow. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/cat_root"
     android:layout_width="match_parent"
-    android:layout_height="54dp"
+    android:layout_height="wrap_content"
+    android:minHeight="54dp"
     android:orientation="horizontal"
     android:gravity="center_vertical"
+    android:paddingTop="@dimen/settings_cat_row_padding_v"
+    android:paddingBottom="@dimen/settings_cat_row_padding_v"
     android:paddingEnd="18dp"
     android:layout_marginBottom="3dp"
     android:focusable="true"
@@ -36,10 +44,10 @@
 
         <TextView
             android:id="@+id/tv_title"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="@font/outfit_semibold"
-            android:textSize="18sp"
+            android:textSize="@dimen/settings_cat_title_size"
             android:textColor="#F1F5F9"
             android:maxLines="1"
             android:ellipsize="end"
@@ -47,11 +55,11 @@
 
         <TextView
             android:id="@+id/tv_sub"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="3dp"
             android:fontFamily="@font/share_tech_mono"
-            android:textSize="12sp"
+            android:textSize="@dimen/settings_cat_sub_size"
             android:textColor="#3D4F60"
             android:letterSpacing="0.08"
             android:maxLines="1"

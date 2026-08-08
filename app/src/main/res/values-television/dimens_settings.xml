@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M14 — the TV's Settings chrome, EXACTLY the literals that were inline in
+  `layout/fragment_settings_v2.xml` before this batch. Nothing here is a new decision: every value
+  is the "Settings Screen.dc.html" px/2 number the 10-foot design shipped with, lifted into a
+  resource only so the phone can answer the same question differently.
+
+  If a value in this file ever stops matching the design, that is a bug in this file.
+-->
+<resources>
+    <!-- Left category rail -->
+    <dimen name="settings_rail_padding_start">40dp</dimen>
+    <dimen name="settings_rail_padding_top">32dp</dimen>
+    <dimen name="settings_rail_padding_bottom">24dp</dimen>
+    <dimen name="settings_screen_title_size">26sp</dimen>
+    <dimen name="settings_version_size">13sp</dimen>
+    <dimen name="settings_version_margin_top">6dp</dimen>
+    <dimen name="settings_version_margin_bottom">14dp</dimen>
+    <dimen name="settings_cat_title_size">18sp</dimen>
+    <dimen name="settings_cat_sub_size">12sp</dimen>
+
+    <!-- Zero, so wrap_content + minHeight resolves to the old fixed 54dp / 74dp exactly. -->
+    <dimen name="settings_cat_row_padding_v">0dp</dimen>
+    <dimen name="settings_row_padding_v">0dp</dimen>
+
+    <!-- Right detail panel -->
+    <dimen name="settings_panel_padding_start">44dp</dimen>
+    <dimen name="settings_panel_padding_end">56dp</dimen>
+    <dimen name="settings_panel_padding_top">40dp</dimen>
+    <dimen name="settings_panel_padding_bottom">32dp</dimen>
+    <dimen name="settings_panel_title_size">26sp</dimen>
+    <dimen name="settings_panel_desc_size">14sp</dimen>
+    <dimen name="settings_panel_desc_margin_top">6dp</dimen>
+    <dimen name="settings_panel_desc_margin_bottom">26dp</dimen>
+</resources>

@@ -1,13 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Settings toggle row — "Settings Screen.dc.html". 68px/2 = 34dp. Bg/focus set in adapter. -->
+<!-- Settings toggle row — "Settings Screen.dc.html". 68px/2 = 34dp. Bg/focus set in adapter.
+     M14: same fixed-74dp overflow as item_settings_selection — measured on the phone, "Switch
+     tracks automatically when the main audio format (AC3/EAC3) is not supported" wanted 243px and
+     the row gave it 194px, so the second line was cut through the middle. The toggle pill keeps
+     its exact 56x30 with a 22dp dot: SettingsDetailAdapter.styleToggle computes the knob travel
+     from those numbers. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/row_root"
     android:layout_width="match_parent"
-    android:layout_height="74dp"
+    android:layout_height="wrap_content"
+    android:minHeight="74dp"
     android:orientation="horizontal"
     android:gravity="center_vertical"
     android:paddingStart="20dp"
     android:paddingEnd="24dp"
+    android:paddingTop="@dimen/settings_row_padding_v"
+    android:paddingBottom="@dimen/settings_row_padding_v"
     android:layout_marginBottom="8dp"
     android:focusable="true"
     android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
@@ -29,12 +37,12 @@
 
         <TextView
             android:id="@+id/tv_title"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="@font/outfit_semibold"
             android:textSize="19sp"
             android:textColor="#F1F5F9"
-            android:maxLines="1"
+            android:maxLines="2"
             android:ellipsize="end" />
 
         <TextView
@@ -45,7 +53,7 @@
             android:fontFamily="@font/inter_regular"
             android:textSize="14sp"
             android:textColor="#94A3B8"
-            android:maxLines="2"
+            android:maxLines="3"
             android:ellipsize="end" />
     </LinearLayout>
 
