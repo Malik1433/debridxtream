@@ -123,6 +123,11 @@ class StremioHomeFragment : Fragment() {
             .isDebridConfigured(requireContext())
         view.findViewById<View>(R.id.debrid_setup_overlay)?.visibility =
             if (configured) View.GONE else View.VISIBLE
+        // D3/DB-7: the gate ends in a "BACK · RETURN" D-pad legend. Third offender after M14b's
+        // home and M16a's series detail; the phone rulebook bans them by name.
+        if (!resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
+            view.findViewById<View>(R.id.debrid_setup_hint)?.visibility = View.GONE
+        }
     }
 
     override fun onResume() {

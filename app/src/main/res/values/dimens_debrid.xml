@@ -19,4 +19,30 @@
     <!-- The hero plot is unbounded in the design. At 1.6x it ran to six lines and painted under
          the Play Now row, which is the same overflow M16a fixed on the movie detail page. -->
     <integer name="stremio_hero_desc_lines">3</integer>
+    <!-- D3: the Top-10 rail. The rank was an 18dp box holding 13sp, which at 1.6x wrapped "01" to
+         two lines and the fixed 42dp row sliced it; the title had ~60dp and stopped at ten
+         characters ("Spider…", "The La…"). The row is also a touch target. -->
+    <dimen name="stremio_top10_row_height">48dp</dimen>
+    <dimen name="stremio_top10_rank_width">30dp</dimen>
+    <integer name="stremio_top10_title_lines">2</integer>
+    <!-- D3/DB-5: a 320dp hero band is 78% of a 411dp screen, so the first content row had 93dp and
+         was clipped. 250dp returns 70dp to the content below.
+
+         The hero content's own top inset must stay CLEAR OF THE NAV BAR, which is 22dp of status-bar
+         inset plus 45dp of bar = 67dp. Dropping it to 40dp to buy space hid the "NOW IN 4K" label
+         behind the bar — measured, and reverted to 70dp. That is the floor, not a preference. -->
+    <dimen name="stremio_hero_height">250dp</dimen>
+    <dimen name="stremio_content_top">248dp</dimen>
+    <dimen name="stremio_hero_content_top">70dp</dimen>
+    <!-- D3: two lines alone still broke words mid-way ("Obse/ssion", "Super/girl") because the
+         rail's text column is ~48dp and a 12sp word needs more. 6sp renders at ~9.6sp, which fits
+         "Obsession" on one line. -->
+    <dimen name="stremio_top10_title_size">6sp</dimen>
+    <!-- D3: the rail's text column is ~40dp once the rank, the 26dp thumbnail and the chevron have
+         taken theirs, and no font size fits a film title in that. The thumbnail is the one thing
+         that can go on a phone: the grid immediately to its right is nothing but posters. Zero
+         width and zero margins return ~34dp to the title, which is what makes "The Odyssey",
+         "Obsession" and "Supergirl" fit without breaking mid-word. -->
+    <dimen name="stremio_top10_thumb_width">0dp</dimen>
+    <dimen name="stremio_top10_thumb_margin">0dp</dimen>
 </resources>

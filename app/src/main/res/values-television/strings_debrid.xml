@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- D3/DB-7: the TV's wording for the Debrid setup gate, exactly as it read before this batch. -->
+<resources>
+    <string name="debrid_setup_companion_body">Open the address below, sign in, and paste your addon links there. This TV picks them up on its own.</string>
+    <string name="debrid_setup_here_title">Or on this TV</string>
+    <string name="debrid_setup_here_path">Settings › Debrid › Stremio Addons › Add Addon</string>
+</resources>

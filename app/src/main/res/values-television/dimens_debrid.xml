@@ -11,4 +11,16 @@
     <dimen name="debrid_card_overlay_padding_top">32dp</dimen>
     <dimen name="stremio_top_bar_inset">0dp</dimen>
     <integer name="stremio_hero_desc_lines">10</integer>
+    <dimen name="stremio_top10_row_height">42dp</dimen>
+    <dimen name="stremio_top10_rank_width">18dp</dimen>
+    <integer name="stremio_top10_title_lines">1</integer>
+    <dimen name="stremio_hero_height">320dp</dimen>
+    <dimen name="stremio_content_top">318dp</dimen>
+    <dimen name="stremio_hero_content_top">65dp</dimen>
+    <!-- D3: two lines alone still broke words mid-way ("Obse/ssion", "Super/girl") because the
+         rail's text column is ~48dp and a 12sp word needs more. 6sp renders at ~9.6sp, which fits
+         "Obsession" on one line. -->
+    <dimen name="stremio_top10_title_size">7.5sp</dimen>
+    <dimen name="stremio_top10_thumb_width">26dp</dimen>
+    <dimen name="stremio_top10_thumb_margin">8dp</dimen>
 </resources>

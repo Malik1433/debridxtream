@@ -5,7 +5,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/top10_row"
     android:layout_width="match_parent"
-    android:layout_height="42dp"
+    android:layout_height="wrap_content"
+    android:minHeight="@dimen/stremio_top10_row_height"
     android:layout_marginBottom="4dp"
     android:orientation="horizontal"
     android:gravity="center_vertical"
@@ -16,7 +17,8 @@
 
     <TextView
         android:id="@+id/top10_rank"
-        android:layout_width="18dp"
+        android:layout_width="@dimen/stremio_top10_rank_width"
+        android:maxLines="1"
         android:layout_height="wrap_content"
         android:fontFamily="@font/outfit_extrabold"
         android:textSize="13sp"
@@ -26,10 +28,10 @@
 
     <ImageView
         android:id="@+id/top10_thumb"
-        android:layout_width="26dp"
+        android:layout_width="@dimen/stremio_top10_thumb_width"
         android:layout_height="36dp"
-        android:layout_marginStart="7dp"
-        android:layout_marginEnd="8dp"
+        android:layout_marginStart="@dimen/stremio_top10_thumb_margin"
+        android:layout_marginEnd="@dimen/stremio_top10_thumb_margin"
         android:scaleType="centerCrop" />
 
     <LinearLayout
@@ -43,9 +45,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="@font/outfit_semibold"
-            android:textSize="7.5sp"
+            android:textSize="@dimen/stremio_top10_title_size"
             android:textColor="#F1F5F9"
-            android:maxLines="1"
+            android:maxLines="@integer/stremio_top10_title_lines"
             android:ellipsize="end" />
 
         <TextView

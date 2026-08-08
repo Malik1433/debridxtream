@@ -323,4 +323,10 @@
     <string name="cw_options_title">Options</string>
     <string name="cw_options_details">Details</string>
     <string name="cw_options_remove">Remove from Continue Watching</string>
+    <!-- D3/DB-7: the setup gate said "This TV picks them up on its own" and "Or on this TV" on a
+         handset. Qualified strings: the phone wording is the default, the TV keeps its own in
+         values-television/strings_debrid.xml. -->
+    <string name="debrid_setup_companion_body">Open the address below, sign in, and paste your addon links there. This app picks them up on its own.</string>
+    <string name="debrid_setup_here_title">Or right here</string>
+    <string name="debrid_setup_here_path">Settings › Addons › Stremio Addons › Add Addon</string>
 </resources>

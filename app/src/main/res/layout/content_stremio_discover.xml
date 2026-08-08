@@ -117,20 +117,13 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/outfit_medium"
-                    android:textSize="6sp"
-                    android:textColor="#0077FF"
-                    android:text="See all"
-                    android:layout_marginEnd="2dp" />
-
-                <ImageView
-                    android:layout_width="6dp"
-                    android:layout_height="6dp"
-                    android:src="@drawable/ic_stremio_chevron_right"
-                    app:tint="#0077FF" />
+                <!-- D3/DB-10: this "See all" was never wired. It has no id, no click listener
+                     anywhere in the codebase, and is not focusable — so it was dead on the TV as
+                     well as the phone, decoration copied from the design mockup. It is gone rather
+                     than wired because the grid below it ALREADY pages endlessly (see
+                     StremioDiscoverSection's MIN_GRID_FILL + its scroll listener), so a "See all"
+                     has nowhere more complete to go. A control that ignores every tap is worse than
+                     no control. -->
             </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView

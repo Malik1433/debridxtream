@@ -23,7 +23,7 @@
     <FrameLayout
         android:id="@+id/heroBanner"
         android:layout_width="match_parent"
-        android:layout_height="320dp"
+        android:layout_height="@dimen/stremio_hero_height"
         android:clipChildren="false">
 
         <!-- backdrop + fades live in their own clipped layer so Ken Burns can over-scale the photo
@@ -62,7 +62,7 @@
             android:layout_width="350dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="40dp"
-            android:layout_marginTop="65dp"
+            android:layout_marginTop="@dimen/stremio_hero_content_top"
             android:orientation="vertical"
             android:clipChildren="false">
 
@@ -299,7 +299,7 @@
         android:id="@+id/content_host"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginTop="318dp"
+        android:layout_marginTop="@dimen/stremio_content_top"
         android:clipChildren="true"
         android:clipToPadding="true">
 
@@ -608,7 +608,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:lineSpacingExtra="2dp"
-                android:text="Open the address below, sign in, and paste your addon links there. This TV picks them up on its own."
+                android:text="@string/debrid_setup_companion_body"
                 android:textColor="#94A3B8"
                 android:textSize="10sp" />
 
@@ -625,7 +625,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="Or on this TV"
+                android:text="@string/debrid_setup_here_title"
                 android:textColor="#E2E8F0"
                 android:textSize="11sp"
                 android:textStyle="bold" />
@@ -634,7 +634,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Settings › Debrid › Stremio Addons › Add Addon"
+                android:text="@string/debrid_setup_here_path"
                 android:textColor="#94A3B8"
                 android:textSize="10sp" />
 
@@ -644,6 +644,7 @@
                 android:layout_marginTop="20dp"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.08"
+                android:id="@+id/debrid_setup_hint"
                 android:text="BACK  ·  RETURN"
                 android:textColor="#475569"
                 android:textSize="8sp" />
