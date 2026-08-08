@@ -30,6 +30,12 @@ class DebridSearchActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var tvMessage: TextView
 
+    // D1: the M13 phone font scale reached only MainActivity and the two detail activities, so
+    // this screen rendered at the TV's px÷2 sizes — 6-9sp — in the hand. Same one-liner as there.
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(com.tvonnet.debridxtreamiptv.util.phoneScaledContext(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // M13: one orientation for the whole app on a phone — landscape, like the TV.
         lockLandscapeOnTouchDevices()

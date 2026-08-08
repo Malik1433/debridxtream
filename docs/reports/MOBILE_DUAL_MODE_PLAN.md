@@ -110,6 +110,71 @@ never a reason to ship something a handset user cannot operate.
 This supersedes the earlier "Two platforms, two rulebooks" split ONLY on orientation and layout
 arrangement. Every behavioural line of the phone rulebook in `CLAUDE.md` still applies unchanged.
 
+## 1d. ⭐ THE DEBRID SECTION ON A PHONE (owner request, 2026-08-08)
+
+M14–M16 covered the IPTV side: Settings, Home, Movies/Series browse and both detail pages. The
+**DEBRID section has had no phone pass at all.** Owner asked for it to be planned and fixed the same
+way. This section is the plan; batches land in §5 like every other.
+
+**What the section actually is (audited 2026-08-08 — do not re-derive):**
+
+- **One fragment inside MainActivity**: `StremioHomeFragment` (`ui/debrid/stremio/`), which carries
+  the whole Home / Discover / My Library tab set plus the search overlay — 30-odd collaborator
+  classes, its own font system (`StremioFonts`), palette and gradients.
+- **Three separate activities**: `DebridDiscoverActivity`, `DebridSeeAllActivity`,
+  `DebridSearchActivity`.
+- The section is gated behind `Entitlements.isDebridConfigured()` — an addon URL, a Real-Debrid
+  token, or a MediaFusion URL. With none of them the whole section is one overlay.
+
+**The finding that matters most, and it is a one-line-per-file fix:**
+
+> **The M13 font scale reaches only THREE activities** — `MainActivity`, `MovieDetailActivity` and
+> `SeriesDetailActivity` are the only callers of `phoneScaledContext`. So Debrid **Discover, See All
+> and Search render at the TV's px÷2 sizes — 6–9sp — in the hand.** The Debrid *home* escapes this
+> only because it happens to live inside MainActivity.
+
+Two of those activities (`Discover`, `SeeAll`) are also `screenOrientation="landscape"` in the
+manifest and never call `lockLandscapeOnTouchDevices()`. The orientation outcome is the same today,
+so this is not a live defect — but they sit outside the M13 mechanism, so any future change to it
+misses them silently.
+
+**Defects measured on the phone (914×411dp, fontScale 1.6):**
+
+| id | Screen | Defect |
+|---|---|---|
+| **DB-1** | Debrid home | The hero plot is painted **under** the Play Now / Trailer row — the same 0dp-column overflow class M16a fixed on the movie detail page |
+| **DB-2** | Debrid home | The top nav bar sits **under the system status bar**: the DebridXtream logo collides with the clock, the profile chip with the wifi/battery icons |
+| **DB-3** | Debrid home | The hero plot runs to six lines and owns the entire left column |
+| **DB-4** | Debrid home | The bar draws **its own clock** ("14:35") beside Search — the same duplication M15 removed from the IPTV home |
+| **DB-5** | Debrid home | The first content row is clipped by the bottom edge |
+| **DB-6** | Discover / See All / Search | No font scale at all (the finding above) |
+| **DB-7** | Setup gate | TV copy — "This TV picks them up on its own", "Or on this TV" — and a `BACK / RETURN` D-pad legend |
+| **DB-8** | Discover | The Top-10 rail's rank number wraps to two lines and is sliced by its own row ("0" over "1") |
+| **DB-9** | Discover | Top-10 titles truncate at about seven characters — "Spider…", "The La…", "Obses…" |
+| **DB-10** | Discover | ⭐ **"See all" does not respond to touch at all** (two taps, no navigation). It is the only route to `DebridSeeAllActivity`, so that screen is currently unreachable on a phone — and it blocks the QA of D1's own fix |
+| **DB-11** | Debrid home | The nav tabs sit under the system status bar, so a tap on their upper half is swallowed — Discover opens at y=82px but not at y=60px |
+
+**Batches:**
+
+| Batch | Scope | Done-when |
+|---|---|---|
+| **D1** | The three missing `phoneScaledContext` calls; route the two manifest-landscape activities through `lockLandscapeOnTouchDevices()` | Discover / See All / Search readable in the hand; TV smoke shows all three unchanged |
+| **D2** | Debrid home: kill the plot overlap, inset the top bar below the status bar, drop the duplicate clock, size the hero so a content row is whole | Nothing overlaps; one full row visible; TV byte-identical |
+| **D3** | Discover / See All / Search: the §1c checklist — touch targets, chip heights, card captions | Same standard as M16a's browse pass |
+| **D4** | The setup gate: phone-appropriate copy, no D-pad legend | Reads correctly on a handset |
+
+**Two harness notes for whoever QAs this:**
+
+- **The section is gated.** QA needs `isDebridConfigured()` true. Adding
+  `https://a.invalid/manifest.json` through Settings → Addons → + Add Addon unlocks it and resolves
+  to nothing, so no third-party service is involved. `.invalid` is reserved and never resolves.
+- **`uiautomator dump` does not work on the Debrid home.** The hero rotates on a timer, so the tree
+  never reaches an idle state and every dump returns `ERROR: could not get idle state`. Measure this
+  screen from screenshots, and drive it by coordinates.
+- `adb shell input text` drops characters on a long string. **Type a URL in four short chunks** —
+  that produced a clean `https://a.invalid/manifest.json` where one long call had produced
+  `hhttps://torren`.
+
 ## 2. Architecture decision (locked)
 
 **Single APK, runtime dual-mode.**
@@ -177,6 +242,7 @@ that feedback round.
 
 | Date | Batch | What landed | QA (phone / TV smoke) | Commit |
 |---|---|---|---|---|
+| 2026-08-08 | **D1** | **The Debrid section's plan (§1d) plus its first fix — the one that was a single line per file.** Audit: the section is `StremioHomeFragment` inside MainActivity (Home / Discover / My Library + search overlay, ~30 collaborator classes) plus three activities. **The M13 font scale reaches only `MainActivity`, `MovieDetailActivity` and `SeriesDetailActivity`** — so Debrid **Discover, See All and Search** were rendering at the TV's px÷2 sizes, 6–9sp, in the hand, and the Debrid home escaped only by living inside MainActivity. All three now call `phoneScaledContext`, and the two that were pinned landscape by the manifest alone (`Discover`, `SeeAll`) also go through `lockLandscapeOnTouchDevices()` so every screen sits on ONE orientation mechanism. §1d records the audit, the seven measured defects and batches D2–D4 | **TV smoke on .64: PASS, 0 FATAL** — and both changes are inert there by construction (`phoneScaledContext` returns its argument when `ui_uses_dpad_focus` is true; the lock helper returns early). **Phone: the code change is NOT visually verified, and here is why.** The section is gated behind `isDebridConfigured()`; unlocking it with a `https://a.invalid/manifest.json` addon got me to the Debrid home and Discover — both readable, both already inside MainActivity — but the three activities the fix targets are reached through **"See all", which does not respond to touch at all** (tried twice; the app stays on Discover). That is a new defect, DB-10, and it blocks its own fix's QA. Also found while measuring: the top nav tabs sit **under the system status bar**, so a tap on their upper half is swallowed by the system — Discover only opened at y=82px, not y=60px | *(this commit)* |
 | 2026-08-08 | **M16b** | **The two things M16a left open — and the second one took three attempts, which is worth recording.** (1) The series page gave its info column **92dp**: the header started 91dp down when the top strip only occupies 62dp, and the episode thumbnail is a 10-foot 184x100dp. Both are qualified dimens now (66dp header inset, a 110x62dp card) and the column is **155dp**. (2) The browse header read **"0 titles" beside a sidebar reading 141308**. My first fix reordered the render so the count is looked up after `selectedCategoryId` is assigned; my second added a paging load-state listener so a page load re-runs the count. Both were right, and **neither fixed it**. The actual cause is the same class of defect as M7b/M7c/M15: `refreshSectionCount()` is guarded by `lastFocusTarget != MOVIES` so it cannot clobber the meta line a FOCUSED poster writes — but `lastFocusTarget` is **initialised to MOVIES** and a touch device never changes it, so on a phone the count was never written at all and the header kept the layout's literal. The guard now reads `R.bool.ui_uses_dpad_focus && lastFocusTarget == MOVIES`, which is the identical condition on TV | **Phone: PASS, measured.** Movies reads "**141308 titles**", Series "**37277 titles**" — both now agree with their sidebar. Series page: info column 92dp → 155dp, metadata complete on two lines including the "AVAILABLE IN 6 CATEGORIES · MULTI-SOURCE" chip, season row clear, and **seven** episodes with thumbnails and titles, nothing overlapping. **TV smoke on .64 — both branches of the guard checked, which is the point:** with a poster focused the header still shows the focused item ("The Outer Threat" / "★ 2.8"), and with focus on the category rail it shows "**317550 titles**"; search box 38dp, chips 28dp unchanged. **0 FATAL on both.** **Still not done and not claimed:** the series page's `Play S01 · E01` remains below the fold in the scrolled column. It needs ~62dp more and the only ways to get them are hiding the plot or shrinking the title further. Left as-is deliberately, because **episode 1 is the first card in the strip — on screen and one tap** — so the action itself is not unreachable. Owner's call whether to pin the button | *(this commit)* |
 | 2026-08-08 | **M16a** | **Browse and the movie detail page — and the owner's photograph of a real handset found the defect my emulator sample could not.** Browse first: at the M13 1.6x scale the sidebar's search hint wrapped and was sliced ("Search" over half of "movies…"), category names truncated to "All Mo… 141308" / "WORLD CU… 93", the `singleLine` section title became "All…", every poster caption was cut ("NL The …", "The Ne…", "Spider-…"), and the sort chips were 28dp. New `dimens_vod.xml` (phone) + `values-television/` (TV literals verbatim) serves both browse screens and both cards; the poster caption also gets **two** lines on a phone via `@integer/vod_card_title_lines`, because a 99dp card cannot hold a film title on one. Then the detail page. The owner's screenshot showed the plot, the buttons and the "BECAUSE YOU WATCHED" rail all painted **on top of each other**; my own sample had no plot, so it looked fine. Cause: the info column is a 0dp-tall LinearLayout that lays children out from the top and runs past its own bottom — and **`clipChildren="false"` on the ROOT means that overflow is not clipped anywhere in the subtree**, so it paints over the rail. Wrapping the column in a NestedScrollView did NOT fix it until the root's `clipChildren` was restored; that was two builds and it is the single most useful thing learned here. Also: `container_actions` is now a FlexboxLayout that WRAPS (the four buttons need more than the 480dp column, so "Mark Watched" was squeezed to 93dp and its label sliced), actions are 48dp, and the top bar clears the system status bar. With the column scrolling, Watch Now still sat below the fold — so on a phone the recommendation rail is hidden (`R.bool.detail_shows_similar_row`), which returns 169dp to the film's own column. Series detail got the same recipe plus its **D-pad legend hidden** (M14b's rule, second offender) | **Phone: PASS, measured.** Browse: search box 48dp with its hint on one line, chips 48dp, "All Movies" in full, and captions reading "The Odyssey" / "Spider-Man: Brand New Day" / "Water Park Shark" complete. Movie detail: nothing overlaps, and Watch Now / Trailer / ♥ are on screen at 48dp with "Mark Watched" wrapped onto a second row in full. Series detail: no overlap, no legend, episode strip clear of the buttons. **TV smoke on .64 — the one that mattered, since two layouts were restructured:** browse is byte-identical (search 38dp, chips 28dp, captions one line, category rows 44dp at a 48dp pitch); movie detail's `group_details` measures 293dp inside a 324dp viewport so **it never scrolls**, the four actions stay on ONE flexbox line, the similar rail is present and D-pad DOWN reaches the cast; series detail's `container_header` is 256dp in a 392dp viewport, `layout_credits` renders in its old place, Play S01·E01 is 29dp and takes focus, hint bar present. **0 FATAL on both.** **NOT done, stated rather than implied:** on the phone the series page's Play S01·E01 and plot are still below the fold in the scrolled column (the episode strip owns the bottom half) — episodes are tappable, which is that page's job, but the button needs a scroll. That is M16b. Also NOT verified by me: a real handset — the owner's photo was the input, not my output | *(this commit)* |
 | 2026-08-08 | **M15** | **Home for the hand — the density complaint turned out to be one number.** The hero BAND is a fixed 360dp: 67% of a 540dp television and **88% of a 411dp phone**, which is exactly why Continue Watching was a sliver at the bottom edge. It is 268dp on a phone now (section 340→248dp), and every action on the screen was under the touch minimum — Play Now 125x**31.6**dp, More Info 112x**30**dp, favourite **30x30**dp, nav rail items **34x34**dp. All the numbers moved into `dimens_home.xml` with the **TV literals kept verbatim in `values-television/`**. Two things were found only by looking at the result: (a) a two-line featured title rendered straight **through** the KEY chip, so home's own clock/key/expiry strip is now hidden on a phone — it is TV chrome (a television has no system status bar) and it duplicated the system clock; insetting the hero below it instead needs a 280dp section, which pushes Continue Watching off the bottom. (b) **Play Now needed TWO taps.** Same defect M7b/M7c chased, in the 14 layouts they deliberately left alone: `focusableInTouchMode="true"` and `focusedByDefault="true"` as literals on the three hero buttons, plus `HomeFocusManager.applyInitialFocusIfNeeded` MOVING focus onto Play Now at launch. All four now read the touch bools | **Phone: PASS, measured before and after.** Targets: Play Now **119x48dp**, More Info 112x48dp, favourite **48x48dp**, every nav rail item **60x40dp** and all six fully on screen (the first attempt sliced the sixth in half — six items at 40dp+3dp need 258dp and the rail has 236dp, so the gap is 0 and the list inset 4dp). Continue Watching is whole, with poster, progress bar, title and "1:09:55 / 1:41:12" all above the fold, and a two-line hero title no longer collides with anything. **One tap acts, proved three ways:** a CW card → PlayerActivity, a rail icon → Live TV with real channels, and Play Now → the detail page **on the first tap** where it previously took two. **TV smoke on .64:** launch focus lands on `btn_hero_watch` exactly as before, the status strip is present, and every metric is byte-identical — hero band 360dp, hero_content [192,175][952,648], buttons 95x30 / 90x30 / 30x30dp, rail items 34x34dp at a 38dp pitch, Settings 34dp, profile 30dp. D-pad moves DOWN into the rails and RIGHT along them. **0 FATAL on both.** Honest shortfall: the rail's 40dp is 8dp under the 48dp guideline in one dimension (60dp wide, so larger in area) — six destinations plus Settings plus the profile mark need ~431dp at 48dp and the column is 411dp. Raised for the owner, not hidden. Not verified: a real handset (emulator only); the emulator also needed its RAM raised 3→4GB to stop ANR-ing, which is a harness fix, not an app one | *(this commit)* |

@@ -20,6 +20,7 @@ import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
 import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
 
 @AndroidEntryPoint
 class DebridSeeAllActivity : AppCompatActivity() {
@@ -34,7 +35,17 @@ class DebridSeeAllActivity : AppCompatActivity() {
 
     private var lastFocusedPosition = -1
 
+    // D1: the M13 phone font scale reached only MainActivity and the two detail activities, so
+    // this screen rendered at the TV's px÷2 sizes — 6-9sp — in the hand. Same one-liner as there.
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(com.tvonnet.debridxtreamiptv.util.phoneScaledContext(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        // D1: the manifest already pins this activity to landscape, but going through
+        // the M13 helper keeps every screen on ONE mechanism — a future change to the
+        // orientation rule would otherwise miss the two Debrid activities silently.
+        lockLandscapeOnTouchDevices()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_debrid_see_all)
 
