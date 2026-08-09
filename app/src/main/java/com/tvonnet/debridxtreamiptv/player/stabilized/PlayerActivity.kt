@@ -10,6 +10,7 @@ import androidx.media3.common.util.UnstableApi
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import dagger.hilt.android.AndroidEntryPoint
 import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
+import com.tvonnet.debridxtreamiptv.util.phoneScaledContext
 
 /**
  * Thin host for the player screen (P26 fragment split).
@@ -31,6 +32,11 @@ class PlayerActivity : AppCompatActivity() {
 
     private val screen: BasePlayerFragment?
         get() = supportFragmentManager.findFragmentById(android.R.id.content) as? BasePlayerFragment
+
+    // M13 (option B): the TV layout's type is sized for three metres; scale it up on a handset.
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(phoneScaledContext(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // M13: one orientation for the whole app on a phone — landscape, like the TV.

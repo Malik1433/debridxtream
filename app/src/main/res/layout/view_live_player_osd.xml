@@ -450,7 +450,7 @@
 
                     <TextView
                         android:id="@+id/live_min_left"
-                        android:layout_width="46dp"
+                        android:layout_width="@dimen/live_min_left_width"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
                         android:fontFamily="monospace"
@@ -527,7 +527,7 @@
             <LinearLayout
                 android:id="@+id/btn_live_channels"
                 android:layout_width="wrap_content"
-                android:layout_height="28dp"
+                android:layout_height="@dimen/live_osd_btn_height"
                 android:background="@drawable/bg_live_ctl_btn"
                 android:focusable="true"
                 android:gravity="center_vertical"
@@ -536,8 +536,8 @@
 
                 <ImageView
                     android:id="@+id/ic_live_channels"
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
+                    android:layout_width="@dimen/live_osd_btn_icon_size"
+                    android:layout_height="@dimen/live_osd_btn_icon_size"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_live_list"
                     android:tint="@color/live_osd_text_primary" />
@@ -557,7 +557,7 @@
             <LinearLayout
                 android:id="@+id/btn_live_guide"
                 android:layout_width="wrap_content"
-                android:layout_height="28dp"
+                android:layout_height="@dimen/live_osd_btn_height"
                 android:layout_marginStart="7dp"
                 android:background="@drawable/bg_live_ctl_btn"
                 android:focusable="true"
@@ -567,8 +567,8 @@
 
                 <ImageView
                     android:id="@+id/ic_live_guide"
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
+                    android:layout_width="@dimen/live_osd_btn_icon_size"
+                    android:layout_height="@dimen/live_osd_btn_icon_size"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_live_guide"
                     android:tint="@color/live_osd_text_primary" />
@@ -588,7 +588,7 @@
             <LinearLayout
                 android:id="@+id/btn_live_cc"
                 android:layout_width="wrap_content"
-                android:layout_height="28dp"
+                android:layout_height="@dimen/live_osd_btn_height"
                 android:layout_marginStart="7dp"
                 android:background="@drawable/bg_live_ctl_btn"
                 android:focusable="true"
@@ -619,7 +619,7 @@
             <LinearLayout
                 android:id="@+id/btn_live_audio"
                 android:layout_width="wrap_content"
-                android:layout_height="28dp"
+                android:layout_height="@dimen/live_osd_btn_height"
                 android:layout_marginStart="7dp"
                 android:background="@drawable/bg_live_ctl_btn"
                 android:focusable="true"
@@ -629,8 +629,8 @@
 
                 <ImageView
                     android:id="@+id/ic_live_audio"
-                    android:layout_width="9.5dp"
-                    android:layout_height="9.5dp"
+                    android:layout_width="@dimen/live_osd_btn_icon_size_small"
+                    android:layout_height="@dimen/live_osd_btn_icon_size_small"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_live_audio"
                     android:tint="@color/live_osd_text_soft" />
@@ -650,7 +650,7 @@
             <LinearLayout
                 android:id="@+id/btn_live_aspect"
                 android:layout_width="wrap_content"
-                android:layout_height="28dp"
+                android:layout_height="@dimen/live_osd_btn_height"
                 android:layout_marginStart="7dp"
                 android:background="@drawable/bg_live_ctl_btn"
                 android:focusable="true"
@@ -660,8 +660,8 @@
 
                 <ImageView
                     android:id="@+id/ic_live_aspect"
-                    android:layout_width="9.5dp"
-                    android:layout_height="9.5dp"
+                    android:layout_width="@dimen/live_osd_btn_icon_size_small"
+                    android:layout_height="@dimen/live_osd_btn_icon_size_small"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_live_aspect"
                     android:tint="@color/live_osd_text_soft" />
@@ -685,15 +685,15 @@
 
             <FrameLayout
                 android:id="@+id/btn_live_fav"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:layout_width="@dimen/live_osd_fav_size"
+                android:layout_height="@dimen/live_osd_fav_size"
                 android:background="@drawable/bg_live_ctl_fav"
                 android:focusable="true">
 
                 <ImageView
                     android:id="@+id/live_fav_icon"
-                    android:layout_width="12dp"
-                    android:layout_height="12dp"
+                    android:layout_width="@dimen/live_osd_fav_icon_size"
+                    android:layout_height="@dimen/live_osd_fav_icon_size"
                     android:layout_gravity="center"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_live_star" />

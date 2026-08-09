@@ -151,7 +151,7 @@
             <!-- Custom design seek bar (visual) + transparent media3 TimeBar (scrub/focus). -->
             <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="24dp">
+                android:layout_height="@dimen/player_seek_row_height">
 
                 <com.tvonnet.debridxtreamiptv.player.stabilized.VodSeekOverlay
                     android:id="@+id/vod_seek_overlay"
@@ -161,7 +161,7 @@
                 <androidx.media3.ui.DefaultTimeBar
                     android:id="@+id/exo_progress"
                     android:layout_width="match_parent"
-                    android:layout_height="24dp"
+                    android:layout_height="@dimen/player_seek_row_height"
                     android:focusable="true"
                     app:bar_height="5dp"
                     app:buffered_color="#00000000"
@@ -171,7 +171,7 @@
                     app:scrubber_disabled_size="0dp"
                     app:scrubber_dragged_size="0dp"
                     app:scrubber_enabled_size="0dp"
-                    app:touch_target_height="24dp"
+                    app:touch_target_height="@dimen/player_seek_row_height"
                     app:unplayed_color="#00000000" />
             </FrameLayout>
 
@@ -221,8 +221,8 @@
                 <!-- back 10s (media3-managed: ImageButton) -->
                 <ImageButton
                     android:id="@+id/exo_rew"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="@dimen/player_ctrl_btn_size"
+                    android:layout_height="@dimen/player_ctrl_btn_size"
                     android:background="@drawable/bg_player_ref_button"
                     android:padding="11dp"
                     android:scaleType="fitCenter"
@@ -235,8 +235,8 @@
                 <!-- prev episode (series only) -->
                 <ImageButton
                     android:id="@+id/btn_prev_episode"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="@dimen/player_ctrl_btn_size"
+                    android:layout_height="@dimen/player_ctrl_btn_size"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/bg_player_ref_button"
                     android:padding="11dp"
@@ -286,8 +286,8 @@
                 <!-- next episode (series only) -->
                 <ImageButton
                     android:id="@+id/btn_next_episode"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="@dimen/player_ctrl_btn_size"
+                    android:layout_height="@dimen/player_ctrl_btn_size"
                     android:background="@drawable/bg_player_ref_button"
                     android:padding="11dp"
                     android:scaleType="fitCenter"
@@ -301,8 +301,8 @@
                 <!-- fwd 10s (media3-managed: ImageButton) -->
                 <ImageButton
                     android:id="@+id/exo_ffwd"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="@dimen/player_ctrl_btn_size"
+                    android:layout_height="@dimen/player_ctrl_btn_size"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/bg_player_ref_button"
                     android:padding="11dp"
@@ -316,8 +316,8 @@
                 <!-- episodes list (series only) -->
                 <ImageButton
                     android:id="@+id/btn_episodes"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="@dimen/player_ctrl_btn_size"
+                    android:layout_height="@dimen/player_ctrl_btn_size"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/bg_player_ref_button"
                     android:padding="12dp"
@@ -332,8 +332,8 @@
                 <!-- sources / language switch (movies only): re-pick a source mid-playback -->
                 <ImageButton
                     android:id="@+id/btn_player_sources"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="@dimen/player_ctrl_btn_size"
+                    android:layout_height="@dimen/player_ctrl_btn_size"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/bg_player_ref_button"
                     android:padding="10dp"
@@ -362,8 +362,8 @@
 
                     <ImageButton
                         android:id="@+id/btn_player_audio"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
+                        android:layout_width="@dimen/player_ctrl_btn_size"
+                        android:layout_height="@dimen/player_ctrl_btn_size"
                         android:background="@drawable/bg_player_ref_button"
                         android:padding="11dp"
                         android:scaleType="fitCenter"
@@ -375,8 +375,8 @@
 
                     <ImageButton
                         android:id="@+id/btn_player_subtitles"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
+                        android:layout_width="@dimen/player_ctrl_btn_size"
+                        android:layout_height="@dimen/player_ctrl_btn_size"
                         android:layout_marginStart="6dp"
                         android:background="@drawable/bg_player_ref_button"
                         android:padding="11dp"
@@ -389,8 +389,8 @@
 
                     <ImageButton
                         android:id="@+id/btn_aspect_ratio"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
+                        android:layout_width="@dimen/player_ctrl_btn_size"
+                        android:layout_height="@dimen/player_ctrl_btn_size"
                         android:layout_marginStart="6dp"
                         android:background="@drawable/bg_player_ref_button"
                         android:padding="12dp"
