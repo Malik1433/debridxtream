@@ -175,6 +175,104 @@ misses them silently.
   that produced a clean `https://a.invalid/manifest.json` where one long call had produced
   `hhttps://torren`.
 
+## 1e. ⭐ WHAT IS LEFT — M17-M20, written so a FRESH SESSION can start cold (2026-08-09)
+
+Everything in this section was **measured on 2026-08-09**, not guessed. A new session should read
+§1b, §1c, §1d and this section, and then start at M17. Do not re-derive any of the facts below.
+
+### The one sentence that explains the remaining work
+
+**M13 made the phone LANDSCAPE, which killed all 21 `layout-port/` files** — that qualifier only
+matches portrait, so every phone layout M1-M12 shipped is dead on disk and those screens now render
+the raw TV layout, unreviewed. M14-M16 redid Settings, Home, browse and both detail families.
+D1-D7 redid the Debrid section. **The screens below are the ones nobody has looked at since.**
+
+### Measured evidence (2026-08-09)
+
+**Six activities never get the M13 phone font scale** — they do not call `phoneScaledContext`, so
+every `sp` in them renders at the TV's px÷2 sizes (6-9sp) in the hand:
+
+| Activity | Why it matters |
+|---|---|
+| `PlayerActivity` | the chrome, track pickers and episodes panel — the screen the user is in most |
+| `ActivationActivity` | the FIRST screen a new user ever sees |
+| `MediaFusionConfigActivity` | has text fields |
+| `TrailerActivity` | mostly a WebView, low value |
+| `CompanionSetupActivity`, `RecoveryActivity` | rare paths |
+
+Check it with: `grep -L phoneScaledContext $(find app/src/main/java -name '*Activity.kt')`
+
+**Two D-pad legends are still live and un-gated** (the phone rulebook bans them by name; four have
+already been fixed this way — M14b home, M16a IPTV series, D3 debrid gate, D4 debrid series):
+
+- `app/src/main/res/layout/fragment_login.xml`
+- `app/src/main/res/layout/view_live_player_osd.xml`
+
+Find any more with:
+`grep -rl "NAVIGATE\|PRESS OK\|OK SELECT\|BACK EXIT\|ESC RETURN" app/src/main/res/layout/*.xml`
+
+### The batches
+
+| Batch | Scope | Done-when |
+|---|---|---|
+| **M17** | **Player controls.** Add `phoneScaledContext` to `PlayerActivity`. Then measure the VOD and Live chrome, the track/subtitle pickers and the episodes panel against §1c. Expect the same classes found everywhere else: fixed row heights that clip at 1.6x, sub-48dp targets, and text sized for three metres | Chrome readable and every control ≥48dp on the phone; TV player smoke on .64 unchanged (the P27/P28 fragment split means this is overlay-level only) |
+| **M18** | **Live TV + the EPG strip.** Never measured in landscape. Hide the `view_live_player_osd` legend on touch. Check the 3-column shape, the guide strip and the channel list against §1c | Live opens, a channel plays on ONE tap, nothing overlaps; TV Live smoke unchanged |
+| **M19** | **Login + Activation.** `ActivationActivity` gets the font scale; hide the `fragment_login.xml` legend on touch; check the fields, the soft keyboard and the QR/pairing flow | A new user can read and complete first-run on a handset |
+| **M20** | **Source picker sheet + MediaFusion config.** M5 built a portrait sheet which is now dead, so the TV's 410dp right panel is what a phone gets. MediaFusion needs the font scale | Pick a source by tap; the config screen is readable and its fields usable |
+
+### Rules a fresh session MUST know before touching anything
+
+1. **Every new/edited activity needs the orientation in BOTH places** (D7): the code helper
+   `lockLandscapeOnTouchDevices()` AND `android:screenOrientation="sensorLandscape"` in the
+   manifest. Code alone leaves a one-frame PORTRAIT FLASH, because the system sizes the window from
+   the manifest before `onCreate` runs.
+2. **An ancestor's `clipChildren="false"` defeats a descendant ScrollView's clip** (M16a). If
+   `uiautomator` bounds say "clipped" but the screenshot shows overflow, that is why. Also
+   `fillViewport="true"` measures the child at the viewport height and stops the scroll engaging.
+3. **A touch device never changes `lastFocusTarget` and never focuses.** Any code guarded on focus
+   state simply never runs on a phone. This has been the cause FOUR times (M7b, M7c, M15, M16b).
+   When something is stale, empty, or needs two taps, grep the owning class for `lastFocusTarget`,
+   `hasFocus`, `OnFocusChangeListener` and `requestFocus` **first**.
+4. **There are TWO detail-page families.** IPTV uses `fragment_*_detail_v2.xml`; Debrid uses
+   `fragment_*_detail.xml`. They are structural twins — a defect in one exists in the other. Fix
+   both, or at least check which one is on screen.
+5. **Device split is by resource qualifier, never a runtime branch.** Sizes live in
+   `values/dimens_*.xml` (PHONE) + `values-television/dimens_*.xml` (TV literals, verbatim).
+   Behaviour bools live in `values-television/bools_ui_mode.xml`. `values-port`/`layout-port` are
+   BANNED — they are dead under the landscape decision.
+6. **Verify the TV branch mechanically when you cannot reach the screen by hand:**
+   `aapt2 dump resources <apk> | grep -A3 <name>` shows `()` and `(television)` values side by side.
+
+### Harness traps (each of these cost real time on 2026-08-08/09)
+
+- **The Pixel emulator needs 4GB.** At `hw.ramSize=3072` Android 15 goes into an endless "System UI
+  isn't responding" loop that reads exactly like an app hang. Already raised in
+  `~/.android/avd/Phone_Pixel.avd/config.ini`; if a fresh clone regresses, check `adb shell free -m`
+  before blaming the app.
+- **`uiautomator dump` never works on the Debrid home** — the hero rotates on a timer so the tree
+  never idles. Measure that screen from screenshots.
+- **`adb shell input text` drops characters on a long string.** Type a URL in four short chunks.
+- **`adb exec-out screencap -p > f.png`** when `/sdcard` throws "Transport endpoint is not
+  connected"; a blank white capture usually means a video/secure surface, not a broken screen.
+- **The Debrid section is gated** behind `Entitlements.isDebridConfigured()`. Unlock it for QA by
+  adding `https://a.invalid/manifest.json` via Settings → Addons → + Add Addon. `.invalid` is
+  reserved and never resolves, so no third-party service is involved.
+- **`dumpsys activity | grep topResumedActivity` does not see fragment navigation** — home → detail
+  is a fragment swap inside MainActivity. Use `uiautomator dump` and look at the ids on screen.
+- Gradle takes 8-18 minutes here. Run it with `run_in_background` and poll the output file.
+
+### The per-batch contract (unchanged, owner's rule)
+
+build + `:app:detekt` + `:app:testDebugUnitTest` green → phone QA on the Pixel emulator **with real
+data** (a title that has a plot AND a cast AND recommendations — an empty sample hides the bug) →
+TV smoke on `192.168.178.64:5555` → commit + push → a row in §5 → APK published to
+`admin-panel/DebridXtream-latest.apk` + `firebase deploy --only hosting`, then **download it back
+and `aapt2 dump badging` it** before quoting the link. Bump `versionCode` AND `versionName`.
+
+⭐ **Standing owner rule (2026-08-08): fix small defects you notice as you go.** He is the only
+tester; handing items back as "your call" is work moved onto him. Ask only for genuine product
+decisions — removing a feature, changing what a control does.
+
 ## 2. Architecture decision (locked)
 
 **Single APK, runtime dual-mode.**
