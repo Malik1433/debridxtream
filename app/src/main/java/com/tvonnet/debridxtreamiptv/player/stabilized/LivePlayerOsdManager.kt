@@ -163,6 +163,14 @@ class LivePlayerOsdManager(
         trackControls.applyInitialLabels()
         setControlsFocusable(false)
 
+        // M18: the D-pad legends are meaningless under a finger (phone rulebook bans them
+        // by name) — the OSD hint bar and the in-player guide's key hints are TV-only.
+        if (!root.resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
+            root.findViewById<View>(R.id.live_hint_bar)?.isVisible = false
+            root.findViewById<View>(R.id.live_guide_header_hint)?.isVisible = false
+            root.findViewById<View>(R.id.live_guide_footer_hints)?.isVisible = false
+        }
+
         // LIVE badge pulse (design: livePulse 1.4s)
         bugLiveDot.startAnimation(pulseAnimation(1400L))
     }

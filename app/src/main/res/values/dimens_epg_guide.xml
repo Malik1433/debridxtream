@@ -24,4 +24,18 @@
     <dimen name="epg_preview_tile_width">300dp</dimen>
     <dimen name="epg_chip_height">40dp</dimen>
     <dimen name="epg_day_tab_height">34dp</dimen>
+
+    <!--
+      M18 — the guide against the phone rulebook (§1c). These are PHONE values; the TV literals
+      live verbatim in values-television/dimens_epg_guide.xml.
+    -->
+    <!-- A phone has a system status bar over the top edge; the TV's 14dp is under it. -->
+    <dimen name="epg_top_inset">38dp</dimen>
+    <!-- Touch floors for the code-built chips/tabs; 0dp on TV = wrap_content as before. -->
+    <dimen name="epg_chip_min_height">48dp</dimen>
+    <dimen name="epg_day_tab_min_height">48dp</dimen>
+    <dimen name="epg_jump_now_height">48dp</dimen>
+    <!-- At 1.6x the 176dp info block only holds one line of title and one of description. -->
+    <integer name="epg_title_lines">1</integer>
+    <integer name="epg_desc_lines">1</integer>
 </resources>

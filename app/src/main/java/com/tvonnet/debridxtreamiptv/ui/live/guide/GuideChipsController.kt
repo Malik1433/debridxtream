@@ -96,6 +96,9 @@ internal class GuideChipsController(
         id = View.generateViewId()
         textSize = 13f
         setPadding(dp(16), dp(9), dp(16), dp(9))
+        // M18: touch floor on a phone; the TV's value is 0dp, which keeps wrap_content exactly.
+        minimumHeight = fragment.resources.getDimensionPixelSize(R.dimen.epg_chip_min_height)
+        gravity = android.view.Gravity.CENTER_VERTICAL
         isFocusable = true
         isSingleLine = true
         // Static outline; the visible focus is the single sliding highlight pill.
@@ -200,6 +203,9 @@ internal class GuideChipsController(
                 text = label
                 textSize = 13f
                 setPadding(dp(14), dp(7), dp(14), dp(7))
+                // M18: same touch floor as the chips; 0dp on TV keeps the old wrap_content.
+                minimumHeight = fragment.resources.getDimensionPixelSize(R.dimen.epg_day_tab_min_height)
+                gravity = android.view.Gravity.CENTER_VERTICAL
                 isFocusable = true
                 isSingleLine = true
                 background = pillStateBackground(dp(8).toFloat())

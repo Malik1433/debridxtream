@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -148,6 +149,9 @@ class LiveTvGuideFragment : Fragment() {
         binding.btnPrimary.setOnClickListener {
             Toast.makeText(requireContext(), binding.btnPrimary.text, Toast.LENGTH_SHORT).show()
         }
+        // M18: the button is a stub (its click is the Toast above), and at 1.6x the fixed info
+        // block overflows and clips it anyway — on a phone it is hidden outright. TV keeps it.
+        binding.btnPrimary.isVisible = resources.getBoolean(R.bool.epg_shows_primary_btn)
 
         observeState()
         startClock()

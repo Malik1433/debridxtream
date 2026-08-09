@@ -16,4 +16,6 @@
     <bool name="home_shows_tv_status_strip">true</bool>
     <!-- M16: 540dp of height is enough for the film's column AND the recommendation rail. -->
     <bool name="detail_shows_similar_row">true</bool>
+    <!-- M18: the guide's detail-panel button stays in the TV design (it fits at TV type sizes). -->
+    <bool name="epg_shows_primary_btn">true</bool>
 </resources>

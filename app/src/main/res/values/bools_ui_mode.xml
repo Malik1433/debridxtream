@@ -75,4 +75,12 @@
       is reachable from browse and search, and this flag turns it back on in one line.
     -->
     <bool name="detail_shows_similar_row">false</bool>
+    <!--
+      M18. The guide's detail-panel button ("Add to Favorites" / "Set Reminder") is a STUB on both
+      devices — its click shows a Toast of its own label and nothing else. At the phone's 1.6x font
+      scale the fixed 176dp info block overflows and pushes this button out of its own panel anyway,
+      so on a phone it is hidden outright: a dead control that is also clipped is the worst of both.
+      The TV keeps it — it is part of that design and reachable by D-pad.
+    -->
+    <bool name="epg_shows_primary_btn">false</bool>
 </resources>

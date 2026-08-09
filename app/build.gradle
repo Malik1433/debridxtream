@@ -56,8 +56,8 @@ android {
         // ANSWERABLE: LicenseManager writes appVersionCode to licenses/{installId} on every
         // launch, so anything still reporting 36 has not taken the account build — which is
         // exactly the question U8b hangs on.
-        versionCode 61
-        versionName "2.4.4"
+        versionCode 62
+        versionName "2.4.5"
         multiDexEnabled true
         multiDexKeepFile file('multidex-keep.txt')
         multiDexKeepProguard file('multidex-keep.pro')

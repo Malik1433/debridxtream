@@ -700,8 +700,9 @@
             </FrameLayout>
         </LinearLayout>
 
-        <!-- hint bar -->
+        <!-- hint bar (D-pad legend — hidden on touch devices by LivePlayerOsdManager) -->
         <LinearLayout
+            android:id="@+id/live_hint_bar"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
@@ -1182,6 +1183,7 @@
                 android:layout_weight="1" />
 
             <TextView
+                android:id="@+id/live_guide_header_hint"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
@@ -1224,8 +1226,9 @@
             android:layout_weight="1"
             android:scrollbars="none" />
 
-        <!-- footer hints -->
+        <!-- footer hints (D-pad legend — hidden on touch devices by LivePlayerOsdManager) -->
         <LinearLayout
+            android:id="@+id/live_guide_footer_hints"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"

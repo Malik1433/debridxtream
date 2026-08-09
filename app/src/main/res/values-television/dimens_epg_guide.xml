@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M18 — the TV guide's metrics, EXACTLY the literals that were inline in
+  fragment_live_tv_guide.xml (and the wrap_content behaviour of the code-built chips/tabs)
+  before this batch. Nothing here is a new decision.
+-->
+<resources>
+    <dimen name="epg_top_inset">14dp</dimen>
+    <dimen name="epg_chip_min_height">0dp</dimen>
+    <dimen name="epg_day_tab_min_height">0dp</dimen>
+    <dimen name="epg_jump_now_height">46dp</dimen>
+    <integer name="epg_title_lines">2</integer>
+    <integer name="epg_desc_lines">2</integer>
+</resources>

@@ -11,7 +11,7 @@
         android:orientation="vertical"
         android:paddingStart="28dp"
         android:paddingEnd="28dp"
-        android:paddingTop="14dp">
+        android:paddingTop="@dimen/epg_top_inset">
 
         <!-- ── DETAIL PANEL ─────────────────────────────────────── -->
         <LinearLayout
@@ -115,7 +115,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:maxLines="2"
+                    android:maxLines="@integer/epg_title_lines"
                     android:ellipsize="end"
                     android:textColor="@color/epg_text_primary"
                     android:textSize="24sp"
@@ -137,7 +137,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:maxLines="2"
+                    android:maxLines="@integer/epg_desc_lines"
                     android:ellipsize="end"
                     android:textColor="@color/epg_text_secondary"
                     android:textSize="15sp"
@@ -303,7 +303,7 @@
     <Button
         android:id="@+id/btn_jump_now"
         android:layout_width="wrap_content"
-        android:layout_height="46dp"
+        android:layout_height="@dimen/epg_jump_now_height"
         android:layout_gravity="bottom|end"
         android:layout_margin="24dp"
         android:background="@drawable/bg_epg_jump_now"
