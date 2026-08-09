@@ -29,7 +29,7 @@ The app is "world-class" for this project's purposes when **all** of these are t
 | E8 | Stale/contradictory docs at repo root | 0 ✅ | 0 |
 | E9 | CI/pre-commit gate enforcing the ratchet | none | in place |
 | E10 | User-facing strings extractable (`android:text` literals in layouts) | **477** | 0 |
-| E11 | Locales shipped beyond English | **0** | ≥ 1 (owner picks) |
+| E11 | Locales shipped beyond English | **0** | ⏸ DEFERRED — owner decides |
 | E12 | Images with no `contentDescription` (of 185 total) | **120** | 0 |
 | E13 | Crash-free sessions (Crashlytics, per release) | not tracked | ≥ 99.5% |
 | E14 | Cold start to first content on the Fire TV | not measured | < 3s |
@@ -38,6 +38,17 @@ The app is "world-class" for this project's purposes when **all** of these are t
 the things a USER experiences: language, accessibility, stability and speed. The counts are
 measured, not estimated — reproduce them with the greps recorded in `CLAUDE.md`
 ("World-class gaps this project has NOT closed yet").*
+
+**E11 is DEFERRED by the owner (2026-08-09): English is enough for now.** Two things to keep
+straight when it is picked up:
+
+- **Google Play does NOT require an app to ship multiple languages.** An English-only app is
+  publishable. What Play wants localised is the STORE LISTING — title, description, screenshots —
+  which is done in the Play Console and is entirely separate from `values-xx/` folders. So E11 is
+  never a blocker for a Play release; it is a reach decision.
+- **E10 must happen first and is worth doing on its own merits.** While 477 strings sit inline in
+  layouts, no translation is even possible — `android:text="Search movies…"` cannot be swapped by
+  any locale. Extracting them is good hygiene regardless of whether a second language ever ships.
 
 **The ratchet rule (non-negotiable):** `E1`, `E2`, `E3` may only ever go **down**. A phase that would
 raise them is not finished. The only allowed increase is a *relocation* (a baselined item moving files),
