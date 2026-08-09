@@ -377,12 +377,20 @@ async function loadVersion(){
 function highestSeenVersionCode(){
   return devices.reduce((m,d)=>Math.max(m, parseInt(d.appVersionCode)||0), 0);
 }
+// How many devices would actually be OFFERED this build. The app updates when
+// latestVersionCode > its own, so that is simply the count sitting below it.
+function devicesBelow(code){
+  return devices.filter(d => (parseInt(d.appVersionCode)||0) < code).length;
+}
 function renderVersionHint(){
   const el=document.getElementById('uVersionHint'); if(!el) return;
-  const seen=highestSeenVersionCode();
-  el.textContent = seen
-    ? 'Devices are running versionCode '+seen+' — publish a HIGHER number than this, or nothing will be offered.'
-    : 'No device has reported a versionCode yet.';
+  const total=devices.length;
+  if(!total){ el.textContent='No device has reported a versionCode yet.'; return; }
+  const codes=devices.map(d=>parseInt(d.appVersionCode)||0);
+  const lo=Math.min(...codes), hi=Math.max(...codes);
+  el.textContent = lo===hi
+    ? 'All '+total+' device(s) run versionCode '+hi+' — publish a HIGHER number to offer anything.'
+    : 'Devices run versionCode '+lo+'-'+hi+' ('+total+' total) — anything above '+lo+' reaches someone.';
 }
 
 function saveVersion(){
@@ -391,7 +399,6 @@ function saveVersion(){
   // typed into the NAME box and 2 was left in the code box, so nothing ever offered an update.
   const code=parseInt(uVersionCode.value)||0;
   const name=uVersionName.value.trim();
-  const seen=highestSeenVersionCode();
   if(code<=0){ toast('versionCode must be a positive integer'); return; }
   // The mistake that actually happened, twice: the build number typed into the NAME box while the
   // code box kept an old, smaller value. The app then asks "is 2 newer than 37?", correctly says
@@ -401,8 +408,13 @@ function saveVersion(){
     toast('Looks swapped: "'+name+'" is in the Version NAME box but is bigger than the versionCode ('+code+'). Put '+name+' in versionCode and a display name like 2.2.1 in Version name.');
     return;
   }
-  if(seen && code<=seen){
-    toast('versionCode '+code+' is not newer than '+seen+', which devices already run — no one would be offered this update');
+  // Was: blocked when code <= the HIGHEST versionCode any device reported. That is the wrong
+  // statistic and it bit us — sideloading a build onto the operator's own phone made that phone the
+  // highest, and the panel then refused to publish the same build to a fleet still sitting on 48.
+  // The real question is whether ANY device is below this code, because those are the ones the app
+  // would offer it to.
+  if(devices.length && devicesBelow(code)===0){
+    toast('Every known device already runs versionCode '+code+' or newer — nobody would be offered this update.');
     return;
   }
   if(!uApkUrl.value.trim()){ toast('APK URL is required, or the update cannot be downloaded'); return; }
