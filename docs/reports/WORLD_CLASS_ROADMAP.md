@@ -28,6 +28,16 @@ The app is "world-class" for this project's purposes when **all** of these are t
 | E7 | Open P1 findings from the 2026-07-19 audits | **0 ✅ MET** (D1: 11 of 14 were already fixed, 3 done) | 0 |
 | E8 | Stale/contradictory docs at repo root | 0 ✅ | 0 |
 | E9 | CI/pre-commit gate enforcing the ratchet | none | in place |
+| E10 | User-facing strings extractable (`android:text` literals in layouts) | **477** | 0 |
+| E11 | Locales shipped beyond English | **0** | ≥ 1 (owner picks) |
+| E12 | Images with no `contentDescription` (of 185 total) | **120** | 0 |
+| E13 | Crash-free sessions (Crashlytics, per release) | not tracked | ≥ 99.5% |
+| E14 | Cold start to first content on the Fire TV | not measured | < 3s |
+
+*E10-E14 were added 2026-08-09 after an audit found the roadmap graded code health but never graded
+the things a USER experiences: language, accessibility, stability and speed. The counts are
+measured, not estimated — reproduce them with the greps recorded in `CLAUDE.md`
+("World-class gaps this project has NOT closed yet").*
 
 **The ratchet rule (non-negotiable):** `E1`, `E2`, `E3` may only ever go **down**. A phase that would
 raise them is not finished. The only allowed increase is a *relocation* (a baselined item moving files),

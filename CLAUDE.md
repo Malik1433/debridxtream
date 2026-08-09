@@ -113,6 +113,48 @@ to either without knowing which it got. Only genuinely behavioural differences g
 **Before calling any UI batch done, state which rulebook it was checked against and on which device.**
 A TV smoke does not certify the phone, and a phone QA does not certify the TV.
 
+## World-class gaps this project has NOT closed yet (audited 2026-08-09)
+
+The three rulebooks above cover code structure, runtime correctness and the two UI platforms. These
+are the things a world-class app also needs that this codebase does **not** have today. Each line
+carries the number measured on 2026-08-09 so nobody has to re-derive it — and so the number can be
+watched going down.
+
+- **Localisation: the app is English-only, and most of it is not even extractable.** 477
+  hard-coded `android:text` strings live in layouts, against 285 entries in `strings.xml`, and
+  there are **zero** locale folders. The audience watches |AR| |HI| |TA| |DE| content, so this is a
+  product gap, not a tidiness one. **Rule from now on: new user-facing text goes in `strings.xml`,
+  never inline.** Retro-extraction is its own batch — do not attempt it inside a UI batch.
+  (`supportsRtl` IS declared and only 5 layout attributes use hard left/right, so RTL itself is
+  close — the strings are what block it.)
+- **Accessibility: 120 of 185 `ImageView`/`ImageButton` have no `contentDescription`.** TalkBack
+  cannot name them. **Rule: every new image that conveys meaning gets a `contentDescription`;
+  decorative ones get `@null` explicitly, so the omission is always deliberate.** The 1.6x phone
+  font scale MULTIPLIES the user's accessibility setting rather than replacing it — keep it that
+  way.
+- **Theme: the app is dark-only and there is no `values-night`.** That may well be right for a
+  10-foot media app, but it is currently an accident rather than a decision. **Treat dark-only as
+  the decision, and do not add a half-built light theme** — a partial one is worse than none.
+- **No performance budget.** There is no number for cold start, dropped frames or ANR rate, so
+  "slow" is an opinion. The runtime rules above prevent the known causes; what is missing is a
+  target to test against. Suggested first budget: **cold start to first content < 3s on the Fire
+  TV, zero ANRs in a 10-minute session, no frame drop over 700ms during playback.**
+- **No crash-free target.** Crashlytics ships and is wired, but nothing states what "healthy"
+  is. Suggested: **crash-free sessions ≥ 99.5%**, checked per release.
+- **Testing policy is a COUNT, not a rule.** `WORLD_CLASS_ROADMAP.md` E4/E5 track 17 instrumented
+  and 81 unit test files, which says how many exist but not what must be covered. **Rule: every new
+  collaborator class gets a unit test, and every playback landmine listed in the player memory notes
+  gets an on-device check before release.**
+- **Release discipline was only ever written in session memory.** It belongs here:
+  **bump `versionCode` AND `versionName` together; copy the APK to
+  `admin-panel/DebridXtream-latest.apk`; `firebase deploy --only hosting`; then DOWNLOAD the
+  published file back and `aapt2 dump badging` it before quoting the link.** Announcing a
+  `versionCode` you have not built is an update LOOP. The panel number and the APK must agree.
+
+**How to use this list:** it is a standing audit, not a backlog to clear in one go. When a batch
+touches a screen, apply the *rules* (strings, contentDescription) to what it touches. The
+*retro* work — extracting 477 strings, labelling 120 images — is separate, explicitly-scoped work.
+
 ## Agent Comms — Reality-Based Coordination
 
 **Tool-availability asymmetry:** `SendMessage` works **lead↔subagent** and lead↔lead, but **NOT subagent↔subagent**. Subagents spawned via the `Agent` tool are stateless one-shot workers — they have no inbox, cannot wait for events, and `SendMessage`/`TaskUpdate` are typically not in their tool allowlists. The `hive-mind_*` MCP tools provide coordination **metadata** (registry, consensus state) but do NOT grant subagents communication channels. Patterns that assume peer messaging will silently fail — agents either abort cleanly or run open-loop with stale assumptions. (See ruvnet/ruflo#2028 for the diagnosis.)
