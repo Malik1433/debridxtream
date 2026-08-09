@@ -171,6 +171,7 @@ class SeriesDetailActivity : AppCompatActivity() {
         // device (M14b home, M16a IPTV series, D3 debrid setup gate). The phone rulebook bans them.
         if (!resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
             findViewById<android.view.View>(R.id.layout_hint_bar)?.visibility = android.view.View.GONE
+            relocateActionsForTouch()
         }
 
         // Repository and credentials are now injected via Hilt
@@ -669,6 +670,31 @@ class SeriesDetailActivity : AppCompatActivity() {
             super.onBackPressed()
         }
     }
+    /**
+     * D6 (owner, 2026-08-09): on a phone the series page needs no Play button — every episode card
+     * plays on one tap, and it sat below the fold in the scrolled column anyway. Trailer +
+     * favourite REPARENT into the always-visible season row (same View objects, so every existing
+     * listener keeps working). The TV never runs this.
+     */
+    private fun relocateActionsForTouch() {
+        findViewById<android.view.View>(R.id.btn_watch_now)?.visibility = android.view.View.GONE
+        val seasonRow = findViewById<android.view.View>(R.id.btn_season_selector)?.parent
+            as? android.view.ViewGroup ?: return
+        val d = resources.displayMetrics.density
+        listOf(R.id.btn_watch_trailer, R.id.btn_add_favorite).forEach { id ->
+            findViewById<android.view.View>(id)?.let { v ->
+                (v.parent as? android.view.ViewGroup)?.removeView(v)
+                seasonRow.addView(
+                    v,
+                    android.widget.LinearLayout.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                        (48 * d).toInt()
+                    ).apply { marginStart = (10 * d).toInt() }
+                )
+            }
+        }
+    }
+
 }
 
 data class EpisodeUiModel(

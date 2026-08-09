@@ -111,6 +111,7 @@ class SeriesDetailFragmentV2 : Fragment() {
         // here rather than removed — the TV still gets it.
         if (!resources.getBoolean(com.tvonnet.debridxtreamiptv.R.bool.ui_uses_dpad_focus)) {
             binding.layoutHintBar.visibility = View.GONE
+            relocateActionsForTouch()
         }
         buildCollaborators()
         setupOptimisticUI()
@@ -186,6 +187,30 @@ class SeriesDetailFragmentV2 : Fragment() {
         val adapter = episodesStrip?.setup() ?: return
         lifecycleScope.launch {
             adapter.loadStateFlow.collect { states -> episodesStrip?.onLoadStates(states) }
+        }
+    }
+
+    /**
+     * D6 (owner, 2026-08-09): on a phone the series page does not need a Play button — every
+     * episode card in the strip already plays on one tap, and the button sat below the fold in the
+     * scrolled column anyway. So on TOUCH ONLY: Play is gone, and Trailer + favourite move out of
+     * the scrolled column into the always-visible season row. The views are REPARENTED, not
+     * duplicated, so every existing binding/click listener keeps working; the TV never runs this.
+     */
+    private fun relocateActionsForTouch() {
+        val d = resources.displayMetrics.density
+        binding.btnPlay.visibility = View.GONE
+        val seasonRow = binding.btnSeasonSelector.parent as? android.view.ViewGroup ?: return
+        listOf<View>(binding.btnTrailer, binding.btnFavorite).forEach { v ->
+            (v.parent as? android.view.ViewGroup)?.removeView(v)
+            seasonRow.addView(
+                v,
+                android.widget.LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                    // 48dp: the touch minimum. The row is wrap_content, so it grows to hold them.
+                    (48 * d).toInt()
+                ).apply { marginStart = (10 * d).toInt() }
+            )
         }
     }
 
