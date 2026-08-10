@@ -130,11 +130,15 @@ class StremioHomeFragment : Fragment() {
         }
     }
 
+    // The rotation timer only runs where the hero is actually on screen.
+    private fun heroAllowed(): Boolean =
+        activeNav != "discover" && resources.getBoolean(R.bool.debrid_home_shows_hero)
+
     override fun onResume() {
         super.onResume()
         isNavigatingAway = false
         debridVm.refreshContinueWatching()
-        heroManager.onResumeTimer()
+        if (heroAllowed()) heroManager.onResumeTimer()
         view?.let { showSetupGuideIfNoDebridService(it) }
     }
 
@@ -244,7 +248,10 @@ class StremioHomeFragment : Fragment() {
         if (key == "discover") discoverSection?.onShown()
 
         val view = view ?: return
-        val showHero = key != "discover"
+        // Owner decision (2026-08-10): a phone never shows the hero — it ate ~70% of a 411dp
+        // screen and left one row peeking. The TV keeps it on Home, and loses it on Discover
+        // as before.
+        val showHero = key != "discover" && resources.getBoolean(R.bool.debrid_home_shows_hero)
         applyHeroVisibility(view, showHero)
         styleNavTabs(view, key)
         wireContentFocus()
@@ -254,12 +261,16 @@ class StremioHomeFragment : Fragment() {
     // The hero is a Home feature. Hide it on Discover for a cleaner, less busy page and pull the
     // content up to just below the nav bar.
     private fun applyHeroVisibility(view: View, showHero: Boolean) {
-        val density = resources.displayMetrics.density
         view.findViewById<View>(R.id.heroBanner)?.isVisible = showHero
         if (showHero) heroManager.onResumeTimer() else heroManager.onPauseTimer()
         view.findViewById<View>(R.id.content_host)?.let { host ->
             (host.layoutParams as ViewGroup.MarginLayoutParams).let { lp ->
-                lp.topMargin = ((if (showHero) 318 else 52) * density).toInt()
+                // With the hero: the TV's 318dp (the old literal, now a qualified dimen).
+                // Without: below the nav bar — 52dp on TV, 70dp on a phone whose bar sits
+                // under the status inset (D3 measured the 67dp floor).
+                lp.topMargin = resources.getDimensionPixelSize(
+                    if (showHero) R.dimen.stremio_content_top else R.dimen.stremio_content_top_no_hero
+                )
                 host.layoutParams = lp
             }
         }

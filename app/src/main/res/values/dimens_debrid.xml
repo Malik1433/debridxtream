@@ -36,6 +36,9 @@
     <dimen name="stremio_hero_height">250dp</dimen>
     <dimen name="stremio_content_top">248dp</dimen>
     <dimen name="stremio_hero_content_top">70dp</dimen>
+    <!-- 2026-08-10 (hero removed on phone): content starts below the nav bar, whose floor is
+         67dp (22dp status inset + 45dp bar, D3's measurement) — so 70dp, not the TV's 52dp. -->
+    <dimen name="stremio_content_top_no_hero">70dp</dimen>
     <!-- D3: two lines alone still broke words mid-way ("Obse/ssion", "Super/girl") because the
          rail's text column is ~48dp and a 12sp word needs more. 6sp renders at ~9.6sp, which fits
          "Obsession" on one line. -->

@@ -16,6 +16,8 @@
     <integer name="stremio_top10_title_lines">1</integer>
     <dimen name="stremio_hero_height">320dp</dimen>
     <dimen name="stremio_content_top">318dp</dimen>
+    <!-- The code's old literal for the hero-hidden (Discover) state, verbatim. -->
+    <dimen name="stremio_content_top_no_hero">52dp</dimen>
     <dimen name="stremio_hero_content_top">65dp</dimen>
     <!-- D3: two lines alone still broke words mid-way ("Obse/ssion", "Super/girl") because the
          rail's text column is ~48dp and a 12sp word needs more. 6sp renders at ~9.6sp, which fits

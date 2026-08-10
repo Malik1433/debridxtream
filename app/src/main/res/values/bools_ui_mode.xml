@@ -83,4 +83,10 @@
       The TV keeps it — it is part of that design and reachable by D-pad.
     -->
     <bool name="epg_shows_primary_btn">false</bool>
+    <!--
+      Owner decision (2026-08-10, from a photo of his real handset): the Debrid home's hero
+      takes ~70% of a 411dp-tall screen and leaves ONE content row peeking at the bottom edge.
+      On a phone the hero is gone entirely and the rows own the page; the TV keeps its hero.
+    -->
+    <bool name="debrid_home_shows_hero">false</bool>
 </resources>

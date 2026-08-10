@@ -18,4 +18,6 @@
     <bool name="detail_shows_similar_row">true</bool>
     <!-- M18: the guide's detail-panel button stays in the TV design (it fits at TV type sizes). -->
     <bool name="epg_shows_primary_btn">true</bool>
+    <!-- 2026-08-10: the ten-foot Debrid home keeps its hero; only the phone drops it. -->
+    <bool name="debrid_home_shows_hero">true</bool>
 </resources>
