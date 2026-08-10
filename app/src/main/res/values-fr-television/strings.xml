@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- French TV wording for the four device-qualified strings. -->
+<resources>
+    <string name="login_qr_step3_title">Ajouter cette TV</string>
+    <string name="debrid_setup_companion_body">Ouvrez l\'adresse ci-dessous, connectez-vous et collez-y vos liens d\'addons. Cette TV les récupère toute seule.</string>
+    <string name="debrid_setup_here_title">Ou sur cette TV</string>
+    <string name="debrid_setup_here_path">Paramètres › Debrid › Addons Stremio › Ajouter un addon</string>
+</resources>

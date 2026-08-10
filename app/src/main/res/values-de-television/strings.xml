@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- German TV wording for the four device-qualified strings. Locale outranks uiMode in resource
+     matching, so without this file a German TV would get the PHONE wording from values-de. -->
+<resources>
+    <string name="login_qr_step3_title">Diesen Fernseher hinzufügen</string>
+    <string name="debrid_setup_companion_body">Öffne die Adresse unten, melde dich an und füge dort deine Addon-Links ein. Dieser Fernseher übernimmt sie automatisch.</string>
+    <string name="debrid_setup_here_title">Oder auf diesem Fernseher</string>
+    <string name="debrid_setup_here_path">Einstellungen › Debrid › Stremio-Addons › Addon hinzufügen</string>
+</resources>
