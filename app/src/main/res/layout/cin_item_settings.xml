@@ -24,7 +24,8 @@
             android:layout_height="20dp"
             android:layout_gravity="center"
             android:src="@drawable/ic_settings"
-            app:tint="@color/cin_gold_300" />
+            app:tint="@color/cin_gold_300"
+            android:contentDescription="@null" />
     </FrameLayout>
 
     <LinearLayout
@@ -58,6 +59,7 @@
         android:layout_height="16dp"
         android:layout_marginStart="@dimen/cin_space_3"
         android:src="@drawable/ic_chevron_right"
-        app:tint="@color/cin_text_tertiary" />
+        app:tint="@color/cin_text_tertiary"
+        android:contentDescription="@null" />
 
 </LinearLayout>

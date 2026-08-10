@@ -56,7 +56,8 @@
                 android:background="@drawable/cin_card_poster_focus"
                 app:shapeAppearanceOverlay="@style/CircleAppearance"
                 tools:background="@color/cin_ink_500"
-                tools:src="@tools:sample/avatars" />
+                tools:src="@tools:sample/avatars"
+                android:contentDescription="@null" />
 
         </FrameLayout>
 

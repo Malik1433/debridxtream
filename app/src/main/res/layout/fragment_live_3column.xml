@@ -760,7 +760,8 @@
             android:layout_height="match_parent"
             android:scaleType="fitXY"
             android:visibility="gone"
-            android:importantForAccessibility="no" />
+            android:importantForAccessibility="no"
+            android:contentDescription="@null" />
     </FrameLayout>
 
 </FrameLayout>

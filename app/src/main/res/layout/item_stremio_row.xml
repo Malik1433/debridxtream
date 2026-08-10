@@ -65,7 +65,8 @@
                 android:layout_width="8dp"
                 android:layout_height="8dp"
                 android:src="@drawable/ic_stremio_chevron_right"
-                app:tint="#00F0FF" />
+                app:tint="#00F0FF"
+                android:contentDescription="@null" />
         </LinearLayout>
     </LinearLayout>
 

@@ -63,6 +63,7 @@
         android:src="@drawable/ic_arrow_right"
         app:tint="@color/cin_text_tertiary"
         android:alpha="0.6"
-        android:importantForAccessibility="no" />
+        android:importantForAccessibility="no"
+        android:contentDescription="@null" />
 
 </LinearLayout>

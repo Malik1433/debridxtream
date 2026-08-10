@@ -109,8 +109,10 @@
             android:layout_height="0dp"
             android:orientation="vertical"
             android:visibility="gone">
-            <ImageView android:id="@+id/icon_live_tv" android:layout_width="0dp" android:layout_height="0dp" />
-            <ImageView android:id="@+id/icon_favorites" android:layout_width="0dp" android:layout_height="0dp" />
+            <ImageView android:id="@+id/icon_live_tv" android:layout_width="0dp" android:layout_height="0dp"
+    android:contentDescription="@null" />
+            <ImageView android:id="@+id/icon_favorites" android:layout_width="0dp" android:layout_height="0dp"
+    android:contentDescription="@null" />
         </LinearLayout>
 
     </LinearLayout>
@@ -288,7 +290,8 @@
                 android:background="@drawable/cin_premium_icon_btn"
                 android:focusable="true"
                 android:clickable="true"
-                android:nextFocusLeft="@id/rv_channels_horizontal" />
+                android:nextFocusLeft="@id/rv_channels_horizontal"
+                android:contentDescription="@string/a11y_search" />
 
             <ImageView
                 android:id="@+id/btn_profile"
@@ -300,7 +303,8 @@
                 android:padding="12dp"
                 android:focusable="true"
                 android:clickable="true"
-                android:nextFocusLeft="@id/rv_channels_horizontal" />
+                android:nextFocusLeft="@id/rv_channels_horizontal"
+                android:contentDescription="@string/a11y_profile" />
         </LinearLayout>
 
         <!-- Preview Player Frame -->
@@ -450,7 +454,8 @@
                 android:padding="12dp"
                 android:focusable="true"
                 android:clickable="true"
-                android:nextFocusLeft="@id/rv_channels_horizontal" />
+                android:nextFocusLeft="@id/rv_channels_horizontal"
+                android:contentDescription="@string/a11y_fullscreen" />
 
             <FrameLayout
                 android:id="@+id/preview_loading_container"

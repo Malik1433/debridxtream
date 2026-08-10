@@ -88,7 +88,8 @@
                 android:layout_height="12dp"
                 android:layout_gravity="center"
                 android:src="@drawable/ic_check_circle"
-                app:tint="@color/vod_green" />
+                app:tint="@color/vod_green"
+                android:contentDescription="@string/a11y_watched" />
         </FrameLayout>
 
         <!-- Favorite indicator (hidden by default) -->
@@ -102,7 +103,8 @@
             android:src="@drawable/ic_favorite"
             app:tint="@color/vod_accent_cyan"
             android:background="@drawable/bg_circle_dark_translucent"
-            android:visibility="gone" />
+            android:visibility="gone"
+            android:contentDescription="@string/a11y_in_favorites" />
 
         <!-- Progress bar (bottom of poster, for in-progress movies) -->
         <FrameLayout

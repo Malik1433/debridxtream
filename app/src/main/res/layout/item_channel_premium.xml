@@ -53,7 +53,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="fitCenter"
-                tools:src="@android:drawable/ic_menu_gallery" />
+                tools:src="@android:drawable/ic_menu_gallery"
+                android:contentDescription="@null" />
         </FrameLayout>
 
         <!-- Content Column -->
@@ -153,7 +154,8 @@
             android:src="@drawable/ic_favorite"
             app:tint="#3B82F6"
             android:layout_marginStart="16dp"
-            android:visibility="gone" />
+            android:visibility="gone"
+            android:contentDescription="@string/a11y_in_favorites" />
 
     </LinearLayout>
 </FrameLayout>

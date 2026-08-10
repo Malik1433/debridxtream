@@ -31,7 +31,8 @@
                     android:layout_width="44dp"
                     android:layout_height="44dp"
                     android:scaleType="centerCrop"
-                    android:src="@drawable/tv_card_placeholder" />
+                    android:src="@drawable/tv_card_placeholder"
+                    android:contentDescription="@null" />
 
                 <TextView
                     android:id="@+id/tv_channel_number"

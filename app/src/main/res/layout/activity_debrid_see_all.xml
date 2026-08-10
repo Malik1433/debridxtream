@@ -16,7 +16,8 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:src="@drawable/bg_tab_button_focused" />
+        tools:src="@drawable/bg_tab_button_focused"
+        android:contentDescription="@null" />
 
     <TextView
         android:id="@+id/textViewTitle"

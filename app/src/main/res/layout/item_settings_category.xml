@@ -34,7 +34,8 @@
         android:padding="7dp"
         android:scaleType="fitCenter"
         android:layout_marginEnd="16dp"
-        android:src="@drawable/ic_settings" />
+        android:src="@drawable/ic_settings"
+        android:contentDescription="@null" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -71,5 +72,6 @@
         android:layout_width="17dp"
         android:layout_height="17dp"
         android:src="@drawable/ic_arrow_right"
-        app:tint="#3D4F60" />
+        app:tint="#3D4F60"
+        android:contentDescription="@null" />
 </LinearLayout>

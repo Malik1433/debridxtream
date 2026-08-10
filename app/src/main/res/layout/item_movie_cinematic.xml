@@ -65,7 +65,8 @@
             android:visibility="gone"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            tools:visibility="visible" />
+            tools:visibility="visible"
+            android:contentDescription="@string/a11y_in_favorites" />
 
         <!-- Title -->
         <TextView

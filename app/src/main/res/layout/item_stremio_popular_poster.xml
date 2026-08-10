@@ -13,7 +13,8 @@
         android:id="@+id/poster_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="centerCrop" />
+        android:scaleType="centerCrop"
+        android:contentDescription="@null" />
 
     <View
         android:id="@+id/poster_overlay"

@@ -32,7 +32,8 @@
         android:layout_height="36dp"
         android:layout_marginStart="@dimen/stremio_top10_thumb_margin"
         android:layout_marginEnd="@dimen/stremio_top10_thumb_margin"
-        android:scaleType="centerCrop" />
+        android:scaleType="centerCrop"
+        android:contentDescription="@null" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -77,5 +78,6 @@
         android:layout_height="6.5dp"
         android:layout_marginStart="4dp"
         android:src="@drawable/ic_stremio_chevron_right"
-        app:tint="#334155" />
+        app:tint="#334155"
+        android:contentDescription="@null" />
 </LinearLayout>

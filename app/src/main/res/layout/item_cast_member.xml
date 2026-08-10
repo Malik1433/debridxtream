@@ -21,7 +21,8 @@
             android:layout_height="38dp"
             android:scaleType="centerCrop"
             app:shapeAppearanceOverlay="@style/CircleAppearance"
-            tools:src="@tools:sample/avatars" />
+            tools:src="@tools:sample/avatars"
+            android:contentDescription="@null" />
 
         <TextView
             android:id="@+id/tv_name"

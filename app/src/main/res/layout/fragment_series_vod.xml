@@ -138,7 +138,8 @@
                         android:layout_width="13dp"
                         android:layout_height="13dp"
                         android:src="@drawable/ic_search"
-                        app:tint="#64748B" />
+                        app:tint="#64748B"
+                        android:contentDescription="@null" />
 
                     <TextView
                         android:layout_width="0dp"

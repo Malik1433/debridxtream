@@ -22,7 +22,8 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        tools:src="@tools:sample/backgrounds/scenic" />
+        tools:src="@tools:sample/backgrounds/scenic"
+        android:contentDescription="@null" />
 
     <!-- Left + bottom gradient overlay for readability -->
     <View
@@ -472,7 +473,8 @@
                 android:padding="6dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_favorite_border"
-                app:tint="#F1F5F9" />
+                app:tint="#F1F5F9"
+                android:contentDescription="@string/a11y_favorite" />
         </com.google.android.flexbox.FlexboxLayout>
 
     <!-- Director / Creator + Cast (TMDB enrichment). Anchored directly BELOW the hero

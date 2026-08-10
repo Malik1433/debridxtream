@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A11y batch (2026-08-10) — TalkBack names for every ACTIONABLE image. The rule from the
+  world-class audit: every new image that conveys meaning gets a contentDescription; decorative
+  ones get an explicit @null so the omission is always deliberate. Posters, thumbnails, logos
+  and backdrops whose name is already in an adjacent TextView are @null — TalkBack reads the
+  text once instead of twice.
+-->
+<resources>
+    <string name="a11y_rewind">Rewind 10 seconds</string>
+    <string name="a11y_ffwd">Fast forward 10 seconds</string>
+    <string name="a11y_play">Play</string>
+    <string name="a11y_pause">Pause</string>
+    <string name="a11y_prev_episode">Previous episode</string>
+    <string name="a11y_next_episode">Next episode</string>
+    <string name="a11y_episodes">Episodes</string>
+    <string name="a11y_sources">Change source</string>
+    <string name="a11y_audio_tracks">Audio tracks</string>
+    <string name="a11y_subtitles">Subtitles</string>
+    <string name="a11y_aspect">Aspect ratio</string>
+    <string name="a11y_search">Search</string>
+    <string name="a11y_profile">Profile</string>
+    <string name="a11y_fullscreen">Fullscreen</string>
+    <string name="a11y_favorite">Add to favorites</string>
+    <string name="a11y_in_favorites">In favorites</string>
+    <string name="a11y_watched">Watched</string>
+    <string name="a11y_selected">Selected</string>
+    <string name="a11y_qr">Setup QR code</string>
+    <string name="a11y_support_qr">Support QR code</string>
+</resources>

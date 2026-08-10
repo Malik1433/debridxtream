@@ -41,7 +41,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
-                tools:src="@tools:sample/backgrounds/scenic" />
+                tools:src="@tools:sample/backgrounds/scenic"
+                android:contentDescription="@null" />
 
             <!-- horizontal LR fade (exact multi-stop set in code) -->
             <View
@@ -226,7 +227,8 @@
                         android:layout_height="11dp"
                         android:layout_marginEnd="7dp"
                         android:src="@drawable/ic_stremio_play"
-                        app:tint="#041014" />
+                        app:tint="#041014"
+                        android:contentDescription="@null" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -254,7 +256,8 @@
                         android:layout_height="8.5dp"
                         android:layout_marginEnd="6dp"
                         android:src="@drawable/ic_stremio_circle_play"
-                        app:tint="#F1F5F9" />
+                        app:tint="#F1F5F9"
+                        android:contentDescription="@null" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -277,7 +280,8 @@
                         android:layout_height="10dp"
                         android:layout_gravity="center"
                         android:src="@drawable/ic_stremio_bookmark"
-                        app:tint="#94A3B8" />
+                        app:tint="#94A3B8"
+                        android:contentDescription="@null" />
                 </FrameLayout>
             </LinearLayout>
         </LinearLayout>
@@ -414,7 +418,8 @@
                     android:layout_height="9dp"
                     android:layout_marginEnd="6dp"
                     android:src="@drawable/ic_stremio_search"
-                    app:tint="#64748B" />
+                    app:tint="#64748B"
+                    android:contentDescription="@null" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -453,7 +458,8 @@
                     android:layout_height="11dp"
                     android:layout_gravity="center"
                     android:src="@drawable/ic_stremio_bell"
-                    app:tint="#94A3B8" />
+                    app:tint="#94A3B8"
+                    android:contentDescription="@null" />
 
                 <View
                     android:layout_width="4dp"
@@ -505,7 +511,8 @@
                     android:layout_width="8dp"
                     android:layout_height="8dp"
                     android:src="@drawable/ic_stremio_chevron_down"
-                    app:tint="#64748B" />
+                    app:tint="#64748B"
+                    android:contentDescription="@null" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

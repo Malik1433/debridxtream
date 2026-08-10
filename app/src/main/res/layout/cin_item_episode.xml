@@ -21,7 +21,8 @@
         android:scaleType="centerCrop"
         android:background="@color/cin_ink_500"
         app:shapeAppearanceOverlay="@style/CircleAppearance"
-        tools:src="@tools:sample/avatars" />
+        tools:src="@tools:sample/avatars"
+        android:contentDescription="@null" />
 
     <LinearLayout
         android:layout_width="0dp"

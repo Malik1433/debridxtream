@@ -14,7 +14,8 @@
         android:scaleType="centerCrop"
         android:alpha="0.15"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:contentDescription="@null" />
 
     <!-- Filter Header -->
     <LinearLayout

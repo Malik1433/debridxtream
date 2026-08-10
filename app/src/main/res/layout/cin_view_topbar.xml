@@ -54,7 +54,8 @@
             android:layout_width="18dp"
             android:layout_height="18dp"
             android:src="@drawable/ic_search"
-            app:tint="@color/cin_text_tertiary" />
+            app:tint="@color/cin_text_tertiary"
+            android:contentDescription="@null" />
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

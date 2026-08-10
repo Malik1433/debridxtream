@@ -191,7 +191,8 @@
                                 android:layout_width="13dp"
                                 android:layout_height="13dp"
                                 android:src="@android:drawable/ic_media_play"
-                                app:tint="#0E0420" />
+                                app:tint="#0E0420"
+                                android:contentDescription="@null" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -257,7 +258,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:scaleType="centerCrop"
-                    android:background="@drawable/bg_series_hero_banner" />
+                    android:background="@drawable/bg_series_hero_banner"
+                    android:contentDescription="@null" />
             </androidx.cardview.widget.CardView>
         </LinearLayout>
     </androidx.cardview.widget.CardView>

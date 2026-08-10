@@ -33,7 +33,8 @@
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
                 android:background="@drawable/cin_series_ep_thumb_border"
-                tools:src="@tools:sample/backgrounds/scenic" />
+                tools:src="@tools:sample/backgrounds/scenic"
+                android:contentDescription="@null" />
 
             <!-- Bottom gradient on thumbnail -->
             <View
@@ -123,7 +124,8 @@
                     android:src="@drawable/ic_check_circle"
                     android:visibility="gone"
                     app:tint="#041014"
-                    tools:visibility="gone" />
+                    tools:visibility="gone"
+                    android:contentDescription="@string/a11y_watched" />
 
                 <!-- Play triangle. 18px -> 9dp -->
                 <ImageView
@@ -132,7 +134,8 @@
                     android:layout_height="10dp"
                     android:layout_gravity="center"
                     android:src="@drawable/ic_play_arrow_24"
-                    app:tint="#F1F5F9" />
+                    app:tint="#F1F5F9"
+                    android:contentDescription="@string/a11y_play" />
             </FrameLayout>
         </FrameLayout>
 

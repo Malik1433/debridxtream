@@ -38,7 +38,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerInside"
-            tools:src="@drawable/flag_us" />
+            tools:src="@drawable/flag_us"
+            android:contentDescription="@null" />
 
         <TextView
             android:id="@+id/tv_category_icon"

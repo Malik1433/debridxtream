@@ -22,7 +22,8 @@
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
         android:alpha="0.45"
-        tools:src="@tools:sample/backgrounds/scenic" />
+        tools:src="@tools:sample/backgrounds/scenic"
+        android:contentDescription="@null" />
 
     <!-- Left + bottom gradient overlay -->
     <View
@@ -456,7 +457,8 @@
                 android:layout_height="14dp"
                 android:src="@drawable/ic_play"
                 android:scaleType="fitCenter"
-                app:tint="@color/neon_cyan" />
+                app:tint="@color/neon_cyan"
+                android:contentDescription="@null" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -706,7 +708,8 @@
         <TextView android:id="@+id/btn_cached_only" android:layout_width="0dp" android:layout_height="0dp" />
         <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_language_filters" android:layout_width="0dp" android:layout_height="0dp" />
         <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_sources" android:layout_width="0dp" android:layout_height="0dp" />
-        <ImageView android:id="@+id/iv_poster" android:layout_width="0dp" android:layout_height="0dp" />
+        <ImageView android:id="@+id/iv_poster" android:layout_width="0dp" android:layout_height="0dp"
+    android:contentDescription="@null" />
     </LinearLayout>
 
     <!-- Loading Overlay -->

@@ -136,7 +136,8 @@
             android:layout_width="22dp"
             android:layout_height="22dp"
             android:src="@drawable/ic_home"
-            app:tint="@color/cin_sidebar_text_selector" />
+            app:tint="@color/cin_sidebar_text_selector"
+            android:contentDescription="@null" />
 
         <TextView
             android:layout_width="0dp"
@@ -170,7 +171,8 @@
             android:layout_width="22dp"
             android:layout_height="22dp"
             android:src="@drawable/ic_live_tv"
-            app:tint="@color/cin_sidebar_text_selector" />
+            app:tint="@color/cin_sidebar_text_selector"
+            android:contentDescription="@null" />
 
         <TextView
             android:layout_width="0dp"
@@ -210,7 +212,8 @@
             android:layout_width="22dp"
             android:layout_height="22dp"
             android:src="@drawable/ic_movie"
-            app:tint="@color/cin_sidebar_text_selector" />
+            app:tint="@color/cin_sidebar_text_selector"
+            android:contentDescription="@null" />
 
         <TextView
             android:layout_width="0dp"
@@ -244,7 +247,8 @@
             android:layout_width="22dp"
             android:layout_height="22dp"
             android:src="@drawable/ic_series"
-            app:tint="@color/cin_sidebar_text_selector" />
+            app:tint="@color/cin_sidebar_text_selector"
+            android:contentDescription="@null" />
 
         <TextView
             android:layout_width="0dp"
@@ -294,7 +298,8 @@
             android:layout_width="22dp"
             android:layout_height="22dp"
             android:src="@drawable/ic_search"
-            app:tint="@color/cin_sidebar_text_selector" />
+            app:tint="@color/cin_sidebar_text_selector"
+            android:contentDescription="@null" />
 
         <TextView
             android:layout_width="0dp"
@@ -328,7 +333,8 @@
             android:layout_width="22dp"
             android:layout_height="22dp"
             android:src="@drawable/ic_dns"
-            app:tint="@color/cin_sidebar_text_selector" />
+            app:tint="@color/cin_sidebar_text_selector"
+            android:contentDescription="@null" />
 
         <TextView
             android:layout_width="0dp"
@@ -390,7 +396,8 @@
             android:layout_width="22dp"
             android:layout_height="22dp"
             android:src="@drawable/ic_settings"
-            app:tint="@color/cin_sidebar_text_selector" />
+            app:tint="@color/cin_sidebar_text_selector"
+            android:contentDescription="@null" />
 
         <TextView
             android:layout_width="0dp"

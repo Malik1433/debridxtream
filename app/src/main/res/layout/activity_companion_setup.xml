@@ -89,7 +89,8 @@
             android:id="@+id/iv_qr_code"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:scaleType="fitCenter" />
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/a11y_qr" />
             
         <ProgressBar
             android:id="@+id/pb_loading"

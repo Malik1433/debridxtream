@@ -74,7 +74,8 @@
                     android:layout_height="8dp"
                     android:src="@drawable/ic_stremio_sort"
                     app:tint="#64748B"
-                    android:layout_marginEnd="3.5dp" />
+                    android:layout_marginEnd="3.5dp"
+                    android:contentDescription="@null" />
 
                 <TextView
                     android:layout_width="wrap_content"

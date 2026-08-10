@@ -20,7 +20,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            tools:src="@drawable/tv_card_placeholder" />
+            tools:src="@drawable/tv_card_placeholder"
+            android:contentDescription="@null" />
     </FrameLayout>
 
     <TextView

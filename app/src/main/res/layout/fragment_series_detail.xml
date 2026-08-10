@@ -23,7 +23,8 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        tools:src="@tools:sample/backgrounds/scenic" />
+        tools:src="@tools:sample/backgrounds/scenic"
+        android:contentDescription="@null" />
 
     <!-- Left + bottom gradient overlay -->
     <View
@@ -456,7 +457,8 @@
                 android:padding="9dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_favorite_border"
-                app:tint="@color/cin_detail_focus_text" />
+                app:tint="@color/cin_detail_focus_text"
+                android:contentDescription="@string/a11y_favorite" />
         </LinearLayout>
     </LinearLayout>
     </androidx.core.widget.NestedScrollView>
@@ -625,7 +627,8 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <ImageView android:id="@+id/iv_poster" android:layout_width="0dp" android:layout_height="0dp" />
+        <ImageView android:id="@+id/iv_poster" android:layout_width="0dp" android:layout_height="0dp"
+    android:contentDescription="@null" />
         <TextView android:id="@+id/tv_director" android:layout_width="0dp" android:layout_height="0dp" />
         <TextView android:id="@+id/tv_cast" android:layout_width="0dp" android:layout_height="0dp" />
         <TextView android:id="@+id/tv_rating_stars" android:layout_width="0dp" android:layout_height="0dp" />

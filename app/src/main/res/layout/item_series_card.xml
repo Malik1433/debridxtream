@@ -118,7 +118,8 @@
             android:src="@drawable/ic_favorite"
             app:tint="#A78BFA"
             android:background="@drawable/bg_circle_dark_translucent"
-            android:visibility="gone" />
+            android:visibility="gone"
+            android:contentDescription="@string/a11y_in_favorites" />
     </androidx.cardview.widget.CardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

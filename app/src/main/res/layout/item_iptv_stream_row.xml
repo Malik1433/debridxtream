@@ -90,6 +90,7 @@
             android:layout_gravity="center"
             android:src="@drawable/ic_play_arrow_24"
             app:tint="#64748B"
-            xmlns:app="http://schemas.android.com/apk/res-auto" />
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:contentDescription="@string/a11y_play" />
     </FrameLayout>
 </LinearLayout>

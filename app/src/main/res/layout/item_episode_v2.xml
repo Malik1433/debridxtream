@@ -41,7 +41,8 @@
         tools:visibility="visible"
         app:layout_constraintTop_toTopOf="@id/cv_thumb"
         app:layout_constraintEnd_toEndOf="@id/cv_thumb"
-        android:translationZ="4dp" />
+        android:translationZ="4dp"
+        android:contentDescription="@string/a11y_watched" />
 
     <androidx.cardview.widget.CardView
         android:id="@+id/cv_thumb"
@@ -57,7 +58,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            tools:src="@tools:sample/backgrounds/scenic" />
+            tools:src="@tools:sample/backgrounds/scenic"
+            android:contentDescription="@null" />
 
         <!-- Episode Badge (Top Left) -->
         <TextView
@@ -135,7 +137,8 @@
                 android:src="@drawable/bg_episode_play_circle"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintTop_toTopOf="parent"
+                android:contentDescription="@string/a11y_play" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

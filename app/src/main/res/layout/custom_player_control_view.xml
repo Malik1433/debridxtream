@@ -35,7 +35,7 @@
             android:layout_marginEnd="10dp"
             android:src="@drawable/ic_stremio_chevron_left"
             android:tint="@color/stremio_text_muted"
-            tools:ignore="ContentDescription" />
+            android:contentDescription="@null" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -128,7 +128,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
-                tools:src="@drawable/placeholder_poster" />
+                tools:src="@drawable/placeholder_poster"
+                android:contentDescription="@null" />
             <View
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
@@ -230,7 +231,7 @@
                     android:focusable="true"
                     android:nextFocusUp="@id/exo_progress"
                     app:tint="@color/live_osd_text_soft"
-                    tools:ignore="ContentDescription" />
+                    android:contentDescription="@string/a11y_rewind" />
 
                 <!-- prev episode (series only) -->
                 <ImageButton
@@ -246,7 +247,7 @@
                     android:visibility="gone"
                     android:nextFocusUp="@id/exo_progress"
                     app:tint="@color/live_osd_text_soft"
-                    tools:ignore="ContentDescription" />
+                    android:contentDescription="@string/a11y_prev_episode" />
 
                 <!-- play / pause (big circle) -->
                 <FrameLayout
@@ -267,7 +268,7 @@
                         android:focusable="true"
                         android:nextFocusUp="@id/exo_progress"
                         app:tint="@color/stremio_text_primary"
-                        tools:ignore="ContentDescription" />
+                        android:contentDescription="@string/a11y_play" />
                     <ImageButton
                         android:id="@+id/exo_pause"
                         android:layout_width="match_parent"
@@ -280,7 +281,7 @@
                         android:visibility="gone"
                         android:nextFocusUp="@id/exo_progress"
                         app:tint="@color/stremio_text_primary"
-                        tools:ignore="ContentDescription" />
+                        android:contentDescription="@string/a11y_pause" />
                 </FrameLayout>
 
                 <!-- next episode (series only) -->
@@ -296,7 +297,7 @@
                     android:visibility="gone"
                     android:nextFocusUp="@id/exo_progress"
                     app:tint="@color/live_osd_text_soft"
-                    tools:ignore="ContentDescription" />
+                    android:contentDescription="@string/a11y_next_episode" />
 
                 <!-- fwd 10s (media3-managed: ImageButton) -->
                 <ImageButton
@@ -311,7 +312,7 @@
                     android:focusable="true"
                     android:nextFocusUp="@id/exo_progress"
                     app:tint="@color/live_osd_text_soft"
-                    tools:ignore="ContentDescription" />
+                    android:contentDescription="@string/a11y_ffwd" />
 
                 <!-- episodes list (series only) -->
                 <ImageButton
@@ -327,7 +328,7 @@
                     android:visibility="gone"
                     android:nextFocusUp="@id/exo_progress"
                     app:tint="@color/stremio_text_secondary"
-                    tools:ignore="ContentDescription" />
+                    android:contentDescription="@string/a11y_episodes" />
 
                 <!-- sources / language switch (movies only): re-pick a source mid-playback -->
                 <ImageButton
@@ -343,7 +344,7 @@
                     android:visibility="gone"
                     android:nextFocusUp="@id/exo_progress"
                     app:tint="@color/stremio_text_secondary"
-                    tools:ignore="ContentDescription" />
+                    android:contentDescription="@string/a11y_sources" />
 
                 <View
                     android:layout_width="0dp"
@@ -371,7 +372,7 @@
                         android:focusable="true"
                         android:nextFocusUp="@id/exo_progress"
                         app:tint="@color/stremio_text_secondary"
-                        tools:ignore="ContentDescription" />
+                        android:contentDescription="@string/a11y_audio_tracks" />
 
                     <ImageButton
                         android:id="@+id/btn_player_subtitles"
@@ -385,7 +386,7 @@
                         android:focusable="true"
                         android:nextFocusUp="@id/exo_progress"
                         app:tint="@color/stremio_text_secondary"
-                        tools:ignore="ContentDescription" />
+                        android:contentDescription="@string/a11y_subtitles" />
 
                     <ImageButton
                         android:id="@+id/btn_aspect_ratio"
@@ -399,7 +400,7 @@
                         android:focusable="true"
                         android:nextFocusUp="@id/exo_progress"
                         app:tint="@color/stremio_text_secondary"
-                        tools:ignore="ContentDescription" />
+                        android:contentDescription="@string/a11y_aspect" />
 
                     <!-- retained for Activity compatibility (aspect label updates no-op if absent) -->
                     <TextView
@@ -427,7 +428,8 @@
         <ImageButton
             android:id="@+id/btn_player_language"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:contentDescription="@null" />
 
         <LinearLayout
             android:id="@+id/layout_volume_control"
@@ -437,7 +439,8 @@
             <ImageButton
                 android:id="@+id/btn_player_volume"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:contentDescription="@null" />
             <SeekBar
                 android:id="@+id/volume_progress"
                 android:layout_width="wrap_content"

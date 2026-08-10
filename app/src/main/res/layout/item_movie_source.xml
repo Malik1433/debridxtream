@@ -181,7 +181,8 @@
                 android:padding="4dp"
                 android:focusable="false"
                 android:clickable="false"
-                app:tint="#64748B" />
+                app:tint="#64748B"
+                android:contentDescription="@string/a11y_play" />
 
             <!-- Col 7 (alt): BEST badge — replaces play icon on the best row -->
             <TextView

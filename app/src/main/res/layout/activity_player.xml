@@ -121,7 +121,8 @@
             android:layout_marginTop="16dp"
             android:background="#FFFFFF"
             android:padding="8dp"
-            android:scaleType="fitCenter" />
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/a11y_support_qr" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -148,7 +149,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            android:alpha="0.42" />
+            android:alpha="0.42"
+            android:contentDescription="@null" />
 
         <View
             android:layout_width="match_parent"

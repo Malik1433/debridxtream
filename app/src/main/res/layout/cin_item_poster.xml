@@ -31,7 +31,8 @@
             app:shapeAppearanceOverlay="@style/CircleAppearance"
             app:strokeWidth="0dp"
             tools:background="@color/cin_ink_500"
-            tools:src="@tools:sample/avatars" />
+            tools:src="@tools:sample/avatars"
+            android:contentDescription="@null" />
 
         <!-- Title row -->
         <TextView

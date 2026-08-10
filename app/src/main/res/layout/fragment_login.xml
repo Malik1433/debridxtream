@@ -342,7 +342,8 @@
                             android:layout_height="11dp"
                             android:importantForAccessibility="no"
                             android:src="@drawable/ic_dns"
-                            android:tint="#475569" />
+                            android:tint="#475569"
+                            android:contentDescription="@null" />
 
                         <EditText
                             android:id="@+id/et_server_url"
@@ -395,7 +396,8 @@
                             android:layout_height="11dp"
                             android:importantForAccessibility="no"
                             android:src="@drawable/ic_person"
-                            android:tint="#475569" />
+                            android:tint="#475569"
+                            android:contentDescription="@null" />
 
                         <EditText
                             android:id="@+id/et_username"
@@ -447,7 +449,8 @@
                             android:layout_height="11dp"
                             android:importantForAccessibility="no"
                             android:src="@drawable/ic_lock"
-                            android:tint="#475569" />
+                            android:tint="#475569"
+                            android:contentDescription="@null" />
 
                         <EditText
                             android:id="@+id/et_password"
@@ -505,7 +508,8 @@
                         android:layout_height="9dp"
                         android:importantForAccessibility="no"
                         android:src="@drawable/ic_error_circle"
-                        android:tint="#FF3355" />
+                        android:tint="#FF3355"
+                        android:contentDescription="@null" />
 
                     <TextView
                         android:id="@+id/tv_login_error"
@@ -539,7 +543,8 @@
                         android:layout_height="11dp"
                         android:importantForAccessibility="no"
                         android:src="@drawable/ic_play"
-                        android:tint="#475569" />
+                        android:tint="#475569"
+                        android:contentDescription="@null" />
 
                     <ProgressBar
                         android:id="@+id/progress_bar"
@@ -613,7 +618,8 @@
                         android:duplicateParentState="true"
                         android:importantForAccessibility="no"
                         android:src="@drawable/ic_smartphone"
-                        android:tint="@color/sel_login_secondary_text" />
+                        android:tint="@color/sel_login_secondary_text"
+                        android:contentDescription="@null" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -754,7 +760,8 @@
                             android:layout_width="110dp"
                             android:layout_height="110dp"
                             android:layout_gravity="center"
-                            android:importantForAccessibility="no" />
+                            android:importantForAccessibility="no"
+                            android:contentDescription="@string/a11y_qr" />
 
                         <TextView
                             android:id="@+id/tv_qr_dx_badge"
@@ -1027,7 +1034,8 @@
                     android:duplicateParentState="true"
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_arrow_back"
-                    android:tint="@color/sel_login_secondary_text" />
+                    android:tint="@color/sel_login_secondary_text"
+                    android:contentDescription="@null" />
 
                 <TextView
                     android:layout_width="wrap_content"

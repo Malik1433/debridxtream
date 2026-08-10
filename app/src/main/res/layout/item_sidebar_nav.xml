@@ -34,7 +34,8 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:src="@android:drawable/ic_menu_search" />
+        tools:src="@android:drawable/ic_menu_search"
+        android:contentDescription="@null" />
 
     <!-- Title (never shown; label rendered by the shared nav_flyout in the fragment) -->
     <TextView

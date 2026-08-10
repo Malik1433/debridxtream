@@ -127,11 +127,15 @@ watched going down.
   never inline.** Retro-extraction is its own batch — do not attempt it inside a UI batch.
   (`supportsRtl` IS declared and only 5 layout attributes use hard left/right, so RTL itself is
   close — the strings are what block it.)
-- **Accessibility: 120 of 185 `ImageView`/`ImageButton` have no `contentDescription`.** TalkBack
-  cannot name them. **Rule: every new image that conveys meaning gets a `contentDescription`;
-  decorative ones get `@null` explicitly, so the omission is always deliberate.** The 1.6x phone
-  font scale MULTIPLIES the user's accessibility setting rather than replacing it — keep it that
-  way.
+- **Accessibility: ✅ CLOSED 2026-08-10 — every `ImageView`/`ImageButton` now carries a
+  `contentDescription` (190 labelled, 0 missing, 0 `tools:ignore`).** Actionable images read a
+  name from `values/strings_a11y.xml` (player controls, play icons, favourite/watched
+  indicators, QR codes); decorative/duplicating ones (posters, logos, backdrops, field icons —
+  their name is in an adjacent TextView) carry an explicit `@null`. Verified in the live
+  accessibility tree (uiautomator: "Play" ×7 + "Add to favorites" on the series detail) and in
+  the binary (`aapt2 dump xmltree`). **Rule stays: every new image gets a `contentDescription`
+  or an explicit `@null` — never nothing, never `tools:ignore`.** The 1.6x phone font scale
+  MULTIPLIES the user's accessibility setting rather than replacing it — keep it that way.
 - **Theme: the app is dark-only and there is no `values-night`.** That may well be right for a
   10-foot media app, but it is currently an accident rather than a decision. **Treat dark-only as
   the decision, and do not add a half-built light theme** — a partial one is worse than none.

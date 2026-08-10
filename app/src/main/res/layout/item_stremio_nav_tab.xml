@@ -23,7 +23,8 @@
             android:id="@+id/nav_tab_icon"
             android:layout_width="7.5dp"
             android:layout_height="7.5dp"
-            android:layout_marginEnd="5dp" />
+            android:layout_marginEnd="5dp"
+            android:contentDescription="@null" />
 
         <TextView
             android:id="@+id/nav_tab_label"

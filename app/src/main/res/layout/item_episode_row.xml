@@ -27,7 +27,8 @@
         android:visibility="gone"
         app:layout_constraintTop_toTopOf="@id/iv_episode_thumb"
         app:layout_constraintEnd_toEndOf="@id/iv_episode_thumb"
-        app:tint="@color/ds_accent" />
+        app:tint="@color/ds_accent"
+        android:contentDescription="@string/a11y_watched" />
 
     <ProgressBar
         android:id="@+id/pb_resume_progress"

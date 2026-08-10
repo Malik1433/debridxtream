@@ -18,7 +18,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        tools:ignore="ContentDescription" />
+        android:contentDescription="@null" />
 
     <!-- Gradient Overlay (Bottom-up and Left-right for readability) -->
     <View
