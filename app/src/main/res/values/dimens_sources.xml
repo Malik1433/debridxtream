@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M20 — the SELECT SOURCE panel against the phone rulebook (§1c). PHONE values; the TV's
+  literals live verbatim in values-television/dimens_sources.xml.
+
+  The panel renders inside the detail activities, which already carry the M13 1.6x font scale —
+  so its px÷2 type grows on its own. What it still had was 22-34dp touch targets, pill boxes
+  sized for the unscaled type (they clip at 1.6x), a header at y=0 under the phone's status
+  bar, and a 410dp panel whose fixed columns leave the release name ~5 characters.
+-->
+<resources>
+    <dimen name="source_sheet_width">480dp</dimen>
+    <dimen name="source_panel_top_inset">24dp</dimen>
+    <dimen name="source_header_height">60dp</dimen>
+    <dimen name="source_filter_bar_height">60dp</dimen>
+    <dimen name="source_filter_chip_height">48dp</dimen>
+    <dimen name="source_row_height">48dp</dimen>
+    <dimen name="source_provider_width">48dp</dimen>
+    <dimen name="source_provider_height">28dp</dimen>
+    <dimen name="source_lang_col_width">80dp</dimen>
+    <dimen name="source_quality_width">52dp</dimen>
+    <dimen name="source_type_width">64dp</dimen>
+    <dimen name="source_badge_height">24dp</dimen>
+    <dimen name="source_play_size">32dp</dimen>
+</resources>

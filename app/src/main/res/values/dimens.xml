@@ -155,7 +155,8 @@
     <!-- Source Picker Redesign -->
     <dimen name="dialog_corner_radius">16dp</dimen>
     <dimen name="left_panel_width">390dp</dimen>
-    <dimen name="source_row_height">60dp</dimen>
+    <!-- M20: source_row_height moved to dimens_sources.xml (phone/TV pair); the stale 60dp
+         entry here had no users and collided with the new name. -->
     <dimen name="source_row_corner">10dp</dimen>
     <dimen name="badge_corner">6dp</dimen>
     <dimen name="provider_badge_corner">8dp</dimen>

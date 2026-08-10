@@ -17,10 +17,11 @@
     <!-- Right panel -->
     <LinearLayout
         android:id="@+id/panel_sources"
-        android:layout_width="410dp"
+        android:layout_width="@dimen/source_sheet_width"
         android:layout_height="match_parent"
         android:layout_gravity="end"
         android:orientation="vertical"
+        android:paddingTop="@dimen/source_panel_top_inset"
         android:background="#0E0D15">
 
         <!-- Left edge border -->
@@ -30,7 +31,7 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/layout_header_container"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="@dimen/source_header_height"
             android:paddingStart="18dp"
             android:paddingEnd="18dp"
             android:background="#0E0D15">
@@ -67,7 +68,7 @@
             <LinearLayout
                 android:id="@+id/chip_lang_priority"
                 android:layout_width="wrap_content"
-                android:layout_height="20dp"
+                android:layout_height="@dimen/source_provider_height"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:background="@drawable/cin_lang_priority_chip"
@@ -143,7 +144,7 @@
         <FrameLayout
             android:id="@+id/filter_bar_layout"
             android:layout_width="match_parent"
-            android:layout_height="32dp"
+            android:layout_height="@dimen/source_filter_bar_height"
             android:background="#0E0D15">
 
             <LinearLayout
@@ -158,7 +159,7 @@
                 <TextView
                     android:id="@+id/chip_quality"
                     android:layout_width="wrap_content"
-                    android:layout_height="22dp"
+                    android:layout_height="@dimen/source_filter_chip_height"
                     android:layout_marginEnd="6dp"
                     android:background="@drawable/cin_detail_btn_glass"
                     android:paddingStart="9dp"
@@ -172,7 +173,7 @@
                 <TextView
                     android:id="@+id/chip_language"
                     android:layout_width="wrap_content"
-                    android:layout_height="22dp"
+                    android:layout_height="@dimen/source_filter_chip_height"
                     android:layout_marginEnd="6dp"
                     android:background="@drawable/cin_detail_btn_glass"
                     android:paddingStart="9dp"
@@ -186,7 +187,7 @@
                 <TextView
                     android:id="@+id/chip_type"
                     android:layout_width="wrap_content"
-                    android:layout_height="22dp"
+                    android:layout_height="@dimen/source_filter_chip_height"
                     android:background="@drawable/cin_detail_btn_glass"
                     android:paddingStart="9dp"
                     android:paddingEnd="9dp"

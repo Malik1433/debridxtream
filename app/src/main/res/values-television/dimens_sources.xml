@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M20 — the TV SELECT SOURCE panel's metrics, EXACTLY the literals that were inline in
+  dialog_source_selection.xml and item_movie_source.xml before this batch. Nothing here is
+  a new decision.
+-->
+<resources>
+    <dimen name="source_sheet_width">410dp</dimen>
+    <dimen name="source_panel_top_inset">0dp</dimen>
+    <dimen name="source_header_height">44dp</dimen>
+    <dimen name="source_filter_bar_height">32dp</dimen>
+    <dimen name="source_filter_chip_height">22dp</dimen>
+    <dimen name="source_row_height">34dp</dimen>
+    <dimen name="source_provider_width">34dp</dimen>
+    <dimen name="source_provider_height">20dp</dimen>
+    <dimen name="source_lang_col_width">52dp</dimen>
+    <dimen name="source_quality_width">38dp</dimen>
+    <dimen name="source_type_width">48dp</dimen>
+    <dimen name="source_badge_height">17dp</dimen>
+    <dimen name="source_play_size">22dp</dimen>
+</resources>

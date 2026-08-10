@@ -7,7 +7,7 @@
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="34dp"
+        android:layout_height="@dimen/source_row_height"
         android:layout_marginStart="6dp"
         android:layout_marginEnd="6dp"
         android:background="@drawable/source_row_bg"
@@ -41,8 +41,8 @@
             <!-- Col 1: Provider badge -->
             <TextView
                 android:id="@+id/tv_provider"
-                android:layout_width="34dp"
-                android:layout_height="20dp"
+                android:layout_width="@dimen/source_provider_width"
+                android:layout_height="@dimen/source_provider_height"
                 android:gravity="center"
                 android:textSize="9sp"
                 android:textStyle="bold"
@@ -54,7 +54,7 @@
             <!-- Col 2: Language flags -->
             <LinearLayout
                 android:id="@+id/ll_languages"
-                android:layout_width="52dp"
+                android:layout_width="@dimen/source_lang_col_width"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="5dp"
                 android:orientation="horizontal"
@@ -90,8 +90,8 @@
                 <!-- Col 4: Quality pill -->
                 <TextView
                     android:id="@+id/tv_quality"
-                    android:layout_width="38dp"
-                    android:layout_height="17dp"
+                    android:layout_width="@dimen/source_quality_width"
+                    android:layout_height="@dimen/source_badge_height"
                     android:layout_marginStart="5dp"
                     android:gravity="center"
                     android:textSize="8sp"
@@ -103,7 +103,7 @@
                 <TextView
                     android:id="@+id/tv_badge_seeders"
                     android:layout_width="wrap_content"
-                    android:layout_height="17dp"
+                    android:layout_height="@dimen/source_badge_height"
                     android:layout_marginStart="5dp"
                     android:gravity="center"
                     android:textSize="8sp"
@@ -117,8 +117,8 @@
                 <!-- Col 5: Type badge -->
                 <TextView
                     android:id="@+id/tv_type"
-                    android:layout_width="48dp"
-                    android:layout_height="17dp"
+                    android:layout_width="@dimen/source_type_width"
+                    android:layout_height="@dimen/source_badge_height"
                     android:layout_marginStart="5dp"
                     android:gravity="center"
                     android:textSize="8sp"
@@ -173,8 +173,8 @@
             <!-- Col 7: Play icon -->
             <ImageView
                 android:id="@+id/iv_play"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
+                android:layout_width="@dimen/source_play_size"
+                android:layout_height="@dimen/source_play_size"
                 android:layout_marginStart="6dp"
                 android:background="@drawable/play_btn_bg"
                 android:src="@drawable/ic_play_arrow_24"
@@ -187,7 +187,7 @@
             <TextView
                 android:id="@+id/tv_best_badge"
                 android:layout_width="wrap_content"
-                android:layout_height="20dp"
+                android:layout_height="@dimen/source_provider_height"
                 android:layout_marginStart="6dp"
                 android:gravity="center"
                 android:paddingHorizontal="8dp"
