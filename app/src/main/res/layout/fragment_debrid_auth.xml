@@ -76,7 +76,7 @@
             android:id="@+id/et_api_key"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Legacy Real-Debrid API Key"
+            android:hint="@string/ui_legacy_real_debrid_api_key"
             android:inputType="textPassword"
             android:textColor="@color/text_primary"
             android:textColorHint="@color/text_secondary" />
@@ -85,7 +85,7 @@
             android:id="@+id/btn_submit_manual"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Submit Legacy Key"
+            android:text="@string/ui_submit_legacy_key"
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="8dp" />
     </LinearLayout>
@@ -133,7 +133,7 @@
             android:id="@+id/btn_show_manual"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-        android:text="Legacy Manual Entry"
+        android:text="@string/ui_legacy_manual_entry"
         android:layout_marginTop="16dp"
         style="@style/Widget.AppCompat.Button.Borderless"
         android:textColor="@color/ds_accent_orange"

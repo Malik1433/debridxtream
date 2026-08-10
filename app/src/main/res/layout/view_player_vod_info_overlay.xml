@@ -33,7 +33,7 @@
             android:textStyle="bold"
             android:maxLines="1"
             android:ellipsize="end"
-            android:text="Title" />
+            android:text="@string/ui_title" />
 
         <TextView
             android:id="@+id/tv_vod_subtitle"
@@ -45,7 +45,7 @@
             android:alpha="0.8"
             android:maxLines="1"
             android:ellipsize="end"
-            android:text="Subtitle" />
+            android:text="@string/ui_subtitle" />
     </LinearLayout>
 </LinearLayout>
 

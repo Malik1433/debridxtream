@@ -10,7 +10,7 @@
     android:paddingTop="10dp"
     android:paddingEnd="20dp"
     android:paddingBottom="10dp"
-    android:text="Season 1"
+    android:text="@string/ui_season_1_2"
     android:textColor="@color/color_selector_season_text"
     android:textStyle="bold"
     android:fontFamily="@font/inter"

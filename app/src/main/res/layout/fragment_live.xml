@@ -62,7 +62,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Loading..."
+            android:text="@string/ui_loading"
             android:textSize="18sp"
             android:textColor="#FFFFFFFF" />
     </LinearLayout>
@@ -72,7 +72,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:text="No data available. Please login first."
+        android:text="@string/ui_no_data_available_please_login"
         android:textSize="20sp"
         android:textColor="#FFFFFFFF"
         android:visibility="gone" />

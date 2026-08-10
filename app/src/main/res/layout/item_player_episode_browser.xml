@@ -89,7 +89,7 @@
             android:paddingBottom="2dp"
             android:fontFamily="monospace"
             android:textStyle="bold"
-            android:text="▶ NOW"
+            android:text="@string/ui_now"
             android:textColor="@color/vodp_now_badge_text"
             android:textSize="9sp"
             android:visibility="gone"

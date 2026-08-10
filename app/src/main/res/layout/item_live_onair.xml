@@ -79,7 +79,7 @@
                 android:letterSpacing="0.06"
                 android:paddingHorizontal="3dp"
                 android:paddingVertical="0.5dp"
-                android:text="LIVE"
+                android:text="@string/livev2_live_badge"
                 android:textColor="@android:color/white"
                 android:textSize="4.5sp"
                 android:textStyle="bold"

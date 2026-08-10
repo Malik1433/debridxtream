@@ -9,7 +9,7 @@
     android:minWidth="96dp"
     android:paddingStart="20dp"
     android:paddingEnd="20dp"
-    android:text="S1"
+    android:text="@string/ui_s1"
     android:textAllCaps="false"
     android:textColor="@color/tab_button_text_selector"
     android:textSize="16sp"

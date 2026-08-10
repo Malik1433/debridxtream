@@ -70,7 +70,7 @@
             android:gravity="end"
             android:maxLines="1"
             android:ellipsize="end"
-            android:text="Title"
+            android:text="@string/ui_title"
             android:textColor="@color/cin_text_primary"
             android:textSize="@dimen/cin_text_body_sm"
             android:fontFamily="@font/plus_jakarta_sans"

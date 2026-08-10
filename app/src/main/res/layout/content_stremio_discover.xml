@@ -43,7 +43,7 @@
                     android:fontFamily="@font/outfit_bold"
                     android:textSize="8sp"
                     android:textColor="#F1F5F9"
-                    android:text="Top 10 This Week" />
+                    android:text="@string/ui_top_10_this_week" />
             </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
@@ -110,7 +110,7 @@
                     android:fontFamily="@font/outfit_bold"
                     android:textSize="7.5sp"
                     android:textColor="#F1F5F9"
-                    android:text="Trending Everywhere" />
+                    android:text="@string/ui_trending_everywhere" />
 
                 <Space
                     android:layout_width="0dp"

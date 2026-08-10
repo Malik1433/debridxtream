@@ -34,7 +34,7 @@
             android:id="@+id/tv_episode_number"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="EPISODE 1"
+            android:text="@string/ui_episode_1"
             style="@style/Cin.Text.Overline" />
         <TextView
             android:id="@+id/tv_episode_title"
@@ -43,7 +43,7 @@
             android:layout_marginTop="2dp"
             android:maxLines="1"
             android:ellipsize="end"
-            android:text="Pilot"
+            android:text="@string/ui_pilot"
             android:textColor="@color/cin_text_primary"
             android:textSize="@dimen/cin_text_body"
             android:fontFamily="@font/plus_jakarta_sans"
@@ -55,7 +55,7 @@
             android:layout_marginTop="4dp"
             android:maxLines="2"
             android:ellipsize="end"
-            android:text="Episode synopsis lorem ipsum dolor sit amet."
+            android:text="@string/ui_episode_synopsis_lorem_ipsum_dolor"
             android:textColor="@color/cin_text_secondary"
             android:textSize="@dimen/cin_text_caption"
             android:lineSpacingExtra="2dp"
@@ -67,7 +67,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="@dimen/cin_space_4"
-        android:text="48m"
+        android:text="@string/ui_48m"
         android:textColor="@color/cin_text_tertiary"
         android:textSize="@dimen/cin_text_caption"
         android:fontFamily="@font/plus_jakarta_sans" />

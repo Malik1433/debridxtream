@@ -24,7 +24,7 @@
             android:layout_width="match_parent"
             android:layout_height="140dp"
             android:scaleType="centerCrop"
-            android:contentDescription="Channel logo"
+            android:contentDescription="@string/ui_channel_logo"
             app:layout_constraintTop_toTopOf="parent" />
 
         <!-- Gradient Overlay at Bottom -->
@@ -58,7 +58,7 @@
                 android:id="@+id/tv_channel_number_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="BBC News HD"
+                android:text="@string/ui_bbc_news_hd"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary_new"

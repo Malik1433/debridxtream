@@ -67,7 +67,7 @@
                     android:paddingEnd="11dp"
                     android:paddingTop="5dp"
                     android:paddingBottom="5dp"
-                    android:text="● LIVE"
+                    android:text="@string/ui_live"
                     android:textColor="#FFFFFF"
                     android:textStyle="bold"
                     android:textSize="11sp"
@@ -174,7 +174,7 @@
                     android:textColor="@color/epg_text_primary"
                     android:textSize="15sp"
                     android:fontFamily="sans-serif-medium"
-                    android:text="Add to Favorites" />
+                    android:text="@string/movie_detail_add_to_favorites" />
             </LinearLayout>
 
             <!-- Right info -->
@@ -205,7 +205,7 @@
                     android:paddingEnd="12dp"
                     android:paddingTop="5dp"
                     android:paddingBottom="5dp"
-                    android:text="● XTREAM"
+                    android:text="@string/ui_xtream"
                     android:textColor="@color/epg_genre_sports"
                     android:textSize="11sp"
                     android:fontFamily="monospace" />
@@ -313,7 +313,7 @@
         android:textColor="@color/epg_text_primary"
         android:textSize="14sp"
         android:fontFamily="sans-serif-medium"
-        android:text="● Jump to Now" />
+        android:text="@string/ui_jump_to_now" />
 
     <!-- Persistent video bridge: the ONE PlayerView the guide ever renders live
          video into. At rest it is scaled/translated onto the preview tile (mini

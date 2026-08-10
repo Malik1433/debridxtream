@@ -14,7 +14,7 @@
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
         android:alpha="0.12"
-        android:contentDescription="Background Backdrop" />
+        android:contentDescription="@string/ui_background_backdrop" />
 
     <!-- Gradient Overlay -->
     <View
@@ -65,7 +65,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:gravity="center"
-                        android:text="DX"
+                        android:text="@string/livev2_brand_mark"
                         android:textColor="#041014"
                         android:textSize="14sp"
                         android:textStyle="bold"
@@ -81,7 +81,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="IPTV"
+                        android:text="@string/label_iptv"
                         android:textColor="@color/vod_text_primary"
                         android:textSize="15sp"
                         android:textStyle="bold"
@@ -91,7 +91,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="MOVIES"
+                        android:text="@string/ui_movies_2"
                         android:textColor="@color/vod_accent_cyan"
                         android:textSize="10sp"
                         android:fontFamily="monospace"
@@ -136,7 +136,7 @@
                         android:layout_marginEnd="12dp"
                         android:maxLines="1"
                         android:ellipsize="end"
-                        android:text="Search movies…"
+                        android:text="@string/ui_search_movies"
                         android:textColor="@color/vod_text_faint"
                         android:textSize="@dimen/vod_search_hint_size" />
                 </LinearLayout>
@@ -157,7 +157,7 @@
                 android:layout_height="wrap_content"
                 android:paddingStart="20dp"
                 android:paddingBottom="8dp"
-                android:text="Categories"
+                android:text="@string/live_osd_categories_title"
                 android:textColor="@color/vod_text_ghost"
                 android:textSize="10sp"
                 android:fontFamily="sans-serif-medium" />
@@ -191,7 +191,7 @@
                     android:id="@+id/tv_offline_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="OFFLINE MODE"
+                    android:text="@string/ui_offline_mode"
                     android:textColor="@color/vod_amber"
                     android:textSize="11sp"
                     android:fontFamily="monospace" />
@@ -235,7 +235,7 @@
                         android:id="@+id/tv_category_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="All Movies"
+                        android:text="@string/ui_all_movies"
                         android:textColor="@color/vod_text_primary"
                         android:textSize="@dimen/vod_section_title_size"
                         android:textStyle="bold"
@@ -248,7 +248,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="0 titles"
+                        android:text="@string/ui_0_titles"
                         android:textColor="@color/vod_text_faint"
                         android:textSize="@dimen/vod_section_meta_size"
                         android:fontFamily="sans-serif" />
@@ -359,7 +359,7 @@
             android:id="@+id/tv_empty_message"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="No movies available"
+            android:text="@string/ui_no_movies_available"
             android:textSize="22sp"
             android:textStyle="bold"
             android:textColor="@color/vod_text_secondary"
@@ -370,7 +370,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Please check your connection or login again"
+            android:text="@string/ui_please_check_your_connection_or"
             android:textSize="16sp"
             android:textColor="@color/vod_text_muted"
             android:gravity="center" />
@@ -382,7 +382,7 @@
             android:layout_marginTop="20dp"
             android:paddingHorizontal="28dp"
             android:paddingVertical="12dp"
-            android:text="RETRY"
+            android:text="@string/ui_retry"
             android:textSize="14sp"
             android:textStyle="bold"
             android:fontFamily="sans-serif-medium"

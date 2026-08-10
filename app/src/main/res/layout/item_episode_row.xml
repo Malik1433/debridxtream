@@ -59,7 +59,7 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="Episode Title"
+            android:text="@string/ui_episode_title"
             android:textColor="@color/ds_text_primary"
             android:textSize="18sp"
             android:textStyle="bold" />

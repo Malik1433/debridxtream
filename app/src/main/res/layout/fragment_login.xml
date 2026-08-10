@@ -90,7 +90,7 @@
                     android:gravity="center"
                     android:includeFontPadding="false"
                     android:letterSpacing="-0.04"
-                    android:text="DX"
+                    android:text="@string/livev2_brand_mark"
                     android:textColor="#041014"
                     android:textSize="28sp"
                     android:textStyle="bold" />
@@ -115,7 +115,7 @@
                     android:layout_marginTop="5dp"
                     android:fontFamily="monospace"
                     android:letterSpacing="0.22"
-                    android:text="IPTV · DEBRID · 4K"
+                    android:text="@string/ui_iptv_debrid_4k"
                     android:textColor="#64748B"
                     android:textSize="7sp" />
 
@@ -147,7 +147,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="4dp"
                             android:fontFamily="@font/inter"
-                            android:text="IPTV Xtream"
+                            android:text="@string/ui_iptv_xtream"
                             android:textColor="#94A3B8"
                             android:textSize="7sp" />
                     </LinearLayout>
@@ -173,7 +173,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="4dp"
                             android:fontFamily="@font/inter"
-                            android:text="Real Debrid"
+                            android:text="@string/ui_real_debrid"
                             android:textColor="#94A3B8"
                             android:textSize="7sp" />
                     </LinearLayout>
@@ -199,7 +199,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="4dp"
                             android:fontFamily="@font/inter"
-                            android:text="4K · HDR"
+                            android:text="@string/ui_4k_hdr"
                             android:textColor="#94A3B8"
                             android:textSize="7sp" />
                     </LinearLayout>
@@ -225,7 +225,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="4dp"
                             android:fontFamily="@font/inter"
-                            android:text="Android TV"
+                            android:text="@string/ui_android_tv"
                             android:textColor="#94A3B8"
                             android:textSize="7sp" />
                     </LinearLayout>
@@ -289,7 +289,7 @@
                         android:fontFamily="@font/plus_jakarta_sans"
                         android:includeFontPadding="false"
                         android:letterSpacing="-0.02"
-                        android:text="Sign In"
+                        android:text="@string/ui_sign_in"
                         android:textColor="#F1F5F9"
                         android:textSize="19sp"
                         android:textStyle="bold" />
@@ -302,7 +302,7 @@
                     android:layout_marginStart="8dp"
                     android:layout_marginTop="6dp"
                     android:fontFamily="@font/inter"
-                    android:text="Enter your Xtream credentials to continue"
+                    android:text="@string/ui_enter_your_xtream_credentials_to"
                     android:textColor="#64748B"
                     android:textSize="9sp" />
 
@@ -323,7 +323,7 @@
                         android:layout_marginBottom="4dp"
                         android:fontFamily="monospace"
                         android:letterSpacing="0.14"
-                        android:text="SERVER URL"
+                        android:text="@string/ui_server_url"
                         android:textColor="#475569"
                         android:textSize="6sp" />
 
@@ -353,7 +353,7 @@
                             android:layout_weight="1"
                             android:background="@null"
                             android:fontFamily="monospace"
-                            android:hint="http://server.example.tv"
+                            android:hint="@string/ui_http_server_example_tv"
                             android:imeOptions="actionNext"
                             android:importantForAutofill="no"
                             android:inputType="textUri"
@@ -377,7 +377,7 @@
                         android:layout_marginBottom="4dp"
                         android:fontFamily="monospace"
                         android:letterSpacing="0.14"
-                        android:text="USERNAME"
+                        android:text="@string/ui_username"
                         android:textColor="#475569"
                         android:textSize="6sp" />
 
@@ -407,7 +407,7 @@
                             android:layout_weight="1"
                             android:background="@null"
                             android:fontFamily="@font/inter"
-                            android:hint="Username"
+                            android:hint="@string/login_username_hint"
                             android:imeOptions="actionNext"
                             android:importantForAutofill="no"
                             android:inputType="text"
@@ -430,7 +430,7 @@
                         android:layout_marginBottom="4dp"
                         android:fontFamily="monospace"
                         android:letterSpacing="0.14"
-                        android:text="PASSWORD"
+                        android:text="@string/ui_password"
                         android:textColor="#475569"
                         android:textSize="6sp" />
 
@@ -460,7 +460,7 @@
                             android:layout_weight="1"
                             android:background="@null"
                             android:fontFamily="@font/inter"
-                            android:hint="Password"
+                            android:hint="@string/login_password_hint"
                             android:imeOptions="actionDone"
                             android:importantForAutofill="no"
                             android:inputType="textPassword"
@@ -478,7 +478,7 @@
                             android:layout_width="@dimen/login_toggle_size"
                             android:layout_height="@dimen/login_toggle_size"
                             android:clickable="true"
-                            android:contentDescription="Show password"
+                            android:contentDescription="@string/ui_show_password"
                             android:focusable="true"
                             android:nextFocusLeft="@id/et_password"
                             android:nextFocusUp="@id/et_username"
@@ -560,7 +560,7 @@
                         android:layout_marginStart="7dp"
                         android:fontFamily="@font/plus_jakarta_sans"
                         android:letterSpacing="0.04"
-                        android:text="Sign In"
+                        android:text="@string/ui_sign_in"
                         android:textColor="#475569"
                         android:textSize="11sp"
                         android:textStyle="bold" />
@@ -588,7 +588,7 @@
                         android:layout_marginHorizontal="7dp"
                         android:fontFamily="monospace"
                         android:letterSpacing="0.1"
-                        android:text="OR"
+                        android:text="@string/ui_or"
                         android:textColor="#475569"
                         android:textSize="6sp" />
 
@@ -627,7 +627,7 @@
                         android:layout_marginStart="6dp"
                         android:duplicateParentState="true"
                         android:fontFamily="@font/plus_jakarta_sans"
-                        android:text="Connect via Phone / QR"
+                        android:text="@string/ui_connect_via_phone_qr"
                         android:textColor="@color/sel_login_secondary_text"
                         android:textSize="9sp"
                         android:textStyle="bold" />
@@ -654,7 +654,7 @@
                         android:layout_height="wrap_content"
                         android:duplicateParentState="true"
                         android:fontFamily="@font/plus_jakarta_sans"
-                        android:text="Sign in with your account"
+                        android:text="@string/ui_sign_in_with_your_account"
                         android:textColor="@color/sel_login_secondary_text"
                         android:textSize="9sp"
                         android:textStyle="bold" />
@@ -683,7 +683,7 @@
                     android:fontFamily="monospace"
                     android:gravity="center"
                     android:letterSpacing="0.1"
-                    android:text="▲ ▼ NAVIGATE · OK SELECT · BACK CLEAR"
+                    android:text="@string/ui_navigate_ok_select_back_clear"
                     android:textColor="#334155"
                     android:textSize="6sp" />
             </LinearLayout>
@@ -729,7 +729,7 @@
                     android:fontFamily="@font/plus_jakarta_sans"
                     android:includeFontPadding="false"
                     android:letterSpacing="-0.02"
-                    android:text="Connect via Phone"
+                    android:text="@string/ui_connect_via_phone"
                     android:textColor="#F1F5F9"
                     android:textSize="18sp"
                     android:textStyle="bold" />
@@ -773,7 +773,7 @@
                             android:fontFamily="@font/plus_jakarta_sans"
                             android:gravity="center"
                             android:includeFontPadding="false"
-                            android:text="DX"
+                            android:text="@string/livev2_brand_mark"
                             android:textColor="#FFFFFF"
                             android:textSize="7sp"
                             android:textStyle="bold" />
@@ -792,7 +792,7 @@
                         android:layout_marginTop="10dp"
                         android:fontFamily="monospace"
                         android:letterSpacing="0.12"
-                        android:text="SCAN WITH YOUR PHONE CAMERA"
+                        android:text="@string/ui_scan_with_your_phone_camera"
                         android:textColor="#64748B"
                         android:textSize="7sp" />
                 </LinearLayout>
@@ -834,7 +834,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/plus_jakarta_sans"
-                                android:text="Scan the code"
+                                android:text="@string/ui_scan_the_code"
                                 android:textColor="#F1F5F9"
                                 android:textSize="9sp"
                                 android:textStyle="bold" />
@@ -845,7 +845,7 @@
                                 android:layout_marginTop="2dp"
                                 android:fontFamily="@font/inter"
                                 android:lineSpacingMultiplier="1.4"
-                                android:text="Point your phone camera at the QR code — no app to install."
+                                android:text="@string/ui_point_your_phone_camera_at"
                                 android:textColor="#64748B"
                                 android:textSize="8sp" />
                         </LinearLayout>
@@ -881,7 +881,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/plus_jakarta_sans"
-                                android:text="Sign in on your phone"
+                                android:text="@string/ui_sign_in_on_your_phone"
                                 android:textColor="#F1F5F9"
                                 android:textSize="9sp"
                                 android:textStyle="bold" />
@@ -892,7 +892,7 @@
                                 android:layout_marginTop="2dp"
                                 android:fontFamily="@font/inter"
                                 android:lineSpacingMultiplier="1.4"
-                                android:text="Create an account or sign in. Google works too."
+                                android:text="@string/ui_create_an_account_or_sign"
                                 android:textColor="#64748B"
                                 android:textSize="8sp" />
                         </LinearLayout>
@@ -939,7 +939,7 @@
                                 android:layout_marginTop="2dp"
                                 android:fontFamily="@font/inter"
                                 android:lineSpacingMultiplier="1.4"
-                                android:text="The code below is already filled in — just confirm. Your playlists then load here by themselves."
+                                android:text="@string/ui_the_code_below_is_already"
                                 android:textColor="#64748B"
                                 android:textSize="8sp" />
                         </LinearLayout>
@@ -952,7 +952,7 @@
                         android:layout_marginTop="12dp"
                         android:fontFamily="monospace"
                         android:letterSpacing="0.14"
-                        android:text="PAIRING CODE"
+                        android:text="@string/ui_pairing_code"
                         android:textColor="#475569"
                         android:textSize="6sp" />
 
@@ -1008,7 +1008,7 @@
                             android:layout_weight="1"
                             android:fontFamily="monospace"
                             android:letterSpacing="0.06"
-                            android:text="WAITING FOR PHONE TO CONNECT…"
+                            android:text="@string/ui_waiting_for_phone_to_connect"
                             android:textColor="#00F0FF"
                             android:textSize="7sp" />
                     </LinearLayout>
@@ -1043,7 +1043,7 @@
                     android:layout_marginStart="5dp"
                     android:duplicateParentState="true"
                     android:fontFamily="@font/plus_jakarta_sans"
-                    android:text="Back to Sign In"
+                    android:text="@string/ui_back_to_sign_in"
                     android:textColor="@color/sel_login_secondary_text"
                     android:textSize="9sp"
                     android:textStyle="bold" />
@@ -1074,7 +1074,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/plus_jakarta_sans"
-                android:text="Sign in to your account"
+                android:text="@string/login_card_heading"
                 android:textColor="#E2E8F0"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -1085,7 +1085,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
                 android:fontFamily="@font/plus_jakarta_sans"
-                android:text="Your playlists load automatically."
+                android:text="@string/ui_your_playlists_load_automatically"
                 android:textColor="#64748B"
                 android:textSize="8sp" />
 
@@ -1096,7 +1096,7 @@
                 android:layout_marginTop="14dp"
                 android:background="@drawable/bg_login_field"
                 android:fontFamily="@font/plus_jakarta_sans"
-                android:hint="Email"
+                android:hint="@string/ui_email"
                 android:imeOptions="actionNext"
                 android:inputType="textEmailAddress"
                 android:nextFocusDown="@id/et_account_password"
@@ -1114,7 +1114,7 @@
                 android:layout_marginTop="8dp"
                 android:background="@drawable/bg_login_field"
                 android:fontFamily="@font/plus_jakarta_sans"
-                android:hint="Password"
+                android:hint="@string/login_password_hint"
                 android:imeOptions="actionDone"
                 android:inputType="textPassword"
                 android:nextFocusUp="@id/et_account_email"
@@ -1157,7 +1157,7 @@
                     android:layout_height="wrap_content"
                     android:duplicateParentState="true"
                     android:fontFamily="@font/plus_jakarta_sans"
-                    android:text="Sign in"
+                    android:text="@string/ui_sign_in_2"
                     android:textColor="#475569"
                     android:textSize="10sp"
                     android:textStyle="bold" />
@@ -1171,7 +1171,7 @@
                 android:layout_marginTop="12dp"
                 android:fontFamily="@font/plus_jakarta_sans"
                 android:gravity="center"
-                android:text="No account yet? Create one on your phone at"
+                android:text="@string/ui_no_account_yet_create_one"
                 android:textColor="#64748B"
                 android:textSize="8sp" />
 
@@ -1203,7 +1203,7 @@
                     android:layout_height="wrap_content"
                     android:duplicateParentState="true"
                     android:fontFamily="@font/plus_jakarta_sans"
-                    android:text="Back"
+                    android:text="@string/live_nav_back"
                     android:textColor="@color/sel_login_secondary_text"
                     android:textSize="9sp"
                     android:textStyle="bold" />

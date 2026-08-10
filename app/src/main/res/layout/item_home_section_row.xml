@@ -14,7 +14,7 @@
         android:id="@+id/tv_row_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Category Title"
+        android:text="@string/ui_category_title"
         android:textColor="@color/white"
         android:textSize="18sp"
         android:textStyle="bold"

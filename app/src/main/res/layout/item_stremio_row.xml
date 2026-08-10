@@ -58,7 +58,7 @@
                 android:fontFamily="@font/outfit_medium"
                 android:textSize="8.5sp"
                 android:textColor="#00F0FF"
-                android:text="See all"
+                android:text="@string/ui_see_all_2"
                 android:layout_marginEnd="3dp" />
 
             <ImageView

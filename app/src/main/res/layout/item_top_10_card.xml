@@ -87,7 +87,7 @@
             android:id="@+id/tv_card_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Title"
+            android:text="@string/ui_title"
             android:textSize="9.5sp"
             android:textStyle="bold"
             android:textColor="#F1F5F9"

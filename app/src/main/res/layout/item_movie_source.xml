@@ -193,7 +193,7 @@
                 android:gravity="center"
                 android:paddingHorizontal="8dp"
                 android:background="@drawable/cin_best_badge_bg"
-                android:text="★ BEST"
+                android:text="@string/ui_best"
                 android:textColor="#00F0FF"
                 android:textSize="8sp"
                 android:textStyle="bold"

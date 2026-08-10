@@ -66,7 +66,7 @@
                     android:id="@+id/tv_sync_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Preparing your library"
+                    android:text="@string/ui_preparing_your_library"
                     android:textColor="@color/text_primary_new"
                     android:textSize="24sp"
                     android:textStyle="bold" />
@@ -76,7 +76,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="Syncing channels, movies, and series"
+                    android:text="@string/ui_syncing_channels_movies_and_series"
                     android:textColor="@color/text_secondary_new"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -87,7 +87,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:text="Preparing data"
+            android:text="@string/ui_preparing_data"
             android:textColor="@color/text_primary_new"
             android:textSize="16sp"
             android:textStyle="bold"
@@ -153,7 +153,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="Channels"
+                    android:text="@string/live_osd_channels_title"
                     android:textColor="@color/text_secondary_new"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -178,7 +178,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="Movies"
+                    android:text="@string/nav_movies"
                     android:textColor="@color/text_secondary_new"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -203,7 +203,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="Series"
+                    android:text="@string/nav_series"
                     android:textColor="@color/text_secondary_new"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -214,7 +214,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="First sync can take a minute. Please keep the app open."
+            android:text="@string/ui_first_sync_can_take_a"
             android:textColor="@color/text_tertiary"
             android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"
@@ -226,7 +226,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:text="Sync failed. Check your connection."
+            android:text="@string/ui_sync_failed_check_your_connection"
             android:textColor="@color/error_red"
             android:textSize="12sp"
             android:visibility="gone"
@@ -242,7 +242,7 @@
             android:background="@drawable/btn_login_modern"
             android:paddingLeft="28dp"
             android:paddingRight="28dp"
-            android:text="Retry Sync"
+            android:text="@string/ui_retry_sync"
             android:textAllCaps="true"
             android:textColor="@color/text_primary_new"
             android:textSize="14sp"

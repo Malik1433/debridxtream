@@ -18,7 +18,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:fontFamily="@font/outfit_semibold"
-        android:text="Select Categories"
+        android:text="@string/ui_select_categories"
         android:textColor="#F1F5F9"
         android:textSize="22sp" />
 
@@ -33,7 +33,7 @@
         android:textSize="13sp"
         android:letterSpacing="0.06"
         tools:ignore="HardcodedText"
-        android:text="SAVED AS YOU GO · PRESS BACK WHEN DONE" />
+        android:text="@string/ui_saved_as_you_go_press" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_categories"

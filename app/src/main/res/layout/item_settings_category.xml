@@ -52,7 +52,7 @@
             android:textColor="#F1F5F9"
             android:maxLines="1"
             android:ellipsize="end"
-            android:text="General" />
+            android:text="@string/ui_general" />
 
         <TextView
             android:id="@+id/tv_sub"

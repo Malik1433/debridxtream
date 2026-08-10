@@ -42,7 +42,7 @@
             android:layout_marginTop="@dimen/cin_space_3"
             android:maxLines="1"
             android:ellipsize="end"
-            android:text="Title"
+            android:text="@string/ui_title"
             android:textColor="@color/cin_text_primary"
             android:textSize="@dimen/cin_text_body_sm"
             android:fontFamily="@font/plus_jakarta_sans"
@@ -55,7 +55,7 @@
             android:layout_marginTop="2dp"
             android:maxLines="1"
             android:ellipsize="end"
-            android:text="2024 · Drama · 8.2"
+            android:text="@string/ui_2024_drama_8_2"
             android:textColor="@color/cin_text_tertiary"
             android:textSize="11sp"
             android:fontFamily="@font/plus_jakarta_sans" />
@@ -71,7 +71,7 @@
         android:layout_gravity="end|top"
         android:layout_marginEnd="@dimen/cin_space_2"
         android:layout_marginTop="@dimen/cin_space_2"
-        android:text="HD"
+        android:text="@string/ui_hd"
         android:visibility="gone"
         tools:visibility="visible" />
 

@@ -18,7 +18,7 @@
         android:layout_height="64dp"
         android:layout_gravity="center_horizontal"
         android:layout_marginBottom="24dp"
-        android:contentDescription="Error"
+        android:contentDescription="@string/ui_error"
         android:src="@drawable/ic_error_generic"
         android:scaleType="centerInside" />
 
@@ -29,7 +29,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:gravity="center"
-        android:text="Error Title"
+        android:text="@string/ui_error_title"
         android:textColor="@android:color/white"
         android:textSize="28sp"
         android:textStyle="bold" />
@@ -42,7 +42,7 @@
         android:layout_marginBottom="16dp"
         android:gravity="center"
         android:lineSpacingExtra="8dp"
-        android:text="Error message description here"
+        android:text="@string/ui_error_message_description_here"
         android:textColor="@android:color/white"
         android:textSize="20sp" />
 
@@ -53,7 +53,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
         android:gravity="center"
-        android:text="Error details here"
+        android:text="@string/ui_error_details_here"
         android:textColor="@android:color/darker_gray"
         android:textSize="16sp"
         android:visibility="gone" />
@@ -74,7 +74,7 @@
             android:layout_height="56dp"
             android:layout_marginEnd="16dp"
             android:layout_weight="1"
-            android:text="Retry"
+            android:text="@string/debrid_retry"
             android:visibility="visible" />
 
         <!-- Negative Action Button -->
@@ -85,7 +85,7 @@
             android:layout_height="56dp"
             android:layout_marginEnd="16dp"
             android:layout_weight="1"
-            android:text="Cancel"
+            android:text="@string/cancel"
             android:visibility="gone" />
 
         <!-- Settings/Tertiary Button -->
@@ -95,7 +95,7 @@
             android:layout_width="0dp"
             android:layout_height="56dp"
             android:layout_weight="1"
-            android:text="Settings"
+            android:text="@string/settings"
             android:visibility="gone" />
 
     </LinearLayout>

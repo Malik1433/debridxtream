@@ -21,7 +21,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:text="Trending Now"
+        android:text="@string/ui_trending_now"
         style="@style/Cin.Text.SectionHeader"
         android:textColor="@color/cin_text_primary" />
 
@@ -29,7 +29,7 @@
         android:id="@+id/tv_section_view_all"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="View all"
+        android:text="@string/ui_view_all"
         android:textColor="@color/cin_gold_300"
         android:textSize="@dimen/cin_text_caption"
         android:fontFamily="@font/plus_jakarta_sans"

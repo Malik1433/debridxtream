@@ -44,7 +44,7 @@
                     android:textSize="@dimen/settings_screen_title_size"
                     android:textColor="#F1F5F9"
                     android:letterSpacing="-0.02"
-                    android:text="Settings" />
+                    android:text="@string/settings" />
             </LinearLayout>
 
             <TextView

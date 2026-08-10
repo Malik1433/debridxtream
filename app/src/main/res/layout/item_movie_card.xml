@@ -44,7 +44,7 @@
             android:id="@+id/iv_movie_poster"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:contentDescription="Movie Poster"
+            android:contentDescription="@string/ui_movie_poster"
             android:scaleType="centerCrop" />
 
         <!-- Quality Badge (top-right) -->
@@ -64,7 +64,7 @@
                 android:id="@+id/tv_quality_value"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="HD"
+                android:text="@string/ui_hd"
                 android:textColor="@color/vod_accent_cyan"
                 android:textSize="9sp"
                 android:textStyle="bold"
@@ -137,7 +137,7 @@
         android:layout_marginTop="9dp"
         android:maxLines="@integer/vod_card_title_lines"
         android:ellipsize="end"
-        android:text="Movie Title"
+        android:text="@string/movie_detail_title_placeholder"
         android:textColor="#E2E8F0"
         android:textSize="@dimen/vod_card_title_size"
         android:fontFamily="sans-serif-medium"

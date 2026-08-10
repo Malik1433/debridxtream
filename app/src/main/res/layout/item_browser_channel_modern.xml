@@ -32,7 +32,7 @@
             <TextView
                 android:id="@+id/badge_hd_modern"
                 style="@style/ChannelBadgeText"
-                android:text="HD"
+                android:text="@string/ui_hd"
                 android:background="@drawable/badge_background"
                 android:visibility="gone"
                 tools:visibility="visible" />
@@ -40,7 +40,7 @@
             <TextView
                 android:id="@+id/badge_4k_modern"
                 style="@style/ChannelBadgeText"
-                android:text="4K"
+                android:text="@string/ui_4k"
                 android:background="@drawable/badge_background"
                 android:layout_marginStart="4dp"
                 android:visibility="gone"

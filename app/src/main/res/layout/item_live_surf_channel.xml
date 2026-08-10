@@ -107,7 +107,7 @@
                     android:letterSpacing="0.06"
                     android:paddingHorizontal="3.5dp"
                     android:paddingVertical="1dp"
-                    android:text="▶ PLAYING"
+                    android:text="@string/ui_playing"
                     android:textColor="#041014"
                     android:textSize="4.5sp"
                     android:textStyle="bold"

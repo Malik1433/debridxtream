@@ -125,7 +125,7 @@
             android:id="@+id/tv_continue_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Content Title"
+            android:text="@string/ui_content_title"
             android:textSize="7sp"
             android:textStyle="bold"
             android:textColor="#E2E8F0"

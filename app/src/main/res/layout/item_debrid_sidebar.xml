@@ -20,7 +20,7 @@
         android:layout_height="32dp"
         android:scaleType="fitCenter"
         app:tint="@color/color_debrid_sidebar_icon"
-        android:contentDescription="Navigation Icon" />
+        android:contentDescription="@string/ui_navigation_icon" />
 
     <TextView
         android:id="@+id/tv_label"
@@ -37,6 +37,6 @@
         android:ellipsize="end"
         android:visibility="gone"
         android:alpha="0"
-        android:text="Dashboard" />
+        android:text="@string/ui_dashboard" />
 
 </LinearLayout>

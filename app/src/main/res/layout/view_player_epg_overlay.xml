@@ -55,7 +55,7 @@
                     android:textStyle="bold"
                     android:maxLines="1"
                     android:ellipsize="end"
-                    android:text="Channel Name" />
+                    android:text="@string/ui_channel_name" />
             </LinearLayout>
 
             <LinearLayout
@@ -72,7 +72,7 @@
                     android:background="@drawable/badge_live_red"
                     android:paddingHorizontal="10dp"
                     android:paddingVertical="6dp"
-                    android:text="LIVE"
+                    android:text="@string/livev2_live_badge"
                     android:textAllCaps="true"
                     android:textColor="@android:color/white"
                     android:textSize="12sp"
@@ -100,7 +100,7 @@
                 android:textSize="18sp"
                 android:maxLines="1"
                 android:ellipsize="end"
-                android:text="Program title" />
+                android:text="@string/ui_program_title" />
 
             <ProgressBar
                 android:id="@+id/progress_now"
@@ -121,7 +121,7 @@
                 android:textSize="13sp"
                 android:alpha="0.8"
                 android:visibility="gone"
-                android:text="Syncing TV guide…" />
+                android:text="@string/ui_syncing_tv_guide" />
         </LinearLayout>
 
         <!-- Right: NOW card + NEXT cards -->
@@ -155,7 +155,7 @@
                         android:background="@drawable/badge_live_red"
                         android:paddingHorizontal="10dp"
                         android:paddingVertical="6dp"
-                        android:text="LIVE"
+                        android:text="@string/livev2_live_badge"
                         android:textAllCaps="true"
                         android:textColor="@android:color/white"
                         android:textSize="12sp"
@@ -185,7 +185,7 @@
                     android:textStyle="bold"
                     android:maxLines="1"
                     android:ellipsize="end"
-                    android:text="Program title" />
+                    android:text="@string/ui_program_title" />
             </LinearLayout>
 
             <LinearLayout
@@ -210,7 +210,7 @@
                         android:background="@drawable/bg_badge_next_green"
                         android:paddingHorizontal="10dp"
                         android:paddingVertical="6dp"
-                        android:text="NEXT"
+                        android:text="@string/ui_next"
                         android:textAllCaps="true"
                         android:textColor="@android:color/white"
                         android:textSize="12sp"
@@ -241,7 +241,7 @@
                     android:textStyle="bold"
                     android:maxLines="1"
                     android:ellipsize="end"
-                    android:text="Upcoming title" />
+                    android:text="@string/ui_upcoming_title" />
             </LinearLayout>
 
             <LinearLayout
@@ -266,7 +266,7 @@
                         android:background="@drawable/bg_badge_next_green"
                         android:paddingHorizontal="10dp"
                         android:paddingVertical="6dp"
-                        android:text="NEXT"
+                        android:text="@string/ui_next"
                         android:textAllCaps="true"
                         android:textColor="@android:color/white"
                         android:textSize="12sp"
@@ -297,7 +297,7 @@
                     android:textStyle="bold"
                     android:maxLines="1"
                     android:ellipsize="end"
-                    android:text="Upcoming title" />
+                    android:text="@string/ui_upcoming_title" />
             </LinearLayout>
 
             <LinearLayout
@@ -321,7 +321,7 @@
                         android:background="@drawable/bg_badge_next_green"
                         android:paddingHorizontal="10dp"
                         android:paddingVertical="6dp"
-                        android:text="NEXT"
+                        android:text="@string/ui_next"
                         android:textAllCaps="true"
                         android:textColor="@android:color/white"
                         android:textSize="12sp"
@@ -352,7 +352,7 @@
                     android:textStyle="bold"
                     android:maxLines="1"
                     android:ellipsize="end"
-                    android:text="Upcoming title" />
+                    android:text="@string/ui_upcoming_title" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

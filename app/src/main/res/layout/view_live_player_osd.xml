@@ -157,7 +157,7 @@
                         android:layout_marginStart="3dp"
                         android:fontFamily="monospace"
                         android:letterSpacing="0.08"
-                        android:text="LIVE"
+                        android:text="@string/livev2_live_badge"
                         android:textColor="@android:color/white"
                         android:textSize="5sp"
                         android:textStyle="bold" />
@@ -363,7 +363,7 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="monospace"
                         android:letterSpacing="0.16"
-                        android:text="NOW PLAYING"
+                        android:text="@string/ui_now_playing_2"
                         android:textColor="@color/neon_cyan"
                         android:textSize="6.5sp" />
 
@@ -485,7 +485,7 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="monospace"
                         android:letterSpacing="0.18"
-                        android:text="ON AIR NOW"
+                        android:text="@string/ui_on_air_now"
                         android:textColor="#3D4F60"
                         android:textSize="5sp" />
 
@@ -548,7 +548,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="5.5dp"
                     android:fontFamily="@font/plus_jakarta_sans"
-                    android:text="Channels"
+                    android:text="@string/live_osd_channels_title"
                     android:textColor="@color/live_osd_text_primary"
                     android:textSize="8sp"
                     android:textStyle="bold" />
@@ -579,7 +579,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="5.5dp"
                     android:fontFamily="@font/plus_jakarta_sans"
-                    android:text="TV Guide"
+                    android:text="@string/live_guide_title"
                     android:textColor="@color/live_osd_text_primary"
                     android:textSize="8sp"
                     android:textStyle="bold" />
@@ -600,7 +600,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="monospace"
-                    android:text="CC"
+                    android:text="@string/ui_cc"
                     android:textColor="@color/live_osd_text_muted"
                     android:textSize="6sp" />
 
@@ -715,7 +715,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.1"
-                android:text="▲▼ CHANGE CH"
+                android:text="@string/ui_change_ch"
                 android:textColor="@color/live_osd_text_muted"
                 android:textSize="6sp" />
 
@@ -733,7 +733,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.1"
-                android:text="◀ CHANNELS"
+                android:text="@string/ui_channels"
                 android:textColor="@color/live_osd_text_muted"
                 android:textSize="6sp" />
 
@@ -751,7 +751,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.1"
-                android:text="◀◀ CATEGORIES"
+                android:text="@string/ui_categories"
                 android:textColor="@color/live_osd_text_muted"
                 android:textSize="6sp" />
 
@@ -769,7 +769,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.1"
-                android:text="OK SELECT"
+                android:text="@string/ui_ok_select"
                 android:textColor="@color/live_osd_text_muted"
                 android:textSize="6sp" />
 
@@ -787,7 +787,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.1"
-                android:text="BACK EXIT"
+                android:text="@string/ui_back_exit"
                 android:textColor="@color/live_osd_text_muted"
                 android:textSize="6sp" />
         </LinearLayout>
@@ -833,7 +833,7 @@
                 android:layout_marginStart="5dp"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.14"
-                android:text="BACK TO CHANNELS"
+                android:text="@string/ui_back_to_channels"
                 android:textColor="@color/live_osd_text_soft"
                 android:textSize="5.5sp" />
         </LinearLayout>
@@ -974,7 +974,7 @@
                             android:letterSpacing="0.07"
                             android:paddingHorizontal="4dp"
                             android:paddingVertical="1dp"
-                            android:text="LIVE"
+                            android:text="@string/livev2_live_badge"
                             android:textColor="@android:color/white"
                             android:textSize="4.5sp"
                             android:textStyle="bold" />
@@ -1092,7 +1092,7 @@
                     android:layout_marginStart="4dp"
                     android:fontFamily="monospace"
                     android:letterSpacing="0.1"
-                    android:text="◀ CATEGORIES"
+                    android:text="@string/ui_categories_2"
                     android:textColor="@color/neon_cyan"
                     android:textSize="5.5sp" />
             </LinearLayout>
@@ -1188,7 +1188,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.1"
-                android:text="BACK · CLOSE"
+                android:text="@string/ui_back_close"
                 android:textColor="@color/live_osd_text_muted"
                 android:textSize="5.5sp" />
         </LinearLayout>
@@ -1207,7 +1207,7 @@
                 android:gravity="center_vertical"
                 android:letterSpacing="0.16"
                 android:paddingStart="11dp"
-                android:text="CH · PROGRAM"
+                android:text="@string/ui_ch_program"
                 android:textColor="@color/live_osd_text_faint"
                 android:textSize="6sp" />
 
@@ -1240,7 +1240,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.1"
-                android:text="▲▼ CHANNEL"
+                android:text="@string/ui_channel_2"
                 android:textColor="@color/live_osd_text_muted"
                 android:textSize="5.5sp" />
 
@@ -1258,7 +1258,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.1"
-                android:text="◀▶ SHOW"
+                android:text="@string/ui_show"
                 android:textColor="@color/live_osd_text_muted"
                 android:textSize="5.5sp" />
 
@@ -1276,7 +1276,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.1"
-                android:text="OK · TUNE"
+                android:text="@string/ui_ok_tune"
                 android:textColor="@color/live_osd_text_soft"
                 android:textSize="5.5sp" />
 
@@ -1294,7 +1294,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.1"
-                android:text="BACK · CLOSE"
+                android:text="@string/ui_back_close"
                 android:textColor="@color/live_osd_text_muted"
                 android:textSize="5.5sp" />
         </LinearLayout>

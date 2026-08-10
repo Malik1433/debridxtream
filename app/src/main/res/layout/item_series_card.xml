@@ -54,7 +54,7 @@
             android:id="@+id/iv_series_poster"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:contentDescription="Series Poster"
+            android:contentDescription="@string/ui_series_poster"
             android:scaleType="centerCrop" />
 
         <!-- ─── GLASS FOOTER (overlaid inside poster bottom) ─── -->
@@ -77,7 +77,7 @@
                 android:layout_height="wrap_content"
                 android:maxLines="@integer/vod_card_title_lines"
                 android:ellipsize="end"
-                android:text="Series Title"
+                android:text="@string/series_detail_title_placeholder"
                 android:textColor="#F1F5F9"
                 android:textSize="@dimen/vod_card_title_size"
                 android:fontFamily="sans-serif-medium" />
@@ -99,7 +99,7 @@
                 android:id="@+id/tv_new_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="NEW"
+                android:text="@string/new_badge"
                 android:textColor="#A78BFA"
                 android:textSize="9sp"
                 android:textStyle="bold"

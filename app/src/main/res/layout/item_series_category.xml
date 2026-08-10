@@ -32,7 +32,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:layout_marginStart="13dp"
-        android:text="Category"
+        android:text="@string/ui_category"
         android:textColor="@color/vod_text_muted"
         android:textSize="@dimen/vod_category_name_size"
         android:fontFamily="sans-serif-medium"

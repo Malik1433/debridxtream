@@ -72,7 +72,7 @@
                 android:textSize="4.5sp"
                 android:textStyle="bold"
                 android:textColor="#FFFFFF"
-                android:text="LIVE" />
+                android:text="@string/livev2_live_badge" />
         </LinearLayout>
     </FrameLayout>
 

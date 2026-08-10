@@ -38,7 +38,7 @@
             android:id="@+id/tv_settings_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Setting title"
+            android:text="@string/ui_setting_title"
             android:textColor="@color/cin_text_primary"
             android:textSize="@dimen/cin_text_body_sm"
             android:fontFamily="@font/plus_jakarta_sans"
@@ -48,7 +48,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:text="Subtitle / current value"
+            android:text="@string/ui_subtitle_current_value"
             android:textColor="@color/cin_text_tertiary"
             android:textSize="@dimen/cin_text_caption"
             android:fontFamily="@font/plus_jakarta_sans" />

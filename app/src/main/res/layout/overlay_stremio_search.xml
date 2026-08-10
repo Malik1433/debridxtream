@@ -37,7 +37,7 @@
                 android:textSize="17sp"
                 android:textColor="#F1F5F9"
                 android:letterSpacing="-0.02"
-                android:text="Search"
+                android:text="@string/nav_search"
                 android:layout_marginEnd="11dp" />
 
             <LinearLayout
@@ -71,7 +71,7 @@
                         android:textSize="11sp"
                         android:textColor="#475569"
                         android:singleLine="true"
-                        android:text="Search movies, series, live channels…" />
+                        android:text="@string/ui_search_movies_series_live_channels" />
 
                     <TextView
                         android:id="@+id/search_query"
@@ -183,7 +183,7 @@
                                 android:fontFamily="@font/outfit_bold"
                                 android:textSize="10sp"
                                 android:textColor="#F1F5F9"
-                                android:text="Trending Searches" />
+                                android:text="@string/ui_trending_searches" />
                         </LinearLayout>
 
                         <com.google.android.flexbox.FlexboxLayout
@@ -216,7 +216,7 @@
                             android:fontFamily="@font/outfit_bold"
                             android:textSize="10sp"
                             android:textColor="#F1F5F9"
-                            android:text="Popular Right Now" />
+                            android:text="@string/ui_popular_right_now" />
                     </LinearLayout>
 
                     <androidx.recyclerview.widget.RecyclerView
@@ -261,7 +261,7 @@
                             android:textSize="7.5sp"
                             android:textColor="#475569"
                             android:layout_marginTop="6dp"
-                            android:text="Try a different title or check the spelling" />
+                            android:text="@string/ui_try_a_different_title_or" />
                     </LinearLayout>
                 </LinearLayout>
             </androidx.core.widget.NestedScrollView>

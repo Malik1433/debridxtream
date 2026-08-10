@@ -27,7 +27,7 @@
             android:id="@+id/sidebar_brand_logo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="STREAM\nFLIX"
+            android:text="@string/ui_stream_nflix"
             android:textColor="@android:color/white"
             android:textSize="18sp"
             android:textStyle="bold"
@@ -41,7 +41,7 @@
         <include
             android:id="@+id/nav_item_search"
             layout="@layout/item_debrid_sidebar"
-            android:contentDescription="Search"
+            android:contentDescription="@string/nav_search"
             android:nextFocusUp="@id/nav_item_search"
             android:nextFocusDown="@id/nav_item_home" />
 
@@ -49,7 +49,7 @@
             android:id="@+id/nav_item_home"
             layout="@layout/item_debrid_sidebar"
             android:layout_marginTop="8dp"
-            android:contentDescription="Home"
+            android:contentDescription="@string/nav_home"
             android:nextFocusUp="@id/nav_item_search"
             android:nextFocusDown="@id/nav_item_discover" />
 
@@ -57,7 +57,7 @@
             android:id="@+id/nav_item_discover"
             layout="@layout/item_debrid_sidebar"
             android:layout_marginTop="8dp"
-            android:contentDescription="Discover"
+            android:contentDescription="@string/ui_discover"
             android:nextFocusUp="@id/nav_item_home"
             android:nextFocusDown="@id/nav_item_discover" />
 

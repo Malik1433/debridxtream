@@ -49,7 +49,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="LIVE"
+                    android:text="@string/livev2_live_badge"
                     android:textColor="@color/cin_text_primary"
                     android:textSize="9sp"
                     android:textStyle="bold"
@@ -67,7 +67,7 @@
             android:gravity="center"
             android:maxLines="1"
             android:ellipsize="end"
-            android:text="Channel"
+            android:text="@string/ui_channel"
             android:textColor="@color/cin_text_primary"
             android:textSize="@dimen/cin_text_caption"
             android:fontFamily="@font/plus_jakarta_sans"
@@ -80,7 +80,7 @@
             android:gravity="center"
             android:maxLines="1"
             android:ellipsize="end"
-            android:text="Now playing"
+            android:text="@string/ui_now_playing"
             android:textColor="@color/cin_text_tertiary"
             android:textSize="11sp"
             android:fontFamily="@font/plus_jakarta_sans" />

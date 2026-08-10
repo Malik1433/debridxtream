@@ -120,13 +120,17 @@ are the things a world-class app also needs that this codebase does **not** have
 carries the number measured on 2026-08-09 so nobody has to re-derive it — and so the number can be
 watched going down.
 
-- **Localisation: the app is English-only, and most of it is not even extractable.** 477
-  hard-coded `android:text` strings live in layouts, against 285 entries in `strings.xml`, and
-  there are **zero** locale folders. The audience watches |AR| |HI| |TA| |DE| content, so this is a
-  product gap, not a tidiness one. **Rule from now on: new user-facing text goes in `strings.xml`,
-  never inline.** Retro-extraction is its own batch — do not attempt it inside a UI batch.
-  (`supportsRtl` IS declared and only 5 layout attributes use hard left/right, so RTL itself is
-  close — the strings are what block it.)
+- **Localisation: extraction ✅ DONE 2026-08-10 — translation folders still to come.** All 427
+  literal `android:text`/`android:hint`/`android:contentDescription` strings were extracted
+  (273 new entries in `values/strings_ui.xml`, 36 reused existing names; glyph-only separators
+  stayed inline — they are not language). **Zero word-literals remain in layouts**, so adding a
+  language is now purely a `values-<lang>/` folder. Known impurity: some extracted entries are
+  layout placeholder samples that runtime overwrites (they belonged in `tools:text`) —
+  translators can skip `ui_*` entries that look like sample data. Kotlin-side literal strings
+  (Toasts, code-set labels) are a separate later phase. **Rule stays: new user-facing text goes
+  in `strings.xml`, never inline.** The owner picks the languages (audience watches |AR| |HI|
+  |TA| |DE| content); `supportsRtl` is declared and only 5 layout attributes use hard
+  left/right, so RTL is close.
 - **Accessibility: ✅ CLOSED 2026-08-10 — every `ImageView`/`ImageButton` now carries a
   `contentDescription` (190 labelled, 0 missing, 0 `tools:ignore`).** Actionable images read a
   name from `values/strings_a11y.xml` (player controls, play icons, favourite/watched

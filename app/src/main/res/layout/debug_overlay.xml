@@ -16,5 +16,5 @@
         android:fontFamily="monospace"
         android:textColor="#00FF00"
         android:textSize="12sp"
-        android:text="Debug Data..." />
+        android:text="@string/ui_debug_data" />
 </FrameLayout>

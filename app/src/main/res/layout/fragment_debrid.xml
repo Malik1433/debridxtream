@@ -13,7 +13,7 @@
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
         android:alpha="0.4"
-        android:contentDescription="Background Backdrop" />
+        android:contentDescription="@string/ui_background_backdrop" />
 
     <!-- Gradient Overlay for Readability -->
     <View
@@ -175,7 +175,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Resolving Source..."
+            android:text="@string/ui_resolving_source"
             android:textColor="@color/white"
             android:textSize="20sp"
             android:textStyle="bold" />
@@ -184,7 +184,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Optimizing links for instant playback"
+            android:text="@string/ui_optimizing_links_for_instant_playback"
             android:textColor="#B3FFFFFF"
             android:textSize="14sp" />
     </LinearLayout>

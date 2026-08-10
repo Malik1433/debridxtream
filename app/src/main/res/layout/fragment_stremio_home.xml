@@ -158,7 +158,7 @@
                     android:textSize="5sp"
                     android:textColor="#041014"
                     android:textStyle="bold"
-                    android:text="4K HDR"
+                    android:text="@string/ui_4k_hdr_2"
                     android:layout_marginEnd="5dp"
                     android:visibility="gone" />
 
@@ -175,7 +175,7 @@
                     android:textSize="5sp"
                     android:textColor="#041014"
                     android:textStyle="bold"
-                    android:text="DOLBY"
+                    android:text="@string/ui_dolby"
                     android:visibility="gone" />
             </LinearLayout>
 
@@ -236,7 +236,7 @@
                         android:fontFamily="@font/outfit_bold"
                         android:textSize="11sp"
                         android:textColor="#041014"
-                        android:text="Play Now" />
+                        android:text="@string/ui_play_now" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -265,7 +265,7 @@
                         android:fontFamily="@font/outfit_semibold"
                         android:textSize="10sp"
                         android:textColor="#F1F5F9"
-                        android:text="Trailer" />
+                        android:text="@string/movie_detail_tab_trailer" />
                 </LinearLayout>
 
                 <FrameLayout
@@ -345,7 +345,7 @@
                     android:textSize="9sp"
                     android:textColor="#041014"
                     android:letterSpacing="-0.04"
-                    android:text="DX" />
+                    android:text="@string/livev2_brand_mark" />
             </FrameLayout>
 
             <TextView
@@ -355,7 +355,7 @@
                 android:textSize="11sp"
                 android:textColor="#F1F5F9"
                 android:letterSpacing="-0.02"
-                android:text="DebridXtream" />
+                android:text="@string/app_title" />
         </LinearLayout>
 
         <!-- nav tabs (flex:1) -->
@@ -428,7 +428,7 @@
                     android:fontFamily="@font/inter_regular"
                     android:textSize="8sp"
                     android:textColor="#475569"
-                    android:text="Search movies, series…" />
+                    android:text="@string/ui_search_movies_series" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -495,7 +495,7 @@
                         android:fontFamily="@font/outfit_bold"
                         android:textSize="7.5sp"
                         android:textColor="#FFFFFF"
-                        android:text="A" />
+                        android:text="@string/ui_a" />
                 </FrameLayout>
 
                 <TextView
@@ -504,7 +504,7 @@
                     android:fontFamily="@font/outfit_semibold"
                     android:textSize="8.5sp"
                     android:textColor="#F1F5F9"
-                    android:text="Alex"
+                    android:text="@string/ui_alex"
                     android:layout_marginEnd="4dp" />
 
                 <ImageView
@@ -547,7 +547,7 @@
                 android:fontFamily="@font/outfit_medium"
                 android:textSize="9sp"
                 android:textColor="#94A3B8"
-                android:text="Loading…" />
+                android:text="@string/ui_loading_2" />
         </LinearLayout>
     </FrameLayout>
 
@@ -579,7 +579,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:letterSpacing="0.18"
-                android:text="DEBRID"
+                android:text="@string/nav_debrid"
                 android:textColor="#38BDF8"
                 android:textSize="8sp" />
 
@@ -587,7 +587,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Add your debrid service to use this section"
+                android:text="@string/ui_add_your_debrid_service_to"
                 android:textColor="#F1F5F9"
                 android:textSize="19sp"
                 android:textStyle="bold" />
@@ -597,7 +597,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:lineSpacingExtra="3dp"
-                android:text="Debrid plays movies and series from your own debrid provider. Nothing here works until you add your addon links — they are yours, not part of this app."
+                android:text="@string/ui_debrid_plays_movies_and_series"
                 android:textColor="#94A3B8"
                 android:textSize="10sp" />
 
@@ -605,7 +605,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
-                android:text="On your phone"
+                android:text="@string/ui_on_your_phone"
                 android:textColor="#E2E8F0"
                 android:textSize="11sp"
                 android:textStyle="bold" />
@@ -652,7 +652,7 @@
                 android:fontFamily="monospace"
                 android:letterSpacing="0.08"
                 android:id="@+id/debrid_setup_hint"
-                android:text="BACK  ·  RETURN"
+                android:text="@string/ui_back_return"
                 android:textColor="#475569"
                 android:textSize="8sp" />
         </LinearLayout>

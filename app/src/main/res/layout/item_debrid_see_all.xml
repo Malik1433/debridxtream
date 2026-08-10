@@ -12,7 +12,7 @@
         android:id="@+id/textViewSeeAll"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="See All"
+        android:text="@string/ui_see_all"
         android:textColor="#FFFFFF"
         android:textSize="16sp"
         android:fontFamily="@font/plus_jakarta_sans"

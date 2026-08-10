@@ -6,7 +6,7 @@
     android:paddingHorizontal="12dp"
     android:gravity="center"
     android:background="@drawable/bg_vod_sort_chip_default"
-    android:text="SORT"
+    android:text="@string/ui_sort_2"
     android:textColor="@color/vod_text_muted"
     android:textSize="@dimen/vod_sort_chip_text_size"
     android:fontFamily="monospace"

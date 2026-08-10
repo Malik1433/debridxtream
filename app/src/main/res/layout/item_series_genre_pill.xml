@@ -7,7 +7,7 @@
     android:paddingHorizontal="13dp"
     android:gravity="center"
     android:background="@drawable/bg_vod_genre_pill_default"
-    android:text="Genre"
+    android:text="@string/ui_genre"
     android:textColor="@color/vod_text_muted"
     android:textSize="13sp"
     android:fontFamily="sans-serif-medium"

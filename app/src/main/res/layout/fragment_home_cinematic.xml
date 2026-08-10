@@ -79,7 +79,7 @@
                             android:id="@+id/tv_hero_trending"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="#1 TRENDING TODAY"
+                            android:text="@string/ui_1_trending_today"
                             android:textColor="@color/brand_cyan"
                             android:textSize="6.5sp"
                             android:letterSpacing="0.22"
@@ -98,7 +98,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/plus_jakarta_sans"
-                        android:text="Featured Title"
+                        android:text="@string/ui_featured_title"
                         android:textColor="#F1F5F9"
                         android:textSize="@dimen/home_hero_title_size"
                         android:textStyle="bold"
@@ -157,7 +157,7 @@
                             android:id="@+id/tv_hero_genre"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Sci-Fi Thriller"
+                            android:text="@string/ui_sci_fi_thriller"
                             android:textColor="#CBD5E1"
                             android:textSize="7.5sp"
                             android:layout_marginEnd="7dp" />
@@ -166,7 +166,7 @@
                             android:id="@+id/tv_hero_quality"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="4K DV"
+                            android:text="@string/ui_4k_dv"
                             android:textColor="#FFAA00"
                             android:textSize="6sp"
                             android:fontFamily="monospace"
@@ -183,7 +183,7 @@
                         android:id="@+id/tv_hero_description"
                         android:layout_width="320dp"
                         android:layout_height="wrap_content"
-                        android:text="A short description of the featured content."
+                        android:text="@string/ui_a_short_description_of_the"
                         android:textColor="#CBD5E1"
                         android:textSize="@dimen/home_hero_desc_size"
                         android:lineSpacingMultiplier="1.4"
@@ -245,7 +245,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Play Now"
+                                    android:text="@string/ui_play_now"
                                     android:textColor="#041014"
                                     android:textSize="9.5sp"
                                     android:textStyle="bold"
@@ -293,7 +293,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="More Info"
+                                    android:text="@string/ui_more_info"
                                     android:textColor="#F1F5F9"
                                     android:textSize="9sp"
                                     android:textStyle="bold"
@@ -395,7 +395,7 @@
                         android:layout_marginEnd="7dp" />
                     <TextView
                         android:id="@+id/tv_title_continue_watching"
-                        android:text="Continue Watching"
+                        android:text="@string/section_continue_watching"
                         android:textSize="11sp"
                         android:textColor="#F1F5F9"
                         android:fontFamily="@font/plus_jakarta_sans"
@@ -443,7 +443,7 @@
                     android:layout_marginEnd="7dp" />
                 <TextView
                     android:id="@+id/tv_title_top_10_movies"
-                    android:text="Trending Movies"
+                    android:text="@string/ui_trending_movies"
                     android:textSize="11sp"
                     android:textColor="#F1F5F9"
                     android:fontFamily="@font/plus_jakarta_sans"
@@ -491,7 +491,7 @@
                     android:layout_marginEnd="7dp" />
                 <TextView
                     android:id="@+id/tv_title_top_10_series"
-                    android:text="Trending Series"
+                    android:text="@string/ui_trending_series"
                     android:textSize="11sp"
                     android:textColor="#F1F5F9"
                     android:fontFamily="@font/plus_jakarta_sans"
@@ -548,7 +548,7 @@
                         android:layout_marginEnd="7dp" />
                     <TextView
                         android:id="@+id/tv_title_recent_live"
-                        android:text="Recent Live Channels"
+                        android:text="@string/section_recent_live"
                         android:textSize="11sp"
                         android:textColor="#F1F5F9"
                         android:fontFamily="@font/plus_jakarta_sans"
@@ -619,7 +619,7 @@
             android:id="@+id/nav_flyout_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Home"
+            android:text="@string/nav_home"
             android:textColor="#F1F5F9"
             android:textSize="8sp"
             android:textStyle="bold"
@@ -631,7 +631,7 @@
             android:id="@+id/nav_flyout_sub"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="PREMIUM"
+            android:text="@string/ui_premium"
             android:textColor="#00FF88"
             android:textSize="5sp"
             android:fontFamily="monospace"
@@ -657,7 +657,7 @@
             android:id="@+id/tv_status_clock"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="12:00 PM"
+            android:text="@string/ui_12_00_pm"
             android:textColor="#94A3B8"
             android:textSize="10sp"
             android:fontFamily="monospace"
@@ -680,7 +680,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="KEY"
+                android:text="@string/ui_key"
                 android:textColor="#64748B"
                 android:textSize="8sp"
                 android:fontFamily="monospace"
@@ -719,7 +719,7 @@
                 android:id="@+id/tv_status_badge"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="DEBRID · IPTV"
+                android:text="@string/ui_debrid_iptv"
                 android:textColor="#CBD5E1"
                 android:textSize="9sp"
                 android:fontFamily="monospace"
@@ -749,7 +749,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="IPTV"
+                android:text="@string/label_iptv"
                 android:textColor="#94A3B8"
                 android:textSize="8sp"
                 android:fontFamily="monospace"
@@ -760,7 +760,7 @@
                 android:id="@+id/tv_iptv_expiry"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="ACTIVE"
+                android:text="@string/ui_active"
                 android:textColor="#00FF88"
                 android:textSize="10.5sp"
                 android:fontFamily="monospace"
@@ -798,7 +798,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="NAVIGATE"
+            android:text="@string/ui_navigate"
             android:textColor="#64748B"
             android:textSize="6sp"
             android:fontFamily="monospace"
@@ -816,7 +816,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="OK"
+            android:text="@string/ok"
             android:textColor="#94A3B8"
             android:textSize="6sp"
             android:fontFamily="monospace"
@@ -825,7 +825,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="SELECT"
+            android:text="@string/ui_select"
             android:textColor="#64748B"
             android:textSize="6sp"
             android:fontFamily="monospace"
@@ -843,7 +843,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="BACK"
+            android:text="@string/ui_back"
             android:textColor="#94A3B8"
             android:textSize="6sp"
             android:fontFamily="monospace"
@@ -852,7 +852,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="EXIT"
+            android:text="@string/ui_exit_2"
             android:textColor="#64748B"
             android:textSize="6sp"
             android:fontFamily="monospace"

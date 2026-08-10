@@ -37,7 +37,7 @@
                     android:textSize="12sp"
                     android:textColor="#F1F5F9"
                     android:letterSpacing="-0.02"
-                    android:text="My Library" />
+                    android:text="@string/ui_my_library" />
 
                 <TextView
                     android:id="@+id/lib_count"
@@ -83,7 +83,7 @@
                     android:fontFamily="@font/inter_regular"
                     android:textSize="7.5sp"
                     android:textColor="#94A3B8"
-                    android:text="Sort" />
+                    android:text="@string/ui_sort" />
             </LinearLayout>
         </LinearLayout>
 
@@ -107,6 +107,6 @@
         android:fontFamily="@font/inter_regular"
         android:textSize="9sp"
         android:textColor="#475569"
-        android:text="Nothing here yet"
+        android:text="@string/ui_nothing_here_yet"
         android:visibility="gone" />
 </FrameLayout>
