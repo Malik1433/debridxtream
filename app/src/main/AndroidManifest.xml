@@ -158,14 +158,6 @@
 
 
         <activity
-            android:name=".ui.settings.MediaFusionConfigActivity"
-            android:screenOrientation="sensorLandscape"
-            android:label="Connect Stremio Addons"
-            android:theme="@style/AppTheme"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-            
-        <activity
             android:name=".ui.recovery.RecoveryActivity"
             android:screenOrientation="sensorLandscape"
             android:label="Recovery Mode"

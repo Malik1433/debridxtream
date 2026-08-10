@@ -271,11 +271,6 @@
     <!-- Shown on the TV so a customer can type it into a phone; deliberately without the
          scheme, which nobody needs to type. -->
     <string name="companion_signup_url_short">debxtrem-companion.vercel.app</string>
-    <string name="stremio_addons_save_button">Save Addons</string>
-    <string name="stremio_addons_scan_button">Scan Manifest QR</string>
-    <string name="stremio_addons_invalid_input">Paste one or more valid manifest.json URLs.</string>
-    <string name="stremio_addons_invalid_qr">Invalid manifest QR code.</string>
-    <string name="stremio_addons_saved">Stremio addon URLs saved successfully.</string>
     
     <!-- Login Screen Upgrades -->
     <string name="login_welcome_title">DEBRID XTREAM</string>
