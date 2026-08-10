@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M19 — the TV login card's metrics, EXACTLY the literals that were inline in fragment_login.xml
+  before this batch. Nothing here is a new decision.
+-->
+<resources>
+    <dimen name="login_field_height">35dp</dimen>
+    <dimen name="login_primary_btn_height">36dp</dimen>
+    <dimen name="login_secondary_btn_height">32dp</dimen>
+    <dimen name="login_account_row_height">34dp</dimen>
+    <dimen name="login_qr_close_height">28dp</dimen>
+    <dimen name="login_account_close_height">30dp</dimen>
+    <dimen name="login_toggle_size">18dp</dimen>
+    <dimen name="login_toggle_padding">3dp</dimen>
+</resources>

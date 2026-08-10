@@ -102,6 +102,11 @@ class LoginFragment : Fragment() {
         tvError = view.findViewById(R.id.tv_login_error)
         btnTogglePassword = view.findViewById(R.id.btn_toggle_password)
 
+        // M19: the D-pad legend is TV chrome — hidden under a finger (seventh of its kind).
+        if (!resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
+            view.findViewById<View>(R.id.tv_login_hint)?.visibility = View.GONE
+        }
+
         bindBranding(view)
         setupFields(view)
         setupButtons(view)

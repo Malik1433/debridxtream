@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M19: the QR overlay's step-3 title names the device it runs on. PHONE answer here;
+     the TV keeps its original copy in values-television/strings_login.xml (D3's pattern). -->
+<resources>
+    <string name="login_qr_step3_title">Add this device</string>
+</resources>

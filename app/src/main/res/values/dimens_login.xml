@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M19 — the login card against the phone rulebook (§1c). PHONE values; the TV's literals live
+  verbatim in values-television/dimens_login.xml.
+
+  The login screen renders inside MainActivity, so the M13 1.6x font scale already applies to its
+  px÷2 type; what it still had was 28-36dp touch targets and field rows that clip the scaled text.
+-->
+<resources>
+    <dimen name="login_field_height">48dp</dimen>
+    <dimen name="login_primary_btn_height">48dp</dimen>
+    <dimen name="login_secondary_btn_height">48dp</dimen>
+    <dimen name="login_account_row_height">48dp</dimen>
+    <dimen name="login_qr_close_height">48dp</dimen>
+    <dimen name="login_account_close_height">48dp</dimen>
+    <dimen name="login_toggle_size">40dp</dimen>
+    <dimen name="login_toggle_padding">12dp</dimen>
+</resources>

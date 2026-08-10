@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M19: the TV's original copy, verbatim. -->
+<resources>
+    <string name="login_qr_step3_title">Add this TV</string>
+</resources>

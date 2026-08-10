@@ -251,11 +251,22 @@
             android:layout_height="match_parent"
             android:layout_weight="0.54">
 
+            <!-- M19: at the phone's 1.6x scale + 48dp rows the card outgrows a 411dp-tall
+                 viewport; this scroller keeps Sign In reachable (§1c). On TV the card fits,
+                 a wrap_content ScrollView collapses to the card's size, and nothing changes. -->
+            <ScrollView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:focusable="false"
+                android:descendantFocusability="afterDescendants"
+                android:overScrollMode="never"
+                android:scrollbars="none">
+
             <LinearLayout
                 android:id="@+id/card_login_container"
                 android:layout_width="340dp"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
                 android:orientation="vertical">
 
                 <!-- Heading -->
@@ -319,7 +330,7 @@
                     <LinearLayout
                         android:id="@+id/til_server_url"
                         android:layout_width="match_parent"
-                        android:layout_height="35dp"
+                        android:layout_height="@dimen/login_field_height"
                         android:background="@drawable/bg_login_field"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
@@ -372,7 +383,7 @@
                     <LinearLayout
                         android:id="@+id/til_username"
                         android:layout_width="match_parent"
-                        android:layout_height="35dp"
+                        android:layout_height="@dimen/login_field_height"
                         android:background="@drawable/bg_login_field"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
@@ -424,7 +435,7 @@
                     <LinearLayout
                         android:id="@+id/til_password"
                         android:layout_width="match_parent"
-                        android:layout_height="35dp"
+                        android:layout_height="@dimen/login_field_height"
                         android:background="@drawable/bg_login_field"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
@@ -461,15 +472,15 @@
 
                         <ImageView
                             android:id="@+id/btn_toggle_password"
-                            android:layout_width="18dp"
-                            android:layout_height="18dp"
+                            android:layout_width="@dimen/login_toggle_size"
+                            android:layout_height="@dimen/login_toggle_size"
                             android:clickable="true"
                             android:contentDescription="Show password"
                             android:focusable="true"
                             android:nextFocusLeft="@id/et_password"
                             android:nextFocusUp="@id/et_username"
                             android:nextFocusDown="@id/btn_login"
-                            android:padding="3dp"
+                            android:padding="@dimen/login_toggle_padding"
                             android:src="@drawable/ic_eye"
                             android:tint="#64748B" />
                     </LinearLayout>
@@ -512,7 +523,7 @@
                 <LinearLayout
                     android:id="@+id/btn_login"
                     android:layout_width="match_parent"
-                    android:layout_height="36dp"
+                    android:layout_height="@dimen/login_primary_btn_height"
                     android:layout_marginTop="16dp"
                     android:background="@drawable/sel_login_btn_primary"
                     android:clickable="true"
@@ -587,7 +598,7 @@
                 <LinearLayout
                     android:id="@+id/btn_setup_phone"
                     android:layout_width="match_parent"
-                    android:layout_height="32dp"
+                    android:layout_height="@dimen/login_secondary_btn_height"
                     android:background="@drawable/sel_login_btn_secondary"
                     android:clickable="true"
                     android:focusable="true"
@@ -622,7 +633,7 @@
                 <LinearLayout
                     android:id="@+id/btn_account_signin"
                     android:layout_width="match_parent"
-                    android:layout_height="32dp"
+                    android:layout_height="@dimen/login_secondary_btn_height"
                     android:layout_marginTop="6dp"
                     android:background="@drawable/sel_login_btn_secondary"
                     android:clickable="true"
@@ -670,6 +681,7 @@
                     android:textColor="#334155"
                     android:textSize="6sp" />
             </LinearLayout>
+            </ScrollView>
         </FrameLayout>
     </LinearLayout>
 
@@ -909,7 +921,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/plus_jakarta_sans"
-                                android:text="Add this TV"
+                                android:text="@string/login_qr_step3_title"
                                 android:textColor="#F1F5F9"
                                 android:textSize="9sp"
                                 android:textStyle="bold" />
@@ -1000,7 +1012,7 @@
             <LinearLayout
                 android:id="@+id/btn_qr_close"
                 android:layout_width="wrap_content"
-                android:layout_height="28dp"
+                android:layout_height="@dimen/login_qr_close_height"
                 android:layout_marginTop="20dp"
                 android:background="@drawable/sel_login_btn_secondary"
                 android:clickable="true"
@@ -1072,7 +1084,7 @@
             <EditText
                 android:id="@+id/et_account_email"
                 android:layout_width="match_parent"
-                android:layout_height="34dp"
+                android:layout_height="@dimen/login_account_row_height"
                 android:layout_marginTop="14dp"
                 android:background="@drawable/bg_login_field"
                 android:fontFamily="@font/plus_jakarta_sans"
@@ -1090,7 +1102,7 @@
             <EditText
                 android:id="@+id/et_account_password"
                 android:layout_width="match_parent"
-                android:layout_height="34dp"
+                android:layout_height="@dimen/login_account_row_height"
                 android:layout_marginTop="8dp"
                 android:background="@drawable/bg_login_field"
                 android:fontFamily="@font/plus_jakarta_sans"
@@ -1121,7 +1133,7 @@
             <LinearLayout
                 android:id="@+id/btn_account_submit"
                 android:layout_width="match_parent"
-                android:layout_height="34dp"
+                android:layout_height="@dimen/login_account_row_height"
                 android:layout_marginTop="12dp"
                 android:background="@drawable/sel_login_btn_primary"
                 android:clickable="true"
@@ -1168,7 +1180,7 @@
             <LinearLayout
                 android:id="@+id/btn_account_close"
                 android:layout_width="match_parent"
-                android:layout_height="30dp"
+                android:layout_height="@dimen/login_account_close_height"
                 android:layout_marginTop="12dp"
                 android:background="@drawable/sel_login_btn_secondary"
                 android:clickable="true"

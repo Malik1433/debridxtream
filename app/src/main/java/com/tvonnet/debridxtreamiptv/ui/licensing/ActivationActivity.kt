@@ -24,6 +24,10 @@ class ActivationActivity : AppCompatActivity() {
     private lateinit var manager: LicenseManager
     private var navigated = false
 
+    // M19: this activity deliberately does NOT take phoneScaledContext. §1e assumed it was at
+    // the TV's px÷2 sizes like the player; measuring it showed the opposite — the layout uses
+    // REAL sizes (28sp title, 56sp code, 16sp status), already readable in the hand. At 1.6x
+    // the centred column would total ~474dp on a 411dp-tall handset and clip both ends.
     override fun onCreate(savedInstanceState: Bundle?) {
         // M13: BEFORE super.onCreate on purpose — the orientation has to be settled before the
         // first inflate, or the layout chosen for the old one stays on screen inside the new
