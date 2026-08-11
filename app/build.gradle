@@ -95,6 +95,12 @@ android {
                 storePassword keystoreProps.getProperty('storePassword')
                 keyAlias keystoreProps.getProperty('keyAlias')
                 keyPassword keystoreProps.getProperty('keyPassword')
+                // AGP leaves v3 OFF by default, and the first release build here was v1+v2 only.
+                // v3 is what carries a proof-of-rotation lineage, so it is the difference between
+                // "we can change this key later" and "changing it forces every user to uninstall
+                // and reinstall" — the exact cost this project is paying once to leave the debug
+                // key behind, and has no reason to pay a second time.
+                enableV3Signing true
             }
         }
     }
