@@ -241,6 +241,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script>
 firebase.initializeApp({
   apiKey: "AIzaSyDpBUBq_GowUtJVEsV61lX60804DBt7V4A",
@@ -252,6 +253,8 @@ firebase.initializeApp({
 });
 const auth = firebase.auth();
 const db = firebase.firestore();
+// Default region (us-central1), matching the v2 onCall functions and the customer dashboard.
+const fns = firebase.functions();
 let devices = [];   // [{id, ...data}]
 let unsub = null;
 
@@ -356,9 +359,33 @@ function renderDevices(){
     b5.onclick=()=>{ const key=d.activationCode||d.id;
       navigator.clipboard.writeText('https://debxtrem-companion.vercel.app/?code='+encodeURIComponent(key))
         .then(()=>toast('Config link copied')).catch(()=>toast('Copy failed')); };
+    // Unlink — only for a device that IS linked, which is also how the row shows its state.
+    // Without this the only way to free a TV from the wrong account was to delete the whole
+    // licence and re-activate it, because claimDevice refuses a device that already has an
+    // ownerUid ("already linked to a different account"). That case is not rare: a customer
+    // signs up with the wrong address, or an account is abandoned before its email is ever
+    // verified, and the TV is then stuck to a login nobody can reach.
+    const b6=document.createElement('button'); b6.className='ghost'; b6.textContent='Unlink';
+    b6.title='Free this TV from its account (keeps the licence)';
+    b6.style.display = d.ownerUid ? '' : 'none';
+    b6.onclick=()=>{
+      // Say which of the two outcomes this device will get. releaseDevice takes the
+      // entitlement back when it came FROM a consumer subscription (otherwise a freed slot
+      // would leave a device playing forever), but leaves a reseller/admin-activated device
+      // active. Promising "the licence stays" in both cases would be a lie half the time.
+      const deactivates = !!d.subscriptionId && !d.resellerId;
+      const consequence = deactivates
+        ? '\n\nThis TV was entitled by that account’s subscription, so it will also go INACTIVE. Press Activate afterwards if it should keep working.'
+        : '\n\nThe licence and device key are untouched — only the account link and its playlist access go.';
+      if(!confirm('Unlink this TV from its account?'+consequence+'\n\nAfterwards another account can claim it with the device code.')) return;
+      b6.disabled=true;
+      fns.httpsCallable('releaseDevice')({ installId: d.id })
+        .then(()=>toast('Unlinked'))
+        .catch(e=>{ b6.disabled=false; toast('Failed: '+(e.message||e)); });
+    };
     const b4=document.createElement('button'); b4.className='bad'; b4.textContent='✕';
     b4.title='Delete device'; b4.onclick=()=>{ if(confirm('Delete this device license?')) db.collection('licenses').doc(d.id).delete().then(()=>toast('Deleted')).catch(e=>toast(e.message)); };
-    rowEl.append(b1,b2,b3,b5,b4);
+    rowEl.append(b1,b2,b3,b5,b6,b4);
     rows.appendChild(tr);
   }
 }
