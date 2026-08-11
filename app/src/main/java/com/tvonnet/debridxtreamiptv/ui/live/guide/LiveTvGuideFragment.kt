@@ -117,7 +117,7 @@ class LiveTvGuideFragment : Fragment() {
                 (viewModel.uiState.value.channels.firstOrNull { it.streamId == s.stream_id } ?: currentChannel)
                     ?.let { enterFullscreenFor(it) }
             },
-            onFavoriteClick = { Toast.makeText(requireContext(), "Favorites", Toast.LENGTH_SHORT).show() }
+            onFavoriteClick = { Toast.makeText(requireContext(), requireContext().getString(R.string.section_favorites), Toast.LENGTH_SHORT).show() }
         )
         viewLifecycleOwner.lifecycle.addObserver(previewPanel!!)
 

@@ -1,5 +1,7 @@
 package com.tvonnet.debridxtreamiptv.ui.settings
 
+import com.tvonnet.debridxtreamiptv.R
+
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
@@ -23,7 +25,7 @@ class SettingsSelectorDialogs(
 
     fun showPreferredAudioLangSelector(current: String) {
         AlertDialog.Builder(context)
-            .setTitle("Preferred Audio Language")
+            .setTitle(R.string.c_preferred_audio_language)
             .setSingleChoiceItems(
                 SettingsOptionLabels.audioLangLabels,
                 SettingsOptionLabels.audioLangIndex(current)
@@ -40,7 +42,7 @@ class SettingsSelectorDialogs(
      */
     fun showUiModeSelector(current: String) {
         AlertDialog.Builder(context)
-            .setTitle("App Layout")
+            .setTitle(R.string.c_app_layout)
             .setSingleChoiceItems(
                 SettingsOptionLabels.uiModeLabels,
                 SettingsOptionLabels.uiModeIndex(current)
@@ -54,7 +56,7 @@ class SettingsSelectorDialogs(
     /** H9: the fallback priority — used when the primary language is not in a source. */
     fun showPreferredAudioLang2Selector(current: String) {
         AlertDialog.Builder(context)
-            .setTitle("Secondary Audio Language")
+            .setTitle(R.string.c_secondary_audio_language)
             .setSingleChoiceItems(
                 SettingsOptionLabels.audioLang2Labels,
                 SettingsOptionLabels.audioLang2Index(current)
@@ -67,7 +69,7 @@ class SettingsSelectorDialogs(
 
     fun showEpgIntervalSelector(current: String) {
         AlertDialog.Builder(context)
-            .setTitle("Select EPG Sync Interval")
+            .setTitle(R.string.c_select_epg_sync_interval)
             .setSingleChoiceItems(
                 SettingsOptionLabels.epgIntervalLabels,
                 SettingsOptionLabels.epgIntervalIndex(current)
@@ -80,21 +82,21 @@ class SettingsSelectorDialogs(
 
     fun showLiveTvStyleSelector(current: String) {
         AlertDialog.Builder(context)
-            .setTitle("Live TV Layout")
+            .setTitle(R.string.c_live_tv_layout)
             .setSingleChoiceItems(
                 SettingsOptionLabels.liveTvStyleLabels,
                 SettingsOptionLabels.liveTvStyleIndex(current)
             ) { dialog, which ->
                 viewModel.setLiveTvStyle(SettingsOptionLabels.liveTvStyleValues[which])
                 dialog.dismiss()
-                Toast.makeText(context, "Applies next time you open Live TV", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.c_applies_next_time_you_open), Toast.LENGTH_SHORT).show()
             }
             .show()
     }
 
     fun showEpgZoomSelector(current: String) {
         AlertDialog.Builder(context)
-            .setTitle("TV Guide Timeline Zoom")
+            .setTitle(R.string.c_tv_guide_timeline_zoom)
             .setSingleChoiceItems(
                 SettingsOptionLabels.epgZoomLabels,
                 SettingsOptionLabels.epgZoomIndex(current)
@@ -107,7 +109,7 @@ class SettingsSelectorDialogs(
 
     fun showEpgDensitySelector(current: String) {
         AlertDialog.Builder(context)
-            .setTitle("TV Guide Row Density")
+            .setTitle(R.string.c_tv_guide_row_density)
             .setSingleChoiceItems(
                 SettingsOptionLabels.epgDensityLabels,
                 SettingsOptionLabels.epgDensityIndex(current)
@@ -146,11 +148,11 @@ class SettingsSelectorDialogs(
                 if (urls.isNotEmpty() && which < urls.size) {
                     val urlToRemove = urls[which]
                     AlertDialog.Builder(context)
-                        .setTitle("Remove Stremio Addon?")
+                        .setTitle(R.string.c_remove_stremio_addon)
                         .setMessage(android.net.Uri.parse(urlToRemove).host ?: "Configured addon")
                         .setPositiveButton("Remove") { d, _ ->
                             viewModel.removeStremioAddonUrl(urlToRemove)
-                            Toast.makeText(context, "Stremio addon removed", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.c_stremio_addon_removed), Toast.LENGTH_SHORT).show()
                             d.dismiss()
                         }
                         .setNegativeButton("Cancel") { d, _ -> d.dismiss() }
@@ -182,8 +184,8 @@ class SettingsSelectorDialogs(
         }
 
         AlertDialog.Builder(context)
-            .setTitle("Add Stremio Addon")
-            .setMessage("Paste the full Stremio manifest.json URL:")
+            .setTitle(R.string.c_add_stremio_addon)
+            .setMessage(R.string.c_paste_the_full_stremio_manifest)
             // Belt and braces: even single-line, the title + message + field can exceed a short
             // landscape screen once fontScale is applied, and a dialog does not scroll by itself.
             .setView(android.widget.ScrollView(context).apply { addView(input) })
@@ -191,9 +193,9 @@ class SettingsSelectorDialogs(
                 val url = input.text.toString().trim()
                 if (SettingsOptionLabels.isValidStremioManifestUrl(url)) {
                     viewModel.addStremioAddonUrl(url)
-                    Toast.makeText(context, "Stremio addon added", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.c_stremio_addon_added), Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(context, "Invalid manifest URL", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.c_invalid_manifest_url), Toast.LENGTH_SHORT).show()
                 }
                 dialog.dismiss()
             }
@@ -204,12 +206,12 @@ class SettingsSelectorDialogs(
     /** Legacy Real-Debrid raw-magnet fallback — not the account logout. */
     fun showDebridLogoutConfirmation() {
         AlertDialog.Builder(context)
-            .setTitle("Log Out of Legacy Real-Debrid Fallback?")
-            .setMessage("You will lose access to the raw magnet fallback. Are you sure?")
+            .setTitle(R.string.c_log_out_of_legacy_real)
+            .setMessage(R.string.c_you_will_lose_access_to)
             .setPositiveButton("Log Out") { dialog, _ ->
                 viewModel.logoutDebrid()
                 dialog.dismiss()
-                Toast.makeText(context, "Logged out of legacy fallback", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.c_logged_out_of_legacy_fallback), Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
             .show()

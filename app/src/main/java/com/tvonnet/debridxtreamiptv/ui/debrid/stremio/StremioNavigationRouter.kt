@@ -215,7 +215,7 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
         clearStatusChip.setOnClickListener {
             dialog.dismiss()
             frag.viewModel.clearContinueWatchingItem(item)
-            Toast.makeText(frag.requireContext(), "Removed from Continue Watching", Toast.LENGTH_SHORT).show()
+            Toast.makeText(frag.requireContext(), frag.requireContext().getString(R.string.c_removed_from_continue_watching), Toast.LENGTH_SHORT).show()
         }
         dialog.show()
         positionDialogOverAnchor(dialog, dialogView, anchor)
@@ -340,7 +340,7 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
                 else -> fallbackUrl
             }
             if (resolvedUrl.isNullOrBlank()) {
-                Toast.makeText(frag.requireContext(), "Stream unavailable", Toast.LENGTH_SHORT).show()
+                Toast.makeText(frag.requireContext(), frag.requireContext().getString(R.string.c_stream_unavailable), Toast.LENGTH_SHORT).show()
                 return@launch
             }
             frag.startActivity(
@@ -382,6 +382,6 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
     fun showHomeActionUnavailable() {
         val frag = fragment ?: return
         if (!frag.isAdded) return
-        Toast.makeText(frag.requireContext(), "Not available", Toast.LENGTH_SHORT).show()
+        Toast.makeText(frag.requireContext(), frag.requireContext().getString(R.string.c_not_available), Toast.LENGTH_SHORT).show()
     }
 }

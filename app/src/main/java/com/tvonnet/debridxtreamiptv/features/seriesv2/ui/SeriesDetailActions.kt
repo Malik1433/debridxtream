@@ -83,13 +83,13 @@ class SeriesDetailActions(
         binding.btnPlay.setOnClickListener {
             val ep = host.resolvePlayTarget()
             if (ep != null) host.onPlayEpisode(ep)
-            else Toast.makeText(fragment.context, "No episodes available", Toast.LENGTH_SHORT).show()
+            else Toast.makeText(fragment.requireContext(), fragment.requireContext().getString(R.string.ui_no_episodes_available), Toast.LENGTH_SHORT).show()
         }
         setupFavoriteButton()
         binding.btnTrailer.setOnClickListener {
             val trailerValue = page.trailer
             if (trailerValue.isNullOrBlank() || TrailerValueParser.parse(trailerValue) == null) {
-                Toast.makeText(fragment.context, "No trailer available", Toast.LENGTH_SHORT).show()
+                Toast.makeText(fragment.requireContext(), fragment.requireContext().getString(R.string.c_no_trailer_available), Toast.LENGTH_SHORT).show()
             } else {
                 fragment.startActivity(TrailerActivity.createIntent(fragment.requireContext(), trailerValue))
             }
@@ -193,7 +193,7 @@ class SeriesDetailActions(
             setPadding(dp(6), dp(6), dp(6), dp(6))
         }
         content.addView(TextView(ctx).apply {
-            text = "SELECT SEASON"
+            text = context.getString(R.string.c_select_season)
             setTextColor(0xFF64748B.toInt())
             textSize = 5f
             typeface = Typeface.MONOSPACE

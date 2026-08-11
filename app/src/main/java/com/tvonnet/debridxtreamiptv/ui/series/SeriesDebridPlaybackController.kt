@@ -248,7 +248,7 @@ class SeriesDebridPlaybackController(
             var iptvEpisodeId = source.stream.custom_sid
             if (url.isNullOrBlank()) {
                 if (iptvSeriesId.isNullOrBlank() || seasonNumber == null || episodeNumber == null) {
-                    Toast.makeText(activity, "Stream unavailable", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(activity, activity.getString(R.string.c_stream_unavailable), Toast.LENGTH_SHORT).show()
                     return@launch
                 }
                 showLoading(true)
@@ -265,8 +265,7 @@ class SeriesDebridPlaybackController(
                 showLoading(false)
                 if (resolved == null) {
                     Toast.makeText(
-                        activity,
-                        "Episode not available in this IPTV category",
+                        activity, activity.getString(R.string.c_episode_not_available_in_this),
                         Toast.LENGTH_LONG
                     ).show()
                     return@launch
@@ -484,7 +483,7 @@ class SeriesDebridPlaybackController(
                     )
                 }
                 is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
-                    Toast.makeText(activity, "Refresh required", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(activity, activity.getString(R.string.c_refresh_required), Toast.LENGTH_SHORT).show()
                 }
                 is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Error -> {
                     sources.markDebridEpisodeSourceCached(episode.id, infoHash, false)
@@ -519,7 +518,7 @@ class SeriesDebridPlaybackController(
             val nextSource = sources.pickNextDebridEpisodeSource(episode.id, cachedSources, failedStreamId)
             if (nextSource != null) {
                 sources.selectedDebridStreamIdByEpisode[episode.id] = nextSource.stream.stream_id
-                Toast.makeText(activity, "Trying next source...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, activity.getString(R.string.c_trying_next_source), Toast.LENGTH_SHORT).show()
                 playDebridEpisode(nextSource, episode)
                 return
             }
@@ -550,7 +549,7 @@ class SeriesDebridPlaybackController(
             val nextSource = sources.pickNextDebridEpisodeSource(episode.id, fetched, failedStreamId)
             if (nextSource != null) {
                 sources.selectedDebridStreamIdByEpisode[episode.id] = nextSource.stream.stream_id
-                Toast.makeText(activity, "Trying next source...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, activity.getString(R.string.c_trying_next_source), Toast.LENGTH_SHORT).show()
                 playDebridEpisode(nextSource, episode)
             } else {
                 sources.fetchAndShowDebridSources(episode)

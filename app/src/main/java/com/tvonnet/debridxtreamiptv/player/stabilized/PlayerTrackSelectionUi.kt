@@ -64,7 +64,7 @@ internal class PlayerTrackSelectionUi(
             dialog.dismiss()
         }
         dialog = androidx.appcompat.app.AlertDialog.Builder(activity.requireContext(), R.style.Theme_DebridXtream_CinematicDialog)
-            .setTitle("Aspect Ratio")
+            .setTitle(R.string.c_aspect_ratio)
             .setAdapter(adapter, adapter.asDialogClickListener())
             .create()
         showManagedTrackDialog(dialog, R.id.btn_aspect_ratio)

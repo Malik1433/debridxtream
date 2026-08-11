@@ -62,7 +62,7 @@ class SearchLiveAdapter(
         
         fun bind(stream: XtreamStream) {
             tvName.text = stream.name ?: "Unknown Channel"
-            tvType.text = "Live TV"
+            tvType.text = tvType.context.getString(R.string.nav_live_tv)
             
             // Load icon with Glide
             val resolved = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(stream.stream_icon)

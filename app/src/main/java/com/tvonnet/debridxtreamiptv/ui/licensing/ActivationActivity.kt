@@ -52,7 +52,7 @@ class ActivationActivity : AppCompatActivity() {
         deviceTv.text = "Support ID: ${manager.installId}"
 
         retry.setOnClickListener {
-            statusTv.text = "Checking…"
+            statusTv.text = statusTv.context.getString(R.string.c_checking)
             manager.stop()
             manager.start() // force a fresh fetch of the license doc
         }
@@ -64,37 +64,37 @@ class ActivationActivity : AppCompatActivity() {
             manager.state.collectLatest { state ->
                 when (state) {
                     is LicenseState.Active -> goToApp()
-                    is LicenseState.Loading -> statusTv.text = "Checking…"
+                    is LicenseState.Loading -> statusTv.text = statusTv.context.getString(R.string.c_checking)
                     is LicenseState.Locked -> when (state.reason) {
                         // Until the licence doc reaches the server the provider's lookup by
                         // code returns "no device found", so asking the customer to go and
                         // activate would send them into exactly that wall. Say what is
                         // actually happening instead; this clears itself in a second or two.
                         LicenseState.Reason.PENDING -> if (!manager.isRegisteredOnServer) {
-                            titleTv.text = "Registering this device…"
-                            statusTv.text = "Give it a moment, then share the code with your provider"
+                            titleTv.text = titleTv.context.getString(R.string.c_registering_this_device)
+                            statusTv.text = statusTv.context.getString(R.string.c_give_it_a_moment_then)
                         } else {
-                            titleTv.text = "Share this code with your provider"
-                            statusTv.text = "Waiting for activation…"
+                            titleTv.text = titleTv.context.getString(R.string.ui_share_this_code_with_your)
+                            statusTv.text = statusTv.context.getString(R.string.ui_waiting_for_activation)
                         }
                         LicenseState.Reason.TRIAL_ENDED -> {
-                            titleTv.text = "Your free trial has ended"
-                            statusTv.text = "Share this code with your provider to activate"
+                            titleTv.text = titleTv.context.getString(R.string.c_your_free_trial_has_ended)
+                            statusTv.text = statusTv.context.getString(R.string.c_share_this_code_with_your)
                         }
                         LicenseState.Reason.DEACTIVATED -> {
-                            titleTv.text = "This device is deactivated"
-                            statusTv.text = "Contact your provider to reactivate"
+                            titleTv.text = titleTv.context.getString(R.string.c_this_device_is_deactivated)
+                            statusTv.text = statusTv.context.getString(R.string.c_contact_your_provider_to_reactivate)
                         }
                         LicenseState.Reason.EXPIRED -> {
-                            titleTv.text = "Your subscription has expired"
-                            statusTv.text = "Contact your provider to renew"
+                            titleTv.text = titleTv.context.getString(R.string.c_your_subscription_has_expired)
+                            statusTv.text = statusTv.context.getString(R.string.c_contact_your_provider_to_renew)
                         }
                         // Nothing is wrong with the licence — the device just has not been able to
                         // reach us for a while. Say that, and say what fixes it. Telling someone
                         // their subscription expired when it has not is how support tickets start.
                         LicenseState.Reason.OFFLINE_TOO_LONG -> {
-                            titleTv.text = "Please connect to the internet"
-                            statusTv.text = "This device needs to check in — it will unlock by itself once online"
+                            titleTv.text = titleTv.context.getString(R.string.c_please_connect_to_the_internet)
+                            statusTv.text = statusTv.context.getString(R.string.c_this_device_needs_to_check)
                         }
                     }
                 }

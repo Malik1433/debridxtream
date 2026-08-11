@@ -304,8 +304,7 @@ class MovieDebridPlaybackController(
                 stream?.stream_id?.let { sources.failedDebridStreamIds.add(it) }
                 sources.markDebridSourceStatus(stream?.stream_id, DebridCacheStatus.NOT_CACHED)
                 Toast.makeText(
-                    activity,
-                    "Source is unavailable. Choose another source.",
+                    activity, activity.getString(R.string.c_source_is_unavailable_choose_another),
                     Toast.LENGTH_LONG
                 ).show()
                 if (sourceOverride != null) {
@@ -325,7 +324,7 @@ class MovieDebridPlaybackController(
             val nextSource = sources.pickNextDebridSource(sources.debridSources, failedStreamId)
             if (nextSource != null) {
                 sources.selectedDebridStreamId = nextSource.stream.stream_id
-                Toast.makeText(activity, "Trying next source...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, activity.getString(R.string.c_trying_next_source), Toast.LENGTH_SHORT).show()
                 playDebridMovie(nextSource.stream, nextSource, returnToSources = true)
                 return
             }
@@ -341,7 +340,7 @@ class MovieDebridPlaybackController(
             val nextSource = sources.pickNextDebridSource(newSources, failedStreamId)
             if (nextSource != null) {
                 sources.selectedDebridStreamId = nextSource.stream.stream_id
-                Toast.makeText(activity, "Trying next source...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, activity.getString(R.string.c_trying_next_source), Toast.LENGTH_SHORT).show()
                 playDebridMovie(nextSource.stream, nextSource, returnToSources = true)
             } else {
                 sources.showDebridSourcePicker()
@@ -370,7 +369,7 @@ class MovieDebridPlaybackController(
         val infoHash = stream?.stream_id // UnifiedSourceProvider sets stream_id to infoHash for Debrid sources
 
         if (magnet.isNullOrBlank() && infoHash.isNullOrBlank()) {
-            Toast.makeText(activity, "Invalid Debrid source", Toast.LENGTH_SHORT).show()
+            Toast.makeText(activity, activity.getString(R.string.c_invalid_debrid_source), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -477,7 +476,7 @@ class MovieDebridPlaybackController(
         ) {
             activity.lifecycleScope.launch {
                 tvSourcesStatus.visibility = View.VISIBLE
-                tvSourcesStatus.text = "Checking source..."
+                tvSourcesStatus.text = tvSourcesStatus.context.getString(R.string.c_checking_source)
                 val readyResult = withContext(Dispatchers.IO) {
                     debridPlaybackRepository.getAddonProxyPlaybackReadiness(
                         directUrl,
@@ -493,7 +492,7 @@ class MovieDebridPlaybackController(
                 if (readiness == AddonProxyReadiness.TERMINAL) {
                     infoHash?.let { sources.failedDebridStreamIds.add(it) }
                     sources.markDebridSourceStatus(infoHash, DebridCacheStatus.NOT_CACHED)
-                    Toast.makeText(activity, "Source is unavailable. Choose another source.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(activity, activity.getString(R.string.c_source_is_unavailable_choose_another), Toast.LENGTH_LONG).show()
                     sources.showDebridSourcePicker(sources.consumeDebridReturnFocusStreamIds())
                     return@launch
                 }
@@ -518,7 +517,7 @@ class MovieDebridPlaybackController(
         activity.lifecycleScope.launch {
             // Show loading indicator
             tvSourcesStatus.visibility = View.VISIBLE
-            tvSourcesStatus.text = "Resolving Debrid link..."
+            tvSourcesStatus.text = tvSourcesStatus.context.getString(R.string.c_resolving_debrid_link)
 
             val result = withContext(Dispatchers.IO) {
                 playbackResolver.resolve(
@@ -552,7 +551,7 @@ class MovieDebridPlaybackController(
                     )
                 }
                 is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
-                    Toast.makeText(activity, "Source expired, please refresh", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(activity, activity.getString(R.string.c_source_expired_please_refresh), Toast.LENGTH_SHORT).show()
                     sources.showDebridSourcePicker(sources.consumeDebridReturnFocusStreamIds())
                 }
                 is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Error -> {
@@ -588,7 +587,7 @@ class MovieDebridPlaybackController(
 
     fun handleDebridHistoryItem(infoHash: String) {
         tvSourcesStatus.visibility = View.VISIBLE
-        tvSourcesStatus.text = "Resuming from Debrid History..."
+        tvSourcesStatus.text = tvSourcesStatus.context.getString(R.string.c_resuming_from_debrid_history)
 
         activity.lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
@@ -625,7 +624,7 @@ class MovieDebridPlaybackController(
                     activity.startActivity(intent)
                 }
                 is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.RefreshRequired -> {
-                    Toast.makeText(activity, "History item expired", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(activity, activity.getString(R.string.c_history_item_expired), Toast.LENGTH_SHORT).show()
                 }
                 is com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult.Error -> {
                     Toast.makeText(activity, result.message, Toast.LENGTH_LONG).show()

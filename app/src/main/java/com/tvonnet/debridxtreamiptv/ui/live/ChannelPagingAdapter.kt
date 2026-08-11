@@ -288,7 +288,7 @@ class ChannelPagingViewHolder(
                     visibility = android.view.View.VISIBLE
                 }
                 flags.isHd -> {
-                    text = "HD"
+                    text = context.getString(R.string.ui_hd)
                     setBackgroundResource(R.drawable.bg_live_badge_quality_hd)
                     visibility = android.view.View.VISIBLE
                 }

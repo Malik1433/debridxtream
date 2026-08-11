@@ -123,7 +123,7 @@ object UpdateManager {
             if (forced) append("\n\nThis update is required to continue.")
         }
         val dialog = AlertDialog.Builder(activity)
-            .setTitle("Update available")
+            .setTitle(R.string.c_update_available)
             .setMessage(message)
             .setCancelable(!forced)
             .setPositiveButton("Update now") { _, _ -> download(activity, apkUrl, forced) }
@@ -134,7 +134,7 @@ object UpdateManager {
     private fun download(activity: Activity, apkUrl: String, forced: Boolean) {
         @Suppress("DEPRECATION")
         val progress = ProgressDialog(activity).apply {
-            setMessage("Downloading update…")
+            setMessage(activity.getString(R.string.c_downloading_update))
             setCancelable(false)
             setProgressStyle(ProgressDialog.STYLE_HORIZONTAL)
             max = 100
@@ -204,7 +204,7 @@ object UpdateManager {
     // A forced update may not be dismissed — retry is the only way forward, as before.
     private fun showDownloadFailedDialog(activity: Activity, apkUrl: String, forced: Boolean, e: Exception) {
         AlertDialog.Builder(activity)
-            .setTitle("Update failed")
+            .setTitle(R.string.c_update_failed)
             .setMessage("Could not download the update. Please try again later.\n(${e.message})")
             .setCancelable(!forced)
             .setPositiveButton("Retry") { _, _ -> download(activity, apkUrl, forced) }

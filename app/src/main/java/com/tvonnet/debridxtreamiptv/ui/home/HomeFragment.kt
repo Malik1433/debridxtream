@@ -512,7 +512,7 @@ class HomeFragment : Fragment() {
             },
             onRemoveItem = { item ->
                 viewModel.clearContinueWatchingItem(item)
-                android.widget.Toast.makeText(requireContext(), "Removed from Continue Watching", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(requireContext(), requireContext().getString(R.string.c_removed_from_continue_watching), android.widget.Toast.LENGTH_SHORT).show()
             }
         )
         rvContinueWatching.adapter = continueWatchingAdapter

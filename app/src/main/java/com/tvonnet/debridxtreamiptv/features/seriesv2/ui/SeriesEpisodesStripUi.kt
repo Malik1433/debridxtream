@@ -1,5 +1,7 @@
 package com.tvonnet.debridxtreamiptv.features.seriesv2.ui
 
+import com.tvonnet.debridxtreamiptv.R
+
 import android.view.View
 import androidx.paging.CombinedLoadStates
 import androidx.paging.LoadState
@@ -95,7 +97,7 @@ class SeriesEpisodesStripUi(
         b.llEpisodesLoading.visibility = if (showSkeleton) View.VISIBLE else View.GONE
         if (showSkeleton) startEpisodeShimmer() else stopEpisodeShimmer()
         b.tvEmptyEpisodes.visibility = if (emptySettled) View.VISIBLE else View.GONE
-        if (emptySettled) b.tvEmptyEpisodes.text = "No episodes"
+        if (emptySettled) b.tvEmptyEpisodes.text = b.tvEmptyEpisodes.context.getString(R.string.c_no_episodes)
     }
 
     private fun startEpisodeShimmer() {

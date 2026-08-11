@@ -114,13 +114,13 @@ class VodListStateUi(
         if (show) {
             // Distinguish a load failure (offer Retry) from a genuinely-empty category.
             if (hasLoadError) {
-                views.message()?.text = "Couldn't load movies"
+                views.message()?.text = fragment.getString(R.string.c_couldn_t_load_movies)
                 views.hint()?.visibility = View.VISIBLE
-                views.hint()?.text = "Check your connection and try again"
+                views.hint()?.text = fragment.getString(R.string.c_check_your_connection_and_try)
                 views.retry()?.visibility = View.VISIBLE
                 views.retry()?.post { if (fragment.isAdded) views.retry()?.requestFocus() }
             } else {
-                views.message()?.text = "No movies in this category"
+                views.message()?.text = fragment.getString(R.string.c_no_movies_in_this_category)
                 views.hint()?.visibility = View.GONE
                 views.retry()?.visibility = View.GONE
             }

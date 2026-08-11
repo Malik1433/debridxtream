@@ -156,7 +156,7 @@ internal class StremioSearchOverlay(
         if (query.isBlank()) {
             trendingWrap.isVisible = true
             resultsAccent.setBackgroundResource(R.drawable.stremio_search_accent_purple)
-            resultsTitle.text = "Popular Right Now"
+            resultsTitle.text = resultsTitle.context.getString(R.string.ui_popular_right_now)
             countTv.text = ""
             noResults.isVisible = false
             loadPopular(token)

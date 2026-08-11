@@ -647,8 +647,8 @@ class SeriesDetailActivity : AppCompatActivity() {
 
     private fun showDebridConfigDialog() {
         androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Real-Debrid Not Configured")
-            .setMessage("You need to configure Real-Debrid settings to play this content. Do you want to configure it now?")
+            .setTitle(R.string.c_real_debrid_not_configured)
+            .setMessage(R.string.c_you_need_to_configure_real)
             .setPositiveButton("Configure") { _, _ ->
                  navigateToSettings()
             }

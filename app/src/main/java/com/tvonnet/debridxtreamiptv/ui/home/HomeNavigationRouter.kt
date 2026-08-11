@@ -418,7 +418,7 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
             }
 
             if (resolvedUrl.isNullOrBlank()) {
-                Toast.makeText(frag.requireContext(), "Stream unavailable", Toast.LENGTH_SHORT).show()
+                Toast.makeText(frag.requireContext(), frag.requireContext().getString(R.string.c_stream_unavailable), Toast.LENGTH_SHORT).show()
                 return@launch
             }
 
@@ -470,6 +470,6 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
     fun showHomeActionUnavailable() {
         val frag = fragment ?: return
         if (!frag.isAdded) return
-        Toast.makeText(frag.requireContext(), "Not available", Toast.LENGTH_SHORT).show()
+        Toast.makeText(frag.requireContext(), frag.requireContext().getString(R.string.c_not_available), Toast.LENGTH_SHORT).show()
     }
 }

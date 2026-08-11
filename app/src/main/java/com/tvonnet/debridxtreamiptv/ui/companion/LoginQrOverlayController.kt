@@ -169,7 +169,7 @@ class LoginQrOverlayController(
 
         listener = docRef.addSnapshotListener { snapshot, e ->
             if (e != null) {
-                tvStatus.text = "CONNECTION ERROR · RETRYING…"
+                tvStatus.text = tvStatus.context.getString(R.string.c_connection_error_retrying)
                 return@addSnapshotListener
             }
             val status = snapshot?.getString("status")
@@ -177,7 +177,7 @@ class LoginQrOverlayController(
             if (snapshot != null && !paired && pairingFinished) {
                 paired = true
                 val applied = CompanionConfigApplier.apply(context, snapshot.data)
-                tvStatus.text = "✓ PHONE CONNECTED · SYNCING…"
+                tvStatus.text = tvStatus.context.getString(R.string.c_phone_connected_syncing)
                 handler.removeCallbacks(statusCycler)
                 if (applied) {
                     hide()
@@ -200,7 +200,7 @@ class LoginQrOverlayController(
     fun onConfiguredElsewhere() {
         if (paired) return
         paired = true
-        tvStatus.text = "✓ TV ADDED · SYNCING…"
+        tvStatus.text = tvStatus.context.getString(R.string.c_tv_added_syncing)
         handler.removeCallbacks(statusCycler)
         hide()
     }

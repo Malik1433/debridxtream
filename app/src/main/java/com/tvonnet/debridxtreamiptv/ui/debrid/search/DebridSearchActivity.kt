@@ -77,7 +77,7 @@ class DebridSearchActivity : AppCompatActivity() {
             is SearchUiState.Idle -> {
                 progressBar.visibility = View.GONE
                 tvMessage.visibility = View.VISIBLE
-                tvMessage.text = "Type to search..."
+                tvMessage.text = tvMessage.context.getString(R.string.c_type_to_search)
                 adapter.submitList(emptyList())
             }
             is SearchUiState.Loading -> {

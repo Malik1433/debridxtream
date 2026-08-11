@@ -44,7 +44,14 @@ internal class GuideChipsController(
     private var builtCategoriesSignature: String? = null
     private var dayTabsBuilt = false
 
-    private val dayLabels = listOf("Today", "Tomorrow", "+2 day", "+3 day")
+    private val dayLabels: List<String> by lazy {
+        listOf(
+            fragment.getString(R.string.c_today),
+            fragment.getString(R.string.c_tomorrow),
+            fragment.getString(R.string.c_plus_2_days),
+            fragment.getString(R.string.c_plus_3_days),
+        )
+    }
 
     /** Called from the state observer; both builders are no-ops once their input is unchanged. */
     fun bind(state: GuideUiState) {
@@ -80,7 +87,7 @@ internal class GuideChipsController(
     }
 
     private fun searchChip(): TextView = baseChip().apply {
-        text = "🔍  Search"
+        text = context.getString(R.string.c_search)
         tag = TAG_SEARCH_CHIP
         setOnClickListener { onSearchClicked() }
     }

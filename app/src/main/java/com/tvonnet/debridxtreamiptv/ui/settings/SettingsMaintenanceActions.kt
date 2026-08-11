@@ -40,14 +40,14 @@ class SettingsMaintenanceActions(
     private val context get() = fragment.requireContext()
 
     fun refreshIptvData() {
-        Toast.makeText(context, "Refreshing IPTV data...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.c_refreshing_iptv_data), Toast.LENGTH_SHORT).show()
         fragment.viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val result = repository.forceRefresh()
                 if (result is com.tvonnet.debridxtreamiptv.data.Result.Success) {
-                    Toast.makeText(context, "IPTV data refreshed successfully", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.c_iptv_data_refreshed_successfully), Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(context, "Refresh failed. Please try again.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.c_refresh_failed_please_try_again), Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "IPTV refresh failed", e)
@@ -57,14 +57,14 @@ class SettingsMaintenanceActions(
     }
 
     fun syncEpgNow() {
-        Toast.makeText(context, "Syncing EPG data...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.c_syncing_epg_data), Toast.LENGTH_SHORT).show()
         fragment.viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val result = repository.fetchAndSaveEpg()
                 if (result is com.tvonnet.debridxtreamiptv.data.Result.Success) {
                     Toast.makeText(context, "EPG synced: ${result.data} programs", Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(context, "EPG sync failed. Please try again.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.c_epg_sync_failed_please_try), Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "EPG sync failed", e)
@@ -75,15 +75,15 @@ class SettingsMaintenanceActions(
 
     fun showClearCacheDialog() {
         AlertDialog.Builder(context)
-            .setTitle("Clear Cache")
-            .setMessage("Are you sure you want to clear all cached TV data?")
+            .setTitle(R.string.c_clear_cache)
+            .setMessage(R.string.c_are_you_sure_you_want_2)
             .setPositiveButton("Clear") { _, _ ->
                 try {
                     context.cacheDir.deleteRecursively()
-                    Toast.makeText(context, "Cache cleared", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.c_cache_cleared), Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     android.util.Log.e(TAG, "Clear cache failed", e)
-                    Toast.makeText(context, "Failed to clear cache", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.c_failed_to_clear_cache), Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Cancel", null)
@@ -92,8 +92,8 @@ class SettingsMaintenanceActions(
 
     fun showAccountLogoutConfirmation() {
         AlertDialog.Builder(context)
-            .setTitle("Logout")
-            .setMessage("Are you sure you want to log out?")
+            .setTitle(R.string.ui_logout)
+            .setMessage(R.string.c_are_you_sure_you_want_3)
             .setPositiveButton("Logout") { dialog, _ ->
                 performAccountLogout()
                 dialog.dismiss()
@@ -133,7 +133,7 @@ class SettingsMaintenanceActions(
         if (!fragment.isAdded) return
 
         val loadingDialog = AlertDialog.Builder(context)
-            .setTitle("Loading Categories...")
+            .setTitle(R.string.c_loading_categories)
             .setView(android.widget.ProgressBar(context).apply { setPadding(40, 40, 40, 40) })
             .setCancelable(false)
             .create()
@@ -150,7 +150,7 @@ class SettingsMaintenanceActions(
                 if (!fragment.isAdded || fragment.isStateSaved) return@launch
 
                 if (categories.isEmpty()) {
-                    Toast.makeText(context, "No categories found. Sync active?", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.c_no_categories_found_sync_active), Toast.LENGTH_SHORT).show()
                     return@launch
                 }
 
@@ -159,7 +159,7 @@ class SettingsMaintenanceActions(
 
                 dialogFragment.setCallback {
                     if (fragment.isAdded) {
-                        Toast.makeText(context, "Home preferences saved", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.c_home_preferences_saved), Toast.LENGTH_SHORT).show()
                     }
                 }
 

@@ -105,7 +105,7 @@ class DebridAuthFragment : Fragment() {
             if (key.isNotEmpty()) {
                 viewModel.loginWithStaticToken(key)
             } else {
-                Toast.makeText(requireContext(), "Please enter API Key", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), requireContext().getString(R.string.c_please_enter_api_key), Toast.LENGTH_SHORT).show()
             }
         }
     }

@@ -135,7 +135,7 @@ class MovieDetailFragmentV2 : Fragment() {
     // The argument-supplied fields render first so the page is never blank while TMDB
     // enrichment is in flight; applyEnrichment only overwrites what it actually has.
     private fun bindArgFields(plot: String?, year: String?, genre: String?, rating: String?) {
-        binding.tvContentType.text = "FEATURE FILM"
+        binding.tvContentType.text = binding.tvContentType.context.getString(R.string.ui_feature_film)
         binding.tvTitle.text = movieTitle ?: "Loading..."
         binding.tvPlot.text = plot?.takeIf { it.isNotBlank() } ?: "No plot available."
         binding.tvYear.text = year?.takeIf { it.isNotBlank() } ?: "N/A"
@@ -161,7 +161,7 @@ class MovieDetailFragmentV2 : Fragment() {
         binding.btnTrailer.setOnClickListener {
             val currentTrailer = resolvedTrailer
             if (currentTrailer.isNullOrBlank() || TrailerValueParser.parse(currentTrailer) == null) {
-                Toast.makeText(context, "No trailer available", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), requireContext().getString(R.string.c_no_trailer_available), Toast.LENGTH_SHORT).show()
             } else {
                 startActivity(TrailerActivity.createIntent(requireContext(), currentTrailer))
             }
@@ -285,7 +285,7 @@ class MovieDetailFragmentV2 : Fragment() {
     private fun playMovie() {
         val id = streamId
         if (id.isNullOrBlank()) {
-            Toast.makeText(context, "Invalid movie id", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), requireContext().getString(R.string.c_invalid_movie_id), Toast.LENGTH_SHORT).show()
             return
         }
         val prefs = CredentialsPreferences(requireContext())
@@ -293,7 +293,7 @@ class MovieDetailFragmentV2 : Fragment() {
         val username = prefs.getUsername()
         val password = prefs.getPassword()
         if (serverUrl.isNullOrBlank() || username.isNullOrBlank() || password.isNullOrBlank()) {
-            Toast.makeText(context, "Missing credentials", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), requireContext().getString(R.string.c_missing_credentials), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -325,7 +325,7 @@ class MovieDetailFragmentV2 : Fragment() {
                 try {
                     if (isFav) {
                         repository.removeFavorite(id)
-                        Toast.makeText(context, "Removed from favorites", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(requireContext(), requireContext().getString(R.string.movie_detail_removed_from_favorites), Toast.LENGTH_SHORT).show()
                     } else {
                         repository.addFavorite(
                             streamId = id,
@@ -333,7 +333,7 @@ class MovieDetailFragmentV2 : Fragment() {
                             name = movieTitle ?: "Movie",
                             iconUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(posterUrl)
                         )
-                        Toast.makeText(context, "Added to favorites", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(requireContext(), requireContext().getString(R.string.movie_detail_added_to_favorites), Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
                     Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()

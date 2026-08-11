@@ -323,7 +323,7 @@ class PreviewPlayerPanel(
                 badge.isVisible = true
             }
             isHd -> {
-                badge.text = "HD"
+                badge.text = badge.context.getString(R.string.ui_hd)
                 badge.setBackgroundResource(R.drawable.bg_live_badge_quality_hd)
                 badge.isVisible = true
             }

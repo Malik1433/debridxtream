@@ -115,7 +115,7 @@ class InitialSyncFragment : Fragment() {
     }
 
     private fun showError(message: String?) {
-        syncStatus.text = "Sync failed"
+        syncStatus.text = syncStatus.context.getString(R.string.c_sync_failed)
         syncError.text = message ?: "Sync failed. Check your connection."
         syncError.visibility = View.VISIBLE
         retryButton.visibility = View.VISIBLE

@@ -118,13 +118,13 @@ class SeriesListStateUi(
         }
         if (show) {
             if (hasLoadError) {
-                views.message()?.text = "Couldn't load series"
+                views.message()?.text = fragment.getString(R.string.c_couldn_t_load_series)
                 views.hint()?.visibility = View.VISIBLE
-                views.hint()?.text = "Check your connection and try again"
+                views.hint()?.text = fragment.getString(R.string.c_check_your_connection_and_try)
                 views.retry()?.visibility = View.VISIBLE
                 views.retry()?.post { if (fragment.isAdded) views.retry()?.requestFocus() }
             } else {
-                views.message()?.text = "No series available"
+                views.message()?.text = fragment.getString(R.string.ui_no_series_available)
                 views.hint()?.visibility = View.GONE
                 views.retry()?.visibility = View.GONE
             }

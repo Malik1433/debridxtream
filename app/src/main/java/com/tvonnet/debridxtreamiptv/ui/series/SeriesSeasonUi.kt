@@ -184,7 +184,7 @@ class SeriesSeasonUi(
         }
 
         val headerTv = TextView(activity).apply {
-            text = "SELECT SEASON"
+            text = context.getString(R.string.c_select_season)
             setTextColor(0xFF64748B.toInt())
             textSize = 9f
             typeface = android.graphics.Typeface.MONOSPACE

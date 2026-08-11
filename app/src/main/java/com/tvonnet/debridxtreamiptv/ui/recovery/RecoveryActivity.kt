@@ -1,5 +1,7 @@
 package com.tvonnet.debridxtreamiptv.ui.recovery
 
+import com.tvonnet.debridxtreamiptv.R
+
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -29,7 +31,7 @@ class RecoveryActivity : Activity() {
         }
 
         val title = TextView(this).apply {
-            text = "App Recovery Mode"
+            text = context.getString(R.string.c_app_recovery_mode)
             textSize = 32f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
@@ -37,7 +39,7 @@ class RecoveryActivity : Activity() {
         }
 
         val message = TextView(this).apply {
-            text = "DebridXtream detected consecutive crashes on startup. Would you like to clear the local database cache and reset settings to default?"
+            text = context.getString(R.string.c_debridxtream_detected_consecutive_crashes)
             textSize = 18f
             setTextColor(Color.parseColor("#cccccc"))
             gravity = Gravity.CENTER
@@ -45,7 +47,7 @@ class RecoveryActivity : Activity() {
         }
 
         val btnReset = Button(this).apply {
-            text = "Clear Cache & Reset Settings"
+            text = context.getString(R.string.c_clear_cache_reset_settings)
             textSize = 16f
             setBackgroundColor(Color.parseColor("#ff4444"))
             setTextColor(Color.WHITE)
@@ -56,7 +58,7 @@ class RecoveryActivity : Activity() {
         }
 
         val btnRestart = Button(this).apply {
-            text = "Try Restarting Normally"
+            text = context.getString(R.string.c_try_restarting_normally)
             textSize = 16f
             setBackgroundColor(Color.parseColor("#4444ff"))
             setTextColor(Color.WHITE)

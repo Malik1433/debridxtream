@@ -1,5 +1,7 @@
 package com.tvonnet.debridxtreamiptv.ui.mode
 
+import com.tvonnet.debridxtreamiptv.R
+
 import android.app.Activity
 import android.app.AlertDialog
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
@@ -24,8 +26,8 @@ object UiModeChooser {
         // Mark first: a dismissed dialog must not come back on every launch.
         prefs.markUiModeChooserShown()
         AlertDialog.Builder(activity)
-            .setTitle("How are you using this device?")
-            .setMessage("Pick the layout that fits. You can change it later in Settings.")
+            .setTitle(R.string.c_how_are_you_using_this)
+            .setMessage(R.string.c_pick_the_layout_that_fits)
             .setPositiveButton("TV / remote") { d, _ ->
                 prefs.setUiModeOverride(UiModeResolver.OVERRIDE_TV)
                 d.dismiss()

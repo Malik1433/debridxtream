@@ -1,5 +1,7 @@
 package com.tvonnet.debridxtreamiptv.ui.companion
 
+import com.tvonnet.debridxtreamiptv.R
+
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
@@ -76,7 +78,7 @@ object CompanionConfigSync {
         prefs.edit().putLong(KEY_LAST_APPLIED, if (updatedAt > 0) updatedAt else System.currentTimeMillis()).apply()
         Log.i(TAG, "companion config applied (iptv=$applied)")
         try {
-            Toast.makeText(appContext, "Settings updated from your phone", Toast.LENGTH_LONG).show()
+            Toast.makeText(appContext, appContext.getString(R.string.c_settings_updated_from_your_phone), Toast.LENGTH_LONG).show()
         } catch (_: Exception) {}
     }
 

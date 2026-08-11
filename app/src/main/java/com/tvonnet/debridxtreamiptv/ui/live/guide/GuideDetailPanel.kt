@@ -58,7 +58,7 @@ internal class GuideDetailPanel(
         binding.tvMeta.text = channel.genre.label
         binding.tvDesc.text = ""
         binding.progressTrack.visibility = View.GONE
-        binding.btnPrimary.text = "Add to Favorites"
+        binding.btnPrimary.text = binding.btnPrimary.context.getString(R.string.movie_detail_add_to_favorites)
     }
 
     private fun bindProgram(program: GuideProgram, now: Long) {

@@ -115,8 +115,8 @@ class FavoritesFragment : Fragment() {
         btnClearAll.setOnClickListener {
             // Show confirmation dialog
             androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle("Clear All Favorites")
-                .setMessage("Are you sure you want to remove all favorites?")
+                .setTitle(R.string.c_clear_all_favorites)
+                .setMessage(R.string.c_are_you_sure_you_want)
                 .setPositiveButton("Yes") { _, _ ->
                     viewModel.onEvent(FavoritesEvent.ClearAll)
                 }

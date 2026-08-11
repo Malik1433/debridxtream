@@ -275,7 +275,7 @@ internal class LiveGuideOverlayController(
         lineLp.leftMargin = nowX
         guideTimebar.addView(line, lineLp)
         val pill = TextView(root.context).apply {
-            text = "NOW"
+            text = context.getString(R.string.c_now)
             textSize = 5.5f
             setTextColor(0xFF041014.toInt())
             typeface = android.graphics.Typeface.MONOSPACE

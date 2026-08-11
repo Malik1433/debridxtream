@@ -396,7 +396,7 @@ class EpisodeBrowserController(
                         Toast.LENGTH_SHORT
                     ).show()
                 }.onFailure {
-                    Toast.makeText(context, "Unable to update watched state", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.c_unable_to_update_watched_state), Toast.LENGTH_SHORT).show()
                 }
             }
         }

@@ -58,7 +58,7 @@ class CompanionSetupActivity : AppCompatActivity() {
             binding.pbLoading.visibility = View.GONE
         } catch (e: Exception) {
             android.util.Log.e("CompanionSetup", "QR code generation failed", e)
-            Toast.makeText(this, "Error generating QR code", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, this.getString(R.string.c_error_generating_qr_code), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -134,7 +134,7 @@ class CompanionSetupActivity : AppCompatActivity() {
 
         CompanionConfigApplier.apply(applicationContext, data)
 
-        Toast.makeText(this, "Configuration Received! Happy Streaming.", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, this.getString(R.string.c_configuration_received_happy_streaming), Toast.LENGTH_LONG).show()
 
         
         // Return result to LoginFragment
