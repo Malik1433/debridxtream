@@ -23,6 +23,34 @@ const RedirectToLink = () => {
     return <Navigate to={`/link${location.search}`} replace />
 }
 
+/**
+ * Any address that matches no route used to render NOTHING — React mounted an empty <Routes> and
+ * the dark page background did the rest, so a typo, a stale link, or a path that is supposed to be
+ * rewritten away by the host all looked identical: a black screen with no way out.
+ *
+ * It also matters as a diagnostic. /admin is served by a Vercel rewrite to the panel's own host;
+ * if that rewrite ever stops applying, the request falls through to this app, and "not found" says
+ * so plainly where a blank page said nothing at all.
+ */
+const NotFound = () => {
+    const location = useLocation()
+    return (
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div style={{ maxWidth: 380, textAlign: 'center' }}>
+                <div style={{ fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.5 }}>DX Play</div>
+                <h1 style={{ fontSize: 26, fontWeight: 700, margin: '10px 0 6px' }}>Page not found</h1>
+                <p style={{ opacity: 0.6, fontSize: 14, margin: '0 0 20px' }}>
+                    Nothing lives at <code>{location.pathname}</code>.
+                </p>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <a href="/link" style={{ padding: '10px 16px', borderRadius: 8, background: '#fff', color: '#0a0a0a', fontWeight: 600, fontSize: 14 }}>Add a TV</a>
+                    <a href="/account" style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', fontSize: 14 }}>My account</a>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 function App() {
     return (
         <Router>
@@ -49,6 +77,7 @@ function App() {
                         phone camera won't cooperate. */}
                     <Route path="/link" element={<LinkDevicePage />} />
                     <Route path="/account/link" element={<LinkDevicePage />} />
+                    <Route path="*" element={<NotFound />} />
                 </Routes>
             </div>
         </Router>
