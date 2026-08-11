@@ -217,7 +217,7 @@
     <string name="update_none_configured">Ainda não foi publicada nenhuma atualização</string>
     <string name="update_check_failed">Servidor de atualizações inacessível</string>
     <string name="update_permission_title">Permitir instalação de apps</string>
-    <string name="update_permission_message">A atualização foi transferida, mas este dispositivo bloqueia instalações de origens desconhecidas. Abre as definições e permite que a DebridXtream instale apps — a atualização continuará automaticamente.</string>
+    <string name="update_permission_message">A atualização foi transferida, mas este dispositivo bloqueia instalações de origens desconhecidas. Abre as definições e permite que o DX Play instale apps — a atualização continuará automaticamente.</string>
     <string name="update_permission_open_settings">Abrir definições</string>
     <string name="cw_options_title">Opções</string>
     <string name="cw_options_details">Detalhes</string>
@@ -475,7 +475,7 @@
     <string name="c_contact_your_provider_to_renew">Contacta o teu fornecedor para renovar</string>
     <string name="c_couldn_t_load_movies">Não foi possível carregar os filmes</string>
     <string name="c_couldn_t_load_series">Não foi possível carregar as séries</string>
-    <string name="c_debridxtream_detected_consecutive_crashes">A DebridXtream detetou falhas consecutivas no arranque. Limpar a cache local e repor as definições?</string>
+    <string name="c_debridxtream_detected_consecutive_crashes">O DX Play detetou falhas consecutivas no arranque. Limpar a cache local e repor as definições?</string>
     <string name="c_downloading_update">A transferir atualização…</string>
     <string name="c_epg_sync_failed_please_try">Falha na sincronização EPG. Tenta novamente.</string>
     <string name="c_episode_not_available_in_this">Episódio indisponível nesta categoria IPTV</string>
@@ -617,4 +617,6 @@
     <string name="f_chip_quality">Qualidade: %1$s ▼</string>
     <string name="f_chip_language">Idioma: %1$s ▼</string>
     <string name="f_chip_source">Fonte: %1$s ▼</string>
+    <string name="c_hero_desc_fallback">Desfrute de streaming de alta qualidade no DX Play.</string>
+    <string name="c_hero_desc_fallback_home">Veja este conteúdo incrível no DX Play. Experiência de cinema.</string>
 </resources>

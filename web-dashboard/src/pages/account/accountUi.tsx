@@ -25,7 +25,7 @@ export function AccountSplitShell({ title, subtitle, children }: { title: string
                         ))}
                     </ul>
                 </div>
-                <p style={{ fontSize: 12, opacity: 0.4, margin: 0 }}>© 2026 DebridXtream</p>
+                <p style={{ fontSize: 12, opacity: 0.4, margin: 0 }}>© 2026 DX Play</p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px' }}>
                 <div style={{ width: '100%', maxWidth: 460, margin: '0 auto' }}>

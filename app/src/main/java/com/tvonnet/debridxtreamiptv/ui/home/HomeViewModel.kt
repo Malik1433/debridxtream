@@ -2,6 +2,7 @@ package com.tvonnet.debridxtreamiptv.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.data.prefs.HomePreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
@@ -198,7 +199,7 @@ class HomeViewModel @Inject constructor(
     private fun heroFrom(featured: FeaturedItem?): HeroContent? = featured?.let { f ->
         HeroContent(
             title = f.title,
-            description = f.description ?: "Experience high-quality streaming on DebridXtream.",
+            description = f.description ?: appContext.getString(R.string.c_hero_desc_fallback),
             imageUrl = f.backdropUrl ?: f.posterUrl,
             rating = f.rating ?: "N/A",
             type = if (f.contentType == ContentType.MOVIE) "MOVIE" else "SERIES",

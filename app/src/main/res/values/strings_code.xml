@@ -29,7 +29,7 @@
     <string name="c_contact_your_provider_to_renew">Contact your provider to renew</string>
     <string name="c_couldn_t_load_movies">Couldn\'t load movies</string>
     <string name="c_couldn_t_load_series">Couldn\'t load series</string>
-    <string name="c_debridxtream_detected_consecutive_crashes">DebridXtream detected consecutive crashes on startup. Would you like to clear the local database cache and reset settings to default?</string>
+    <string name="c_debridxtream_detected_consecutive_crashes">DX Play detected consecutive crashes on startup. Would you like to clear the local database cache and reset settings to default?</string>
     <string name="c_downloading_update">Downloading update…</string>
     <string name="c_epg_sync_failed_please_try">EPG sync failed. Please try again.</string>
     <string name="c_episode_not_available_in_this">Episode not available in this IPTV category</string>
@@ -97,4 +97,9 @@
     <string name="c_you_will_lose_access_to">You will lose access to the raw magnet fallback. Are you sure?</string>
     <string name="c_your_free_trial_has_ended">Your free trial has ended</string>
     <string name="c_your_subscription_has_expired">Your subscription has expired</string>
+    <!-- Hero blurb shown when the catalogue gives a title no description of its own. Naming the
+         app made these the only user-visible strings the rename could not reach from a resource
+         file, which is also why they are resources now. -->
+    <string name="c_hero_desc_fallback">Experience high-quality streaming on DX Play.</string>
+    <string name="c_hero_desc_fallback_home">Watch this amazing content on DX Play. Cinematic experience.</string>
 </resources>

@@ -42,7 +42,7 @@ internal class HomeHeroManager(private var fragment: HomeFragment?) {
         val frag = fragment ?: return
         frag.currentHeroItem = item
         frag.tvHeroTitle.text = item.title
-        frag.tvHeroDescription.text = item.description ?: "Watch this amazing content on DebridXtream. Cinematic experience."
+        frag.tvHeroDescription.text = item.description ?: frag.getString(R.string.c_hero_desc_fallback_home)
 
         item.rating?.takeIf { it.isNotBlank() }?.let { rating ->
             frag.view?.findViewById<android.widget.TextView>(R.id.tv_hero_rating)?.text = "$rating ★"

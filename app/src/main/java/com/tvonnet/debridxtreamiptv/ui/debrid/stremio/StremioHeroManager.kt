@@ -116,7 +116,7 @@ internal class StremioHeroManager(
         badge4k.visibility = View.GONE
         badgeDolby.visibility = View.GONE
         genresRow.visibility = View.GONE
-        descView.text = item.desc ?: "Experience high-quality streaming on DebridXtream."
+        descView.text = item.desc ?: fragment.getString(R.string.c_hero_desc_fallback)
 
         Glide.with(fragment).load(item.backdropUrl)
             // IMG-3: same hero-vs-cache-thrash fix as HomeHeroManager.

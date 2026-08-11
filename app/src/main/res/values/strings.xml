@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">DebridXtreamIPTV</string>
+    <string name="app_name">DX Play</string>
     <string name="poster">Poster</string>
     
     <!-- Movie Detail -->
@@ -89,7 +89,7 @@
     <string name="series_detail_add_to_favorites">Add to Favorites</string>
     <string name="series_detail_remove_from_favorites">Remove from Favorites</string>
     <!-- Home Screen Strings -->
-    <string name="app_title">DebridXtream</string>
+    <string name="app_title">DX Play</string>
     <string name="nav_live_tv">Live TV</string>
     <string name="nav_movies">Movies</string>
     <string name="nav_series">Series</string>
@@ -287,7 +287,7 @@
     <!-- Live TV v2 -->
     <string name="premium_feature_locked">Premium feature — contact your provider</string>
     <string name="livev2_browse_label">BROWSE</string>
-    <string name="livev2_brand_name">DebridXtream</string>
+    <string name="livev2_brand_name">DX Play</string>
     <string name="livev2_brand_mark">DX</string>
     <string name="livev2_brand_tag">v2.4 · 4K</string>
     <string name="livev2_title">Live TV</string>
@@ -311,7 +311,7 @@
     <string name="update_none_configured">No update has been published yet</string>
     <string name="update_check_failed">Could not reach the update server</string>
     <string name="update_permission_title">Allow app installs</string>
-    <string name="update_permission_message">The update has been downloaded, but this device blocks installs from unknown sources. Open settings and allow DebridXtream to install apps, then come back — the update will continue automatically.</string>
+    <string name="update_permission_message">The update has been downloaded, but this device blocks installs from unknown sources. Open settings and allow DX Play to install apps, then come back — the update will continue automatically.</string>
     <string name="update_permission_open_settings">Open settings</string>
 
     <!-- M2c: Continue Watching options (phone bottom sheet; TV keeps the bubble chips) -->

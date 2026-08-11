@@ -5,7 +5,7 @@ export function DxLogo({ onDark = false }: { onDark?: boolean }) {
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 30, height: 30, background: onDark ? '#ec3013' : '#201e1d', color: onDark ? '#f3f2f2' : '#ec3013', fontFamily: 'Archivo', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>DX</div>
-            <span style={{ fontFamily: 'Archivo', fontWeight: 800, fontSize: 17, color: onDark ? '#f3f2f2' : 'inherit' }}>DebridXtream</span>
+            <span style={{ fontFamily: 'Archivo', fontWeight: 800, fontSize: 17, color: onDark ? '#f3f2f2' : 'inherit' }}>DX Play</span>
         </div>
     )
 }
@@ -30,7 +30,7 @@ export function SplitShell({ title, subtitle, children }: { title: string; subti
                         ))}
                     </ul>
                 </div>
-                <p style={{ fontSize: 12, opacity: 0.4, margin: 0 }}>© 2026 DebridXtream — reseller portal</p>
+                <p style={{ fontSize: 12, opacity: 0.4, margin: 0 }}>© 2026 DX Play — reseller portal</p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px' }}>
                 <div style={{ width: '100%', maxWidth: 460, margin: '0 auto' }}>

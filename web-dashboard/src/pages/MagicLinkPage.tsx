@@ -84,7 +84,7 @@ const MagicLinkPage: React.FC = () => {
                 className="mt-12 flex flex-col items-center gap-2 relative z-10"
             >
                 <span className="text-neutral-700 text-[9px] font-black uppercase tracking-[0.5em]">
-                    DebridXtream Cloud Bridge
+                    DX Play Cloud Bridge
                 </span>
                 <div className="w-24 h-[1px] bg-gradient-to-r from-transparent via-neutral-800 to-transparent" />
             </motion.div>

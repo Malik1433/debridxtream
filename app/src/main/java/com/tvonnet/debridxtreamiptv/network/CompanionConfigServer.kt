@@ -140,7 +140,7 @@ class CompanionConfigServer @Inject constructor(
         get("/api/status") {
             call.respond(mapOf(
                 "status" to "online",
-                "device" to "DebridXtream TV",
+                "device" to "DX Play TV",
                 "version" to "1.0"
             ))
         }
