@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Phone: 9 monospace characters plus letter spacing and the card's 36dp padding fit on one
-     line at this size within 411dp; 56sp does not, and wrapped as "BFKN-S / BBE". -->
-<resources>
-    <dimen name="activation_code_text_size">34sp</dimen>
-</resources>

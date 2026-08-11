@@ -143,10 +143,19 @@ watched going down.
 - **Theme: the app is dark-only and there is no `values-night`.** That may well be right for a
   10-foot media app, but it is currently an accident rather than a decision. **Treat dark-only as
   the decision, and do not add a half-built light theme** — a partial one is worse than none.
-- **No performance budget.** There is no number for cold start, dropped frames or ANR rate, so
-  "slow" is an opinion. The runtime rules above prevent the known causes; what is missing is a
-  target to test against. Suggested first budget: **cold start to first content < 3s on the Fire
-  TV, zero ANRs in a 10-minute session, no frame drop over 700ms during playback.**
+- **Performance budget: ✅ SET AND MEASURABLE 2026-08-11 — and the app is currently just over it.**
+  Run `./scripts/perf_check.sh` (defaults to the Fire TV at `192.168.178.64:5555`); it exits
+  non-zero on a FAIL so it can gate a release. **The budget: cold-start median of 3 runs ≤ 5000ms,
+  zero ANRs, and jank reported for the record.** Baseline on the shipped DEBUG build, 2026-08-11:
+  **median 5207ms (5098 / 5207 / 6172) — FAIL by 200ms**, 0 ANRs, 87% janky frames.
+  **The emulator cannot be used for timing** — under host memory pressure it reported a 27s launch
+  for what the Fire TV does in 5.
+  ⭐ **The obvious win is real but NOT free: we ship the DEBUG build.** A release build is 15.7MB
+  against the debug 37.9MB, but R8 **crashes it at startup** —
+  `java.lang.IllegalStateException @ f6.a.<init>`, an obfuscated class, i.e. missing keep rules.
+  Anyone measuring a release build must confirm the app actually REACHES HOME before believing the
+  number: the crash loop reports a 242ms "cold start" because it is timing RecoveryActivity, not
+  the app. Making release-type shippable (keep rules + full device QA) is its own batch.
 - **No crash-free target.** Crashlytics ships and is wired, but nothing states what "healthy"
   is. Suggested: **crash-free sessions ≥ 99.5%**, checked per release.
 - **Testing policy is a COUNT, not a rule.** `WORLD_CLASS_ROADMAP.md` E4/E5 track 17 instrumented
