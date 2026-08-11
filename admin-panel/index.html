@@ -244,18 +244,25 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script>
-firebase.initializeApp({
+// NAMED app, not the default one. Firebase persists the signed-in user per (origin, app name),
+// so once this panel is served from the customer site's own origin at /admin — which is the whole
+// point of the path — a DEFAULT app here would share its login with the customer dashboard: an
+// admin signing in would appear signed in on /account as themselves, and a customer arriving at
+// /admin would look logged-in and then be refused. Not a privilege hole (every rule and function
+// checks admins/<uid> server-side) but a confusing one. A distinct name keeps the two sessions
+// apart even on one origin.
+const adminApp = firebase.initializeApp({
   apiKey: "AIzaSyDpBUBq_GowUtJVEsV61lX60804DBt7V4A",
   authDomain: "debridxtream-new.firebaseapp.com",
   projectId: "debridxtream-new",
   storageBucket: "debridxtream-new.firebasestorage.app",
   messagingSenderId: "617090864361",
   appId: "1:617090864361:web:e6876bf871a578d5c54c78"
-});
-const auth = firebase.auth();
-const db = firebase.firestore();
+}, "adminPanel");
+const auth = adminApp.auth();
+const db = adminApp.firestore();
 // Default region (us-central1), matching the v2 onCall functions and the customer dashboard.
-const fns = firebase.functions();
+const fns = adminApp.functions();
 let devices = [];   // [{id, ...data}]
 let unsub = null;
 
