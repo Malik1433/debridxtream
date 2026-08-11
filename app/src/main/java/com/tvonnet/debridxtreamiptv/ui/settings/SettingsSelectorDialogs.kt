@@ -23,6 +23,32 @@ class SettingsSelectorDialogs(
 ) {
     private val context get() = fragment.requireContext()
 
+    /**
+     * The app's own language. `AppCompatDelegate` is used rather than the platform API on
+     * purpose: it carries per-app locales back to older Androids, so a Fire TV — which has no
+     * system per-app language screen at all — can change language here too. AppCompat persists
+     * the choice itself and recreates the visible activities, so nothing else has to store it.
+     */
+    fun showAppLanguageSelector(current: String) {
+        AlertDialog.Builder(context)
+            .setTitle(R.string.c_app_language)
+            .setSingleChoiceItems(
+                SettingsOptionLabels.appLanguageLabels,
+                SettingsOptionLabels.appLanguageIndex(current)
+            ) { dialog, which ->
+                val tag = SettingsOptionLabels.appLanguageValues[which]
+                dialog.dismiss()
+                androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(
+                    if (tag == "system") {
+                        androidx.core.os.LocaleListCompat.getEmptyLocaleList()
+                    } else {
+                        androidx.core.os.LocaleListCompat.forLanguageTags(tag)
+                    }
+                )
+            }
+            .show()
+    }
+
     fun showPreferredAudioLangSelector(current: String) {
         AlertDialog.Builder(context)
             .setTitle(R.string.c_preferred_audio_language)

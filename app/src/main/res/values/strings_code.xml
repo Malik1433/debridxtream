@@ -5,6 +5,7 @@
 <resources>
     <string name="c_add_stremio_addon">Add Stremio Addon</string>
     <string name="c_app_layout">App Layout</string>
+    <string name="c_app_language">App Language</string>
     <string name="c_app_recovery_mode">App Recovery Mode</string>
     <string name="c_applies_next_time_you_open">Applies next time you open Live TV</string>
     <string name="c_are_you_sure_you_want">Are you sure you want to remove all favorites?</string>

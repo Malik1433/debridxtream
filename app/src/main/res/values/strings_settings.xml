@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The settings screen's own item titles and descriptions (2026-08-11). They were
+     named-argument literals, which the phase-2 sweep did not match — so the screen that
+     carries the language picker was itself still half English. -->
+<resources>
+    <!-- The category rail + its panel header. -->
+    <string name="s_cat_playback">Playback</string>
+    <string name="s_cat_playback_sub">AUDIO · LANGUAGE</string>
+    <string name="s_cat_playback_desc">How audio is chosen when something plays</string>
+    <string name="s_cat_live_tv">Live TV</string>
+    <string name="s_cat_live_tv_sub">LAYOUT · TV GUIDE</string>
+    <string name="s_cat_live_tv_desc">Live TV layout and the TV guide</string>
+    <string name="s_cat_home">Home Screen</string>
+    <string name="s_cat_home_sub">MOVIE · SERIES · LIVE</string>
+    <string name="s_cat_home_desc">Choose which category rows appear on Home</string>
+    <string name="s_cat_addons">Addons</string>
+    <string name="s_cat_addons_sub">STREMIO · DEBRID</string>
+    <string name="s_cat_addons_desc">Where Debrid sources are fetched from</string>
+    <string name="s_cat_data">Data &amp; Storage</string>
+    <string name="s_cat_data_sub">REFRESH · CACHE</string>
+    <string name="s_cat_data_desc">Refresh the catalog and free up storage</string>
+    <string name="s_cat_about">About</string>
+    <string name="s_cat_about_sub">VERSION · BUILD</string>
+    <string name="s_cat_about_desc">App version and build information</string>
+    <string name="s_cat_account">Account</string>
+    <string name="s_cat_account_sub">SIGN OUT</string>
+    <string name="s_cat_account_desc">The provider account this box is signed in to</string>
+    <string name="s_app_version">App Version</string>
+    <string name="s_ask_the_server_whether_a_newer">Ask the server whether a newer build has been published</string>
+    <string name="s_auto_update_tv_guide">Auto-Update TV Guide</string>
+    <string name="s_build">Build</string>
+    <string name="s_check_for_update">Check for Update</string>
+    <string name="s_choose_which_channel_categories_appear_on">Choose which channel categories appear on Home</string>
+    <string name="s_choose_which_movie_categories_appear_on">Choose which movie categories appear on Home</string>
+    <string name="s_choose_which_series_categories_appear_on">Choose which series categories appear on Home</string>
+    <string name="s_clear_cached_data">Clear Cached Data</string>
+    <string name="s_fetch_guide_data_immediately">Fetch guide data immediately</string>
+    <string name="s_fetch_live_channels_movies_and_series">Fetch live channels, movies and series from the provider again</string>
+    <string name="s_free_up_storage_the_catalog_is">Free up storage - the catalog is downloaded again next time</string>
+    <string name="s_guide_update_interval">Guide Update Interval</string>
+    <string name="s_live_tv_rows">Live TV Rows</string>
+    <string name="s_movie_rows">Movie Rows</string>
+    <string name="s_open_live_tv_on_the_channel">Open Live TV on the channel you watched last instead of the first</string>
+    <string name="s_provider">Provider</string>
+    <string name="s_real_debrid_fallback">Real-Debrid Fallback</string>
+    <string name="s_refresh_channels_catalog">Refresh Channels &amp; Catalog</string>
+    <string name="s_refresh_the_guide_in_the_background">Refresh the guide in the background</string>
+    <string name="s_resume_last_channel">Resume Last Channel</string>
+    <string name="s_series_rows">Series Rows</string>
+    <string name="s_sign_out">Sign Out</string>
+    <string name="s_sign_out_of_this_provider_account">Sign out of this provider account on this device</string>
+    <string name="s_signed_in_as">Signed in as</string>
+    <string name="s_smart_audio_fallback">Smart Audio Fallback</string>
+    <string name="s_switch_tracks_automatically_when_the_main">Switch tracks automatically when the main audio format (AC3/EAC3) is not supported</string>
+    <string name="s_tint_channels_and_programmes_by_genre">Tint channels and programmes by genre in the TV guide</string>
+    <string name="s_tv_guide_genre_colours">TV Guide Genre Colours</string>
+    <string name="s_update_tv_guide_now">Update TV Guide Now</string>
+</resources>

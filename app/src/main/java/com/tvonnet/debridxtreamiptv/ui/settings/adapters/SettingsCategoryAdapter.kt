@@ -16,7 +16,12 @@ class SettingsCategoryAdapter(
     private val showDebridCategory: Boolean = true
 ) : RecyclerView.Adapter<SettingsCategoryAdapter.ViewHolder>() {
 
-    data class CatMeta(val title: String, val sub: String, val accent: Int, val iconRes: Int)
+    /**
+     * Title and subtitle are string RESOURCES, not literals: this is a companion-object lookup with
+     * no Context, and the settings rail is the one screen that must be readable in whatever
+     * language the user just picked. Each call site resolves them from its own context.
+     */
+    data class CatMeta(val titleRes: Int, val subRes: Int, val accent: Int, val iconRes: Int)
 
     private val categories = SettingCategory.values()
         .filter { showDebridCategory || it != SettingCategory.ADDONS }
@@ -61,8 +66,8 @@ class SettingsCategoryAdapter(
 
         fun bind(category: SettingCategory, isSelected: Boolean) {
             val m = metaFor(category)
-            binding.tvTitle.text = m.title
-            binding.tvSub.text = m.sub
+            binding.tvTitle.setText(m.titleRes)
+            binding.tvSub.setText(m.subRes)
             binding.ivIcon.setImageResource(m.iconRes)
             style(category, isSelected, binding.root.isFocused)
             binding.root.setOnFocusChangeListener { _, has -> style(category, category == selectedCategory, has) }
@@ -103,23 +108,30 @@ class SettingsCategoryAdapter(
         private fun tint(accent: Int, alpha: Int) = (accent and 0x00FFFFFF) or (alpha shl 24)
 
         fun metaFor(c: SettingCategory): CatMeta = when (c) {
-            SettingCategory.PLAYBACK -> CatMeta("Playback", "AUDIO · LANGUAGE", 0xFFFF3366.toInt(), R.drawable.ic_play)
-            SettingCategory.LIVE_TV -> CatMeta("Live TV", "LAYOUT · TV GUIDE", 0xFF00FF88.toInt(), R.drawable.ic_live_tv)
-            SettingCategory.HOME -> CatMeta("Home Screen", "MOVIE · SERIES · LIVE", 0xFFFFAA00.toInt(), R.drawable.ic_home)
-            SettingCategory.ADDONS -> CatMeta("Addons", "STREMIO · DEBRID", 0xFF00F0FF.toInt(), R.drawable.ic_weather_cloud)
-            SettingCategory.DATA -> CatMeta("Data & Storage", "REFRESH · CACHE", 0xFFA78BFA.toInt(), R.drawable.ic_settings)
-            SettingCategory.ABOUT -> CatMeta("About", "VERSION · BUILD", 0xFF64748B.toInt(), R.drawable.ic_person)
-            SettingCategory.ACCOUNT -> CatMeta("Account", "SIGN OUT", 0xFFFF3355.toInt(), R.drawable.ic_logout)
+            SettingCategory.PLAYBACK ->
+                CatMeta(R.string.s_cat_playback, R.string.s_cat_playback_sub, 0xFFFF3366.toInt(), R.drawable.ic_play)
+            SettingCategory.LIVE_TV ->
+                CatMeta(R.string.s_cat_live_tv, R.string.s_cat_live_tv_sub, 0xFF00FF88.toInt(), R.drawable.ic_live_tv)
+            SettingCategory.HOME ->
+                CatMeta(R.string.s_cat_home, R.string.s_cat_home_sub, 0xFFFFAA00.toInt(), R.drawable.ic_home)
+            SettingCategory.ADDONS ->
+                CatMeta(R.string.s_cat_addons, R.string.s_cat_addons_sub, 0xFF00F0FF.toInt(), R.drawable.ic_weather_cloud)
+            SettingCategory.DATA ->
+                CatMeta(R.string.s_cat_data, R.string.s_cat_data_sub, 0xFFA78BFA.toInt(), R.drawable.ic_settings)
+            SettingCategory.ABOUT ->
+                CatMeta(R.string.s_cat_about, R.string.s_cat_about_sub, 0xFF64748B.toInt(), R.drawable.ic_person)
+            SettingCategory.ACCOUNT ->
+                CatMeta(R.string.s_cat_account, R.string.s_cat_account_sub, 0xFFFF3355.toInt(), R.drawable.ic_logout)
         }
 
-        fun descFor(c: SettingCategory): String = when (c) {
-            SettingCategory.PLAYBACK -> "How audio is chosen when something plays"
-            SettingCategory.LIVE_TV -> "Live TV layout and the TV guide"
-            SettingCategory.HOME -> "Choose which category rows appear on Home"
-            SettingCategory.ADDONS -> "Where Debrid sources are fetched from"
-            SettingCategory.DATA -> "Refresh the catalog and free up storage"
-            SettingCategory.ABOUT -> "App version and build information"
-            SettingCategory.ACCOUNT -> "The provider account this box is signed in to"
+        fun descFor(c: SettingCategory): Int = when (c) {
+            SettingCategory.PLAYBACK -> R.string.s_cat_playback_desc
+            SettingCategory.LIVE_TV -> R.string.s_cat_live_tv_desc
+            SettingCategory.HOME -> R.string.s_cat_home_desc
+            SettingCategory.ADDONS -> R.string.s_cat_addons_desc
+            SettingCategory.DATA -> R.string.s_cat_data_desc
+            SettingCategory.ABOUT -> R.string.s_cat_about_desc
+            SettingCategory.ACCOUNT -> R.string.s_cat_account_desc
         }
     }
 }

@@ -38,6 +38,24 @@ object SettingsOptionLabels {
     fun audioLang2Name(code: String): String = audioLang2Labels[audioLang2Index(code)]
 
     // M0 (MOBILE_DUAL_MODE_PLAN): which layout the app renders.
+    /**
+     * The app's own language picker (2026-08-11). Following the system locale is the default,
+     * and it is the ONLY thing a Fire TV user had before this — Android's per-app language screen
+     * is API 33+, and Fire TV is older, so without this list a TV could not change language at all.
+     *
+     * Labels stay in each language's OWN name on purpose: someone who has landed in a language
+     * they cannot read must still be able to find their way out.
+     */
+    val appLanguageValues = arrayOf("system", "en", "de", "fr", "es", "it", "pt")
+    val appLanguageLabels = arrayOf(
+        "System default", "English", "Deutsch", "Français", "Español", "Italiano", "Português"
+    )
+
+    fun appLanguageIndex(tag: String): Int =
+        appLanguageValues.indexOf(tag.lowercase()).takeIf { it != -1 } ?: 0
+
+    fun appLanguageName(tag: String): String = appLanguageLabels[appLanguageIndex(tag)]
+
     val uiModeValues = arrayOf("auto", "tv", "mobile")
     val uiModeLabels = arrayOf("Automatic (detect device)", "TV layout (D-pad)", "Mobile layout (touch)")
 

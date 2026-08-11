@@ -139,8 +139,8 @@ class SettingsFragment : Fragment() {
     private fun updateDetails(state: SettingsUiState) {
         // Panel header + accent follow the active category (design "Settings Screen.dc.html").
         val meta = SettingsCategoryAdapter.metaFor(state.selectedCategory)
-        binding.tvPanelTitle.text = meta.title
-        binding.tvPanelDesc.text = SettingsCategoryAdapter.descFor(state.selectedCategory)
+        binding.tvPanelTitle.setText(meta.titleRes)
+        binding.tvPanelDesc.setText(SettingsCategoryAdapter.descFor(state.selectedCategory))
         binding.vPanelDot.background = android.graphics.drawable.GradientDrawable().apply {
             shape = android.graphics.drawable.GradientDrawable.OVAL
             setColor(meta.accent)
@@ -152,6 +152,11 @@ class SettingsFragment : Fragment() {
 
     // The rows for the selected category, verbatim — each arm's keys, labels and handlers
     // are unchanged; only the enclosing function moved.
+    /** "system" when the user has not chosen, else the language tag AppCompat has stored. */
+    private fun currentAppLanguageTag(): String =
+        androidx.appcompat.app.AppCompatDelegate.getApplicationLocales()
+            .takeIf { !it.isEmpty }?.get(0)?.language ?: "system"
+
     private fun itemsFor(state: SettingsUiState): List<SettingItem> {
         return when (state.selectedCategory) {
             SettingCategory.PLAYBACK -> playbackItems(state)
@@ -167,20 +172,20 @@ class SettingsFragment : Fragment() {
     private fun playbackItems(state: SettingsUiState): List<SettingItem> = listOf(
             SettingItem.Selection(
                 key = "preferred_audio_lang",
-                title = "Preferred Audio Language",
+                title = getString(R.string.c_preferred_audio_language),
                 currentValue = SettingsOptionLabels.audioLangName(state.preferredAudioLang),
                 onClick = { dialogs.showPreferredAudioLangSelector(state.preferredAudioLang) }
             ),
             SettingItem.Selection(
                 key = "preferred_audio_lang_2",
-                title = "Secondary Audio Language",
+                title = getString(R.string.c_secondary_audio_language),
                 currentValue = SettingsOptionLabels.audioLang2Name(state.preferredAudioLang2),
                 onClick = { dialogs.showPreferredAudioLang2Selector(state.preferredAudioLang2) }
             ),
             SettingItem.Toggle(
                 key = "software_audio",
-                title = "Smart Audio Fallback",
-                description = "Switch tracks automatically when the main audio format (AC3/EAC3) is not supported",
+                title = getString(R.string.s_smart_audio_fallback),
+                description = getString(R.string.s_switch_tracks_automatically_when_the_main),
                 isChecked = state.isSoftwareAudioEnabled,
                 onToggle = { viewModel.toggleSoftwareAudio(it) }
             )
@@ -188,86 +193,93 @@ class SettingsFragment : Fragment() {
     private fun liveTvItems(state: SettingsUiState): List<SettingItem> = listOf(
             SettingItem.Selection(
                 key = "live_tv_style",
-                title = "Live TV Layout",
+                title = getString(R.string.c_live_tv_layout),
                 currentValue = SettingsOptionLabels.liveTvStyleName(state.liveTvStyle),
                 onClick = { dialogs.showLiveTvStyleSelector(state.liveTvStyle) }
             ),
             SettingItem.Toggle(
                 key = "resume_last_live",
-                title = "Resume Last Channel",
-                description = "Open Live TV on the channel you watched last instead of the first",
+                title = getString(R.string.s_resume_last_channel),
+                description = getString(R.string.s_open_live_tv_on_the_channel),
                 isChecked = state.resumeLastLive,
                 onToggle = { viewModel.toggleResumeLastLive(it) }
             ),
             SettingItem.Selection(
                 key = "epg_zoom",
-                title = "TV Guide Timeline Zoom",
+                title = getString(R.string.c_tv_guide_timeline_zoom),
                 currentValue = SettingsOptionLabels.epgZoomName(state.epgTimelineZoom),
                 onClick = { dialogs.showEpgZoomSelector(state.epgTimelineZoom) }
             ),
             SettingItem.Selection(
                 key = "epg_density",
-                title = "TV Guide Row Density",
+                title = getString(R.string.c_tv_guide_row_density),
                 currentValue = SettingsOptionLabels.epgDensityName(state.epgRowDensity),
                 onClick = { dialogs.showEpgDensitySelector(state.epgRowDensity) }
             ),
             SettingItem.Toggle(
                 key = "epg_genre_tint",
-                title = "TV Guide Genre Colours",
-                description = "Tint channels and programmes by genre in the TV guide",
+                title = getString(R.string.s_tv_guide_genre_colours),
+                description = getString(R.string.s_tint_channels_and_programmes_by_genre),
                 isChecked = state.epgGenreTint,
                 onToggle = { viewModel.toggleEpgGenreTint(it) }
             ),
             SettingItem.Toggle(
                 key = "epg_auto_sync",
-                title = "Auto-Update TV Guide",
-                description = "Refresh the guide in the background",
+                title = getString(R.string.s_auto_update_tv_guide),
+                description = getString(R.string.s_refresh_the_guide_in_the_background),
                 isChecked = state.isEpgAutoSyncEnabled,
                 onToggle = { viewModel.toggleEpgAutoSync(it) }
             ),
             SettingItem.Selection(
                 key = "epg_sync_interval",
-                title = "Guide Update Interval",
+                title = getString(R.string.s_guide_update_interval),
                 currentValue = SettingsOptionLabels.epgIntervalName(state.epgSyncIntervalHours),
                 onClick = { dialogs.showEpgIntervalSelector(state.epgSyncIntervalHours) }
             ),
             SettingItem.Action(
                 key = "epg_sync_now",
-                title = "Update TV Guide Now",
-                description = "Fetch guide data immediately",
+                title = getString(R.string.s_update_tv_guide_now),
+                description = getString(R.string.s_fetch_guide_data_immediately),
                 onClick = { actions.syncEpgNow() }
             )
         )
     private fun homeItems(state: SettingsUiState): List<SettingItem> = listOf(
             SettingItem.Selection(
+                key = "app_language",
+                title = getString(R.string.c_app_language),
+                // Read from AppCompat rather than a preference of our own — it is the store.
+                currentValue = SettingsOptionLabels.appLanguageName(currentAppLanguageTag()),
+                onClick = { dialogs.showAppLanguageSelector(currentAppLanguageTag()) }
+            ),
+            SettingItem.Selection(
                 key = "ui_mode",
-                title = "App Layout",
+                title = getString(R.string.c_app_layout),
                 currentValue = SettingsOptionLabels.uiModeName(state.uiMode),
                 onClick = { dialogs.showUiModeSelector(state.uiMode) }
             ),
             SettingItem.Action(
                 key = "home_custom_movie",
-                title = "Movie Rows",
-                description = "Choose which movie categories appear on Home",
+                title = getString(R.string.s_movie_rows),
+                description = getString(R.string.s_choose_which_movie_categories_appear_on),
                 onClick = { actions.showCategorySelector("movie") }
             ),
             SettingItem.Action(
                 key = "home_custom_series",
-                title = "Series Rows",
-                description = "Choose which series categories appear on Home",
+                title = getString(R.string.s_series_rows),
+                description = getString(R.string.s_choose_which_series_categories_appear_on),
                 onClick = { actions.showCategorySelector("series") }
             ),
             SettingItem.Action(
                 key = "home_custom_live",
-                title = "Live TV Rows",
-                description = "Choose which channel categories appear on Home",
+                title = getString(R.string.s_live_tv_rows),
+                description = getString(R.string.s_choose_which_channel_categories_appear_on),
                 onClick = { actions.showCategorySelector("live") }
             )
         )
     private fun addonsItems(state: SettingsUiState): List<SettingItem> = listOf(
             SettingItem.Action(
                 key = "manage_stremio_addons",
-                title = "Stremio Addons",
+                title = getString(R.string.ui_stremio_addons),
                 description = if (state.stremioAddonUrls.isEmpty()) {
                     "No addons configured - sources come from the built-in list"
                 } else {
@@ -277,7 +289,7 @@ class SettingsFragment : Fragment() {
             ),
             SettingItem.Action(
                 key = "manage_debrid",
-                title = "Real-Debrid Fallback",
+                title = getString(R.string.s_real_debrid_fallback),
                 description = if (state.isDebridAuthenticated) {
                     "Authorised - used only for raw magnet links"
                 } else {
@@ -298,24 +310,24 @@ class SettingsFragment : Fragment() {
     private fun dataItems(state: SettingsUiState): List<SettingItem> = listOf(
             SettingItem.Action(
                 key = "refresh_iptv",
-                title = "Refresh Channels & Catalog",
-                description = "Fetch live channels, movies and series from the provider again",
+                title = getString(R.string.s_refresh_channels_catalog),
+                description = getString(R.string.s_fetch_live_channels_movies_and_series),
                 onClick = { actions.refreshIptvData() }
             ),
             SettingItem.Action(
                 key = "clear_cache",
-                title = "Clear Cached Data",
-                description = "Free up storage - the catalog is downloaded again next time",
+                title = getString(R.string.s_clear_cached_data),
+                description = getString(R.string.s_free_up_storage_the_catalog_is),
                 onClick = { actions.showClearCacheDialog() }
             )
         )
     private fun aboutItems(state: SettingsUiState): List<SettingItem> = listOf(
-            SettingItem.Info(key = "version", title = "App Version", value = BuildConfig.VERSION_NAME),
-            SettingItem.Info(key = "build", title = "Build", value = BuildConfig.VERSION_CODE.toString()),
+            SettingItem.Info(key = "version", title = getString(R.string.s_app_version), value = BuildConfig.VERSION_NAME),
+            SettingItem.Info(key = "build", title = getString(R.string.s_build), value = BuildConfig.VERSION_CODE.toString()),
             SettingItem.Action(
                 key = "check_update",
-                title = "Check for Update",
-                description = "Ask the server whether a newer build has been published",
+                title = getString(R.string.s_check_for_update),
+                description = getString(R.string.s_ask_the_server_whether_a_newer),
                 onClick = {
                     com.tvonnet.debridxtreamiptv.update.UpdateManager.checkNow(requireActivity())
                 }
@@ -323,15 +335,15 @@ class SettingsFragment : Fragment() {
         )
     private fun accountItems(state: SettingsUiState): List<SettingItem> = listOfNotNull(
             state.accountUsername?.takeIf { it.isNotBlank() }?.let { user ->
-                SettingItem.Info(key = "account_user", title = "Signed in as", value = user)
+                SettingItem.Info(key = "account_user", title = getString(R.string.s_signed_in_as), value = user)
             },
             state.accountServer?.takeIf { it.isNotBlank() }?.let { server ->
-                SettingItem.Info(key = "account_server", title = "Provider", value = serverHost(server))
+                SettingItem.Info(key = "account_server", title = getString(R.string.s_provider), value = serverHost(server))
             },
             SettingItem.Action(
                 key = "logout_account",
-                title = "Sign Out",
-                description = "Sign out of this provider account on this device",
+                title = getString(R.string.s_sign_out),
+                description = getString(R.string.s_sign_out_of_this_provider_account),
                 onClick = { actions.showAccountLogoutConfirmation() }
             )
         )
