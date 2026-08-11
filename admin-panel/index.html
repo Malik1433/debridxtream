@@ -111,12 +111,13 @@
     <!-- DEVICES -->
     <div id="devices">
       <div class="row" style="justify-content:space-between;margin-bottom:6px">
-        <input type="text" id="search" placeholder="Search code / note / id…" style="width:280px" oninput="renderDevices()">
+        <input type="text" id="search" placeholder="Search code / note / id / email…" style="width:280px" oninput="renderDevices()">
         <span class="muted" id="devCount"></span>
+        <button id="unlinkAll" class="ghost hidden" onclick="unlinkAllShown()"></button>
       </div>
       <div class="card" style="padding:0;overflow-x:auto">
         <table>
-          <thead><tr><th>Code</th><th>Status</th><th>Tier</th><th>Expiry</th><th>Last seen</th><th>App</th><th>Note</th><th style="width:280px">Actions</th></tr></thead>
+          <thead><tr><th>Code</th><th>Status</th><th>Tier</th><th>Expiry</th><th>Last seen</th><th>App</th><th>Account</th><th>Note</th><th style="width:330px">Actions</th></tr></thead>
           <tbody id="devRows"></tbody>
         </table>
       </div>
@@ -298,14 +299,56 @@ function attachDevices(){
     devices = s.docs.map(d => ({ id:d.id, ...d.data() }));
     devices.sort((a,b) => (b.lastSeenAt||0)-(a.lastSeenAt||0));
     renderDevices();
+    resolveOwners();
   }, e => toast('Load failed: '+e.message));
+}
+
+// A licence names its owner only by uid, but a customer on the phone gives an email address.
+// adminResolveOwners turns one into the other (the addresses live in Firebase Auth, which no
+// security rule can read), and the answers are cached so a snapshot does not re-ask for uids
+// already known. Failure is deliberately quiet: the rest of the panel works without it.
+const ownerEmails = {};   // uid -> {email, emailVerified, disabled}
+let resolving = false;
+function resolveOwners(){
+  if (resolving) return;
+  const missing = [...new Set(devices.map(d => d.ownerUid).filter(u => u && !(u in ownerEmails)))];
+  if (!missing.length) return;
+  resolving = true;
+  fns.httpsCallable('adminResolveOwners')({ uids: missing })
+    .then(r => {
+      const got = (r.data && r.data.accounts) || {};
+      // Record a MISS too, otherwise a deleted account is re-requested on every snapshot —
+      // and a deleted account is exactly the case that strands a TV, so it is not rare.
+      missing.forEach(u => { ownerEmails[u] = got[u] || { email:'', emailVerified:false, deleted:true }; });
+      renderDevices();
+    })
+    .catch(e => console.warn('owner lookup failed', e))
+    .finally(()=>{ resolving = false; });
+}
+
+/** How the Account column reads, and what the email search matches against. */
+function ownerLabel(d){
+  if (!d.ownerUid) return '';
+  const a = ownerEmails[d.ownerUid];
+  if (!a) return d.ownerUid.slice(0,8)+'…';
+  if (a.deleted) return 'deleted account';
+  return a.email || (d.ownerUid.slice(0,8)+'…');
 }
 
 function renderDevices(){
   const q=(document.getElementById('search').value||'').toLowerCase();
   const rows=document.getElementById('devRows'); rows.innerHTML='';
-  const list=devices.filter(d => !q || (d.activationCode||'').toLowerCase().includes(q) || (d.note||'').toLowerCase().includes(q) || d.id.toLowerCase().includes(q));
+  // Search also covers the linked account — by email, and by the raw uid, because a uid is what
+  // you have in front of you when you are looking at Firestore or an auth log.
+  const list=devices.filter(d => !q || (d.activationCode||'').toLowerCase().includes(q) || (d.note||'').toLowerCase().includes(q) || d.id.toLowerCase().includes(q)
+    || (d.ownerUid||'').toLowerCase().includes(q) || ownerLabel(d).toLowerCase().includes(q));
   document.getElementById('devCount').textContent = list.length + ' device(s)';
+  shownLinked = list.filter(d => d.ownerUid);
+  const bulk=document.getElementById('unlinkAll');
+  // Only offer the bulk action against a SEARCH. Over the unfiltered list it would mean
+  // "unlink every TV of every customer", which is never a thing anyone means to click.
+  bulk.classList.toggle('hidden', !q || shownLinked.length < 2);
+  bulk.textContent = 'Unlink all '+shownLinked.length;
   const TRIAL_MS = 7*24*60*60*1000;
   for (const d of list){
     const tr=document.createElement('tr');
@@ -322,14 +365,34 @@ function renderDevices(){
       <td>${Number.isFinite(d.expiresAt) && d.expiresAt > 0 ? new Date(d.expiresAt).toLocaleDateString() : '—'}</td>
       <td class="muted">${fmtTime(d.lastSeenAt)}</td>
       <td class="muted">${d.appVersionName||'—'}</td>
-      <td></td><td></td>`;
+      <td></td><td></td><td></td>`;
+    // account (read-only). Set as TEXT, never interpolated into the HTML above — an email
+    // address is user-supplied and this table is rendered with innerHTML.
+    const accTd=tr.children[6];
+    const label=ownerLabel(d);
+    accTd.className='muted'; accTd.style.maxWidth='190px'; accTd.style.overflow='hidden';
+    accTd.style.textOverflow='ellipsis'; accTd.style.whiteSpace='nowrap';
+    accTd.textContent = label || '—';
+    if (d.ownerUid) accTd.title = d.ownerUid;
+    const acc=d.ownerUid ? ownerEmails[d.ownerUid] : null;
+    // Two states worth seeing at a glance, because both explain a support call: an account
+    // whose email was never confirmed (its 48h grace has almost certainly closed, so it can
+    // no longer claim devices) and one that no longer exists at all.
+    if (acc && (acc.deleted || (acc.email && !acc.emailVerified))) {
+      const warn=document.createElement('span');
+      warn.textContent = acc.deleted ? ' ⚠' : ' ⚠ unverified';
+      warn.style.color='#f0a020'; warn.title = acc.deleted
+        ? 'This account no longer exists — the TV cannot be claimed by anyone until it is unlinked.'
+        : 'Email never verified; past its grace window this account can no longer claim devices.';
+      accTd.appendChild(warn);
+    }
     // note (editable)
-    const noteTd=tr.children[6];
+    const noteTd=tr.children[7];
     const note=document.createElement('input'); note.type='text'; note.value=d.note||''; note.placeholder='client name…'; note.style.width='130px';
     note.onchange=()=>upd(d.id,{note:note.value},'Note saved');
     noteTd.appendChild(note);
     // actions
-    const act=tr.children[7]; const rowEl=document.createElement('div'); rowEl.className='row'; act.appendChild(rowEl);
+    const act=tr.children[8]; const rowEl=document.createElement('div'); rowEl.className='row'; act.appendChild(rowEl);
     const b1=document.createElement('button');
     if (status==='active'){ b1.textContent='Deactivate'; b1.className='bad'; b1.onclick=()=>upd(d.id,{status:'inactive'},'Deactivated'); }
     else { b1.textContent='Activate'; b1.className='good'; b1.onclick=()=>upd(d.id,{status:'active'},'Activated'); }
@@ -369,19 +432,9 @@ function renderDevices(){
     b6.title='Free this TV from its account (keeps the licence)';
     b6.style.display = d.ownerUid ? '' : 'none';
     b6.onclick=()=>{
-      // Say which of the two outcomes this device will get. releaseDevice takes the
-      // entitlement back when it came FROM a consumer subscription (otherwise a freed slot
-      // would leave a device playing forever), but leaves a reseller/admin-activated device
-      // active. Promising "the licence stays" in both cases would be a lie half the time.
-      const deactivates = !!d.subscriptionId && !d.resellerId;
-      const consequence = deactivates
-        ? '\n\nThis TV was entitled by that account’s subscription, so it will also go INACTIVE. Press Activate afterwards if it should keep working.'
-        : '\n\nThe licence and device key are untouched — only the account link and its playlist access go.';
-      if(!confirm('Unlink this TV from its account?'+consequence+'\n\nAfterwards another account can claim it with the device code.')) return;
+      if(!confirm('Unlink this TV from its account?'+unlinkConsequence([d])+'\n\nAfterwards another account can claim it with the device code.')) return;
       b6.disabled=true;
-      fns.httpsCallable('releaseDevice')({ installId: d.id })
-        .then(()=>toast('Unlinked'))
-        .catch(e=>{ b6.disabled=false; toast('Failed: '+(e.message||e)); });
+      releaseDevices([d]).then(r=>{ if(r.failed) b6.disabled=false; });
     };
     const b4=document.createElement('button'); b4.className='bad'; b4.textContent='✕';
     b4.title='Delete device'; b4.onclick=()=>{ if(confirm('Delete this device license?')) db.collection('licenses').doc(d.id).delete().then(()=>toast('Deleted')).catch(e=>toast(e.message)); };
@@ -390,6 +443,47 @@ function renderDevices(){
   }
 }
 function upd(id, patch, msg){ db.collection('licenses').doc(id).set(patch,{merge:true}).then(()=>toast(msg)).catch(e=>toast('Failed: '+e.message)); }
+
+// ---- Unlink (one device or a whole search) ----
+let shownLinked = [];
+
+/**
+ * releaseDevice does NOT treat the two kinds of device alike: an entitlement that came FROM a
+ * consumer subscription is taken back (a freed slot must not leave a device playing forever),
+ * while a reseller- or admin-activated one stays active. Say which, so nobody is surprised by
+ * a TV that went dark — a single reassuring sentence would be wrong half the time.
+ */
+function unlinkConsequence(list){
+  const off = list.filter(d => d.subscriptionId && !d.resellerId).length;
+  if (off === 0) return '\n\nThe licence and device key are untouched — only the account link and its playlist access go.';
+  if (off === list.length) return list.length === 1
+    ? '\n\nThis TV was entitled by that account’s subscription, so it will also go INACTIVE. Press Activate afterwards if it should keep working.'
+    : `\n\nAll ${off} were entitled by a subscription, so they will also go INACTIVE. Press Activate on any that should keep working.`;
+  return `\n\n${off} of ${list.length} were entitled by a subscription and will also go INACTIVE; the rest keep their licence.`;
+}
+
+/** Sequential on purpose: each call is its own Firestore transaction, and a stampede of them
+ *  against the same account's docs is how you turn a 3-device unlink into a contention retry. */
+async function releaseDevices(list){
+  const fn = fns.httpsCallable('releaseDevice');
+  let done=0, failed=0, lastErr='';
+  for (const d of list){
+    try { await fn({ installId: d.id }); done++; }
+    catch(e){ failed++; lastErr = e.message||String(e); }
+  }
+  toast(failed ? `Unlinked ${done}, ${failed} failed: ${lastErr}` : (done===1 ? 'Unlinked' : `Unlinked ${done}`));
+  return { done, failed };
+}
+
+function unlinkAllShown(){
+  const list = shownLinked.slice();
+  if (!list.length) return;
+  const who = [...new Set(list.map(d => ownerLabel(d)).filter(Boolean))];
+  const whoTxt = who.length === 1 ? `\n\nAccount: ${who[0]}` : `\n\nAcross ${who.length} accounts.`;
+  if (!confirm(`Unlink ${list.length} TVs from their accounts?${whoTxt}${unlinkConsequence(list)}`)) return;
+  const b=document.getElementById('unlinkAll'); b.disabled=true;
+  releaseDevices(list).finally(()=>{ b.disabled=false; });
+}
 
 // ---- Updates ----
 async function loadVersion(){

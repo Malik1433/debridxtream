@@ -336,3 +336,47 @@ exports.releaseDevice = onCall(async (req) => {
     return { installId, released: true };
   });
 });
+
+/**
+ * Put a NAME on the account a device is linked to.
+ *
+ * A licence stores only `ownerUid`, so the panel could show — and search — everything about a
+ * device except the one thing a customer says on the phone: their email address. Support then
+ * had no way to answer "unlink my TVs" at all, because it could not find them.
+ *
+ * The addresses live in Firebase Auth, which no security rule can reach, so this is the one
+ * thing that genuinely needs a function. Admins only: this hands out customer email addresses.
+ *
+ * @param uids up to MAX_RESOLVE owner uids.
+ * @returns {{ accounts: Object.<string, {email: string, emailVerified: boolean, disabled: boolean}> }}
+ *   Unknown or deleted uids are simply absent — a deleted account is exactly the case that
+ *   leaves a TV stranded, so it must not fail the whole batch.
+ */
+const MAX_RESOLVE = 300;
+const AUTH_LOOKUP_CHUNK = 100; // getUsers' own per-call limit.
+
+exports.adminResolveOwners = onCall(async (req) => {
+  const uid = req.auth && req.auth.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const adminSnap = await db.collection("admins").doc(uid).get();
+  if (!adminSnap.exists) throw new HttpsError("permission-denied", "Admins only.");
+
+  const raw = (req.data && req.data.uids) || [];
+  if (!Array.isArray(raw)) throw new HttpsError("invalid-argument", "uids must be an array.");
+  const uids = [...new Set(raw.filter((u) => typeof u === "string" && u))].slice(0, MAX_RESOLVE);
+  if (uids.length === 0) return { accounts: {} };
+
+  const accounts = {};
+  for (let i = 0; i < uids.length; i += AUTH_LOOKUP_CHUNK) {
+    const chunk = uids.slice(i, i + AUTH_LOOKUP_CHUNK).map((u) => ({ uid: u }));
+    const res = await admin.auth().getUsers(chunk);
+    res.users.forEach((u) => {
+      accounts[u.uid] = {
+        email: u.email || "",
+        emailVerified: !!u.emailVerified,
+        disabled: !!u.disabled,
+      };
+    });
+  }
+  return { accounts };
+});
