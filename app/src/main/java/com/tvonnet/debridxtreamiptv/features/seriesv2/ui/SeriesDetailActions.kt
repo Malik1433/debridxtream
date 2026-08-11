@@ -151,7 +151,7 @@ class SeriesDetailActions(
         // Default label immediately; EpisodeEntityV2.resumePosition is never populated
         // in the V2 flow, so the real progress comes from WatchedStateRepository.
         labelledEpisodeId = episode.episodeId
-        binding.btnPlay.text = "Play $label"
+        binding.btnPlay.text = fragment.getString(R.string.f_play_label, label)
         fragment.viewLifecycleOwner.lifecycleScope.launch {
             val key = com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder.iptvEpisode(
                 episodeId = episode.episodeId,

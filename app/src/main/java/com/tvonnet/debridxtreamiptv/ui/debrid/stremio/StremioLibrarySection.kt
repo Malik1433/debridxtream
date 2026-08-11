@@ -97,7 +97,7 @@ internal class StremioLibrarySection(
             "saved" -> LibBucket(saved, "SAVED", 0xFF041014.toInt(), 0xFFA78BFA.toInt())
             else -> LibBucket(emptyList(), "DONE", 0xFF041014.toInt(), 0xFF00FF88.toInt())
         }
-        count.text = "${bucket.items.size} titles"
+        count.text = count.context.getString(R.string.f_titles_count, bucket.items.size)
         empty.visibility = if (bucket.items.isEmpty()) View.VISIBLE else View.GONE
         empty.text = if (active == "completed") "No completed titles yet" else "Nothing here yet"
         adapter.submit(bucket.items.map { item ->

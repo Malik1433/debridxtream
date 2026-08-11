@@ -348,9 +348,9 @@ class DebridDiscoverActivity : AppCompatActivity() {
         btnCatalogue.text = "Catalogue: ${catalogueLabel(state.catalogue)}"
         
         val genreLabel = if (state.genreId == null) GENRE_ALL else currentGenres.firstOrNull { it.id == state.genreId }?.name ?: GENRE_ALL
-        btnGenre.text = "Genre: $genreLabel"
+        btnGenre.text = getString(R.string.f_genre_value, genreLabel)
         
-        btnYear.text = "Year: ${state.year?.toString() ?: YEAR_ALL}"
+        btnYear.text = getString(R.string.f_year_value, state.year?.toString() ?: YEAR_ALL)
     }
 
     private fun catalogueLabel(value: String): String {

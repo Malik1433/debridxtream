@@ -596,4 +596,25 @@
     <string name="s_tv_guide_genre_colours">Guida TV: colori per genere</string>
     <string name="s_tint_channels_and_programmes_by_genre">Colora canali e programmi per genere nella guida</string>
     <string name="s_real_debrid_fallback">Fallback Real-Debrid</string>
+    <!-- l10n tail: formatted strings + guide canvas (2026-08-11) -->
+    <string name="f_play_label">Riproduci %1$s</string>
+    <string name="f_available_in_categories">IN %1$d CATEGORIE · MULTI-FONTE</string>
+    <string name="f_watched_progress">%1$d / %2$d VISTI</string>
+    <string name="f_resume_from">RIPRENDI DA %1$s</string>
+    <string name="f_time_left">%1$s RIMASTI</string>
+    <string name="f_back_to">◄ TORNA A %1$s</string>
+    <string name="f_genre_value">Genere: %1$s</string>
+    <string name="f_year_value">Anno: %1$s</string>
+    <string name="f_titles_count">%1$d titoli</string>
+    <string name="f_results_caps">%1$d RISULTATI</string>
+    <string name="f_channel_count_short">%1$d CAN.</string>
+    <string name="f_support_id">ID di assistenza: %1$s</string>
+    <string name="f_seasons_episodes">%1$d STAGIONI · %2$d EPISODI</string>
+    <string name="f_lang_priority">PRIORITÀ %1$s</string>
+    <string name="f_no_program_information">Nessuna informazione sul programma</string>
+    <string name="f_channel_col">CANALE</string>
+    <string name="f_now_marker">ORA</string>
+    <string name="f_chip_quality">Qualità: %1$s ▼</string>
+    <string name="f_chip_language">Lingua: %1$s ▼</string>
+    <string name="f_chip_source">Fonte: %1$s ▼</string>
 </resources>

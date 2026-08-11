@@ -407,7 +407,7 @@ class SeriesFragment : Fragment() {
     private fun resetSectionHeader() {
         tvCategoryTitle.text = currentCategoryName
         val count = categoryCounts[selectedCategoryId] ?: seriesPagingAdapter.itemCount
-        tvSectionMeta.text = "$count titles"
+        tvSectionMeta.text = getString(R.string.f_titles_count, count)
         tvSectionMeta.setTextColor(Color.parseColor("#475569"))
     }
 
@@ -545,7 +545,7 @@ class SeriesFragment : Fragment() {
         val focusOwnsMetaLine = resources.getBoolean(R.bool.ui_uses_dpad_focus) &&
             focus.lastFocusTarget == SeriesFocusController.FocusTarget.SERIES
         if (!focusOwnsMetaLine) {
-            tvSectionMeta.text = "$count titles"
+            tvSectionMeta.text = getString(R.string.f_titles_count, count)
         }
     }
 

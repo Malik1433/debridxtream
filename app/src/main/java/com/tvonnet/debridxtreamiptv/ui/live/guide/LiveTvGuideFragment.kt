@@ -207,7 +207,7 @@ class LiveTvGuideFragment : Fragment() {
 
                     chips?.bind(state)
 
-                    binding.tvChannelCount.text = "${state.channels.size} CH"
+                    binding.tvChannelCount.text = getString(R.string.f_channel_count_short, state.channels.size)
                     binding.btnJumpNow.visibility = if (state.isToday && state.channels.isNotEmpty()) View.VISIBLE else View.GONE
 
                     if (!state.isLoading) {

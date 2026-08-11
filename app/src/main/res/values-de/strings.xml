@@ -597,4 +597,25 @@
     <string name="s_tv_guide_genre_colours">TV-Programm: Genre-Farben</string>
     <string name="s_tint_channels_and_programmes_by_genre">Sender und Sendungen im Programm nach Genre einfärben</string>
     <string name="s_real_debrid_fallback">Real-Debrid-Fallback</string>
+    <!-- l10n tail: formatted strings + guide canvas (2026-08-11) -->
+    <string name="f_play_label">%1$s abspielen</string>
+    <string name="f_available_in_categories">IN %1$d KATEGORIEN · MULTI-SOURCE</string>
+    <string name="f_watched_progress">%1$d / %2$d GESEHEN</string>
+    <string name="f_resume_from">FORTSETZEN AB %1$s</string>
+    <string name="f_time_left">NOCH %1$s</string>
+    <string name="f_back_to">◄ ZURÜCK ZU %1$s</string>
+    <string name="f_genre_value">Genre: %1$s</string>
+    <string name="f_year_value">Jahr: %1$s</string>
+    <string name="f_titles_count">%1$d Titel</string>
+    <string name="f_results_caps">%1$d TREFFER</string>
+    <string name="f_channel_count_short">%1$d SENDER</string>
+    <string name="f_support_id">Support-ID: %1$s</string>
+    <string name="f_seasons_episodes">%1$d STAFFELN · %2$d FOLGEN</string>
+    <string name="f_lang_priority">%1$s PRIORITÄT</string>
+    <string name="f_no_program_information">Keine Programminformationen</string>
+    <string name="f_channel_col">SENDER</string>
+    <string name="f_now_marker">JETZT</string>
+    <string name="f_chip_quality">Qualität: %1$s ▼</string>
+    <string name="f_chip_language">Sprache: %1$s ▼</string>
+    <string name="f_chip_source">Quelle: %1$s ▼</string>
 </resources>

@@ -1,5 +1,7 @@
 package com.tvonnet.debridxtreamiptv.features.seriesv2.ui
 
+import com.tvonnet.debridxtreamiptv.R
+
 import android.view.View
 import com.tvonnet.debridxtreamiptv.databinding.FragmentSeriesDetailV2Binding
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.SeriesDetailUiState
@@ -61,7 +63,7 @@ class SeriesDetailHeaderUi(
     fun bindSummary(categoryCount: Int) {
         if (categoryCount >= 2) {
             binding.layoutSummary.visibility = View.VISIBLE
-            binding.tvSummary.text = "AVAILABLE IN $categoryCount CATEGORIES · MULTI-SOURCE"
+            binding.tvSummary.text = binding.tvSummary.context.getString(R.string.f_available_in_categories, categoryCount)
         } else {
             binding.layoutSummary.visibility = View.GONE
         }

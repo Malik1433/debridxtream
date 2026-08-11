@@ -145,7 +145,7 @@ class MovieDetailFragmentV2 : Fragment() {
         // Back-to-rail context hint
         val rail = sourceRail?.trim()
         if (!rail.isNullOrBlank()) {
-            binding.tvBackHint.text = "◄ BACK TO ${rail.uppercase(Locale.getDefault())}"
+            binding.tvBackHint.text = getString(R.string.f_back_to, rail.uppercase(Locale.getDefault()))
             binding.tvBackHint.visibility = View.VISIBLE
         } else {
             binding.tvBackHint.visibility = View.GONE
@@ -441,8 +441,8 @@ class MovieDetailFragmentV2 : Fragment() {
         hasResumePosition = resumeItem != null && position > 0L && progress in 1..99
         resumePositionMs = if (hasResumePosition) position else 0L
         if (hasResumePosition) {
-            binding.tvResumeElapsed.text = "RESUME FROM ${formatClock(position)}"
-            binding.tvResumeRemaining.text = "${formatClock(duration - position)} LEFT"
+            binding.tvResumeElapsed.text = getString(R.string.f_resume_from, formatClock(position))
+            binding.tvResumeRemaining.text = getString(R.string.f_time_left, formatClock(duration - position))
             binding.pbResume.progress = progress
             binding.layoutResumeBar.visibility = View.VISIBLE
         } else {

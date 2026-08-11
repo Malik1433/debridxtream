@@ -596,4 +596,25 @@
     <string name="s_tv_guide_genre_colours">Guide TV : couleurs par genre</string>
     <string name="s_tint_channels_and_programmes_by_genre">Colorer chaînes et programmes par genre dans le guide</string>
     <string name="s_real_debrid_fallback">Repli Real-Debrid</string>
+    <!-- l10n tail: formatted strings + guide canvas (2026-08-11) -->
+    <string name="f_play_label">Lire %1$s</string>
+    <string name="f_available_in_categories">DANS %1$d CATÉGORIES · MULTI-SOURCE</string>
+    <string name="f_watched_progress">%1$d / %2$d VUS</string>
+    <string name="f_resume_from">REPRENDRE À %1$s</string>
+    <string name="f_time_left">%1$s RESTANTES</string>
+    <string name="f_back_to">◄ RETOUR À %1$s</string>
+    <string name="f_genre_value">Genre : %1$s</string>
+    <string name="f_year_value">Année : %1$s</string>
+    <string name="f_titles_count">%1$d titres</string>
+    <string name="f_results_caps">%1$d RÉSULTATS</string>
+    <string name="f_channel_count_short">%1$d CH</string>
+    <string name="f_support_id">ID d’assistance : %1$s</string>
+    <string name="f_seasons_episodes">%1$d SAISONS · %2$d ÉPISODES</string>
+    <string name="f_lang_priority">PRIORITÉ %1$s</string>
+    <string name="f_no_program_information">Aucune information de programme</string>
+    <string name="f_channel_col">CHAÎNE</string>
+    <string name="f_now_marker">MAINT.</string>
+    <string name="f_chip_quality">Qualité : %1$s ▼</string>
+    <string name="f_chip_language">Langue : %1$s ▼</string>
+    <string name="f_chip_source">Source : %1$s ▼</string>
 </resources>

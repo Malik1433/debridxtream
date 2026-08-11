@@ -495,13 +495,13 @@ class SeriesSeasonUi(
 
     private fun updateSeasonProgress(episodes: List<EpisodeUiModel>) {
         val watchedCount = episodes.count { it.isWatched }
-        tvSeasonProgress.text = "$watchedCount / ${episodes.size} WATCHED"
+        tvSeasonProgress.text = tvSeasonProgress.context.getString(R.string.f_watched_progress, watchedCount, episodes.size)
 
         // Update season/episode count in metadata
         val totalSeasons = currentDetail?.seasons?.size
             ?: currentDetail?.episodes?.keys?.size ?: 0
         val totalEpisodes = currentDetail?.episodes?.values?.sumOf { it.size } ?: episodes.size
-        tvSeasonEpisodeCount.text = "$totalSeasons SEASONS · $totalEpisodes EPISODES"
+        tvSeasonEpisodeCount.text = tvSeasonEpisodeCount.context.getString(R.string.f_seasons_episodes, totalSeasons, totalEpisodes)
     }
 
     private fun updateResumeSection(episodes: List<EpisodeUiModel>) {

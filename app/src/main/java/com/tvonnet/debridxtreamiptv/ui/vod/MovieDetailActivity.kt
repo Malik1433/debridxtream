@@ -486,7 +486,7 @@ class MovieDetailActivity : AppCompatActivity() {
     private fun displayBackHint() {
         val rail = movieSourceRail?.trim()
         if (!rail.isNullOrBlank()) {
-            tvBackHint.text = "◄ BACK TO ${rail.uppercase(java.util.Locale.getDefault())}"
+            tvBackHint.text = getString(R.string.f_back_to, rail.uppercase(java.util.Locale.getDefault()))
             tvBackHint.visibility = View.VISIBLE
         } else {
             tvBackHint.visibility = View.GONE
@@ -579,8 +579,8 @@ class MovieDetailActivity : AppCompatActivity() {
         hasResumePosition = resumeItem != null && position > 0L && progress in 1..99
         resumePositionMs = if (hasResumePosition) position else 0L
         if (hasResumePosition) {
-            tvResumeElapsed.text = "RESUME FROM ${formatResumeTime(position)}"
-            tvResumeRemaining.text = "${formatResumeTime(duration - position)} LEFT"
+            tvResumeElapsed.text = getString(R.string.f_resume_from, formatResumeTime(position))
+            tvResumeRemaining.text = getString(R.string.f_time_left, formatResumeTime(duration - position))
             pbResume.progress = progress
             layoutResumeBar.visibility = View.VISIBLE
         } else {

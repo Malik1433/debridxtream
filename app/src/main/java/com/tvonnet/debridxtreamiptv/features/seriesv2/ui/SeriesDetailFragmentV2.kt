@@ -1,5 +1,7 @@
 package com.tvonnet.debridxtreamiptv.features.seriesv2.ui
 
+import com.tvonnet.debridxtreamiptv.R
+
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -254,7 +256,7 @@ class SeriesDetailFragmentV2 : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { viewModel.uiState.collect { if (it is SeriesDetailUiState.Success) bindMetadata(it) } }
                 launch { viewModel.seriesTotals.collect { (seasons, eps) -> header?.bindSeriesTotals(seasons, eps) } }
-                launch { viewModel.seasonProgress.collect { (w, t) -> binding.tvSeasonProgress.text = "$w / $t WATCHED" } }
+                launch { viewModel.seasonProgress.collect { (w, t) -> binding.tvSeasonProgress.text = getString(R.string.f_watched_progress, w, t) } }
                 launch { viewModel.categoryListingCount.collect { header?.bindSummary(it) } }
                 launch {
                     viewModel.seasons.collect {

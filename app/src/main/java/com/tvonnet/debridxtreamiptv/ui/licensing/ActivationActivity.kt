@@ -49,7 +49,7 @@ class ActivationActivity : AppCompatActivity() {
         // to activate with a string no lookup accepts. Show the full id, labelled as support
         // detail, so it can be read out when someone genuinely needs it (and never mistaken
         // for the code).
-        deviceTv.text = "Support ID: ${manager.installId}"
+        deviceTv.text = getString(R.string.f_support_id, manager.installId)
 
         retry.setOnClickListener {
             statusTv.text = statusTv.context.getString(R.string.c_checking)

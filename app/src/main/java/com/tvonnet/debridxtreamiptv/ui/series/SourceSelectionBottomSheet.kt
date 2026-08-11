@@ -130,7 +130,7 @@ class SourceSelectionBottomSheet(
 
         // Language priority chip — only when a specific language is preferred.
         if (hasLanguagePriority()) {
-            tvLangPriority.text = "${languagePriorityCode()} PRIORITY"
+            tvLangPriority.text = requireContext().getString(R.string.f_lang_priority, languagePriorityCode())
             chipLangPriority.visibility = View.VISIBLE
         } else {
             chipLangPriority.visibility = View.GONE
@@ -345,9 +345,10 @@ class SourceSelectionBottomSheet(
     }
 
     private fun updateFilterOptions() {
-        chipQuality.text = "Quality: ${filterState.preferredQuality ?: "All"} ▼"
-        chipLanguage.text = "Language: ${filterState.preferredLanguage ?: "All"} ▼"
-        chipType.text = "Source: ${filterState.preferredType ?: "All"} ▼"
+        val anyLabel = requireContext().getString(R.string.filter_all)
+        chipQuality.text = requireContext().getString(R.string.f_chip_quality, filterState.preferredQuality ?: anyLabel)
+        chipLanguage.text = requireContext().getString(R.string.f_chip_language, filterState.preferredLanguage ?: anyLabel)
+        chipType.text = requireContext().getString(R.string.f_chip_source, filterState.preferredType ?: anyLabel)
         
         layoutSourceFilters.visibility = View.VISIBLE
     }

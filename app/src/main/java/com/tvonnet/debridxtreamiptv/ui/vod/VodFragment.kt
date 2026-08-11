@@ -440,7 +440,7 @@ class VodFragment : Fragment() {
     private fun resetSectionHeader() {
         tvCategoryTitle.text = currentCategoryName
         val count = categoryCounts[selectedCategoryId] ?: vodAdapter.itemCount
-        tvSectionMeta.text = "$count titles"
+        tvSectionMeta.text = getString(R.string.f_titles_count, count)
         tvSectionMeta.setTextColor(Color.parseColor("#475569"))
     }
 
@@ -460,7 +460,7 @@ class VodFragment : Fragment() {
         val focusOwnsMetaLine = resources.getBoolean(R.bool.ui_uses_dpad_focus) &&
             focus.lastFocusTarget == VodFocusController.FocusTarget.MOVIES
         if (!focusOwnsMetaLine) {
-            tvSectionMeta.text = "$count titles"
+            tvSectionMeta.text = getString(R.string.f_titles_count, count)
         }
     }
 

@@ -168,7 +168,7 @@ internal class StremioSearchOverlay(
         fragment.viewLifecycleOwner.lifecycleScope.launch {
             val results = if (scope == "live") searchLive(query) else searchCatalog(query)
             if (token != searchToken) return@launch
-            countTv.text = "${results.size} RESULTS"
+            countTv.text = countTv.context.getString(R.string.f_results_caps, results.size)
             adapter.submit(results)
             noResults.isVisible = results.isEmpty()
             noResultsTitle.text = "No matches for \"${query.uppercase()}\""

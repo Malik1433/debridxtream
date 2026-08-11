@@ -347,7 +347,7 @@ class EpgGridView @JvmOverloads constructor(
             if (ch.programs.isEmpty()) {
                 textMono.color = cTextFaint
                 textMono.textSize = sp(12f)
-                canvas.drawText("No program information", channelColWidth + dp(16f), top + rowHeight / 2 + sp(4f), textMono)
+                canvas.drawText(context.getString(R.string.f_no_program_information), channelColWidth + dp(16f), top + rowHeight / 2 + sp(4f), textMono)
                 continue
             }
             for ((idx, p) in ch.programs.withIndex()) {
@@ -497,7 +497,7 @@ class EpgGridView @JvmOverloads constructor(
         // left "CHANNEL" cell
         textMono.color = cTextFaint
         textMono.textSize = sp(12f)
-        canvas.drawText("CHANNEL", dp(16f), headerHeight / 2 + sp(4f), textMono)
+        canvas.drawText(context.getString(R.string.f_channel_col), dp(16f), headerHeight / 2 + sp(4f), textMono)
         fill.color = cProgBorder
         canvas.drawRect(channelColWidth - dp(1f), 0f, channelColWidth, headerHeight, fill)
         // ticks every 30 min
@@ -523,7 +523,7 @@ class EpgGridView @JvmOverloads constructor(
                 canvas.drawRoundRect(rect, dp(10f), dp(10f), fill)
                 textMono.color = Color.WHITE
                 textMono.textSize = sp(10f)
-                canvas.drawText("NOW", x - dp(13f), headerHeight / 2 + sp(4f), textMono)
+                canvas.drawText(context.getString(R.string.f_now_marker), x - dp(13f), headerHeight / 2 + sp(4f), textMono)
             }
         }
         canvas.restoreToCount(save)
