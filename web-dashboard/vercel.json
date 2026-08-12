@@ -1,12 +1,5 @@
 {
-    "comment": [
-        "`rewrites` replaces the older `routes` block: Vercel forbids using both, and only the",
-        "newer form can rewrite to an EXTERNAL host, which /admin needs — the admin panel is a",
-        "separate Firebase Hosting project. Rewrites run only after the filesystem misses, so the",
-        "`handle: filesystem` step the routes block used is now implicit.",
-        "Order matters: /admin is claimed before the SPA catch-all, or React Router would swallow",
-        "it and render a 404 page instead."
-    ],
+    "$schema": "https://openapi.vercel.sh/vercel.json",
     "rewrites": [
         {
             "source": "/admin",
