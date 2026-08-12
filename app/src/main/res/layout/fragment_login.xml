@@ -1161,34 +1161,43 @@
             </LinearLayout>
 
             <!-- Sign-up is not a form here. Creating an account on a remote is painful and needs a
-                 verification email anyway, so we point at the phone and show the address. -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:fontFamily="@font/plus_jakarta_sans"
-                android:gravity="center"
-                android:text="@string/ui_no_account_yet_create_one"
-                android:textColor="#64748B"
-                android:textSize="8sp" />
+                 verification email anyway, so this hands off to the phone.
 
-            <!-- Actionable, not just printed: on a phone the obvious thing to do with an address
-                 is tap it, and on the TV the D-pad must be able to reach it like any other
-                 control. Padding so it is a real target rather than a 9sp line of text. -->
-            <TextView
+                 A BUTTON, not a line of blue text: it sits beside Sign in and Back, so it should
+                 look and behave like them. The address stays underneath in small type, because a
+                 television may have no browser and then reading it off the screen is the only way
+                 through — the button is the shortcut, not the sole route. -->
+            <LinearLayout
                 android:id="@+id/tv_account_signup_url"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_height="@dimen/login_account_close_height"
+                android:layout_marginTop="12dp"
                 android:background="@drawable/sel_login_btn_secondary"
                 android:clickable="true"
                 android:focusable="true"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:duplicateParentState="true"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:text="@string/c_create_account"
+                    android:textColor="@color/sel_login_secondary_text"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:fontFamily="monospace"
                 android:gravity="center"
-                android:paddingVertical="6dp"
                 android:text="@string/companion_signup_url_short"
-                android:textColor="#38BDF8"
-                android:textSize="9sp" />
+                android:textColor="#64748B"
+                android:textSize="7sp" />
 
             <LinearLayout
                 android:id="@+id/btn_account_close"

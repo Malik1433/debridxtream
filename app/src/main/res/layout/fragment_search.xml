@@ -69,16 +69,26 @@
                         android:singleLine="true"
                         android:text="@string/ui_search_movies_series_live_channels" />
 
-                    <TextView
+                    <!-- An EditText, so a PHONE can use its own keyboard. It is still bound as a
+                         TextView in code and still just displays the query on TV, where it is
+                         inert (not focusable, no soft input) and the on-screen key grid drives
+                         everything as before. The phone rulebook is explicit: the native soft
+                         keyboard, never an on-screen D-pad one. -->
+                    <EditText
                         android:id="@+id/search_query"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:background="@null"
                         android:fontFamily="@font/outfit_semibold"
                         android:textSize="12sp"
                         android:textColor="#F1F5F9"
                         android:letterSpacing="0.02"
+                        android:imeOptions="actionSearch"
+                        android:inputType="text"
                         android:singleLine="true"
-                        android:visibility="gone" />
+                        android:importantForAutofill="no"
+                        android:visibility="gone"
+                        tools:ignore="LabelFor" />
                 </FrameLayout>
 
                 <View

@@ -117,6 +117,7 @@ class SearchFragment : Fragment() {
 
         buildScopes()
         buildKeys()
+        setUpNativeKeyboardOnTouch(view)
         buildActions()
         buildTrending()
         startCaretBlink()
@@ -326,6 +327,50 @@ class SearchFragment : Fragment() {
             posterUrl = GlobalConfig.resolveIconUrl(stream.stream_icon)
         )
         startActivity(intent)
+    }
+
+    /**
+     * On a PHONE, type with the phone's own keyboard.
+     *
+     * This screen was built for a remote: a grid of on-screen keys you walk to with a D-pad. On a
+     * touchscreen that is the wrong instrument entirely — it wastes half the width, offers no
+     * autocorrect, no dictionary, no paste, and no language the user has installed. The phone
+     * rulebook says the native soft keyboard, never an on-screen D-pad one.
+     *
+     * The grid stays for the TV, where it IS the right instrument and there is no soft keyboard
+     * worth using. So this hides the grid on touch, turns the query display into a real input, and
+     * routes what is typed through the SAME `query` field the keys write to — one source of truth,
+     * so filtering, the caret and the results behave identically either way.
+     */
+    private fun setUpNativeKeyboardOnTouch(root: View) {
+        if (resources.getBoolean(R.bool.ui_uses_dpad_focus)) return
+
+        keysBox.visibility = View.GONE
+        root.findViewById<View>(R.id.search_scopes)?.let { /* scopes stay: they are chips, tappable */ }
+
+        val input = queryTv as? android.widget.EditText ?: return
+        input.visibility = View.VISIBLE
+        input.isFocusableInTouchMode = true
+        input.hint = getString(R.string.search_hint)
+        input.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val typed = s?.toString().orEmpty().take(32)
+                if (typed == query) return
+                query = typed
+                onQueryChanged()
+            }
+        })
+
+        // Tapping the bar is the obvious way to start typing; without this only the thin text
+        // itself would take focus, and it is empty to begin with.
+        queryBar.setOnClickListener {
+            input.requestFocus()
+            (requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+                as? android.view.inputmethod.InputMethodManager)
+                ?.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
     }
 
     // ── keyboard / chips builders ──

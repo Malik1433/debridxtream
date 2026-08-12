@@ -622,4 +622,5 @@
     <string name="c_hero_desc_fallback_home">Sieh dir diesen fantastischen Inhalt auf DX Play an. Kinoerlebnis.</string>
     <string name="c_signed_in_as">Angemeldet als</string>
     <string name="c_profile_unknown">Nicht angemeldet</string>
+    <string name="c_create_account">Konto erstellen</string>
 </resources>

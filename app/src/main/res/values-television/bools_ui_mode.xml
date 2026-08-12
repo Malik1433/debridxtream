@@ -20,4 +20,8 @@
     <bool name="epg_shows_primary_btn">true</bool>
     <!-- 2026-08-10: the ten-foot Debrid home keeps its hero; only the phone drops it. -->
     <bool name="debrid_home_shows_hero">true</bool>
+    <!-- 2026-08-12: the phone now opens Live on the three-column browse, because a guide grid is
+         unreadable in the hand. At three metres the grid is exactly what you want, so the TV keeps
+         it — the default stays "guide" here. -->
+    <bool name="live_defaults_to_classic">false</bool>
 </resources>

@@ -109,4 +109,6 @@
     <string name="c_profile_unknown">Not signed in</string>
     <string name="c_tier_premium">PREMIUM</string>
     <string name="c_tier_standard">STANDARD</string>
+    <!-- Sits beside "Sign in" and "Back" in the account overlay, so it is a button like them. -->
+    <string name="c_create_account">Create account</string>
 </resources>

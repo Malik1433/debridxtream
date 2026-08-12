@@ -20,11 +20,21 @@
     <bool name="browse_categories_are_horizontal">false</bool>
     <bool name="settings_categories_are_horizontal">false</bool>
     <bool name="epg_strip_is_horizontal">true</bool>
-    <!-- Which Live screen a "live" hop opens when the user has not chosen. An explicit choice in
-         Settings still wins. -->
-    <bool name="live_defaults_to_classic">false</bool>
 
     <!-- ── BEHAVIOUR: the phone answers here, TV overrides in values-television ────────── -->
+
+    <!--
+      Which Live screen a "live" hop opens when the user has not chosen. An explicit choice in
+      Settings still wins.
+
+      This one IS a device question, unlike the shape flags above, and it was answered wrongly for
+      the phone: both defaulted to the EPG guide. A guide grid is a 10-foot instrument — hours
+      across, dozens of channels down — and on a handset it swallows the screen, leaving the channel
+      list unreadable, which is the whole reason someone opens Live. Owner, 2026-08-12: the phone
+      opens the three-column browse.
+
+      The TV keeps the guide: at three metres the grid is the point.
+    --><bool name="live_defaults_to_classic">true</bool>
 
     <!--
       May screen code MOVE FOCUS on its own? On TV that is the interaction model — focus is
