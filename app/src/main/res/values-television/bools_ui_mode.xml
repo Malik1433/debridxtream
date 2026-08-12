@@ -24,4 +24,6 @@
          unreadable in the hand. At three metres the grid is exactly what you want, so the TV keeps
          it — the default stays "guide" here. -->
     <bool name="live_defaults_to_classic">false</bool>
+    <!-- The focused item names itself in the flyout, so the rail stays icons only. -->
+    <bool name="nav_items_show_label">false</bool>
 </resources>

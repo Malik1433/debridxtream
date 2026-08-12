@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/home_sidebar_container"
-    android:layout_width="60dp"
+    android:layout_width="@dimen/home_nav_rail_width"
     android:layout_height="match_parent"
     android:background="@drawable/bg_nav_rail"
     android:paddingTop="11dp"

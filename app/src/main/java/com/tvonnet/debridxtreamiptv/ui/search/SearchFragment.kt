@@ -72,6 +72,9 @@ class SearchFragment : Fragment() {
 
     private val adapter = StremioSearchResultAdapter()
     private var query = ""
+
+    /** A phone types with its own keyboard into a real field; a TV walks an on-screen key grid. */
+    private val usesNativeInput: Boolean by lazy { !resources.getBoolean(R.bool.ui_uses_dpad_focus) }
     private var lastRenderedQuery: String? = null
     private var scope = "all"
     private var firstKey: View? = null
@@ -166,8 +169,7 @@ class SearchFragment : Fragment() {
 
     /** Called by MainActivity for Fire TV voice search. */
     fun setVoiceQuery(voice: String) {
-        query = voice.uppercase().take(32)
-        onQueryChanged()
+        setQuery(if (usesNativeInput) voice else voice.uppercase())
     }
 
     private fun computeSpan(): Int {
@@ -182,7 +184,28 @@ class SearchFragment : Fragment() {
     private fun onSpace() { if (query.length < 32 && query.isNotEmpty()) { query += " "; onQueryChanged() } }
     private fun onDel() { if (query.isNotEmpty()) { query = query.dropLast(1); onQueryChanged() } }
     private fun onClear() { if (query.isNotEmpty()) { query = ""; onQueryChanged() } }
-    private fun pickTerm(term: String) { query = term.uppercase().take(32); onQueryChanged() }
+    /**
+     * Anything that sets the query from OUTSIDE the typing path — a trending chip, a voice result —
+     * has to go through the input field when there is one, or the field and the query drift apart
+     * and the user sees results for a word the box does not show.
+     *
+     * Not upper-cased on a phone: the grid only ever produced capitals, so the TV's query was
+     * capitals and the design assumed it. A phone types what the user typed.
+     */
+    private fun setQuery(value: String) {
+        val v = value.take(32)
+        val input = queryTv as? android.widget.EditText
+        if (usesNativeInput && input != null) {
+            input.setText(v)
+            input.setSelection(v.length)
+        } else {
+            query = v
+            onQueryChanged()
+        }
+    }
+
+    private fun pickTerm(term: String) =
+        setQuery(if (usesNativeInput) term else term.uppercase())
 
     private fun onQueryChanged() {
         updateQueryUi()
@@ -192,9 +215,15 @@ class SearchFragment : Fragment() {
 
     private fun updateQueryUi() {
         val has = query.isNotEmpty()
-        hintTv.isVisible = !has
-        queryTv.isVisible = has
-        queryTv.text = query
+        // With a real input field the field OWNS its text and its visibility. Writing back here on
+        // every keystroke reset the EditText and put the caret at position 0, so each new character
+        // landed at the START and the word came out backwards; hiding it while empty also left
+        // nothing to tap to begin with. On TV the query is a display and these lines are correct.
+        if (!usesNativeInput) {
+            hintTv.isVisible = !has
+            queryTv.isVisible = has
+            queryTv.text = query
+        }
         queryBar.background =
             if (has) roundRect(6f, 0xB30C111B.toInt(), 0x5900F0FF, 1)
             else roundRect(6f, 0xB30C111B.toInt(), 0x14FFFFFF, 1)
@@ -343,34 +372,43 @@ class SearchFragment : Fragment() {
      * so filtering, the caret and the results behave identically either way.
      */
     private fun setUpNativeKeyboardOnTouch(root: View) {
-        if (resources.getBoolean(R.bool.ui_uses_dpad_focus)) return
+        if (!usesNativeInput) return
 
+        // The on-screen grid and the blinking caret are both D-pad affordances. A real input field
+        // brings its own caret, and drawing a second one beside it is exactly the invented
+        // behaviour a phone should not have.
         keysBox.visibility = View.GONE
-        root.findViewById<View>(R.id.search_scopes)?.let { /* scopes stay: they are chips, tappable */ }
+        caret.visibility = View.GONE
 
         val input = queryTv as? android.widget.EditText ?: return
+        // The field is always present and always the thing you type into — no show/hide dance.
         input.visibility = View.VISIBLE
         input.isFocusableInTouchMode = true
-        input.hint = getString(R.string.search_hint)
+        hintTv.visibility = View.GONE
+        input.hint = hintTv.text          // one hint, the field's own, as any search box has
+        input.layoutParams = input.layoutParams.apply { width = ViewGroup.LayoutParams.MATCH_PARENT }
         input.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
             override fun afterTextChanged(s: android.text.Editable?) {
-                val typed = s?.toString().orEmpty().take(32)
+                val typed = s?.toString().orEmpty()
                 if (typed == query) return
                 query = typed
                 onQueryChanged()
             }
         })
 
-        // Tapping the bar is the obvious way to start typing; without this only the thin text
-        // itself would take focus, and it is empty to begin with.
-        queryBar.setOnClickListener {
-            input.requestFocus()
-            (requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
-                as? android.view.inputmethod.InputMethodManager)
-                ?.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-        }
+        // Tapping anywhere on the bar starts typing, which is what a search box does.
+        queryBar.setOnClickListener { focusInput(input) }
+        root.post { if (query.isEmpty()) focusInput(input) }
+    }
+
+    private fun focusInput(input: android.widget.EditText) {
+        input.requestFocus()
+        input.setSelection(input.text?.length ?: 0)
+        (requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+            as? android.view.inputmethod.InputMethodManager)
+            ?.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
     }
 
     // ── keyboard / chips builders ──
@@ -506,6 +544,10 @@ class SearchFragment : Fragment() {
     }
 
     private fun startCaretBlink() {
+        // A real input field draws its own caret. Blinking a second one next to it is decoration
+        // pretending to be a cursor, and on a phone the two disagree the moment you move the real
+        // one. This animation is the TV's.
+        if (usesNativeInput) return
         ValueAnimator.ofFloat(1f, 0f).apply {
             duration = 550
             repeatCount = ValueAnimator.INFINITE

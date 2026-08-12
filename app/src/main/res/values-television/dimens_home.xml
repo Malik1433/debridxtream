@@ -25,4 +25,9 @@
     <dimen name="home_nav_header_size">32dp</dimen>
     <dimen name="home_nav_list_margin_top">18dp</dimen>
     <dimen name="home_nav_profile_size">30dp</dimen>
+    <!-- The TV rail stays the narrow icon strip it was: a focused item names itself in the flyout,
+         so a label under every glyph would be redundant chrome at three metres. -->
+    <dimen name="home_nav_rail_width">60dp</dimen>
+    <dimen name="home_nav_icon_size">17dp</dimen>
+    <dimen name="home_nav_label_size">7sp</dimen>
 </resources>

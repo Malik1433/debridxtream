@@ -37,6 +37,19 @@
     --><bool name="live_defaults_to_classic">true</bool>
 
     <!--
+      Does each rail item carry its own label?
+
+      On TV, no: the focused item names itself in the shared flyout, so a label under every glyph is
+      redundant at three metres. On a phone there IS no focus, so the rail was six unlabelled
+      glyphs and you had to scroll a navigation bar to find out that Debrid and Settings existed.
+
+      M13 tried labels once and reverted them: inside the 60dp rail they wrapped — "Sear/ch",
+      "Movi/es". That was a width problem, not a labelling one. The rail is 76dp on a phone now and
+      the label is single-line with an ellipsis, so the failure that caused the revert cannot recur.
+    -->
+    <bool name="nav_items_show_label">true</bool>
+
+    <!--
       May screen code MOVE FOCUS on its own? On TV that is the interaction model — focus is
       remembered, restored after a refresh, routed by D-pad. On a touchscreen it is the opposite of
       the rulebook: a tap must act, and a poster that takes focus instead of opening is exactly why

@@ -41,12 +41,31 @@
     <dimen name="home_hero_btn_margin">6dp</dimen>
     <dimen name="home_hero_fav_size">48dp</dimen>
 
-    <!-- Navigation rail -->
-    <dimen name="home_nav_item_height">40dp</dimen>
+    <!--
+      Navigation rail — PHONE numbers.
+
+      The rail carries no labels on TV because a focused item names itself in the flyout. A finger
+      has no focus, so on a phone the rail was six unlabelled glyphs, and the last of them was below
+      the fold: you had to scroll a navigation bar to discover that Debrid and Settings existed.
+
+      A rail (not a bottom bar) is right here — the phone is landscape-locked, and that is the case
+      Material gives the rail for. What it needs is what a rail normally has: a LABEL under each
+      icon, a target you can hit, and every destination visible at once.
+
+      The height budget is the whole design constraint: a landscape handset is ~411dp tall, and the
+      rail must fit 6 items plus header, divider, settings and profile inside it. 48dp items
+      (6 × 48 = 288) plus ~100dp of chrome lands just under. That is why the items are 48 and not
+      56, and why the header and profile are trimmed rather than the items.
+    -->
+    <dimen name="home_nav_item_height">48dp</dimen>
     <dimen name="home_nav_item_margin">0dp</dimen>
-    <dimen name="home_nav_item_width">60dp</dimen>
+    <dimen name="home_nav_item_width">76dp</dimen>
     <dimen name="home_nav_item_inset">0dp</dimen>
-    <dimen name="home_nav_header_size">28dp</dimen>
-    <dimen name="home_nav_list_margin_top">4dp</dimen>
-    <dimen name="home_nav_profile_size">34dp</dimen>
+    <dimen name="home_nav_header_size">26dp</dimen>
+    <dimen name="home_nav_list_margin_top">2dp</dimen>
+    <dimen name="home_nav_profile_size">30dp</dimen>
+    <!-- Rail width. Wide enough for "Live TV" at the phone's font scale without wrapping. -->
+    <dimen name="home_nav_rail_width">76dp</dimen>
+    <dimen name="home_nav_icon_size">18dp</dimen>
+    <dimen name="home_nav_label_size">7sp</dimen>
 </resources>

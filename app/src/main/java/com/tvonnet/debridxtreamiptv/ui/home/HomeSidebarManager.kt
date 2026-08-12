@@ -199,6 +199,12 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
         ivIcon.setImageResource(R.drawable.ic_settings)
         ivIcon.setColorFilter(COLOR_IDLE)
         tvTitle.text = frag.getString(R.string.nav_settings)
+        // Settings is an <include> of the same item layout, so it needs the same answer the
+        // adapter gives the list — otherwise the phone would label five destinations and leave
+        // this one, the one furthest down the rail, as a bare cog.
+        val labelInItem = frag.resources.getBoolean(R.bool.nav_items_show_label)
+        tvTitle.visibility = if (labelInItem) View.VISIBLE else View.GONE
+        tvTitle.alpha = if (labelInItem) 1f else 0f
         indicator.visibility = View.INVISIBLE
 
         settingsItemView.setOnClickListener { frag.navigationRouter.navigateToSection("settings") }

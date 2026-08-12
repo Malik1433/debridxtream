@@ -25,27 +25,40 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Icon — centered in the 28dp cell -->
+    <!-- Icon and label form a PACKED vertical chain, so this one layout serves both devices: with
+         the label gone (TV) the chain collapses and the icon centres exactly as before; with it
+         shown (phone) the pair sits centred as a unit. No second layout, no runtime repositioning. -->
     <ImageView
         android:id="@+id/iv_icon"
-        android:layout_width="17dp"
-        android:layout_height="17dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_width="@dimen/home_nav_icon_size"
+        android:layout_height="@dimen/home_nav_icon_size"
+        android:contentDescription="@null"
+        app:layout_constraintBottom_toTopOf="@id/tv_title"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:src="@android:drawable/ic_menu_search"
-        android:contentDescription="@null" />
+        app:layout_constraintVertical_chainStyle="packed"
+        tools:src="@android:drawable/ic_menu_search" />
 
-    <!-- Title (never shown; label rendered by the shared nav_flyout in the fragment) -->
+    <!-- Shown on a phone, where there is no focus and therefore no flyout to name the destination.
+         Hidden on TV, where the focused item names itself. -->
     <TextView
         android:id="@+id/tv_title"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/plus_jakarta_sans"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:maxLines="1"
         android:text="@string/nav_search"
+        android:textColor="#94A3B8"
+        android:textSize="@dimen/home_nav_label_size"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/iv_icon" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
