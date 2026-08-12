@@ -64,7 +64,10 @@ class SettingsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         // Version lives here and in About; the old duplicate footer block is gone.
-        binding.tvSettingsVersion.text = "DEBRIDXTREAM · v${BuildConfig.VERSION_NAME}"
+        // ROOT, not the default locale: this is a brand name being upper-cased, and Turkish would
+        // otherwise turn the dotted i into a dotless one. (detekt's ImplicitDefaultLocale is at 0.)
+        val brand = getString(R.string.app_title).uppercase(java.util.Locale.ROOT)
+        binding.tvSettingsVersion.text = "$brand · v${BuildConfig.VERSION_NAME}"
 
         dialogs = SettingsSelectorDialogs(this, viewModel)
         actions = SettingsMaintenanceActions(this, viewModel, repository, cacheManager, cacheHelper)

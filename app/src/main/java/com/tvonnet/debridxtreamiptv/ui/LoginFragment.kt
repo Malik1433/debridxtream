@@ -137,8 +137,14 @@ class LoginFragment : Fragment() {
 
     private fun bindBranding(view: View) {
         val title = view.findViewById<TextView>(R.id.tv_welcome_title)
-        val name = SpannableString("DebridXtream").apply {
-            setSpan(ForegroundColorSpan(CYAN), 6, 12, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        // Read the brand from the string resource and colour its SECOND word, rather than
+        // hard-coding the name with hard-coded span indices. The literal version survived the
+        // rename to DX Play precisely because it was invisible to a resource-level sweep, and
+        // its 6..12 offsets would have coloured the wrong letters even if it had not.
+        val brand = getString(R.string.app_title)
+        val accentFrom = brand.indexOf(' ').let { if (it < 0) 0 else it + 1 }
+        val name = SpannableString(brand).apply {
+            setSpan(ForegroundColorSpan(CYAN), accentFrom, brand.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
         title.text = name
 

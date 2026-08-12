@@ -80,20 +80,17 @@
                 android:gravity="center_horizontal"
                 android:orientation="vertical">
 
-                <TextView
+                <!-- The real artwork, not a "DX" monogram drawn as text on a tile: this is the
+                     app's one hero-logo spot, and it should be the same mark the launcher shows.
+                     contentDescription is @null because the brand name is the very next view. -->
+                <ImageView
                     android:id="@+id/iv_logo"
                     android:layout_width="70dp"
                     android:layout_height="70dp"
-                    android:background="@drawable/bg_login_logo_tile"
+                    android:contentDescription="@null"
                     android:elevation="12dp"
-                    android:fontFamily="@font/plus_jakarta_sans"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:letterSpacing="-0.04"
-                    android:text="@string/livev2_brand_mark"
-                    android:textColor="#041014"
-                    android:textSize="28sp"
-                    android:textStyle="bold" />
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_brand_tile" />
 
                 <TextView
                     android:id="@+id/tv_welcome_title"
@@ -106,7 +103,7 @@
                     android:textColor="#F1F5F9"
                     android:textSize="27sp"
                     android:textStyle="bold"
-                    tools:text="DebridXtream" />
+                    tools:text="DX Play" />
 
                 <TextView
                     android:id="@+id/tv_login_tagline"
