@@ -240,19 +240,56 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
     private fun setupProfileMark(frag: HomeFragment) {
         val profile = frag.view?.findViewById<View>(R.id.sidebar_profile_mark) ?: return
 
-        val profileName = frag.credentialsPrefs.getUsername()
-            ?.replaceFirstChar { it.uppercaseChar() }
-            ?.take(14)
-            ?: "User"
+        // Prefer the ACCOUNT's email: that is the thing a customer can act on — it is what they
+        // sign in with on the web and what support asks for. The Xtream username is the fallback
+        // for a device that was set up with credentials and never linked to an account.
+        val accountEmail = runCatching {
+            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email
+        }.getOrNull()?.takeIf { it.isNotBlank() }
+
+        val profileName = accountEmail
+            ?: frag.credentialsPrefs.getUsername()?.replaceFirstChar { it.uppercaseChar() }
+            ?: frag.getString(R.string.c_profile_unknown)
+
+        // The initial was a literal "A" in the layout, so every user saw the same letter.
+        frag.view?.findViewById<android.widget.TextView>(R.id.sidebar_profile_initial)?.text =
+            profileName.firstOrNull { it.isLetterOrDigit() }
+                ?.uppercaseChar()?.toString()
+                ?: "?"
+
+        // The tier was the literal "PREMIUM" for everyone, including a device that is not.
+        val tier = frag.getString(
+            if (com.tvonnet.debridxtreamiptv.data.licensing.Entitlements.isPremium(frag.requireContext())) {
+                R.string.c_tier_premium
+            } else {
+                R.string.c_tier_standard
+            }
+        )
 
         profile.setOnFocusChangeListener { _, hasFocus ->
             profile.setBackgroundResource(
                 if (hasFocus) R.drawable.bg_profile_mark_focused else R.drawable.bg_profile_mark
             )
             if (hasFocus) {
-                showFlyout(profileName, "PREMIUM", profile)
+                showFlyout(profileName, tier, profile)
             } else {
                 hideFlyout()
+            }
+        }
+
+        // On a touchscreen this view is never focused, and the flyout is deliberately suppressed
+        // there (M13) — so on a phone there was NO way to see which account the app was signed in
+        // as. The rail's other items carry their own labels; this one is a bare circle. A tap
+        // therefore has to answer the question itself.
+        profile.setOnClickListener {
+            if (profile.resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
+                showFlyout(profileName, tier, profile)
+            } else {
+                android.app.AlertDialog.Builder(frag.requireContext())
+                    .setTitle(R.string.c_signed_in_as)
+                    .setMessage("$profileName\n$tier")
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
             }
         }
 

@@ -2,6 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/home_sidebar_container"
     android:layout_width="60dp"
     android:layout_height="match_parent"
@@ -22,17 +23,15 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:text="@string/livev2_brand_mark"
-            android:textColor="#041014"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:fontFamily="@font/plus_jakarta_sans"
-            android:includeFontPadding="false"
-            android:letterSpacing="-0.04" />
+        <!-- The real mark, not "DX" set as text: the login screen already shows the artwork, and
+             two different logos in one app is one too many. contentDescription is @null — it is
+             decoration beside a nav rail whose items name themselves. -->
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_brand_tile" />
     </FrameLayout>
 
     <!-- Magnetic sliding highlight capsule (behind nav icons) -->
@@ -99,16 +98,20 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">
 
+        <!-- "A" is only a design-time placeholder: the real initial comes from the signed-in
+             account (or the Xtream username) at bind time. It used to be a literal, so every
+             user in the world saw someone else's letter. -->
         <TextView
+            android:id="@+id/sidebar_profile_initial"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="@string/ui_a"
             android:textColor="@color/white"
             android:textSize="11sp"
             android:textStyle="bold"
             android:fontFamily="@font/plus_jakarta_sans"
-            android:includeFontPadding="false" />
+            android:includeFontPadding="false"
+            tools:text="A" />
     </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

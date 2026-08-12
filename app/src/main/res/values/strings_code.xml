@@ -102,4 +102,11 @@
          file, which is also why they are resources now. -->
     <string name="c_hero_desc_fallback">Experience high-quality streaming on DX Play.</string>
     <string name="c_hero_desc_fallback_home">Watch this amazing content on DX Play. Cinematic experience.</string>
+    <!-- Sidebar profile mark. The tier used to be the literal "PREMIUM" for every device, and the
+         name used to be the Xtream username even when the device was linked to an account — the
+         email is what the customer signs in with on the web and what support asks for. -->
+    <string name="c_signed_in_as">Signed in as</string>
+    <string name="c_profile_unknown">Not signed in</string>
+    <string name="c_tier_premium">PREMIUM</string>
+    <string name="c_tier_standard">STANDARD</string>
 </resources>

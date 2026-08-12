@@ -619,4 +619,6 @@
     <string name="f_chip_source">Source : %1$s ▼</string>
     <string name="c_hero_desc_fallback">Profitez d’un streaming de haute qualité sur DX Play.</string>
     <string name="c_hero_desc_fallback_home">Regardez ce contenu exceptionnel sur DX Play. Une expérience cinéma.</string>
+    <string name="c_signed_in_as">Connecté en tant que</string>
+    <string name="c_profile_unknown">Non connecté</string>
 </resources>
