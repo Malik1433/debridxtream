@@ -67,6 +67,12 @@ function App() {
                     {/* Customer account — a different audience from /reseller (§7.0): resellers pay
                         per device with no limit, customers get a device-limited subscription. Kept as
                         separate route trees so neither can drift into the other's flow. */}
+                    {/* Short alias, because this address is READ OFF A TELEVISION and typed into a
+                        phone by hand. The TV used to print the bare domain, which redirects to the
+                        claim page — so "create an account" sent people somewhere that does not
+                        create an account. /account/signup is the destination; /signup is what fits
+                        on a screen and in someone's memory. */}
+                    <Route path="/signup" element={<Navigate to="/account/signup" replace />} />
                     <Route path="/account" element={<AccountPage />} />
                     <Route path="/account/login" element={<AccountLoginPage />} />
                     <Route path="/account/signup" element={<AccountSignupPage />} />
