@@ -53,11 +53,12 @@
       icon, a target you can hit, and every destination visible at once.
 
       The height budget is the whole design constraint: a landscape handset is ~411dp tall, and the
-      rail must fit 6 items plus header, divider, settings and profile inside it. 48dp items
-      (6 × 48 = 288) plus ~100dp of chrome lands just under. That is why the items are 48 and not
-      56, and why the header and profile are trimmed rather than the items.
+      rail must fit 6 items plus header, divider and settings — 44dp items (6 × 44 = 264) plus ~70dp
+      of chrome. 48 was too tall once the status-bar inset was taken: the list overflowed, and with
+      clipping off it painted over Settings. The profile circle is gone on the phone, which is where
+      the rest of the slack came from.
     -->
-    <dimen name="home_nav_item_height">48dp</dimen>
+    <dimen name="home_nav_item_height">44dp</dimen>
     <dimen name="home_nav_item_margin">0dp</dimen>
     <dimen name="home_nav_item_width">76dp</dimen>
     <dimen name="home_nav_item_inset">0dp</dimen>

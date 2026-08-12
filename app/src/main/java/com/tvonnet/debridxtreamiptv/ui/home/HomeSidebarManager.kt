@@ -38,6 +38,7 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
 
     fun setupSidebar() {
         val frag = fragment ?: return
+        applyPhoneRailRules(frag)
 
         // Tier gating: NORMAL devices are IPTV-only — the Debrid entry must not exist
         // for them at all (owner policy; see Entitlements.isDebridAllowed).
@@ -243,8 +244,33 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
         }
     }
 
+    /**
+     * Two things the rail has to do differently in the hand.
+     *
+     * The list draws with clipping OFF, because the TV scales a focused item and the glow has to
+     * spill past the rail. Nothing focuses on a phone, so that permission buys nothing there — and
+     * it cost something real: with labels the list is taller than its box, and the overflow painted
+     * ON TOP of the divider and the Settings item, so "Series" and "Settings" landed on the same
+     * pixels. Clipping the list on touch confines it to its own space.
+     *
+     * The profile circle is removed outright (owner, 2026-08-13). It was a lettered dot with no
+     * name next to five labelled destinations, and it is not a destination at all — the account
+     * belongs in Settings, not in the navigation. Removing it also returns its height to the list,
+     * which is the difference between six destinations fitting and not.
+     */
+    private fun applyPhoneRailRules(frag: HomeFragment) {
+        if (frag.resources.getBoolean(R.bool.ui_uses_dpad_focus)) return
+        frag.view?.findViewById<android.view.ViewGroup>(R.id.rv_sidebar)?.apply {
+            clipChildren = true
+            clipToPadding = true
+        }
+        frag.view?.findViewById<View>(R.id.sidebar_profile_mark)?.visibility = View.GONE
+    }
+
     private fun setupProfileMark(frag: HomeFragment) {
         val profile = frag.view?.findViewById<View>(R.id.sidebar_profile_mark) ?: return
+        // Gone on a phone; nothing to wire up.
+        if (profile.visibility == View.GONE) return
 
         // Prefer the ACCOUNT's email: that is the thing a customer can act on — it is what they
         // sign in with on the web and what support asks for. The Xtream username is the fallback
