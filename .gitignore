@@ -15,6 +15,11 @@ bin/
 gen/
 out/
 release/
+# ...but `release/` matches ANY directory of that name at any depth, and app/src/release is a
+# Gradle SOURCE SET, not build output. It held a network_security_config that replaced main's in
+# release builds and blocked all cleartext — invisible in the repo, absent from a fresh clone, so
+# it could only ever break on the machine that cut the release. Source is not generated output.
+!app/src/release/
 
 # Gradle files
 .gradle/

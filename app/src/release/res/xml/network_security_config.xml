@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Release network policy.
+
+  Cleartext MUST be permitted. This app exists to connect to whatever Xtream server the customer
+  was sold, and those are overwhelmingly plain http:// on the provider's own domain. The previous
+  version of this file blocked cleartext by default and then allow-listed three vendor domains
+  (xtream-codes.com, xtream-ui.com, xui-one.com) — names of PANEL SOFTWARE, not of the hosts
+  customers actually type. A real server like a provider's own domain matched nothing, so Android
+  refused the request before it reached the network and login failed with
+  "CLEARTEXT communication ... not permitted by network security policy".
+
+  It never showed up because every shipped build until vC 73 was a DEBUG build, which uses the
+  main/ config instead. The first release build took the whole customer base offline at sign-in.
+
+  What the release config still tightens over main/: trust anchors are SYSTEM ONLY. main/ also
+  trusts user-installed CAs, which is convenient for proxy debugging and is exactly what you do
+  not want in the shipped app.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
