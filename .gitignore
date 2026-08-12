@@ -143,6 +143,11 @@ qa*.xml
 view_*.xml
 window_*.xml
 *_dump.xml
+# ...but `view_*.xml` is also how this app names half its layouts, and these patterns match at
+# ANY depth. A leftover layout-port/view_home_sidebar.xml was hidden by exactly this: present on
+# disk, used by the build in portrait, invisible in review and absent from a fresh clone. QA
+# captures never live under app/src, so nothing there may be swallowed by a capture pattern.
+!app/src/**
 
 # Local databases / agent runtime state
 *.sqlite

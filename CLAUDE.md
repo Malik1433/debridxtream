@@ -83,11 +83,23 @@ Apply these while touching a file; don't leave them for a later pass.
 This is ONE app on two form factors, so every screen must obey **the conventions of the device it is
 running on**. Phone work follows phone standards; TV work follows TV standards. Carrying one
 platform's idiom onto the other is a defect even when it "works" — and it has already happened here
-(the Live screen shipped a TV focus-then-activate model onto a touchscreen, and Settings still
-renders a 10-foot two-column layout on a 411dp phone, where nothing is reachable).
+(the Live screen shipped a TV focus-then-activate model onto a touchscreen; Settings shipped 10-foot
+chrome that ate 144dp of a 411dp phone screen before one setting was visible — **fixed in M14**, and
+this line stays only as the example of the failure mode).
 
-**How they stay apart:** configuration-qualified resources (`layout-port/`, `values-port/`), not
-runtime branches. Same view ids, same view KINDS, same default visibilities — so shared code binds
+**How they stay apart:** `values/` holds the PHONE answer and `values-television/` the TV one — the
+device question, which never matches a phone in either orientation. `layout-port/` and `values-port/`
+are BANNED and deleted: the phone is landscape-locked, so an orientation qualifier answers a question
+nobody is asking, and a stray file there silently overrides at runtime while being easy to miss
+(exactly what a leftover `layout-port/view_home_sidebar.xml` did until 2026-08-12).
+
+⭐ **The layout bools are deliberately NOT device-split.** `home_nav_is_horizontal`,
+`browse_categories_are_horizontal`, `settings_categories_are_horizontal` live only in `values/`, so
+BOTH form factors get the same answer: the landscape phone wears the TV's layout on purpose. Only
+the VIEWING-DISTANCE numbers differ per device. Do not "fix" a bool by adding a `-television` copy
+without re-deciding that.
+
+Same view ids, same view KINDS, same default visibilities — so shared code binds
 to either without knowing which it got. Only genuinely behavioural differences go through a resource
 `bool` read in code.
 
