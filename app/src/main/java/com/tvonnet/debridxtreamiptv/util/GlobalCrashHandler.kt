@@ -18,11 +18,22 @@ class GlobalCrashHandler(private val context: Context) : Thread.UncaughtExceptio
     }
 
     override fun uncaughtException(thread: Thread, throwable: Throwable) {
-        // LP-D-5: never log the raw message/trace — media3 HTTP exceptions embed the
-        // credentialed stream URL. Class name + crash site only.
+        // LP-D-5: never log the MESSAGE — media3 HTTP exceptions embed the credentialed stream
+        // URL. The frames themselves carry no such thing (class, method, line only), and one
+        // frame proved to be too few: a field crash reported IllegalStateException at
+        // FragmentManagerImpl and there was no way to tell which of our screens committed the
+        // transaction. Log a short frame window so the next occurrence is diagnosable from the
+        // device, without waiting on a Crashlytics round-trip.
         Log.e(
             "GlobalCrashHandler",
-            "CRASH DETECTED: ${throwable::class.java.name} @ ${throwable.stackTrace.firstOrNull()}"
+            buildString {
+                append("CRASH DETECTED: ").append(throwable::class.java.name)
+                throwable.stackTrace.take(CRASH_FRAMES).forEach { append("\n    at ").append(it) }
+                throwable.cause?.let { cause ->
+                    append("\n  caused by: ").append(cause::class.java.name)
+                    cause.stackTrace.take(CRASH_FRAMES).forEach { append("\n    at ").append(it) }
+                }
+            }
         )
 
         // LP-D-1: this handler restarts the app instead of chaining to the system
@@ -74,6 +85,10 @@ class GlobalCrashHandler(private val context: Context) : Thread.UncaughtExceptio
     }
 
     companion object {
+        /** Enough frames to name the caller across a framework wrapper, short enough to stay
+         *  readable in a logcat line and to leak nothing beyond our own class names. */
+        private const val CRASH_FRAMES = 8
+
         fun init(context: Context) {
             Thread.setDefaultUncaughtExceptionHandler(GlobalCrashHandler(context))
         }

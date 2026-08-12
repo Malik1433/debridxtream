@@ -117,7 +117,10 @@
     <string name="ui_hd">HD</string>
     <string name="ui_http_server_example_tv">http://server.example.tv</string>
     <string name="ui_imdb">IMDb</string>
-    <string name="ui_iptv_debrid_4k">IPTV · DEBRID · 4K</string>
+    <!-- Sits directly under the brand name, so it reads as part of the identity rather than as a
+         list of supported services. "DEBRID" and "XTREAM" are other companies' product names and
+         do not belong there; the feature chips below already name them where that is honest. -->
+    <string name="ui_iptv_debrid_4k">LIVE TV · MOVIES · SERIES</string>
     <string name="ui_iptv_xtream">IPTV Xtream</string>
     <string name="ui_jump_to_now">● Jump to Now</string>
     <string name="ui_key">KEY</string>

@@ -214,7 +214,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleNavigationIntent(intent: Intent) {
         if (intent.getBooleanExtra("OPEN_SETTINGS", false)) {
-             supportFragmentManager.commit {
+            // allowStateLoss because the TRIGGER is external: an intent can be delivered while
+            // this activity has already saved its state (the screen going off is enough), and a
+            // plain commit then throws IllegalStateException and takes the app down — which is
+            // what a field crash showed, reported only as "IllegalStateException at
+            // FragmentManagerImpl" with no way to tell which screen did it. Dropping a navigation
+            // the user cannot see is the correct trade against killing the process.
+            supportFragmentManager.commit(allowStateLoss = true) {
                 replace(R.id.content_container, com.tvonnet.debridxtreamiptv.ui.settings.SettingsFragment())
                 addToBackStack(null)
             }
@@ -266,7 +272,9 @@ class MainActivity : AppCompatActivity() {
 
         // If SearchFragment is not found, navigate to it and set query
         Log.d("MainActivity", "SearchFragment not found, navigating with query: '$query'")
-        supportFragmentManager.commit {
+        // allowStateLoss: a voice query arrives from the assistant, not from a tap, so it can
+        // land after onSaveInstanceState — same crash shape as the intent path above.
+        supportFragmentManager.commit(allowStateLoss = true) {
             replace(R.id.content_container, SearchFragment().apply {
                 arguments = Bundle().apply {
                     putString("voice_query", query)
@@ -362,7 +370,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun navigateToSearchFragment() {
-        supportFragmentManager.commit {
+        // allowStateLoss: reached from the voice-search flow, including the RECORD_AUDIO
+        // permission callback, so it too can run against an already-saved activity.
+        supportFragmentManager.commit(allowStateLoss = true) {
             replace(R.id.content_container, SearchFragment())
             addToBackStack(null)
         }

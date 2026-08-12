@@ -56,8 +56,8 @@ android {
         // ANSWERABLE: LicenseManager writes appVersionCode to licenses/{installId} on every
         // launch, so anything still reporting 36 has not taken the account build — which is
         // exactly the question U8b hangs on.
-        versionCode 74
-        versionName "2.5.7"
+        versionCode 75
+        versionName "2.5.8"
         multiDexEnabled true
         multiDexKeepFile file('multidex-keep.txt')
         multiDexKeepProguard file('multidex-keep.pro')
@@ -80,8 +80,11 @@ android {
         // refuses premium if it's running under a different (re-signed / repacked)
         // certificate. Empty by default → the check is a NO-OP (debug/dev unaffected),
         // so this is safe to ship before release signing is set up. See AppIntegrity.
-        def expectedSig = keystoreProps.getProperty("EXPECTED_SIGNING_SHA256", "")
-        buildConfigField "String", "EXPECTED_SIGNING_SHA256", "\"${expectedSig}\""
+        // Empty here on purpose — this default reaches EVERY build type, and a debug build is
+        // signed with the debug key, so a populated value would make the app declare ITSELF
+        // untrusted and silently drop premium/trial on every dev and QA device. The real hash is
+        // applied to the release type only, below.
+        buildConfigField "String", "EXPECTED_SIGNING_SHA256", "\"\""
     }
 
     // Release signing (SCAFFOLD, inert until keystore.properties exists). Create it from
@@ -114,6 +117,12 @@ android {
             // the default (debug) signing so dev/CI builds keep working.
             if (keystoreProps.containsKey('storeFile')) {
                 signingConfig signingConfigs.release
+                // Anti-repack: the app compares its own signing cert against this at runtime and
+                // withholds premium/trial on a mismatch. Applied ONLY here, and only alongside the
+                // real key — a release built without keystore.properties is debug-signed, so it
+                // must keep the check disabled rather than declare itself a repack.
+                buildConfigField "String", "EXPECTED_SIGNING_SHA256",
+                    "\"${keystoreProps.getProperty('EXPECTED_SIGNING_SHA256', '')}\""
             }
         }
     }
