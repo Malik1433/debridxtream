@@ -1,7 +1,9 @@
 package com.tvonnet.debridxtreamiptv
 
+import android.app.Activity
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
+import com.tvonnet.debridxtreamiptv.util.padForSystemBars
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -24,7 +26,9 @@ class MainApplication : Application(), Configuration.Provider {
         super.onCreate()
         
         com.tvonnet.debridxtreamiptv.util.GlobalCrashHandler.init(this)
-        
+
+        registerSystemBarInsetPadding()
+
         // Reset crash counter if app stays alive for 15 seconds
         appScope.launch {
             kotlinx.coroutines.delay(15000)
@@ -45,6 +49,35 @@ class MainApplication : Application(), Configuration.Provider {
                     .schedule(this@MainApplication)
             }
         }
+    }
+
+    /**
+     * targetSdk 35 means Android 15 draws every activity edge-to-edge whether it asked to or not,
+     * and this app handled no insets anywhere — so on a phone the screen title sat UNDER the system
+     * clock, on Settings and on Home alike. The phone rulebook is explicit: nothing under the bars.
+     *
+     * Done once here rather than in each of the eight chrome activities: it cannot be forgotten in
+     * a new one, and there is a single place that names the exceptions.
+     *
+     * A television reports zero system-bar insets, so this changes nothing on the TV.
+     */
+    private fun registerSystemBarInsetPadding() {
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            override fun onActivityCreated(activity: Activity, savedInstanceState: android.os.Bundle?) {
+                // Video is meant to reach the edges; padding the player or the trailer would frame
+                // the picture in black bars on a phone.
+                if (activity is com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity) return
+                if (activity is com.tvonnet.debridxtreamiptv.ui.trailer.TrailerActivity) return
+                activity.findViewById<android.view.View>(android.R.id.content)?.padForSystemBars()
+            }
+
+            override fun onActivityStarted(activity: Activity) = Unit
+            override fun onActivityResumed(activity: Activity) = Unit
+            override fun onActivityPaused(activity: Activity) = Unit
+            override fun onActivityStopped(activity: Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: Activity, outState: android.os.Bundle) = Unit
+            override fun onActivityDestroyed(activity: Activity) = Unit
+        })
     }
 
     override val workManagerConfiguration: Configuration

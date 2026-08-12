@@ -267,13 +267,19 @@
          phone and confirms this TV, after which its playlists arrive on their own. The legacy
          /setup page still exists and still works for devices running older builds, whose QR is
          baked into the build they already have. -->
-    <string name="companion_setup_url">https://debxtrem-companion.vercel.app/link</string>
+    <!-- The brand's own domain, not the hosting provider's. The vercel.app address still serves
+         the same app, but it is the thing a customer READS off a TV and types into a phone, and
+         "debxtrem-companion.vercel.app" says neither the product's name nor anything trustworthy.
+         Verified live: dxplay.xyz/link returns the claim page. -->
+    <string name="companion_setup_url">https://dxplay.xyz/link</string>
     <!-- Shown on the TV so a customer can type it into a phone; deliberately without the
          scheme, which nobody needs to type. -->
-    <string name="companion_signup_url_short">debxtrem-companion.vercel.app</string>
+    <string name="companion_signup_url_short">dxplay.xyz</string>
     
     <!-- Login Screen Upgrades -->
-    <string name="login_welcome_title">DEBRID XTREAM</string>
+    <!-- login_welcome_title deleted 2026-08-12: it read "DEBRID XTREAM" and had zero references,
+         so the rename could never reach it while it sat waiting for someone to wire it up. -->
+
     <string name="login_welcome_subtitle">Premium IPTV &amp; VOD Streaming Experience</string>
     <string name="login_tagline">Your gateway to unlimited entertainment</string>
     <string name="login_connect_mobile">Connect via Mobile / QR</string>

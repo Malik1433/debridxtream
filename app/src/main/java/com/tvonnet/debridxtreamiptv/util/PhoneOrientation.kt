@@ -4,6 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
 import android.content.pm.ActivityInfo
+import android.view.View
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.tvonnet.debridxtreamiptv.R
 
 /**
@@ -57,3 +60,28 @@ fun phoneScaledContext(base: Context): Context {
 
 /** Enough to bring a 7sp TV title to ~11sp in the hand without reflowing every fixed-height row. */
 private const val PHONE_FONT_SCALE = 1.6f
+
+/**
+ * Keep the UI out from under the status and navigation bars.
+ *
+ * `targetSdk 35` means Android 15 draws every app edge-to-edge whether it asked to or not, and this
+ * app handled no insets at all — so on a phone the screen title sat UNDER the system clock, on
+ * Settings and on Home alike. The phone rulebook is explicit: nothing under the bars, nothing behind
+ * the gesture pill.
+ *
+ * Padding rather than `fitsSystemWindows`: the root here is a bare FrameLayout that fragments swap
+ * content into, and padding survives that where the flag's one-shot consumption does not.
+ *
+ * A television reports zero system-bar insets, so this is a no-op there — no device branch needed,
+ * and nothing on the TV moves.
+ *
+ * NOT for the player or the trailer: video is meant to fill the panel edge to edge.
+ */
+fun View.padForSystemBars() {
+    ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
+        val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+        view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+        insets
+    }
+    ViewCompat.requestApplyInsets(this)
+}
