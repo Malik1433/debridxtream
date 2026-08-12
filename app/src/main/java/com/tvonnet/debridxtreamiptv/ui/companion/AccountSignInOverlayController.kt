@@ -38,6 +38,29 @@ class AccountSignInOverlayController(
     init {
         submit.setOnClickListener { attemptSignIn() }
         close.setOnClickListener { hide() }
+        overlay.findViewById<View>(R.id.tv_account_signup_url)?.setOnClickListener { openSignupPage() }
+    }
+
+    /**
+     * The signup address was printed and nothing more, so the only way to act on it was to read it
+     * across the room and retype it on a phone.
+     *
+     * A television may genuinely have no browser, and there the address stays the instruction —
+     * so a missing browser is not an error to report, it is the normal case. Failing silently here
+     * would be wrong the other way round on a phone, hence the toast.
+     */
+    private fun openSignupPage() {
+        val ctx = overlay.context
+        val url = ctx.getString(R.string.companion_signup_url)
+        val opened = runCatching {
+            ctx.startActivity(
+                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }.isSuccess
+        if (!opened) {
+            android.widget.Toast.makeText(ctx, url, android.widget.Toast.LENGTH_LONG).show()
+        }
     }
 
     fun show() {

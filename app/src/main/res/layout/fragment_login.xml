@@ -1172,12 +1172,20 @@
                 android:textColor="#64748B"
                 android:textSize="8sp" />
 
+            <!-- Actionable, not just printed: on a phone the obvious thing to do with an address
+                 is tap it, and on the TV the D-pad must be able to reach it like any other
+                 control. Padding so it is a real target rather than a 9sp line of text. -->
             <TextView
+                android:id="@+id/tv_account_signup_url"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
+                android:background="@drawable/sel_login_btn_secondary"
+                android:clickable="true"
+                android:focusable="true"
                 android:fontFamily="monospace"
                 android:gravity="center"
+                android:paddingVertical="6dp"
                 android:text="@string/companion_signup_url_short"
                 android:textColor="#38BDF8"
                 android:textSize="9sp" />

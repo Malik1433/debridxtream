@@ -274,7 +274,13 @@
     <string name="companion_setup_url">https://dxplay.xyz/link</string>
     <!-- Shown on the TV so a customer can type it into a phone; deliberately without the
          scheme, which nobody needs to type. -->
-    <string name="companion_signup_url_short">dxplay.xyz</string>
+    <!-- The SIGNUP page, not the bare domain: the domain redirects to the device-claim page, so
+         "create an account at ..." used to lead somewhere that does not create an account.
+         /signup is a short alias for /account/signup — this address gets read off a television
+         and typed into a phone, where every extra character is one more thing to get wrong. -->
+    <string name="companion_signup_url_short">dxplay.xyz/signup</string>
+    <!-- Same address with the scheme, for opening it directly when the text is activated. -->
+    <string name="companion_signup_url">https://dxplay.xyz/signup</string>
     
     <!-- Login Screen Upgrades -->
     <!-- login_welcome_title deleted 2026-08-12: it read "DEBRID XTREAM" and had zero references,
