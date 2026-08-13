@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Poster card: 124 x 186 (2:3) per the handoff. Title and meta sit UNDER the art, not on it,
+     so a busy poster never eats the text. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="124dp"
+    android:layout_height="wrap_content"
+    android:clickable="true"
+    android:focusable="true"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:layout_width="124dp"
+        android:layout_height="186dp"
+        android:background="@drawable/bg_phone_card">
+
+        <ImageView
+            android:id="@+id/phone_poster_image"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:scaleType="centerCrop" />
+
+        <TextView
+            android:id="@+id/phone_poster_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_margin="6dp"
+            android:background="@drawable/bg_phone_quality_badge"
+            android:fontFamily="@font/share_tech_mono"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:textColor="@color/phone_on_accent"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:text="4K"
+            tools:visibility="visible" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/phone_poster_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/outfit_semibold"
+        android:lineSpacingMultiplier="1.25"
+        android:maxLines="2"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="13sp"
+        tools:text="Dune: Part Two" />
+
+    <TextView
+        android:id="@+id/phone_poster_meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/share_tech_mono"
+        android:maxLines="1"
+        android:textColor="@color/phone_text_muted"
+        android:textSize="12sp"
+        tools:text="2024" />
+</LinearLayout>

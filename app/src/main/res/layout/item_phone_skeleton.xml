@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- First paint, before the catalogue resolves. Drawn at the REAL card geometry (hero block, then
+     208x117 and 124x186 cards) so nothing moves when the data lands — a skeleton that reflows is
+     worse than no skeleton. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <View
+        android:id="@+id/phone_skel_hero"
+        android:layout_width="match_parent"
+        android:layout_height="396dp"
+        android:background="@color/phone_panel" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="24dp">
+
+        <View
+            android:id="@+id/phone_skel_a"
+            android:layout_width="208dp"
+            android:layout_height="117dp"
+            android:background="@drawable/bg_phone_card" />
+
+        <View
+            android:id="@+id/phone_skel_b"
+            android:layout_width="208dp"
+            android:layout_height="117dp"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/bg_phone_card" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="24dp">
+
+        <View
+            android:id="@+id/phone_skel_c"
+            android:layout_width="124dp"
+            android:layout_height="186dp"
+            android:background="@drawable/bg_phone_card" />
+
+        <View
+            android:id="@+id/phone_skel_d"
+            android:layout_width="124dp"
+            android:layout_height="186dp"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/bg_phone_card" />
+
+        <View
+            android:id="@+id/phone_skel_e"
+            android:layout_width="124dp"
+            android:layout_height="186dp"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/bg_phone_card" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/phone_skel_footer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:layout_marginStart="16dp"
+        android:fontFamily="@font/share_tech_mono"
+        android:letterSpacing="0.1"
+        android:text="@string/phone_loading_catalog"
+        android:textColor="@color/phone_text_muted"
+        android:textSize="12sp" />
+</LinearLayout>

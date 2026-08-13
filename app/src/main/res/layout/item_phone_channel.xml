@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Recent Live Channels card. The design never draws one (it shows the row in its error state),
+     so this follows the continue-watching geometry rather than the poster's: a channel logo is
+     wide, and a 2:3 poster frame around it left most of the tile empty. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="208dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="10dp"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:orientation="vertical">
+
+    <ImageView
+        android:id="@+id/phone_channel_logo"
+        android:layout_width="match_parent"
+        android:layout_height="117dp"
+        android:background="@drawable/bg_phone_card"
+        android:contentDescription="@null"
+        android:padding="20dp"
+        android:scaleType="fitCenter"
+        tools:src="@drawable/ic_live_tv" />
+
+    <TextView
+        android:id="@+id/phone_channel_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/outfit_semibold"
+        android:lineSpacingMultiplier="1.25"
+        android:maxLines="2"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="13sp"
+        tools:text="BEIN SPORTS 1 HD" />
+</LinearLayout>

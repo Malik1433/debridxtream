@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One content row: header (accent bar + title + count) then a free-scrolling rail.
+     The rail bleeds to the screen edge but its first card aligns to the 16dp gutter, which is
+     what makes a half-visible card at the right edge read as "there is more" rather than as a
+     mistake. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingTop="24dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="12dp">
+
+        <View
+            android:layout_width="3dp"
+            android:layout_height="14dp"
+            android:background="@color/phone_cyan" />
+
+        <TextView
+            android:id="@+id/phone_row_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="@font/outfit_bold"
+            android:maxLines="1"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="15sp"
+            tools:text="Continue Watching" />
+
+        <TextView
+            android:id="@+id/phone_row_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/share_tech_mono"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="12sp"
+            tools:text="3" />
+    </LinearLayout>
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToPadding="false"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/phone_row_rail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:showDividers="middle" />
+    </HorizontalScrollView>
+</LinearLayout>

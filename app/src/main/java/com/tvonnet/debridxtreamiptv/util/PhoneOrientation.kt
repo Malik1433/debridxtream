@@ -37,6 +37,36 @@ fun Activity.lockLandscapeOnTouchDevices() {
 }
 
 /**
+ * PORTRAIT on a phone — the standard every media app follows.
+ *
+ * Owner decision, 2026-08-13, reversing M13's blanket landscape: browsing is portrait and only the
+ * PLAYER is landscape. That is what Netflix, YouTube, Prime and Disney+ all do, and M13 locked
+ * landscape not because it was better but because the portrait layouts were missing — rotating the
+ * phone used to lose the Live channel list.
+ *
+ * So this is applied SCREEN BY SCREEN as each one gets a real portrait layout, never globally: a
+ * screen still wearing the TV's wide layout must stay landscape until its own portrait design
+ * lands, or it just gets squeezed.
+ *
+ * On TV it is a no-op, as everything here is.
+ */
+fun Activity.usePortraitOnTouchDevices() {
+    if (resources.getBoolean(R.bool.ui_uses_dpad_focus)) return
+    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+}
+
+/**
+ * The marker a screen wears once it HAS a portrait design.
+ *
+ * MainActivity hosts every browse screen in one window, so orientation cannot be decided once in
+ * onCreate — it belongs to whichever fragment is on top. Home has its portrait layout today; Live,
+ * Movies, Series, Search and Settings do not, and squeezing their wide TV layout into a 411dp
+ * column would be worse than the landscape they have now. So each one turns portrait on the day it
+ * gets its own design, by implementing this — and nothing else has to change.
+ */
+interface PortraitScreen
+
+/**
  * M13 (owner option B) — scale the type up on a handset.
  *
  * The phone now wears the TV layout, and that layout is sized to read from three metres: the design

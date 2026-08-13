@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PHONE Home — portrait, built to the "DX Play Home" handoff (2026-08-13).
+
+  A separate layout rather than qualifiers on the TV one, as the handoff asks: the two screens do
+  not share an arrangement any more. The TV keeps its left rail and 10-foot type; this is a top app
+  bar, a 452dp hero, five rails and a bottom navigation bar, sized for a hand.
+
+  Insets: MainApplication pads the content view for the system bars, so nothing here is drawn under
+  the status bar or the gesture pill. The app bar and bottom nav therefore sit inside that padding.
+
+  Nothing below 12sp anywhere in this file — the handoff is explicit, and it is also the phone
+  rulebook's floor.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/phone_home_bg">
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/phone_home_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingBottom="64dp"
+        android:overScrollMode="never"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- ══ HERO ══ 452dp, running up behind the translucent app bar. -->
+            <FrameLayout
+                android:id="@+id/phone_hero"
+                android:layout_width="match_parent"
+                android:layout_height="452dp">
+
+                <ImageView
+                    android:id="@+id/phone_hero_backdrop"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@null"
+                    android:scaleType="centerCrop" />
+
+                <!-- Bottom-up scrim so the text stays readable over any backdrop. -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_phone_hero_scrim" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="16dp"
+                    android:paddingBottom="16dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:layout_width="5dp"
+                            android:layout_height="5dp"
+                            android:background="@drawable/bg_login_dot"
+                            android:backgroundTint="@color/phone_cyan" />
+
+                        <TextView
+                            android:id="@+id/phone_hero_eyebrow"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:fontFamily="@font/share_tech_mono"
+                            android:letterSpacing="0.16"
+                            android:text="@string/section_trending_today"
+                            android:textColor="@color/phone_cyan"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/phone_hero_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/outfit_extrabold"
+                        android:letterSpacing="-0.03"
+                        android:lineSpacingMultiplier="1.0"
+                        android:maxLines="2"
+                        android:shadowColor="#D9000000"
+                        android:shadowDy="2"
+                        android:shadowRadius="20"
+                        android:textColor="@color/phone_text_primary"
+                        android:textSize="34sp"
+                        tools:text="Dune: Part Two" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/phone_hero_rating"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_phone_rating_chip"
+                            android:fontFamily="@font/share_tech_mono"
+                            android:paddingHorizontal="7dp"
+                            android:paddingVertical="3dp"
+                            android:textColor="@color/phone_amber"
+                            android:textSize="12sp"
+                            tools:text="★ 8.5" />
+
+                        <TextView
+                            android:id="@+id/phone_hero_meta"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_weight="1"
+                            android:ellipsize="end"
+                            android:fontFamily="@font/share_tech_mono"
+                            android:maxLines="1"
+                            android:textColor="@color/phone_text_secondary"
+                            android:textSize="12sp"
+                            tools:text="2024 · 2h 46m · Sci-Fi" />
+
+                        <TextView
+                            android:id="@+id/phone_hero_quality"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/bg_phone_quality_badge"
+                            android:fontFamily="@font/share_tech_mono"
+                            android:paddingHorizontal="7dp"
+                            android:paddingVertical="3dp"
+                            android:textColor="@color/phone_on_accent"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            tools:text="4K HDR" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/phone_hero_synopsis"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/inter_regular"
+                        android:lineSpacingMultiplier="1.6"
+                        android:maxLines="2"
+                        android:textColor="@color/phone_text_secondary"
+                        android:textSize="12.5sp"
+                        tools:text="Paul Atreides unites with the Fremen to wage war against House Harkonnen." />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <LinearLayout
+                            android:id="@+id/phone_hero_play"
+                            android:layout_width="0dp"
+                            android:layout_height="52dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_phone_btn_primary"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:orientation="horizontal">
+
+                            <ImageView
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_stremio_play"
+                                app:tint="@color/phone_on_accent" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:fontFamily="@font/outfit_bold"
+                                android:text="@string/movie_detail_watch_now"
+                                android:textColor="@color/phone_on_accent"
+                                android:textSize="15sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/phone_hero_info"
+                            android:layout_width="wrap_content"
+                            android:layout_height="52dp"
+                            android:layout_marginStart="10dp"
+                            android:background="@drawable/bg_phone_btn_secondary"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="16dp">
+
+                            <ImageView
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_hero_info"
+                                app:tint="@color/phone_text_primary" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:fontFamily="@font/outfit_semibold"
+                                android:text="@string/ui_more_info"
+                                android:textColor="@color/phone_text_primary"
+                                android:textSize="13.5sp" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:id="@+id/phone_hero_save"
+                            android:layout_width="52dp"
+                            android:layout_height="52dp"
+                            android:layout_marginStart="10dp"
+                            android:background="@drawable/bg_phone_btn_secondary"
+                            android:clickable="true"
+                            android:contentDescription="@string/add_to_favorites"
+                            android:focusable="true"
+                            android:padding="16dp"
+                            android:src="@drawable/ic_stremio_bookmark"
+                            app:tint="@color/phone_text_primary" />
+                    </LinearLayout>
+                </LinearLayout>
+            </FrameLayout>
+
+            <!-- ══ ROWS ══ order is fixed by the handoff. -->
+            <LinearLayout
+                android:id="@+id/phone_rows"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- ══ TOP APP BAR ══ sticky, translucent, hero runs behind it. -->
+    <LinearLayout
+        android:id="@+id/phone_app_bar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/phone_bar_scrim"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="8dp">
+
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_brand_tile" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/outfit_extrabold"
+            android:letterSpacing="-0.02"
+            android:text="@string/app_title"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="17sp" />
+
+        <ImageView
+            android:id="@+id/phone_action_search"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/nav_search"
+            android:padding="13dp"
+            android:src="@drawable/ic_stremio_search"
+            app:tint="@color/phone_text_primary" />
+
+        <!-- Settings lives behind this, per the handoff: search is a verb, the avatar is the
+             account and everything that hangs off it. -->
+        <FrameLayout
+            android:id="@+id/phone_action_avatar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:id="@+id/phone_avatar_initial"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_profile_mark"
+                android:fontFamily="@font/outfit_bold"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                tools:text="X" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- ══ BOTTOM NAVIGATION ══ five destinations; Debrid drops out for users without it and the
+         remaining four re-weight evenly, with no gap and no re-centering. -->
+    <LinearLayout
+        android:id="@+id/phone_bottom_nav"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:layout_gravity="bottom"
+        android:background="@color/phone_nav_scrim"
+        android:orientation="horizontal" />
+</FrameLayout>

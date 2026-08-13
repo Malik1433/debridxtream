@@ -115,4 +115,6 @@
          on top of moving video, and the arrow already says which way. -->
     <string name="c_seek_forward_badge">▶▶  %1$d s</string>
     <string name="c_seek_back_badge">◀◀  %1$d s</string>
+    <!-- Phone Home. The eyebrow above the hero title. -->
+    <string name="section_trending_today">#1 TRENDING TODAY</string>
 </resources>

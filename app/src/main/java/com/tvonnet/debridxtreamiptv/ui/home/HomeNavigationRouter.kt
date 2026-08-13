@@ -29,27 +29,57 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
+/**
+ * What the router needs from the screen hosting it.
+ *
+ * It used to be `HomeFragment` itself, which was fine while there was one Home. There are two now
+ * — the TV one and the phone one — and the resume rules in here (play-then-repair, the
+ * startPositionMs that must travel on every intent) are exactly the code that must NOT be copied
+ * into the second screen. So the router keeps the rules and the host supplies the four things it
+ * cannot know: the fragment, the data it queries, and two hooks for the TV-only hero/focus memory
+ * that the phone has no equivalent of.
+ */
+internal interface HomeRouterHost {
+    val routerFragment: Fragment
+    val routerRepository: com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
+    val routerCredentials: com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
+    val routerEpisodeDao: com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.EpisodeDaoV2
+
+    /** False vetoes the hop — the TV Home uses it to swallow a second click mid-navigation. */
+    fun routerMayNavigate(): Boolean = true
+
+    /** Called once a hop is actually committed, for host bookkeeping. */
+    fun onRouterNavigationCommitted() {}
+
+    /** The TV Home repaints its hero from the clicked card; the phone hero is not addressable. */
+    fun onRouterHeroSelected(item: FeaturedItem) {}
+
+    /** Leaving for an Activity — the TV Home suppresses its focus memory so it comes back right. */
+    fun onRouterLeavingForActivity() {}
+}
+
+internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
 
     fun cleanup() {
-        fragment = null
+        host = null
     }
 
     fun navigateToSection(section: String) {
-        val frag = fragment ?: return
-        if (frag.isNavigatingFromHome) return
+        val h = host ?: return
+        if (!h.routerMayNavigate()) return
 
         // Routing, the Debrid tier gate and the Live classic/guide split are shared with the
         // Live TV v2 rail — see SectionNavigator.
-        com.tvonnet.debridxtreamiptv.ui.nav.SectionNavigator.navigate(frag, section) {
-            frag.isNavigatingFromHome = true
+        com.tvonnet.debridxtreamiptv.ui.nav.SectionNavigator.navigate(h.routerFragment, section) {
+            h.onRouterNavigationCommitted()
         }
     }
 
     fun navigateToFragment(target: Fragment) {
-        val frag = fragment ?: return
+        val h = host ?: return
+        val frag = h.routerFragment
         if (!frag.isAdded || frag.parentFragmentManager.isStateSaved) return
-        frag.isNavigatingFromHome = true
+        h.onRouterNavigationCommitted()
         frag.parentFragmentManager.commit {
             replace(R.id.content_container, target)
             addToBackStack(null)
@@ -57,9 +87,10 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
     }
 
     fun onFeaturedItemClick(item: FeaturedItem) {
-        val frag = fragment ?: return
-        frag.heroManager.updateHeroSection(item)
-        
+        val h = host ?: return
+        val frag = h.routerFragment
+        h.onRouterHeroSelected(item)
+
         if (item.sourceType == SourceType.TMDB) {
             val context = frag.context ?: return
             if (item.contentType == ContentType.MOVIE) {
@@ -116,7 +147,8 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
     }
 
     fun openFeaturedDetails(item: FeaturedItem) {
-        val frag = fragment ?: return
+        val h = host ?: return
+        val frag = h.routerFragment
         if (item.sourceType == SourceType.TMDB) {
             val context = frag.context ?: return
             when (item.contentType) {
@@ -172,7 +204,8 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
     }
 
     fun onContinueWatchingItemClick(item: ContinueWatchingItem) {
-        val frag = fragment ?: return
+        val h = host ?: return
+        val frag = h.routerFragment
         val context = frag.context ?: return
         val streamUrl = item.streamUrl?.takeIf { it.isNotBlank() }
         val isDebrid = item.source == "debrid"
@@ -188,7 +221,7 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
         frag.viewLifecycleOwner.lifecycleScope.launch {
             when (item.contentType) {
                 ContentType.MOVIE, ContentType.EPISODE -> resumeOrOpenCwDetail(
-                    frag, context, item,
+                    h, context, item,
                     CwResumeFacts(streamUrl, isDebrid, hasResolutionInfo, canFreshResolveDirectDebrid, expired)
                 )
                 ContentType.SERIES -> openContinueWatchingDetail(item)
@@ -212,12 +245,12 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
     // The resume rule (play-then-repair): play the link we hold, or anything the player can
     // repair/re-resolve itself; only a card with nothing playable falls back to the detail page.
     private suspend fun resumeOrOpenCwDetail(
-        frag: HomeFragment,
+        h: HomeRouterHost,
         context: android.content.Context,
         item: ContinueWatchingItem,
         facts: CwResumeFacts
     ) {
-        val serverUrl = frag.credentialsPrefs.getServerUrl() ?: ""
+        val serverUrl = h.routerCredentials.getServerUrl() ?: ""
         val canResumeDirectly = (facts.streamUrl != null && !facts.expired) ||
             (facts.isDebrid && facts.hasResolutionInfo) ||
             facts.canFreshResolveDirectDebrid
@@ -294,7 +327,8 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
     )
 
     suspend fun openContinueWatchingDetail(item: ContinueWatchingItem) {
-        val frag = fragment ?: return
+        val h = host ?: return
+        val frag = h.routerFragment
         val context = frag.context ?: return
         val isDebrid = item.source == "debrid"
         when (item.contentType) {
@@ -375,12 +409,12 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
     }
 
     suspend fun resolveIptvSeriesIdForContinueWatching(item: ContinueWatchingItem): String? {
-        val frag = fragment ?: return null
+        val h = host ?: return null
         item.seriesId?.takeIf { it.isNotBlank() }?.let { return it }
         if (item.source == "debrid") return null
         if (item.contentType != ContentType.EPISODE && item.contentType != ContentType.SERIES) return null
         val resolved = withContext(Dispatchers.IO) {
-            runCatching { frag.episodeDaoV2.getEpisodeById(item.contentId)?.seriesId }.getOrNull()
+            runCatching { h.routerEpisodeDao.getEpisodeById(item.contentId)?.seriesId }.getOrNull()
         }?.takeIf { it.isNotBlank() }
         Log.d(
             "TASK030_CW_SERIES",
@@ -390,7 +424,7 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
     }
 
     fun onRecentLiveItemClick(item: RecentLiveChannelItem) {
-        val frag = fragment ?: return
+        host ?: return
         Log.e("HISTORY_DEBUG", "Click Recent Live: ${item.channelName} | id=${item.channelId} | stream=${SensitiveLogRedactor.describeUrl(item.streamUrl)}")
         launchLiveStream(
             streamId = item.channelId,
@@ -408,12 +442,13 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
         fallbackUrl: String?,
         epgChannelId: String? = null
     ) {
-        val frag = fragment ?: return
+        val h = host ?: return
+        val frag = h.routerFragment
         frag.viewLifecycleOwner.lifecycleScope.launch {
-            val stream = streamId?.let { frag.repository.getLiveStreamById(it) }
-            val serverUrl = frag.credentialsPrefs.getServerUrl()
+            val stream = streamId?.let { h.routerRepository.getLiveStreamById(it) }
+            val serverUrl = h.routerCredentials.getServerUrl()
             val resolvedUrl = when {
-                stream != null && !serverUrl.isNullOrBlank() -> frag.repository.buildLiveStreamUrl(stream, serverUrl)
+                stream != null && !serverUrl.isNullOrBlank() -> h.routerRepository.buildLiveStreamUrl(stream, serverUrl)
                 else -> fallbackUrl
             }
 
@@ -440,7 +475,7 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
     )
 
     private fun buildLiveIntent(
-        frag: HomeFragment,
+        frag: Fragment,
         stream: XtreamStream?,
         resolvedUrl: String,
         serverUrl: String,
@@ -462,13 +497,15 @@ internal class HomeNavigationRouter(private var fragment: HomeFragment?) {
     }
 
     fun startActivityPreservingContentFocus(intent: Intent) {
-        val frag = fragment ?: return
-        frag.focusManager.suppressNextHeroFocusMemory = true
+        val h = host ?: return
+        val frag = h.routerFragment
+        h.onRouterLeavingForActivity()
         frag.startActivity(intent)
     }
 
     fun showHomeActionUnavailable() {
-        val frag = fragment ?: return
+        val h = host ?: return
+        val frag = h.routerFragment
         if (!frag.isAdded) return
         Toast.makeText(frag.requireContext(), frag.requireContext().getString(R.string.c_not_available), Toast.LENGTH_SHORT).show()
     }

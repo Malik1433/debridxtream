@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Continue-watching card: 208 x 117 (16:9) per the handoff, with the timecode and a progress
+     track along the bottom edge. The progress bar is the reason this card is 16:9 and not a
+     poster — you are resuming a specific moment, not picking a title. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="208dp"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:layout_width="208dp"
+            android:layout_height="117dp"
+            android:background="@drawable/bg_phone_card"
+            android:clickable="true"
+            android:focusable="true"
+            android:id="@+id/phone_cw_tile">
+
+            <ImageView
+                android:id="@+id/phone_cw_image"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="centerCrop" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_phone_hero_scrim" />
+
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_stremio_play"
+                app:tint="@color/phone_text_primary" />
+
+            <TextView
+                android:id="@+id/phone_cw_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|start"
+                android:layout_marginStart="10dp"
+                android:layout_marginBottom="12dp"
+                android:fontFamily="@font/share_tech_mono"
+                android:textColor="@color/phone_text_primary"
+                android:textSize="12sp"
+                tools:text="12:20 / 46:20" />
+
+            <ProgressBar
+                android:id="@+id/phone_cw_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_gravity="bottom"
+                android:max="100"
+                android:progressDrawable="@drawable/bg_phone_progress"
+                tools:progress="35" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/phone_cw_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/outfit_semibold"
+            android:maxLines="1"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="13sp"
+            tools:text="Silo" />
+
+        <TextView
+            android:id="@+id/phone_cw_sub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/share_tech_mono"
+            android:maxLines="1"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="12sp"
+            tools:text="S02 E05" />
+    </LinearLayout>
+</FrameLayout>

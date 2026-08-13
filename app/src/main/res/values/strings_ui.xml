@@ -282,4 +282,10 @@
     <string name="ui_xtream">● XTREAM</string>
     <string name="ui_xtream_active">XTREAM · ACTIVE</string>
     <string name="ui_your_playlists_load_automatically">Your playlists load automatically.</string>
+    <!-- Phone Home (portrait design, 2026-08-13). -->
+    <string name="nav_debrid_label">Debrid</string>
+    <string name="phone_favorites_empty_title">Nothing saved yet</string>
+    <string name="phone_favorites_empty_body">Tap the bookmark on any title and it lands here, on every device signed in.</string>
+    <string name="phone_favorites_browse">Browse movies</string>
+    <string name="phone_loading_catalog">LOADING CATALOG</string>
 </resources>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Phone Home tokens, straight from the "DX Play Home" handoff.
+
+  Named separately rather than folded into colors.xml because the TV screens have their own
+  long-standing palette entries and these must not drift into them by accident. The values are the
+  same family the app already ships (cyan #00F0FF over near-black), so nothing looks foreign.
+-->
+<resources>
+    <color name="phone_home_bg">#06090E</color>
+    <color name="phone_panel">#0C111B</color>
+    <color name="phone_cyan">#00F0FF</color>
+    <color name="phone_blue">#0077FF</color>
+    <color name="phone_amber">#FFAA00</color>
+    <color name="phone_on_accent">#041014</color>
+    <color name="phone_text_primary">#F1F5F9</color>
+    <color name="phone_text_secondary">#94A3B8</color>
+    <color name="phone_text_muted">#64748B</color>
+    <!-- The bars are translucent so the hero and the rails run under them. -->
+    <color name="phone_bar_scrim">#EB06090E</color>
+    <color name="phone_nav_scrim">#F206090E</color>
+</resources>

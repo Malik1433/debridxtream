@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Favorites, empty. A row with nothing in it still says what it is for and how to fill it —
+     the phone rulebook asks every list for a visible empty state, not a gap. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:background="@drawable/bg_phone_dashed_panel"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="22dp">
+
+    <ImageView
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_stremio_bookmark"
+        app:tint="@color/phone_text_muted" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:fontFamily="@font/outfit_bold"
+        android:text="@string/phone_favorites_empty_title"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="13.5sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:fontFamily="@font/inter_regular"
+        android:gravity="center"
+        android:lineSpacingMultiplier="1.6"
+        android:text="@string/phone_favorites_empty_body"
+        android:textColor="@color/phone_text_secondary"
+        android:textSize="12.5sp" />
+
+    <TextView
+        android:id="@+id/phone_empty_action"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/bg_phone_btn_accent"
+        android:fontFamily="@font/outfit_semibold"
+        android:gravity="center"
+        android:paddingHorizontal="20dp"
+        android:text="@string/phone_favorites_browse"
+        android:textColor="@color/phone_cyan"
+        android:textSize="13.5sp" />
+</LinearLayout>

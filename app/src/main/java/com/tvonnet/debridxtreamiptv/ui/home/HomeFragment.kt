@@ -27,7 +27,17 @@ import javax.inject.Inject
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-class HomeFragment : Fragment() {
+class HomeFragment : Fragment(), HomeRouterHost {
+
+    // ── HomeRouterHost ── the TV Home's half of the contract described on the interface.
+    override val routerFragment: Fragment get() = this
+    override val routerRepository get() = repository
+    override val routerCredentials get() = credentialsPrefs
+    override val routerEpisodeDao get() = episodeDaoV2
+    override fun routerMayNavigate(): Boolean = !isNavigatingFromHome
+    override fun onRouterNavigationCommitted() { isNavigatingFromHome = true }
+    override fun onRouterHeroSelected(item: FeaturedItem) { heroManager.updateHeroSection(item) }
+    override fun onRouterLeavingForActivity() { focusManager.suppressNextHeroFocusMemory = true }
 
     internal companion object {
         internal const val HOME_NAV_ITEM_ID = 1

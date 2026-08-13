@@ -31,7 +31,9 @@ import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import android.content.Context
+import com.tvonnet.debridxtreamiptv.util.PortraitScreen
 import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
+import com.tvonnet.debridxtreamiptv.util.usePortraitOnTouchDevices
 import com.tvonnet.debridxtreamiptv.util.phoneScaledContext
 
 @AndroidEntryPoint
@@ -60,16 +62,46 @@ class MainActivity : AppCompatActivity() {
     
 
     // M13 (option B): the TV layout's type is sized for three metres; scale it up on a handset.
+    // It stays, because this one Activity still hosts Live, Movies, Series, Search and Settings —
+    // all of them still wearing that layout and its 7sp type. The screens that have a real
+    // portrait design opt OUT of it locally instead (see PhoneHomeFragment.unscaledInflater).
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(phoneScaledContext(newBase))
+    }
+
+    /**
+     * Orientation follows the fragment on top.
+     *
+     * One Activity hosts every browse screen, so a single onCreate answer would be wrong for all
+     * but one of them: Home has a portrait design, the rest do not yet. A screen declares its own
+     * by implementing [PortraitScreen]; everything else keeps the landscape it was built for. On
+     * TV both helpers are no-ops, so this whole mechanism is invisible there.
+     */
+    private fun watchTopScreenOrientation() {
+        supportFragmentManager.registerFragmentLifecycleCallbacks(
+            object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+                override fun onFragmentResumed(
+                    fm: androidx.fragment.app.FragmentManager,
+                    f: androidx.fragment.app.Fragment,
+                ) {
+                    if (f is PortraitScreen) usePortraitOnTouchDevices() else lockLandscapeOnTouchDevices()
+                }
+            },
+            false,
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // M13: BEFORE super.onCreate on purpose — the orientation has to be settled before the
         // first inflate, or the layout chosen for the old one stays on screen inside the new
         // window (M11 proved that the hard way, in the opposite direction).
+        // Still BEFORE super.onCreate, for the reason M13 recorded — only the answer changed:
+        // orientation now belongs to the fragment on top (see applyOrientationForTopScreen), so
+        // this sets the starting one and the callback below keeps it honest from then on. The
+        // player keeps its own sensorLandscape in the manifest, untouched.
         lockLandscapeOnTouchDevices()
         super.onCreate(savedInstanceState)
+        watchTopScreenOrientation()
 
         // Licensing gate: this device must be activated (admin-controlled via Firestore).
         // Decision is cache-first (instant, survives brief outages); the realtime listener
@@ -112,7 +144,7 @@ class MainActivity : AppCompatActivity() {
         // Load beautiful cinematic home screen by default
         if (savedInstanceState == null) {
             supportFragmentManager.commit {
-                replace(R.id.content_container, com.tvonnet.debridxtreamiptv.ui.home.HomeFragment())
+                replace(R.id.content_container, com.tvonnet.debridxtreamiptv.ui.nav.SectionNavigator.createHomeFragment(this@MainActivity))
             }
         }
 
@@ -325,7 +357,7 @@ class MainActivity : AppCompatActivity() {
             // 3. We are at a root fragment that is NOT Home (e.g. Live TV, Debrid).
             // Navigate back to Home.
             supportFragmentManager.commit {
-                replace(R.id.content_container, com.tvonnet.debridxtreamiptv.ui.home.HomeFragment())
+                replace(R.id.content_container, com.tvonnet.debridxtreamiptv.ui.nav.SectionNavigator.createHomeFragment(this@MainActivity))
             }
         }
     }

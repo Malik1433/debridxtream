@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bottom-up scrim under the hero text: opaque at the base, gone by 70% up, so the backdrop
+     stays visible while the title and synopsis keep their contrast on any artwork. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:angle="90"
+        android:startColor="#F206090E"
+        android:centerColor="#B306090E"
+        android:endColor="#0006090E"
+        android:type="linear" />
+</shape>

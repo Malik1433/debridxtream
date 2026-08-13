@@ -37,6 +37,19 @@ object SectionNavigator {
         section != SECTION_DEBRID || Entitlements.isDebridAllowed(context)
 
     /**
+     * The Home screen is the one place where the two rulebooks no longer share an arrangement:
+     * the TV keeps its left rail and 10-foot type, the phone gets the portrait app-bar / hero /
+     * rails / bottom-nav screen. Every entry point into Home goes through here so a new caller
+     * cannot accidentally put the 10-foot screen on a handset.
+     */
+    fun createHomeFragment(context: Context): Fragment =
+        if (context.resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
+            com.tvonnet.debridxtreamiptv.ui.home.HomeFragment()
+        } else {
+            com.tvonnet.debridxtreamiptv.ui.home.PhoneHomeFragment()
+        }
+
+    /**
      * The user's Live TV style decides which Live screen a "live" hop opens:
      * Classic -> the 3-column [LiveFragment], otherwise the EPG grid.
      */
