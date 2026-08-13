@@ -10,7 +10,6 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
 import android.view.GestureDetector
-import android.view.KeyEvent
 import android.view.MotionEvent
 import android.media.AudioManager
 import android.view.View
@@ -180,10 +179,15 @@ class VodPlayerFragment : BasePlayerFragment() {
      * M10: double-tap to skip, the one gesture every phone player has. Left half rewinds, right
      * half goes forward.
      *
-     * It sends KEYCODE_MEDIA_REWIND / _FAST_FORWARD rather than seeking directly, so the skip is
-     * the SAME one the remote's buttons perform — `onRewind`/`onForward` set the directional
-     * SeekParameters first, and that detail is load-bearing: dropping it is what once made seeks
-     * snap back to the start. A second seek path would have re-opened that.
+     * It calls [seekStep] — the SAME code the remote's buttons run, which sets the directional
+     * SeekParameters first. That detail is load-bearing: dropping it is what once made seeks snap
+     * back to the start, so this must never become a second seek path.
+     *
+     * It used to reach that code by sending KEYCODE_MEDIA_FAST_FORWARD, and that did not work.
+     * media3's PlayerView answers a media key arriving while the controller is hidden by SHOWING
+     * THE CONTROLLER and swallowing the key — so the first double-tap only revealed the chrome and
+     * the video did not move, while the badge cheerfully claimed 10 seconds. Reported from the
+     * device; the badge is what made the lie visible.
      *
      * Single taps are deliberately left alone: media3's own controller already shows and hides
      * the chrome on a tap here, and adding a second handler would fight it.
@@ -197,10 +201,7 @@ class VodPlayerFragment : BasePlayerFragment() {
             object : GestureDetector.SimpleOnGestureListener() {
                 override fun onDoubleTap(e: MotionEvent): Boolean {
                     val forward = e.x > playerView.width / 2f
-                    sendKey(
-                        if (forward) KeyEvent.KEYCODE_MEDIA_FAST_FORWARD
-                        else KeyEvent.KEYCODE_MEDIA_REWIND
-                    )
+                    seekStep(forward)
                     // The skip worked but said nothing, so on a long shot it read as "nothing
                     // happened" and people double-tapped again. Every phone player answers the
                     // gesture; this reuses the same pill the volume and brightness drags use, so
@@ -229,12 +230,6 @@ class VodPlayerFragment : BasePlayerFragment() {
                 }
             }
         )
-    }
-
-    private fun sendKey(keyCode: Int) {
-        val host = activity ?: return
-        host.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
-        host.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
     }
 
     override fun setupVodPlayback(streamTitle: String?) {

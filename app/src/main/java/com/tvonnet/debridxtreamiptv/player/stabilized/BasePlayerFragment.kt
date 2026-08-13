@@ -321,8 +321,8 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
             // target) and back → PREVIOUS_SYNC (never lands after) so repeated seeks move
             // monotonically while staying keyframe-fast. Each press sets its own direction before
             // seeking, so consecutive FF/RW presses are always resolved consistently.
-            override fun onRewind() { player?.let { it.setSeekParameters(SeekParameters.PREVIOUS_SYNC); it.seekBack() } }
-            override fun onForward() { player?.let { it.setSeekParameters(SeekParameters.NEXT_SYNC); it.seekForward() } }
+            override fun onRewind() = seekStep(forward = false)
+            override fun onForward() = seekStep(forward = true)
             override fun onNextEpisode() = seriesController.playNextEpisode()
             override fun onPreviousEpisode() = seriesController.playPreviousEpisode()
             override fun onEpisodes() = seriesController.showEpisodeBrowser()
@@ -1387,6 +1387,23 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
 
     // C6: the routing shell lives in PlayerInputRouter; null = the host passes to super.
     // P26: these were Activity overrides — the thin host forwards its callbacks here.
+    /**
+     * The ONE skip. Both the transport buttons and the phone's double-tap call it, so there is a
+     * single seek path — which is what the direction rule above depends on.
+     *
+     * The double-tap used to send KEYCODE_MEDIA_FAST_FORWARD instead, to reuse exactly this code
+     * by going the long way round. It did not work: media3's PlayerView answers a media key
+     * arriving while the controller is hidden by SHOWING THE CONTROLLER and swallowing the key, so
+     * the first double-tap only revealed the chrome and nothing moved. Calling it directly keeps
+     * the shared implementation without the dispatch that ate it.
+     */
+    internal fun seekStep(forward: Boolean) {
+        player?.let {
+            it.setSeekParameters(if (forward) SeekParameters.NEXT_SYNC else SeekParameters.PREVIOUS_SYNC)
+            if (forward) it.seekForward() else it.seekBack()
+        }
+    }
+
     fun hostDispatchKeyEvent(event: KeyEvent): Boolean? = inputRouter.dispatchKeyEvent(event)
 
     /**
