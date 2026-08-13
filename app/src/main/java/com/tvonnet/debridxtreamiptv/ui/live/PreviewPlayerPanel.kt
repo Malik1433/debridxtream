@@ -125,6 +125,17 @@ class PreviewPlayerPanel(
         btnFullscreen?.setOnClickListener {
             currentStream?.let { onFullscreenClick(it) }
         }
+
+        // On a phone, tapping the picture itself is how you go fullscreen — every video app works
+        // that way, and after zapping a channel the finger is already on the video, not hunting for
+        // a small button beside it. Touch only: on TV the tile is not a focusable target and the
+        // Watch button is the D-pad's route, which stays exactly as it was.
+        if (!view.resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
+            view.findViewById<View>(R.id.preview_video_container)?.apply {
+                isClickable = true
+                setOnClickListener { currentStream?.let { s -> onFullscreenClick(s) } }
+            }
+        }
         
         btnPreviewNext?.setOnClickListener {
             nextProgram?.let { program ->

@@ -111,4 +111,8 @@
     <string name="c_tier_standard">STANDARD</string>
     <!-- Sits beside "Sign in" and "Back" in the account overlay, so it is a button like them. -->
     <string name="c_create_account">Create account</string>
+    <!-- Double-tap skip feedback. Number only plus a unit — it is read in a fraction of a second
+         on top of moving video, and the arrow already says which way. -->
+    <string name="c_seek_forward_badge">▶▶  %1$d s</string>
+    <string name="c_seek_back_badge">◀◀  %1$d s</string>
 </resources>

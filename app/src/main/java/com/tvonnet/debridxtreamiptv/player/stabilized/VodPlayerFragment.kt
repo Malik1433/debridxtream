@@ -52,6 +52,10 @@ class VodPlayerFragment : BasePlayerFragment() {
         /** Half a screen of travel covers the whole range. */
         const val DRAG_RANGE_FACTOR = 2f
         const val BADGE_LINGER_MS = 700L
+
+        /** Matches setSeekForwardIncrementMs/setSeekBackIncrementMs in PlayerEngineFactory —
+         *  the badge must state the step the player actually takes, not a second opinion. */
+        const val SEEK_STEP_SECONDS = 10
     }
 
     override fun hostTouchEvent(event: MotionEvent) {
@@ -197,6 +201,17 @@ class VodPlayerFragment : BasePlayerFragment() {
                         if (forward) KeyEvent.KEYCODE_MEDIA_FAST_FORWARD
                         else KeyEvent.KEYCODE_MEDIA_REWIND
                     )
+                    // The skip worked but said nothing, so on a long shot it read as "nothing
+                    // happened" and people double-tapped again. Every phone player answers the
+                    // gesture; this reuses the same pill the volume and brightness drags use, so
+                    // there is one feedback style rather than a second one invented for seeking.
+                    showLevelBadge(
+                        getString(
+                            if (forward) R.string.c_seek_forward_badge else R.string.c_seek_back_badge,
+                            SEEK_STEP_SECONDS
+                        )
+                    )
+                    hideLevelBadgeSoon()
                     return true
                 }
 
