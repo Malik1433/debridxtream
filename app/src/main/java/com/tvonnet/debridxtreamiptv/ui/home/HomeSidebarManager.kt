@@ -51,6 +51,18 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
             add(SidebarItem(3, frag.getString(R.string.nav_movies), R.drawable.ic_movie))
             add(SidebarItem(4, frag.getString(R.string.nav_series), R.drawable.ic_series))
             if (debridAllowed) add(SidebarItem(5, frag.getString(R.string.nav_debrid), R.drawable.ic_dns))
+            // On a PHONE, Settings joins the list instead of being pinned beneath it.
+            //
+            // Pinned, it is a second block competing for the same column: the list asks for the
+            // height its items need, the pinned block asks for its own, and when they do not both
+            // fit they overlap — which is exactly what Debrid and Settings did. One list has one
+            // measurement and cannot collide with itself, and if it ever does grow past the screen
+            // it simply scrolls, which is the honest outcome rather than two controls on one pixel.
+            //
+            // The TV keeps its pinned Settings: that is the design, and it fits there.
+            if (!frag.resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
+                add(SidebarItem(SETTINGS_IN_LIST_ID, frag.getString(R.string.nav_settings), R.drawable.ic_settings))
+            }
         }
 
         frag.sidebarAdapter = SidebarAdapter(
@@ -70,8 +82,11 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
             onDpadRight = {
                 frag.focusManager.restoreContentFocusFromSidebar()
             },
+            // Routed by the item's ID, not its position. Position only happened to work while the
+            // list was fixed; Debrid is already conditional, so "5" means Debrid on one device and
+            // something else on another the moment another entry is added.
             onItemSelected = { position ->
-                when (position) {
+                when (menuItems.getOrNull(position)?.id) {
                     0 -> frag.navigationRouter.navigateToSection("search")
                     1 -> {
                         frag.focusManager.activeNavItemId = HomeFragment.HOME_NAV_ITEM_ID
@@ -81,6 +96,7 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
                     3 -> frag.navigationRouter.navigateToSection("movies")
                     4 -> frag.navigationRouter.navigateToSection("series")
                     5 -> frag.navigationRouter.navigateToSection("debrid")
+                    SETTINGS_IN_LIST_ID -> frag.navigationRouter.navigateToSection("settings")
                 }
             }
         )
@@ -265,7 +281,12 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
             clipToPadding = true
         }
         frag.view?.findViewById<View>(R.id.sidebar_profile_mark)?.visibility = View.GONE
+        // Settings moves INTO the list on a phone, so the pinned copy and its divider go: leaving
+        // them would show Settings twice and put the collision straight back.
+        frag.view?.findViewById<View>(R.id.sidebar_settings_item)?.visibility = View.GONE
+        frag.view?.findViewById<View>(R.id.sidebar_settings_divider)?.visibility = View.GONE
     }
+
 
     private fun setupProfileMark(frag: HomeFragment) {
         val profile = frag.view?.findViewById<View>(R.id.sidebar_profile_mark) ?: return
@@ -336,5 +357,8 @@ internal class HomeSidebarManager(private var fragment: HomeFragment?) {
     private companion object {
         const val COLOR_FOCUSED = 0xFF00F0FF.toInt()
         const val COLOR_IDLE = 0xFF64748B.toInt()
+
+        /** Settings as a LIST entry (phone only). Past the destination ids, which end at 5. */
+        const val SETTINGS_IN_LIST_ID = 6
     }
 }
