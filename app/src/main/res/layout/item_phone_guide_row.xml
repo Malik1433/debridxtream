@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One programme in the per-channel day list. The NOW row grows rather than being a separate
+     layout, so the list keeps one geometry and nothing jumps as the hour turns. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/phone_pg_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="76dp"
+    android:orientation="horizontal"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="12dp">
+
+    <TextView
+        android:id="@+id/phone_pg_time"
+        android:layout_width="52dp"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/share_tech_mono"
+        android:textColor="@color/phone_text_secondary"
+        android:textSize="12sp"
+        tools:text="20:00" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/phone_pg_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="@font/outfit_semibold"
+                android:maxLines="2"
+                android:textColor="@color/phone_text_primary"
+                android:textSize="13.5sp"
+                tools:text="Ligue 1: PSG v Lyon" />
+
+            <TextView
+                android:id="@+id/phone_pg_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:fontFamily="@font/share_tech_mono"
+                android:textColor="@color/phone_cyan"
+                android:textSize="12sp"
+                android:visibility="gone"
+                tools:text="NOW"
+                tools:visibility="visible" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/phone_pg_duration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:fontFamily="@font/share_tech_mono"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="12sp"
+            tools:text="120 MIN" />
+
+        <ProgressBar
+            android:id="@+id/phone_pg_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_marginTop="8dp"
+            android:max="100"
+            android:progressDrawable="@drawable/bg_phone_progress_track"
+            android:visibility="gone"
+            tools:progress="42"
+            tools:visibility="visible" />
+    </LinearLayout>
+</LinearLayout>

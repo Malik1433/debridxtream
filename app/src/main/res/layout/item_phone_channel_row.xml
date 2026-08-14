@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Channel row, 88dp. The geometry does NOT change when EPG is missing — only the content
+  degrades (see PhoneChannelAdapter): a row that shrinks when its guide is absent makes the
+  whole list jump as data arrives, and missing EPG is the common case, not an error.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/phone_ch_row"
+    android:layout_width="match_parent"
+    android:layout_height="88dp"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingEnd="4dp">
+
+    <FrameLayout
+        android:layout_width="64dp"
+        android:layout_height="40dp"
+        android:background="@drawable/bg_phone_logo_tile">
+
+        <ImageView
+            android:id="@+id/phone_ch_logo"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:padding="4dp"
+            android:scaleType="fitCenter" />
+
+        <!-- No logo: the channel NUMBER, not a generic TV glyph. A glyph tells the user nothing
+             they cannot already see; the number is how they find the channel again. -->
+        <TextView
+            android:id="@+id/phone_ch_logo_fallback"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fontFamily="@font/share_tech_mono"
+            android:gravity="center"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:text="512"
+            tools:visibility="visible" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/phone_ch_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="@font/outfit_semibold"
+                android:maxLines="1"
+                android:textColor="@color/phone_text_primary"
+                android:textSize="14sp"
+                tools:text="beIN Sports 1 HD" />
+
+            <TextView
+                android:id="@+id/phone_ch_number"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="7dp"
+                android:fontFamily="@font/share_tech_mono"
+                android:textColor="@color/phone_text_muted"
+                android:textSize="12sp"
+                tools:text="512" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/phone_ch_now"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/share_tech_mono"
+            android:maxLines="1"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="12sp"
+            tools:text="20:00 Ligue 1: PSG v Lyon" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ProgressBar
+                android:id="@+id/phone_ch_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="0dp"
+                android:layout_height="3dp"
+                android:layout_weight="1"
+                android:max="100"
+                android:progressDrawable="@drawable/bg_phone_progress_track"
+                tools:progress="42" />
+
+            <TextView
+                android:id="@+id/phone_ch_next"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:fontFamily="@font/share_tech_mono"
+                android:textColor="@color/phone_text_muted"
+                android:textSize="12sp"
+                tools:text="NEXT 22:00" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/phone_ch_star"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/add_to_favorites"
+        android:padding="14dp"
+        android:src="@drawable/ic_live_star"
+        app:tint="@color/phone_text_muted" />
+
+    <ImageView
+        android:id="@+id/phone_ch_overflow"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/phone_more_options"
+        android:padding="14dp"
+        android:src="@drawable/ic_stremio_chevron_down"
+        app:tint="@color/phone_text_muted" />
+</LinearLayout>

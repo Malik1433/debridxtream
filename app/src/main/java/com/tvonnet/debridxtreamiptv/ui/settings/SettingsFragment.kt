@@ -193,13 +193,26 @@ class SettingsFragment : Fragment() {
                 onToggle = { viewModel.toggleSoftwareAudio(it) }
             )
         )
-    private fun liveTvItems(state: SettingsUiState): List<SettingItem> = listOf(
-            SettingItem.Selection(
-                key = "live_tv_style",
-                title = getString(R.string.c_live_tv_layout),
-                currentValue = SettingsOptionLabels.liveTvStyleName(state.liveTvStyle),
-                onClick = { dialogs.showLiveTvStyleSelector(state.liveTvStyle) }
-            ),
+    /**
+     * Classic-vs-guide is a 10-foot question. A phone has one Live screen — its own portrait one
+     * — so on a handset this row would offer a choice that changes nothing.
+     */
+    private fun liveTvStyleItem(state: SettingsUiState): List<SettingItem> =
+        if (!resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
+            emptyList()
+        } else {
+            listOf(
+                SettingItem.Selection(
+                    key = "live_tv_style",
+                    title = getString(R.string.c_live_tv_layout),
+                    currentValue = SettingsOptionLabels.liveTvStyleName(state.liveTvStyle),
+                    onClick = { dialogs.showLiveTvStyleSelector(state.liveTvStyle) }
+                )
+            )
+        }
+
+    private fun liveTvItems(state: SettingsUiState): List<SettingItem> =
+        liveTvStyleItem(state) + listOf(
             SettingItem.Toggle(
                 key = "resume_last_live",
                 title = getString(R.string.s_resume_last_channel),
@@ -246,6 +259,7 @@ class SettingsFragment : Fragment() {
                 onClick = { actions.syncEpgNow() }
             )
         )
+
     private fun homeItems(state: SettingsUiState): List<SettingItem> = listOf(
             SettingItem.Selection(
                 key = "app_language",

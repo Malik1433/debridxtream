@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- First paint. Six rows at the loaded geometry — 88dp, a 64x40 logo block, two text bars and
+     the 3dp progress bar — so nothing reflows when the playlist lands. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <include layout="@layout/item_phone_live_skeleton_row" />
+
+    <include layout="@layout/item_phone_live_skeleton_row" />
+
+    <include layout="@layout/item_phone_live_skeleton_row" />
+
+    <include layout="@layout/item_phone_live_skeleton_row" />
+
+    <include layout="@layout/item_phone_live_skeleton_row" />
+
+    <include layout="@layout/item_phone_live_skeleton_row" />
+
+    <TextView
+        android:id="@+id/phone_live_skeleton_footer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="20dp"
+        android:fontFamily="@font/share_tech_mono"
+        android:letterSpacing="0.1"
+        android:text="@string/phone_loading_playlist"
+        android:textColor="@color/phone_text_muted"
+        android:textSize="12sp" />
+</LinearLayout>

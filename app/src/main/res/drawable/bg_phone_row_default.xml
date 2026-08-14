@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The ordinary channel row: nothing but the divider under it. It exists so the playing row can
+     be swapped in and out without the two backgrounds fighting over padding. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@android:color/transparent" />
+</shape>

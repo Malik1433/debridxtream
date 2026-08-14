@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One category inside the sheet. 56dp so the row is the target, not the label. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="56dp"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="16dp">
+
+    <TextView
+        android:id="@+id/phone_cat_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:fontFamily="@font/outfit_semibold"
+        android:maxLines="1"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="13.5sp"
+        tools:text="|FR| SPORT" />
+
+    <TextView
+        android:id="@+id/phone_cat_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:fontFamily="@font/share_tech_mono"
+        android:textColor="@color/phone_text_muted"
+        android:textSize="12sp"
+        tools:text="86" />
+</LinearLayout>

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The channel list failed. Identical panel to the Home handoff, plus the reason it exists here:
+  underneath it the screen still lists cached favourites, so a failed playlist is never a dead
+  end with nothing to watch.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginTop="12dp"
+    android:background="@drawable/bg_phone_error_panel"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_error_network"
+            app:tint="@color/phone_amber" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="9dp"
+            android:fontFamily="@font/outfit_bold"
+            android:text="@string/phone_channels_failed_title"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="13.5sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/phone_error_body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="7dp"
+        android:fontFamily="@font/inter_regular"
+        android:lineSpacingMultiplier="1.6"
+        android:text="@string/phone_channels_failed_body"
+        android:textColor="@color/phone_text_secondary"
+        android:textSize="12.5sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/phone_error_retry"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_phone_btn_accent"
+            android:fontFamily="@font/outfit_semibold"
+            android:gravity="center"
+            android:paddingHorizontal="18dp"
+            android:text="@string/debrid_retry"
+            android:textColor="@color/phone_cyan"
+            android:textSize="13.5sp" />
+
+        <TextView
+            android:id="@+id/phone_error_cached"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/bg_phone_btn_secondary"
+            android:fontFamily="@font/outfit_semibold"
+            android:gravity="center"
+            android:paddingHorizontal="18dp"
+            android:text="@string/phone_use_cached"
+            android:textColor="@color/phone_text_secondary"
+            android:textSize="13.5sp" />
+    </LinearLayout>
+</LinearLayout>

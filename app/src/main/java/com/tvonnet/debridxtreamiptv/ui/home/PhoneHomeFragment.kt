@@ -16,7 +16,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.bumptech.glide.Glide
 import com.tvonnet.debridxtreamiptv.R
-import com.tvonnet.debridxtreamiptv.data.licensing.Entitlements
 import com.tvonnet.debridxtreamiptv.data.model.ContinueWatchingItem
 import com.tvonnet.debridxtreamiptv.data.model.FeaturedItem
 import com.tvonnet.debridxtreamiptv.data.model.RecentLiveChannelItem
@@ -167,39 +166,15 @@ class PhoneHomeFragment : Fragment(), HomeRouterHost, com.tvonnet.debridxtreamip
     }
 
     /**
-     * Five destinations, evenly weighted. Debrid is entitlement-gated, and when it is absent the
-     * remaining four simply re-weight — no gap, no re-centering, no scrolling bar.
+     * The bar is shared with the other phone destinations (see PhoneBottomNav) so the five
+     * slots, their order and the Debrid gate live in exactly one place.
      */
     private fun buildBottomNav(view: View) {
-        val bar = view.findViewById<LinearLayout>(R.id.phone_bottom_nav) ?: return
-        bar.removeAllViews()
-        val items = buildList {
-            add(Triple(R.string.nav_home, R.drawable.ic_stremio_home, SectionNavigator.SECTION_HOME))
-            add(Triple(R.string.nav_live_tv, R.drawable.ic_live_tv, SectionNavigator.SECTION_LIVE))
-            add(Triple(R.string.nav_movies, R.drawable.ic_movie, SectionNavigator.SECTION_MOVIES))
-            add(Triple(R.string.nav_series, R.drawable.ic_series, SectionNavigator.SECTION_SERIES))
-            if (Entitlements.isDebridAllowed(requireContext())) {
-                add(Triple(R.string.nav_debrid_label, R.drawable.ic_player_sources, SectionNavigator.SECTION_DEBRID))
-            }
-        }
-        items.forEachIndexed { index, (labelRes, iconRes, section) ->
-            val active = index == 0
-            val cell = uiInflater
-            .inflate(R.layout.item_phone_nav, bar, false)
-            cell.findViewById<ImageView>(R.id.phone_nav_icon).apply {
-                setImageResource(iconRes)
-                setColorFilter(color(if (active) R.color.phone_cyan else R.color.phone_text_muted))
-            }
-            cell.findViewById<TextView>(R.id.phone_nav_label).apply {
-                setText(labelRes)
-                setTextColor(color(if (active) R.color.phone_cyan else R.color.phone_text_muted))
-            }
-            cell.findViewById<View>(R.id.phone_nav_indicator).isVisible = active
-            if (section != SectionNavigator.SECTION_HOME) {
-                cell.setOnClickListener { router.navigateToSection(section) }
-            }
-            bar.addView(cell, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
-        }
+        com.tvonnet.debridxtreamiptv.ui.live.phone.PhoneBottomNav.build(
+            bar = view.findViewById(R.id.phone_bottom_nav),
+            inflater = uiInflater,
+            active = SectionNavigator.SECTION_HOME,
+        ) { section -> router.navigateToSection(section) }
     }
 
     // ── content ─────────────────────────────────────────────────────────────

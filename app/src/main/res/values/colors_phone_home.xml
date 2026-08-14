@@ -16,6 +16,8 @@
     <color name="phone_text_primary">#F1F5F9</color>
     <color name="phone_text_secondary">#94A3B8</color>
     <color name="phone_text_muted">#64748B</color>
+    <!-- Live TV's accent: the section bar over a channel list is red, not cyan (handoff). -->
+    <color name="phone_red">#FF3366</color>
     <!-- The bars are translucent so the hero and the rails run under them. -->
     <color name="phone_bar_scrim">#EB06090E</color>
     <color name="phone_nav_scrim">#F206090E</color>

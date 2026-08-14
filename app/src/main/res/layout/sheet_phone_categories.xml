@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The long tail of categories. A phone answers a 150-item list with a searchable sheet, not a
+  second permanent column — the chips above already cover the three or four a person actually
+  watches, and this is where the rest live.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_phone_sheet"
+    android:orientation="vertical"
+    android:paddingBottom="8dp">
+
+    <View
+        android:layout_width="36dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_phone_sheet_handle" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="12dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/outfit_bold"
+            android:text="@string/phone_all_categories"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="13.5sp" />
+
+        <TextView
+            android:id="@+id/phone_sheet_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/share_tech_mono"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="12sp"
+            tools:text="148" />
+    </LinearLayout>
+
+    <EditText
+        android:id="@+id/phone_sheet_search"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginHorizontal="16dp"
+        android:background="@drawable/bg_phone_search_field"
+        android:drawableStart="@drawable/ic_stremio_search"
+        android:drawablePadding="10dp"
+        android:fontFamily="@font/inter_regular"
+        android:hint="@string/phone_search_categories"
+        android:importantForAutofill="no"
+        android:inputType="text"
+        android:maxLines="1"
+        android:paddingHorizontal="12dp"
+        android:textColor="@color/phone_text_primary"
+        android:textColorHint="@color/phone_text_muted"
+        android:textSize="14sp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/phone_sheet_list"
+        android:layout_width="match_parent"
+        android:layout_height="420dp"
+        android:layout_marginTop="8dp"
+        android:overScrollMode="never"
+        android:scrollbars="none"
+        tools:listitem="@layout/item_phone_category_row" />
+</LinearLayout>

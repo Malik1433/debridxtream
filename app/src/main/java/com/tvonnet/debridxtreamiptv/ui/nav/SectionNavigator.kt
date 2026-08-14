@@ -54,12 +54,15 @@ object SectionNavigator {
      * Classic -> the 3-column [LiveFragment], otherwise the EPG grid.
      */
     fun createFragment(context: Context, section: String): Fragment? = when (section) {
-        SECTION_LIVE ->
-            if (SettingsPreferences(context).getLiveTvStyle() == SettingsPreferences.STYLE_CLASSIC) {
+        // A phone gets the portrait Live screen; the TV keeps its classic/guide choice, which is
+        // a 10-foot question a handset never had an answer to.
+        SECTION_LIVE -> when {
+            !context.resources.getBoolean(R.bool.ui_uses_dpad_focus) ->
+                com.tvonnet.debridxtreamiptv.ui.live.phone.PhoneLiveFragment()
+            SettingsPreferences(context).getLiveTvStyle() == SettingsPreferences.STYLE_CLASSIC ->
                 LiveFragment()
-            } else {
-                LiveTvGuideFragment()
-            }
+            else -> LiveTvGuideFragment()
+        }
         SECTION_MOVIES -> VodFragment()
         SECTION_SERIES -> SeriesFragment()
         SECTION_DEBRID -> StremioHomeFragment()

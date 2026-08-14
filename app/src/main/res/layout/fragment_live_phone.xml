@@ -1,0 +1,417 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PHONE Live TV — portrait, built to the "DX Play Live TV" handoff (2026-08-14).
+
+  The screen is a fixed column, not a scrolling page: app bar, then either the docked player or
+  the resume card, then the category rail and its header, and the channel list takes every
+  remaining pixel. That is what makes the handoff's central decision work — one tap plays into
+  the dock and the list keeps scrolling underneath, so the next channel is one more tap with the
+  current one still on screen. A scrolling header would push the dock away mid-zap.
+
+  The dock reuses the TV preview panel's view ids (preview_player_view, tv_preview_title,
+  tv_preview_description, preview_progress_bar, badge_quality, btn_fullscreen) so
+  PreviewPlayerPanel drives it unchanged: the tuned live player, the AudioTrack-releasing error
+  handling and the fullscreen hand-off are not worth reimplementing for a second form factor.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/phone_home_bg"
+    android:orientation="vertical">
+
+    <!-- ══ TOP APP BAR ══ the same one Home wears, so the two destinations feel like one app. -->
+    <LinearLayout
+        android:id="@+id/phone_live_app_bar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="8dp">
+
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_brand_tile" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/outfit_extrabold"
+            android:letterSpacing="-0.02"
+            android:text="@string/app_title"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="17sp" />
+
+        <ImageView
+            android:id="@+id/phone_live_search"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/nav_search"
+            android:padding="13dp"
+            android:src="@drawable/ic_stremio_search"
+            app:tint="@color/phone_text_primary" />
+    </LinearLayout>
+
+    <!-- ══ SEARCH BAR ══ replaces the app bar while searching. System keyboard, never ours. -->
+    <LinearLayout
+        android:id="@+id/phone_live_search_bar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
+        android:paddingEnd="16dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <ImageView
+            android:id="@+id/phone_live_search_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/live_nav_back"
+            android:padding="14dp"
+            android:src="@drawable/ic_stremio_chevron_left"
+            app:tint="@color/phone_text_primary" />
+
+        <EditText
+            android:id="@+id/phone_live_search_input"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_phone_search_field"
+            android:drawableStart="@drawable/ic_stremio_search"
+            android:drawablePadding="10dp"
+            android:fontFamily="@font/inter_regular"
+            android:hint="@string/phone_search_channels"
+            android:imeOptions="actionSearch"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:maxLines="1"
+            android:paddingHorizontal="12dp"
+            android:textColor="@color/phone_text_primary"
+            android:textColorHint="@color/phone_text_muted"
+            android:textCursorDrawable="@null"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- ══ DOCK ══ 16:9, pinned. Hidden until the first tap plays something. -->
+    <FrameLayout
+        android:id="@+id/phone_live_dock"
+        android:layout_width="match_parent"
+        android:layout_height="231dp"
+        android:background="@android:color/black"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <androidx.media3.ui.PlayerView
+            android:id="@+id/preview_player_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:keep_content_on_player_reset="true"
+            app:resize_mode="fit"
+            app:surface_type="texture_view"
+            app:use_controller="false" />
+
+        <!-- The whole surface is the fullscreen affordance; the button is for people who look
+             for a button. Both routes, per the handoff. -->
+        <View
+            android:id="@+id/phone_dock_tap"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_phone_dock_badge"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp">
+
+            <View
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:background="@drawable/bg_login_dot"
+                android:backgroundTint="@color/phone_red" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="7dp"
+                android:fontFamily="@font/share_tech_mono"
+                android:letterSpacing="0.12"
+                android:text="@string/phone_live_badge"
+                android:textColor="@color/phone_red"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/badge_quality"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="7dp"
+                android:fontFamily="@font/share_tech_mono"
+                android:textColor="@color/phone_text_secondary"
+                android:textSize="12sp"
+                tools:text="1080p" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:orientation="vertical"
+            android:paddingHorizontal="12dp"
+            android:paddingBottom="10dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="bottom"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_preview_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/outfit_bold"
+                        android:maxLines="1"
+                        android:shadowColor="#D9000000"
+                        android:shadowDy="2"
+                        android:shadowRadius="12"
+                        android:textColor="@color/phone_text_primary"
+                        android:textSize="15sp"
+                        tools:text="beIN Sports 1 HD" />
+
+                    <TextView
+                        android:id="@+id/tv_preview_description"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:maxLines="1"
+                        android:shadowColor="#D9000000"
+                        android:shadowDy="2"
+                        android:shadowRadius="12"
+                        android:textColor="@color/phone_text_secondary"
+                        android:textSize="12sp"
+                        tools:text="20:00–22:00 · Ligue 1: PSG v Lyon" />
+                </LinearLayout>
+
+                <FrameLayout
+                    android:id="@+id/btn_fullscreen"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="10dp"
+                    android:background="@drawable/bg_phone_dock_button"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@string/phone_go_fullscreen"
+                        android:src="@drawable/ic_player_fullscreen"
+                        app:tint="@color/phone_text_primary" />
+                </FrameLayout>
+            </LinearLayout>
+
+            <ProgressBar
+                android:id="@+id/preview_progress_bar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:layout_marginTop="9dp"
+                android:max="100"
+                android:progressDrawable="@drawable/bg_phone_progress_track"
+                tools:progress="42" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- ══ RESUME LAST CHANNEL ══ shown only while nothing is docked. -->
+    <LinearLayout
+        android:id="@+id/phone_live_resume"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_phone_resume_card"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <ImageView
+            android:id="@+id/phone_resume_logo"
+            android:layout_width="64dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_phone_logo_tile"
+            android:contentDescription="@null"
+            android:padding="4dp"
+            android:scaleType="fitCenter" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/share_tech_mono"
+                android:letterSpacing="0.14"
+                android:text="@string/phone_resume_last_channel"
+                android:textColor="@color/phone_cyan"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/phone_resume_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:fontFamily="@font/outfit_semibold"
+                android:maxLines="1"
+                android:textColor="@color/phone_text_primary"
+                android:textSize="14sp"
+                tools:text="beIN Sports 1 HD" />
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_phone_round_accent"
+            android:contentDescription="@string/phone_resume_last_channel"
+            android:padding="16dp"
+            android:src="@drawable/ic_stremio_play"
+            app:tint="@color/phone_cyan" />
+    </LinearLayout>
+
+    <!-- ══ CATEGORY RAIL ══ pinned chips; the long tail lives in the All N sheet. -->
+    <HorizontalScrollView
+        android:id="@+id/phone_live_chip_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToPadding="false"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="12dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/phone_live_chips"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
+
+    <!-- ══ CATEGORY HEADER ══ red accent: this is the Live section, not Home. -->
+    <LinearLayout
+        android:id="@+id/phone_live_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="10dp">
+
+        <View
+            android:layout_width="3dp"
+            android:layout_height="14dp"
+            android:background="@color/phone_red" />
+
+        <TextView
+            android:id="@+id/phone_live_category_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/outfit_bold"
+            android:maxLines="1"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="15sp"
+            tools:text="|FR| SPORT" />
+
+        <TextView
+            android:id="@+id/phone_live_category_count"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/share_tech_mono"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="12sp"
+            tools:text="86" />
+
+        <TextView
+            android:id="@+id/phone_live_header_right"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/share_tech_mono"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="12sp"
+            tools:text="21:46" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/phone_live_channels"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:overScrollMode="never"
+            android:scrollbars="none"
+            tools:listitem="@layout/item_phone_channel_row" />
+
+        <!-- Loading and error own the list area only: a failed guide must never blank the
+             channels, and a failed channel load must never take the chrome with it. -->
+        <LinearLayout
+            android:id="@+id/phone_live_state"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:visibility="gone"
+            tools:visibility="gone" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/phone_bottom_nav"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:background="@color/phone_nav_scrim"
+        android:orientation="horizontal" />
+</LinearLayout>

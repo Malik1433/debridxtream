@@ -326,6 +326,14 @@ class MainActivity : AppCompatActivity() {
             if (currentFragment.handleBackPress()) return
         }
 
+        // Priority 0b: the phone Live screen collapses its docked player before it gives BACK
+        // up. It is reached through the back stack, so without this the pop below would leave
+        // the screen while a channel was still playing — the one thing the dock design says
+        // BACK must not do first.
+        if (currentFragment is com.tvonnet.debridxtreamiptv.ui.live.phone.PhoneLiveFragment) {
+            if (currentFragment.onBackPressed()) return
+        }
+
         // Priority 1: If there is a back stack history, pop it
         if (supportFragmentManager.backStackEntryCount > 0) {
             super.onBackPressed()

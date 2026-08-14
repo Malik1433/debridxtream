@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The full-day guide for ONE channel. A TV-style timeline grid is unreadable at 411dp and the
+  app's grid view has no touch handling at all, so the phone answer is the data we actually
+  have: this channel's programmes, read downwards, with the current one marked.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/phone_home_bg"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp">
+
+        <ImageView
+            android:id="@+id/phone_guide_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/live_nav_back"
+            android:padding="14dp"
+            android:src="@drawable/ic_stremio_chevron_left"
+            app:tint="@color/phone_text_primary" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/phone_guide_channel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="@font/outfit_bold"
+                android:maxLines="1"
+                android:textColor="@color/phone_text_primary"
+                android:textSize="16sp"
+                tools:text="beIN Sports 1 HD" />
+
+            <TextView
+                android:id="@+id/phone_guide_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="@font/share_tech_mono"
+                android:letterSpacing="0.1"
+                android:textColor="@color/phone_text_muted"
+                android:textSize="12sp"
+                tools:text="CH 512 · FULL GUIDE" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/phone_guide_star"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/add_to_favorites"
+            android:padding="14dp"
+            android:src="@drawable/ic_live_star"
+            app:tint="@color/phone_text_muted" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingBottom="6dp">
+
+        <ImageView
+            android:id="@+id/phone_guide_prev_day"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/phone_previous_day"
+            android:padding="14dp"
+            android:src="@drawable/ic_live_chevron_left"
+            app:tint="@color/phone_text_secondary" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/phone_guide_day"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/outfit_bold"
+                android:textColor="@color/phone_text_primary"
+                android:textSize="14sp"
+                tools:text="Today" />
+
+            <TextView
+                android:id="@+id/phone_guide_date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="@font/share_tech_mono"
+                android:letterSpacing="0.1"
+                android:textColor="@color/phone_text_muted"
+                android:textSize="12sp"
+                tools:text="FRI 14 AUG" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/phone_guide_next_day"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/phone_next_day"
+            android:padding="14dp"
+            android:src="@drawable/ic_live_chevron_right"
+            app:tint="@color/phone_text_secondary" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#0FFFFFFF" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/phone_guide_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:overScrollMode="never"
+            android:scrollbars="none"
+            tools:listitem="@layout/item_phone_guide_row" />
+
+        <TextView
+            android:id="@+id/phone_guide_empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:fontFamily="@font/share_tech_mono"
+            android:gravity="center"
+            android:padding="24dp"
+            android:text="@string/phone_no_guide_for_day"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:visibility="visible" />
+    </FrameLayout>
+</LinearLayout>

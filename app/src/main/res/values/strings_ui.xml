@@ -288,4 +288,33 @@
     <string name="phone_favorites_empty_body">Tap the bookmark on any title and it lands here, on every device signed in.</string>
     <string name="phone_favorites_browse">Browse movies</string>
     <string name="phone_loading_catalog">LOADING CATALOG</string>
+    <!-- Phone Live TV (portrait design, 2026-08-14). -->
+    <string name="phone_resume_last_channel">RESUME LAST CHANNEL</string>
+    <string name="phone_all_categories">All categories</string>
+    <string name="phone_search_categories">Search categories</string>
+    <string name="phone_search_channels">Search channels</string>
+    <string name="phone_live_badge">LIVE</string>
+    <string name="phone_tap_to_zap">TAP TO ZAP</string>
+    <string name="phone_go_fullscreen">Fullscreen</string>
+    <string name="phone_more_options">More options</string>
+    <string name="phone_full_guide">Full guide</string>
+    <string name="phone_play_fullscreen">Play fullscreen</string>
+    <string name="phone_previous_day">Previous day</string>
+    <string name="phone_next_day">Next day</string>
+    <string name="phone_today">Today</string>
+    <string name="phone_now_badge">NOW</string>
+    <string name="phone_next_badge">NEXT</string>
+    <!-- Missing EPG is the common case, so this is muted information, never an error. -->
+    <string name="phone_no_guide_data">NO GUIDE DATA · TAP TO PLAY</string>
+    <string name="phone_no_guide_for_day">No programmes listed for this day</string>
+    <string name="phone_loading_playlist">LOADING PLAYLIST</string>
+    <string name="phone_channels_failed_title">Couldn’t load channels</string>
+    <string name="phone_channels_failed_body">The playlist did not answer in time. Your cached channels are below.</string>
+    <string name="phone_use_cached">Use cached</string>
+    <string name="phone_search_results">Search</string>
+    <!-- The count sits in the header while searching: how much of the playlist matched. -->
+    <string name="phone_result_count">CHANNELS · %1$d</string>
+    <!-- The dock line: start, end, and what is on. -->
+    <string name="phone_dock_programme">%1$s–%2$s · %3$s</string>
+    <string name="phone_cached_favourites">Favourites (cached)</string>
 </resources>
