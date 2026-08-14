@@ -50,6 +50,10 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
         title = "", posterUrl = null, backdropUrl = null, rating = null, year = null,
         runtimeMinutes = null, certification = null, genres = null, plot = null,
         creditsLabel = null, creditsName = null, isSeries = true,
+        // TRUE from the first paint. The default false meant the very first render took the
+        // "finished and empty" branch and printed NO EPISODES before loading had even begun —
+        // which read as "there is no loading state" because, on screen, there wasn't.
+        episodesLoading = true,
     )
     private var episodes: List<EpisodeEntityV2> = emptyList()
     private var episodesSettled = false
@@ -336,7 +340,16 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
         val content = sheet.findViewById<View>(R.id.phone_streams_root) ?: return
 
         content.findViewById<TextView>(R.id.phone_streams_title).text = panel.episodeLabel
-        content.findViewById<View>(R.id.phone_streams_loading).isVisible = panel.loading
+        // Two different waits share the spinner line: finding the streams, and — after a row is
+        // tapped — resolving the picked one to a playable URL. The second is a network fetch that
+        // can take seconds, and while it ran the sheet used to sit frozen with nothing changing,
+        // which is exactly "I tapped play and it did nothing for a long time".
+        val resolving = panel.resolvingStreamId != null
+        content.findViewById<View>(R.id.phone_streams_loading).isVisible =
+            panel.loading || resolving
+        content.findViewById<TextView>(R.id.phone_streams_loading_label)?.setText(
+            if (resolving) R.string.phone_opening_stream else R.string.phone_finding_streams
+        )
         content.findViewById<TextView>(R.id.phone_streams_error).apply {
             text = panel.error.orEmpty()
             isVisible = !panel.error.isNullOrBlank() && !panel.loading
@@ -352,8 +365,22 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
             row.findViewById<TextView>(R.id.phone_srow_name).text = option.name
             row.findViewById<TextView>(R.id.phone_srow_provider).text =
                 (listOf(option.categoryTag) + option.languages.map { it.code }).joinToString(" · ")
-            row.findViewById<TextView>(R.id.phone_srow_state).isVisible = false
-            row.setOnClickListener { viewModel.onStreamSelected(option) }
+            row.findViewById<TextView>(R.id.phone_srow_state).apply {
+                // The tapped row says what it is doing; the rest dim so a second tap is
+                // obviously not going to help.
+                isVisible = panel.resolvingStreamId == option.streamId
+                if (isVisible) {
+                    setText(R.string.phone_opening_stream)
+                    setTextColor(
+                        androidx.core.content.ContextCompat.getColor(
+                            requireContext(), com.tvonnet.debridxtreamiptv.R.color.phone_cyan
+                        )
+                    )
+                }
+            }
+            row.alpha = if (resolving && panel.resolvingStreamId != option.streamId) 0.4f else 1f
+            row.isEnabled = !resolving
+            if (!resolving) row.setOnClickListener { viewModel.onStreamSelected(option) }
             list.addView(row)
         }
     }
