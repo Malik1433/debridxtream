@@ -98,7 +98,7 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
             bar = view.findViewById(R.id.phone_bottom_nav),
             inflater = PhoneUi.unscaled(this, layoutInflater),
             active = SectionNavigator.SECTION_LIVE,
-        ) { section -> SectionNavigator.navigate(this, section) }
+        ) { section -> navigateFromBar(section) }
 
         // EpgCache is a process-wide object that answers with nothing until it is handed a
         // repository — and until now the only screen that did so was the TV's LiveFragment. On a
@@ -116,6 +116,29 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
         observeEpgArrivals()
 
         viewModel.onEvent(LiveEvent.LoadCategories)
+    }
+
+    /**
+     * Home is not a place this screen pushes — it is the place it came FROM.
+     *
+     * Every other destination opens on top of Home, so "Home" in the bar pops back to it. Pushing
+     * a second Home would grow the stack every time the user crossed the bar, and BACK would then
+     * walk them through a pile of Homes. (Before this it did nothing at all: SectionNavigator has
+     * no fragment for "home", so the tap was silently refused.)
+     */
+    private fun navigateFromBar(section: String) {
+        if (!isAdded || parentFragmentManager.isStateSaved) return
+        // Every bar destination sits ON Home, never on the destination you were just in. Without
+        // the pop, crossing the bar four times buries Home under four screens and BACK walks the
+        // user through all of them — the bar would be building a history it does not have.
+        parentFragmentManager.popBackStack(
+            null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE
+        )
+        if (section == SectionNavigator.SECTION_HOME) return
+        // The pop is asynchronous; commit the next destination after it has run, or the
+        // replace lands first and the pop takes it straight back off again.
+        parentFragmentManager.executePendingTransactions()
+        SectionNavigator.navigate(this, section)
     }
 
     // ── list ────────────────────────────────────────────────────────────────
@@ -211,27 +234,40 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
             val view = view ?: return@addLoadStateListener
             val loading = states.refresh is androidx.paging.LoadState.Loading
             val failed = states.refresh is androidx.paging.LoadState.Error
-            renderListState(view, loading, failed)
+            val empty = !loading && !failed && adapter.itemCount == 0
+            renderListState(view, loading, failed, empty)
             // The header carries the result count while searching, and that number is only known
             // once the page has actually landed.
             bindHeader(view, viewModel.uiState.value)
-            if (!loading && !failed) {
+            if (!loading && !failed && !empty) {
                 view.findViewById<RecyclerView>(R.id.phone_live_channels)?.let { warmVisibleEpg(it) }
             }
         }
     }
 
     /** Loading and error own the LIST area only — the chrome above never blanks with them. */
-    private fun renderListState(view: View, loading: Boolean, failed: Boolean) {
+    private fun renderListState(view: View, loading: Boolean, failed: Boolean, empty: Boolean) {
         val holder = view.findViewById<LinearLayout>(R.id.phone_live_state) ?: return
         val list = view.findViewById<RecyclerView>(R.id.phone_live_channels)
         holder.removeAllViews()
-        holder.isVisible = loading || failed
-        list?.isVisible = !loading && !failed
+        holder.isVisible = loading || failed || empty
+        list?.isVisible = !loading && !failed && !empty
         val inflater = PhoneUi.unscaled(this, layoutInflater)
         when {
             loading -> holder.addView(
                 inflater.inflate(R.layout.item_phone_live_skeleton, holder, false)
+            )
+            // A category with nothing in it is not an error and not a loading state, and a blank
+            // page is neither an answer nor a way out.
+            empty -> holder.addView(
+                emptyNotice(
+                    holder,
+                    if (viewModel.uiState.value.searchQuery.isBlank()) {
+                        R.string.phone_category_empty
+                    } else {
+                        R.string.phone_search_empty
+                    },
+                )
             )
             failed -> {
                 val panel = inflater.inflate(R.layout.item_phone_error_panel, holder, false)
@@ -247,6 +283,20 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
             }
         }
     }
+
+    private fun emptyNotice(parent: ViewGroup, messageRes: Int): View =
+        TextView(requireContext()).apply {
+            setText(messageRes)
+            setTextColor(color(R.color.phone_text_muted))
+            textSize = 12.5f
+            gravity = android.view.Gravity.CENTER_HORIZONTAL
+            setPadding(
+                PhoneUi.dp(context, 24), PhoneUi.dp(context, 40), PhoneUi.dp(context, 24), 0
+            )
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
 
     // ── chrome ──────────────────────────────────────────────────────────────
 
@@ -273,6 +323,7 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
         if (state.categories.isEmpty()) return
         val inflater = PhoneUi.unscaled(this, layoutInflater)
 
+        var selectedChip: View? = null
         val all = inflater.inflate(R.layout.item_phone_category_chip, rail, false)
         all.findViewById<TextView>(R.id.phone_chip_name).text =
             getString(R.string.phone_all_categories)
@@ -280,7 +331,10 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
         all.setOnClickListener { showCategorySheet(state.categories, state.categoryChannelCounts) }
         rail.addView(all)
 
-        state.categories.take(PINNED_CHIPS).forEach { category ->
+        // EVERY category rides the rail — it scrolls, and a rail that stops at France while the
+        // sheet lists 366 is just a list with a hidden end. The sheet stays as the way to SEARCH
+        // the long tail, not as the only way to reach it.
+        state.categories.forEach { category ->
             val chip = inflater.inflate(R.layout.item_phone_category_chip, rail, false)
             val selected = category.category_id == state.selectedCategoryId
             chip.findViewById<TextView>(R.id.phone_chip_name).apply {
@@ -297,6 +351,15 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
                 view.findViewById<RecyclerView>(R.id.phone_live_channels)?.scrollToPosition(0)
             }
             rail.addView(chip)
+            if (selected) selectedChip = chip
+        }
+        // Pick a category from the sheet and the rail has to follow you to it — otherwise the
+        // header names a category the rail is not showing, and the highlight is somewhere off
+        // screen 300 chips to the right.
+        val target = selectedChip
+        val scroller = view.findViewById<android.widget.HorizontalScrollView>(R.id.phone_live_chip_scroll)
+        if (target != null && scroller != null) {
+            scroller.post { scroller.smoothScrollTo((target.left - PhoneUi.dp(requireContext(), 16)).coerceAtLeast(0), 0) }
         }
     }
 
@@ -330,7 +393,7 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
         view.findViewById<TextView>(R.id.phone_resume_name)?.text = name
         val logo = view.findViewById<ImageView>(R.id.phone_resume_logo)
         if (logo != null) Glide.with(this).load(state.lastPlayedChannelLogo).fitCenter().into(logo)
-        card.setOnClickListener { playInDock(view, last) }
+        card.setOnClickListener { startInDock(view, last) }
 
         // "Resume last channel" is an existing setting the TV guide screen already honours. A
         // user who turned it on asked for the channel to be ON when they arrive, not for a card
@@ -338,7 +401,7 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
         // that deliberately collapsed the dock.
         if (!autoResumeSpent && settings.isResumeLastLiveEnabled()) {
             autoResumeSpent = true
-            playInDock(view, last)
+            startInDock(view, last)
         }
     }
 
@@ -370,20 +433,52 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
         )
     }
 
-    /** The first tap: play here, now. Nothing is "selected" first. */
+    /**
+     * First tap on a channel plays it in the dock; a second tap on the SAME channel goes
+     * fullscreen. That is the model the TV screen already uses, and it means the picture is not
+     * the only way in — the row you are already looking at is.
+     */
     private fun playInDock(view: View, channel: XtreamStream) {
+        if (channel.stream_id != null && channel.stream_id == dock?.playingStreamId) {
+            openFullscreen(channel)
+            return
+        }
+        startInDock(view, channel)
+    }
+
+    /**
+     * Start a channel in the dock, full stop.
+     *
+     * Separate from [playInDock] because that one ESCALATES a repeat tap to fullscreen, and the
+     * return-from-fullscreen path must never do that: coming back would immediately re-enter the
+     * player it just left, and BACK would never get the user out.
+     */
+    private fun startInDock(view: View, channel: XtreamStream) {
         view.findViewById<View>(R.id.phone_live_resume)?.isVisible = false
+        dock?.rememberUrl(streamUrlOf(channel))
         dock?.play(channel, epgFor(channel))
         viewModel.onEvent(LiveEvent.RememberPreviewStream(channel))
     }
 
+    private fun streamUrlOf(channel: XtreamStream): String =
+        repository.buildLiveStreamUrl(channel, credentials.getServerUrl().orEmpty())
+
+    /**
+     * Fullscreen WITHOUT reconnecting.
+     *
+     * The running player is parked in [com.tvonnet.debridxtreamiptv.player.stabilized.LiveSharedPlayer]
+     * and PlayerActivity adopts it, so the channel never re-opens a second connection — which
+     * matters on an account that allows one. On the way back the same player comes home, and if the
+     * user zapped inside the player, the dock follows them to the channel they ended on.
+     */
     private fun openFullscreen(stream: XtreamStream) {
-        viewModel.onEvent(LiveEvent.RememberFullscreenLaunch(stream))
-        val serverUrl = com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences(
-            requireContext()
-        ).getServerUrl().orEmpty()
+        val serverUrl = credentials.getServerUrl().orEmpty()
         val url = repository.buildLiveStreamUrl(stream, serverUrl)
-        startActivity(
+        viewModel.onEvent(LiveEvent.RememberFullscreenLaunch(stream))
+        dock?.rememberUrl(url)
+        val handedOver = dock?.isPlaying() == true
+        if (handedOver) dock?.handOff()
+        fullscreenLauncher.launch(
             com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity.createIntent(
                 context = requireContext(),
                 streamUrl = url,
@@ -395,12 +490,58 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
                 contentType = com.tvonnet.debridxtreamiptv.data.model.ContentType.LIVE_TV,
                 posterUrl = stream.stream_icon,
                 liveCategoryId = stream.category_id,
+                // The visible list, so up/down zapping works inside the player too.
+                liveChannelIds = ArrayList(
+                    adapter.snapshot().items.mapNotNull { it.stream_id }
+                ).takeIf { it.isNotEmpty() },
+                baseServerUrl = serverUrl,
+                sharedLivePlayer = handedOver,
             )
         )
     }
 
-    /** BACK collapses the dock before it leaves the screen. See [PhoneLiveDock.collapse]. */
+    private val fullscreenLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result -> onReturnedFromFullscreen(result.data) }
+
+    /**
+     * BACK from fullscreen. Adopt the player back into the dock rather than leaving the dock
+     * holding the stream the player has already finished with — that stale player is what played
+     * for a few seconds and then froze.
+     */
+    private fun onReturnedFromFullscreen(data: android.content.Intent?) {
+        val view = view ?: run {
+            com.tvonnet.debridxtreamiptv.player.stabilized.LiveSharedPlayer.release("phone_live_gone")
+            return
+        }
+        val returnedId = data?.getStringExtra(
+            com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity.EXTRA_LIVE_RETURN_CHANNEL_ID
+        )
+        val channel = adapter.snapshot().items.firstOrNull { it.stream_id == returnedId }
+            ?: dock?.currentStream()
+            ?: return
+        com.tvonnet.debridxtreamiptv.player.stabilized.LiveSharedPlayer.takeFrame()
+        val player = com.tvonnet.debridxtreamiptv.player.stabilized.LiveSharedPlayer.adopt()
+        if (player != null) {
+            dock?.rememberUrl(streamUrlOf(channel))
+            dock?.adoptBack(player, channel)
+        } else {
+            // Nothing parked (the player released it, or fullscreen was opened cold): start the
+            // channel the user ended on, so the dock is never left showing a dead one.
+            startInDock(view, channel)
+        }
+    }
+
+    /**
+     * BACK, in the order the user built the state up: the search they opened, then the channel
+     * they docked, and only then the screen itself.
+     */
     fun onBackPressed(): Boolean {
+        val view = view ?: return false
+        if (view.findViewById<View>(R.id.phone_live_search_bar)?.isVisible == true) {
+            closeSearch(view)
+            return true
+        }
         autoResumeSpent = true
         return dock?.collapse() == true
     }
@@ -439,6 +580,10 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
         val appBar = view.findViewById<View>(R.id.phone_live_app_bar)
         val input = view.findViewById<EditText>(R.id.phone_live_search_input)
 
+        view.findViewById<View>(R.id.phone_live_avatar)?.setOnClickListener {
+            navigateFromBar(SectionNavigator.SECTION_SETTINGS)
+        }
+        view.findViewById<TextView>(R.id.phone_live_avatar_initial)?.text = accountInitial()
         view.findViewById<View>(R.id.phone_live_search)?.setOnClickListener {
             appBar?.isVisible = false
             bar?.isVisible = true
@@ -448,15 +593,29 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
             PhoneUi.showKeyboard(input)
         }
         view.findViewById<View>(R.id.phone_live_search_back)?.setOnClickListener {
-            input?.setText("")
-            PhoneUi.hideKeyboard(input)
-            bar?.isVisible = false
-            appBar?.isVisible = true
-            viewModel.onEvent(LiveEvent.ClearSearch)
+            closeSearch(view)
         }
         input?.doAfterTextChanged { text ->
             viewModel.onEvent(LiveEvent.SearchChannels(text?.toString().orEmpty()))
         }
+    }
+
+    private fun closeSearch(view: View) {
+        val input = view.findViewById<EditText>(R.id.phone_live_search_input)
+        input?.setText("")
+        PhoneUi.hideKeyboard(input)
+        view.findViewById<View>(R.id.phone_live_search_bar)?.isVisible = false
+        view.findViewById<View>(R.id.phone_live_app_bar)?.isVisible = true
+        viewModel.onEvent(LiveEvent.ClearSearch)
+    }
+
+    /** The same mark Home shows, so the account is in the same place on both screens. */
+    private fun accountInitial(): String {
+        val email = runCatching {
+            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email
+        }.getOrNull()?.takeIf { it.isNotBlank() }
+        val name = email ?: credentials.getUsername()
+        return name?.firstOrNull { it.isLetterOrDigit() }?.uppercaseChar()?.toString() ?: "?"
     }
 
     private fun openGuide(channel: XtreamStream) {
@@ -544,9 +703,6 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
         androidx.core.content.ContextCompat.getColor(requireContext(), res)
 
     private companion object {
-        /** How many categories ride the rail before the rest go to the sheet. */
-        const val PINNED_CHIPS = 8
-
         /** Rows either side of the visible window to warm, so a short flick finds EPG ready. */
         const val EPG_WARM_BUFFER = 6
 

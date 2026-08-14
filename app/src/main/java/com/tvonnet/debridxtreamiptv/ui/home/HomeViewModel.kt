@@ -521,6 +521,14 @@ class HomeViewModel @Inject constructor(
      * blink back to a placeholder — the flicker in miniature. A row that is genuinely new (the title
      * just watched) is enriched here, so it does not sit without a poster until the next full load.
      */
+    /**
+     * Build the home screen again after a failure. The load is idempotent and already guards
+     * against overlapping runs, so a user leaning on Retry costs nothing.
+     */
+    fun retry() {
+        loadHomeData()
+    }
+
     fun refreshHistoryRows() {
         viewModelScope.launch(Dispatchers.Default) {
             runCatching {

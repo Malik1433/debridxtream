@@ -104,6 +104,9 @@ object PhoneBottomNav {
                 setTextColor(tint)
             }
             cell.findViewById<View>(R.id.phone_nav_indicator).isVisible = selected
+            // The active destination is not a no-op by accident — tapping the tab you are on is
+            // the standard way to scroll a screen back to the top, so it stays inert here rather
+            // than pushing a second copy of itself.
             if (!selected) cell.setOnClickListener { onSelect(item.section) }
             target.addView(
                 cell,

@@ -189,7 +189,14 @@ class PhoneHomeFragment : Fragment(), HomeRouterHost, com.tvonnet.debridxtreamip
             state.continueWatching.isEmpty() && state.recentLiveChannels.isEmpty()
         view.findViewById<View>(R.id.phone_hero)?.isVisible = !nothingYet
         if (nothingYet) {
-            rows.addView(uiInflater.inflate(R.layout.item_phone_skeleton, rows, false))
+            // A failure has to SAY so and offer a way out. Shimmering forever is the worst of the
+            // three states: it looks like the app is still trying when it has already given up.
+            val failed = !state.isLoading && state.errorMessage != null
+            rows.addView(
+                if (failed) errorPanel(rows) else {
+                    uiInflater.inflate(R.layout.item_phone_skeleton, rows, false)
+                }
+            )
             return
         }
 
@@ -223,6 +230,22 @@ class PhoneHomeFragment : Fragment(), HomeRouterHost, com.tvonnet.debridxtreamip
                 state.recentLiveChannels.forEach { rail.addView(channelCard(rail, it)) }
             }
         }
+    }
+
+    private fun errorPanel(parent: LinearLayout): View {
+        val panel = uiInflater.inflate(R.layout.item_phone_error_panel, parent, false)
+        panel.findViewById<TextView>(R.id.phone_error_body)
+            ?.setText(R.string.phone_home_failed_body)
+        panel.findViewById<View>(R.id.phone_error_retry).setOnClickListener {
+            viewModel.retry()
+        }
+        // There is no cached-catalogue fallback on Home the way Live has favourites, so the second
+        // button goes where the user can still watch something they already own.
+        panel.findViewById<TextView>(R.id.phone_error_cached).apply {
+            setText(R.string.nav_movies)
+            setOnClickListener { router.navigateToSection(SectionNavigator.SECTION_MOVIES) }
+        }
+        return panel
     }
 
     /**
@@ -303,7 +326,30 @@ class PhoneHomeFragment : Fragment(), HomeRouterHost, com.tvonnet.debridxtreamip
             router.openFeaturedDetails(item)
         }
         bindHeroSave(view, item)
+        bindHeroDots(view)
     }
+
+    /** Active dot 20dp wide, the rest 6dp — the handoff's shape, and it says how many there are. */
+    private fun bindHeroDots(view: View) {
+        val row = view.findViewById<LinearLayout>(R.id.phone_hero_dots) ?: return
+        row.removeAllViews()
+        if (heroItems.size < 2) return
+        heroItems.indices.forEach { index ->
+            val active = index == heroIndex
+            val dot = View(requireContext())
+            dot.setBackgroundResource(
+                if (active) R.drawable.bg_phone_dot_active else R.drawable.bg_phone_dot
+            )
+            val params = LinearLayout.LayoutParams(
+                PhoneUiDp(if (active) HERO_DOT_ACTIVE_DP else HERO_DOT_DP), PhoneUiDp(HERO_DOT_H_DP)
+            )
+            params.marginEnd = PhoneUiDp(HERO_DOT_GAP_DP)
+            row.addView(dot, params)
+        }
+    }
+
+    private fun PhoneUiDp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
 
     /**
      * The bookmark writes to the same favourites table the detail pages use, so what it saves
@@ -413,5 +459,9 @@ class PhoneHomeFragment : Fragment(), HomeRouterHost, com.tvonnet.debridxtreamip
     private companion object {
         const val HERO_ROTATE_MS = 7_000L
         const val HERO_COUNT = 3
+        const val HERO_DOT_DP = 6
+        const val HERO_DOT_ACTIVE_DP = 20
+        const val HERO_DOT_H_DP = 3
+        const val HERO_DOT_GAP_DP = 5
     }
 }

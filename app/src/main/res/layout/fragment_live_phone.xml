@@ -57,6 +57,29 @@
             android:padding="13dp"
             android:src="@drawable/ic_stremio_search"
             app:tint="@color/phone_text_primary" />
+
+        <!-- The account sits where it sits on Home, so the two destinations are the same app. -->
+        <FrameLayout
+            android:id="@+id/phone_live_avatar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:id="@+id/phone_live_avatar_initial"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_profile_mark"
+                android:fontFamily="@font/outfit_bold"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                tools:text="X" />
+        </FrameLayout>
     </LinearLayout>
 
     <!-- ══ SEARCH BAR ══ replaces the app bar while searching. System keyboard, never ours. -->

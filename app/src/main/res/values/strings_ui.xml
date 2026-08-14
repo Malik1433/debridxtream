@@ -316,5 +316,8 @@
     <string name="phone_result_count">CHANNELS · %1$d</string>
     <!-- The dock line: start, end, and what is on. -->
     <string name="phone_dock_programme">%1$s–%2$s · %3$s</string>
+    <string name="phone_home_failed_body">The catalogue did not answer. Nothing has been lost — try again, or go straight to your movies.</string>
+    <string name="phone_category_empty">No channels in this category</string>
+    <string name="phone_search_empty">No channels match that search</string>
     <string name="phone_cached_favourites">Favourites (cached)</string>
 </resources>

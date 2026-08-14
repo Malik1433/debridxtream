@@ -102,6 +102,42 @@ class PhoneLiveDock(
 
     fun currentStream(): XtreamStream? = panel?.getCurrentStream()
 
+    fun isPlaying(): Boolean = panel?.isPlaying() == true
+
+    /**
+     * Hand the RUNNING player to the fullscreen session instead of letting it build a second one.
+     *
+     * Without this the dock keeps its player alive while PlayerActivity opens a fresh connection to
+     * the same channel — two sessions on an account that allows one — and on the way back the dock
+     * is still holding the first, now-dead stream, which is exactly the "plays for a moment then
+     * freezes" the owner saw. The frame snapshot is taken BEFORE detaching so the switch is covered
+     * rather than flashing black.
+     */
+    fun handOff(): android.graphics.Bitmap? {
+        val frame = panel?.captureFrame()
+        panel?.detachPlayer()?.let { player ->
+            com.tvonnet.debridxtreamiptv.player.stabilized.LiveSharedPlayer.offer(
+                player, lastUrl, playingStreamId, frame,
+            )
+        }
+        return frame
+    }
+
+    /** Take the player back from the fullscreen session, still playing. */
+    fun adoptBack(player: androidx.media3.exoplayer.ExoPlayer, stream: XtreamStream) {
+        root.findViewById<View>(R.id.phone_live_dock)?.isVisible = true
+        playingStreamId = stream.stream_id
+        panel?.adoptPlayer(player, stream)
+        onChanged()
+    }
+
+    /** The url the dock is playing, remembered for the hand-off's stale-stream guard. */
+    private var lastUrl: String? = null
+
+    fun rememberUrl(url: String?) {
+        lastUrl = url
+    }
+
     fun release() {
         panel?.releasePlayer()
         panel = null
