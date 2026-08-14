@@ -214,9 +214,17 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
         }
         // A season that has genuinely finished loading with nothing in it must stop shimmering:
         // an endless skeleton is a lie about work still being done.
-        pagingAdapter.addLoadStateListener { states ->
-            episodesSettled = states.refresh is androidx.paging.LoadState.NotLoading
-            renderEpisodes()
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    // Not Paging's LoadState: Room answers an unfetched season instantly with an
+                    // empty page, so NotLoading arrives before any work has been done and the
+                    // skeleton would vanish after a single frame. THIS fetch is what fills the
+                    // table, so it is what "still loading" actually means.
+                    episodesSettled = state !is SeriesDetailUiState.Loading
+                    renderEpisodes()
+                }
+            }
         }
     }
 
@@ -260,7 +268,12 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
                 number = entity.episodeNumber,
                 title = entity.title.orEmpty(),
                 plot = entity.plot,
-                stillUrl = entity.thumbnail,
+                // Most IPTV portals send no per-episode still at all. An empty grey box for every
+                // row looks broken, so the series art stands in — the same thing the row would
+                // have shown if the provider had bothered.
+                stillUrl = entity.thumbnail?.takeIf { it.isNotBlank() }
+                    ?: model.backdropUrl?.takeIf { it.isNotBlank() }
+                    ?: model.posterUrl,
                 runtimeMinutes = entity.durationSecs?.toIntOrNull()?.div(60),
                 watched = duration > 0 && watchedMs > duration * WATCHED_FRACTION,
                 positionMs = watchedMs.takeIf { it > 0 },
@@ -385,13 +398,42 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
         }
     }
 
+    /**
+     * Opening the player takes a moment — the activity starts, the surface comes up and the first
+     * frame has to arrive — and until this existed the screen showed the detail page doing nothing
+     * for that whole time, which reads as a tap that failed. The overlay stays up until we come
+     * back on screen, so the wait is always visibly OURS.
+     */
+    private fun startPlayer(intent: android.content.Intent) {
+        showOpeningOverlay()
+        startActivity(intent)
+    }
+
+    private fun showOpeningOverlay() {
+        val root = view as? android.view.ViewGroup ?: return
+        if (root.findViewById<View>(R.id.phone_opening_overlay) != null) return
+        val overlay = PhoneUi.unscaled(this, layoutInflater)
+            .inflate(R.layout.view_phone_opening, root, false)
+        root.addView(overlay)
+    }
+
+    private fun hideOpeningOverlay() {
+        val root = view as? android.view.ViewGroup ?: return
+        root.findViewById<View>(R.id.phone_opening_overlay)?.let(root::removeView)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        hideOpeningOverlay()
+    }
+
     /** The ViewModel decides HOW an episode plays; this screen only carries the result out. */
     private fun observeNavigation() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.navigationEvents.collect { event ->
                     when (event) {
-                        is SeriesNavigationEvent.NavigateToPlayer -> startActivity(
+                        is SeriesNavigationEvent.NavigateToPlayer -> startPlayer(
                             com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity.createIntent(
                                 context = requireContext(),
                                 streamUrl = event.streamUrl,

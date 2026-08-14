@@ -103,7 +103,11 @@ class PhoneMovieDetailFragment : Fragment(), PortraitScreen {
     override fun onResume() {
         super.onResume()
         // The player writes the resume position on its way out, so this is re-read every time the
-        // screen comes forward rather than once at creation.
+        // screen comes forward rather than once at creation. Coming forward is also when the
+        // player is definitely up, so the OPENING overlay comes down here.
+        (view as? android.view.ViewGroup)?.let { root ->
+            root.findViewById<View>(R.id.phone_opening_overlay)?.let(root::removeView)
+        }
         refreshResume()
     }
 
@@ -242,6 +246,15 @@ class PhoneMovieDetailFragment : Fragment(), PortraitScreen {
         }
     }
 
+    private fun showOpeningOverlay() {
+        val root = view as? android.view.ViewGroup ?: return
+        if (root.findViewById<View>(R.id.phone_opening_overlay) != null) return
+        root.addView(
+            PhoneUi.unscaled(this, layoutInflater)
+                .inflate(R.layout.view_phone_opening, root, false)
+        )
+    }
+
     private fun openTrailer() {
         val value = trailer?.takeIf { it.isNotBlank() } ?: return
         startActivity(
@@ -269,6 +282,9 @@ class PhoneMovieDetailFragment : Fragment(), PortraitScreen {
         val extension = arguments?.getString(ARG_CONTAINER_EXT)
             ?.trim()?.trimStart('.')?.ifBlank { "mp4" } ?: "mp4"
         val url = direct ?: "$base/movie/$username/$password/$id.$extension"
+        // The player takes a moment to come up. Without this the screen sat there looking
+        // untouched for that whole time, which reads as a tap that did nothing.
+        showOpeningOverlay()
         startActivity(
             PlayerActivity.createIntent(
                 context = requireContext(),

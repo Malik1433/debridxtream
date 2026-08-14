@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shown from the tap until the player is on screen. It is clickable on purpose: it swallows
+     further taps, so nobody launches the same episode three times while the first one opens. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/phone_opening_overlay"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#CC000000"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center"
+    android:orientation="vertical">
+
+    <ProgressBar
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:indeterminateTint="@color/phone_cyan" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:fontFamily="@font/share_tech_mono"
+        android:letterSpacing="0.1"
+        android:text="@string/phone_opening_stream"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="13sp" />
+</LinearLayout>
