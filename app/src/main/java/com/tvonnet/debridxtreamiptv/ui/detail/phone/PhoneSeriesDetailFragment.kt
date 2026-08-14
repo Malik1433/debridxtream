@@ -78,6 +78,7 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
 
         observeSeries()
         observeSeasons()
+        observeEpisodeCounts()
         observeEpisodeProgress()
         observeNavigation()
     }
@@ -149,6 +150,30 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
                     if (season == null) return@collect
                     model = model.copy(selectedSeason = season)
                     loadEpisodes(season)
+                }
+            }
+        }
+    }
+
+    /**
+     * Episodes arrive in the database AFTER the screen opens — the ViewModel fetches them on the
+     * way in — so a one-shot read on the way in finds nothing. This is the signal that they
+     * landed: the per-season counts change, and the visible season is re-read.
+     *
+     * It is also where the season bar gets its real "24 EPISODES" from, rather than counting the
+     * rows it happens to have loaded.
+     */
+    private fun observeEpisodeCounts() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                episodeDao.observeSeasonEpisodeCounts(seriesId).collect { counts ->
+                    val bySeason = counts.associate { it.season_number to it.totalEpisodes }
+                    model = model.copy(
+                        seasons = model.seasons.map {
+                            it.copy(episodeCount = bySeason[it.number] ?: it.episodeCount)
+                        }
+                    )
+                    model.selectedSeason?.let { loadEpisodes(it) }
                 }
             }
         }
@@ -254,10 +279,14 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
     }
 
     companion object {
-        private const val ARG_SERIES_ID = "seriesId"
+        // The SAME keys SeriesDetailFragmentV2 uses, and not a private set of my own: the shared
+        // SeriesDetailViewModelV2 reads "series_id" straight out of its SavedStateHandle and
+        // throws if it is absent. A screen that renames its own arguments cannot borrow another
+        // screen's ViewModel.
+        private const val ARG_SERIES_ID = "series_id"
         private const val ARG_TITLE = "title"
-        private const val ARG_BACKDROP_URL = "backdropUrl"
-        private const val ARG_POSTER_URL = "posterUrl"
+        private const val ARG_BACKDROP_URL = "backdrop_url"
+        private const val ARG_POSTER_URL = "poster_url"
 
         /** Watched enough of it to count, the same threshold the rest of the app uses. */
         private const val WATCHED_FRACTION = 0.9

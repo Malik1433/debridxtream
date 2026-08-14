@@ -327,15 +327,16 @@ class SearchFragment : Fragment() {
     }
 
     private fun openSeriesDetail(series: XtreamSeriesInfo) {
-        val fragment = SeriesDetailFragmentV2().apply {
-            arguments = Bundle().apply {
+        val fragment = com.tvonnet.debridxtreamiptv.ui.detail.phone.DetailScreens.series(
+            requireContext(),
+            Bundle().apply {
                 putString("series_id", series.series_id)
                 putString("title", series.name)
                 putString("backdrop_url", series.cover)
                 putString("poster_url", series.cover)
                 putString("trailer", series.youtube_trailer)
             }
-        }
+        )
         parentFragmentManager.beginTransaction()
             .replace(R.id.content_container, fragment).addToBackStack(null).commit()
     }

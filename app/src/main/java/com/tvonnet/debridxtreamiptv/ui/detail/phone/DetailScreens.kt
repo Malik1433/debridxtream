@@ -110,4 +110,22 @@ object DetailScreens {
             posterUrl = posterUrl,
         )
     }
+
+    /**
+     * The Bundle door for series. Two browse screens built `SeriesDetailFragmentV2()` directly and
+     * filled `arguments` themselves — which is exactly how they slipped past the first pass at
+     * routing and kept opening the 10-foot screen on a phone.
+     */
+    fun series(context: Context, args: android.os.Bundle): Fragment = if (isTv(context)) {
+        SeriesDetailFragmentV2().apply { arguments = args }
+    } else {
+        series(
+            context = context,
+            seriesId = args.getString("series_id"),
+            title = args.getString("title"),
+            backdropUrl = args.getString("backdrop_url"),
+            posterUrl = args.getString("poster_url"),
+            trailer = args.getString("trailer"),
+        )
+    }
 }
