@@ -4,6 +4,9 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -19,9 +22,7 @@ import com.tvonnet.debridxtreamiptv.ui.live.phone.PhoneUi
 import com.tvonnet.debridxtreamiptv.util.PortraitScreen
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * PHONE series Detail — the same screen as the movie one, plus the two things a series needs.
@@ -51,6 +52,7 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
         creditsLabel = null, creditsName = null, isSeries = true,
     )
     private var episodes: List<EpisodeEntityV2> = emptyList()
+    private var episodesSettled = false
     private var progress: Map<String, Long> = emptyMap()
 
     private val seriesId get() = arguments?.getString(ARG_SERIES_ID).orEmpty()
@@ -66,7 +68,7 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
         super.onViewCreated(view, savedInstanceState)
         val args = requireArguments()
 
-        detail = PhoneDetailView(view, PhoneUi.unscaled(this, layoutInflater), actions())
+        detail = PhoneDetailView(view, PhoneUi.unscaled(this, layoutInflater), requireContext(), actions())
         model = model.copy(
             title = args.getString(ARG_TITLE).orEmpty(),
             posterUrl = args.getString(ARG_POSTER_URL),
@@ -78,8 +80,10 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
 
         observeSeries()
         observeSeasons()
+        observeEpisodes()
         observeEpisodeCounts()
         observeEpisodeProgress()
+        observeStreamPanel()
         observeNavigation()
     }
 
@@ -149,19 +153,18 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
                 viewModel.selectedSeason.collect { season ->
                     if (season == null) return@collect
                     model = model.copy(selectedSeason = season)
-                    loadEpisodes(season)
+                    detail.render(model)
                 }
             }
         }
     }
 
     /**
-     * Episodes arrive in the database AFTER the screen opens — the ViewModel fetches them on the
-     * way in — so a one-shot read on the way in finds nothing. This is the signal that they
-     * landed: the per-season counts change, and the visible season is re-read.
+     * The season bar's own count, straight from the table.
      *
-     * It is also where the season bar gets its real "24 EPISODES" from, rather than counting the
-     * rows it happens to have loaded.
+     * It is a Flow rather than a read because episodes land in the database AFTER this screen
+     * opens — the ViewModel fetches them on the way in — so anything read once on the way in
+     * finds an empty season and stays that way.
      */
     private fun observeEpisodeCounts() {
         viewLifecycleOwner.lifecycleScope.launch {
@@ -173,20 +176,59 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
                             it.copy(episodeCount = bySeason[it.number] ?: it.episodeCount)
                         }
                     )
-                    model.selectedSeason?.let { loadEpisodes(it) }
+                    detail.render(model)
                 }
             }
         }
     }
 
-    /** One season is twenty-odd rows, so this is a list read, not a paging problem. */
-    private fun loadEpisodes(season: Int) {
+    /**
+     * The episode list comes from [SeriesDetailViewModelV2.episodes] — the SAME paged flow the
+     * television screen renders.
+     *
+     * The first attempt read the table directly for the selected season, which was one guess too
+     * many: it had to guess when the rows exist, and which id and season the ViewModel filed them
+     * under. Collecting the ViewModel's flow inherits all three answers, and it updates itself
+     * when the fetch lands instead of needing a signal that it did.
+     *
+     * A season is twenty-odd rows, so the whole page is taken as a snapshot and rendered into the
+     * page's own column, exactly as the design asks — no nested scroller.
+     */
+    private fun observeEpisodes() {
         viewLifecycleOwner.lifecycleScope.launch {
-            episodes = withContext(Dispatchers.IO) {
-                runCatching { episodeDao.getEpisodesForSeasonList(seriesId, season) }
-                    .getOrDefault(emptyList())
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.episodes.collect { paging ->
+                    pagingAdapter.submitData(paging)
+                }
             }
+        }
+        // The adapter is only ever used as a data pump: whenever its snapshot changes, the rows
+        // are re-rendered into the page. Nothing is attached to a RecyclerView.
+        pagingAdapter.addOnPagesUpdatedListener {
+            episodes = pagingAdapter.snapshot().items
             renderEpisodes()
+        }
+        // A season that has genuinely finished loading with nothing in it must stop shimmering:
+        // an endless skeleton is a lie about work still being done.
+        pagingAdapter.addLoadStateListener { states ->
+            episodesSettled = states.refresh is androidx.paging.LoadState.NotLoading
+            renderEpisodes()
+        }
+    }
+
+    private val pagingAdapter by lazy {
+        object : androidx.paging.PagingDataAdapter<EpisodeEntityV2,
+            androidx.recyclerview.widget.RecyclerView.ViewHolder>(DIFF) {
+            override fun onCreateViewHolder(
+                parent: android.view.ViewGroup,
+                viewType: Int,
+            ): androidx.recyclerview.widget.RecyclerView.ViewHolder =
+                object : androidx.recyclerview.widget.RecyclerView.ViewHolder(View(parent.context)) {}
+
+            override fun onBindViewHolder(
+                holder: androidx.recyclerview.widget.RecyclerView.ViewHolder,
+                position: Int,
+            ) = Unit
         }
     }
 
@@ -222,6 +264,7 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
             )
         }
         val nextUp = rows.firstOrNull { !it.watched }?.id
+        model = model.copy(episodesLoading = rows.isEmpty() && !episodesSettled)
         val season = model.selectedSeason
         model = model.copy(
             episodes = rows,
@@ -242,9 +285,77 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
         playEpisode(next)
     }
 
+    /**
+     * Tapping an episode does NOT play it directly — it asks the ViewModel for that episode's
+     * streams, which it aggregates across every category the series appears in. That is why the
+     * first version of this screen looked dead on a tap: the work was happening, the panel that
+     * shows it simply did not exist here.
+     */
     private fun playEpisode(episodeId: String) {
         val entity = episodes.firstOrNull { it.episodeId == episodeId } ?: return
         viewModel.onEpisodeClicked(entity)
+    }
+
+    /**
+     * The stream picker for the tapped episode.
+     *
+     * Opened as a sheet rather than a pushed screen: an episode usually has a handful of streams,
+     * not the sixty a debrid movie can have, and a sheet keeps the episode list behind it. It
+     * shows its own spinner while the aggregation runs, so a tap is never silent.
+     */
+    private fun observeStreamPanel() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.streamPanel.collect { panel ->
+                    if (!panel.visible) {
+                        streamSheet?.dismiss()
+                        streamSheet = null
+                        return@collect
+                    }
+                    showStreamSheet(panel)
+                }
+            }
+        }
+    }
+
+    private var streamSheet: com.google.android.material.bottomsheet.BottomSheetDialog? = null
+
+    private fun showStreamSheet(
+        panel: com.tvonnet.debridxtreamiptv.features.seriesv2.ui.StreamPanelState,
+    ) {
+        val sheet = streamSheet ?: com.google.android.material.bottomsheet.BottomSheetDialog(
+            requireContext()
+        ).also { dialog ->
+            val content = PhoneUi.unscaled(this, layoutInflater)
+                .inflate(R.layout.sheet_phone_streams, null)
+            dialog.setContentView(content)
+            dialog.setOnDismissListener { viewModel.closeStreamPanel() }
+            dialog.show()
+            streamSheet = dialog
+        }
+        val content = sheet.findViewById<View>(R.id.phone_streams_root) ?: return
+
+        content.findViewById<TextView>(R.id.phone_streams_title).text = panel.episodeLabel
+        content.findViewById<View>(R.id.phone_streams_loading).isVisible = panel.loading
+        content.findViewById<TextView>(R.id.phone_streams_error).apply {
+            text = panel.error.orEmpty()
+            isVisible = !panel.error.isNullOrBlank() && !panel.loading
+        }
+
+        val list = content.findViewById<LinearLayout>(R.id.phone_streams_list)
+        list.removeAllViews()
+        val inflater = PhoneUi.unscaled(this, layoutInflater)
+        panel.filteredGroups.flatMap { it.streams }.forEach { option ->
+            val row = inflater.inflate(R.layout.item_phone_source, list, false)
+            row.findViewById<TextView>(R.id.phone_srow_quality).text = option.quality.label
+            row.findViewById<TextView>(R.id.phone_srow_size).text = option.container
+            row.findViewById<TextView>(R.id.phone_srow_name).text = option.name
+            row.findViewById<TextView>(R.id.phone_srow_provider).text =
+                (listOf(option.categoryTag) + option.languages.map { it.code }).joinToString(" · ")
+            row.findViewById<TextView>(R.id.phone_srow_state).isVisible = false
+            row.setOnClickListener { viewModel.onStreamSelected(option) }
+            list.addView(row)
+        }
     }
 
     /** The ViewModel decides HOW an episode plays; this screen only carries the result out. */
@@ -290,6 +401,14 @@ class PhoneSeriesDetailFragment : Fragment(), PortraitScreen {
 
         /** Watched enough of it to count, the same threshold the rest of the app uses. */
         private const val WATCHED_FRACTION = 0.9
+
+        private val DIFF = object :
+            androidx.recyclerview.widget.DiffUtil.ItemCallback<EpisodeEntityV2>() {
+            override fun areItemsTheSame(old: EpisodeEntityV2, new: EpisodeEntityV2) =
+                old.episodeId == new.episodeId
+
+            override fun areContentsTheSame(old: EpisodeEntityV2, new: EpisodeEntityV2) = old == new
+        }
 
         fun newInstance(
             seriesId: String?,

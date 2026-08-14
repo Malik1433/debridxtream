@@ -26,6 +26,15 @@ import com.tvonnet.debridxtreamiptv.ui.live.phone.PhoneUi
 class PhoneDetailView(
     private val root: View,
     private val inflater: LayoutInflater,
+    /**
+     * The ACTIVITY, not the view's context.
+     *
+     * The screen inflates against a configuration context (to escape the 1.6x TV font scale), and
+     * that context has no window token — opening a dialog from it throws BadTokenException, which
+     * is exactly what tapping the season bar did. Dialogs need the Activity; layouts need the
+     * unscaled inflater; the two are different things and both are passed in.
+     */
+    private val host: Context,
     private val actions: PhoneDetailActions,
 ) {
     private val context: Context = root.context
@@ -286,8 +295,30 @@ class PhoneDetailView(
             season?.episodeCount ?: model.episodes.size,
             season?.watchedCount ?: model.episodes.count { it.watched },
         )
-        bar.setOnClickListener { PhoneSeasonSheet.show(context, inflater, model, actions.onSeasonPicked) }
+        // Only offer the picker when there is something to pick. An empty sheet is a dead end,
+        // and a series whose seasons have not arrived yet is a wait, not a choice.
+        bar.isClickable = model.seasons.isNotEmpty()
+        bar.setOnClickListener {
+            if (model.seasons.isNotEmpty()) {
+                PhoneSeasonSheet.show(host, inflater, model, actions.onSeasonPicked)
+            }
+        }
 
+        if (model.isSeries && model.episodes.isEmpty() && !model.episodesLoading) {
+            val note = inflater.inflate(R.layout.item_phone_note, list, false) as TextView
+            note.setText(R.string.phone_no_episodes)
+            list.addView(note)
+            return
+        }
+        if (model.episodes.isEmpty() && model.episodesLoading) {
+            // Episodes arrive a moment after the screen does. Shimmer rows at the real 96dp
+            // geometry say the screen is working — an empty gap says it is broken, which is
+            // exactly how it read.
+            repeat(EPISODE_SKELETONS) {
+                list.addView(inflater.inflate(R.layout.item_phone_episode_skeleton, list, false))
+            }
+            return
+        }
         model.episodes.forEach { episode -> list.addView(episodeRow(list, episode, model)) }
     }
 
@@ -437,5 +468,6 @@ class PhoneDetailView(
         /** Past this, the four-line clamp is certainly hiding something worth a More control. */
         const val PLOT_CLAMP_CHARS = 180
         const val LONG_TITLE_CHARS = 34
+        const val EPISODE_SKELETONS = 4
     }
 }

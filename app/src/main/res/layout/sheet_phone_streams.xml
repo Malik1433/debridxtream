@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The streams for one episode.
+
+  A sheet rather than the full Sources screen: an IPTV episode carries a handful of streams
+  aggregated across the categories the series appears in, not the sixty a debrid title can have,
+  and a sheet keeps the episode list visible behind it. It carries its own spinner, because the
+  aggregation takes a moment and a tap that shows nothing reads as a tap that did nothing.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/phone_streams_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_phone_sheet"
+    android:orientation="vertical"
+    android:paddingBottom="12dp">
+
+    <View
+        android:layout_width="36dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_phone_sheet_handle" />
+
+    <TextView
+        android:id="@+id/phone_streams_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/outfit_bold"
+        android:maxLines="1"
+        android:paddingHorizontal="16dp"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="15sp"
+        tools:text="S01 · E04 · The Eightfold Fence" />
+
+    <LinearLayout
+        android:id="@+id/phone_streams_loading"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="18dp">
+
+        <ProgressBar
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:indeterminateTint="@color/phone_cyan" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:fontFamily="@font/share_tech_mono"
+            android:letterSpacing="0.1"
+            android:text="@string/phone_finding_streams"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/phone_streams_error"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/share_tech_mono"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="18dp"
+        android:textColor="@color/phone_amber"
+        android:textSize="12sp"
+        android:visibility="gone"
+        tools:text="NO STREAMS AVAILABLE"
+        tools:visibility="visible" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxHeight="460dp"
+        android:overScrollMode="never"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/phone_streams_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </ScrollView>
+</LinearLayout>

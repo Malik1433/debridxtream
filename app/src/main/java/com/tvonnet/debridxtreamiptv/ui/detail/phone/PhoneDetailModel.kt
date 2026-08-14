@@ -41,6 +41,8 @@ data class PhoneDetailModel(
     val episodes: List<Episode> = emptyList(),
     /** Drives the NEXT UP badge and the initial scroll. */
     val nextUpEpisode: String? = null,
+    /** Episodes are fetched after the screen opens; while that runs the section says so. */
+    val episodesLoading: Boolean = false,
     /** IPTV has no similar data — say so once rather than draw an empty carousel. */
     val similarUnavailableNote: String? = null,
 ) {

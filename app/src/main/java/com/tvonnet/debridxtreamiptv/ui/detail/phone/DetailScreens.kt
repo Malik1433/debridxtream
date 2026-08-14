@@ -81,7 +81,7 @@ object DetailScreens {
             year = args.getString("year"),
             genre = args.getString("genre"),
             rating = args.getString("rating"),
-            containerExtension = args.getString("container_extension"),
+            containerExtension = args.getString("container_ext"),
             directSource = args.getString("direct_source"),
             trailer = args.getString("trailer"),
         )

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- An episode row that has not arrived yet. Same 96dp and same 128x72 still as the real one, so
+     the list does not jump when the fetch lands. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="96dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="14dp"
+    android:paddingEnd="4dp">
+
+    <View
+        android:layout_width="128dp"
+        android:layout_height="72dp"
+        android:background="@drawable/bg_phone_still" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <View
+            android:layout_width="170dp"
+            android:layout_height="14dp"
+            android:background="@drawable/bg_phone_card" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="12dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="40dp"
+            android:background="@drawable/bg_phone_card" />
+
+        <View
+            android:layout_width="96dp"
+            android:layout_height="12dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_phone_card" />
+    </LinearLayout>
+</LinearLayout>

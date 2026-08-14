@@ -74,7 +74,7 @@ class PhoneMovieDetailFragment : Fragment(), PortraitScreen {
         val args = requireArguments()
         trailer = args.getString(ARG_TRAILER)
 
-        detail = PhoneDetailView(view, PhoneUi.unscaled(this, layoutInflater), actions())
+        detail = PhoneDetailView(view, PhoneUi.unscaled(this, layoutInflater), requireContext(), actions())
 
         // The arguments already carry title, poster and year from the card that was tapped, so the
         // screen has something true to show before any network call returns.
@@ -261,8 +261,14 @@ class PhoneMovieDetailFragment : Fragment(), PortraitScreen {
         if (serverUrl.isNullOrBlank() || username.isNullOrBlank() || password.isNullOrBlank()) return
 
         val direct = arguments?.getString(ARG_DIRECT_SOURCE)?.takeIf { it.startsWith("http") }
-        val extension = arguments?.getString(ARG_CONTAINER_EXT) ?: "mp4"
-        val url = direct ?: "$serverUrl/movie/$username/$password/$id.$extension"
+        // Built exactly like the TV screen's buildXtreamMovieUrl, and for the same reasons: a
+        // portal URL often ends in a slash, and the container is per-title. Defaulting the
+        // extension to mp4 for an mkv gives a 404, which the player shows as opening and closing
+        // again immediately — which is precisely what it did.
+        val base = serverUrl.trimEnd('/')
+        val extension = arguments?.getString(ARG_CONTAINER_EXT)
+            ?.trim()?.trimStart('.')?.ifBlank { "mp4" } ?: "mp4"
+        val url = direct ?: "$base/movie/$username/$password/$id.$extension"
         startActivity(
             PlayerActivity.createIntent(
                 context = requireContext(),

@@ -348,6 +348,8 @@
     <string name="phone_details_failed_body">The catalogue did not answer. Playback does not depend on it, so you can still start this title.</string>
     <string name="phone_play_anyway">Play anyway</string>
     <string name="phone_details_unavailable">DETAILS UNAVAILABLE</string>
+    <string name="phone_no_episodes">NO EPISODES IN THIS SEASON</string>
+    <string name="phone_finding_streams">FINDING STREAMS…</string>
     <string name="phone_no_sources_match">No sources match those filters</string>
     <string name="phone_no_cast_data">NO CAST DATA</string>
     <string name="phone_no_similar">NO SIMILAR TITLES</string>

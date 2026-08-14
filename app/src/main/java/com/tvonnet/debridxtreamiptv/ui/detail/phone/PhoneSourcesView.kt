@@ -39,6 +39,8 @@ data class PhoneSource(
 class PhoneSourcesView(
     private val root: View,
     private val inflater: LayoutInflater,
+    /** The Activity — a dialog cannot be opened from the inflation context. See PhoneDetailView. */
+    private val host: android.content.Context,
     private val title: String,
     private val onPlay: (PhoneSource) -> Unit,
     private val onBack: () -> Unit,
@@ -154,7 +156,7 @@ class PhoneSourcesView(
     }
 
     private fun showLanguageSheet(languages: List<String>) {
-        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(root.context)
+        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(host)
         val content = LinearLayout(root.context).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundResource(R.drawable.bg_phone_sheet)
