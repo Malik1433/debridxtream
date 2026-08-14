@@ -91,15 +91,30 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    /**
+     * The orientation the app OPENS in, decided before the first window is laid out.
+     *
+     * The launch used to flip portrait → landscape → portrait in front of the user: the manifest
+     * asked for a landscape window, this method forced landscape again, and then Home's fragment
+     * resumed and turned it portrait. Three orientations to show one screen. The manifest is
+     * `unspecified` now and the answer is taken once, from the screen that is actually about to
+     * appear — the phone Home is portrait, the sign-in screen is still the landscape TV layout,
+     * and a television is neither (both helpers are no-ops there).
+     */
+    private fun applyLaunchOrientation() {
+        val loggedIn = runCatching { CredentialsPreferences(this).isLoggedIn() }.getOrDefault(false)
+        if (loggedIn) usePortraitOnTouchDevices() else lockLandscapeOnTouchDevices()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // M13: BEFORE super.onCreate on purpose — the orientation has to be settled before the
         // first inflate, or the layout chosen for the old one stays on screen inside the new
         // window (M11 proved that the hard way, in the opposite direction).
         // Still BEFORE super.onCreate, for the reason M13 recorded — only the answer changed:
-        // orientation now belongs to the fragment on top (see applyOrientationForTopScreen), so
-        // this sets the starting one and the callback below keeps it honest from then on. The
-        // player keeps its own sensorLandscape in the manifest, untouched.
-        lockLandscapeOnTouchDevices()
+        // orientation now belongs to the fragment on top (see watchTopScreenOrientation), so this
+        // sets the STARTING one and the callback below keeps it honest from then on. The player
+        // keeps its own sensorLandscape in the manifest, untouched.
+        applyLaunchOrientation()
         super.onCreate(savedInstanceState)
         watchTopScreenOrientation()
 

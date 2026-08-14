@@ -96,7 +96,7 @@
              once at most and never again. -->
         <activity
             android:name=".ui.MainActivity"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="unspecified"
             android:banner="@drawable/tv_banner"
             android:label="@string/app_name"
             android:configChanges="keyboardHidden|uiMode|density"
