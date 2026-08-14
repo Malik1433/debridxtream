@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A season row carries its own progress, so "where was I" is answered without opening it. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/phone_season_root"
+    android:layout_width="match_parent"
+    android:layout_height="64dp"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="16dp">
+
+    <TextView
+        android:id="@+id/phone_season_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/outfit_semibold"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="14sp"
+        tools:text="Season 3" />
+
+    <TextView
+        android:id="@+id/phone_season_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:fontFamily="@font/share_tech_mono"
+        android:textColor="@color/phone_text_muted"
+        android:textSize="12sp"
+        tools:text="24 EP" />
+
+    <ProgressBar
+        android:id="@+id/phone_season_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="0dp"
+        android:layout_height="3dp"
+        android:layout_marginHorizontal="12dp"
+        android:layout_weight="1"
+        android:max="100"
+        android:progressDrawable="@drawable/bg_phone_progress_track"
+        tools:progress="30" />
+
+    <TextView
+        android:id="@+id/phone_season_state"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/share_tech_mono"
+        android:textColor="@color/phone_text_muted"
+        android:textSize="12sp"
+        tools:text="3/24" />
+
+    <ImageView
+        android:id="@+id/phone_season_check"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginStart="8dp"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_stremio_check"
+        android:visibility="gone"
+        app:tint="@color/phone_cyan"
+        tools:visibility="visible" />
+</LinearLayout>

@@ -12,7 +12,11 @@
     <color name="phone_cyan">#00F0FF</color>
     <color name="phone_blue">#0077FF</color>
     <color name="phone_amber">#FFAA00</color>
+    <!-- Cached / complete. The only place green appears. -->
+    <color name="phone_green">#00FF88</color>
     <color name="phone_on_accent">#041014</color>
+    <!-- Secondary text ON the cyan button. -->
+    <color name="phone_on_accent_dim">#B8041014</color>
     <color name="phone_text_primary">#F1F5F9</color>
     <color name="phone_text_secondary">#94A3B8</color>
     <color name="phone_text_muted">#64748B</color>

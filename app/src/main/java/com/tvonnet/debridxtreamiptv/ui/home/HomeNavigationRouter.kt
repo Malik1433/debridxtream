@@ -23,6 +23,7 @@ import com.tvonnet.debridxtreamiptv.ui.search.SearchFragment
 import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
 import com.tvonnet.debridxtreamiptv.features.vodv2.ui.MovieDetailFragmentV2
+import com.tvonnet.debridxtreamiptv.ui.detail.phone.DetailScreens
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.SeriesDetailFragmentV2
 import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import kotlinx.coroutines.Dispatchers
@@ -88,9 +89,12 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
 
     fun onFeaturedItemClick(item: FeaturedItem) {
         val h = host ?: return
-        val frag = h.routerFragment
         h.onRouterHeroSelected(item)
+        openFeatured(h, item)
+    }
 
+    private fun openFeatured(h: HomeRouterHost, item: FeaturedItem) {
+        val frag = h.routerFragment
         if (item.sourceType == SourceType.TMDB) {
             val context = frag.context ?: return
             if (item.contentType == ContentType.MOVIE) {
@@ -117,7 +121,9 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
         } else {
             when (item.contentType) {
                 ContentType.MOVIE -> {
-                    val detailFragment = MovieDetailFragmentV2.newInstance(
+                    val detailFragment = DetailScreens.movie(
+                        context = frag.requireContext(),
+                        
                         streamId = item.contentId,
                         title = item.title,
                         backdropUrl = item.backdropUrl,
@@ -129,7 +135,9 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
                     navigateToFragment(detailFragment)
                 }
                 ContentType.SERIES -> {
-                    val detailFragment = SeriesDetailFragmentV2.newInstance(
+                    val detailFragment = DetailScreens.series(
+                        context = frag.requireContext(),
+                        
                         seriesId = item.contentId,
                         title = item.title,
                         backdropUrl = item.backdropUrl,
@@ -177,7 +185,9 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
         } else {
             when (item.contentType) {
                 ContentType.MOVIE -> {
-                    val detailFragment = MovieDetailFragmentV2.newInstance(
+                    val detailFragment = DetailScreens.movie(
+                        context = frag.requireContext(),
+                        
                         streamId = item.contentId,
                         title = item.title,
                         backdropUrl = item.backdropUrl,
@@ -189,7 +199,9 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
                     navigateToFragment(detailFragment)
                 }
                 ContentType.SERIES -> {
-                    val detailFragment = SeriesDetailFragmentV2.newInstance(
+                    val detailFragment = DetailScreens.series(
+                        context = frag.requireContext(),
+                        
                         seriesId = item.contentId,
                         title = item.title,
                         backdropUrl = item.backdropUrl,
@@ -360,7 +372,9 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
             }
             startActivityPreservingContentFocus(movieIntent)
         } else {
-            val detailFragment = MovieDetailFragmentV2.newInstance(
+            val detailFragment = DetailScreens.movie(
+                        context = context,
+                        
                 streamId = item.contentId,
                 title = item.title,
                 backdropUrl = item.backdropUrl,
@@ -398,7 +412,9 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
             }
             startActivityPreservingContentFocus(seriesIntent)
         } else {
-            val detailFragment = SeriesDetailFragmentV2.newInstance(
+            val detailFragment = DetailScreens.series(
+                        context = context,
+                        
                 seriesId = seriesId,
                 title = item.seriesTitle ?: item.title,
                 backdropUrl = item.backdropUrl,

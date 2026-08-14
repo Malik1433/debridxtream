@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 4K / HDR / CACHED. Mono, because every number and status in this app is mono. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/phone_badge"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="6dp"
+    android:fontFamily="@font/share_tech_mono"
+    android:paddingHorizontal="7dp"
+    android:paddingVertical="3dp"
+    android:textSize="12sp"
+    tools:text="4K" />

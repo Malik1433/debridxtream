@@ -320,4 +320,55 @@
     <string name="phone_category_empty">No channels in this category</string>
     <string name="phone_search_empty">No channels match that search</string>
     <string name="phone_cached_favourites">Favourites (cached)</string>
+    <!-- Phone Detail (portrait design, 2026-08-14). -->
+    <string name="phone_rating_out_of_ten">/10</string>
+    <string name="phone_more">More</string>
+    <string name="phone_less">Less</string>
+    <string name="phone_play">Play</string>
+    <string name="phone_resume">Resume</string>
+    <string name="phone_watched">Watched</string>
+    <string name="phone_favourite">Favourite</string>
+    <string name="phone_trailer">Trailer</string>
+    <string name="phone_episodes">Episodes</string>
+    <string name="phone_sources">Sources</string>
+    <string name="phone_sort">Sort</string>
+    <string name="phone_best">BEST</string>
+    <string name="phone_next_up">NEXT UP</string>
+    <string name="phone_seasons">Seasons</string>
+    <string name="phone_season_n">Season %1$d</string>
+    <string name="phone_season_total">%1$d TOTAL</string>
+    <string name="phone_episode_count">%1$d EP</string>
+    <string name="phone_not_started">NOT STARTED</string>
+    <string name="phone_cast">Cast</string>
+    <string name="phone_more_like_this">More like this</string>
+    <string name="phone_director">Director</string>
+    <string name="phone_created_by">Created by</string>
+    <string name="phone_loading_details">LOADING DETAILS</string>
+    <string name="phone_details_failed_title">Couldn\'t load details</string>
+    <string name="phone_details_failed_body">The catalogue did not answer. Playback does not depend on it, so you can still start this title.</string>
+    <string name="phone_play_anyway">Play anyway</string>
+    <string name="phone_details_unavailable">DETAILS UNAVAILABLE</string>
+    <string name="phone_no_sources_match">No sources match those filters</string>
+    <string name="phone_no_cast_data">NO CAST DATA</string>
+    <string name="phone_no_similar">NO SIMILAR TITLES</string>
+    <string name="phone_all">All</string>
+    <string name="phone_cached_only">Cached only</string>
+    <string name="phone_language">Language</string>
+    <string name="phone_cached">CACHED</string>
+    <string name="phone_direct">DIRECT</string>
+    <string name="phone_mark_watched">Mark watched</string>
+    <string name="phone_mark_unwatched">Mark unwatched</string>
+    <string name="phone_play_from_start">Play from start</string>
+    <string name="phone_remove_from_continue">Remove from Continue Watching</string>
+    <string name="phone_sources_for_episode">Sources for this episode</string>
+    <!-- "62 FOUND" under the Sources title. -->
+    <string name="phone_sources_found">%1$s · %2$d FOUND</string>
+    <!-- "24 EPISODES · 3 WATCHED" on the season bar. -->
+    <string name="phone_season_meta">%1$d EPISODES · %2$d WATCHED</string>
+    <!-- "1:12:44 of 2:46:00" on the Resume button. -->
+    <string name="phone_position_of">%1$s of %2$s</string>
+    <!-- "30 MIN LEFT · 28:10 OF 58:00" on a partly-watched episode. -->
+    <string name="phone_episode_left">%1$d MIN LEFT · %2$s OF %3$s</string>
+    <string name="phone_episode_watched_meta">%1$d MIN · WATCHED</string>
+    <string name="phone_episode_meta">%1$d MIN</string>
 </resources>

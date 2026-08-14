@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The header scrim. Bottom-heavy so the metadata sits on near-solid background whatever the
+     backdrop behind it happens to be. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:startColor="#5906090E"
+        android:centerColor="#C706090E"
+        android:endColor="#FF06090E"
+        android:type="linear" />
+</shape>

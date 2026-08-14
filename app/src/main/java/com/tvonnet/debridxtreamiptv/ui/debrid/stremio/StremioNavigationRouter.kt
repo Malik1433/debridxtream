@@ -17,6 +17,7 @@ import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
 import com.tvonnet.debridxtreamiptv.features.vodv2.ui.MovieDetailFragmentV2
+import com.tvonnet.debridxtreamiptv.ui.detail.phone.DetailScreens
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.SeriesDetailFragmentV2
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -72,7 +73,9 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
         } else {
             when (item.contentType) {
                 ContentType.MOVIE -> navigateToFragment(
-                    MovieDetailFragmentV2.newInstance(
+                    DetailScreens.movie(
+                        context = frag.requireContext(),
+                        
                         streamId = item.contentId, title = item.title,
                         backdropUrl = item.backdropUrl, posterUrl = item.posterUrl,
                         plot = item.description, directSource = item.streamUrl,
@@ -80,7 +83,9 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
                     )
                 )
                 ContentType.SERIES -> navigateToFragment(
-                    SeriesDetailFragmentV2.newInstance(
+                    DetailScreens.series(
+                        context = frag.requireContext(),
+                        
                         seriesId = item.contentId, title = item.title,
                         backdropUrl = item.backdropUrl, posterUrl = item.posterUrl,
                         trailer = item.trailerValue
@@ -278,7 +283,9 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
             frag.startActivity(movieIntent)
         } else {
             navigateToFragment(
-                MovieDetailFragmentV2.newInstance(
+                DetailScreens.movie(
+                        context = frag.requireContext(),
+                        
                     streamId = item.contentId, title = item.title,
                     backdropUrl = item.backdropUrl, posterUrl = item.posterUrl
                 )
@@ -309,7 +316,9 @@ internal class StremioNavigationRouter(private var fragment: StremioHomeFragment
             frag.startActivity(seriesIntent)
         } else {
             navigateToFragment(
-                SeriesDetailFragmentV2.newInstance(
+                DetailScreens.series(
+                        context = frag.requireContext(),
+                        
                     seriesId = seriesId, title = item.seriesTitle ?: item.title,
                     backdropUrl = item.backdropUrl, posterUrl = item.posterUrl
                 )

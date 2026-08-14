@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One source. The left column is what people scan by (quality, then size); the right column is
+     what they confirm with. One tap plays - there is no confirm step. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:minHeight="76dp"
+    android:orientation="horizontal"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="12dp">
+
+    <LinearLayout
+        android:layout_width="52dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/phone_srow_quality"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_phone_badge_neutral"
+            android:fontFamily="@font/share_tech_mono"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="12sp"
+            tools:text="4K" />
+
+        <TextView
+            android:id="@+id/phone_srow_size"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:fontFamily="@font/share_tech_mono"
+            android:textColor="@color/phone_text_secondary"
+            android:textSize="12sp"
+            tools:text="18.4 GB" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/phone_srow_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="@font/inter_regular"
+            android:maxLines="1"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="12.5sp"
+            tools:text="Dune.Part.Two.2024.2160p.WEB-DL" />
+
+        <TextView
+            android:id="@+id/phone_srow_provider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/share_tech_mono"
+            android:maxLines="1"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="12sp"
+            tools:text="AIO · HI · TA · EN" />
+
+        <TextView
+            android:id="@+id/phone_srow_state"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:fontFamily="@font/share_tech_mono"
+            android:textColor="@color/phone_green"
+            android:textSize="12sp"
+            tools:text="CACHED" />
+    </LinearLayout>
+</LinearLayout>

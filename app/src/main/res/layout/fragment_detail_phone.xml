@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PHONE Detail — portrait, built to the "DX Play Detail" handoff (2026-08-14).
+
+  One screen serves movies AND series: everything they share is identical and in the same place,
+  and the series layout only ADDS the sticky season bar and the episode list below the plot.
+
+  No bottom navigation. Detail is a PUSHED destination reached from a card, so back always leaves
+  and a tab bar would offer a second, contradictory exit. Dropping it also returns 64dp to the
+  content, which is what keeps the Play button above the fold.
+
+  The header is poster-led and fixed at 232dp on purpose: a 16:9 backdrop hero would cost 231dp
+  before a word of metadata AND is missing often enough that the screen would have two shapes. The
+  backdrop, when there is one, sits behind this block blurred and dimmed as atmosphere; when there
+  is none the same 232dp fills with a gradient. Nothing moves either way.
+-->
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/phone_home_bg">
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/phone_detail_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingTop="56dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- ══ HEADER 232 ══ -->
+            <FrameLayout
+                android:id="@+id/phone_dt_header"
+                android:layout_width="match_parent"
+                android:layout_height="232dp">
+
+                <ImageView
+                    android:id="@+id/phone_dt_backdrop"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:alpha="0.55"
+                    android:contentDescription="@null"
+                    android:scaleType="centerCrop" />
+
+                <View
+                    android:id="@+id/phone_dt_header_scrim"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_phone_detail_scrim" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="16dp"
+                    android:paddingBottom="16dp">
+
+                    <!-- The one image guaranteed to exist, and the one the user just tapped. -->
+                    <ImageView
+                        android:id="@+id/phone_dt_poster"
+                        android:layout_width="104dp"
+                        android:layout_height="156dp"
+                        android:background="@drawable/bg_phone_poster"
+                        android:clipToOutline="true"
+                        android:contentDescription="@null"
+                        android:scaleType="centerCrop" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/phone_dt_title"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:fontFamily="@font/outfit_extrabold"
+                            android:letterSpacing="-0.03"
+                            android:lineSpacingMultiplier="1.2"
+                            android:maxLines="2"
+                            android:textColor="@color/phone_text_primary"
+                            android:textSize="22sp"
+                            tools:text="Dune: Part Two" />
+
+                        <LinearLayout
+                            android:id="@+id/phone_dt_rating_row"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageView
+                                android:layout_width="14dp"
+                                android:layout_height="14dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_star_filled"
+                                app:tint="@color/phone_amber" />
+
+                            <TextView
+                                android:id="@+id/phone_dt_rating"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="5dp"
+                                android:fontFamily="@font/share_tech_mono"
+                                android:textColor="@color/phone_text_primary"
+                                android:textSize="14sp"
+                                tools:text="8.4" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="2dp"
+                                android:fontFamily="@font/share_tech_mono"
+                                android:text="@string/phone_rating_out_of_ten"
+                                android:textColor="@color/phone_text_muted"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/phone_dt_facts"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:ellipsize="end"
+                            android:fontFamily="@font/share_tech_mono"
+                            android:maxLines="1"
+                            android:textColor="@color/phone_text_secondary"
+                            android:textSize="12sp"
+                            tools:text="2024 · 2h 46m · PG-13" />
+
+                        <TextView
+                            android:id="@+id/phone_dt_genres"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            android:ellipsize="end"
+                            android:fontFamily="@font/inter_regular"
+                            android:maxLines="1"
+                            android:textColor="@color/phone_text_secondary"
+                            android:textSize="12.5sp"
+                            tools:text="Science Fiction · Adventure" />
+
+                        <LinearLayout
+                            android:id="@+id/phone_dt_badges"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:orientation="horizontal" />
+                    </LinearLayout>
+                </LinearLayout>
+            </FrameLayout>
+
+            <!-- ══ PRIMARY ACTION ══ the only filled element on the screen. -->
+            <FrameLayout
+                android:id="@+id/phone_dt_play"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_phone_primary_button"
+                android:clickable="true"
+                android:clipToOutline="true"
+                android:focusable="true">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_stremio_play"
+                        app:tint="@color/phone_on_accent" />
+
+                    <TextView
+                        android:id="@+id/phone_dt_play_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="@font/outfit_bold"
+                        android:textColor="@color/phone_on_accent"
+                        android:textSize="15sp"
+                        tools:text="Resume" />
+
+                    <TextView
+                        android:id="@+id/phone_dt_play_position"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="7dp"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:textColor="@color/phone_on_accent_dim"
+                        android:textSize="12sp"
+                        tools:text="1:12:44 of 2:46:00" />
+                </LinearLayout>
+
+                <!-- Welded into the bottom edge: the same progress language Continue Watching
+                     uses on Home, so resume reads as continuing rather than restarting. -->
+                <ProgressBar
+                    android:id="@+id/phone_dt_play_progress"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="3dp"
+                    android:layout_gravity="bottom"
+                    android:max="100"
+                    android:progressDrawable="@drawable/bg_phone_button_progress"
+                    tools:progress="45" />
+            </FrameLayout>
+
+            <!-- ══ ACTION ROW ══ three or four equal buttons; never a dead one. -->
+            <LinearLayout
+                android:id="@+id/phone_dt_actions"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal" />
+
+            <!-- ══ PLOT ══ four lines, then More expands it IN PLACE. -->
+            <TextView
+                android:id="@+id/phone_dt_plot"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="18dp"
+                android:ellipsize="end"
+                android:fontFamily="@font/inter_regular"
+                android:lineSpacingMultiplier="1.65"
+                android:maxLines="4"
+                android:textColor="@color/phone_text_secondary"
+                android:textSize="12.5sp"
+                tools:text="Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family." />
+
+            <TextView
+                android:id="@+id/phone_dt_plot_toggle"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginStart="16dp"
+                android:drawablePadding="6dp"
+                android:fontFamily="@font/outfit_semibold"
+                android:gravity="center_vertical"
+                android:text="@string/phone_more"
+                android:textColor="@color/phone_cyan"
+                android:textSize="12.5sp" />
+
+            <TextView
+                android:id="@+id/phone_dt_credits"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:fontFamily="@font/inter_regular"
+                android:textColor="@color/phone_text_secondary"
+                android:textSize="12.5sp"
+                tools:text="Director  Denis Villeneuve" />
+
+            <!-- ══ SERIES ══ the season bar and episode list; absent for a movie. -->
+            <LinearLayout
+                android:id="@+id/phone_dt_season_bar"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="18dp"
+                android:background="@color/phone_bar_scrim"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:id="@+id/phone_dt_season_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/outfit_bold"
+                    android:textColor="@color/phone_text_primary"
+                    android:textSize="15sp"
+                    tools:text="Season 3" />
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="4dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_stremio_chevron_down"
+                    app:tint="@color/phone_cyan" />
+
+                <TextView
+                    android:id="@+id/phone_dt_season_meta"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/share_tech_mono"
+                    android:maxLines="1"
+                    android:textColor="@color/phone_text_muted"
+                    android:textSize="12sp"
+                    tools:text="24 EPISODES · 3 WATCHED" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/phone_dt_episodes"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- ══ CAST / SIMILAR ══ omitted entirely when absent, never an empty carousel. -->
+            <LinearLayout
+                android:id="@+id/phone_dt_rails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="28dp" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- ══ APP BAR ══ same 56dp bar as Home and Live TV; the header scrolls under it. -->
+    <LinearLayout
+        android:id="@+id/phone_dt_app_bar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/phone_bar_scrim"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="4dp">
+
+        <ImageView
+            android:id="@+id/phone_dt_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/live_nav_back"
+            android:padding="14dp"
+            android:src="@drawable/ic_stremio_chevron_left"
+            app:tint="@color/phone_text_primary" />
+
+        <TextView
+            android:id="@+id/phone_dt_bar_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="4dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="@font/outfit_bold"
+            android:maxLines="1"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="16sp"
+            tools:text="Dune: Part Two" />
+
+        <ImageView
+            android:id="@+id/phone_dt_overflow"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/phone_more_options"
+            android:padding="14dp"
+            android:src="@drawable/ic_stremio_more"
+            app:tint="@color/phone_text_primary" />
+    </LinearLayout>
+
+    <!-- Loading and error own the body; the app bar above stays live either way. -->
+    <LinearLayout
+        android:id="@+id/phone_dt_state"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/phone_home_bg"
+        android:orientation="vertical"
+        android:paddingTop="56dp"
+        android:visibility="gone"
+        tools:visibility="gone" />
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

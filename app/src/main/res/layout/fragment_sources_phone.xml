@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PHONE Sources — a full pushed screen, not a bottom sheet.
+
+  A sheet is honest at eight rows and a lie at sixty: half a viewport, no room for filters, and a
+  drag gesture fighting the list scroll. Nobody reads sixty rows either — people arrive with a
+  sentence ("the 4K Hindi one, cached"), so this screen is filter-first, every filter carries its
+  count, and BEST is pinned ABOVE the filters where no filter can hide it.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/phone_home_bg"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="4dp">
+
+        <ImageView
+            android:id="@+id/phone_src_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/live_nav_back"
+            android:padding="14dp"
+            android:src="@drawable/ic_stremio_chevron_left"
+            app:tint="@color/phone_text_primary" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/outfit_bold"
+                android:text="@string/phone_sources"
+                android:textColor="@color/phone_text_primary"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/phone_src_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:fontFamily="@font/share_tech_mono"
+                android:maxLines="1"
+                android:textColor="@color/phone_text_muted"
+                android:textSize="12sp"
+                tools:text="DUNE: PART TWO · 62 FOUND" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/phone_src_sort"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/phone_sort"
+            android:padding="14dp"
+            android:src="@drawable/ic_stremio_sort"
+            app:tint="@color/phone_text_primary" />
+    </LinearLayout>
+
+    <!-- ══ BEST ══ pinned above the filters, and it survives every one of them. -->
+    <LinearLayout
+        android:id="@+id/phone_src_best"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_phone_best_card"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:minHeight="48dp"
+        android:padding="12dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_phone_best_chip"
+                    android:fontFamily="@font/share_tech_mono"
+                    android:paddingHorizontal="7dp"
+                    android:paddingVertical="3dp"
+                    android:text="@string/phone_best"
+                    android:textColor="@color/phone_on_accent"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/phone_src_best_meta"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/share_tech_mono"
+                    android:maxLines="1"
+                    android:textColor="@color/phone_cyan"
+                    android:textSize="12sp"
+                    tools:text="4K · 18.4 GB · CACHED" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/phone_src_best_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="7dp"
+                android:ellipsize="end"
+                android:fontFamily="@font/outfit_semibold"
+                android:maxLines="1"
+                android:textColor="@color/phone_text_primary"
+                android:textSize="13.5sp"
+                tools:text="Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos" />
+
+            <TextView
+                android:id="@+id/phone_src_best_provider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:fontFamily="@font/share_tech_mono"
+                android:maxLines="1"
+                android:textColor="@color/phone_text_muted"
+                android:textSize="12sp"
+                tools:text="AIO · EN · HI" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/phone_src_best_play"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/bg_phone_play_pill"
+            android:fontFamily="@font/outfit_bold"
+            android:gravity="center"
+            android:paddingHorizontal="16dp"
+            android:text="@string/phone_play"
+            android:textColor="@color/phone_on_accent"
+            android:textSize="13.5sp" />
+    </LinearLayout>
+
+    <!-- ══ FILTERS ══ every chip carries its count, so a dead end is visible before it is tapped. -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToPadding="false"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="10dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/phone_src_filters"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/phone_src_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:overScrollMode="never"
+            android:scrollbars="none"
+            tools:listitem="@layout/item_phone_source" />
+
+        <TextView
+            android:id="@+id/phone_src_empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:fontFamily="@font/share_tech_mono"
+            android:gravity="center"
+            android:padding="24dp"
+            android:text="@string/phone_no_sources_match"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:visibility="visible" />
+    </FrameLayout>
+</LinearLayout>

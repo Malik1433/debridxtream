@@ -309,7 +309,7 @@ class SearchFragment : Fragment() {
 
     // ── result navigation (unchanged behavior) ──
     private fun openVodDetail(vod: XtreamVodInfo) {
-        val fragment = MovieDetailFragmentV2.newInstance(Bundle().apply {
+        val fragment = com.tvonnet.debridxtreamiptv.ui.detail.phone.DetailScreens.movie(requireContext(), Bundle().apply {
             putString("stream_id", vod.stream_id?.toString())
             putString("title", vod.name)
             putString("backdrop_url", vod.cover ?: vod.stream_icon)

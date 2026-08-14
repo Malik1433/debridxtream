@@ -590,7 +590,7 @@ class VodFragment : Fragment() {
     }
 
     private fun onMovieClick(movie: XtreamVodInfo) {
-        val fragment = MovieDetailFragmentV2.newInstance(
+        val fragment = com.tvonnet.debridxtreamiptv.ui.detail.phone.DetailScreens.movie(requireContext(), 
             Bundle().apply {
                 putString("stream_id", movie.stream_id?.toString())
                 putString("title", movie.name)

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- More like this. Debrid titles only - IPTV has no similar data, and an empty rail is worse
+     than no rail. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="108dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="8dp"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:orientation="vertical">
+
+    <ImageView
+        android:id="@+id/phone_sim_poster"
+        android:layout_width="108dp"
+        android:layout_height="162dp"
+        android:background="@drawable/bg_phone_poster"
+        android:clipToOutline="true"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop" />
+
+    <TextView
+        android:id="@+id/phone_sim_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="7dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/outfit_semibold"
+        android:lineSpacingMultiplier="1.35"
+        android:maxLines="2"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="12.5sp"
+        tools:text="Blade Runner 2049" />
+</LinearLayout>

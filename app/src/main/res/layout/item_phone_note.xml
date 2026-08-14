@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The one muted line that records what a title does NOT have (no cast, no similar).
+
+  It is a layout rather than a TextView built in code on purpose: share_tech_mono is a
+  DOWNLOADABLE font, and asking for it through ResourcesCompat.getFont at runtime throws
+  Resources$NotFoundException before the provider has delivered it. Inflating from XML lets the
+  framework resolve it asynchronously, which is how every other screen in this app gets it.
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/phone_note"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="20dp"
+    android:fontFamily="@font/share_tech_mono"
+    android:paddingHorizontal="16dp"
+    android:textColor="@color/phone_text_muted"
+    android:textSize="12sp"
+    tools:text="NO CAST DATA · NO SIMILAR TITLES" />

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- No backdrop: the same 232dp fills with this. A grey box or a stretched poster both look
+     broken, and a header that changes height when an image is missing is worse than either. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="315"
+        android:startColor="#2B2A24"
+        android:centerColor="#14161C"
+        android:endColor="#06090E"
+        android:type="linear" />
+</shape>

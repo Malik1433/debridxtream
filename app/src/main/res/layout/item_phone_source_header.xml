@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Group header. Cyan bar for 4K, neutral otherwise - the accent is information, not decoration. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/phone_home_bg"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="16dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="8dp">
+
+    <View
+        android:id="@+id/phone_sh_accent"
+        android:layout_width="3dp"
+        android:layout_height="13dp"
+        android:background="@color/phone_cyan" />
+
+    <TextView
+        android:id="@+id/phone_sh_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:fontFamily="@font/outfit_bold"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="13.5sp"
+        tools:text="4K" />
+
+    <TextView
+        android:id="@+id/phone_sh_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:fontFamily="@font/share_tech_mono"
+        android:textColor="@color/phone_text_muted"
+        android:textSize="12sp"
+        tools:text="18" />
+</LinearLayout>
