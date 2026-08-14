@@ -663,14 +663,22 @@ class VodFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
-        com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.saveFocus(requireView())
-        focus.onPause()
-        focusSnapshot = Bundle().also { focus.saveState(it) }
+        if (view != null && ::focus.isInitialized) {
+            com.tvonnet.debridxtreamiptv.utils.FocusMemoryManager.saveFocus(requireView())
+            focus.onPause()
+            focusSnapshot = Bundle().also { focus.saveState(it) }
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        focus.saveState(outState)
+        // `focus` is built in onViewCreated, and this fragment can be asked to save state WITHOUT
+        // ever having had a view: it sits on the back stack, and when the activity is recreated —
+        // which on a phone happens every time the portrait detail opens the landscape player —
+        // the FragmentManager re-instantiates it view-less and still saves its state. Touching the
+        // lateinit then took the whole process down, which is why "the player opened and closed
+        // again": it died with us.
+        if (::focus.isInitialized) focus.saveState(outState)
     }
 
     override fun onDestroyView() {
