@@ -106,3 +106,50 @@ internal fun hideBlankLabels(activity: androidx.appcompat.app.AppCompatActivity,
         if (view.text.isNullOrBlank()) view.visibility = android.view.View.GONE
     }
 }
+
+/**
+ * The three text bindings that are pure "field in, view out".
+ *
+ * They live here rather than in the Activity for the reason the ledger cares about: that file was
+ * already past the size this project allows, and a screen that gains a phone layout should not
+ * make it worse. Nothing about their behaviour changed in the move.
+ */
+internal fun bindBackHint(view: android.widget.TextView, sourceRail: String?) {
+    val rail = sourceRail?.trim()
+    if (!rail.isNullOrBlank()) {
+        view.text = view.context.getString(
+            com.tvonnet.debridxtreamiptv.R.string.f_back_to,
+            rail.uppercase(java.util.Locale.getDefault()),
+        )
+        view.visibility = android.view.View.VISIBLE
+    } else {
+        view.visibility = android.view.View.GONE
+    }
+}
+
+internal fun bindContentTypeLabel(view: android.widget.TextView, isDebrid: Boolean) {
+    if (isDebrid) {
+        view.text = view.context.getString(com.tvonnet.debridxtreamiptv.R.string.ui_feature_film)
+        view.visibility = android.view.View.VISIBLE
+    } else {
+        view.visibility = android.view.View.GONE
+    }
+}
+
+internal fun bindDirectorAndPlot(
+    directorView: android.widget.TextView,
+    plotView: android.widget.TextView,
+    director: String?,
+    plot: String?,
+) {
+    if (!director.isNullOrBlank()) {
+        directorView.text = director
+        directorView.visibility = android.view.View.VISIBLE
+    } else {
+        directorView.visibility = android.view.View.GONE
+    }
+    val description = plot?.takeIf { it.isNotBlank() }
+    plotView.text = description.orEmpty()
+    plotView.visibility =
+        if (description.isNullOrBlank()) android.view.View.GONE else android.view.View.VISIBLE
+}

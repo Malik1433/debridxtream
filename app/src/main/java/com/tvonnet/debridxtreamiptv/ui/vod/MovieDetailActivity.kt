@@ -493,25 +493,9 @@ class MovieDetailActivity : AppCompatActivity() {
     }
 
     // Back-to-rail context hint (shown when the caller told us where we came from)
-    private fun displayBackHint() {
-        val rail = movieSourceRail?.trim()
-        if (!rail.isNullOrBlank()) {
-            tvBackHint.text = getString(R.string.f_back_to, rail.uppercase(java.util.Locale.getDefault()))
-            tvBackHint.visibility = View.VISIBLE
-        } else {
-            tvBackHint.visibility = View.GONE
-        }
-    }
+    private fun displayBackHint() = bindBackHint(tvBackHint, movieSourceRail)
 
-    // Content type label
-    private fun displayContentTypeLabel() {
-        if (isDebridMovie) {
-            tvContentType.text = tvContentType.context.getString(R.string.ui_feature_film)
-            tvContentType.visibility = View.VISIBLE
-        } else {
-            tvContentType.visibility = View.GONE
-        }
-    }
+    private fun displayContentTypeLabel() = bindContentTypeLabel(tvContentType, isDebridMovie)
 
     // Rating / year / genre / age badges, each hidden when its field is absent; the row
     // itself hides only when every field is.
@@ -555,18 +539,8 @@ class MovieDetailActivity : AppCompatActivity() {
         layoutMetadataRow.visibility = if (hasMetadataRow) View.VISIBLE else View.GONE
     }
 
-    private fun displayDirectorAndPlot() {
-        if (!movieDirector.isNullOrBlank()) {
-            tvDirector.text = movieDirector
-            tvDirector.visibility = View.VISIBLE
-        } else {
-            tvDirector.visibility = View.GONE
-        }
-
-        val descriptionText = moviePlot?.takeIf { it.isNotBlank() }
-        tvDescription.text = descriptionText.orEmpty()
-        tvDescription.visibility = if (descriptionText.isNullOrBlank()) View.GONE else View.VISIBLE
-    }
+    private fun displayDirectorAndPlot() =
+        bindDirectorAndPlot(tvDirector, tvDescription, movieDirector, moviePlot)
 
     /**
      * Shows the resume bar when a saved watch position exists for this movie with

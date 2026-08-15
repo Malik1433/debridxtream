@@ -217,23 +217,25 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
      * Selected first, then playlist order. The opener chip leads to the searchable sheet, because
      * at 200 categories scrolling is not a retrieval strategy — typing is.
      */
+    /** The chip is Live TV's — the same 48dp two-line category chip, because Browse's rail IS
+     *  that rail. A second layout doing the same job is a second place to forget a fix. */
     private fun renderCategoryRail() {
         val inflater = PhoneUi.unscaled(this, layoutInflater)
         categoryRail.removeAllViews()
 
-        val opener = inflater.inflate(R.layout.item_phone_browse_chip, categoryRail, false)
-        opener.findViewById<TextView>(R.id.phone_cat_name).text =
+        val opener = inflater.inflate(R.layout.item_phone_category_chip, categoryRail, false)
+        opener.findViewById<TextView>(R.id.phone_chip_name).text =
             getString(R.string.phone_all_prefix) + " " + categories.size
-        opener.findViewById<TextView>(R.id.phone_cat_count).text =
+        opener.findViewById<TextView>(R.id.phone_chip_count).text =
             getString(R.string.phone_categories).uppercase()
         opener.setOnClickListener { openCategorySheet() }
         categoryRail.addView(opener)
 
         val ordered = categories.sortedByDescending { it.category_id == selectedCategoryId }
         ordered.take(RAIL_CHIPS).forEach { category ->
-            val chip = inflater.inflate(R.layout.item_phone_browse_chip, categoryRail, false)
+            val chip = inflater.inflate(R.layout.item_phone_category_chip, categoryRail, false)
             val selected = category.category_id == selectedCategoryId
-            chip.findViewById<TextView>(R.id.phone_cat_name).apply {
+            chip.findViewById<TextView>(R.id.phone_chip_name).apply {
                 text = category.category_name
                 setTextColor(
                     androidx.core.content.ContextCompat.getColor(
@@ -242,7 +244,7 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
                     )
                 )
             }
-            chip.findViewById<TextView>(R.id.phone_cat_count).text =
+            chip.findViewById<TextView>(R.id.phone_chip_count).text =
                 categoryCounts[category.category_id]?.let { formatCount(it) + " TITLES" }.orEmpty()
             chip.setBackgroundResource(
                 if (selected) R.drawable.bg_phone_chip_active else R.drawable.bg_phone_chip
