@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 class PhoneBrowseFilterSheet(
     private val host: Fragment,
     private val selection: Selection,
+    private val categoryName: String?,
     private val countFor: suspend (List<List<String>>) -> Int?,
     private val onApply: (Selection) -> Unit,
 ) {
@@ -33,10 +34,22 @@ class PhoneBrowseFilterSheet(
         val quality: Set<String> = emptySet(),
         val languages: Set<String> = emptySet(),
     ) {
-        fun groups(): List<List<String>> = listOfNotNull(
-            quality.flatMap { QUALITY_PATTERNS[it].orEmpty() }.takeIf { it.isNotEmpty() },
-            languages.map { "|$it|" }.takeIf { it.isNotEmpty() },
-        )
+        /**
+         * [categoryName] matters because this provider often states quality on the CATEGORY
+         * ("|MULTI| NETFLIX 4K") and never in those titles. Asking each row to also contain "4K"
+         * inside a category that IS 4K would return nothing — so a quality the category already
+         * declares becomes a no-op rather than a contradiction.
+         */
+        fun groups(categoryName: String? = null): List<List<String>> {
+            val declared = categoryName.orEmpty().uppercase()
+            val needed = quality.filterNot { label ->
+                QUALITY_PATTERNS[label].orEmpty().any { declared.contains(it) }
+            }
+            return listOfNotNull(
+                needed.flatMap { QUALITY_PATTERNS[it].orEmpty() }.takeIf { it.isNotEmpty() },
+                languages.map { "|$it|" }.takeIf { it.isNotEmpty() },
+            )
+        }
 
         val activeCount: Int get() = quality.size + languages.size
     }
@@ -91,7 +104,7 @@ class PhoneBrowseFilterSheet(
             apply.isEnabled = false
             countJob?.cancel()
             countJob = host.viewLifecycleOwner.lifecycleScope.launch {
-                val total = countFor(working.groups())
+                val total = countFor(working.groups(categoryName))
                 apply.text = when {
                     total == null -> context.getString(R.string.phone_filter_show_all)
                     total == 0 -> context.getString(R.string.phone_filter_show_none)

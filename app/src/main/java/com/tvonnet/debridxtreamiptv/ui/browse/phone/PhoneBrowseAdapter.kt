@@ -36,7 +36,16 @@ data class PhoneBrowseItem(
     val episodeBadge: String? = null,
 ) {
     companion object {
-        fun of(movie: XtreamVodInfo): PhoneBrowseItem {
+        /**
+         * [category] is the name of the category the row came from, and it is a parameter rather
+         * than shared state on purpose: a page is mapped the moment it arrives, so anything the
+         * mapper had to be TOLD beforehand was missing on the first page every time.
+         *
+         * It matters because this provider states quality in the category, not the title —
+         * |MULTI| NETFLIX's 2,826 titles carry no resolution token at all, while the category
+         * beside it is called "|MULTI| NETFLIX 4K".
+         */
+        fun of(movie: XtreamVodInfo, category: String? = null): PhoneBrowseItem {
             val name = movie.name.orEmpty()
             return PhoneBrowseItem(
                 id = movie.stream_id.orEmpty(),
@@ -48,12 +57,12 @@ data class PhoneBrowseItem(
                     extra = movie.duration,
                     rating = movie.rating,
                 ),
-                quality = qualityOf(name),
+                quality = qualityOf(name) ?: qualityOf(category.orEmpty()),
                 containerExtension = movie.container_extension,
             )
         }
 
-        fun of(series: XtreamSeriesInfo): PhoneBrowseItem {
+        fun of(series: XtreamSeriesInfo, category: String? = null): PhoneBrowseItem {
             val name = series.name.orEmpty()
             return PhoneBrowseItem(
                 id = series.series_id.orEmpty(),
@@ -65,7 +74,7 @@ data class PhoneBrowseItem(
                     extra = series.genre,
                     rating = series.rating,
                 ),
-                quality = qualityOf(name),
+                quality = qualityOf(name) ?: qualityOf(category.orEmpty()),
                 containerExtension = null,
                 // Xtream does not carry season/episode counts in the catalogue call, and the
                 // owner ruled out a placeholder: an unknown count shows NO badge (2026-08-15).

@@ -302,9 +302,13 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 val flow = if (isSeries) {
-                    series.pagedSeries.map { paging -> paging.map(PhoneBrowseItem::of) }
+                    series.pagedSeries.map { paging ->
+                        paging.map { PhoneBrowseItem.of(it, currentCategoryName()) }
+                    }
                 } else {
-                    movies.pagedMovies.map { paging -> paging.map(PhoneBrowseItem::of) }
+                    movies.pagedMovies.map { paging ->
+                        paging.map { PhoneBrowseItem.of(it, currentCategoryName()) }
+                    }
                 }
                 flow.collect { adapter.submitData(it) }
             }
@@ -373,6 +377,10 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
         onPick = { id -> selectCategory(id) },
     )
 
+    /** The name of the category being browsed; the quality badge falls back to it. */
+    private fun currentCategoryName(): String? =
+        categories.firstOrNull { it.category_id == selectedCategoryId }?.category_name
+
     private fun selectCategory(id: String) {
         if (isSeries) series.onEvent(SeriesEvent.SelectCategory(id))
         else movies.onEvent(VodEvent.SelectCategory(id))
@@ -397,6 +405,7 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
         PhoneBrowseFilterSheet(
             host = this,
             selection = filters,
+            categoryName = currentCategoryName(),
             // Null means "not countable here" — the virtual All categories, where a count is a
             // 141k-row query nobody wants to wait behind. Zero is a real answer and disables the
             // apply button.
@@ -405,8 +414,8 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
             },
             onApply = { picked ->
                 filters = picked
-                if (isSeries) series.setTitleFilters(picked.groups())
-                else movies.setTitleFilters(picked.groups())
+                val groups = picked.groups(currentCategoryName())
+                if (isSeries) series.setTitleFilters(groups) else movies.setTitleFilters(groups)
                 renderFilterChip()
                 list.scrollToPosition(0)
             },
