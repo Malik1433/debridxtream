@@ -178,15 +178,19 @@ class PhoneBrowseFooter(
         spinner.isVisible = loadState is LoadState.Loading
         retry.isVisible = loadState is LoadState.Error
         retry.setOnClickListener { onRetry() }
-        text.text = when (loadState) {
-            is LoadState.Loading -> root.context.getString(R.string.phone_loading_more)
-            is LoadState.Error -> root.context.getString(R.string.phone_couldnt_load_more)
+        text.text = when {
+            loadState is LoadState.Loading -> root.context.getString(R.string.phone_loading_more)
+            loadState is LoadState.Error -> root.context.getString(R.string.phone_couldnt_load_more)
+            // The end of a catalogue is a statement, not an error: a rule and nothing to do.
+            loadState.endOfPaginationReached -> root.context.getString(R.string.phone_end_of_list)
             else -> ""
         }
     }
 
-    /** The end of a catalogue is a statement, not a state Paging reports, so it is drawn by the
-     *  fragment instead — this footer exists only while there is more, or a failure. */
+    /** Three endings, one footer: a page in flight, a page that failed, and the end of the list.
+     *  Anything else draws nothing rather than a blank 72dp gap. */
     override fun displayLoadStateAsItem(loadState: LoadState): Boolean =
-        loadState is LoadState.Loading || loadState is LoadState.Error
+        loadState is LoadState.Loading ||
+            loadState is LoadState.Error ||
+            loadState.endOfPaginationReached
 }

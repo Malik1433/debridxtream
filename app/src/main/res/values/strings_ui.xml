@@ -352,6 +352,16 @@
     <string name="phone_rt_label">RT</string>
     <string name="phone_close">Close</string>
     <string name="phone_filters_soon">Filters are coming with counted options</string>
+    <string name="phone_state_empty_category_title">Nothing in %1$s</string>
+    <string name="phone_state_empty_category_body">Your provider lists this category but returned 0 titles. That usually means the category is empty, not broken.</string>
+    <string name="phone_state_all_titles">Show all</string>
+    <string name="phone_state_empty_catalogue_title">No titles in this playlist</string>
+    <string name="phone_state_empty_catalogue_body">Your provider returned 0 categories here. Live TV and the other section may still work — this is a playlist permission, not a connection problem.</string>
+    <string name="phone_state_recheck">Recheck playlist</string>
+    <string name="phone_state_error_title">Couldn’t load this category</string>
+    <string name="phone_state_error_body">The request timed out or the token expired. The categories above are still cached, so switching to another one may work.</string>
+    <string name="phone_state_use_cached">Use cached</string>
+    <string name="phone_end_of_list">END</string>
     <string name="phone_search">Search</string>
     <string name="phone_filters">Filters</string>
     <string name="phone_categories">Categories</string>

@@ -56,6 +56,7 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
     private lateinit var adapter: PhoneBrowseAdapter
     private lateinit var continueRow: PhoneBrowseContinueRow
     private lateinit var skeleton: PhoneBrowseSkeleton
+    private lateinit var states: PhoneBrowseStates
 
     @javax.inject.Inject
     lateinit var browseRepository: com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
@@ -98,6 +99,10 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
             .setText(if (isSeries) R.string.nav_series else R.string.nav_movies)
 
         categoryRail = view.findViewById(R.id.phone_browse_categories)
+        states = PhoneBrowseStates(
+            view.findViewById(R.id.phone_browse_state),
+            PhoneUi.unscaled(this, layoutInflater),
+        )
         bindChrome(view)
         bindList(view)
         observeCategories()
@@ -272,19 +277,56 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
         }
         // The result count on the control row is the catalogue's own answer, not the number of
         // rows that happen to be loaded — a paged list would otherwise report "60" forever.
-        adapter.addLoadStateListener { states ->
+        adapter.addLoadStateListener { loadStates ->
             val view = view ?: return@addLoadStateListener
             view.findViewById<TextView>(R.id.phone_browse_count).text =
                 categoryCounts[selectedCategoryId]?.let(::formatCount).orEmpty()
-            view.findViewById<View>(R.id.phone_browse_state).isVisible =
-                states.refresh is LoadState.Error
             // The skeleton stands in only while the grid has NOTHING to show. Paging reports
             // NotLoading the instant Room answers an unfetched category with an empty page, so
             // an item count of zero is the honest test, not the load state alone.
-            // The skeleton stands in only while the grid has NOTHING to show. Paging reports
-            // NotLoading the instant Room answers an unfetched category with an empty page, so
-            // an item count of zero is the honest test, not the load state alone.
-            skeleton.show(adapter.itemCount == 0 && states.refresh !is LoadState.Error)
+            val empty = adapter.itemCount == 0
+            val failed = loadStates.refresh is LoadState.Error
+            skeleton.show(empty && !failed)
+            renderState(
+                empty = empty,
+                failed = failed,
+                settled = loadStates.refresh is LoadState.NotLoading,
+            )
+        }
+    }
+
+    /**
+     * Which of the four statements this screen is currently making.
+     *
+     * The order matters: a failure is a failure whatever else is true, an empty catalogue is a
+     * different problem from an empty category, and anything with rows to show is not a problem
+     * at all.
+     */
+    private fun renderState(empty: Boolean, failed: Boolean, settled: Boolean) {
+        val panel = view?.findViewById<View>(R.id.phone_browse_state) ?: return
+        when {
+            failed -> {
+                panel.isVisible = true
+                states.error(onRetry = { adapter.refresh() }, onCached = null)
+            }
+            // Not settled yet means the skeleton owns the screen; a panel would race it.
+            !empty || !settled -> {
+                panel.isVisible = false
+                states.hide()
+            }
+            categories.isEmpty() -> {
+                panel.isVisible = true
+                states.emptyCatalogue(onRecheck = { adapter.refresh() })
+            }
+            else -> {
+                panel.isVisible = true
+                states.emptyCategory(
+                    categoryName = categories.firstOrNull { it.category_id == selectedCategoryId }
+                        ?.category_name.orEmpty(),
+                    onAll = { categories.firstOrNull()?.category_id?.let { selectCategory(it) } },
+                    onRetry = { adapter.refresh() },
+                )
+            }
         }
     }
 

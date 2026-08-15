@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The panel Browse shows when the grid has nothing to draw.
+
+  One layout, four messages: no results for these filters, a category the provider lists but does
+  not fill, a playlist with no VOD at all, and a fetch that failed. They differ in the icon, the
+  copy and the two buttons - never in the shape - because the user should recognise instantly that
+  this is the same kind of statement, and only read what changed.
+
+  The copy is composed at runtime, not canned: "KIDS & FAMILY has 96 titles, but none are 4K"
+  tells the user what to do next; "Nothing here" does not.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/phone_state_panel"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginTop="56dp"
+    android:background="@drawable/bg_phone_dashed_panel"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingHorizontal="18dp"
+    android:paddingVertical="26dp">
+
+    <ImageView
+        android:id="@+id/phone_state_icon"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_filter"
+        app:tint="@color/phone_text_muted" />
+
+    <TextView
+        android:id="@+id/phone_state_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:fontFamily="@font/outfit_bold"
+        android:gravity="center"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="13.5sp"
+        tools:text="No titles match your filters" />
+
+    <TextView
+        android:id="@+id/phone_state_body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:fontFamily="@font/inter_regular"
+        android:gravity="center"
+        android:lineSpacingMultiplier="1.6"
+        android:textColor="@color/phone_text_secondary"
+        android:textSize="12.5sp"
+        tools:text="KIDS &amp; FAMILY has 96 titles, but none are 4K and cached." />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/phone_state_primary"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_phone_chip_active"
+            android:fontFamily="@font/outfit_semibold"
+            android:gravity="center"
+            android:minWidth="120dp"
+            android:paddingHorizontal="18dp"
+            android:textColor="@color/phone_cyan"
+            android:textSize="13sp"
+            tools:text="Clear filters" />
+
+        <TextView
+            android:id="@+id/phone_state_secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/bg_phone_chip"
+            android:fontFamily="@font/outfit_semibold"
+            android:gravity="center"
+            android:minWidth="120dp"
+            android:paddingHorizontal="18dp"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="13sp"
+            android:visibility="gone"
+            tools:text="All Movies"
+            tools:visibility="visible" />
+    </LinearLayout>
+</LinearLayout>
