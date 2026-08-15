@@ -19,7 +19,9 @@ import javax.inject.Inject
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-class InitialSyncFragment : Fragment() {
+class InitialSyncFragment :
+    Fragment(),
+    com.tvonnet.debridxtreamiptv.util.PortraitScreen {
 
     @Inject
     lateinit var repository: XtreamRepository

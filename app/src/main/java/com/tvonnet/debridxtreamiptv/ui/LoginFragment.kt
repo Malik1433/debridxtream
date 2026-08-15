@@ -51,7 +51,9 @@ import javax.inject.Inject
  * and a scan line behind everything, and an inline Phone/QR pairing overlay.
  */
 @AndroidEntryPoint
-class LoginFragment : Fragment() {
+class LoginFragment :
+    Fragment(),
+    com.tvonnet.debridxtreamiptv.util.PortraitScreen {
 
     private lateinit var etServerUrl: EditText
     private lateinit var etUsername: EditText

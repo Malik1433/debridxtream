@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The activation code's type size. Default is the TV size — read from across a room, so it is
-  deliberately huge. values-port brings it down to what actually fits a phone's width on ONE
-  line; a code that wraps mid-token is a code the customer reads out wrong.
+  The activation code's type size.
+
+  This used to default to the TELEVISION's 56sp and rely on values-port to bring it down for a
+  handset. That qualifier is banned in this project and the folder is gone, so the phone was
+  quietly getting 56sp — harmless only because the screen was landscape-locked. It is portrait
+  now, where 56sp cannot hold "BFKN-SBBE" on one line, and a code that wraps mid-token is a code
+  the customer reads out wrong.
+
+  So the phone answer is the default and the television keeps its own in values-television.
 -->
 <resources>
-    <dimen name="activation_code_text_size">56sp</dimen>
+    <dimen name="activation_code_text_size">34sp</dimen>
 </resources>

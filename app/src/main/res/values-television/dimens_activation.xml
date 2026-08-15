@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Read from across a room, so deliberately huge. See values/ for why the phone differs. -->
+<resources>
+    <dimen name="activation_code_text_size">56sp</dimen>
+</resources>

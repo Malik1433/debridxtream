@@ -191,6 +191,16 @@ class PhoneHomeFragment : Fragment(), HomeRouterHost, com.tvonnet.debridxtreamip
         val nothingYet = state.top10Movies.isEmpty() && state.top10Series.isEmpty() &&
             state.continueWatching.isEmpty() && state.recentLiveChannels.isEmpty()
         view.findViewById<View>(R.id.phone_hero)?.isVisible = !nothingYet
+        // The app bar is drawn OVER the scroll so the hero can run up behind it. With no hero
+        // there is nothing to run behind, and the first thing in the list — a skeleton, or worse
+        // an error the user has to read — was sitting under the bar with its title hidden.
+        val appBar = view.findViewById<View>(R.id.phone_app_bar)
+        rows.setPadding(
+            rows.paddingLeft,
+            if (nothingYet) (appBar?.height ?: 0).coerceAtLeast(dp(56)) else 0,
+            rows.paddingRight,
+            rows.paddingBottom,
+        )
         if (nothingYet) {
             // A failure has to SAY so and offer a way out. Shimmering forever is the worst of the
             // three states: it looks like the app is still trying when it has already given up.
@@ -234,6 +244,9 @@ class PhoneHomeFragment : Fragment(), HomeRouterHost, com.tvonnet.debridxtreamip
             }
         }
     }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
 
     private fun errorPanel(parent: LinearLayout): View {
         val panel = uiInflater.inflate(R.layout.item_phone_error_panel, parent, false)

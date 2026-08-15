@@ -12,7 +12,7 @@ import com.tvonnet.debridxtreamiptv.data.licensing.LicenseState
 import com.tvonnet.debridxtreamiptv.ui.MainActivity
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
+import com.tvonnet.debridxtreamiptv.util.usePortraitOnTouchDevices
 
 /**
  * Full-screen gate shown when the device is not activated. Displays the activation
@@ -32,7 +32,10 @@ class ActivationActivity : AppCompatActivity() {
         // M13: BEFORE super.onCreate on purpose — the orientation has to be settled before the
         // first inflate, or the layout chosen for the old one stays on screen inside the new
         // window (M11 proved that the hard way, in the opposite direction).
-        lockLandscapeOnTouchDevices()
+        // Portrait now, like every other phone screen. The landscape lock was the price of
+        // wearing the 10-foot layout; this one is a centred column that fits either way, and the
+        // code's type size is device-qualified so it still holds one line.
+        usePortraitOnTouchDevices()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_activation)
         manager = LicenseManager.getInstance(this)
