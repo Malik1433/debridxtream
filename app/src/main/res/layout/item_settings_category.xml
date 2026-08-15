@@ -1,77 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Settings category row — "Settings Screen.dc.html". 64px/2 = 32dp. Bg/focus set in adapter.
-     M14: the height was a fixed 54dp. On a phone the M13 font scale (1.6x) makes title + subtitle
-     taller than that, so "AUDIO · LANGUAGE" was sliced mid-glyph by the row's own bottom edge, and
-     the TextViews were wrap_content inside a weighted column — which CLIPS rather than ellipsises,
-     so it also lost its tail horizontally ("AUDIO · LANGU"). wrap_content + minHeight keeps the TV
-     at exactly 54dp (its content is smaller than the floor) and lets the phone row grow. -->
+<!--
+  PHONE settings category — a chip in a horizontal rail.
+
+  The television row (layout-television/) is match_parent wide because it lives in a vertical rail
+  beside the panel. Reused as-is in the phone's horizontal rail, the first category took the whole
+  screen and the other seven were off it entirely.
+
+  Same ids, same kinds: the accent bar and the chevron are gone stubs, because a chip that is
+  already highlighted needs neither a selection bar nor an arrow to somewhere.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/cat_root"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:minHeight="54dp"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:paddingTop="@dimen/settings_cat_row_padding_v"
-    android:paddingBottom="@dimen/settings_cat_row_padding_v"
-    android:paddingEnd="18dp"
-    android:layout_marginBottom="3dp"
+    android:layout_width="wrap_content"
+    android:layout_height="48dp"
+    android:layout_marginEnd="8dp"
+    android:clickable="true"
     android:focusable="true"
-    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
-    android:clickable="true">
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="14dp">
 
     <View
         android:id="@+id/v_cat_bar"
-        android:layout_width="4dp"
-        android:layout_height="30dp"
-        android:layout_marginEnd="14dp" />
+        android:layout_width="0dp"
+        android:layout_height="0dp" />
 
     <ImageView
         android:id="@+id/iv_icon"
-        android:layout_width="34dp"
-        android:layout_height="34dp"
-        android:padding="7dp"
-        android:scaleType="fitCenter"
-        android:layout_marginEnd="16dp"
-        android:src="@drawable/ic_settings"
-        android:contentDescription="@null" />
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter" />
 
-    <LinearLayout
-        android:layout_width="0dp"
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:layout_marginStart="8dp"
+        android:fontFamily="@font/outfit_semibold"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="13sp"
+        tools:text="Playback" />
 
-        <TextView
-            android:id="@+id/tv_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/outfit_semibold"
-            android:textSize="@dimen/settings_cat_title_size"
-            android:textColor="#F1F5F9"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:text="@string/ui_general" />
-
-        <TextView
-            android:id="@+id/tv_sub"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
-            android:fontFamily="@font/share_tech_mono"
-            android:textSize="@dimen/settings_cat_sub_size"
-            android:textColor="#3D4F60"
-            android:letterSpacing="0.08"
-            android:maxLines="1"
-            android:ellipsize="end" />
-    </LinearLayout>
+    <!-- The subtitle is the rail's second line on television; a chip has room for the name only,
+         and the panel below repeats it in full the moment the chip is chosen. -->
+    <TextView
+        android:id="@+id/tv_sub"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
 
     <ImageView
         android:id="@+id/iv_arrow"
-        android:layout_width="17dp"
-        android:layout_height="17dp"
-        android:src="@drawable/ic_arrow_right"
-        app:tint="#3D4F60"
-        android:contentDescription="@null" />
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:contentDescription="@null"
+        android:visibility="gone" />
 </LinearLayout>

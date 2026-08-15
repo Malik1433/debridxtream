@@ -26,4 +26,7 @@
     <bool name="live_defaults_to_classic">false</bool>
     <!-- The focused item names itself in the flyout, so the rail stays icons only. -->
     <bool name="nav_items_show_label">false</bool>
+    <!-- The television keeps its vertical rail beside the detail panel; see values/ for why the
+         phone differs. -->
+    <bool name="settings_categories_are_horizontal">false</bool>
 </resources>

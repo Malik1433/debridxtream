@@ -150,6 +150,9 @@ class PhoneHomeFragment : Fragment(), HomeRouterHost, com.tvonnet.debridxtreamip
         }
         // The avatar is the account and everything behind it. Settings is here rather than in the
         // bottom bar because the bar holds the five places you go to WATCH something.
+        view.findViewById<View>(R.id.phone_action_settings)?.setOnClickListener {
+            router.navigateToSection(SectionNavigator.SECTION_SETTINGS)
+        }
         view.findViewById<View>(R.id.phone_action_avatar)?.setOnClickListener {
             router.navigateToSection(SectionNavigator.SECTION_SETTINGS)
         }

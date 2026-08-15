@@ -85,10 +85,17 @@ class SettingsCategoryAdapter(
             binding.ivIcon.setColorFilter(if (selected) m.accent else 0xFF64748B.toInt())
             binding.tvTitle.setTextColor(if (selected) 0xFFF1F5F9.toInt() else 0xFF94A3B8.toInt())
             binding.tvSub.setTextColor(if (selected) 0xFF475569.toInt() else 0xFF3D4F60.toInt())
+            // On television an unselected rail row is plain: focus is what marks a row, and a
+            // filled background on every one would fight it. A phone has no focus, so an
+            // unselected CHIP still needs an edge — otherwise the rail reads as loose words.
+            val usesFocus = binding.root.resources.getBoolean(
+                com.tvonnet.debridxtreamiptv.R.bool.ui_uses_dpad_focus
+            )
             binding.root.background = when {
                 focused -> roundRect(6f, 0x1200F0FF, 0x5900F0FF, 1)
-                selected -> roundRect(6f, 0xB30C111B.toInt(), 0x14FFFFFF, 1)
-                else -> null
+                selected -> roundRect(if (usesFocus) 6f else 10f, 0x1F00F0FF, 0x4D00F0FF, 1)
+                usesFocus -> null
+                else -> roundRect(10f, 0x0DFFFFFF, 0x1AFFFFFF, 1)
             }
         }
 

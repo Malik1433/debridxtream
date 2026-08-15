@@ -297,8 +297,24 @@
             android:src="@drawable/ic_stremio_search"
             app:tint="@color/phone_text_primary" />
 
-        <!-- Settings lives behind this, per the handoff: search is a verb, the avatar is the
-             account and everything that hangs off it. -->
+        <!--
+          The settings button, visible as itself.
+
+          It used to live behind the avatar, and the owner's report is the proof that failed: a
+          circle with an initial does not read as "settings" to anyone who did not build it. The
+          avatar keeps its account role; this says what it does.
+        -->
+        <ImageView
+            android:id="@+id/phone_action_settings"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/nav_settings"
+            android:padding="13dp"
+            android:src="@drawable/ic_settings"
+            app:tint="@color/phone_text_primary" />
+
+        <!-- The account, and everything that hangs off it. -->
         <FrameLayout
             android:id="@+id/phone_action_avatar"
             android:layout_width="48dp"

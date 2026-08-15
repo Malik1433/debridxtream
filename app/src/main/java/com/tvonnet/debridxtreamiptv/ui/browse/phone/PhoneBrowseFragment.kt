@@ -120,6 +120,9 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
         root.findViewById<View>(R.id.phone_browse_search).setOnClickListener {
             SectionNavigator.navigate(this, SectionNavigator.SECTION_SEARCH)
         }
+        root.findViewById<View>(R.id.phone_action_settings).setOnClickListener {
+            SectionNavigator.navigate(this, SectionNavigator.SECTION_SETTINGS)
+        }
         root.findViewById<View>(R.id.phone_browse_avatar).setOnClickListener {
             SectionNavigator.navigate(this, SectionNavigator.SECTION_SETTINGS)
         }

@@ -26,7 +26,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class SettingsFragment : Fragment() {
+class SettingsFragment :
+    Fragment(),
+    com.tvonnet.debridxtreamiptv.util.PortraitScreen {
 
     private var _binding: FragmentSettingsV2Binding? = null
     private val binding get() = _binding!!
@@ -56,7 +58,14 @@ class SettingsFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentSettingsV2Binding.inflate(inflater, container, false)
+        // NOT the scaled inflater. The 1.6x exists to rescue screens still wearing the 10-foot
+        // layout; this one is authored in real dp now, and scaling it wraps every setting's name
+        // onto two lines.
+        _binding = FragmentSettingsV2Binding.inflate(
+            com.tvonnet.debridxtreamiptv.ui.live.phone.PhoneUi.unscaled(this, inflater),
+            container,
+            false,
+        )
         return binding.root
     }
 

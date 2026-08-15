@@ -58,6 +58,17 @@
             android:src="@drawable/ic_stremio_search"
             app:tint="@color/phone_text_primary" />
 
+        <!-- Settings, named by its own icon rather than hidden behind the avatar. -->
+        <ImageView
+            android:id="@+id/phone_live_settings"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/nav_settings"
+            android:padding="13dp"
+            android:src="@drawable/ic_settings"
+            app:tint="@color/phone_text_primary" />
+
         <!-- The account sits where it sits on Home, so the two destinations are the same app. -->
         <FrameLayout
             android:id="@+id/phone_live_avatar"

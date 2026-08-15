@@ -580,6 +580,9 @@ class PhoneLiveFragment : Fragment(), PortraitScreen {
         val appBar = view.findViewById<View>(R.id.phone_live_app_bar)
         val input = view.findViewById<EditText>(R.id.phone_live_search_input)
 
+        view.findViewById<View>(R.id.phone_live_settings)?.setOnClickListener {
+            navigateFromBar(SectionNavigator.SECTION_SETTINGS)
+        }
         view.findViewById<View>(R.id.phone_live_avatar)?.setOnClickListener {
             navigateFromBar(SectionNavigator.SECTION_SETTINGS)
         }

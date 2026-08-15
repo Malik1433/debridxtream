@@ -18,7 +18,14 @@
 
     <bool name="home_nav_is_horizontal">false</bool>
     <bool name="browse_categories_are_horizontal">false</bool>
-    <bool name="settings_categories_are_horizontal">false</bool>
+    <!--
+      RE-DECIDED 2026-08-15. This was "the same on both devices" while the phone wore the TV's
+      landscape Settings. That screen is portrait now: two columns do not fit 411dp, so the phone
+      puts the categories in a chip rail across the top and the television keeps its vertical rail
+      beside the panel (values-television). The rulebook allows the split only with the decision
+      written down — this is it.
+    -->
+    <bool name="settings_categories_are_horizontal">true</bool>
     <bool name="epg_strip_is_horizontal">true</bool>
 
     <!-- ── BEHAVIOUR: the phone answers here, TV overrides in values-television ────────── -->
