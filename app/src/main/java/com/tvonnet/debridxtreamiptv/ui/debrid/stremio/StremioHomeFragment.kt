@@ -38,7 +38,9 @@ import kotlinx.coroutines.launch
  * (`DebridViewModel` rows, `DebridDiscoverViewModel`).
  */
 @AndroidEntryPoint
-class StremioHomeFragment : Fragment() {
+class StremioHomeFragment :
+    Fragment(),
+    com.tvonnet.debridxtreamiptv.util.PortraitScreen {
 
     @Inject lateinit var repository: XtreamRepository
     @Inject lateinit var episodeDaoV2: EpisodeDaoV2
@@ -83,6 +85,7 @@ class StremioHomeFragment : Fragment() {
 
         applyGradients(view)
         setupNav(view)
+        buildPhoneNav(view)
 
         homeContent = view.findViewById(R.id.home_content)
         discoverContent = view.findViewById(R.id.discover_content)
@@ -118,6 +121,24 @@ class StremioHomeFragment : Fragment() {
      * Re-checked in [onResume] because addons can arrive while this screen sits in the background:
      * from the phone, or from Settings on this TV.
      */
+    /**
+     * The phone's own tab bar. This section is a destination in it, so leaving must be one tap —
+     * on the television the left rail does that job and this bar does not exist.
+     */
+    private fun buildPhoneNav(view: View) {
+        if (resources.getBoolean(R.bool.ui_uses_dpad_focus)) return
+        com.tvonnet.debridxtreamiptv.ui.live.phone.PhoneBottomNav.build(
+            view.findViewById(R.id.debrid_bottom_nav),
+            com.tvonnet.debridxtreamiptv.ui.live.phone.PhoneUi.unscaled(this, layoutInflater),
+            com.tvonnet.debridxtreamiptv.ui.nav.SectionNavigator.SECTION_DEBRID,
+        ) { section ->
+            parentFragmentManager.popBackStack(
+                null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE
+            )
+            com.tvonnet.debridxtreamiptv.ui.nav.SectionNavigator.navigate(this, section)
+        }
+    }
+
     private fun showSetupGuideIfNoDebridService(view: View) {
         val configured = com.tvonnet.debridxtreamiptv.data.licensing.Entitlements
             .isDebridConfigured(requireContext())
