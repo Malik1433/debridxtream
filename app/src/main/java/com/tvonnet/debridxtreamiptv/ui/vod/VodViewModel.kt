@@ -106,22 +106,34 @@ class VodViewModel @Inject constructor(
     private val _selectedCategoryFlow = MutableStateFlow<String?>(null)
     private val _searchQueryFlow = MutableStateFlow("")
     private val _sortModeFlow = MutableStateFlow(VodSortMode.RECENTLY_ADDED)
+
+    /**
+     * Title filters from the phone's filter sheet, as groups of alternatives: OR inside a group,
+     * AND between groups, so "4K or 1080p" and "English" narrow together.
+     *
+     * It is EMPTY by default and the television never sets it, so the SQL that screen has always
+     * run is unchanged byte for byte.
+     */
+    private val _titleFiltersFlow = MutableStateFlow<List<List<String>>>(emptyList())
     private val _genreFlow = MutableStateFlow<String?>(null)
 
     data class MovieQuery(
         val categoryId: String,
         val searchQuery: String,
         val sortMode: VodSortMode,
-        val genre: String?
+        val genre: String?,
+        /** Phone filter sheet; empty everywhere else, including the whole television screen. */
+        val titleFilters: List<List<String>> = emptyList(),
     )
 
     val pagedMovies: Flow<PagingData<XtreamVodInfo>> = combine(
         _selectedCategoryFlow.filterNotNull(),
         _searchQueryFlow,
         _sortModeFlow,
-        _genreFlow
-    ) { categoryId, searchQuery, sortMode, genre ->
-        MovieQuery(categoryId, searchQuery, sortMode, genre)
+        _genreFlow,
+        _titleFiltersFlow,
+    ) { categoryId, searchQuery, sortMode, genre, titleFilters ->
+        MovieQuery(categoryId, searchQuery, sortMode, genre, titleFilters)
     }.flatMapLatest { q ->
         if (q.categoryId == FAVORITES_CATEGORY_ID) {
             repository.getFavoritesByType("vod")
@@ -167,6 +179,13 @@ class VodViewModel @Inject constructor(
             conditions += "genre LIKE '%' || ? || '%'"
             args += q.genre
         }
+        // Phone filter sheet: OR inside a group, AND between groups. Empty on the television.
+        q.titleFilters.filter { it.isNotEmpty() }.forEach { group ->
+            conditions += group.joinToString(" OR ", prefix = "(", postfix = ")") {
+                "name LIKE '%' || ? || '%'"
+            }
+            args.addAll(group)
+        }
 
         val whereClause =
             if (conditions.isNotEmpty()) " WHERE " + conditions.joinToString(" AND ") else ""
@@ -202,6 +221,49 @@ class VodViewModel @Inject constructor(
             VodSortMode.A_TO_Z -> movies.sortedBy { it.name?.lowercase() ?: "" }
             VodSortMode.NEWEST -> movies.sortedByDescending { it.releaseDate ?: "" }
         }
+    }
+
+    /** Applied by the phone Browse filter sheet; empty restores the unfiltered catalogue. */
+    fun setTitleFilters(groups: List<List<String>>) {
+        _titleFiltersFlow.value = groups
+    }
+
+    /**
+     * How many titles the current category holds for a given set of filter groups.
+     *
+     * Scoped to the CURRENT category on purpose (owner, 2026-08-15): a count per option across
+     * this playlist's 141,525-title "All Movies" is not a free number, and a wrong count is worse
+     * than none.
+     */
+    suspend fun countWithFilters(groups: List<List<String>>): Int? {
+        val category = _selectedCategoryFlow.value ?: return null
+        // Null, not zero: the virtual "All" categories span 141,525 rows on this owner's
+        // playlist, and a count nobody waits for is worse than no count. Zero stays a real
+        // answer, which is what disables the apply button.
+        if (isVirtualCategory(category)) return null
+        val query = buildMovieQuery(
+            MovieQuery(category, _searchQueryFlow.value, _sortModeFlow.value, _genreFlow.value, groups)
+        )
+        val counted = androidx.sqlite.db.SimpleSQLiteQuery(
+            query.sql.replace("SELECT * FROM", "SELECT COUNT(*) FROM").substringBefore(" ORDER BY"),
+            (0 until query.argCount).map { index -> queryArg(query, index) }.toTypedArray(),
+        )
+        return runCatching { vodDao.countMoviesRaw(counted) }.getOrNull()
+    }
+
+    /** SimpleSQLiteQuery does not expose its bindings, so they are re-read through the binder. */
+    private fun queryArg(query: androidx.sqlite.db.SimpleSQLiteQuery, index: Int): Any? {
+        var value: Any? = null
+        query.bindTo(object : androidx.sqlite.db.SupportSQLiteProgram {
+            override fun bindNull(i: Int) { if (i == index + 1) value = null }
+            override fun bindLong(i: Int, v: Long) { if (i == index + 1) value = v }
+            override fun bindDouble(i: Int, v: Double) { if (i == index + 1) value = v }
+            override fun bindString(i: Int, v: String) { if (i == index + 1) value = v }
+            override fun bindBlob(i: Int, v: ByteArray) { if (i == index + 1) value = v }
+            override fun clearBindings() = Unit
+            override fun close() = Unit
+        })
+        return value
     }
 
     fun setSortMode(mode: VodSortMode) {

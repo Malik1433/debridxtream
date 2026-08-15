@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Filters.
+
+  Every option carries its count, because a count makes a dead end visible BEFORE it is tapped -
+  and a zero-count option is shown disabled rather than hidden, so the shape of the catalogue
+  stays legible instead of quietly changing under the user.
+
+  This is the one sheet with a footer: filters combine, so the result size has to be visible
+  before committing to them.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_phone_sheet"
+    android:orientation="vertical">
+
+    <View
+        android:layout_width="36dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_phone_sheet_handle" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="4dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/outfit_bold"
+            android:text="@string/phone_filters"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/phone_bfil_active"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/share_tech_mono"
+            android:textColor="@color/phone_cyan"
+            android:textSize="12sp"
+            tools:text="2 ACTIVE" />
+
+        <ImageView
+            android:id="@+id/phone_bfil_close"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/phone_close"
+            android:padding="15dp"
+            android:src="@drawable/ic_stremio_close"
+            app:tint="@color/phone_text_secondary" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxHeight="420dp"
+        android:overScrollMode="never"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="8dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/share_tech_mono"
+                android:letterSpacing="0.12"
+                android:paddingHorizontal="16dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="8dp"
+                android:text="@string/phone_filter_quality"
+                android:textColor="@color/phone_text_muted"
+                android:textSize="12sp" />
+
+            <com.google.android.flexbox.FlexboxLayout
+                android:id="@+id/phone_bfil_quality"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="16dp"
+                app:flexWrap="wrap" />
+
+            <TextView
+                android:id="@+id/phone_bfil_language_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/share_tech_mono"
+                android:letterSpacing="0.12"
+                android:paddingHorizontal="16dp"
+                android:paddingTop="14dp"
+                android:paddingBottom="8dp"
+                android:text="@string/phone_filter_language"
+                android:textColor="@color/phone_text_muted"
+                android:textSize="12sp" />
+
+            <com.google.android.flexbox.FlexboxLayout
+                android:id="@+id/phone_bfil_language"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="16dp"
+                app:flexWrap="wrap" />
+        </LinearLayout>
+    </ScrollView>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="4dp"
+        android:background="@color/phone_panel" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="16dp">
+
+        <TextView
+            android:id="@+id/phone_bfil_reset"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_phone_chip"
+            android:fontFamily="@font/outfit_semibold"
+            android:gravity="center"
+            android:paddingHorizontal="18dp"
+            android:text="@string/phone_filter_reset"
+            android:textColor="@color/phone_text_secondary"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/phone_bfil_apply"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_phone_primary_button"
+            android:fontFamily="@font/outfit_bold"
+            android:gravity="center"
+            android:textColor="@color/phone_on_accent"
+            android:textSize="14sp"
+            tools:text="Show 1,204 titles" />
+    </LinearLayout>
+</LinearLayout>

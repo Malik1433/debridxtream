@@ -61,6 +61,16 @@ interface VodDao {
     fun getMoviesByCategoryRaw(query: SupportSQLiteQuery): PagingSource<Int, VodEntity>
 
     /**
+     * How many rows the same WHERE clause matches.
+     *
+     * The phone's filter sheet puts a count beside every option so a dead end is visible before
+     * it is tapped. It is deliberately the SAME query the grid pages through, so the number and
+     * the list can never disagree.
+     */
+    @RawQuery
+    suspend fun countMoviesRaw(query: SupportSQLiteQuery): Int
+
+    /**
      * Search movies by name, optionally scoped to a single category.
      * categoryId == null → search across all categories (global behavior).
      */

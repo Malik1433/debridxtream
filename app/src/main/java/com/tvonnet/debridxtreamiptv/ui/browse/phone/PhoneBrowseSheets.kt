@@ -132,6 +132,47 @@ object PhoneBrowseSheets {
     }
 
     /**
+     * What a card can do without opening it: the long-press menu.
+     *
+     * Details is the only navigation here — Play and Sources belong to the Detail page, one tap
+     * away — so this stays a short list of things that are faster from the grid than from inside.
+     */
+    fun cardActions(
+        host: Fragment,
+        title: String,
+        isFavourite: Boolean,
+        onDetails: () -> Unit,
+        onFavourite: () -> Unit,
+    ) {
+        val context = host.requireContext()
+        val inflater = PhoneUi.unscaled(host, LayoutInflater.from(context))
+        val content = inflater.inflate(R.layout.sheet_phone_browse_sort, null)
+        val dialog = BottomSheetDialog(context)
+        dialog.setContentView(content)
+
+        content.findViewById<TextView>(R.id.phone_bsort_title).text = title
+        val listBox = content.findViewById<LinearLayout>(R.id.phone_bsort_list)
+        val rows = listOf<Pair<Int, () -> Unit>>(
+            R.string.phone_details to onDetails,
+            (if (isFavourite) R.string.phone_remove_favourite else R.string.phone_favourite)
+                to onFavourite,
+        )
+        rows.forEach { (labelRes, action) ->
+            val row = inflater.inflate(R.layout.item_phone_browse_sort_row, listBox, false)
+            row.findViewById<TextView>(R.id.phone_bsort_label).setText(labelRes)
+            row.findViewById<View>(R.id.phone_bsort_hint).isVisible = false
+            row.findViewById<View>(R.id.phone_bsort_check).isVisible = false
+            row.setOnClickListener {
+                action()
+                dialog.dismiss()
+            }
+            listBox.addView(row)
+        }
+        content.findViewById<View>(R.id.phone_bsort_close).setOnClickListener { dialog.dismiss() }
+        dialog.show()
+    }
+
+    /**
      * The sort options each section actually HAS. The handoff lists five; this app's catalogue
      * queries provide four per section, and offering a fifth that quietly falls back to another
      * order would be worse than not offering it.

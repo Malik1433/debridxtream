@@ -81,6 +81,7 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
         )
     }
     private lateinit var categoryRail: LinearLayout
+    private lateinit var chrome: PhoneBrowseChrome
 
     private var categories: List<XtreamCategory> = emptyList()
     private var categoryCounts: Map<String, Int> = emptyMap()
@@ -99,6 +100,10 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
             .setText(if (isSeries) R.string.nav_series else R.string.nav_movies)
 
         categoryRail = view.findViewById(R.id.phone_browse_categories)
+        chrome = PhoneBrowseChrome(
+            rail = categoryRail,
+            filterChip = view.findViewById(R.id.phone_browse_filters),
+        )
         states = PhoneBrowseStates(
             view.findViewById(R.id.phone_browse_state),
             PhoneUi.unscaled(this, layoutInflater),
@@ -124,14 +129,8 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
             text = sortLabel()
             setOnClickListener { openSortSheet() }
         }
-        // Filters are the one control this screen does not have real data for yet: quality and
-        // language counts mean a query per option, and on this owner's 141k-title "All Movies"
-        // that is not a free number. Until the counted version exists the chip does not pretend
-        // — it opens nothing and says so once.
         root.findViewById<TextView>(R.id.phone_browse_filters).setOnClickListener {
-            android.widget.Toast.makeText(
-                requireContext(), R.string.phone_filters_soon, android.widget.Toast.LENGTH_SHORT
-            ).show()
+            openFilterSheet()
         }
 
         PhoneBottomNav.build(
@@ -156,7 +155,10 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
 
     private fun bindList(root: View) {
         list = root.findViewById(R.id.phone_browse_list)
-        adapter = PhoneBrowseAdapter { item -> openDetail(item) }
+        adapter = PhoneBrowseAdapter(
+            onItem = { item -> openDetail(item) },
+            onLongPress = { item -> openCardActions(item) },
+        )
         continueRow = PhoneBrowseContinueRow(getString(R.string.section_continue_watching)) { item ->
             router.onContinueWatchingItemClick(item)
         }
@@ -213,6 +215,38 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
     override fun onResume() {
         super.onResume()
         refreshContinueWatching()
+    }
+
+    /**
+     * Long-press is a SHORTCUT, never the only route: everything here is also reachable from the
+     * Detail page one tap away, which is the phone rulebook's rule for hidden gestures.
+     */
+    private fun openCardActions(item: PhoneBrowseItem) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            // The sheet is opened only once its own state is known: a Favourite row that has to
+            // guess whether it is already a favourite would be a row that lies half the time.
+            val favourite = runCatching { browseRepository.isFavorite(item.id) }.getOrDefault(false)
+            PhoneBrowseSheets.cardActions(
+                host = this@PhoneBrowseFragment,
+                title = item.title,
+                isFavourite = favourite,
+                onDetails = { openDetail(item) },
+                onFavourite = {
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        if (favourite) {
+                            browseRepository.removeFavorite(item.id)
+                        } else {
+                            browseRepository.addFavorite(
+                                streamId = item.id,
+                                type = if (isSeries) "series" else "vod",
+                                name = item.title,
+                                iconUrl = item.posterUrl,
+                            )
+                        }
+                    }
+                },
+            )
+        }
     }
 
     private fun openDetail(item: PhoneBrowseItem) {
@@ -332,46 +366,12 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
 
     // ── Category rail ─────────────────────────────────────────────────────────────────────
 
-    /**
-     * Selected first, then playlist order. The opener chip leads to the searchable sheet, because
-     * at 200 categories scrolling is not a retrieval strategy — typing is.
-     */
-    /** The chip is Live TV's — the same 48dp two-line category chip, because Browse's rail IS
-     *  that rail. A second layout doing the same job is a second place to forget a fix. */
-    private fun renderCategoryRail() {
-        val inflater = PhoneUi.unscaled(this, layoutInflater)
-        categoryRail.removeAllViews()
-
-        val opener = inflater.inflate(R.layout.item_phone_category_chip, categoryRail, false)
-        opener.findViewById<TextView>(R.id.phone_chip_name).text =
-            getString(R.string.phone_all_prefix) + " " + categories.size
-        opener.findViewById<TextView>(R.id.phone_chip_count).text =
-            getString(R.string.phone_categories).uppercase()
-        opener.setOnClickListener { openCategorySheet() }
-        categoryRail.addView(opener)
-
-        val ordered = categories.sortedByDescending { it.category_id == selectedCategoryId }
-        ordered.take(RAIL_CHIPS).forEach { category ->
-            val chip = inflater.inflate(R.layout.item_phone_category_chip, categoryRail, false)
-            val selected = category.category_id == selectedCategoryId
-            chip.findViewById<TextView>(R.id.phone_chip_name).apply {
-                text = category.category_name
-                setTextColor(
-                    androidx.core.content.ContextCompat.getColor(
-                        requireContext(),
-                        if (selected) R.color.phone_cyan else R.color.phone_text_primary
-                    )
-                )
-            }
-            chip.findViewById<TextView>(R.id.phone_chip_count).text =
-                categoryCounts[category.category_id]?.let { formatCount(it) + " TITLES" }.orEmpty()
-            chip.setBackgroundResource(
-                if (selected) R.drawable.bg_phone_chip_active else R.drawable.bg_phone_chip
-            )
-            chip.setOnClickListener { selectCategory(category.category_id.orEmpty()) }
-            categoryRail.addView(chip)
-        }
-    }
+    private fun renderCategoryRail() = chrome.renderRail(
+        inflater = PhoneUi.unscaled(this, layoutInflater),
+        data = PhoneBrowseChrome.Rail(categories, categoryCounts, selectedCategoryId),
+        onOpener = { openCategorySheet() },
+        onPick = { id -> selectCategory(id) },
+    )
 
     private fun selectCategory(id: String) {
         if (isSeries) series.onEvent(SeriesEvent.SelectCategory(id))
@@ -389,6 +389,31 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
             selectedId = selectedCategoryId,
         ) { id -> selectCategory(id) }
     }
+
+    /** What the catalogue is currently narrowed by; empty means the whole category. */
+    private var filters = PhoneBrowseFilterSheet.Selection()
+
+    private fun openFilterSheet() {
+        PhoneBrowseFilterSheet(
+            host = this,
+            selection = filters,
+            // Null means "not countable here" — the virtual All categories, where a count is a
+            // 141k-row query nobody wants to wait behind. Zero is a real answer and disables the
+            // apply button.
+            countFor = { groups ->
+                if (isSeries) series.countWithFilters(groups) else movies.countWithFilters(groups)
+            },
+            onApply = { picked ->
+                filters = picked
+                if (isSeries) series.setTitleFilters(picked.groups())
+                else movies.setTitleFilters(picked.groups())
+                renderFilterChip()
+                list.scrollToPosition(0)
+            },
+        ).show(PhoneBrowseChrome.languagesIn(adapter.snapshot().items.map { it.title }))
+    }
+
+    private fun renderFilterChip() = chrome.renderFilterChip(filters.activeCount)
 
     private fun openSortSheet() {
         PhoneBrowseSheets.sort(
@@ -424,7 +449,6 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
         /** Three columns: two waste a third of a screen whose whole job is density, four drop the
          *  poster to 88dp where titles stop being legible. */
         private const val COLUMNS = 3
-        private const val RAIL_CHIPS = 12
         private const val ARG_SECTION = "section"
 
         fun newInstance(section: String) = PhoneBrowseFragment().apply {

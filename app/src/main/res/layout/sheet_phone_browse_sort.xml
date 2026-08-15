@@ -24,9 +24,12 @@
         android:paddingEnd="4dp">
 
         <TextView
+            android:id="@+id/phone_bsort_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:fontFamily="@font/outfit_bold"
             android:text="@string/phone_sort"
             android:textColor="@color/phone_text_primary"

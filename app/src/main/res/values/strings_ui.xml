@@ -362,6 +362,14 @@
     <string name="phone_state_error_body">The request timed out or the token expired. The categories above are still cached, so switching to another one may work.</string>
     <string name="phone_state_use_cached">Use cached</string>
     <string name="phone_end_of_list">END</string>
+    <string name="phone_filter_quality">QUALITY</string>
+    <string name="phone_filter_language">LANGUAGE</string>
+    <string name="phone_filter_reset">Reset</string>
+    <string name="phone_filter_show">Show %1$s titles</string>
+    <string name="phone_filter_show_all">Show titles</string>
+    <string name="phone_filter_show_none">No titles match</string>
+    <string name="phone_filter_active">%1$d ACTIVE</string>
+    <string name="phone_filter_counting">COUNTING…</string>
     <string name="phone_search">Search</string>
     <string name="phone_filters">Filters</string>
     <string name="phone_categories">Categories</string>

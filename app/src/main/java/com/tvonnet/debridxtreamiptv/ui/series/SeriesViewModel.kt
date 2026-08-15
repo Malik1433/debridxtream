@@ -163,20 +163,28 @@ class SeriesViewModel @Inject constructor(
     private val _sortModeFlow = MutableStateFlow(SeriesSortMode.RECENTLY_ADDED)
     private val _genreFlow = MutableStateFlow<String?>(null)
 
+    /**
+     * Title filters from the phone's filter sheet: OR inside a group, AND between groups. Empty
+     * by default, and the television never sets it, so that screen's SQL is unchanged.
+     */
+    private val _titleFiltersFlow = MutableStateFlow<List<List<String>>>(emptyList())
+
     data class SeriesQuery(
         val categoryId: String,
         val searchQuery: String,
         val sortMode: SeriesSortMode,
-        val genre: String?
+        val genre: String?,
+        val titleFilters: List<List<String>> = emptyList(),
     )
 
     val pagedSeries: Flow<PagingData<XtreamSeriesInfo>> = combine(
         _selectedCategoryFlow.filterNotNull(),
         _searchQueryFlow,
         _sortModeFlow,
-        _genreFlow
-    ) { categoryId, searchQuery, sortMode, genre ->
-        SeriesQuery(categoryId, searchQuery, sortMode, genre)
+        _genreFlow,
+        _titleFiltersFlow,
+    ) { categoryId, searchQuery, sortMode, genre, titleFilters ->
+        SeriesQuery(categoryId, searchQuery, sortMode, genre, titleFilters)
     }.flatMapLatest { q ->
         if (q.categoryId == FAVORITES_CATEGORY_ID) {
             repository.getFavoritesByType("series")
@@ -222,6 +230,12 @@ class SeriesViewModel @Inject constructor(
         if (!q.genre.isNullOrBlank()) {
             conditions += "genre LIKE '%' || ? || '%'"
             args += q.genre
+        }
+        q.titleFilters.filter { it.isNotEmpty() }.forEach { group ->
+            conditions += group.joinToString(" OR ", prefix = "(", postfix = ")") {
+                "name LIKE '%' || ? || '%'"
+            }
+            args.addAll(group)
         }
 
         val whereClause =
@@ -291,6 +305,49 @@ class SeriesViewModel @Inject constructor(
                 s.episodes?.values?.sumOf { it.size } ?: 0
             }
         }
+    }
+
+    /** Applied by the phone Browse filter sheet; empty restores the unfiltered catalogue. */
+    fun setTitleFilters(groups: List<List<String>>) {
+        _titleFiltersFlow.value = groups
+    }
+
+    /**
+     * How many series the current category holds under a set of filters, or null when the answer
+     * is not worth the wait — the virtual "All" categories. Zero is a real answer.
+     */
+    suspend fun countWithFilters(groups: List<List<String>>): Int? {
+        val category = _selectedCategoryFlow.value ?: return null
+        if (isVirtualCategory(category)) return null
+        val query = buildSeriesQuery(
+            SeriesQuery(
+                category,
+                _searchQueryFlow.value,
+                _sortModeFlow.value,
+                _genreFlow.value,
+                groups,
+            )
+        )
+        val counted = androidx.sqlite.db.SimpleSQLiteQuery(
+            query.sql.replace("SELECT * FROM", "SELECT COUNT(*) FROM").substringBefore(" ORDER BY"),
+            (0 until query.argCount).map { index -> queryArg(query, index) }.toTypedArray(),
+        )
+        return runCatching { seriesDao.countSeriesRaw(counted) }.getOrNull()
+    }
+
+    /** SimpleSQLiteQuery does not expose its bindings, so they are re-read through the binder. */
+    private fun queryArg(query: androidx.sqlite.db.SimpleSQLiteQuery, index: Int): Any? {
+        var value: Any? = null
+        query.bindTo(object : androidx.sqlite.db.SupportSQLiteProgram {
+            override fun bindNull(i: Int) { if (i == index + 1) value = null }
+            override fun bindLong(i: Int, v: Long) { if (i == index + 1) value = v }
+            override fun bindDouble(i: Int, v: Double) { if (i == index + 1) value = v }
+            override fun bindString(i: Int, v: String) { if (i == index + 1) value = v }
+            override fun bindBlob(i: Int, v: ByteArray) { if (i == index + 1) value = v }
+            override fun clearBindings() = Unit
+            override fun close() = Unit
+        })
+        return value
     }
 
     fun setSortMode(mode: SeriesSortMode) {

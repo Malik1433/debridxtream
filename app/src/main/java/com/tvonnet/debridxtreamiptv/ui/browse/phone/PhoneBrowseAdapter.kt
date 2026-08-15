@@ -109,6 +109,7 @@ data class PhoneBrowseItem(
 /** The poster grid. Paging keeps the list, this only paints it. */
 class PhoneBrowseAdapter(
     private val onItem: (PhoneBrowseItem) -> Unit,
+    private val onLongPress: (PhoneBrowseItem) -> Unit = {},
 ) : PagingDataAdapter<PhoneBrowseItem, PhoneBrowseAdapter.CardHolder>(DIFF) {
 
     class CardHolder(view: View) : RecyclerView.ViewHolder(view)
@@ -142,6 +143,11 @@ class PhoneBrowseAdapter(
             Glide.with(poster).load(art).centerCrop().into(poster)
         }
         root.setOnClickListener { onItem(item) }
+        root.setOnLongClickListener {
+            root.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+            onLongPress(item)
+            true
+        }
     }
 
     companion object {

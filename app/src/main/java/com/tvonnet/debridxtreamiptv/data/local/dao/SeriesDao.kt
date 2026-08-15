@@ -65,6 +65,10 @@ interface SeriesDao {
     @RawQuery(observedEntities = [SeriesEntity::class])
     fun getSeriesByCategoryRaw(query: SupportSQLiteQuery): PagingSource<Int, SeriesEntity>
 
+    /** How many rows the same WHERE clause matches — the filter sheet's count. */
+    @RawQuery
+    suspend fun countSeriesRaw(query: SupportSQLiteQuery): Int
+
     /**
      * Season/episode counts per series, derived from the locally cached episode rows.
      * Covers BOTH detail caches: legacy `episodes` (XtreamRepository.saveSeriesDetails)
