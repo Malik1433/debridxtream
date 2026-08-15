@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PHONE Browse grid card. 411dp - 32 gutters - 2 x 10 gaps = three 119dp columns, and a 2:3 poster
+  is therefore 119 x 179 - within 5dp of the Home rail's card, so the artwork the user just
+  scrolled past is recognisably the same object.
+
+  State lives ON the poster: the resume strip is welded to its bottom edge and the quality badge
+  sits top-right. There is no fixed-height title box and no reserved badge slot - a card is as
+  tall as its content.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:id="@+id/phone_card_poster_box"
+        android:layout_width="match_parent"
+        android:layout_height="179dp">
+
+        <ImageView
+            android:id="@+id/phone_card_poster"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_phone_poster"
+            android:clipToOutline="true"
+            android:contentDescription="@null"
+            android:scaleType="centerCrop" />
+
+        <TextView
+            android:id="@+id/phone_card_quality"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_margin="5dp"
+            android:background="@drawable/bg_phone_badge_neutral"
+            android:fontFamily="@font/share_tech_mono"
+            android:paddingHorizontal="5dp"
+            android:paddingVertical="2dp"
+            android:textColor="@color/phone_text_secondary"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:text="4K"
+            tools:visibility="visible" />
+
+        <!-- Only when there is a stored position. No empty track: an unstarted title says
+             nothing rather than showing a bar at zero. -->
+        <View
+            android:id="@+id/phone_card_progress_track"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_gravity="bottom"
+            android:background="@drawable/bg_phone_progress_track"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <View
+            android:id="@+id/phone_card_progress_fill"
+            android:layout_width="40dp"
+            android:layout_height="3dp"
+            android:layout_gravity="bottom"
+            android:background="@drawable/bg_phone_progress"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <LinearLayout
+            android:id="@+id/phone_card_cached"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:layout_margin="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="gone">
+
+            <View
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:background="@drawable/bg_phone_dot_green" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:fontFamily="@font/share_tech_mono"
+                android:text="@string/phone_cached"
+                android:textColor="@color/phone_green"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Series only, and only when the counts are actually known: an unknown count shows
+             NOTHING rather than a guess or a placeholder (owner, 2026-08-15). -->
+        <TextView
+            android:id="@+id/phone_card_episodes"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:layout_margin="6dp"
+            android:background="@drawable/bg_phone_badge_neutral"
+            android:fontFamily="@font/share_tech_mono"
+            android:paddingHorizontal="5dp"
+            android:paddingVertical="2dp"
+            android:textColor="@color/phone_text_secondary"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:text="S02 - 19 EP"
+            tools:visibility="visible" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/phone_card_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="7dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/outfit_semibold"
+        android:lineSpacingMultiplier="1.3"
+        android:maxLines="2"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="12.5sp"
+        tools:text="Dune: Part Two" />
+
+    <TextView
+        android:id="@+id/phone_card_meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/share_tech_mono"
+        android:maxLines="1"
+        android:textColor="@color/phone_text_muted"
+        android:textSize="12sp"
+        tools:text="2024 - 2h 46m" />
+</LinearLayout>

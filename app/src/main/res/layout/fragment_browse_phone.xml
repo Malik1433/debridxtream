@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PHONE Browse — portrait, built to the "DX Play Browse" handoff (2026-08-15).
+
+  ONE layout serves Movies AND Series: only the catalogue, the category list, the card's second
+  line and the nav highlight differ, so a second file would be the same file with two words
+  changed and two places to forget a fix.
+
+  The 56dp app bar and the 96dp control block (category rail 48 + sort/filter row 48) are PINNED.
+  With ~200 categories and infinite scroll the controls are needed most at scroll depth 40, which
+  is exactly where a bar that scrolled away is unreachable — so the grid scrolls under them and
+  152dp of chrome is the price.
+-->
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/phone_home_bg">
+
+    <!-- ══ THE LIST ══ everything below the sticky block scrolls in one RecyclerView: the
+         Continue Watching rail, the grid and the paging footer are its item types, so the whole
+         page shares one scroll and one recycler rather than nesting scrollers. -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/phone_browse_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="152dp"
+        android:paddingBottom="86dp"
+        android:scrollbars="none" />
+
+    <!-- ══ STICKY BLOCK ══ app bar + category rail + sort/filter row. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/phone_home_bg"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="8dp">
+
+            <TextView
+                android:id="@+id/phone_browse_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="@font/outfit_extrabold"
+                android:letterSpacing="-0.03"
+                android:maxLines="1"
+                android:textColor="@color/phone_text_primary"
+                android:textSize="19sp"
+                tools:text="Movies" />
+
+            <ImageView
+                android:id="@+id/phone_browse_search"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/phone_search"
+                android:padding="13dp"
+                android:src="@drawable/ic_search"
+                app:tint="@color/phone_text_primary" />
+
+            <FrameLayout
+                android:id="@+id/phone_browse_avatar"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <TextView
+                    android:id="@+id/phone_browse_avatar_initial"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_profile_mark"
+                    android:fontFamily="@font/outfit_bold"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:textColor="@color/white"
+                    android:textSize="14sp"
+                    tools:text="A" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <!-- Category rail. The "All N" opener leads to a searchable sheet, because at 200
+             categories scrolling is not a retrieval strategy — typing is. -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:overScrollMode="never"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="8dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/phone_browse_categories"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="68dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp">
+
+            <TextView
+                android:id="@+id/phone_browse_sort"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_phone_chip"
+                android:drawablePadding="7dp"
+                android:fontFamily="@font/outfit_semibold"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="14dp"
+                android:textColor="@color/phone_text_primary"
+                android:textSize="12.5sp"
+                app:drawableStartCompat="@drawable/ic_stremio_sort"
+                app:drawableTint="@color/phone_text_secondary"
+                tools:text="Recently added" />
+
+            <TextView
+                android:id="@+id/phone_browse_filters"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_phone_chip"
+                android:drawablePadding="7dp"
+                android:fontFamily="@font/outfit_semibold"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="14dp"
+                android:text="@string/phone_filters"
+                android:textColor="@color/phone_text_primary"
+                android:textSize="12.5sp"
+                app:drawableStartCompat="@drawable/ic_filter"
+                app:drawableTint="@color/phone_text_secondary" />
+
+            <TextView
+                android:id="@+id/phone_browse_count"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/share_tech_mono"
+                android:gravity="end"
+                android:letterSpacing="0.1"
+                android:maxLines="1"
+                android:textColor="@color/phone_text_muted"
+                android:textSize="12sp"
+                tools:text="1,204" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/phone_panel" />
+    </LinearLayout>
+
+    <!-- The empty / error panels own the body; the chrome above stays live, because the fix for
+         an empty result is up there, not down here. -->
+    <FrameLayout
+        android:id="@+id/phone_browse_state"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="152dp"
+        android:visibility="gone"
+        tools:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/phone_browse_nav"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:layout_gravity="bottom"
+        android:background="@color/phone_nav_scrim"
+        android:orientation="horizontal" />
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

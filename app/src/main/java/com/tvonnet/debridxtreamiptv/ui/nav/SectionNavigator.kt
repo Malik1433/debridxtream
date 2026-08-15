@@ -63,8 +63,15 @@ object SectionNavigator {
                 LiveFragment()
             else -> LiveTvGuideFragment()
         }
-        SECTION_MOVIES -> VodFragment()
-        SECTION_SERIES -> SeriesFragment()
+        // Browse is the same argument as Home and Live: a phone gets the portrait grid, the
+        // television keeps its sidebar-and-grid screen. One door, so a new caller cannot put the
+        // 10-foot screen on a handset by accident.
+        SECTION_MOVIES, SECTION_SERIES ->
+            if (context.resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
+                if (section == SECTION_MOVIES) VodFragment() else SeriesFragment()
+            } else {
+                com.tvonnet.debridxtreamiptv.ui.browse.phone.PhoneBrowseFragment.newInstance(section)
+            }
         SECTION_DEBRID -> StremioHomeFragment()
         SECTION_SEARCH -> SearchFragment()
         SECTION_SETTINGS -> SettingsFragment()

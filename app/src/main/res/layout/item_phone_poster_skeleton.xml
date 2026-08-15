@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A card that has not arrived. Exact final geometry, so nothing reflows when the page lands. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <View
+        android:id="@+id/phone_sk_poster"
+        android:layout_width="match_parent"
+        android:layout_height="179dp"
+        android:background="@drawable/bg_phone_poster" />
+
+    <View
+        android:id="@+id/phone_sk_line1"
+        android:layout_width="match_parent"
+        android:layout_height="12dp"
+        android:layout_marginTop="9dp"
+        android:background="@drawable/bg_phone_card" />
+
+    <View
+        android:id="@+id/phone_sk_line2"
+        android:layout_width="60dp"
+        android:layout_height="12dp"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/bg_phone_card" />
+</LinearLayout>
