@@ -1,738 +1,627 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- D5: this info column is bounded above the "Because you watched" rail, and on a film with a
-     long plot AND a cast row the cast NAMES were clipped by about 4-8dp at the column edge.
-     Sized to fit rather than left clipped: ~16dp reclaimed from vertical margins inside the
-     column: credits block and actions row 14dp to 8dp, cast rail and director line 5dp to 3dp.
-     No type size changed. -->
 <!--
-    DEBRID MOVIE DETAIL — Redesigned per Claude Design handoff.
-    1920×1080 TV-optimized, full-bleed backdrop, left-aligned info.
+  PHONE Debrid movie detail — portrait.
+
+  The television version of this screen lives in layout-television/ and is untouched. This file
+  carries EVERY id that one does, in the same view kinds, so MovieDetailActivity and its five
+  controllers bind either without knowing which they got: only the geometry differs, which is the
+  rule this project already follows for two form factors.
+
+  The shape is the phone Detail handoff the IPTV screens already ship — poster-led 232dp header,
+  one 56dp filled action, a 64dp row of secondary actions, four lines of plot with More — so a
+  debrid title and an IPTV title look like the same app.
+
+  The source-panel views stay 0dp stubs exactly as the television layout keeps them: sources are
+  picked in SourceSelectionBottomSheet, which is already a bottom sheet and already phone-shaped.
 -->
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#06090E">
+    android:background="@color/phone_home_bg">
 
-    <!-- Full-bleed backdrop -->
-    <ImageView
-        android:id="@+id/iv_backdrop"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:alpha="0.45"
-        tools:src="@tools:sample/backgrounds/scenic"
-        android:contentDescription="@null" />
-
-    <!-- Left + bottom gradient overlay -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@drawable/cin_detail_overlay" />
-
-    <!-- ══ TOP BAR ══ -->
-    <LinearLayout
-        android:id="@+id/layout_top_bar"
-        android:layout_width="0dp"
-        android:layout_height="52dp"
-        android:layout_marginTop="@dimen/detail_top_bar_inset"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="44dp"
-        android:paddingEnd="44dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <!-- Back button (removed from design — hardware BACK handles it) -->
-        <ImageButton
-            android:id="@+id/btn_back"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:background="@drawable/cin_detail_back_circle"
-            android:contentDescription="@string/live_nav_back"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_back"
-            android:focusable="false"
-            android:visibility="gone"
-            android:nextFocusDown="@id/btn_play"
-            app:tint="@color/cin_detail_focus_text" />
-
-        <!-- Back-to-rail context hint -->
-        <TextView
-            android:id="@+id/tv_back_hint"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="12dp"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp"
-            android:fontFamily="monospace"
-            android:letterSpacing="0.06"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:visibility="gone"
-            tools:visibility="visible"
-            tools:text="◄ BACK TO CONTINUE WATCHING" />
-
-        <!-- Breadcrumb -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="14dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <View
-                android:id="@+id/dot_brand"
-                android:layout_width="6dp"
-                android:layout_height="6dp"
-                android:background="@drawable/cin_dot_cyan" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:text="@string/nav_debrid"
-                android:textColor="@color/source_text_primary"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:fontFamily="@font/inter_extrabold"
-                android:letterSpacing="0.12" />
-
-            <TextView
-                android:id="@+id/tv_breadcrumb_type"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="3dp"
-                android:text="@string/ui_movies"
-                android:textColor="@color/text_muted"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:fontFamily="@font/inter_extrabold"
-                android:letterSpacing="0.12" />
-        </LinearLayout>
-
-        <!-- RD Connected status -->
-        <LinearLayout
-            android:id="@+id/layout_rd_status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@drawable/cin_detail_rd_status_pill"
-            android:visibility="gone"
-            tools:visibility="visible">
-
-            <View
-                android:id="@+id/dot_rd_status"
-                android:layout_width="5dp"
-                android:layout_height="5dp"
-                android:background="@drawable/cin_dot_online" />
-
-            <TextView
-                android:id="@+id/tv_rd_status"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:text="@string/ui_rd_connected"
-                android:textColor="@color/neon_green"
-                android:textSize="10sp"
-                android:fontFamily="monospace"
-                android:letterSpacing="0.08" />
-        </LinearLayout>
-
-        <!-- Premium badge -->
-        <TextView
-            android:id="@+id/tv_premium_badge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:background="@drawable/cin_detail_premium_pill"
-            android:textColor="@color/text_muted"
-            android:textSize="10sp"
-            android:fontFamily="monospace"
-            android:letterSpacing="0.08"
-            android:visibility="gone"
-            tools:visibility="visible"
-            tools:text="PREMIUM · 224 DAYS" />
-    </LinearLayout>
-
-    <!-- ══ LEFT: MOVIE INFO ══
-         D4: the DEBRID movie detail is a structural twin of the IPTV one, so it carried the same
-         defect M16a fixed there — a 0dp-tall LinearLayout runs past its own bottom, and with
-         `clipChildren="false"` on the root that overflow is PAINTED OVER the similar rail. Same
-         recipe: the column scrolls, `group_details` keeps its id and kind, and the root now clips. -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scroll_details"
-        android:layout_width="480dp"
-        android:layout_height="0dp"
-        android:layout_marginStart="44dp"
-        android:layout_marginTop="6dp"
-        android:layout_marginBottom="@dimen/detail_column_margin_bottom"
-        android:clipChildren="true"
-        android:clipToPadding="true"
-        android:overScrollMode="never"
-        app:layout_constraintTop_toBottomOf="@id/layout_top_bar"
-        app:layout_constraintBottom_toTopOf="@id/layout_similar_row"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintVertical_bias="0.0">
-
-    <LinearLayout
-        android:id="@+id/group_details"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingTop="56dp"
+        android:scrollbars="none">
 
-        <!-- Content type label -->
-        <TextView
-            android:id="@+id/tv_content_type"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/ui_feature_film"
-            android:textColor="@color/neon_cyan"
-            android:textSize="10sp"
-            android:fontFamily="monospace"
-            android:letterSpacing="0.2"
-            android:visibility="gone"
-            tools:visibility="visible" />
-
-        <!-- Title -->
-        <TextView
-            android:id="@+id/tv_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:fontFamily="@font/inter_extrabold"
-            android:textColor="@color/source_text_primary"
-            android:textSize="30sp"
-            android:letterSpacing="-0.02"
-            android:lineSpacingMultiplier="1.02"
-            android:maxLines="2"
-            android:ellipsize="end"
-            android:includeFontPadding="false"
-            tools:text="Dune: Part Two" />
-
-        <!-- Metadata row -->
-        <com.google.android.flexbox.FlexboxLayout
-            android:id="@+id/layout_metadata_row"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            app:flexWrap="wrap"
-            app:alignItems="center">
-
-            <!-- Rating badge -->
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/cin_detail_rating_badge"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/tv_rating_percentage"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/neon_cyan"
-                    android:textSize="11sp"
-                    android:fontFamily="monospace"
-                    android:textStyle="bold"
-                    tools:text="8.6" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text="★"
-                    android:textColor="@color/neon_cyan"
-                    android:textSize="10sp" />
-            </LinearLayout>
-
-            <!-- IMDb rating (OMDb) -->
-            <LinearLayout
-                android:id="@+id/badge_imdb"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/cin_detail_rating_badge"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:visibility="gone"
-                tools:visibility="visible">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/ui_imdb"
-                    android:textColor="@color/neon_amber"
-                    android:textSize="10sp"
-                    android:textStyle="bold"
-                    android:fontFamily="@font/inter_extrabold"
-                    android:letterSpacing="0.04" />
-
-                <TextView
-                    android:id="@+id/tv_imdb_rating"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="5dp"
-                    android:textColor="@color/source_text_primary"
-                    android:textSize="11sp"
-                    android:fontFamily="monospace"
-                    android:textStyle="bold"
-                    tools:text="8.6" />
-            </LinearLayout>
-
-            <!-- Rotten Tomatoes rating (OMDb) -->
-            <LinearLayout
-                android:id="@+id/badge_rt"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/cin_detail_rating_badge"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:visibility="gone"
-                tools:visibility="visible">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="🍅"
-                    android:textSize="10sp" />
-
-                <TextView
-                    android:id="@+id/tv_rt_rating"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="5dp"
-                    android:textColor="@color/source_text_primary"
-                    android:textSize="11sp"
-                    android:fontFamily="monospace"
-                    android:textStyle="bold"
-                    tools:text="92%" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/tv_year"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:textColor="@color/source_text_secondary"
-                android:textSize="11sp"
-                android:fontFamily="monospace"
-                tools:text="2024" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="·"
-                android:textColor="@color/text_muted"
-                android:textSize="11sp" />
-
-            <TextView
-                android:id="@+id/tv_duration"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:textColor="@color/source_text_secondary"
-                android:textSize="11sp"
-                android:fontFamily="monospace"
-                tools:text="2H 46M" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="·"
-                android:textColor="@color/text_muted"
-                android:textSize="11sp" />
-
-            <TextView
-                android:id="@+id/tv_genre_year"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:textColor="@color/source_text_secondary"
-                android:textSize="11sp"
-                tools:text="Sci-Fi, Adventure" />
-
-            <!-- Quality badge (4K DV etc) -->
-            <TextView
-                android:id="@+id/tv_quality_badge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/cin_detail_quality_badge"
-                android:textColor="@color/neon_amber"
-                android:textSize="9sp"
-                android:fontFamily="monospace"
-                android:letterSpacing="0.08"
-                android:visibility="gone"
-                tools:visibility="visible"
-                tools:text="4K DV" />
-
-            <!-- Age / content rating badge (R / PG-13 / 18+) -->
-            <TextView
-                android:id="@+id/tv_age_rating"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/cin_detail_quality_badge"
-                android:textColor="@color/source_text_secondary"
-                android:textSize="9sp"
-                android:fontFamily="monospace"
-                android:letterSpacing="0.08"
-                android:visibility="gone"
-                tools:visibility="visible"
-                tools:text="PG-13" />
-
-            <!-- Hidden legacy IDs -->
-            <TextView android:id="@+id/tv_rating_stars" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-        </com.google.android.flexbox.FlexboxLayout>
-
-        <!-- Source summary strip -->
         <LinearLayout
-            android:id="@+id/layout_rd_summary"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@drawable/cin_detail_source_summary_pill"
-            android:visibility="gone"
-            tools:visibility="visible">
-
-            <View
-                android:layout_width="5dp"
-                android:layout_height="5dp"
-                android:background="@drawable/cin_dot_online" />
-
-            <TextView
-                android:id="@+id/tv_rd_summary_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:textColor="@color/neon_cyan"
-                android:textSize="10sp"
-                android:fontFamily="monospace"
-                android:letterSpacing="0.06"
-                tools:text="9 SOURCES FOUND · 6 CACHED · BEST 4K DV 22.4 GB" />
-        </LinearLayout>
-
-        <!-- Description -->
-        <TextView
-            android:id="@+id/tv_description"
+            android:id="@+id/group_details"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textColor="@color/source_text_secondary"
-            android:textSize="12sp"
-            android:lineSpacingMultiplier="1.35"
-            android:maxLines="@integer/detail_plot_lines"
-            android:ellipsize="end"
-            android:includeFontPadding="false"
-            tools:text="Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family." />
+            android:orientation="vertical">
 
-        <!-- Resume bar (shown only when 0 < progress < 100) -->
-        <LinearLayout
-            android:id="@+id/layout_resume_bar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@drawable/cin_resume_bar_bg"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
-            android:paddingTop="9dp"
-            android:paddingBottom="9dp"
-            android:visibility="gone"
-            tools:visibility="visible">
+            <!-- ══ HEADER 232 ══ -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="232dp">
 
-            <ImageView
-                android:layout_width="14dp"
-                android:layout_height="14dp"
-                android:src="@drawable/ic_play"
-                android:scaleType="fitCenter"
-                app:tint="@color/neon_cyan"
-                android:contentDescription="@null" />
+                <ImageView
+                    android:id="@+id/iv_backdrop"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:alpha="0.55"
+                    android:contentDescription="@null"
+                    android:scaleType="centerCrop" />
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="10dp"
-                android:orientation="vertical">
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_phone_detail_scrim" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_gravity="bottom"
                     android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:paddingHorizontal="16dp"
+                    android:paddingBottom="16dp">
 
-                    <TextView
-                        android:id="@+id/tv_resume_elapsed"
+                    <ImageView
+                        android:id="@+id/iv_poster"
+                        android:layout_width="104dp"
+                        android:layout_height="156dp"
+                        android:background="@drawable/bg_phone_poster"
+                        android:clipToOutline="true"
+                        android:contentDescription="@null"
+                        android:scaleType="centerCrop" />
+
+                    <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
                         android:layout_weight="1"
-                        android:textColor="@color/neon_cyan"
-                        android:textSize="11sp"
-                        android:fontFamily="monospace"
-                        android:letterSpacing="0.10"
-                        tools:text="RESUME FROM 1H 42M" />
+                        android:orientation="vertical">
 
-                    <TextView
-                        android:id="@+id/tv_resume_remaining"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:textColor="@color/text_muted"
-                        android:textSize="10sp"
-                        android:fontFamily="monospace"
-                        tools:text="1H 4M LEFT" />
+                        <TextView
+                            android:id="@+id/tv_content_type"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/share_tech_mono"
+                            android:letterSpacing="0.12"
+                            android:textColor="@color/phone_cyan"
+                            android:textSize="10sp"
+                            tools:text="MOVIE" />
+
+                        <TextView
+                            android:id="@+id/tv_title"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:ellipsize="end"
+                            android:fontFamily="@font/outfit_extrabold"
+                            android:letterSpacing="-0.03"
+                            android:lineSpacingMultiplier="1.2"
+                            android:maxLines="2"
+                            android:textColor="@color/phone_text_primary"
+                            android:textSize="22sp"
+                            tools:text="Dune: Part Two" />
+
+                        <!-- Whatever the provider actually returned, wrapping rather than
+                             truncating: on a phone this row is genuinely two lines often. -->
+                        <com.google.android.flexbox.FlexboxLayout
+                            android:id="@+id/layout_metadata_row"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            app:alignItems="center"
+                            app:flexWrap="wrap">
+
+                            <TextView
+                                android:id="@+id/tv_rating_stars"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="6dp"
+                                android:fontFamily="@font/share_tech_mono"
+                                android:textColor="@color/phone_amber"
+                                android:textSize="13sp"
+                                tools:text="★★★★" />
+
+                            <TextView
+                                android:id="@+id/tv_rating_percentage"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="10dp"
+                                android:fontFamily="@font/share_tech_mono"
+                                android:textColor="@color/phone_text_primary"
+                                android:textSize="13sp"
+                                tools:text="84%" />
+
+                            <LinearLayout
+                                android:id="@+id/badge_imdb"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="8dp"
+                                android:background="@drawable/bg_phone_badge_neutral"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingHorizontal="7dp"
+                                android:paddingVertical="3dp"
+                                android:visibility="gone"
+                                tools:visibility="visible">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/share_tech_mono"
+                                    android:text="@string/ui_imdb"
+                                    android:textColor="@color/phone_amber"
+                                    android:textSize="10sp" />
+
+                                <TextView
+                                    android:id="@+id/tv_imdb_rating"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    android:fontFamily="@font/share_tech_mono"
+                                    android:textColor="@color/phone_text_primary"
+                                    android:textSize="11sp"
+                                    tools:text="8.4" />
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:id="@+id/badge_rt"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="8dp"
+                                android:background="@drawable/bg_phone_badge_neutral"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingHorizontal="7dp"
+                                android:paddingVertical="3dp"
+                                android:visibility="gone"
+                                tools:visibility="visible">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/share_tech_mono"
+                                    android:text="@string/phone_rt_label"
+                                    android:textColor="@color/phone_red"
+                                    android:textSize="10sp" />
+
+                                <TextView
+                                    android:id="@+id/tv_rt_rating"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    android:fontFamily="@font/share_tech_mono"
+                                    android:textColor="@color/phone_text_primary"
+                                    android:textSize="11sp"
+                                    tools:text="92%" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/tv_year"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="10dp"
+                                android:fontFamily="@font/share_tech_mono"
+                                android:textColor="@color/phone_text_secondary"
+                                android:textSize="12sp"
+                                tools:text="2024" />
+
+                            <TextView
+                                android:id="@+id/tv_duration"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="10dp"
+                                android:fontFamily="@font/share_tech_mono"
+                                android:textColor="@color/phone_text_secondary"
+                                android:textSize="12sp"
+                                tools:text="2h 46m" />
+
+                            <TextView
+                                android:id="@+id/tv_age_rating"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="8dp"
+                                android:background="@drawable/bg_phone_badge_neutral"
+                                android:fontFamily="@font/share_tech_mono"
+                                android:paddingHorizontal="6dp"
+                                android:paddingVertical="2dp"
+                                android:textColor="@color/phone_text_secondary"
+                                android:textSize="10sp"
+                                tools:text="PG-13" />
+
+                            <TextView
+                                android:id="@+id/tv_quality_badge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_phone_badge_cyan"
+                                android:fontFamily="@font/share_tech_mono"
+                                android:paddingHorizontal="6dp"
+                                android:paddingVertical="2dp"
+                                android:textColor="@color/phone_cyan"
+                                android:textSize="10sp"
+                                tools:text="4K" />
+                        </com.google.android.flexbox.FlexboxLayout>
+
+                        <TextView
+                            android:id="@+id/tv_genre_year"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:ellipsize="end"
+                            android:fontFamily="@font/inter_regular"
+                            android:maxLines="1"
+                            android:textColor="@color/phone_text_secondary"
+                            android:textSize="12.5sp"
+                            tools:text="Science Fiction · Adventure" />
+                    </LinearLayout>
                 </LinearLayout>
+            </FrameLayout>
+
+            <!-- The debrid connection line. It says whether a source will play at all, so on a
+                 phone it sits under the title rather than in a corner of the chrome. -->
+            <LinearLayout
+                android:id="@+id/layout_rd_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/dot_rd_status"
+                    android:layout_width="7dp"
+                    android:layout_height="7dp"
+                    android:background="@drawable/bg_phone_dot" />
+
+                <TextView
+                    android:id="@+id/tv_rd_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="7dp"
+                    android:fontFamily="@font/share_tech_mono"
+                    android:letterSpacing="0.08"
+                    android:textColor="@color/phone_text_muted"
+                    android:textSize="11sp"
+                    tools:text="DEBRID READY" />
+
+                <TextView
+                    android:id="@+id/tv_premium_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_phone_badge_cyan"
+                    android:fontFamily="@font/share_tech_mono"
+                    android:paddingHorizontal="6dp"
+                    android:paddingVertical="2dp"
+                    android:textColor="@color/phone_cyan"
+                    android:textSize="10sp"
+                    android:visibility="gone"
+                    tools:text="PREMIUM"
+                    tools:visibility="visible" />
+            </LinearLayout>
+
+            <!-- ══ PRIMARY ACTION ══ -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_play"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_phone_primary_button"
+                android:fontFamily="@font/outfit_bold"
+                android:stateListAnimator="@null"
+                android:text="@string/phone_play"
+                android:textAllCaps="false"
+                android:textColor="@color/phone_on_accent"
+                android:textSize="15sp" />
+
+            <!-- Resume is its own line here rather than welded into the button: this activity
+                 owns a three-part bar (elapsed / bar / remaining) and splitting it would mean
+                 changing the code, which this fork deliberately does not do. -->
+            <LinearLayout
+                android:id="@+id/layout_resume_bar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:id="@+id/tv_resume_elapsed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/share_tech_mono"
+                    android:textColor="@color/phone_text_muted"
+                    android:textSize="11sp"
+                    tools:text="35:46" />
 
                 <ProgressBar
                     android:id="@+id/pb_resume"
                     style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="4dp"
-                    android:layout_marginTop="6dp"
+                    android:layout_width="0dp"
+                    android:layout_height="3dp"
+                    android:layout_marginHorizontal="10dp"
+                    android:layout_weight="1"
                     android:max="100"
-                    android:progressDrawable="@drawable/cin_resume_progress"
-                    tools:progress="62" />
+                    android:progressDrawable="@drawable/bg_phone_button_progress"
+                    tools:progress="45" />
+
+                <TextView
+                    android:id="@+id/tv_resume_remaining"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/share_tech_mono"
+                    android:textColor="@color/phone_text_muted"
+                    android:textSize="11sp"
+                    tools:text="1h 12m left" />
             </LinearLayout>
-        </LinearLayout>
 
-        <!-- Action buttons -->
-        <com.google.android.flexbox.FlexboxLayout
-            android:id="@+id/container_actions"
-            app:flexWrap="wrap"
-            app:alignItems="center"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:paddingTop="6dp"
-            android:paddingBottom="6dp"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp"
-            android:layout_marginStart="-10dp"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <!-- Watch Now -->
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_play"
-                android:layout_width="wrap_content"
-                android:layout_height="@dimen/detail_action_height"
-                android:paddingStart="20dp"
-                android:paddingEnd="20dp"
-                android:background="@drawable/cin_detail_btn_watch"
-                android:drawableStart="@drawable/ic_play"
-                android:drawablePadding="6dp"
-                android:drawableTint="#041014"
-                android:text="@string/movie_detail_watch_now"
-                android:textColor="#041014"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:textAllCaps="false"
-                android:fontFamily="@font/inter_extrabold"
-                android:letterSpacing="0.04"
-                android:focusable="true"
-                android:nextFocusUp="@id/btn_back"
-                android:nextFocusDown="@id/rv_cast"
-                android:nextFocusRight="@id/btn_trailer" />
-
-            <!-- Trailer -->
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_trailer"
-                android:layout_width="wrap_content"
-                android:layout_height="@dimen/detail_action_height"
-                android:layout_marginStart="10dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:background="@drawable/cin_detail_btn_glass"
-                android:drawableStart="@drawable/ic_trailer_video"
-                android:drawablePadding="6dp"
-                android:drawableTint="@color/cin_detail_focus_text"
-                android:text="@string/movie_detail_tab_trailer"
-                android:textColor="@color/cin_detail_focus_text"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:textAllCaps="false"
-                android:fontFamily="@font/inter_extrabold"
-                android:letterSpacing="0.04"
-                android:focusable="true"
-                android:nextFocusUp="@id/btn_back"
-                android:nextFocusDown="@id/rv_cast"
-                android:nextFocusLeft="@id/btn_play"
-                android:nextFocusRight="@id/btn_favorite" />
-
-            <!-- Favorite -->
-            <ImageButton
-                android:id="@+id/btn_favorite"
-                android:layout_width="42dp"
-                android:layout_height="@dimen/detail_action_height"
-                android:layout_marginStart="10dp"
-                android:background="@drawable/cin_detail_btn_glass"
-                android:src="@drawable/ic_favorite_border"
-                android:scaleType="centerInside"
-                android:padding="9dp"
-                android:contentDescription="@string/ui_favorite_2"
-                app:tint="@color/cin_detail_focus_text"
-                android:focusable="true"
-                android:nextFocusUp="@id/btn_back"
-                android:nextFocusDown="@id/rv_cast"
-                android:nextFocusLeft="@id/btn_trailer" />
-        </com.google.android.flexbox.FlexboxLayout>
-
-        <!-- Director + Cast -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal">
-
-            <!-- Director -->
-            <LinearLayout
-                android:layout_width="wrap_content"
+            <!-- ══ ACTION ROW ══ 48dp+ targets, evenly split. -->
+            <com.google.android.flexbox.FlexboxLayout
+                android:id="@+id/container_actions"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="12dp"
+                app:justifyContent="space_between">
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btn_trailer"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/bg_phone_action"
+                    android:fontFamily="@font/outfit_semibold"
+                    android:stateListAnimator="@null"
+                    android:text="@string/phone_trailer"
+                    android:textAllCaps="false"
+                    android:textColor="@color/phone_text_primary"
+                    android:textSize="13sp"
+                    app:layout_flexGrow="1" />
+
+                <ImageButton
+                    android:id="@+id/btn_favorite"
+                    android:layout_width="64dp"
+                    android:layout_height="56dp"
+                    android:background="@drawable/bg_phone_action"
+                    android:contentDescription="@string/a11y_favorite"
+                    android:padding="16dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_favorite_border"
+                    app:tint="@color/phone_text_primary" />
+            </com.google.android.flexbox.FlexboxLayout>
+
+            <LinearLayout
+                android:id="@+id/layout_rd_summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_phone_card"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:visibility="gone"
+                tools:visibility="visible">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:id="@+id/tv_rd_summary_text"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/ui_director"
-                    android:textColor="@color/text_muted"
-                    android:textSize="9sp"
-                    android:fontFamily="@font/inter_extrabold"
-                    android:letterSpacing="0.16"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tv_director"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="3dp"
-                    android:textColor="@color/source_text_primary"
-                    android:textSize="12sp"
-                    tools:text="Denis Villeneuve" />
+                    android:fontFamily="@font/share_tech_mono"
+                    android:textColor="@color/phone_text_secondary"
+                    android:textSize="11.5sp"
+                    tools:text="12 CACHED · 40 SOURCES" />
             </LinearLayout>
 
-            <!-- Cast -->
+            <!-- ══ PLOT ══ -->
+            <TextView
+                android:id="@+id/tv_description"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="18dp"
+                android:fontFamily="@font/inter_regular"
+                android:lineSpacingMultiplier="1.65"
+                android:textColor="@color/phone_text_secondary"
+                android:textSize="12.5sp"
+                tools:text="Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family." />
+
+            <TextView
+                android:id="@+id/tv_director"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="12dp"
+                android:fontFamily="@font/inter_regular"
+                android:textColor="@color/phone_text_secondary"
+                android:textSize="12.5sp"
+                tools:text="Director  Denis Villeneuve" />
+
+            <!-- ══ CAST ══ -->
             <LinearLayout
                 android:id="@+id/layout_cast"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="32dp"
+                android:layout_marginTop="20dp"
                 android:orientation="vertical">
 
                 <TextView
                     android:id="@+id/tv_cast_title"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/ui_cast"
-                    android:textColor="@color/text_muted"
-                    android:textSize="9sp"
-                    android:fontFamily="@font/inter_extrabold"
-                    android:letterSpacing="0.16"
-                    android:textStyle="bold" />
+                    android:layout_marginHorizontal="16dp"
+                    android:fontFamily="@font/outfit_bold"
+                    android:text="@string/phone_cast"
+                    android:textColor="@color/phone_text_primary"
+                    android:textSize="15sp" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rv_cast"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="3dp"
-                    android:orientation="horizontal"
+                    android:layout_marginTop="12dp"
                     android:clipToPadding="false"
-                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-                    tools:listitem="@layout/item_cast_member"
-                    tools:itemCount="5" />
+                    android:orientation="horizontal"
+                    android:overScrollMode="never"
+                    android:paddingHorizontal="16dp"
+                    android:scrollbars="none" />
+            </LinearLayout>
+
+            <!-- ══ MORE LIKE THIS ══ -->
+            <LinearLayout
+                android:id="@+id/layout_similar_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:id="@+id/header_similar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
+                    android:fontFamily="@font/outfit_bold"
+                    android:text="@string/phone_more_like_this"
+                    android:textColor="@color/phone_text_primary"
+                    android:textSize="15sp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_similar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:clipToPadding="false"
+                    android:orientation="horizontal"
+                    android:overScrollMode="never"
+                    android:paddingHorizontal="16dp"
+                    android:scrollbars="none" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="28dp" />
+
+            <!-- Source-panel stubs. Identical to the television layout's: the picker is a bottom
+                 sheet, so these exist only to satisfy the controllers' view references. -->
+            <LinearLayout
+                android:id="@+id/container_sources_maintenance"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tv_sources_header"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp" />
+
+                <TextView
+                    android:id="@+id/tv_sources_status"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp" />
+
+                <View
+                    android:id="@+id/layout_source_filters"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp" />
+
+                <TextView
+                    android:id="@+id/btn_cached_only"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_language_filters"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_sources"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp" />
+
+                <TextView
+                    android:id="@+id/tv_back_hint"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp" />
             </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- ══ SIMILAR MOVIES ROW ══ -->
+    <!-- ══ APP BAR ══ the same 56dp bar Home, Live TV and the IPTV detail wear. -->
     <LinearLayout
-        android:id="@+id/layout_similar_row"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="44dp"
-        android:paddingEnd="44dp"
-        android:paddingBottom="10dp"
-        android:visibility="gone"
-        tools:visibility="visible"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/phone_bar_scrim"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="4dp">
+
+        <ImageButton
+            android:id="@+id/btn_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/live_nav_back"
+            android:padding="14dp"
+            android:src="@drawable/ic_stremio_chevron_left"
+            app:tint="@color/phone_text_primary" />
 
         <TextView
-            android:id="@+id/header_similar"
-            android:layout_width="wrap_content"
+            android:id="@+id/tv_breadcrumb_type"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="@string/ui_similar_movies"
-            android:textColor="@color/text_muted"
-            android:textSize="10sp"
-            android:fontFamily="@font/inter_extrabold"
-            android:letterSpacing="0.16"
-            android:textStyle="bold" />
+            android:layout_marginHorizontal="4dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="@font/outfit_bold"
+            android:maxLines="1"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="16sp"
+            tools:text="MOVIE" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_similar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal"
-            android:clipToPadding="false"
-            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+        <View
+            android:id="@+id/dot_brand"
+            android:layout_width="6dp"
+            android:layout_height="6dp"
+            android:layout_marginEnd="14dp"
+            android:background="@drawable/bg_phone_dot" />
     </LinearLayout>
 
-    <!-- Hidden maintenance IDs -->
-    <LinearLayout
-        android:id="@+id/container_sources_maintenance"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-        <TextView android:id="@+id/tv_sources_header" android:layout_width="0dp" android:layout_height="0dp" />
-        <TextView android:id="@+id/tv_sources_status" android:layout_width="0dp" android:layout_height="0dp" />
-        <View android:id="@+id/layout_source_filters" android:layout_width="0dp" android:layout_height="0dp" />
-        <TextView android:id="@+id/btn_cached_only" android:layout_width="0dp" android:layout_height="0dp" />
-        <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_language_filters" android:layout_width="0dp" android:layout_height="0dp" />
-        <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_sources" android:layout_width="0dp" android:layout_height="0dp" />
-        <ImageView android:id="@+id/iv_poster" android:layout_width="0dp" android:layout_height="0dp"
-    android:contentDescription="@null" />
-    </LinearLayout>
-
-    <!-- Loading Overlay -->
     <FrameLayout
         android:id="@+id/layout_loading_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#D906090E"
+        android:background="@color/phone_home_bg"
         android:visibility="gone">
+
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:orientation="vertical"
-            android:gravity="center_horizontal">
-            <ProgressBar android:layout_width="56dp" android:layout_height="56dp" android:indeterminateTint="@color/neon_cyan" />
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <ProgressBar
+                android:layout_width="42dp"
+                android:layout_height="42dp"
+                android:indeterminateTint="@color/phone_cyan" />
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:textColor="@color/source_text_primary"
-                android:text="@string/ui_loading_movie_details" />
+                android:fontFamily="@font/share_tech_mono"
+                android:letterSpacing="0.1"
+                android:text="@string/ui_loading_movie_details"
+                android:textColor="@color/phone_text_secondary"
+                android:textSize="12sp" />
         </LinearLayout>
     </FrameLayout>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

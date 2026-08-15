@@ -58,3 +58,51 @@ internal fun formatSizeLabel(sizeBytes: Long): String {
         String.format(Locale.US, "%.0f MB", sizeBytes / mb)
     }
 }
+
+/**
+ * Fills the detail poster, when the layout in play HAS one.
+ *
+ * Only the phone layout does: the television layout keeps `iv_poster` as a 0dp stub and leads with
+ * the backdrop alone. Loading into whichever arrived costs the television nothing and saves the
+ * phone from an empty rectangle where the art should be.
+ */
+internal fun bindDetailPoster(
+    activity: androidx.appcompat.app.AppCompatActivity,
+    iconUrl: String?,
+    backdropUrl: String?,
+) {
+    val poster = activity.findViewById<android.widget.ImageView>(
+        com.tvonnet.debridxtreamiptv.R.id.iv_poster
+    ) ?: return
+    val art = iconUrl?.takeIf { it.isNotBlank() } ?: backdropUrl
+    if (art.isNullOrBlank()) return
+    com.bumptech.glide.Glide.with(activity).load(art).centerCrop().into(poster)
+}
+
+/**
+ * What the top bar says. The television shows the trail it came down ("/ MOVIES"); the phone shows
+ * the title, because a breadcrumb is a 10-foot idea and the screen behind is one tap away.
+ */
+internal fun detailTrailLabel(
+    activity: androidx.appcompat.app.AppCompatActivity,
+    isDebrid: Boolean,
+    title: String?,
+): String = if (activity.resources.getBoolean(com.tvonnet.debridxtreamiptv.R.bool.ui_uses_dpad_focus)) {
+    if (isDebrid) "/ MOVIES" else "/ VOD"
+} else {
+    title.orEmpty()
+}
+
+/**
+ * Hides the labels that have nothing to say.
+ *
+ * The television layout can afford an empty pill or a blank line in a 900dp column; a phone
+ * cannot — an empty badge reads as a rendering fault, and a blank director line leaves a hole
+ * between the plot and what comes next. A view with no text takes no space.
+ */
+internal fun hideBlankLabels(activity: androidx.appcompat.app.AppCompatActivity, vararg ids: Int) {
+    ids.forEach { id ->
+        val view = activity.findViewById<android.widget.TextView>(id) ?: return@forEach
+        if (view.text.isNullOrBlank()) view.visibility = android.view.View.GONE
+    }
+}

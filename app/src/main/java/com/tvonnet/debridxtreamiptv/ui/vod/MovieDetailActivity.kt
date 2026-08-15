@@ -36,8 +36,8 @@ import com.tvonnet.debridxtreamiptv.data.debrid.repository.UnifiedSourceProvider
 import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
 import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import android.content.Context
-import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
-import com.tvonnet.debridxtreamiptv.util.phoneScaledContext
+import com.tvonnet.debridxtreamiptv.util.usePortraitOnTouchDevices
+
 
 @AndroidEntryPoint
 class MovieDetailActivity : AppCompatActivity() {
@@ -177,14 +177,18 @@ class MovieDetailActivity : AppCompatActivity() {
 
     // M13 (option B): the TV layout's type is sized for three metres; scale it up on a handset.
     override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(phoneScaledContext(newBase))
+        // NOT phoneScaledContext. That 1.6x exists to rescue screens still wearing the 10-foot
+        // layout; this one has a real phone layout in layout/ (the television one moved to
+        // layout-television/), authored in true dp and sp. Scaling it would blow it apart.
+        super.attachBaseContext(newBase)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // M13: BEFORE super.onCreate on purpose — the orientation has to be settled before the
-        // first inflate, or the layout chosen for the old one stays on screen inside the new
-        // window (M11 proved that the hard way, in the opposite direction).
-        lockLandscapeOnTouchDevices()
+        // BEFORE super.onCreate on purpose — the orientation has to be settled before the first
+        // inflate, or the layout chosen for the old one stays on screen inside the new window
+        // (M11 proved that the hard way, in the opposite direction). Portrait now, because the
+        // phone layout IS portrait: the landscape lock was the price of wearing the TV screen.
+        usePortraitOnTouchDevices()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.fragment_movie_detail)
 
@@ -477,9 +481,15 @@ class MovieDetailActivity : AppCompatActivity() {
                 .into(ivBackdrop)
         }
 
+        bindDetailPoster(this, movieIcon, movieBackdrop)
+
         // RD CONNECTED status pill removed per updated design — keep hidden.
         layoutRdStatus.visibility = View.GONE
-        tvBreadcrumbType.text = if (isDebridMovie) "/ MOVIES" else "/ VOD"
+        tvBreadcrumbType.text = detailTrailLabel(this, isDebridMovie, movieName)
+        hideBlankLabels(
+            this,
+            R.id.tv_quality_badge, R.id.tv_age_rating, R.id.tv_director, R.id.tv_rating_stars,
+        )
     }
 
     // Back-to-rail context hint (shown when the caller told us where we came from)

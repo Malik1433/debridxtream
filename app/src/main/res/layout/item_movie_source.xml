@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  PHONE source row. Same ids and kinds as the television row in layout-television/, so
+  MovieSourceAdapter binds either — but stacked instead of columned: five side-by-side columns
+  need 900dp to breathe, and this screen has 411. Release name on top, then the facts as a chip
+  line, with a 56dp play target on the right.
+-->
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools">
@@ -7,205 +13,181 @@
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="@dimen/source_row_height"
-        android:layout_marginStart="6dp"
-        android:layout_marginEnd="6dp"
-        android:background="@drawable/source_row_bg"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
         android:descendantFocusability="blocksDescendants"
         android:focusable="true"
-        android:clickable="true">
+        android:minHeight="76dp"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp">
 
-        <!-- BEST PICK left edge accent bar (shown only on the best row) -->
+        <!-- BEST PICK accent, on the leading edge as on the television row. -->
         <View
             android:id="@+id/v_best_accent"
             android:layout_width="3dp"
             android:layout_height="0dp"
             android:background="@drawable/cin_best_accent_bar"
             android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
             tools:visibility="visible" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="6dp"
+        <TextView
+            android:id="@+id/tv_release_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="@font/inter_regular"
+            android:maxLines="2"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="13.5sp"
+            app:layout_constraintEnd_toStartOf="@id/iv_play"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            tools:text="Spider-Man.Brand.New.Day.2026.2160p.WEB-DL" />
 
-            <!-- Col 1: Provider badge -->
+        <LinearLayout
+            android:id="@+id/layout_badges"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toStartOf="@id/iv_play"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_release_name">
+
             <TextView
-                android:id="@+id/tv_provider"
-                android:layout_width="@dimen/source_provider_width"
-                android:layout_height="@dimen/source_provider_height"
-                android:gravity="center"
-                android:textSize="9sp"
-                android:textStyle="bold"
-                android:fontFamily="monospace"
-                android:focusable="false"
-                android:clickable="false"
-                tools:text="RD" />
-
-            <!-- Col 2: Language flags -->
-            <LinearLayout
-                android:id="@+id/ll_languages"
-                android:layout_width="@dimen/source_lang_col_width"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="5dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:focusable="false"
-                android:clickable="false" />
-
-            <!-- Col 3: Release name -->
-            <TextView
-                android:id="@+id/tv_release_name"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="5dp"
-                android:textSize="9sp"
-                android:textColor="#E2E8F0"
-                android:fontFamily="monospace"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:focusable="false"
-                android:clickable="false"
-                tools:text="Dune.Part.Two.2024.2160p.WEB-DL.DV.HDR" />
-
-            <LinearLayout
-                android:id="@+id/layout_badges"
+                android:id="@+id/tv_quality"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:focusable="false"
-                android:clickable="false">
+                android:background="@drawable/bg_phone_badge_cyan"
+                android:fontFamily="@font/share_tech_mono"
+                android:paddingHorizontal="7dp"
+                android:paddingVertical="2dp"
+                android:textColor="@color/phone_cyan"
+                android:textSize="10.5sp"
+                tools:text="1080P" />
 
-                <!-- Col 4: Quality pill -->
-                <TextView
-                    android:id="@+id/tv_quality"
-                    android:layout_width="@dimen/source_quality_width"
-                    android:layout_height="@dimen/source_badge_height"
-                    android:layout_marginStart="5dp"
-                    android:gravity="center"
-                    android:textSize="8sp"
-                    android:textStyle="bold"
-                    android:focusable="false"
-                    android:clickable="false"
-                    tools:text="4K" />
-
-                <TextView
-                    android:id="@+id/tv_badge_seeders"
-                    android:layout_width="wrap_content"
-                    android:layout_height="@dimen/source_badge_height"
-                    android:layout_marginStart="5dp"
-                    android:gravity="center"
-                    android:textSize="8sp"
-                    android:textStyle="bold"
-                    android:fontFamily="monospace"
-                    android:visibility="gone"
-                    android:focusable="false"
-                    android:clickable="false"
-                    tools:text="12" />
-
-                <!-- Col 5: Type badge -->
-                <TextView
-                    android:id="@+id/tv_type"
-                    android:layout_width="@dimen/source_type_width"
-                    android:layout_height="@dimen/source_badge_height"
-                    android:layout_marginStart="5dp"
-                    android:gravity="center"
-                    android:textSize="8sp"
-                    android:textStyle="bold"
-                    android:fontFamily="monospace"
-                    android:focusable="false"
-                    android:clickable="false"
-                    tools:text="DIRECT" />
-            </LinearLayout>
-
-            <!-- Col 6: File size + visual bar -->
-            <LinearLayout
-                android:id="@+id/layout_size_column"
+            <TextView
+                android:id="@+id/tv_type"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="5dp"
-                android:orientation="vertical"
-                android:gravity="end"
-                android:focusable="false"
-                android:clickable="false">
-
-                <TextView
-                    android:id="@+id/tv_filesize"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:gravity="end"
-                    android:textSize="10sp"
-                    android:textColor="#F1F5F9"
-                    android:fontFamily="monospace"
-                    android:focusable="false"
-                    android:clickable="false"
-                    tools:text="22.4 GB" />
-
-                <FrameLayout
-                    android:id="@+id/layout_size_bar"
-                    android:layout_width="40dp"
-                    android:layout_height="3dp"
-                    android:layout_marginTop="3dp"
-                    android:background="@drawable/cin_size_bar_track"
-                    android:focusable="false"
-                    android:clickable="false">
-
-                    <View
-                        android:id="@+id/v_size_bar_fill"
-                        android:layout_width="20dp"
-                        android:layout_height="match_parent"
-                        android:background="@drawable/cin_size_bar_fill"
-                        android:backgroundTint="#00F0FF" />
-                </FrameLayout>
-            </LinearLayout>
-
-            <!-- Col 7: Play icon -->
-            <ImageView
-                android:id="@+id/iv_play"
-                android:layout_width="@dimen/source_play_size"
-                android:layout_height="@dimen/source_play_size"
                 android:layout_marginStart="6dp"
-                android:background="@drawable/play_btn_bg"
-                android:src="@drawable/ic_play_arrow_24"
-                android:padding="4dp"
-                android:focusable="false"
-                android:clickable="false"
-                app:tint="#64748B"
-                android:contentDescription="@string/a11y_play" />
+                android:background="@drawable/bg_phone_badge_green"
+                android:fontFamily="@font/share_tech_mono"
+                android:paddingHorizontal="7dp"
+                android:paddingVertical="2dp"
+                android:textColor="@color/phone_green"
+                android:textSize="10.5sp"
+                tools:text="DIRECT" />
 
-            <!-- Col 7 (alt): BEST badge — replaces play icon on the best row -->
             <TextView
-                android:id="@+id/tv_best_badge"
+                android:id="@+id/tv_badge_seeders"
                 android:layout_width="wrap_content"
-                android:layout_height="@dimen/source_provider_height"
+                android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
-                android:gravity="center"
-                android:paddingHorizontal="8dp"
-                android:background="@drawable/cin_best_badge_bg"
-                android:text="@string/ui_best"
-                android:textColor="#00F0FF"
-                android:textSize="8sp"
-                android:textStyle="bold"
-                android:fontFamily="monospace"
-                android:letterSpacing="0.08"
+                android:background="@drawable/bg_phone_badge_neutral"
+                android:fontFamily="@font/share_tech_mono"
+                android:paddingHorizontal="7dp"
+                android:paddingVertical="2dp"
+                android:textColor="@color/phone_text_secondary"
+                android:textSize="10.5sp"
                 android:visibility="gone"
-                android:focusable="false"
-                android:clickable="false"
+                tools:text="120"
                 tools:visibility="visible" />
 
+            <TextView
+                android:id="@+id/tv_best_badge"
+                android:text="@string/ui_best"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_phone_best_chip"
+                android:fontFamily="@font/share_tech_mono"
+                android:paddingHorizontal="7dp"
+                android:paddingVertical="2dp"
+                android:textColor="@color/phone_cyan"
+                android:textSize="10.5sp"
+                android:visibility="gone"
+                tools:text="★ BEST"
+                tools:visibility="visible" />
         </LinearLayout>
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        <!-- Provider, languages and size share the third line. -->
+        <TextView
+            android:id="@+id/tv_provider"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:clickable="false"
+            android:focusable="false"
+            android:fontFamily="@font/share_tech_mono"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="11sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/layout_badges"
+            tools:text="RD" />
 
+        <LinearLayout
+            android:id="@+id/ll_languages"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="@id/tv_provider"
+            app:layout_constraintStart_toEndOf="@id/tv_provider"
+            app:layout_constraintTop_toTopOf="@id/tv_provider" />
+
+        <LinearLayout
+            android:id="@+id/layout_size_column"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="@id/tv_provider"
+            app:layout_constraintStart_toEndOf="@id/ll_languages"
+            app:layout_constraintTop_toTopOf="@id/tv_provider">
+
+            <TextView
+                android:id="@+id/tv_filesize"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/share_tech_mono"
+                android:textColor="@color/phone_text_muted"
+                android:textSize="11sp"
+                tools:text="14.2 GB" />
+
+            <FrameLayout
+                android:id="@+id/layout_size_bar"
+                android:layout_width="52dp"
+                android:layout_height="3dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_phone_progress_track">
+
+                <View
+                    android:id="@+id/v_size_bar_fill"
+                    android:layout_width="26dp"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_phone_progress" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/iv_play"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/bg_phone_action"
+            android:contentDescription="@string/a11y_play"
+            android:padding="17dp"
+            android:src="@drawable/ic_stremio_play"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/phone_text_primary" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </layout>

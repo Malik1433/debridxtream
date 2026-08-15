@@ -40,8 +40,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import android.content.Context
-import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
-import com.tvonnet.debridxtreamiptv.util.phoneScaledContext
+import com.tvonnet.debridxtreamiptv.util.usePortraitOnTouchDevices
 
 @AndroidEntryPoint
 class SeriesDetailActivity : AppCompatActivity() {
@@ -156,14 +155,16 @@ class SeriesDetailActivity : AppCompatActivity() {
 
     // M13 (option B): the TV layout's type is sized for three metres; scale it up on a handset.
     override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(phoneScaledContext(newBase))
+        // NOT phoneScaledContext — see MovieDetailActivity: this screen has a real phone layout
+        // now, authored in true dp and sp, and scaling it 1.6x would blow it apart.
+        super.attachBaseContext(newBase)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // M13: BEFORE super.onCreate on purpose — the orientation has to be settled before the
         // first inflate, or the layout chosen for the old one stays on screen inside the new
         // window (M11 proved that the hard way, in the opposite direction).
-        lockLandscapeOnTouchDevices()
+        usePortraitOnTouchDevices()
         super.onCreate(savedInstanceState)
         
         setContentView(R.layout.fragment_series_detail)
@@ -171,7 +172,12 @@ class SeriesDetailActivity : AppCompatActivity() {
         // device (M14b home, M16a IPTV series, D3 debrid setup gate). The phone rulebook bans them.
         if (!resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
             findViewById<android.view.View>(R.id.layout_hint_bar)?.visibility = android.view.View.GONE
-            relocateActionsForTouch()
+            // The phone layout carries a real back arrow in its app bar. A touchscreen has no
+            // BACK button of its own to fall back on beyond the system gesture, and the phone
+            // rulebook says every screen must be leavable by something you can see.
+            findViewById<android.view.View>(R.id.phone_series_back)?.setOnClickListener {
+                onBackPressedDispatcher.onBackPressed()
+            }
         }
 
         // Repository and credentials are now injected via Hilt
@@ -429,6 +435,15 @@ class SeriesDetailActivity : AppCompatActivity() {
             ivBackdrop.setImageDrawable(null)
         }
 
+        // The poster, for whichever layout has a visible one — the phone does, the television
+        // keeps a stub. Same helper the movie screen uses.
+        com.tvonnet.debridxtreamiptv.ui.vod.bindDetailPoster(this, seriesCover, seriesBackdrop)
+        com.tvonnet.debridxtreamiptv.ui.vod.hideBlankLabels(
+            this,
+            R.id.tv_quality_badge, R.id.tv_cc_badge, R.id.tv_director, R.id.tv_cast,
+            R.id.tv_breadcrumb_debrid, R.id.tv_breadcrumb_type, R.id.tv_premium_badge,
+        )
+
         seriesSeasonUi.refreshControls()
     }
 
@@ -670,31 +685,6 @@ class SeriesDetailActivity : AppCompatActivity() {
             super.onBackPressed()
         }
     }
-    /**
-     * D6 (owner, 2026-08-09): on a phone the series page needs no Play button — every episode card
-     * plays on one tap, and it sat below the fold in the scrolled column anyway. Trailer +
-     * favourite REPARENT into the always-visible season row (same View objects, so every existing
-     * listener keeps working). The TV never runs this.
-     */
-    private fun relocateActionsForTouch() {
-        findViewById<android.view.View>(R.id.btn_watch_now)?.visibility = android.view.View.GONE
-        val seasonRow = findViewById<android.view.View>(R.id.btn_season_selector)?.parent
-            as? android.view.ViewGroup ?: return
-        val d = resources.displayMetrics.density
-        listOf(R.id.btn_watch_trailer, R.id.btn_add_favorite).forEach { id ->
-            findViewById<android.view.View>(id)?.let { v ->
-                (v.parent as? android.view.ViewGroup)?.removeView(v)
-                seasonRow.addView(
-                    v,
-                    android.widget.LinearLayout.LayoutParams(
-                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-                        (48 * d).toInt()
-                    ).apply { marginStart = (10 * d).toInt() }
-                )
-            }
-        }
-    }
-
 }
 
 data class EpisodeUiModel(

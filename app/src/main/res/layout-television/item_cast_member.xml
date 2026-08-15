@@ -1,9 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  PHONE cast chip. Same ids and same view kinds as the television one in layout-television/, so the
-  adapter binds either without knowing which it got — only the viewing distance differs: a 38dp
-  avatar under 9sp type is a 10-foot answer, and in the hand it is unreadable.
--->
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools">
@@ -11,34 +6,36 @@
     <data />
 
     <LinearLayout
-        android:layout_width="80dp"
+        android:layout_width="56dp"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="12dp"
+        android:layout_marginEnd="10dp"
+        android:orientation="vertical"
         android:gravity="center_horizontal"
-        android:orientation="vertical">
+        android:padding="3dp"
+        android:focusable="true"
+        android:background="@drawable/cin_detail_cast_circle">
 
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/iv_profile"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
-            android:background="@drawable/bg_phone_avatar"
-            android:contentDescription="@null"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
             android:scaleType="centerCrop"
             app:shapeAppearanceOverlay="@style/CircleAppearance"
-            tools:src="@tools:sample/avatars" />
+            tools:src="@tools:sample/avatars"
+            android:contentDescription="@null" />
 
         <TextView
             android:id="@+id/tv_name"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="4dp"
             android:ellipsize="end"
-            android:fontFamily="@font/inter_regular"
             android:gravity="center"
-            android:maxLines="2"
-            android:textColor="@color/phone_text_secondary"
-            android:textSize="12sp"
-            tools:text="Timothee Chalamet" />
+            android:maxLines="1"
+            android:textColor="#94A3B8"
+            android:textSize="9sp"
+            android:lineSpacingMultiplier="1.1"
+            tools:text="Timothée Chalamet" />
 
         <!-- Hidden character field kept for data binding compat -->
         <TextView
@@ -46,5 +43,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:visibility="gone" />
+
     </LinearLayout>
+
 </layout>

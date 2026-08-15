@@ -1,657 +1,559 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Debrid Series Detail — Cinematic layout matching Claude Design handoff.
-    Fire TV 960×540dp viewport (1920×1080px / 2).
-    All design pixel values halved for dp conversion.
+  PHONE Debrid series detail — portrait.
+
+  The television version is untouched in layout-television/. This file carries the same ids in the
+  same view kinds, so SeriesDetailActivity binds either without knowing which it got — the rule
+  this project already follows for two form factors.
+
+  The shape matches the IPTV phone detail: 232dp poster-led header, one 56dp filled action, a
+  secondary row, plot, then the season bar and the episode list. The episode list is HORIZONTAL
+  here because the activity sets that layout manager itself and this fork changes no code; the
+  cards are sized for a thumb instead of a remote.
 -->
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#06090E"
-    android:clipToPadding="false">
+    android:background="@color/phone_home_bg">
 
-    <!-- Full-bleed backdrop -->
-    <ImageView
-        android:id="@+id/iv_backdrop"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:scaleType="centerCrop"
-        android:alpha="0.45"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        tools:src="@tools:sample/backgrounds/scenic"
-        android:contentDescription="@null" />
-
-    <!-- Left + bottom gradient overlay -->
-    <View
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:background="@drawable/cin_detail_overlay"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- ══ TOP STRIP ══ -->
-    <LinearLayout
-        android:id="@+id/layout_top_strip"
-        android:layout_width="0dp"
-        android:layout_height="20dp"
-        android:layout_marginStart="44dp"
-        android:layout_marginEnd="44dp"
-        android:layout_marginTop="@dimen/series_top_strip_margin_top"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <!-- Cyan dot -->
-        <View
-            android:layout_width="5dp"
-            android:layout_height="5dp"
-            android:background="@drawable/cin_dot_cyan" />
-
-        <TextView
-            android:id="@+id/tv_breadcrumb_debrid"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="5dp"
-            android:text="@string/nav_debrid"
-            android:textColor="#F1F5F9"
-            android:textSize="9sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.12" />
-
-        <TextView
-            android:id="@+id/tv_breadcrumb_type"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="3dp"
-            android:text="@string/ui_series"
-            android:textColor="#64748B"
-            android:textSize="9sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.12" />
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-
-        <!-- Premium pill -->
-        <TextView
-            android:id="@+id/tv_premium_badge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/cin_detail_premium_pill"
-            android:fontFamily="monospace"
-            android:paddingStart="7dp"
-            android:paddingEnd="7dp"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp"
-            android:textColor="#64748B"
-            android:textSize="7sp"
-            android:letterSpacing="0.08"
-            tools:text="PREMIUM · 224 DAYS" />
-    </LinearLayout>
-
-    <!-- ══ LEFT: SERIES INFO ══
-         D4: same recipe as M16a's IPTV series page — a wrap_content column anchored only at the top
-         runs past the bottom of the screen and, with `clipChildren="false"` above it, paints over
-         the episode strip. Easier here than on the IPTV twin: the action row already lives INSIDE
-         this column, so nothing had to be moved. -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scroll_details"
-        android:layout_width="410dp"
-        android:layout_height="0dp"
-        android:layout_marginStart="44dp"
-        android:layout_marginTop="@dimen/series_header_margin_top"
-        android:clipChildren="true"
-        android:clipToPadding="true"
-        android:overScrollMode="never"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/layout_episodes_section"
-        app:layout_constraintVertical_bias="0.0">
-
-    <LinearLayout
-        android:id="@+id/group_details"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
-
-        <!-- Content type label -->
-        <TextView
-            android:id="@+id/tv_content_type"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/ui_limited_series"
-            android:textColor="#00F0FF"
-            android:textSize="7sp"
-            android:fontFamily="monospace"
-            android:letterSpacing="0.2" />
-
-        <!-- Title -->
-        <TextView
-            android:id="@+id/tv_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
-            android:textColor="#F1F5F9"
-            android:textSize="33sp"
-            android:textStyle="bold"
-            android:letterSpacing="-0.02"
-            android:lineSpacingMultiplier="1.02"
-            android:maxLines="1"
-            android:ellipsize="end"
-            tools:text="Nightfall Protocol" />
-
-        <!-- Metadata row -->
-        <com.google.android.flexbox.FlexboxLayout
-            android:id="@+id/layout_metadata"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            app:flexWrap="wrap"
-            app:alignItems="center">
-
-            <!-- Rating badge -->
-            <LinearLayout
-                android:id="@+id/layout_rating"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/cin_detail_rating_badge"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="6dp"
-                android:paddingEnd="6dp"
-                android:paddingTop="3dp"
-                android:paddingBottom="3dp"
-                android:layout_marginEnd="7dp">
-
-                <TextView
-                    android:id="@+id/tv_rating_percentage"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="#00F0FF"
-                    android:textSize="8sp"
-                    android:fontFamily="monospace"
-                    tools:text="8.9" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="3dp"
-                    android:text="★"
-                    android:textColor="#00F0FF"
-                    android:textSize="7sp" />
-            </LinearLayout>
-
-            <!-- Year -->
-            <TextView
-                android:id="@+id/tv_year"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="7dp"
-                android:textColor="#94A3B8"
-                android:textSize="8sp"
-                android:fontFamily="monospace"
-                tools:text="2025" />
-
-            <!-- Dot separator -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="7dp"
-                android:text="·"
-                android:textColor="#64748B"
-                android:textSize="8sp" />
-
-            <!-- Seasons + episodes count -->
-            <TextView
-                android:id="@+id/tv_season_episode_count"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="7dp"
-                android:textColor="#94A3B8"
-                android:textSize="8sp"
-                android:fontFamily="monospace"
-                tools:text="2 SEASONS · 16 EPISODES" />
-
-            <!-- Dot separator -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="7dp"
-                android:text="·"
-                android:textColor="#64748B"
-                android:textSize="8sp" />
-
-            <!-- Genre -->
-            <TextView
-                android:id="@+id/tv_genre_year"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="7dp"
-                android:textColor="#94A3B8"
-                android:textSize="8sp"
-                tools:text="Sci-Fi Thriller" />
-
-            <!-- Quality badge (4K DV) -->
-            <TextView
-                android:id="@+id/tv_quality_badge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="5dp"
-                android:background="@drawable/cin_detail_quality_badge"
-                android:paddingStart="4dp"
-                android:paddingEnd="4dp"
-                android:paddingTop="2dp"
-                android:paddingBottom="2dp"
-                android:textColor="#FFAA00"
-                android:textSize="6sp"
-                android:fontFamily="monospace"
-                android:letterSpacing="0.08"
-                android:visibility="gone"
-                tools:text="4K DV"
-                tools:visibility="visible" />
-
-            <!-- CC badge -->
-            <TextView
-                android:id="@+id/tv_cc_badge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/cin_detail_cc_badge"
-                android:paddingStart="4dp"
-                android:paddingEnd="4dp"
-                android:paddingTop="2dp"
-                android:paddingBottom="2dp"
-                android:text="@string/ui_cc"
-                android:textColor="#94A3B8"
-                android:textSize="6sp"
-                android:fontFamily="monospace"
-                android:letterSpacing="0.08"
-                android:visibility="gone"
-                tools:visibility="visible" />
-        </com.google.android.flexbox.FlexboxLayout>
-
-        <!-- Source summary pill -->
-        <LinearLayout
-            android:id="@+id/layout_rd_summary"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/cin_detail_source_summary_pill"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="5dp"
-            android:paddingBottom="5dp"
-            android:visibility="gone"
-            tools:visibility="visible">
-
-            <View
-                android:layout_width="4dp"
-                android:layout_height="4dp"
-                android:background="@drawable/cin_dot_cyan" />
-
-            <TextView
-                android:id="@+id/tv_rd_summary"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="5dp"
-                android:textColor="#00F0FF"
-                android:textSize="7sp"
-                android:fontFamily="monospace"
-                android:letterSpacing="0.06"
-                tools:text="9 SOURCES / EPISODE · 5 CACHED · BEST 4K DV" />
-        </LinearLayout>
-
-        <!-- Continue watching bar -->
-        <LinearLayout
-            android:id="@+id/layout_resume"
-            android:layout_width="240dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="vertical"
-            android:visibility="gone"
-            tools:visibility="visible">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/tv_resume_label"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:textColor="#00F0FF"
-                    android:textSize="6sp"
-                    android:fontFamily="monospace"
-                    android:letterSpacing="0.1"
-                    tools:text="CONTINUE · S01 · E03" />
-
-                <TextView
-                    android:id="@+id/tv_resume_right"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="#64748B"
-                    android:textSize="6sp"
-                    android:fontFamily="monospace"
-                    android:letterSpacing="0.06"
-                    tools:text="42% · 32M LEFT" />
-            </LinearLayout>
-
-            <!-- Progress bar -->
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="2dp"
-                android:layout_marginTop="4dp">
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="@drawable/cin_series_progress_bg" />
-
-                <View
-                    android:id="@+id/v_resume_progress"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:background="@drawable/cin_series_progress_fill" />
-            </FrameLayout>
-
-            <TextView
-                android:id="@+id/tv_resume_ep_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:textColor="#CBD5E1"
-                android:textSize="7sp"
-                android:textStyle="bold"
-                tools:text="Ghost in the Noise" />
-        </LinearLayout>
-
-        <!-- Description -->
-        <TextView
-            android:id="@+id/tv_description"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="9dp"
-            android:textColor="#94A3B8"
-            android:textSize="9sp"
-            android:lineSpacingMultiplier="1.5"
-            android:maxLines="2"
-            android:ellipsize="end"
-            tools:text="When a deep-space relay goes dark, a decommissioned analyst is pulled back to trace a signal." />
-
-        <!-- Action buttons -->
-        <LinearLayout
-            android:id="@+id/layout_actions"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:layout_marginStart="-3dp"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="3dp">
-
-            <!-- Play / Resume button — 60px design -> 30dp, matched to Movie Detail play button (38dp) -->
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_watch_now"
-                android:layout_width="wrap_content"
-                android:layout_height="@dimen/detail_action_height"
-                android:background="@drawable/cin_detail_btn_watch"
-                android:drawableStart="@drawable/ic_play_arrow_24"
-                android:drawablePadding="8dp"
-                android:drawableTint="#041014"
-                android:focusable="true"
-                android:gravity="center"
-                android:letterSpacing="0.04"
-                android:minWidth="0dp"
-                android:paddingStart="20dp"
-                android:paddingEnd="20dp"
-                android:text="@string/ui_play_s01_e01"
-                android:textAllCaps="false"
-                android:textColor="#041014"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <!-- Trailer button — 60px design, matched to Movie Detail trailer button (38dp) -->
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_watch_trailer"
-                android:layout_width="wrap_content"
-                android:layout_height="@dimen/detail_action_height"
-                android:layout_marginStart="10dp"
-                android:background="@drawable/cin_detail_btn_glass"
-                android:focusable="true"
-                android:gravity="center"
-                android:letterSpacing="0.04"
-                android:minWidth="0dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:text="@string/movie_detail_tab_trailer"
-                android:textAllCaps="false"
-                android:textColor="#F1F5F9"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <!-- Favorite button — 60px design, matched to Movie Detail favorite (38dp) -->
-            <ImageButton
-                android:id="@+id/btn_add_favorite"
-                android:layout_width="38dp"
-                android:layout_height="@dimen/detail_action_height"
-                android:layout_marginStart="10dp"
-                android:background="@drawable/cin_detail_btn_glass"
-                android:focusable="true"
-                android:padding="9dp"
-                android:scaleType="fitCenter"
-                android:src="@drawable/ic_favorite_border"
-                app:tint="@color/cin_detail_focus_text"
-                android:contentDescription="@string/a11y_favorite" />
-        </LinearLayout>
-    </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
-
-    <!-- ══ EPISODES SECTION (bottom) ══ -->
-    <LinearLayout
-        android:id="@+id/layout_episodes_section"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="44dp"
-        android:layout_marginEnd="44dp"
-        android:layout_marginBottom="32dp"
-        android:clipChildren="false"
+        android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:overScrollMode="never"
+        android:paddingTop="56dp"
+        android:scrollbars="none">
 
-        <!-- Header row: EPISODES label + season button + progress -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:clipChildren="false"
-            android:clipToPadding="false">
+            android:orientation="vertical">
 
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/group_details"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/ui_episodes"
-                android:textColor="#64748B"
-                android:textSize="7sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.16" />
+                android:orientation="vertical">
 
-            <!-- Season selector button — 46px design -> 30dp, Outfit 700 17px -> 12sp -->
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_season_selector"
-                android:layout_width="wrap_content"
-                android:layout_height="30dp"
-                android:layout_marginStart="12dp"
-                android:background="@drawable/cin_series_season_btn"
-                android:focusable="true"
-                android:gravity="center"
-                android:minWidth="0dp"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:text="@string/ui_season_1"
-                android:textAllCaps="false"
-                android:textColor="#00F0FF"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.06" />
+                <!-- ══ HEADER 232 ══ -->
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="232dp">
 
-            <!-- Season progress -->
-            <TextView
-                android:id="@+id/tv_season_progress"
-                android:layout_width="wrap_content"
+                    <ImageView
+                        android:id="@+id/iv_backdrop"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:alpha="0.55"
+                        android:contentDescription="@null"
+                        android:scaleType="centerCrop" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_phone_detail_scrim" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp"
+                        android:paddingBottom="16dp">
+
+                        <ImageView
+                            android:id="@+id/iv_poster"
+                            android:layout_width="104dp"
+                            android:layout_height="156dp"
+                            android:background="@drawable/bg_phone_poster"
+                            android:clipToOutline="true"
+                            android:contentDescription="@null"
+                            android:scaleType="centerCrop" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="14dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tv_content_type"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/share_tech_mono"
+                                android:letterSpacing="0.12"
+                                android:textColor="@color/phone_cyan"
+                                android:textSize="10sp"
+                                tools:text="SERIES" />
+
+                            <TextView
+                                android:id="@+id/tv_title"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:ellipsize="end"
+                                android:fontFamily="@font/outfit_extrabold"
+                                android:letterSpacing="-0.03"
+                                android:lineSpacingMultiplier="1.2"
+                                android:maxLines="2"
+                                android:textColor="@color/phone_text_primary"
+                                android:textSize="22sp"
+                                tools:text="Shogun" />
+
+                            <com.google.android.flexbox.FlexboxLayout
+                                android:id="@+id/layout_metadata"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                app:alignItems="center"
+                                app:flexWrap="wrap">
+
+                                <LinearLayout
+                                    android:id="@+id/layout_rating"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginEnd="10dp"
+                                    android:gravity="center_vertical"
+                                    android:orientation="horizontal">
+
+                                    <TextView
+                                        android:id="@+id/tv_rating_stars"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:fontFamily="@font/share_tech_mono"
+                                        android:textColor="@color/phone_amber"
+                                        android:textSize="13sp"
+                                        tools:text="★★★★" />
+
+                                    <TextView
+                                        android:id="@+id/tv_rating_percentage"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="6dp"
+                                        android:fontFamily="@font/share_tech_mono"
+                                        android:textColor="@color/phone_text_primary"
+                                        android:textSize="13sp"
+                                        tools:text="86%" />
+                                </LinearLayout>
+
+                                <TextView
+                                    android:id="@+id/tv_year"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginEnd="10dp"
+                                    android:fontFamily="@font/share_tech_mono"
+                                    android:textColor="@color/phone_text_secondary"
+                                    android:textSize="12sp"
+                                    tools:text="2024" />
+
+                                <TextView
+                                    android:id="@+id/tv_season_episode_count"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginEnd="10dp"
+                                    android:fontFamily="@font/share_tech_mono"
+                                    android:textColor="@color/phone_text_secondary"
+                                    android:textSize="12sp"
+                                    tools:text="1 SEASON · 10 EP" />
+
+                                <TextView
+                                    android:id="@+id/tv_quality_badge"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginEnd="8dp"
+                                    android:background="@drawable/bg_phone_badge_cyan"
+                                    android:fontFamily="@font/share_tech_mono"
+                                    android:paddingHorizontal="6dp"
+                                    android:paddingVertical="2dp"
+                                    android:textColor="@color/phone_cyan"
+                                    android:textSize="10sp"
+                                    tools:text="4K" />
+
+                                <TextView
+                                    android:id="@+id/tv_cc_badge"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:background="@drawable/bg_phone_badge_neutral"
+                                    android:fontFamily="@font/share_tech_mono"
+                                    android:paddingHorizontal="6dp"
+                                    android:paddingVertical="2dp"
+                                    android:textColor="@color/phone_text_secondary"
+                                    android:textSize="10sp"
+                                    tools:text="CC" />
+                            </com.google.android.flexbox.FlexboxLayout>
+
+                            <TextView
+                                android:id="@+id/tv_genre_year"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                android:ellipsize="end"
+                                android:fontFamily="@font/inter_regular"
+                                android:maxLines="1"
+                                android:textColor="@color/phone_text_secondary"
+                                android:textSize="12.5sp"
+                                tools:text="Drama · History" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/tv_breadcrumb_debrid"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:letterSpacing="0.08"
+                        android:textColor="@color/phone_text_muted"
+                        android:textSize="11sp"
+                        tools:text="DEBRID" />
+
+                    <TextView
+                        android:id="@+id/tv_breadcrumb_type"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:letterSpacing="0.08"
+                        android:textColor="@color/phone_text_muted"
+                        android:textSize="11sp"
+                        tools:text="SERIES" />
+
+                    <TextView
+                        android:id="@+id/tv_premium_badge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/bg_phone_badge_cyan"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:paddingHorizontal="6dp"
+                        android:paddingVertical="2dp"
+                        android:textColor="@color/phone_cyan"
+                        android:textSize="10sp"
+                        android:visibility="gone"
+                        tools:text="PREMIUM"
+                        tools:visibility="visible" />
+                </LinearLayout>
+
+                <!-- ══ PRIMARY ACTION ══ -->
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btn_watch_now"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="14dp"
+                    android:background="@drawable/bg_phone_primary_button"
+                    android:fontFamily="@font/outfit_bold"
+                    android:stateListAnimator="@null"
+                    android:text="@string/phone_play"
+                    android:textAllCaps="false"
+                    android:textColor="@color/phone_on_accent"
+                    android:textSize="15sp" />
+
+                <!-- Resume: its own card, because the activity fills three separate fields. -->
+                <LinearLayout
+                    android:id="@+id/layout_resume"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_phone_card"
+                    android:orientation="vertical"
+                    android:padding="12dp"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/tv_resume_label"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:ellipsize="end"
+                            android:fontFamily="@font/share_tech_mono"
+                            android:maxLines="1"
+                            android:textColor="@color/phone_cyan"
+                            android:textSize="11sp"
+                            tools:text="CONTINUE S01E04" />
+
+                        <TextView
+                            android:id="@+id/tv_resume_right"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:fontFamily="@font/share_tech_mono"
+                            android:textColor="@color/phone_text_muted"
+                            android:textSize="11sp"
+                            tools:text="22m left" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_resume_ep_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/inter_regular"
+                        android:maxLines="1"
+                        android:textColor="@color/phone_text_primary"
+                        android:textSize="13sp"
+                        tools:text="The Eightfold Fence" />
+
+                    <View
+                        android:id="@+id/v_resume_progress"
+                        android:layout_width="match_parent"
+                        android:layout_height="3dp"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/bg_phone_progress" />
+                </LinearLayout>
+
+                <!-- ══ ACTION ROW ══ -->
+                <LinearLayout
+                    android:id="@+id/layout_actions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btn_watch_trailer"
+                        android:layout_width="0dp"
+                        android:layout_height="56dp"
+                        android:layout_marginEnd="10dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_phone_action"
+                        android:fontFamily="@font/outfit_semibold"
+                        android:stateListAnimator="@null"
+                        android:text="@string/phone_trailer"
+                        android:textAllCaps="false"
+                        android:textColor="@color/phone_text_primary"
+                        android:textSize="13sp" />
+
+                    <ImageButton
+                        android:id="@+id/btn_add_favorite"
+                        android:layout_width="64dp"
+                        android:layout_height="56dp"
+                        android:background="@drawable/bg_phone_action"
+                        android:contentDescription="@string/a11y_favorite"
+                        android:padding="16dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_favorite_border"
+                        app:tint="@color/phone_text_primary" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/layout_rd_summary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="14dp"
+                    android:background="@drawable/bg_phone_card"
+                    android:orientation="vertical"
+                    android:padding="12dp"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <TextView
+                        android:id="@+id/tv_rd_summary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:textColor="@color/phone_text_secondary"
+                        android:textSize="11.5sp"
+                        tools:text="12 CACHED · 40 SOURCES" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_description"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="18dp"
+                    android:fontFamily="@font/inter_regular"
+                    android:lineSpacingMultiplier="1.65"
+                    android:textColor="@color/phone_text_secondary"
+                    android:textSize="12.5sp"
+                    tools:text="In Japan in the year 1600, a English sailor washes ashore and is drawn into a war of succession." />
+
+                <TextView
+                    android:id="@+id/tv_director"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="12dp"
+                    android:fontFamily="@font/inter_regular"
+                    android:textColor="@color/phone_text_secondary"
+                    android:textSize="12.5sp"
+                    tools:text="Created by  Justin Marks" />
+
+                <TextView
+                    android:id="@+id/tv_cast"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="6dp"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/inter_regular"
+                    android:maxLines="2"
+                    android:textColor="@color/phone_text_secondary"
+                    android:textSize="12.5sp"
+                    tools:text="Cast  Hiroyuki Sanada, Cosmo Jarvis" />
+            </LinearLayout>
+
+            <!-- ══ SEASON BAR + EPISODES ══ -->
+            <LinearLayout
+                android:id="@+id/layout_episodes_section"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:textColor="#64748B"
-                android:textSize="6sp"
-                android:fontFamily="monospace"
-                android:letterSpacing="0.06"
-                tools:text="2 / 8 WATCHED" />
+                android:layout_marginTop="18dp"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:background="@color/phone_bar_scrim"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="16dp">
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btn_season_selector"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:background="@drawable/bg_phone_chip"
+                        android:fontFamily="@font/outfit_bold"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="14dp"
+                        android:stateListAnimator="@null"
+                        android:textAllCaps="false"
+                        android:textColor="@color/phone_text_primary"
+                        android:textSize="14sp"
+                        tools:text="Season 1" />
+
+                    <TextView
+                        android:id="@+id/tv_season_progress"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:maxLines="1"
+                        android:textColor="@color/phone_text_muted"
+                        android:textSize="12sp"
+                        tools:text="10 EPISODES · 2 WATCHED" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_episodes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:clipToPadding="false"
+                    android:overScrollMode="never"
+                    android:paddingHorizontal="16dp"
+                    android:scrollbars="none" />
+
+                <TextView
+                    android:id="@+id/tv_empty_episodes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="12dp"
+                    android:fontFamily="@font/share_tech_mono"
+                    android:letterSpacing="0.08"
+                    android:textColor="@color/phone_text_muted"
+                    android:textSize="12sp"
+                    android:visibility="gone"
+                    tools:text="NO EPISODES IN THIS SEASON"
+                    tools:visibility="visible" />
+            </LinearLayout>
 
             <View
+                android:layout_width="match_parent"
+                android:layout_height="28dp" />
+
+            <!-- Stubs, exactly as the television layout keeps them: the season list is a picker
+                 dialog on both form factors, and the D-pad hint bar has no meaning on a phone. -->
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="0dp"
-                android:layout_weight="1" />
+                android:visibility="gone">
 
-            <!-- Empty episodes text -->
-            <TextView
-                android:id="@+id/tv_empty_episodes"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#64748B"
-                android:textSize="7sp"
-                android:fontFamily="monospace"
-                android:visibility="gone"
-                tools:text="No episodes" />
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_seasons"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp" />
+
+                <LinearLayout
+                    android:id="@+id/layout_hint_bar"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp" />
+
+                <Button
+                    android:id="@+id/btn_refresh"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp" />
+            </LinearLayout>
         </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
-        <!-- Episode strip (horizontal scroll) -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_episodes"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:paddingTop="7dp"
-            android:paddingBottom="8dp"
-            android:orientation="horizontal"
-            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-            tools:listitem="@layout/item_episode_cin" />
-    </LinearLayout>
-
-    <!-- ══ HINT BAR ══ -->
+    <!-- ══ APP BAR ══ -->
     <LinearLayout
-        android:id="@+id/layout_hint_bar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
+        android:id="@+id/layout_top_strip"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/phone_bar_scrim"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:paddingHorizontal="4dp">
+
+        <ImageView
+            android:id="@+id/phone_series_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/live_nav_back"
+            android:padding="14dp"
+            android:src="@drawable/ic_stremio_chevron_left"
+            app:tint="@color/phone_text_primary" />
 
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/ui_navigate_2"
-            android:textColor="#64748B"
-            android:textSize="6sp"
-            android:fontFamily="monospace"
-            android:letterSpacing="0.1" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="11dp"
-            android:layout_marginEnd="11dp"
-            android:text="│"
-            android:textColor="#334155"
-            android:textSize="6sp"
-            android:fontFamily="monospace" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/ui_ok_enter_select"
-            android:textColor="#64748B"
-            android:textSize="6sp"
-            android:fontFamily="monospace"
-            android:letterSpacing="0.1" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="11dp"
-            android:layout_marginEnd="11dp"
-            android:text="│"
-            android:textColor="#334155"
-            android:textSize="6sp"
-            android:fontFamily="monospace" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/ui_back_esc_return"
-            android:textColor="#64748B"
-            android:textSize="6sp"
-            android:fontFamily="monospace"
-            android:letterSpacing="0.1" />
-    </LinearLayout>
-
-    <!-- Hidden legacy views (keep IDs for Activity binding compat) -->
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <ImageView android:id="@+id/iv_poster" android:layout_width="0dp" android:layout_height="0dp"
-    android:contentDescription="@null" />
-        <TextView android:id="@+id/tv_director" android:layout_width="0dp" android:layout_height="0dp" />
-        <TextView android:id="@+id/tv_cast" android:layout_width="0dp" android:layout_height="0dp" />
-        <TextView android:id="@+id/tv_rating_stars" android:layout_width="0dp" android:layout_height="0dp" />
-        <Button android:id="@+id/btn_refresh" android:layout_width="0dp" android:layout_height="0dp" />
-        <!-- Season RecyclerView (hidden, replaced by button) -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_seasons"
             android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:visibility="gone" />
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="4dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="@font/outfit_bold"
+            android:maxLines="1"
+            android:text="@string/nav_series"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="16sp" />
     </LinearLayout>
 
-    <!-- Loading Overlay -->
     <FrameLayout
         android:id="@+id/layout_loading_overlay"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:background="#E606090E"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/phone_home_bg"
+        android:visibility="gone">
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -661,20 +563,20 @@
             android:orientation="vertical">
 
             <ProgressBar
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:indeterminateTint="#00F0FF" />
+                android:layout_width="42dp"
+                android:layout_height="42dp"
+                android:indeterminateTint="@color/phone_cyan" />
 
             <TextView
                 android:id="@+id/tv_loading_message"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/ui_loading_series"
-                android:textColor="#94A3B8"
-                android:textSize="7sp"
-                android:fontFamily="monospace" />
+                android:layout_marginTop="16dp"
+                android:fontFamily="@font/share_tech_mono"
+                android:letterSpacing="0.1"
+                android:textColor="@color/phone_text_secondary"
+                android:textSize="12sp"
+                tools:text="LOADING SERIES…" />
         </LinearLayout>
     </FrameLayout>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

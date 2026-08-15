@@ -349,6 +349,7 @@
     <string name="phone_play_anyway">Play anyway</string>
     <string name="phone_details_unavailable">DETAILS UNAVAILABLE</string>
     <string name="phone_no_episodes">NO EPISODES IN THIS SEASON</string>
+    <string name="phone_rt_label">RT</string>
     <string name="phone_opening_stream">OPENING…</string>
     <string name="phone_finding_streams">FINDING STREAMS…</string>
     <string name="phone_no_sources_match">No sources match those filters</string>

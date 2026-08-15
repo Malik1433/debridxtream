@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SELECT SOURCE — right-side slide-in panel per Claude Design handoff -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#99000000"
+    android:descendantFocusability="afterDescendants">
+
+    <View
+        android:id="@+id/v_backdrop_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/transparent" />
+
+    <!-- Right panel -->
+    <LinearLayout
+        android:id="@+id/panel_sources"
+        android:layout_width="@dimen/source_sheet_width"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:orientation="vertical"
+        android:paddingTop="@dimen/source_panel_top_inset"
+        android:background="#0E0D15">
+
+        <!-- Left edge border -->
+        <!-- (LinearLayout children below; border painted via a nested container) -->
+
+        <!-- HEADER ROW -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_header_container"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/source_header_height"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp"
+            android:background="#0E0D15">
+
+            <TextView
+                android:id="@+id/tv_header_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/ui_select_source"
+                android:textColor="@color/source_text_primary"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/inter_extrabold"
+                android:letterSpacing="0.04"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toTopOf="@+id/tv_source_count"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintVertical_chainStyle="packed" />
+
+            <TextView
+                android:id="@+id/tv_source_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_muted"
+                android:textSize="8sp"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.06"
+                app:layout_constraintTop_toBottomOf="@id/tv_header_title"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                tools:text="9 sources found · 6 cached" />
+
+            <!-- Language priority chip (top-right; hidden when pref = ALL) -->
+            <LinearLayout
+                android:id="@+id/chip_lang_priority"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/source_provider_height"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/cin_lang_priority_chip"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:visibility="gone"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                tools:visibility="visible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🌐"
+                    android:textSize="9sp"
+                    android:includeFontPadding="false" />
+
+                <TextView
+                    android:id="@+id/tv_lang_priority"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/neon_cyan"
+                    android:textSize="8sp"
+                    android:textStyle="bold"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.08"
+                    tools:text="EN PRIORITY" />
+            </LinearLayout>
+
+            <!--
+                The left block is two stacked lines — "SELECT SOURCE" and the source count — and the
+                count is often the wider of the two. A barrier tracks whichever currently sticks out
+                furthest, so the title is held clear of both instead of only the one above it.
+            -->
+            <androidx.constraintlayout.widget.Barrier
+                android:id="@+id/barrier_header_left"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:barrierDirection="end"
+                app:constraint_referenced_ids="tv_header_title,tv_source_count" />
+
+            <!--
+                0dp + BOTH constraints, not wrap_content with one. It used to be constrained only at
+                its end, so a long film name grew leftwards straight over "SELECT SOURCE" — and the
+                ellipsize never fired, because with wrap_content there was no width to ellipsize
+                against. Now it is bounded on both sides and truncates instead of colliding.
+                constrainedWidth keeps a short name its natural size rather than stretching it.
+            -->
+            <TextView
+                android:id="@+id/tv_dialog_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="8dp"
+                android:textColor="@color/text_muted"
+                android:textSize="10sp"
+                android:fontFamily="monospace"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:gravity="end"
+                app:layout_constrainedWidth="true"
+                app:layout_constraintHorizontal_bias="1.0"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/barrier_header_left"
+                app:layout_constraintEnd_toStartOf="@id/chip_lang_priority"
+                tools:text="Dune: Part Two (2024)" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- FILTER ROW -->
+        <FrameLayout
+            android:id="@+id/filter_bar_layout"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/source_filter_bar_height"
+            android:background="#0E0D15">
+
+            <LinearLayout
+                android:id="@+id/layout_source_filters"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/chip_quality"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/source_filter_chip_height"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/cin_detail_btn_glass"
+                    android:paddingStart="9dp"
+                    android:paddingEnd="9dp"
+                    android:gravity="center"
+                    android:focusable="true"
+                    android:text="@string/ui_quality_all"
+                    android:textColor="@color/source_text_secondary"
+                    android:textSize="9sp" />
+
+                <TextView
+                    android:id="@+id/chip_language"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/source_filter_chip_height"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/cin_detail_btn_glass"
+                    android:paddingStart="9dp"
+                    android:paddingEnd="9dp"
+                    android:gravity="center"
+                    android:focusable="true"
+                    android:text="@string/ui_language_all"
+                    android:textColor="@color/source_text_secondary"
+                    android:textSize="9sp" />
+
+                <TextView
+                    android:id="@+id/chip_type"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/source_filter_chip_height"
+                    android:background="@drawable/cin_detail_btn_glass"
+                    android:paddingStart="9dp"
+                    android:paddingEnd="9dp"
+                    android:gravity="center"
+                    android:focusable="true"
+                    android:text="@string/ui_type_all"
+                    android:textColor="@color/source_text_secondary"
+                    android:textSize="9sp" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Divider -->
+        <View
+            android:id="@+id/v_filter_divider"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#1AFFFFFF" />
+
+        <!-- SOURCE LIST -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_sources"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipChildren="true"
+                android:clipToPadding="false"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:orientation="vertical"
+                android:gravity="center_horizontal">
+
+                <ProgressBar
+                    android:id="@+id/progress_bar"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:indeterminateTint="@color/neon_cyan" />
+
+                <TextView
+                    android:id="@+id/tv_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace"
+                    tools:text="Searching for sources..." />
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Panel left edge border -->
+    <View
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:layout_marginEnd="410dp"
+        android:background="#14FFFFFF" />
+
+</FrameLayout>
