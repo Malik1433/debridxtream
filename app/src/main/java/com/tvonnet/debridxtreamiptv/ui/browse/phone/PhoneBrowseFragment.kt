@@ -54,6 +54,31 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
 
     private lateinit var list: RecyclerView
     private lateinit var adapter: PhoneBrowseAdapter
+    private lateinit var continueRow: PhoneBrowseContinueRow
+    private lateinit var skeleton: PhoneBrowseSkeleton
+
+    @javax.inject.Inject
+    lateinit var browseRepository: com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
+
+    @javax.inject.Inject
+    lateinit var browseEpisodeDao: com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.EpisodeDaoV2
+
+    /**
+     * Continue Watching resumes through the SAME router Home uses, so a half-watched movie
+     * behaves identically wherever the user picks it up — including the play-then-repair rule
+     * that makes a resume start on the link it already holds.
+     */
+    private val router by lazy {
+        com.tvonnet.debridxtreamiptv.ui.home.HomeNavigationRouter(
+            object : com.tvonnet.debridxtreamiptv.ui.home.HomeRouterHost {
+                override val routerFragment = this@PhoneBrowseFragment
+                override val routerRepository = browseRepository
+                override val routerCredentials =
+                    com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences(requireContext())
+                override val routerEpisodeDao = browseEpisodeDao
+            }
+        )
+    }
     private lateinit var categoryRail: LinearLayout
 
     private var categories: List<XtreamCategory> = emptyList()
@@ -127,17 +152,62 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
     private fun bindList(root: View) {
         list = root.findViewById(R.id.phone_browse_list)
         adapter = PhoneBrowseAdapter { item -> openDetail(item) }
+        continueRow = PhoneBrowseContinueRow(getString(R.string.section_continue_watching)) { item ->
+            router.onContinueWatchingItemClick(item)
+        }
+        skeleton = PhoneBrowseSkeleton()
+
+        // ONE list: the Continue Watching rail, the skeleton, the grid and the paging footer are
+        // sections of the same RecyclerView, so the page has a single scroll and the rail leaves
+        // no hole behind when it empties.
+        val concat = androidx.recyclerview.widget.ConcatAdapter(
+            continueRow,
+            skeleton,
+            adapter.withLoadStateFooter(PhoneBrowseFooter { adapter.retry() }),
+        )
         val columns = COLUMNS
         val manager = GridLayoutManager(requireContext(), columns)
         manager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
-            // The paging footer is a full-width row inside the same grid, so the page has ONE
-            // scroll rather than a grid nested inside a scroller.
-            override fun getSpanSize(position: Int): Int =
-                if (position >= adapter.itemCount) columns else 1
+            override fun getSpanSize(position: Int): Int {
+                // The rail and the footer are full-width rows; posters and skeleton blocks are
+                // one column each.
+                val railRows = continueRow.itemCount
+                if (position < railRows) return columns
+                val gridStart = railRows + skeleton.itemCount
+                return if (position >= gridStart + adapter.itemCount) columns else 1
+            }
         }
         list.layoutManager = manager
-        list.adapter = adapter.withLoadStateFooter(PhoneBrowseFooter { adapter.retry() })
-        list.addItemDecoration(PhoneGridSpacing(columns, PhoneUi.dp(requireContext(), 10)))
+        list.adapter = concat
+        list.addItemDecoration(
+            PhoneGridSpacing(columns, PhoneUi.dp(requireContext(), 10)) { position ->
+                // A full-width row must not be pushed in by the grid's column maths.
+                manager.spanSizeLookup.getSpanSize(position) == columns
+            }
+        )
+    }
+
+    /**
+     * The rail comes and goes with the watch history, so it is re-read every time the screen comes
+     * forward rather than once: the user may have just finished something in the player.
+     */
+    private fun refreshContinueWatching() {
+        val all = com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences(requireContext())
+            .getContinueWatchingList()
+        val mine = all.filter { item ->
+            if (isSeries) {
+                item.contentType == com.tvonnet.debridxtreamiptv.data.model.ContentType.EPISODE ||
+                    item.contentType == com.tvonnet.debridxtreamiptv.data.model.ContentType.SERIES
+            } else {
+                item.contentType == com.tvonnet.debridxtreamiptv.data.model.ContentType.MOVIE
+            }
+        }
+        continueRow.submit(mine)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshContinueWatching()
     }
 
     private fun openDetail(item: PhoneBrowseItem) {
@@ -208,6 +278,13 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
                 categoryCounts[selectedCategoryId]?.let(::formatCount).orEmpty()
             view.findViewById<View>(R.id.phone_browse_state).isVisible =
                 states.refresh is LoadState.Error
+            // The skeleton stands in only while the grid has NOTHING to show. Paging reports
+            // NotLoading the instant Room answers an unfetched category with an empty page, so
+            // an item count of zero is the honest test, not the load state alone.
+            // The skeleton stands in only while the grid has NOTHING to show. Paging reports
+            // NotLoading the instant Room answers an unfetched category with an empty page, so
+            // an item count of zero is the honest test, not the load state alone.
+            skeleton.show(adapter.itemCount == 0 && states.refresh !is LoadState.Error)
         }
     }
 
@@ -318,6 +395,7 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
 private class PhoneGridSpacing(
     private val columns: Int,
     private val gap: Int,
+    private val isFullWidth: (Int) -> Boolean = { false },
 ) : RecyclerView.ItemDecoration() {
     override fun getItemOffsets(
         outRect: android.graphics.Rect,
@@ -326,7 +404,7 @@ private class PhoneGridSpacing(
         state: RecyclerView.State,
     ) {
         val position = parent.getChildAdapterPosition(view)
-        if (position < 0) return
+        if (position < 0 || isFullWidth(position)) return
         val column = position % columns
         outRect.left = column * gap / columns
         outRect.right = gap - (column + 1) * gap / columns
