@@ -45,7 +45,9 @@ import kotlinx.coroutines.launch
  * the All / Movies / Series / Live scope chips, wired to [SearchViewModel] (IPTV live / VOD / series).
  */
 @AndroidEntryPoint
-class SearchFragment : Fragment() {
+class SearchFragment :
+    Fragment(),
+    com.tvonnet.debridxtreamiptv.util.PortraitScreen {
 
     private val viewModel: SearchViewModel by viewModels()
 
@@ -82,6 +84,8 @@ class SearchFragment : Fragment() {
     private var lastState: SearchUiState? = null
 
     private val KEYS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".toCharArray()
+    /** Same three columns as Browse, so a result looks like the card it will open. */
+    private val PHONE_COLUMNS = 3
     private val SCOPES = listOf(
         "all" to "All", "movie" to "Movies", "series" to "Series", "live" to "Live"
     )
@@ -113,7 +117,7 @@ class SearchFragment : Fragment() {
         noResults = view.findViewById(R.id.search_noresults)
         noResultsTitle = view.findViewById(R.id.search_noresults_title)
 
-        queryBar.background = roundRect(6f, 0xB30C111B.toInt(), 0x14FFFFFF, 1)
+        if (!usesNativeInput) queryBar.background = roundRect(6f, 0xB30C111B.toInt(), 0x14FFFFFF, 1)
         resultsRv.layoutManager = GridLayoutManager(requireContext(), computeSpan())
         resultsRv.adapter = adapter
         resultsRv.itemAnimator = null
@@ -125,6 +129,7 @@ class SearchFragment : Fragment() {
         buildTrending()
         startCaretBlink()
 
+        buildPhoneNav(view)
         applyScopeArgs()
         observeState()
         updateQueryUi()
@@ -172,7 +177,15 @@ class SearchFragment : Fragment() {
         setQuery(if (usesNativeInput) voice else voice.uppercase())
     }
 
+    /**
+     * How many result columns fit.
+     *
+     * The television subtracts its left rail and its key grid from the width; a phone has neither
+     * and hands the whole 411dp to the results, which is three columns — the same three Browse
+     * uses, so a result and a catalogue card are recognisably the same object.
+     */
     private fun computeSpan(): Int {
+        if (usesNativeInput) return PHONE_COLUMNS
         val screenW = resources.displayMetrics.widthPixels
         val chromeDp = (28 + 226 + 20 + 32)
         val avail = screenW - chromeDp * d
@@ -360,6 +373,24 @@ class SearchFragment : Fragment() {
     }
 
     /**
+     * Search is one of the five tabs, so on a phone it carries the bar its siblings carry — and
+     * Back leaves the screen rather than unwinding a query one keystroke at a time.
+     */
+    private fun buildPhoneNav(root: View) {
+        if (!usesNativeInput) return
+        com.tvonnet.debridxtreamiptv.ui.live.phone.PhoneBottomNav.build(
+            root.findViewById(com.tvonnet.debridxtreamiptv.R.id.search_bottom_nav),
+            com.tvonnet.debridxtreamiptv.ui.live.phone.PhoneUi.unscaled(this, layoutInflater),
+            com.tvonnet.debridxtreamiptv.ui.nav.SectionNavigator.SECTION_SEARCH,
+        ) { section ->
+            parentFragmentManager.popBackStack(
+                null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE
+            )
+            com.tvonnet.debridxtreamiptv.ui.nav.SectionNavigator.navigate(this, section)
+        }
+    }
+
+    /**
      * On a PHONE, type with the phone's own keyboard.
      *
      * This screen was built for a remote: a grid of on-screen keys you walk to with a D-pad. On a
@@ -418,14 +449,31 @@ class SearchFragment : Fragment() {
         scopeChips.clear()
         SCOPES.forEachIndexed { i, (key, label) ->
             val chip = TextView(requireContext()).apply {
-                text = label; textSize = 6.5f; gravity = Gravity.CENTER; includeFontPadding = false
+                // 6.5sp is a 10-foot size read from three metres; in the hand it wraps "Movies"
+                // onto two lines and is barely legible. The phone rulebook floors body text at
+                // 12sp and interactive targets at 48dp.
+                text = label
+                textSize = if (usesNativeInput) 12.5f else 6.5f
+                gravity = Gravity.CENTER
+                includeFontPadding = false
+                if (usesNativeInput) {
+                    setPadding((14 * d).toInt(), 0, (14 * d).toInt(), 0)
+                }
                 tag = key; isFocusable = true
                 StremioFonts.apply(this, R.font.outfit_semibold)
                 setOnClickListener { selectScope(key) }
                 setOnFocusChangeListener { v, has -> styleScope(v as TextView, has) }
             }
-            val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
-            if (i < SCOPES.size - 1) lp.marginEnd = (5 * d).toInt()
+            // The television splits the rail into equal columns; a phone lets each chip be as
+            // wide as its word and scrolls the row, so nothing is ever hyphenated.
+            val lp = if (usesNativeInput) {
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, (48 * d).toInt()
+                )
+            } else {
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+            }
+            if (i < SCOPES.size - 1) lp.marginEnd = ((if (usesNativeInput) 8 else 5) * d).toInt()
             scopesBox.addView(chip, lp)
             scopeChips.add(chip)
             styleScope(chip, false)
