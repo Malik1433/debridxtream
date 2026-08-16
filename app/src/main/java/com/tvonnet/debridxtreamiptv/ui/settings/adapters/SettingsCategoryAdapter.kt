@@ -74,21 +74,28 @@ class SettingsCategoryAdapter(
             val m = metaFor(category)
             binding.tvTitle.setText(m.titleRes)
             // G1: the phone list says what is actually SET inside — "4 add-ons · Real-Debrid on" —
-            // so the list answers the question before anything is opened. The fixed caption stays
-            // as the fallback, and is all the television ever shows.
-            val live = liveSubtitle?.invoke(category)
+            // so the list answers the question before anything is opened.
+            //
+            // The television gets its fixed caption and only that. It is asked HERE rather than
+            // left to the styling below, because the summary is a phone answer to a phone
+            // question: on a 10-foot rail the design's "AUDIO · LANGUAGE" is the label, and a Fire
+            // TV that read "English (EN)" beside Playback was this screen wearing the other
+            // platform's idiom — which is the one thing the two rulebooks forbid.
+            val live = if (isPhoneRail()) liveSubtitle?.invoke(category) else null
             if (live.isNullOrBlank()) binding.tvSub.setText(m.subRes) else binding.tvSub.text = live
             binding.ivIcon.setImageResource(m.iconRes)
             style(category, isSelected, binding.root.isFocused)
             binding.root.setOnFocusChangeListener { _, has -> style(category, category == selectedCategory, has) }
         }
 
+        /** The one question that separates the two rails: a list you tap, or a rail you focus. */
+        private fun isPhoneRail(): Boolean = !binding.root.resources.getBoolean(
+            com.tvonnet.debridxtreamiptv.R.bool.ui_uses_dpad_focus
+        )
+
         private fun style(category: SettingCategory, selected: Boolean, focused: Boolean) {
             val m = metaFor(category)
-            if (!binding.root.resources.getBoolean(
-                    com.tvonnet.debridxtreamiptv.R.bool.ui_uses_dpad_focus
-                )
-            ) {
+            if (isPhoneRail()) {
                 stylePhoneRow(m)
                 return
             }
