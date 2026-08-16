@@ -69,9 +69,16 @@
             android:exported="false"
             android:screenOrientation="landscape" />
 
+        <!--
+          `unspecified`, because this screen decides its own orientation in code — and on a fresh
+          install it is the FIRST thing a customer ever sees. Declared landscape here, the window
+          was built landscape and then swung to portrait a moment later: the app's opening frame
+          was a rotation. Same cause as the debrid detail screens, and this was the last activity
+          left with it.
+        -->
         <activity
             android:name=".ui.licensing.ActivationActivity"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="unspecified"
             android:label="@string/app_name"
             android:theme="@style/AppTheme"
             android:exported="false"

@@ -101,12 +101,18 @@ class MainActivity : AppCompatActivity() {
      * asked for a landscape window, this method forced landscape again, and then Home's fragment
      * resumed and turned it portrait. Three orientations to show one screen. The manifest is
      * `unspecified` now and the answer is taken once, from the screen that is actually about to
-     * appear — the phone Home is portrait, the sign-in screen is still the landscape TV layout,
-     * and a television is neither (both helpers are no-ops there).
+     * appear — and a television is neither (the helper is a no-op there).
+     *
+     * **Portrait either way, since 2026-08-16.** This branched on being signed in, because the
+     * sign-in screen still wore the landscape TV layout when it was written. P7 gave it a portrait
+     * design and [LoginFragment] declares itself a [PortraitScreen] — so the branch had quietly
+     * become a bug of its own: a customer opening the app for the FIRST time got a landscape
+     * window, then watched it turn portrait the moment the login fragment resumed. Both screens
+     * this activity can open at launch — sign-in and Home — are portrait now, so there is nothing
+     * left to branch on.
      */
     private fun applyLaunchOrientation() {
-        val loggedIn = runCatching { credentials().isLoggedIn() }.getOrDefault(false)
-        if (loggedIn) usePortraitOnTouchDevices() else lockLandscapeOnTouchDevices()
+        usePortraitOnTouchDevices()
     }
 
     /**
