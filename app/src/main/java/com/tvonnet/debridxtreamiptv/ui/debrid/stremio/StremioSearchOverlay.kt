@@ -22,6 +22,7 @@ import com.tvonnet.debridxtreamiptv.data.onSuccess
 import com.tvonnet.debridxtreamiptv.ui.debrid.DebridContentItem
 import com.tvonnet.debridxtreamiptv.ui.home.HomeUiState
 import kotlinx.coroutines.launch
+import com.tvonnet.debridxtreamiptv.ui.debrid.DebridItemType
 
 /**
  * Full-screen Search page — rebuilt to "Search Page.dc.html".
@@ -222,7 +223,7 @@ internal class StremioSearchOverlay(
             type = c.type, year = c.year, rating = c.rating, overview = c.overview,
             genreIds = c.genreIds, releaseDate = c.releaseDate
         )
-        val series = c.type == "series"
+        val series = DebridItemType.isSeries(c.type)
         return StremioSearchResult(
             title = c.title,
             sub = if (ReleaseInfo.isUpcoming(c.releaseDate)) ReleaseInfo.metaLabel(c.year, c.releaseDate)

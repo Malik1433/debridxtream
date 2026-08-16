@@ -345,7 +345,9 @@ class DebridFragment : Fragment() {
         if (item.isContinueWatching && tryResumeDebrid(item)) {
             return
         }
-        if (item.type == "movie") {
+        // Asked through DebridItemType: a favourited movie arrives as "vod" and matched neither
+        // branch, so the tap did nothing but print "Unknown content type" at the customer.
+        if (!DebridItemType.isSeries(item.type)) {
             val intent = android.content.Intent(context, com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity::class.java).apply {
                 putExtra(com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity.EXTRA_MOVIE_ID, item.id)
                 putExtra(com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
@@ -356,7 +358,7 @@ class DebridFragment : Fragment() {
                 putExtra(com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
             }
             startActivity(intent)
-        } else if (item.type == "show" || item.type == "series") {
+        } else {
             val intent = android.content.Intent(context, com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity::class.java).apply {
                 putExtra(com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity.EXTRA_SERIES_ID, item.id)
                 putExtra(com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity.EXTRA_SERIES_NAME, item.title)
@@ -364,8 +366,6 @@ class DebridFragment : Fragment() {
                 putExtra(com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity.EXTRA_IS_DEBRID, true)
             }
             startActivity(intent)
-        } else {
-            android.widget.Toast.makeText(context, "Unknown content type: ${item.type}", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -420,7 +420,7 @@ class DebridFragment : Fragment() {
 
     private fun launchPlayer(item: DebridContentItem, url: String, resumePosition: Long) {
         val contentType = item.contentType
-            ?: if (item.type == "series") com.tvonnet.debridxtreamiptv.data.model.ContentType.EPISODE
+            ?: if (DebridItemType.isSeries(item.type)) com.tvonnet.debridxtreamiptv.data.model.ContentType.EPISODE
             else com.tvonnet.debridxtreamiptv.data.model.ContentType.MOVIE
 
         val intent = com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity.createIntent(
@@ -448,7 +448,7 @@ class DebridFragment : Fragment() {
 
     private fun navigateToDetail(item: DebridContentItem) {
         // Force immediate detail navigation (ignoring resume state)
-        if (item.type == "movie") {
+        if (!DebridItemType.isSeries(item.type)) {
             val intent = android.content.Intent(requireContext(), com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity::class.java).apply {
                 putExtra(com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity.EXTRA_MOVIE_ID, item.id)
                 putExtra(com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)

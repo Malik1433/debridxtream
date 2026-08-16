@@ -12,6 +12,7 @@ import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
 import com.tvonnet.debridxtreamiptv.ui.debrid.DebridContentItem
+import com.tvonnet.debridxtreamiptv.ui.debrid.DebridItemType
 import com.tvonnet.debridxtreamiptv.ui.debrid.DebridRow
 import com.tvonnet.debridxtreamiptv.ui.debrid.seeall.DebridSeeAllActivity
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
@@ -66,7 +67,7 @@ internal class StremioDebridActions(
 
     private fun launchPlayer(item: DebridContentItem, url: String, resumePosition: Long) {
         val contentType = item.contentType
-            ?: if (item.type == "series") ContentType.EPISODE else ContentType.MOVIE
+            ?: if (DebridItemType.isSeries(item.type)) ContentType.EPISODE else ContentType.MOVIE
         val intent = PlayerActivity.createIntent(
             context = fragment.requireContext(),
             streamUrl = url,
@@ -100,7 +101,10 @@ internal class StremioDebridActions(
 
     fun navigateToDetail(item: DebridContentItem) {
         val ctx = fragment.context ?: return
-        if (item.type == "movie") {
+        // The type is asked through DebridItemType, not compared to one spelling: a favourited
+        // movie arrives as "vod" and used to fall into the series branch, which is why every
+        // favourite opened an empty season list.
+        if (!DebridItemType.isSeries(item.type)) {
             val intent = Intent(ctx, MovieDetailActivity::class.java).apply {
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.id)
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)

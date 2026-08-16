@@ -723,6 +723,11 @@ class MovieDetailActivity : AppCompatActivity() {
     }
 
     private fun updateFavoriteIcon() {
+        // The name follows the state, not just the icon: this is a toggle, and one that always
+        // announced "Add to favorites" told a screen-reader user the opposite of what it would do.
+        btnFavorite.contentDescription = getString(
+            if (isFavorite) R.string.a11y_favorite_remove else R.string.a11y_favorite
+        )
         if (isFavorite) {
             btnFavorite.setImageResource(R.drawable.ic_favorite)
             btnFavorite.imageTintList = android.content.res.ColorStateList.valueOf(0xFFFF3366.toInt())

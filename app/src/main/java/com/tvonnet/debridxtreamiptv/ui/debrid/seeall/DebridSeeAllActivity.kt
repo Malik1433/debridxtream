@@ -21,6 +21,7 @@ import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
+import com.tvonnet.debridxtreamiptv.ui.debrid.DebridItemType
 
 @AndroidEntryPoint
 class DebridSeeAllActivity : AppCompatActivity() {
@@ -154,7 +155,7 @@ class DebridSeeAllActivity : AppCompatActivity() {
     }
 
     private fun onItemClick(item: CatalogItem) {
-        if (item.type == "movie") {
+        if (!DebridItemType.isSeries(item.type)) {
             val intent = Intent(this, MovieDetailActivity::class.java).apply {
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.id)
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)

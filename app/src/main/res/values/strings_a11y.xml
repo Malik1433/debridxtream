@@ -22,6 +22,9 @@
     <string name="a11y_profile">Profile</string>
     <string name="a11y_fullscreen">Fullscreen</string>
     <string name="a11y_favorite">Add to favorites</string>
+    <!-- The same control once the title IS a favourite. A toggle that keeps announcing "Add"
+         tells a screen-reader user the opposite of the truth. -->
+    <string name="a11y_favorite_remove">Remove from favorites</string>
     <string name="a11y_in_favorites">In favorites</string>
     <string name="a11y_watched">Watched</string>
     <string name="a11y_selected">Selected</string>

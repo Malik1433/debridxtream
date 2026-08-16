@@ -21,6 +21,7 @@ import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
+import com.tvonnet.debridxtreamiptv.ui.debrid.DebridItemType
 
 @AndroidEntryPoint
 class DebridSearchActivity : AppCompatActivity() {
@@ -121,7 +122,9 @@ class DebridSearchActivity : AppCompatActivity() {
     }
 
     private fun navigateToDetails(item: DebridContentItem) {
-        if (item.type == "movie") {
+        // "vod" is a movie too — see DebridItemType. Compared to one spelling, a favourite
+        // reaching this screen matched neither branch and the tap did nothing at all.
+        if (!DebridItemType.isSeries(item.type)) {
             val intent = Intent(this, MovieDetailActivity::class.java).apply {
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.id)
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
@@ -133,7 +136,7 @@ class DebridSearchActivity : AppCompatActivity() {
                 putExtra(MovieDetailActivity.EXTRA_SOURCE_RAIL, "Search Results")
             }
             startActivity(intent)
-        } else if (item.type == "show" || item.type == "series") {
+        } else {
             val intent = Intent(this, SeriesDetailActivity::class.java).apply {
                 putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, item.id)
                 putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.title)

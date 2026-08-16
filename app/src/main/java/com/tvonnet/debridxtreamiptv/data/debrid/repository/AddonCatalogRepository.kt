@@ -17,6 +17,8 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.tvonnet.debridxtreamiptv.ui.debrid.DebridItemType
+import com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity
 
 /**
  * Repository orchestrating MediaFusion/Zilean add-on discovery and user selections.
@@ -358,14 +360,22 @@ class AddonCatalogRepository @Inject constructor(
     suspend fun getLibraryItems(): List<CatalogItem> {
         return try {
             val favorites = favoriteDao.getFavoritesSync()
-            favorites.filter { it.type == "vod" || it.type == "series" }
+            favorites
+                // DEBRID favourites only. The favourites table is shared with the IPTV screens, so
+                // this row used to show titles whose id means nothing here — tapping one opened a
+                // debrid detail for an Xtream stream id and found nothing to play. IPTV favourites
+                // are not lost; they are on the IPTV Home's Favourites row, where their id works.
+                .filter { it.source == WatchedStateEntity.SOURCE_DEBRID }
+                .filter { it.type == "vod" || it.type == "series" }
                 .map { favorite ->
                     CatalogItem(
                         id = favorite.streamId,
                         title = favorite.name,
                         posterUrl = favorite.iconUrl,
                         backdropUrl = favorite.iconUrl, // Use iconUrl as backdrop fallback for library items
-                        type = favorite.type,
+                        // Spoken in this section's vocabulary rather than the table's: the row is
+                        // read by screens that route on "movie"/"series", and "vod" is neither.
+                        type = DebridItemType.canonical(favorite.type),
                         year = null,
                         rating = null
                     )

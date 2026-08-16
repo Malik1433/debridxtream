@@ -12,6 +12,7 @@ import com.bumptech.glide.Glide
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.ui.debrid.DebridContentItem
 import com.tvonnet.debridxtreamiptv.util.MediaTitleCleaner
+import com.tvonnet.debridxtreamiptv.ui.debrid.DebridItemType
 
 /** Horizontal poster row for a Debrid catalog row, in the Stremio card style. */
 internal class StremioRowPosterAdapter(
@@ -56,7 +57,7 @@ internal class StremioRowPosterAdapter(
             card.background = StremioGradients.cardBg(StremioPalette.forIndex(position), 6f, density)
             overlay.background = StremioGradients.topFade(0xF706090E.toInt(), 0x1406090E, 0.5f, 6f, density)
             title.text = MediaTitleCleaner.clean(item.title)
-            val fallback = if (item.type == "series") "Series" else "Movie"
+            val fallback = if (DebridItemType.isSeries(item.type)) "Series" else "Movie"
             val upcoming = ReleaseInfo.isUpcoming(item.releaseDate)
             year.text = ReleaseInfo.metaLabel(item.year, item.releaseDate, fallback)
             // Highlight an unreleased title's date in amber so it reads as "coming soon".

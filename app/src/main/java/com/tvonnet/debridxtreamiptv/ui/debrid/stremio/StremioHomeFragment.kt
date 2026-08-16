@@ -32,6 +32,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import java.util.Calendar
 import javax.inject.Inject
 import kotlinx.coroutines.launch
+import com.tvonnet.debridxtreamiptv.ui.debrid.DebridItemType
 
 /**
  * Stremio-styled Debrid home: top-nav-tabs + hero-carousel, wired to the real Debrid backends
@@ -229,7 +230,7 @@ class StremioHomeFragment :
             StremioHeroSlide(
                 title = item.title,
                 rating = item.rating,
-                meta = listOfNotNull(item.year, if (item.type == "series") "Series" else "Movie").joinToString(" · "),
+                meta = listOfNotNull(item.year, if (DebridItemType.isSeries(item.type)) "Series" else "Movie").joinToString(" · "),
                 desc = item.overview,
                 backdropUrl = item.backdropUrl ?: item.posterUrl,
                 onPlay = { actions.navigateToDetail(item) }
