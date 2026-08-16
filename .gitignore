@@ -182,3 +182,4 @@ fix2_*.xml
 
 # Pulled AudioTrack-watch captures (multi-MB logcat dumps; the watcher is scripts/audio_track_watch.sh)
 /docs/reports/audio_track_watch/
+.vercel

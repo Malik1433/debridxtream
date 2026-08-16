@@ -257,40 +257,12 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Debrid is one of the five tabs, so it carries the bar its siblings carry. -->
-    <LinearLayout
-        android:id="@+id/debrid_bottom_nav"
-        android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:layout_gravity="bottom"
-        android:background="@color/phone_nav_scrim"
-        android:orientation="horizontal" />
-
-    <include layout="@layout/overlay_stremio_search" />
-
-    <FrameLayout
-        android:id="@+id/stremio_status_overlay"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/stremio_status_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/share_tech_mono"
-            android:gravity="center"
-            android:padding="12dp"
-            android:textColor="@color/phone_text_muted"
-            android:textSize="12sp" />
-    </FrameLayout>
-
     <!-- The "add your debrid service" gate, which on a phone must fit a phone. -->
     <FrameLayout
         android:id="@+id/debrid_setup_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_marginBottom="64dp"
         android:background="@color/phone_home_bg"
         android:clickable="true"
         android:focusable="true"
@@ -348,4 +320,37 @@
                 android:textSize="13sp" />
         </LinearLayout>
     </FrameLayout>
+
+    <!-- Debrid is one of the five tabs, so it carries the bar its siblings carry. LAST on purpose:
+         the setup gate above is a full-screen clickable, so anything drawn after it is unreachable.
+         With the gate on top, tapping Home or Movies did nothing at all and BACK was the only way
+         out of this section — a bottom bar that stops working is not a bottom bar. -->
+    <LinearLayout
+        android:id="@+id/debrid_bottom_nav"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:layout_gravity="bottom"
+        android:background="@color/phone_nav_scrim"
+        android:orientation="horizontal" />
+
+    <include layout="@layout/overlay_stremio_search" />
+
+    <FrameLayout
+        android:id="@+id/stremio_status_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/stremio_status_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/share_tech_mono"
+            android:gravity="center"
+            android:padding="12dp"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="12sp" />
+    </FrameLayout>
+
 </FrameLayout>
