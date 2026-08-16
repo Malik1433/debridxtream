@@ -119,16 +119,30 @@
             android:launchMode="singleTop"
             android:taskAffinity="${applicationId}" />
         
+        <!--
+          `unspecified`, like MainActivity, because these two decide their own orientation in code.
+
+          They asked for portrait in onCreate — before super.onCreate, which is as early as code can
+          run — and it was still too late: a manifest orientation is applied by the system when the
+          activity record is created, so the window was BUILT landscape and the customer watched it
+          swing round to portrait a moment later. Opening a debrid movie or series flashed the wide
+          layout every single time.
+
+          Unspecified lets `usePortraitOnTouchDevices()` be the first and only answer on a phone. On
+          a television it is a no-op and the display is landscape anyway, so nothing there changes.
+
+          The PLAYER keeps its sensorLandscape — video is meant to be wide, and it never flips.
+        -->
         <activity
             android:name=".ui.vod.MovieDetailActivity"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="unspecified"
             android:label="Movie Details"
             android:theme="@style/AppTheme"
             android:exported="false" />
-        
+
         <activity
             android:name=".ui.series.SeriesDetailActivity"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="unspecified"
             android:label="Series Details"
             android:theme="@style/AppTheme"
             android:exported="false" />
