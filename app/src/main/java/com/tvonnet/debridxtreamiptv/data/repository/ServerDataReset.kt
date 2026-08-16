@@ -5,6 +5,7 @@ import android.util.Log
 import com.tvonnet.debridxtreamiptv.data.cache.CacheManager
 import com.tvonnet.debridxtreamiptv.data.cache.FavoritesCache
 import com.tvonnet.debridxtreamiptv.data.local.AppDatabase
+import com.tvonnet.debridxtreamiptv.data.local.ServerScopedDatabase
 import com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.HomePreferences
@@ -49,7 +50,14 @@ class ServerDataReset @Inject constructor(
 
     /** How much goes. */
     enum class Scope {
-        /** A change of provider: the old provider's data only. */
+        /**
+         * A change of provider — no longer a caller in the app.
+         *
+         * Option A gave each provider its own database and preference files, so switching opens
+         * the other library instead of destroying this one. The scope stays because the behaviour
+         * is still meaningful (clear THIS provider and start it again from the server) and because
+         * deleting it would take the source-scoping rules with it.
+         */
         SERVER,
 
         /** A logout: the provider's data AND everything else this account left behind. */
@@ -73,8 +81,34 @@ class ServerDataReset @Inject constructor(
         // to whoever the credentials point at. Written even on a partial failure — the stores that
         // did fail are empty-or-stale either way, and re-running the purge forever would trap the
         // device in a loop instead of letting the fresh sync repopulate.
+        if (scope == Scope.ACCOUNT) purgeOtherProviders()
         CredentialsPreferences(context).markServerDataSynced()
         Log.i(TAG, "Purge complete")
+    }
+
+    /**
+     * The OTHER providers this account ran on this device (Option A).
+     *
+     * The tables above only ever reach the database that is open — which is this provider's, and
+     * that is the whole point of the per-provider files. On a logout that is not enough: the
+     * account is leaving the device, and the two other servers' libraries would sit on disk for
+     * the next person who signs in.
+     *
+     * Files rather than tables, because those databases are not open and opening each one just to
+     * empty it would cost a Room build per provider. Their preference files go the same way.
+     */
+    private fun purgeOtherProviders() {
+        step("other providers' databases") {
+            val active = ServerScopedDatabase.nameFor(CredentialsPreferences(context).activeServerFingerprint)
+            ServerScopedDatabase.allDatabaseFiles(context)
+                .filterNot { it.name == active || it.name.startsWith("$active-") }
+                .forEach { it.delete() }
+        }
+        step("other providers' preferences") {
+            val dir = java.io.File(context.applicationInfo.dataDir, "shared_prefs")
+            dir.listFiles { f -> SCOPED_PREF_BASES.any { f.name.startsWith("${it}_") } }
+                ?.forEach { it.delete() }
+        }
     }
 
     /** The provider's catalogue: what to watch, and everything derived from it. */
@@ -149,5 +183,8 @@ class ServerDataReset @Inject constructor(
 
     private companion object {
         private const val TAG = "ServerDataReset"
+
+        /** The preference files Option A forks per provider; a logout removes every fork. */
+        private val SCOPED_PREF_BASES = listOf("watch_history", "home_config", "sync_prefs")
     }
 }

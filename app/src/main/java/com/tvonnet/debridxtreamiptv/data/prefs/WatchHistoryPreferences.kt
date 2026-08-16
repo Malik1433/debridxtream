@@ -12,7 +12,11 @@ import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import java.util.concurrent.ConcurrentHashMap
 
 class WatchHistoryPreferences(private val context: Context) {
-    private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    // Option A: Continue Watching and the Recent Live list belong to ONE provider — a resume entry
+    // is a stream id that means something else on the next server. Scoped by file so every one of
+    // the fourteen call sites that build this class is unchanged.
+    private val prefs: SharedPreferences =
+        ServerScopedPrefs.open(context, PREFS_NAME, ServerScopedPrefs.activeFingerprint(context))
     private val gson = Gson()
     
     // Continue Watching operations

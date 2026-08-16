@@ -189,29 +189,45 @@ class SettingsPreferences(private val context: Context) {
     /**
      * S2: forget which channel to auto-tune to. Both values are ids issued by ONE provider, so
      * after a switch "resume last live" would open a channel the new provider does not have.
+     *
+     * Option A: only THIS provider's pair is cleared — the other servers keep theirs, which is the
+     * whole point of switching being non-destructive now.
      */
     fun clearLastLiveResume() {
         prefs.edit()
-            .remove(KEY_LAST_LIVE_STREAM_ID)
-            .remove(KEY_LAST_LIVE_CATEGORY_ID)
+            .remove(scoped(KEY_LAST_LIVE_STREAM_ID))
+            .remove(scoped(KEY_LAST_LIVE_CATEGORY_ID))
             .apply()
     }
 
     fun getLastLiveStreamId(): String? {
-        return prefs.getString(KEY_LAST_LIVE_STREAM_ID, null)
+        return prefs.getString(scoped(KEY_LAST_LIVE_STREAM_ID), null)
     }
 
     fun setLastLiveStreamId(streamId: String?) {
-        prefs.edit().putString(KEY_LAST_LIVE_STREAM_ID, streamId).apply()
+        prefs.edit().putString(scoped(KEY_LAST_LIVE_STREAM_ID), streamId).apply()
     }
 
     /** Category the last channel was watched in, so Resume can reopen that list. */
     fun getLastLiveCategoryId(): String? {
-        return prefs.getString(KEY_LAST_LIVE_CATEGORY_ID, null)
+        return prefs.getString(scoped(KEY_LAST_LIVE_CATEGORY_ID), null)
     }
 
     fun setLastLiveCategoryId(categoryId: String?) {
-        prefs.edit().putString(KEY_LAST_LIVE_CATEGORY_ID, categoryId).apply()
+        prefs.edit().putString(scoped(KEY_LAST_LIVE_CATEGORY_ID), categoryId).apply()
+    }
+
+    /**
+     * Per-provider KEYS rather than a per-provider file, because this one file also holds the
+     * genuinely global settings — the app language, the playback preferences, the Live layout. Those
+     * must not fork per server, so only the two ids that belong to a provider are scoped.
+     *
+     * The unscoped key stays readable for the provider that was active before this shipped, which
+     * is what stops an update from forgetting the channel somebody was watching.
+     */
+    private fun scoped(key: String): String {
+        val fingerprint = ServerScopedPrefs.activeFingerprint(context)
+        return if (fingerprint == ServerIdentity.NONE) key else "${key}_$fingerprint"
     }
 
     /**

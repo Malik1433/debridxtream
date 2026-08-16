@@ -14,7 +14,6 @@ import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.SyncState
 import com.tvonnet.debridxtreamiptv.data.model.SyncType
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
-import com.tvonnet.debridxtreamiptv.data.repository.ServerDataReset
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -27,9 +26,6 @@ class InitialSyncFragment :
 
     @Inject
     lateinit var repository: XtreamRepository
-
-    @Inject
-    lateinit var serverDataReset: ServerDataReset
 
     private var syncSubtitle: TextView? = null
     private lateinit var syncProgress: ProgressBar
@@ -90,9 +86,13 @@ class InitialSyncFragment :
         retryButton.isEnabled = false
 
         viewLifecycleOwner.lifecycleScope.launch {
-            clearPreviousProviderIfSwitched()
+            if (openExistingLibraryIfSwitched()) return@launch
             val result = repository.syncInitialData()
             if (result.isSuccess) {
+                // Option A: the data on disk now belongs to this provider. Recorded on SUCCESS
+                // only — a failed sync leaves the disagreement in place, so a retry still knows a
+                // switch is outstanding.
+                CredentialsPreferences(requireContext().applicationContext).markServerDataSynced()
                 navigateToHome()
             } else {
                 showError(result.exceptionOrNull()?.message)
@@ -101,22 +101,23 @@ class InitialSyncFragment :
     }
 
     /**
-     * S3: the one place a change of provider is acted on.
+     * A3: the switch itself.
      *
-     * Every route that puts different credentials on this device ends here — the login form, the
-     * account playlist sync, a QR pairing — so this is where the old provider's catalogue, watch
-     * history and favourites go, and it happens BEFORE the sync writes its first row. Do it after
-     * and the sync's own rows are deleted along with the old ones; skip it and the customer keeps
-     * ghost titles and a Continue Watching list that points at a server they left.
+     * Under Option B this method purged the previous provider and every switch paid for a full
+     * re-sync. Each provider now owns its own database and preference files, so there is nothing to
+     * throw away and usually nothing to fetch — if this device has run this provider before, its
+     * library is still here and the right thing to do is open it.
      *
-     * A retry re-checks rather than remembering: the purge marks the data as belonging to the
-     * active provider, so a second pass is a no-op and an INTERRUPTED first pass is retried.
+     * @return true when the library was already here and Home has been opened.
      */
-    private suspend fun clearPreviousProviderIfSwitched() {
+    private fun openExistingLibraryIfSwitched(): Boolean {
         val prefs = CredentialsPreferences(requireContext().applicationContext)
-        if (!prefs.isServerDataStale()) return
+        if (!prefs.isServerDataStale()) return false
         showSwitchNotice(prefs)
-        serverDataReset.purge(ServerDataReset.Scope.SERVER)
+        if (!repository.hasCache()) return false // never run here — build the library
+        prefs.markServerDataSynced()
+        navigateToHome()
+        return true
     }
 
     /**

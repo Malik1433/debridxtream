@@ -84,6 +84,24 @@ class CredentialsPreferences(private val context: Context) {
             prefs.edit().putString(KEY_SERVER_LABEL, value).apply()
         }
 
+    /**
+     * The server the customer picked ON THIS DEVICE, by playlist id — or blank to follow the
+     * account's own assignment.
+     *
+     * A5: without this the picker would not survive its own success. The account decides which
+     * playlist a device runs (assigned to it, else the one marked for all devices), and that
+     * decision is re-applied on every Firestore snapshot — so choosing another server in Settings
+     * would hold until the next snapshot and then silently flip back.
+     *
+     * It is a preference of the DEVICE, not of the account: the customer is standing in front of
+     * this television choosing what THIS one plays, and their phone should not be moved with it.
+     */
+    var chosenPlaylistId: String
+        get() = prefs.getString(KEY_CHOSEN_PLAYLIST, "").orEmpty()
+        set(value) {
+            prefs.edit().putString(KEY_CHOSEN_PLAYLIST, value).apply()
+        }
+
     /** The provider the on-device data belongs to. */
     fun getSyncedServerFingerprint(): String =
         prefs.getString(KEY_SYNCED_SERVER, ServerIdentity.NONE) ?: ServerIdentity.NONE
@@ -226,6 +244,7 @@ class CredentialsPreferences(private val context: Context) {
         /** Fingerprint of the provider the on-device data belongs to. Plain prefs: it is a digest. */
         const val KEY_SYNCED_SERVER = "synced_server_fingerprint"
         const val KEY_SERVER_LABEL = "server_label"
+        const val KEY_CHOSEN_PLAYLIST = "chosen_playlist_id"
         const val KEY_DEVICE_ID = "device_id"
         const val KEY_PREFERRED_AUDIO_LANG = "preferred_audio_lang"
         const val DEFAULT_PREFERRED_AUDIO_LANG = "EN"

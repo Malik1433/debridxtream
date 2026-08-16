@@ -362,6 +362,19 @@ class SettingsFragment :
             state.accountServer?.takeIf { it.isNotBlank() }?.let { server ->
                 SettingItem.Info(key = "account_server", title = getString(R.string.s_provider), value = serverHost(server))
             },
+            // A5: only when the account actually holds more than one server. On a single-server
+            // account the row above already names the provider, and a picker with one entry is a
+            // control that does nothing.
+            if (SettingsServerPicker.hasChoice()) {
+                SettingItem.Selection(
+                    key = "active_server",
+                    title = getString(R.string.s_your_servers),
+                    currentValue = SettingsServerPicker.currentLabel(requireActivity()),
+                    onClick = { SettingsServerPicker.show(requireActivity()) }
+                )
+            } else {
+                null
+            },
             // D4: above Sign out on purpose. This is the row somebody is looking for when they want
             // to change something; the destructive one should not be the first Action they meet.
             SettingItem.Action(

@@ -11,7 +11,54 @@ import java.io.BufferedReader
 import java.io.BufferedWriter
 
 class CacheHelper(private val context: Context) {
-    private val cacheFileName = "iptv_cache.json"
+    /**
+     * Option A: these files describe ONE provider's catalogue, so they are named after it. Without
+     * this the per-provider database would be isolated while the JSON snapshot beside it was not —
+     * switching would open the new provider's tables and then show the old provider's cached
+     * catalogue over the top of them.
+     *
+     * The unsuffixed names remain in use while no provider is active, so an install that has never
+     * signed in behaves exactly as it did.
+     */
+    private val scope: String = com.tvonnet.debridxtreamiptv.data.prefs.ServerScopedPrefs
+        .activeFingerprint(context)
+        .takeIf { it.isNotEmpty() }
+        ?.let { "_$it" }
+        .orEmpty()
+
+    private val cacheFileName = "iptv_cache$scope.json"
+    private val seriesDetailDir = "$SERIES_DETAIL_CACHE_DIR$scope"
+    private val allSeriesDir = "$ALL_SERIES_CACHE_DIR$scope"
+
+    init {
+        adoptLegacyFiles()
+    }
+
+    /**
+     * Hands the active provider the cache files this device already has.
+     *
+     * Found on the emulator: the database was adopted but these were not, so after the update
+     * `hasCacheFile()` answered false about a device whose tables were full. That is not a cosmetic
+     * miss — the switch screen asks exactly that question to decide whether a provider's library is
+     * already here, so every existing install would have re-downloaded a catalogue it was holding.
+     *
+     * Renamed, like the database and for the same reason: this snapshot runs to tens of megabytes
+     * and a copy at launch is not acceptable. Once the scoped file exists the legacy one is never
+     * looked at again.
+     */
+    private fun adoptLegacyFiles() {
+        if (scope.isEmpty()) return
+        adopt(File(context.filesDir, "iptv_cache.json"), File(context.filesDir, cacheFileName))
+        adopt(File(context.filesDir, SERIES_DETAIL_CACHE_DIR), File(context.filesDir, seriesDetailDir))
+        adopt(File(context.filesDir, ALL_SERIES_CACHE_DIR), File(context.filesDir, allSeriesDir))
+    }
+
+    private fun adopt(from: File, to: File) {
+        if (to.exists() || !from.exists()) return
+        runCatching { from.renameTo(to) }
+            .onSuccess { if (it) Log.i(TAG, "Adopted ${from.name} for the active provider") }
+            .onFailure { Log.w(TAG, "Could not adopt ${from.name}", it) }
+    }
     // Single reused default Gson (Phase 1): a fresh Gson() per call rebuilt the reflective
     // type-adapter cache every time on the multi-MB catalog. MUST stay an UNCONFIGURED default
     // Gson so the on-disk iptv_cache.json / series caches stay byte-identical for existing users.
@@ -129,9 +176,9 @@ class CacheHelper(private val context: Context) {
      */
     fun clearProviderFiles() {
         clearCache()
-        runCatching { File(context.filesDir, SERIES_DETAIL_CACHE_DIR).deleteRecursively() }
+        runCatching { File(context.filesDir, seriesDetailDir).deleteRecursively() }
             .onFailure { Log.e(TAG, "Failed to clear series detail cache", it) }
-        runCatching { File(context.filesDir, ALL_SERIES_CACHE_DIR).deleteRecursively() }
+        runCatching { File(context.filesDir, allSeriesDir).deleteRecursively() }
             .onFailure { Log.e(TAG, "Failed to clear all-series cache", it) }
     }
 
@@ -160,7 +207,7 @@ class CacheHelper(private val context: Context) {
 
     fun writeSeriesDetail(seriesId: String, detail: com.tvonnet.debridxtreamiptv.data.model.XtreamSeriesDetailResponse) {
         try {
-            val dir = File(context.filesDir, SERIES_DETAIL_CACHE_DIR)
+            val dir = File(context.filesDir, seriesDetailDir)
             if (!dir.exists()) dir.mkdirs()
             
             val file = File(dir, "$seriesId.json")
@@ -176,7 +223,7 @@ class CacheHelper(private val context: Context) {
 
     fun readSeriesDetail(seriesId: String): com.tvonnet.debridxtreamiptv.data.model.XtreamSeriesDetailResponse? {
         try {
-            val dir = File(context.filesDir, SERIES_DETAIL_CACHE_DIR)
+            val dir = File(context.filesDir, seriesDetailDir)
             val file = File(dir, "$seriesId.json")
             
             if (!file.exists()) return null
@@ -199,7 +246,7 @@ class CacheHelper(private val context: Context) {
 
     fun writeAllSeries(series: List<com.tvonnet.debridxtreamiptv.data.model.XtreamSeriesInfo>) {
         try {
-            val dir = File(context.filesDir, ALL_SERIES_CACHE_DIR)
+            val dir = File(context.filesDir, allSeriesDir)
             if (!dir.exists()) dir.mkdirs()
             
             val file = File(dir, "all_series.json")
@@ -215,7 +262,7 @@ class CacheHelper(private val context: Context) {
 
     fun readAllSeries(): List<com.tvonnet.debridxtreamiptv.data.model.XtreamSeriesInfo>? {
         try {
-            val dir = File(context.filesDir, ALL_SERIES_CACHE_DIR)
+            val dir = File(context.filesDir, allSeriesDir)
             val file = File(dir, "all_series.json")
             
             if (!file.exists()) return null

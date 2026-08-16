@@ -6,6 +6,7 @@ import com.tvonnet.debridxtreamiptv.data.cache.CacheHelper
 import com.tvonnet.debridxtreamiptv.data.cache.CacheManager
 import com.tvonnet.debridxtreamiptv.data.cache.FavoritesCache
 import com.tvonnet.debridxtreamiptv.data.local.AppDatabase
+import com.tvonnet.debridxtreamiptv.data.local.ServerScopedDatabase
 import com.tvonnet.debridxtreamiptv.data.local.migrations.DatabaseMigrations
 import com.tvonnet.debridxtreamiptv.data.network.NetworkMonitor
 import com.tvonnet.debridxtreamiptv.data.local.dao.CategoryDao
@@ -149,13 +150,25 @@ object AppModule {
      * Week 12: Added proper migrations (QA Recommendation #1)
      * Week 14: Phase 2.1 - Memory Management optimization
      */
+    /**
+     * Option A: the file is named after the ACTIVE provider, so each of the account's servers keeps
+     * its own catalogue, favourites, watched state and EPG — and a switch reopens data instead of
+     * rebuilding it.
+     *
+     * Resolved once per process on purpose. Hilt binds this singleton, and every DAO with it, so a
+     * provider change takes effect on the next launch; [ServerSwitch] restarts the app to make that
+     * immediate. Swapping the instance underneath live DAOs would leave half the app writing to a
+     * database nobody is reading.
+     */
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
+        val fingerprint = CredentialsPreferences(context).activeServerFingerprint
+        ServerScopedDatabase.adoptLegacyDatabase(context, fingerprint)
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
-            AppDatabase.DATABASE_NAME
+            ServerScopedDatabase.nameFor(fingerprint)
         )
             // Week 12: Add proper migrations to preserve user data
             .addMigrations(*DatabaseMigrations.getAllMigrations())

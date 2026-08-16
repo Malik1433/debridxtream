@@ -226,20 +226,42 @@ object AccountPlaylistSync {
     }
 
     /**
-     * Applies the one playlist this TV should run. **Most specific assignment wins**: a playlist
-     * addressed to this device beats one marked "all devices".
+     * Every server on this account that this device could actually run.
      *
-     * There is deliberately no way to switch servers on a device. Watch history, favourites and the
-     * catalogue are all keyed by stream id with no record of which provider it came from — so
-     * switching would leave Continue Watching full of entries that belong to the other server and
-     * cannot play. One server per device is what this app's data layer actually supports; the
-     * account holds several so that DIFFERENT TVs can run different ones, which is safe because each
-     * device only ever sees one.
+     * A5: the sync has always read them all and used one. Handing the list out is what lets Settings
+     * show the customer their servers and let them choose — which is only safe now that each server
+     * owns its own data (Option A) and switching costs nothing.
+     */
+    fun servers(): List<AccountPlaylist> = available.filter { it.enabled && it.isXtream }
+
+    /**
+     * Runs the server the customer picked on this device, right now.
+     *
+     * The choice is recorded first so that the Firestore listener — which re-applies the account's
+     * own assignment on every snapshot — agrees with it from here on. Recording it after applying
+     * would leave a window where the next snapshot undoes the customer's choice.
+     */
+    fun choose(appContext: Context, playlistId: String) {
+        CredentialsPreferences(appContext).chosenPlaylistId = playlistId
+        applyActive(appContext)
+    }
+
+    /**
+     * Applies the one playlist this device should run.
+     *
+     * Order of preference: what the customer picked HERE, then a playlist addressed to this device,
+     * then one marked for all devices. The customer's own choice comes first because they made it
+     * while looking at this screen; the account's assignment is a default, not an override.
+     *
+     * A choice that no longer exists — the playlist was deleted on the phone — falls through to the
+     * account's assignment rather than leaving the device on nothing.
      */
     private fun applyActive(appContext: Context) {
-        val usable = available.filter { it.enabled && it.isXtream }
+        val usable = servers()
         val installId = LicenseManager.getInstance(appContext).installId
-        val chosen = usable.firstOrNull { it.assignedTo == installId }
+        val chosenId = CredentialsPreferences(appContext).chosenPlaylistId
+        val chosen = usable.firstOrNull { it.id == chosenId && chosenId.isNotEmpty() }
+            ?: usable.firstOrNull { it.assignedTo == installId }
             ?: usable.firstOrNull { it.assignedTo.isEmpty() }
             ?: return
         apply(appContext, chosen.url, chosen.username, chosen.password, chosen.name)

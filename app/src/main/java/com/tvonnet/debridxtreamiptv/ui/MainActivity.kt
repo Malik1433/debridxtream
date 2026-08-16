@@ -15,6 +15,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.data.local.ServerScopedDatabase
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.utils.memory.MemoryManager
@@ -283,8 +284,17 @@ class MainActivity : AppCompatActivity() {
      */
     private fun rebuildIfProviderChanged() {
         val credentials = credentials()
-        if (!credentials.isServerDataStale()) return
         if (credentials.getServerUrl().isNullOrBlank()) return // signed out; the login screen owns this
+
+        // A3: this process opened ONE provider's database, and Hilt will not rebind it while the
+        // process lives. If the credentials have moved on since, no amount of navigating fixes it —
+        // the app has to come back up against the other provider's file.
+        if (credentials.activeServerFingerprint != ServerScopedDatabase.processFingerprint) {
+            ServerSwitch.restartInto(this)
+            return
+        }
+
+        if (!credentials.isServerDataStale()) return
 
         // WHICH screen depends on whether the new credentials have been proved yet. The account
         // sync writes them WITHOUT marking the session logged in, on purpose — they arrived from a

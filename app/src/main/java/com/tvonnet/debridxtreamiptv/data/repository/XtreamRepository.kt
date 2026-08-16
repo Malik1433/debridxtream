@@ -78,8 +78,15 @@ class XtreamRepository @Inject constructor(
     private val epgQueryRepository = EpgQueryRepository(epgDao)
     private val epgSyncManager = EpgSyncManager(session, epgDao, memoryManager, context)
 
+    // Option A: how fresh a sync is, is a fact about ONE provider. Shared across servers it says
+    // "synced a minute ago" about a catalogue this device has never fetched, and the app then skips
+    // the sync that would fetch it.
     private val syncPrefs by lazy {
-        context.getSharedPreferences(SYNC_PREFS_NAME, Context.MODE_PRIVATE)
+        com.tvonnet.debridxtreamiptv.data.prefs.ServerScopedPrefs.open(
+            context,
+            SYNC_PREFS_NAME,
+            com.tvonnet.debridxtreamiptv.data.prefs.ServerScopedPrefs.activeFingerprint(context),
+        )
     }
 
     // Phase 7B-0: the shared catalog caches (the glue across Sync/Live/VOD/Series) live in CatalogCache.

@@ -11,7 +11,11 @@ import javax.inject.Singleton
 class HomePreferences @Inject constructor(
     @ApplicationContext context: Context
 ) {
-    private val prefs: SharedPreferences = context.getSharedPreferences("home_config", Context.MODE_PRIVATE)
+    // Option A: these are category ids, and a category id belongs to the provider that issued it —
+    // kept across a switch the customer's chosen rows come back empty. Scoped per provider so each
+    // server remembers the rows chosen for it.
+    private val prefs: SharedPreferences =
+        ServerScopedPrefs.open(context, "home_config", ServerScopedPrefs.activeFingerprint(context))
 
     companion object {
         private const val KEY_SELECTED_MOVIE_CATS = "home_movie_categories"
