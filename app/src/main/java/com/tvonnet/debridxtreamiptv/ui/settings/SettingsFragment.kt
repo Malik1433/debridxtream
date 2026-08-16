@@ -362,6 +362,14 @@ class SettingsFragment :
             state.accountServer?.takeIf { it.isNotBlank() }?.let { server ->
                 SettingItem.Info(key = "account_server", title = getString(R.string.s_provider), value = serverHost(server))
             },
+            // D4: above Sign out on purpose. This is the row somebody is looking for when they want
+            // to change something; the destructive one should not be the first Action they meet.
+            SettingItem.Action(
+                key = "manage_on_phone",
+                title = getString(R.string.s_manage_on_your_phone),
+                description = getString(R.string.s_manage_on_your_phone_desc),
+                onClick = { SettingsManageQrDialog.show(requireContext()) }
+            ),
             SettingItem.Action(
                 key = "logout_account",
                 title = getString(R.string.s_sign_out),

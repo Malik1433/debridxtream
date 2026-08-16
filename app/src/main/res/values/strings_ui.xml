@@ -424,4 +424,10 @@
     <!-- S3: shown on the first-sync screen when the customer's provider has just changed, so an
          emptied library reads as "we moved you" rather than "the app lost everything". -->
     <string name="sync_switched_to_server">Switched to %1$s · rebuilding your library</string>
+
+    <!-- D4: the Settings row and dialog that put this device's setup on the customer's phone,
+         because typing a manifest.json link with a remote control is the thing being replaced. -->
+    <string name="s_manage_on_your_phone">Manage on your phone</string>
+    <string name="s_manage_on_your_phone_desc">Scan a code to add or change playlists and add-ons</string>
+    <string name="s_manage_on_your_phone_body">Scan this with your phone to see what this device is using, and change it. You will need to be signed in to your account.</string>
 </resources>

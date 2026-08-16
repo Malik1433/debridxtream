@@ -230,6 +230,31 @@ service cloud.firestore {
         (isSignedIn() && resource.data.ownerUid == request.auth.uid);
     }
 
+    // ── Add-ons (the customer's own debrid links) ───────────────────────
+    // D1: the same shape and the same access as `playlists`, for the same reason — these are the
+    // customer's configuration, they belong to their account, and the device READS them rather
+    // than being pushed to.
+    //
+    // They are separate documents rather than an array on the playlist because they are not the
+    // playlist's: an add-on works whichever IPTV provider the device is running, and a customer
+    // with three servers and one add-on should not have to enter it three times. `deviceId` empty
+    // means every device, exactly as it does for a playlist.
+    //
+    // Rules are the playlists block verbatim, including the two lessons written into it: queries
+    // MUST filter on ownerUid, and delete is a separate clause because `request.resource` does not
+    // exist on a delete — sharing one rule with update silently makes deletion impossible.
+    match /addons/{addonId} {
+      allow get, list: if isAdmin() ||
+        (isSignedIn() && resource.data.ownerUid == request.auth.uid) ||
+        (resource.data.ownerUid != null && resource.data.ownerUid == deviceOwnerUid());
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isAdmin() ||
+        (isSignedIn() && resource.data.ownerUid == request.auth.uid &&
+         request.resource.data.ownerUid == resource.data.ownerUid);
+      allow delete: if isAdmin() ||
+        (isSignedIn() && resource.data.ownerUid == request.auth.uid);
+    }
+
     // ── Device identity (U3) ────────────────────────────────────────────
     // A TV signs in anonymously and records "this anonymous uid is me" against its installId.
     //

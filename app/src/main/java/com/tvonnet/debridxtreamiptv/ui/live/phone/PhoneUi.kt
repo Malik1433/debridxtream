@@ -36,6 +36,23 @@ object PhoneUi {
         return inflater.cloneInContext(ContextThemeWrapper(unscaled, R.style.AppTheme))
     }
 
+    /**
+     * The same escape from the 1.6x scale, for something that is not inflated from a layout.
+     *
+     * A dialog built in code takes the Activity's context, and this Activity is scaled — so a
+     * sentence that fits on three lines takes six, and anything below it gets pushed towards the
+     * bottom of the screen. The Settings screen already opts out for its layout; a dialog it opens
+     * has to opt out too or the two disagree on the same screen.
+     *
+     * The user's OWN accessibility scale is preserved, exactly as [unscaled] preserves it — this
+     * drops the app's multiplier, never the reader's setting.
+     */
+    fun unscaledContext(context: Context): Context {
+        val userScale = context.applicationContext.resources.configuration.fontScale
+        val override = Configuration().apply { fontScale = userScale }
+        return ContextThemeWrapper(context.createConfigurationContext(override), R.style.AppTheme)
+    }
+
     fun dp(context: Context, value: Int): Int =
         (value * context.resources.displayMetrics.density).toInt()
 

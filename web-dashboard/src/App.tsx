@@ -10,6 +10,7 @@ import AccountVerifyEmailPage from './pages/account/VerifyEmailPage'
 import PlaylistsPage from './pages/account/PlaylistsPage'
 import LinkDevicePage from './pages/account/LinkDevicePage'
 import DevicesPage from './pages/account/DevicesPage'
+import ManageDevicePage from './pages/account/ManageDevicePage'
 import './index.css'
 
 /**
@@ -79,6 +80,8 @@ function App() {
                     <Route path="/account/verify" element={<AccountVerifyEmailPage />} />
                     <Route path="/account/playlists" element={<PlaylistsPage />} />
                     <Route path="/account/devices" element={<DevicesPage />} />
+                    {/* D5: where the QR in a device's Settings lands — that device's own page. */}
+                    <Route path="/account/manage" element={<ManageDevicePage />} />
                     {/* The TV's QR points here. Short path on purpose — it gets typed by hand when a
                         phone camera won't cooperate. */}
                     <Route path="/link" element={<LinkDevicePage />} />

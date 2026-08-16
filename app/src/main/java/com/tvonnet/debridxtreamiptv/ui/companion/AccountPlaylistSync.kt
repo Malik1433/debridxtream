@@ -7,6 +7,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.tvonnet.debridxtreamiptv.data.licensing.LicenseManager
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
+import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import com.tvonnet.debridxtreamiptv.network.CompanionUrlValidator
 
@@ -63,6 +64,7 @@ object AccountPlaylistSync {
 
     private var bindingListener: ListenerRegistration? = null
     private var playlistListener: ListenerRegistration? = null
+    private var addonListener: ListenerRegistration? = null
     private var authListener: FirebaseAuth.AuthStateListener? = null
     private var started = false
 
@@ -115,11 +117,15 @@ object AccountPlaylistSync {
     private fun resolveOwner(appContext: Context, user: com.google.firebase.auth.FirebaseUser?) {
         bindingListener?.remove(); bindingListener = null
         playlistListener?.remove(); playlistListener = null
+        // The add-on listener goes with them. Left attached across an identity change it would keep
+        // feeding this device the PREVIOUS owner's links — the same leak the playlist listener was
+        // written to avoid, and easier to miss because nothing on screen would say so.
+        addonListener?.remove(); addonListener = null
 
         if (user == null) return
         if (!user.isAnonymous) {
             Log.i(TAG, "signed-in account - reading its playlists directly")
-            watchPlaylists(appContext, user.uid)
+            watchOwner(appContext, user.uid)
             return
         }
         bindingListener = FirebaseFirestore.getInstance()
@@ -131,9 +137,52 @@ object AccountPlaylistSync {
                     // Not claimed (or released). Stop following an owner we no longer belong to.
                     playlistListener?.remove()
                     playlistListener = null
+                    addonListener?.remove()
+                    addonListener = null
                     return@addSnapshotListener
                 }
-                watchPlaylists(appContext, ownerUid)
+                watchOwner(appContext, ownerUid)
+            }
+    }
+
+    /**
+     * Everything this device reads from its owner's account: the playlist it runs, and the debrid
+     * links it should have (D3).
+     *
+     * Both live behind ONE owner resolution because that is the hard part — the identity can change
+     * under us (anonymous device, then a real sign-in), and the binding can be revoked. Duplicating
+     * that machinery for a second collection would mean two places to get it wrong.
+     */
+    private fun watchOwner(appContext: Context, ownerUid: String) {
+        watchPlaylists(appContext, ownerUid)
+        watchAddons(appContext, ownerUid)
+    }
+
+    private fun watchAddons(appContext: Context, ownerUid: String) {
+        addonListener?.remove()
+        addonListener = FirebaseFirestore.getInstance()
+            .collection("addons")
+            // Same equality filter as playlists, and for the same reason: without it the read rule
+            // rejects the query outright rather than filtering it.
+            .whereEqualTo("ownerUid", ownerUid)
+            .addSnapshotListener { snap, e ->
+                if (e != null) { Log.w(TAG, "addon listen failed", e); return@addSnapshotListener }
+                val docs = snap?.documents ?: return@addSnapshotListener
+                val addons = docs.mapNotNull { doc ->
+                    val url = doc.getString("url") ?: return@mapNotNull null
+                    AccountAddon(
+                        id = doc.id,
+                        name = doc.getString("name").orEmpty(),
+                        url = url,
+                        kind = doc.getString("kind").orEmpty(),
+                        enabled = doc.getBoolean("enabled") != false,
+                        assignedTo = doc.getString("deviceId").orEmpty(),
+                    )
+                }
+                val installId = LicenseManager.getInstance(appContext).installId
+                runCatching {
+                    AccountAddonApplier.apply(DebridPreferences(appContext), addons, installId)
+                }.onFailure { Log.w(TAG, "could not apply account add-ons", it) }
             }
     }
 
@@ -234,6 +283,8 @@ object AccountPlaylistSync {
     fun stop() {
         playlistListener?.remove()
         playlistListener = null
+        addonListener?.remove()
+        addonListener = null
         bindingListener?.remove()
         bindingListener = null
         authListener?.let { runCatching { FirebaseAuth.getInstance().removeAuthStateListener(it) } }

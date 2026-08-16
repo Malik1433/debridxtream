@@ -9,6 +9,7 @@ import {
     watchPlaylists, type Playlist, type PlaylistDraft,
 } from '../../account/playlists'
 import { DxLogo } from '../reseller/authUi'
+import { AddonsSection } from './AddonsSection'
 import { Field } from './accountUi'
 
 export default function PlaylistsPage() {
@@ -180,6 +181,11 @@ export default function PlaylistsPage() {
                         </div>
                     ))}
                 </div>
+
+                {/* D2: the debrid links live on THIS page, not one of their own. Somebody setting up a
+                    device does it once, in one place — and the alternative was typing a manifest.json
+                    URL on a television with a remote. */}
+                <AddonsSection ownerUid={user.uid} devices={devices} canEdit={grace.allowed} />
             </div>
         </div>
     )
