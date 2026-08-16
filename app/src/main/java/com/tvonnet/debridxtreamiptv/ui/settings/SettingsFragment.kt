@@ -13,8 +13,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.tvonnet.debridxtreamiptv.BuildConfig
 import com.tvonnet.debridxtreamiptv.R
-import com.tvonnet.debridxtreamiptv.data.cache.CacheHelper
-import com.tvonnet.debridxtreamiptv.data.cache.CacheManager
+import com.tvonnet.debridxtreamiptv.data.repository.ServerDataReset
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.databinding.FragmentSettingsV2Binding
 import com.tvonnet.debridxtreamiptv.ui.settings.adapters.SettingItem
@@ -39,11 +38,8 @@ class SettingsFragment :
     lateinit var repository: XtreamRepository
 
     @Inject
-    lateinit var cacheManager: CacheManager
+    lateinit var serverDataReset: ServerDataReset
 
-    @Inject
-    lateinit var cacheHelper: CacheHelper
-    
     private lateinit var categoryAdapter: SettingsCategoryAdapter
     private lateinit var detailAdapter: SettingsDetailAdapter
 
@@ -79,7 +75,7 @@ class SettingsFragment :
         binding.tvSettingsVersion.text = "$brand · v${BuildConfig.VERSION_NAME}"
 
         dialogs = SettingsSelectorDialogs(this, viewModel)
-        actions = SettingsMaintenanceActions(this, viewModel, repository, cacheManager, cacheHelper)
+        actions = SettingsMaintenanceActions(this, viewModel, repository, serverDataReset)
 
         setupAdapters()
         observeState()

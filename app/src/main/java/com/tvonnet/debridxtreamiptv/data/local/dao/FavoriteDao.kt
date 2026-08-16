@@ -37,5 +37,12 @@ interface FavoriteDao {
     
     @Query("DELETE FROM favorites")
     suspend fun deleteAllFavorites()
+
+    /**
+     * S2: the favourites belonging to one source. A change of IPTV provider clears `xtream` and
+     * leaves `debrid` untouched — those ids are provider-independent and still resolve.
+     */
+    @Query("DELETE FROM favorites WHERE source = :source")
+    suspend fun deleteFavoritesBySource(source: String)
 }
 

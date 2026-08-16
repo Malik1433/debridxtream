@@ -119,6 +119,22 @@ class CacheHelper(private val context: Context) {
         }
     }
     
+    /**
+     * S2: every file on disk that describes ONE provider's catalogue.
+     *
+     * [clearCache] only ever removed `iptv_cache.json`, so the series-detail JSONs and the
+     * all-series fallback outlived it. That did not matter while a device only ever had one
+     * provider; the moment it can change, a leftover `series_details/1234.json` is the OLD
+     * provider's show being served for the NEW provider's series 1234.
+     */
+    fun clearProviderFiles() {
+        clearCache()
+        runCatching { File(context.filesDir, SERIES_DETAIL_CACHE_DIR).deleteRecursively() }
+            .onFailure { Log.e(TAG, "Failed to clear series detail cache", it) }
+        runCatching { File(context.filesDir, ALL_SERIES_CACHE_DIR).deleteRecursively() }
+            .onFailure { Log.e(TAG, "Failed to clear all-series cache", it) }
+    }
+
     fun memorySnapshot(): IptvCache? = inMemoryCache
 
     /**
@@ -137,6 +153,7 @@ class CacheHelper(private val context: Context) {
         private const val TAG = "CacheHelper"
         private const val MAX_CACHE_SIZE_KB = 51200 // 50 MB max cache size
         private const val SERIES_DETAIL_CACHE_DIR = "series_details"
+        private const val ALL_SERIES_CACHE_DIR = "series_cache"
         private const val SERIES_CACHE_TTL_MS = 24 * 60 * 60 * 1000L // 24 hours
         @Volatile private var inMemoryCache: IptvCache? = null
     }
@@ -182,7 +199,7 @@ class CacheHelper(private val context: Context) {
 
     fun writeAllSeries(series: List<com.tvonnet.debridxtreamiptv.data.model.XtreamSeriesInfo>) {
         try {
-            val dir = File(context.filesDir, "series_cache")
+            val dir = File(context.filesDir, ALL_SERIES_CACHE_DIR)
             if (!dir.exists()) dir.mkdirs()
             
             val file = File(dir, "all_series.json")
@@ -198,7 +215,7 @@ class CacheHelper(private val context: Context) {
 
     fun readAllSeries(): List<com.tvonnet.debridxtreamiptv.data.model.XtreamSeriesInfo>? {
         try {
-            val dir = File(context.filesDir, "series_cache")
+            val dir = File(context.filesDir, ALL_SERIES_CACHE_DIR)
             val file = File(dir, "all_series.json")
             
             if (!file.exists()) return null

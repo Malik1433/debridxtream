@@ -48,8 +48,72 @@ class CredentialsPreferences(private val context: Context) {
                 .remove(KEY_SERVER_URL).remove(KEY_USERNAME).remove(KEY_PASSWORD).remove(KEY_LOGGED_IN)
                 .apply()
         }
+        adoptCurrentServerOnFirstRun()
     }
-    
+
+    // ==========================================================================================
+    // Which provider the data on this device belongs to (S1).
+    //
+    // Five call sites change the server — the login form, the account playlist sync, the companion
+    // HTTP server, remote pairing and the companion applier — and every one of them goes through
+    // the two save methods below. So the answer is derived HERE, at the single place a credential
+    // can change, rather than at each door: a sixth door added later inherits it for free.
+    //
+    // Two fingerprints, not one, and that is the whole design. [activeServerFingerprint] is what
+    // the app is pointed at *now*; [getSyncedServerFingerprint] is what the catalogue, favourites
+    // and history on disk actually belong to. A switch is simply the two disagreeing, which means
+    // it survives being interrupted: kill the app halfway through and the disagreement is still
+    // there on the next launch, so the cleanup runs again instead of leaving a half-swapped device.
+    // ==========================================================================================
+
+    /** The provider the stored credentials point at. Derived, never stored — it cannot go stale. */
+    val activeServerFingerprint: String
+        get() = ServerIdentity.fingerprint(getServerUrl(), getUsername())
+
+    /**
+     * What to CALL the active provider when telling the customer they have been moved to it.
+     *
+     * Only the account sync knows a name — the customer typed it on the portal. Everything else
+     * (the login form, a QR pairing) has nothing but a URL, so this is blank there and the caller
+     * falls back to the host. Stored in plain prefs: it is a label the customer chose, not a
+     * credential.
+     */
+    var serverLabel: String
+        get() = prefs.getString(KEY_SERVER_LABEL, "").orEmpty()
+        set(value) {
+            prefs.edit().putString(KEY_SERVER_LABEL, value).apply()
+        }
+
+    /** The provider the on-device data belongs to. */
+    fun getSyncedServerFingerprint(): String =
+        prefs.getString(KEY_SYNCED_SERVER, ServerIdentity.NONE) ?: ServerIdentity.NONE
+
+    /**
+     * Does the data on disk belong to somebody else? True after a server change and until the
+     * cleanup has run, and true after a logout (no server owns the data then either).
+     */
+    fun isServerDataStale(): Boolean = getSyncedServerFingerprint() != activeServerFingerprint
+
+    /**
+     * Declares that the on-device data now belongs to the active server. Called by the cleanup
+     * once it has finished — never by a save, or the change it is meant to announce is erased by
+     * the very write that caused it.
+     */
+    fun markServerDataSynced() {
+        prefs.edit().putString(KEY_SYNCED_SERVER, activeServerFingerprint).apply()
+    }
+
+    /**
+     * Existing installs have no record of which server their data came from, and it is theirs —
+     * they have only ever had one. Adopting it once, silently, is what stops an app UPDATE from
+     * reading as a server switch and wiping every user's catalogue and Continue Watching.
+     */
+    private fun adoptCurrentServerOnFirstRun() {
+        if (prefs.contains(KEY_SYNCED_SERVER)) return
+        prefs.edit().putString(KEY_SYNCED_SERVER, activeServerFingerprint).apply()
+    }
+
+
     fun saveCredentials(serverUrl: String, username: String, password: String) {
         credsPrefs.edit().apply {
             putString(KEY_SERVER_URL, serverUrl)
@@ -98,6 +162,7 @@ class CredentialsPreferences(private val context: Context) {
             remove(KEY_LOGGED_IN)
             apply()
         }
+        prefs.edit().remove(KEY_SERVER_LABEL).apply()
     }
 
     /**
@@ -158,6 +223,9 @@ class CredentialsPreferences(private val context: Context) {
         const val KEY_PASSWORD = "password"
         const val KEY_LOGGED_IN = "logged_in"
         const val KEY_SYNC_CODE = "sync_code"
+        /** Fingerprint of the provider the on-device data belongs to. Plain prefs: it is a digest. */
+        const val KEY_SYNCED_SERVER = "synced_server_fingerprint"
+        const val KEY_SERVER_LABEL = "server_label"
         const val KEY_DEVICE_ID = "device_id"
         const val KEY_PREFERRED_AUDIO_LANG = "preferred_audio_lang"
         const val DEFAULT_PREFERRED_AUDIO_LANG = "EN"

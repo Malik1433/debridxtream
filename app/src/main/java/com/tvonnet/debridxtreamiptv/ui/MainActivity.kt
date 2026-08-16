@@ -8,6 +8,8 @@ import android.util.Log
 import android.view.KeyEvent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -102,9 +104,20 @@ class MainActivity : AppCompatActivity() {
      * and a television is neither (both helpers are no-ops there).
      */
     private fun applyLaunchOrientation() {
-        val loggedIn = runCatching { CredentialsPreferences(this).isLoggedIn() }.getOrDefault(false)
+        val loggedIn = runCatching { credentials().isLoggedIn() }.getOrDefault(false)
         if (loggedIn) usePortraitOnTouchDevices() else lockLandscapeOnTouchDevices()
     }
+
+    /**
+     * One instance for this activity's lifetime, because building one is not free: the credential
+     * half lives in EncryptedSharedPreferences, whose construction goes through the AndroidKeyStore.
+     * That is tolerable once at launch and wrong in `onResume`, which runs on every return to the
+     * foreground and is on the main thread.
+     */
+    private var credentialsCache: CredentialsPreferences? = null
+
+    private fun credentials(): CredentialsPreferences =
+        credentialsCache ?: CredentialsPreferences(this).also { credentialsCache = it }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // M13: BEFORE super.onCreate on purpose — the orientation has to be settled before the
@@ -125,7 +138,7 @@ class MainActivity : AppCompatActivity() {
         if (!startBackgroundChannelsAndGate()) return
 
         // Check if already logged in
-        val credentialsPrefs = CredentialsPreferences(this)
+        val credentialsPrefs = credentials()
         
         if (!credentialsPrefs.isLoggedIn()) {
             // User not logged in - show login fragment in container
@@ -252,6 +265,44 @@ class MainActivity : AppCompatActivity() {
         // grant "install unknown apps". Coming back is the moment to finish — the APK is already
         // in the cache, so this resumes at the install rather than making them start over.
         com.tvonnet.debridxtreamiptv.update.UpdateManager.resumePendingInstall(this)
+        rebuildIfProviderChanged()
+    }
+
+    /**
+     * S3: the customer changed which provider this device runs, from their account, while the app
+     * was open — and this is the moment the app admits it.
+     *
+     * Asked here rather than reacting to a callback because the question is answered by state, not
+     * by an event: [CredentialsPreferences.isServerDataStale] compares what the credentials point
+     * at with what the data on disk belongs to, so it is still true after a process death, a missed
+     * notification, or a switch that landed while this screen was in the background. Without it the
+     * device carries on serving the previous provider's catalogue until it is next relaunched.
+     *
+     * Everything else — the wipe, the notice, the fresh sync — belongs to [InitialSyncFragment],
+     * which is where every other route into a new provider already ends.
+     */
+    private fun rebuildIfProviderChanged() {
+        val credentials = credentials()
+        if (!credentials.isServerDataStale()) return
+        if (credentials.getServerUrl().isNullOrBlank()) return // signed out; the login screen owns this
+
+        // WHICH screen depends on whether the new credentials have been proved yet. The account
+        // sync writes them WITHOUT marking the session logged in, on purpose — they arrived from a
+        // phone and have never been used against the server. So that case has to go through the
+        // login screen, which validates them and then continues to the sync itself; only an
+        // already-proved session may go straight to rebuilding the library.
+        val next: Fragment =
+            if (credentials.isLoggedIn()) InitialSyncFragment() else LoginFragment()
+        val current = supportFragmentManager.findFragmentById(R.id.content_container)
+        if (current != null && current::class == next::class) return
+
+        android.util.Log.i("MainActivity", "Provider changed while running - rebuilding library")
+        supportFragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+        // allowStateLoss for the same reason handleNavigationIntent uses it: the trigger is
+        // external, so this can land after the activity has saved its state.
+        supportFragmentManager.commit(allowStateLoss = true) {
+            replace(R.id.content_container, next)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

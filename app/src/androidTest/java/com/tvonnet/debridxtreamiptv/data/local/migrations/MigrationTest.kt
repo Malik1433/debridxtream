@@ -59,7 +59,7 @@ class MigrationTest {
             .build()
         try {
             val version = db.openHelper.readableDatabase.version
-            assertEquals(15, version)
+            assertEquals(16, version)
         } finally {
             db.close()
             ApplicationProvider.getApplicationContext<android.content.Context>()
@@ -93,7 +93,7 @@ class MigrationTest {
 
         val db = openWithProductionMigrations(TEST_DB)
         try {
-            assertEquals(15, db.openHelper.readableDatabase.version)
+            assertEquals(16, db.openHelper.readableDatabase.version)
 
             db.openHelper.readableDatabase.query(
                 "SELECT progress_ms FROM watched_state WHERE identity_key = 'movie:inception'"
@@ -106,6 +106,41 @@ class MigrationTest {
             ).use { cursor ->
                 assertTrue("favourites must survive reopening the database", cursor.moveToFirst())
                 assertEquals("BBC News HD", cursor.getString(0))
+            }
+        } finally {
+            db.close()
+            deleteTestDb(TEST_DB)
+        }
+    }
+
+    /**
+     * S2, migration 15 -> 16: `favorites.source`.
+     *
+     * The column exists so a change of IPTV provider can clear its own favourites and leave the
+     * debrid ones alone. Two things have to hold for that to be safe: the rows a customer already
+     * had must survive the ALTER, and they must come out labelled `xtream` — because they are the
+     * ones keyed by a provider's stream id, and mislabelling them the other way would make them
+     * immortal instead.
+     */
+    @Test
+    @Throws(IOException::class)
+    fun favouritesSurviveTheSourceColumnAndDefaultToXtream() {
+        helper.createDatabase(TEST_DB, 15).apply {
+            execSQL(
+                "INSERT INTO favorites (streamId, type, addedAt, name, iconUrl) " +
+                    "VALUES ('9911', 'live', 1, 'BBC News HD', NULL)"
+            )
+            close()
+        }
+
+        val db = openWithProductionMigrations(TEST_DB)
+        try {
+            db.openHelper.readableDatabase.query(
+                "SELECT name, source FROM favorites WHERE streamId = '9911'"
+            ).use { cursor ->
+                assertTrue("the favourite must survive the ALTER", cursor.moveToFirst())
+                assertEquals("BBC News HD", cursor.getString(0))
+                assertEquals("xtream", cursor.getString(1))
             }
         } finally {
             db.close()

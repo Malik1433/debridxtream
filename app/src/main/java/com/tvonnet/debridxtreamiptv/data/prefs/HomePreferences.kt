@@ -43,6 +43,14 @@ class HomePreferences @Inject constructor(
         prefs.edit().putStringSet(KEY_SELECTED_LIVE_CATS, ids).apply()
     }
 
+    /**
+     * S2: forget which categories the Home rows are built from. They are category ids issued by
+     * ONE provider — kept across a switch, the customer's chosen rows come back empty.
+     */
+    fun clearSelectedCategories() {
+        prefs.edit().clear().apply()
+    }
+
     // Expose flow to notify ViewModel of changes
     fun getCategoriesChangedFlow(): kotlinx.coroutines.flow.Flow<Unit> = kotlinx.coroutines.flow.callbackFlow {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->

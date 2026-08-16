@@ -63,7 +63,7 @@ import com.tvonnet.debridxtreamiptv.features.seriesv2.data.dao.SeriesDaoV2
         WatchedStateEntity::class,
         ReleaseLanguageEntity::class
     ],
-    version = 15,
+    version = 16,
     // Phase 8: export the schema JSON (room.schemaLocation in build.gradle) so Room migrations become
     // testable via MigrationTestHelper — the gate that allowed removing fallbackToDestructiveMigration
     // (Phase 7.5, done: an unhandled version now fails loudly instead of wiping).

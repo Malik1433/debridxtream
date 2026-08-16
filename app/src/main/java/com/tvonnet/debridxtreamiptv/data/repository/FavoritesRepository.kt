@@ -4,6 +4,7 @@ import android.util.Log
 import com.tvonnet.debridxtreamiptv.data.cache.FavoritesCache
 import com.tvonnet.debridxtreamiptv.data.local.dao.FavoriteDao
 import com.tvonnet.debridxtreamiptv.data.local.entity.FavoriteEntity
+import com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -41,14 +42,27 @@ internal class FavoritesRepository(
         return favoriteDao?.isFavorite(streamId) ?: false
     }
 
-    /** Add a stream to favorites */
-    suspend fun addFavorite(streamId: String, type: String, name: String, iconUrl: String? = null) {
+    /**
+     * Add a stream to favorites.
+     *
+     * [source] says whether [streamId] is an IPTV stream id (only meaningful on the provider that
+     * issued it) or a debrid id (meaningful everywhere). It defaults to xtream because all but two
+     * call sites are IPTV screens; the debrid detail screens pass their own.
+     */
+    suspend fun addFavorite(
+        streamId: String,
+        type: String,
+        name: String,
+        iconUrl: String? = null,
+        source: String = WatchedStateEntity.SOURCE_XTREAM,
+    ) {
         val favorite = FavoriteEntity(
             streamId = streamId,
             type = type,
             name = name,
             iconUrl = iconUrl,
-            addedAt = System.currentTimeMillis()
+            addedAt = System.currentTimeMillis(),
+            source = source
         )
         favoriteDao?.insertFavorite(favorite)
         // Week 12: Update performance cache (optimistic)
@@ -68,5 +82,11 @@ internal class FavoritesRepository(
     suspend fun clearAllFavorites() {
         favoriteDao?.deleteAllFavorites()
         Log.d(tag, "Cleared all favorites")
+    }
+
+    /** S2: remove only the favourites belonging to one source (see [addFavorite]). */
+    suspend fun clearFavoritesForSource(source: String) {
+        favoriteDao?.deleteFavoritesBySource(source)
+        Log.d(tag, "Cleared favorites for source: $source")
     }
 }

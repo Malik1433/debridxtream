@@ -612,7 +612,14 @@ class SeriesDetailActivity : AppCompatActivity() {
                         streamId = streamId,
                         type = "series",
                         name = seriesName ?: getString(R.string.series_detail_title_placeholder),
-                        iconUrl = seriesCover
+                        iconUrl = seriesCover,
+                        // S2: this screen serves both worlds. A debrid id survives a change of IPTV
+                        // provider; an Xtream series id does not, and must be cleared with it.
+                        source = if (isDebridContent) {
+                            com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.SOURCE_DEBRID
+                        } else {
+                            com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.SOURCE_XTREAM
+                        }
                     )
                     Toast.makeText(this@SeriesDetailActivity, R.string.favorite_added, Toast.LENGTH_SHORT).show()
                     updateFavoriteButton(true)

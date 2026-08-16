@@ -109,4 +109,15 @@ interface WatchedStateDao {
         seriesIdentity: String,
         source: String
     ): Flow<List<WatchedStateEntity>>
+
+    /**
+     * S2: everything this provider taught us about what was watched.
+     *
+     * Scoped to `source` because the identity key carries no provider: the IPTV rows are keyed by
+     * a stream id that means something different on every server, while the debrid rows are keyed
+     * by infoHash and mean the same thing everywhere. Wiping both would throw away watch state for
+     * content the change of IPTV provider does not touch at all.
+     */
+    @Query("DELETE FROM watched_state WHERE source = :source")
+    suspend fun deleteAllForSource(source: String)
 }

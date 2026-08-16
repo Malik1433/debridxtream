@@ -186,6 +186,17 @@ class SettingsPreferences(private val context: Context) {
         prefs.edit().putBoolean(KEY_ACCOUNT_PLAYLIST_SYNC, enabled).apply()
     }
 
+    /**
+     * S2: forget which channel to auto-tune to. Both values are ids issued by ONE provider, so
+     * after a switch "resume last live" would open a channel the new provider does not have.
+     */
+    fun clearLastLiveResume() {
+        prefs.edit()
+            .remove(KEY_LAST_LIVE_STREAM_ID)
+            .remove(KEY_LAST_LIVE_CATEGORY_ID)
+            .apply()
+    }
+
     fun getLastLiveStreamId(): String? {
         return prefs.getString(KEY_LAST_LIVE_STREAM_ID, null)
     }

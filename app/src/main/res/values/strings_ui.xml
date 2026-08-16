@@ -420,4 +420,8 @@
     <string name="phone_episode_left">%1$d MIN LEFT · %2$s OF %3$s</string>
     <string name="phone_episode_watched_meta">%1$d MIN · WATCHED</string>
     <string name="phone_episode_meta">%1$d MIN</string>
+
+    <!-- S3: shown on the first-sync screen when the customer's provider has just changed, so an
+         emptied library reads as "we moved you" rather than "the app lost everything". -->
+    <string name="sync_switched_to_server">Switched to %1$s · rebuilding your library</string>
 </resources>

@@ -178,8 +178,30 @@ object DatabaseMigrations {
             MIGRATION_11_12,
             MIGRATION_12_13,
             MIGRATION_13_14,
-            MIGRATION_14_15
+            MIGRATION_14_15,
+            MIGRATION_15_16
         )
+    }
+
+    /**
+     * Migration 15 -> 16 (S2): `source` column on `favorites`.
+     *
+     * A favourite is stored as a bare `streamId`, and an IPTV stream id means something different
+     * on every provider while a debrid id means the same thing everywhere. Without a column saying
+     * which is which, a change of IPTV provider had only two options: keep every favourite (leaving
+     * rows pointing at streams that no longer exist) or drop every favourite (throwing away debrid
+     * ones the change does not affect). `watched_state` already carries exactly this column; this
+     * brings favourites in line.
+     *
+     * Additive, with a default, so no row is rewritten. Existing rows become `xtream` — true for
+     * the overwhelming majority, and the known cost is that a debrid favourite added BEFORE this
+     * build is labelled as IPTV and will be cleared by the first provider switch.
+     */
+    val MIGRATION_15_16 = object : Migration(15, 16) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `favorites` ADD COLUMN `source` TEXT NOT NULL DEFAULT 'xtream'")
+            android.util.Log.d("DatabaseMigration", "Successfully migrated database from version 15 to 16 (favorites.source)")
+        }
     }
 
     /**

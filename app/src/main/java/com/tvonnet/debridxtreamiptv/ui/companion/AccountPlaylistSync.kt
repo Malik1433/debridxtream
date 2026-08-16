@@ -36,15 +36,26 @@ data class AccountPlaylist(
  * Because the TV reads rather than being pushed to, an edit on the phone lands here on its own — no
  * second mechanism, no "push again" button.
  *
- * **One server per device, and no way to switch.** The account may hold several playlists, but each
- * is addressed to a TV (or to all of them) and a device runs exactly the one that applies to it.
- * Switching servers on a device is deliberately impossible: watch history, favourites and the
- * catalogue are keyed by stream id with no record of the provider, so a switch would leave Continue
- * Watching full of entries belonging to the other server.
+ * **One server per device, and switching is supported.** The account may hold several playlists;
+ * each is addressed to a device (or to all of them) and a device runs exactly the one that applies
+ * to it. Re-addressing a playlist therefore MOVES that device to another provider.
  *
- * **Behind a flag, defaulting OFF.** It rewrites the credentials the app logs in with, which is the
- * single most disruptive thing that can be done to a working install, so it ships dark. The old
- * companion path is untouched and keeps working either way.
+ * This comment used to claim the opposite — "switching servers on a device is deliberately
+ * impossible" — and it was wrong in the way that matters: nothing prevented it, the credentials
+ * were simply rewritten and the data left alone. The catalogue, favourites, watch history and
+ * watched state are keyed by stream id with no record of the provider, so the device kept serving
+ * the previous server's rows against the new server's ids. That is fixed by S1-S4, not by
+ * pretending the door is locked:
+ *
+ *  - [CredentialsPreferences.isServerDataStale] answers "does the data on disk still belong to the
+ *    server we point at" — from state, so an interrupted switch is retried,
+ *  - `ServerDataReset` clears the previous provider's data, and
+ *  - `InitialSyncFragment` runs it before the new sync writes anything, telling the customer which
+ *    provider they were moved to.
+ *
+ * **The flag defaults ON.** The comment here used to say it "ships dark"; the default in
+ * [SettingsPreferences.isAccountPlaylistSyncEnabled] has been `true`. The flag remains as an
+ * off-switch, and the old companion path is untouched and keeps working either way.
  */
 object AccountPlaylistSync {
 
@@ -182,7 +193,7 @@ object AccountPlaylistSync {
         val chosen = usable.firstOrNull { it.assignedTo == installId }
             ?: usable.firstOrNull { it.assignedTo.isEmpty() }
             ?: return
-        apply(appContext, chosen.url, chosen.username, chosen.password)
+        apply(appContext, chosen.url, chosen.username, chosen.password, chosen.name)
     }
 
     private fun hostOf(url: String): String =
@@ -195,7 +206,13 @@ object AccountPlaylistSync {
      * replays, metadata changes, reconnects. Writing every time would reset `loggedIn` on each one
      * and bounce a perfectly happy install back through the login flow.
      */
-    private fun apply(appContext: Context, url: String?, username: String?, password: String?) {
+    private fun apply(
+        appContext: Context,
+        url: String?,
+        username: String?,
+        password: String?,
+        label: String,
+    ) {
         val safeUrl = url?.let { CompanionUrlValidator.normalizeSafeHttpUrl(it) } ?: return
         if (username.isNullOrBlank() || password.isNullOrBlank()) return
 
@@ -206,6 +223,9 @@ object AccountPlaylistSync {
         if (unchanged) return
 
         prefs.saveSyncedCredentials(safeUrl, username, password)
+        // The name the customer gave this playlist on the portal, so the device can tell them which
+        // one it just moved to rather than showing them a hostname they may not recognise.
+        prefs.serverLabel = label
         Log.i(TAG, "applied playlist from account")
         runCatching { onCredentialsApplied?.invoke() }
             .onFailure { Log.w(TAG, "credentials-applied callback failed", it) }

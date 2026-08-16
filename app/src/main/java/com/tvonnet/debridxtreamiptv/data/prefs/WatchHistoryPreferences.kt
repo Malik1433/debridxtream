@@ -44,6 +44,7 @@ class WatchHistoryPreferences(private val context: Context) {
     
     fun getContinueWatchingList(): List<ContinueWatchingItem> {
         val currentList = readContinueWatchingList()
+            .filter { ProviderUrlGuard.belongsToCurrentProvider(it.streamUrl, it.source) }
         val deduped = dedupeContinueWatching(currentList)
         if (deduped.size != currentList.size) {
             val json = gson.toJson(deduped)
@@ -279,7 +280,9 @@ class WatchHistoryPreferences(private val context: Context) {
         return try {
             android.util.Log.d("HISTORY_DEBUG", "Reading Recent Live list: jsonLength=${json.length}")
             val type = object : TypeToken<List<RecentLiveChannelItem>>() {}.type
-            val list = gson.fromJson<List<RecentLiveChannelItem>>(json, type) ?: emptyList()
+            val list = (gson.fromJson<List<RecentLiveChannelItem>>(json, type) ?: emptyList())
+                // A live channel is always the IPTV provider's, so no source to consult.
+                .filter { ProviderUrlGuard.belongsToCurrentProvider(it.streamUrl, source = null) }
             // Heal stale relative logo URLs on read
             list.map { item ->
                 val resolved = GlobalConfig.resolveIconUrl(item.channelLogo)

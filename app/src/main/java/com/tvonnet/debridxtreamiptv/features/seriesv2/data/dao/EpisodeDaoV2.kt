@@ -27,6 +27,10 @@ interface EpisodeDaoV2 {
 
     @Query("DELETE FROM episodes_v2_core WHERE series_id = :seriesId")
     suspend fun clearForSeries(seriesId: String)
+
+    /** S2: whole-table wipe for a change of provider. SeriesDaoV2 already had its counterpart. */
+    @Query("DELETE FROM episodes_v2_core")
+    suspend fun clearAll()
     
     @Query("SELECT COUNT(*) FROM episodes_v2_core WHERE series_id = :seriesId")
     suspend fun getCountForSeries(seriesId: String): Int

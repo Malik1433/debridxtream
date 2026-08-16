@@ -78,6 +78,36 @@ Apply these while touching a file; don't leave them for a later pass.
 - **This is an Android TV app:** every interactive element must be D-pad reachable and must not steal
   focus on data refresh. Verify focus behaviour on the device, not in an emulator screenshot.
 
+## One device, one provider — the server-switch contract (2026-08-16)
+
+A customer's account can hold several IPTV playlists, and re-addressing one on the portal MOVES a
+device to another provider. Nothing in the data layer records which provider a row came from: the
+catalogue, favourites, watch history and watched state are all keyed by `streamId`, and two
+providers both number their streams from 1. So a switch does not make the old rows stale, it makes
+them **wrong** — the old server's poster in front of the new server's stream id.
+
+**The contract, in one line: when the provider changes, everything that provider gave us goes.**
+
+- **The question is answered from state, never from an event.**
+  `CredentialsPreferences.isServerDataStale()` compares the fingerprint of the credentials we point
+  at (`ServerIdentity`) with the fingerprint the on-disk data belongs to. That survives a process
+  death mid-switch, a missed callback, and a switch that lands while the app is backgrounded.
+- **One purge, one place.** `ServerDataReset.purge(SERVER|ACCOUNT)` is the ONLY wipe. Adding a new
+  per-provider store means adding it there — and to `ServerDataResetTest`, which fails if a table is
+  left out. Never hand-roll a partial clear (the old logout did, and left movies, series, episodes,
+  favourites, watched state and searches behind).
+- **It runs BEFORE the new sync writes a row**, in `InitialSyncFragment` — the one screen every
+  route into a new provider passes through. After the sync, and the purge eats the sync's own rows.
+- **Never store an absolute stream URL as identity.** An Xtream URL embeds the host, username and
+  password; kept across a switch it can keep *working* against the provider the customer left.
+  `ProviderUrlGuard` is the read-side lock, but the real rule is: store ids, build the URL from the
+  current session.
+- **`source` is not decoration.** `favorites.source` and `watched_state.source` are what let a
+  switch clear the IPTV rows and keep the debrid ones (debrid ids are infoHashes and mean the same
+  thing everywhere). Any new row that can come from either world carries it.
+- **The customer is told.** The first-sync screen says which provider they were moved to; an
+  emptied library must never look like data loss.
+
 ## Two platforms, two rulebooks — never mix them (owner rule, 2026-08-05)
 
 This is ONE app on two form factors, so every screen must obey **the conventions of the device it is

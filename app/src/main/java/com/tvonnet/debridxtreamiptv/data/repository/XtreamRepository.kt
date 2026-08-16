@@ -280,8 +280,22 @@ class XtreamRepository @Inject constructor(
         perCategorySeriesCache.clear()
         allSeriesCacheFallback = null
         perCategoryVodCache.clear()
+        seriesCategoryStatus.clear()
         cacheHelper.clearMemorySnapshot()
         Log.d(TAG, "Memory cache cleared (Legacy + CacheManager + per-category)")
+    }
+
+    /**
+     * S2: every file this provider's catalogue was cached into, plus the stamps that say how fresh
+     * it is. Owned here because the sync prefs and the CacheHelper are this class's private state.
+     *
+     * The stamps matter as much as the data: left behind they read "synced a minute ago" about a
+     * provider that is gone, and the app then SKIPS the very sync that would repopulate it.
+     */
+    fun clearCatalogFilesAndSyncStamps() {
+        cacheHelper.clearProviderFiles()
+        syncPrefs.edit().clear().apply()
+        Log.d(TAG, "Catalog cache files and sync stamps cleared")
     }
     
     suspend fun forceRefresh(): Result<IptvCache> = syncManager.forceRefresh()
@@ -299,12 +313,21 @@ class XtreamRepository @Inject constructor(
 
     suspend fun isFavorite(streamId: String): Boolean = favoritesRepository.isFavorite(streamId)
 
-    suspend fun addFavorite(streamId: String, type: String, name: String, iconUrl: String? = null) =
-        favoritesRepository.addFavorite(streamId, type, name, iconUrl)
+    suspend fun addFavorite(
+        streamId: String,
+        type: String,
+        name: String,
+        iconUrl: String? = null,
+        source: String = com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.SOURCE_XTREAM,
+    ) = favoritesRepository.addFavorite(streamId, type, name, iconUrl, source)
 
     suspend fun removeFavorite(streamId: String) = favoritesRepository.removeFavorite(streamId)
 
     suspend fun clearAllFavorites() = favoritesRepository.clearAllFavorites()
+
+    /** S2: clear only one source's favourites — see [FavoritesRepository.addFavorite]. */
+    suspend fun clearFavoritesForSource(source: String) =
+        favoritesRepository.clearFavoritesForSource(source)
 
     // ========== Search History Operations ==========
     // Moved to SearchHistoryRepository (Phase 7); XtreamRepository delegates. Same DAO, behaviour unchanged.

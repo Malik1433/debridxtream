@@ -698,7 +698,14 @@ class MovieDetailActivity : AppCompatActivity() {
                             streamId = streamId,
                             type = "vod",
                             name = movieName ?: "",
-                            iconUrl = movieIcon
+                            iconUrl = movieIcon,
+                            // S2: this screen serves both worlds. A debrid id survives a change of
+                            // IPTV provider; an Xtream stream id does not.
+                            source = if (isDebridMovie) {
+                                com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.SOURCE_DEBRID
+                            } else {
+                                com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.SOURCE_XTREAM
+                            }
                         )
                     )
                 } else {

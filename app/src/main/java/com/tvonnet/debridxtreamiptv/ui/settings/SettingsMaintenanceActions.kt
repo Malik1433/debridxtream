@@ -8,15 +8,11 @@ import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
 import com.tvonnet.debridxtreamiptv.R
-import com.tvonnet.debridxtreamiptv.data.cache.CacheHelper
-import com.tvonnet.debridxtreamiptv.data.cache.CacheManager
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
-import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
+import com.tvonnet.debridxtreamiptv.data.repository.ServerDataReset
 import com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
 import com.tvonnet.debridxtreamiptv.ui.LoginFragment
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * C1-c: the settings actions that **do something to the app's data**, as opposed to setting a
@@ -34,8 +30,9 @@ class SettingsMaintenanceActions(
     private val fragment: Fragment,
     private val viewModel: SettingsViewModel,
     private val repository: XtreamRepository,
-    private val cacheManager: CacheManager,
-    private val cacheHelper: CacheHelper,
+    // S3: replaces the CacheManager + CacheHelper this class used to take. Both existed only for
+    // the logout wipe, and both were half of it — see performAccountLogout.
+    private val serverDataReset: ServerDataReset,
 ) {
     private val context get() = fragment.requireContext()
 
@@ -103,20 +100,24 @@ class SettingsMaintenanceActions(
     }
 
     /**
-     * Order matters: caches and history go first on IO, credentials last, and only then do we
-     * navigate — leaving early would strand a signed-out session holding a populated cache.
+     * Order matters: the data goes first on IO, credentials last, and only then do we navigate —
+     * leaving early would strand a signed-out session holding a populated cache.
+     *
+     * S3: the wipe is [ServerDataReset] rather than the four calls that used to be here. Those
+     * cleared the memory caches, the channel and category tables, and the watch history — and left
+     * behind every movie, series, season, episode, favourite, watched-state row and search this
+     * account had accumulated. The next person to sign in on this device inherited all of it.
      */
     private fun performAccountLogout() {
         val appContext = context.applicationContext
         val activity = fragment.requireActivity()
         fragment.viewLifecycleOwner.lifecycleScope.launch {
-            withContext(Dispatchers.IO) {
-                runCatching { cacheManager.clearAllCaches() }
-                runCatching { cacheHelper.clearCache() }
-            }
-            runCatching { repository.clearMemoryCache() }
-            runCatching { WatchHistoryPreferences(appContext).clearAll() }
+            runCatching { serverDataReset.purge(ServerDataReset.Scope.ACCOUNT) }
+                .onFailure { android.util.Log.e(TAG, "Logout purge failed", it) }
             CredentialsPreferences(appContext).clearCredentials()
+            // Written AFTER the credentials are gone: the device now belongs to no provider, so
+            // the next sign-in is a change of provider and the switch path runs for it too.
+            CredentialsPreferences(appContext).markServerDataSynced()
             viewModel.logoutDebrid()
             navigateToLogin(activity)
         }

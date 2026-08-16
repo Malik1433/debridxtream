@@ -137,6 +137,15 @@ interface SeriesDao {
     @Query("DELETE FROM episodes WHERE seriesId = :seriesId")
     suspend fun deleteEpisodesBySeries(seriesId: String)
 
+    // S2: whole-table wipes, for the one caller that must leave nothing behind — a change of
+    // provider. Seasons and episodes were only ever deletable per series, so a switch left the
+    // episode rows of every series the new provider does not carry sitting in the table for good.
+    @Query("DELETE FROM seasons")
+    suspend fun deleteAllSeasons()
+
+    @Query("DELETE FROM episodes")
+    suspend fun deleteAllEpisodes()
+
     @Transaction
     @Query("SELECT * FROM series_v2 WHERE seriesId = :seriesId")
     suspend fun getSeriesWithSeasonsAndEpisodes(seriesId: String): com.tvonnet.debridxtreamiptv.data.local.relation.SeriesWithSeasonsAndEpisodes?

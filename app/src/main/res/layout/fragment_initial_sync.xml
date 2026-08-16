@@ -60,9 +60,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/outfit_bold"
+                    android:text="@string/ui_preparing_your_library"
                     android:textColor="@color/phone_text_primary"
-                    android:textSize="18sp"
-                    tools:text="Preparing your library" />
+                    android:textSize="18sp" />
 
                 <TextView
                     android:id="@+id/tv_sync_subtitle"
@@ -70,9 +70,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:fontFamily="@font/inter_regular"
+                    android:text="@string/ui_syncing_channels_movies_and_series"
                     android:textColor="@color/phone_text_secondary"
-                    android:textSize="13sp"
-                    tools:text="Syncing channels, movies, and series" />
+                    android:textSize="13sp" />
             </LinearLayout>
         </LinearLayout>
 
