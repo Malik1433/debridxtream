@@ -87,6 +87,11 @@ class MainActivity : AppCompatActivity() {
                     fm: androidx.fragment.app.FragmentManager,
                     f: androidx.fragment.app.Fragment,
                 ) {
+                    // Only the screen IN THE CONTENT CONTAINER answers this. A DialogFragment is
+                    // not a screen — it floats above one — and letting it answer meant the exit
+                    // confirmation spun the whole phone to landscape behind itself, because a
+                    // dialog is not a PortraitScreen and never should be.
+                    if (f.id != R.id.content_container) return
                     if (f is PortraitScreen) usePortraitOnTouchDevices() else lockLandscapeOnTouchDevices()
                 }
             },
@@ -443,6 +448,14 @@ class MainActivity : AppCompatActivity() {
             // 2b. If scrolled to top, Show Exit Dialog
              com.tvonnet.debridxtreamiptv.ui.dialog.ExitDialog.newInstance()
                  .show(supportFragmentManager, com.tvonnet.debridxtreamiptv.ui.dialog.ExitDialog.TAG)
+        } else if (currentFragment is com.tvonnet.debridxtreamiptv.ui.home.PhoneHomeFragment) {
+            // The phone's Home is its own class, and this branch used to miss it: BACK fell
+            // through to "go back to Home" below and REPLACED Home with Home, so on a handset
+            // Back at the root did nothing at all and the app could not be left with it — the
+            // one thing the phone rulebook will not allow. Same dialog, which is written for
+            // both form factors.
+            com.tvonnet.debridxtreamiptv.ui.dialog.ExitDialog.newInstance()
+                .show(supportFragmentManager, com.tvonnet.debridxtreamiptv.ui.dialog.ExitDialog.TAG)
         } else {
             // 3. We are at a root fragment that is NOT Home (e.g. Live TV, Debrid).
             // Navigate back to Home.
