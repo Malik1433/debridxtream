@@ -1,26 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  PHONE settings category — a chip in a horizontal rail.
+  PHONE settings category — a full-width row in the root list (G1).
 
-  The television row (layout-television/) is match_parent wide because it lives in a vertical rail
-  beside the panel. Reused as-is in the phone's horizontal rail, the first category took the whole
-  screen and the other seven were off it entirely.
+  The television row (layout-television/) sits in a vertical rail beside the panel. The previous
+  phone version was a chip in a horizontal rail, which fitted the width but kept the TV's shape.
+  The design makes the categories a real list: each row is a destination, and its second line is a
+  live summary of what is set inside — "4 add-ons · Real-Debrid on" — so the list answers the
+  question before you open anything.
 
-  Same ids, same kinds: the accent bar and the chevron are gone stubs, because a chip that is
-  already highlighted needs neither a selection bar nor an arrow to somewhere.
+  Same ids, same kinds. `v_cat_bar` is the selection bar the television paints; on a phone nothing
+  is "selected" in a list you navigate away from, so it stays a zero-sized stub.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/cat_root"
-    android:layout_width="wrap_content"
-    android:layout_height="48dp"
-    android:layout_marginEnd="8dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    android:background="@drawable/bg_phone_card"
     android:clickable="true"
     android:focusable="true"
     android:gravity="center_vertical"
+    android:minHeight="72dp"
     android:orientation="horizontal"
-    android:paddingHorizontal="14dp">
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="14dp">
 
     <View
         android:id="@+id/v_cat_bar"
@@ -29,35 +34,51 @@
 
     <ImageView
         android:id="@+id/iv_icon"
-        android:layout_width="18dp"
-        android:layout_height="18dp"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
         android:contentDescription="@null"
         android:scaleType="fitCenter" />
 
-    <TextView
-        android:id="@+id/tv_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:fontFamily="@font/outfit_semibold"
-        android:includeFontPadding="false"
-        android:maxLines="1"
-        android:textColor="@color/phone_text_primary"
-        android:textSize="13sp"
-        tools:text="Playback" />
-
-    <!-- The subtitle is the rail's second line on television; a chip has room for the name only,
-         and the panel below repeats it in full the moment the chip is chosen. -->
-    <TextView
-        android:id="@+id/tv_sub"
+    <LinearLayout
         android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone" />
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="@font/outfit_semibold"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="16sp"
+            tools:text="Add-ons" />
+
+        <!-- The live summary. Two lines allowed: "412 MB cached · last refresh 2 d ago" is the
+             kind of sentence that earns a wrap on a 411dp screen. -->
+        <TextView
+            android:id="@+id/tv_sub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/inter_regular"
+            android:maxLines="2"
+            android:textColor="@color/phone_text_secondary"
+            android:textSize="13sp"
+            tools:text="4 Stremio add-ons · Real-Debrid on" />
+    </LinearLayout>
 
     <ImageView
         android:id="@+id/iv_arrow"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginStart="10dp"
         android:contentDescription="@null"
-        android:visibility="gone" />
+        android:src="@drawable/ic_stremio_chevron_right"
+        app:tint="@color/phone_text_muted" />
 </LinearLayout>

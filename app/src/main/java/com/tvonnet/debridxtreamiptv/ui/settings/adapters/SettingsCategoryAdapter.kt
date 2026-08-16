@@ -13,7 +13,13 @@ import com.tvonnet.debridxtreamiptv.ui.settings.SettingCategory
 class SettingsCategoryAdapter(
     private val onCategorySelected: (SettingCategory) -> Unit,
     /** Tier gating: NORMAL (IPTV-only) devices must not see the Stremio Addons category. */
-    private val showDebridCategory: Boolean = true
+    private val showDebridCategory: Boolean = true,
+    /**
+     * G1: what is actually set inside this category, for the phone's list — "4 add-ons ·
+     * Real-Debrid on". Null or blank falls back to the fixed caption, which is what the
+     * television shows.
+     */
+    private val liveSubtitle: ((SettingCategory) -> String?)? = null,
 ) : RecyclerView.Adapter<SettingsCategoryAdapter.ViewHolder>() {
 
     /**
@@ -67,7 +73,11 @@ class SettingsCategoryAdapter(
         fun bind(category: SettingCategory, isSelected: Boolean) {
             val m = metaFor(category)
             binding.tvTitle.setText(m.titleRes)
-            binding.tvSub.setText(m.subRes)
+            // G1: the phone list says what is actually SET inside — "4 add-ons · Real-Debrid on" —
+            // so the list answers the question before anything is opened. The fixed caption stays
+            // as the fallback, and is all the television ever shows.
+            val live = liveSubtitle?.invoke(category)
+            if (live.isNullOrBlank()) binding.tvSub.setText(m.subRes) else binding.tvSub.text = live
             binding.ivIcon.setImageResource(m.iconRes)
             style(category, isSelected, binding.root.isFocused)
             binding.root.setOnFocusChangeListener { _, has -> style(category, category == selectedCategory, has) }
@@ -75,6 +85,13 @@ class SettingsCategoryAdapter(
 
         private fun style(category: SettingCategory, selected: Boolean, focused: Boolean) {
             val m = metaFor(category)
+            if (!binding.root.resources.getBoolean(
+                    com.tvonnet.debridxtreamiptv.R.bool.ui_uses_dpad_focus
+                )
+            ) {
+                stylePhoneRow(m)
+                return
+            }
             binding.vCatBar.visibility = if (selected) View.VISIBLE else View.INVISIBLE
             binding.vCatBar.background = bar(m.accent)
             binding.ivIcon.background = roundRect(
@@ -86,17 +103,27 @@ class SettingsCategoryAdapter(
             binding.tvTitle.setTextColor(if (selected) 0xFFF1F5F9.toInt() else 0xFF94A3B8.toInt())
             binding.tvSub.setTextColor(if (selected) 0xFF475569.toInt() else 0xFF3D4F60.toInt())
             // On television an unselected rail row is plain: focus is what marks a row, and a
-            // filled background on every one would fight it. A phone has no focus, so an
-            // unselected CHIP still needs an edge — otherwise the rail reads as loose words.
-            val usesFocus = binding.root.resources.getBoolean(
-                com.tvonnet.debridxtreamiptv.R.bool.ui_uses_dpad_focus
-            )
+            // filled background on every one would fight it.
             binding.root.background = when {
                 focused -> roundRect(6f, 0x1200F0FF, 0x5900F0FF, 1)
-                selected -> roundRect(if (usesFocus) 6f else 10f, 0x1F00F0FF, 0x4D00F0FF, 1)
-                usesFocus -> null
-                else -> roundRect(10f, 0x0DFFFFFF, 0x1AFFFFFF, 1)
+                selected -> roundRect(6f, 0x1F00F0FF, 0x4D00F0FF, 1)
+                else -> null
             }
+        }
+
+        /**
+         * G1: on the phone this row is a DESTINATION in a list, not a selection in a rail.
+         *
+         * So nothing here dims: every row is at full strength, keeps the card background the
+         * layout gives it, and shows its category's own accent. Dimming the ones you have not
+         * opened — which is what the rail styling did — reads as "these are unavailable".
+         */
+        private fun stylePhoneRow(m: CatMeta) {
+            binding.vCatBar.visibility = View.GONE
+            binding.ivIcon.background = roundRect(9f, tint(m.accent, 0x1A), tint(m.accent, 0x33), 1)
+            binding.ivIcon.setColorFilter(m.accent)
+            binding.tvTitle.setTextColor(0xFFF1F5F9.toInt())
+            binding.tvSub.setTextColor(0xFF94A3B8.toInt())
         }
 
         private fun bar(accent: Int) = GradientDrawable().apply {

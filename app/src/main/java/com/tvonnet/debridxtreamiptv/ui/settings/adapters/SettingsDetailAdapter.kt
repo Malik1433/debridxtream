@@ -9,6 +9,8 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.databinding.ItemSettingsNoticeBinding
+import com.tvonnet.debridxtreamiptv.databinding.ItemSettingsProgressBinding
 import com.tvonnet.debridxtreamiptv.databinding.ItemSettingsSelectionBinding
 import com.tvonnet.debridxtreamiptv.databinding.ItemSettingsToggleBinding
 
@@ -32,7 +34,44 @@ sealed class SettingItem(val id: String) {
         val key: String,
         val title: String,
         val description: String,
-        val onClick: () -> Unit
+        val onClick: () -> Unit,
+        /**
+         * G2: this action takes something away — signing out, clearing the cache.
+         *
+         * The design gives destructive actions their own colour so they are recognisable BEFORE
+         * they are tapped; the confirmation that follows is the second guard, not the first. It is
+         * a property of the action rather than a name check, so a new one cannot be missed.
+         */
+        val isDestructive: Boolean = false,
+    ) : SettingItem(key)
+
+    /**
+     * G4: a long job, reported on the row that started it.
+     *
+     * The refresh used to show a Toast and then nothing for minutes, so people tapped it again.
+     * This kind exists so the row can say which stage it is on and how far — and offer a way out.
+     */
+    data class Progress(
+        val key: String,
+        val title: String,
+        val stage: String,
+        val percent: Int,
+        val onCancel: () -> Unit,
+    ) : SettingItem(key)
+
+    /**
+     * G4: this category cannot do its job yet, and why.
+     *
+     * Sits above the rows rather than replacing them: an empty panel does not answer "why does
+     * Movie Rows do nothing?", and the rows themselves are the question being asked. Cause first,
+     * then the fix, and an action when the fix is something this screen can perform.
+     */
+    data class Notice(
+        val key: String,
+        val cause: String,
+        val fix: String,
+        val actionLabel: String? = null,
+        val onAction: (() -> Unit)? = null,
     ) : SettingItem(key)
 
     /**
@@ -52,6 +91,16 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
     /** Active category accent — set before submitList so rows pick up the category colour. */
     var accent: Int = 0xFF00F0FF.toInt()
 
+    /**
+     * G4: rows that are shown but cannot act, because the thing they configure does not exist yet.
+     *
+     * Dimmed and unclickable rather than hidden — a row that vanishes takes its explanation with
+     * it, and the [SettingItem.Notice] above says which rows these are and why. Keyed rather than
+     * a flag on the item so the same row can be live in one state and inert in another without
+     * every builder having to know.
+     */
+    var inertKeys: Set<String> = emptySet()
+
     init { setHasStableIds(true) }
 
     override fun getItemId(position: Int): Long = getItem(position).id.hashCode().toLong()
@@ -59,6 +108,15 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
     companion object {
         private const val TYPE_TOGGLE = 1
         private const val TYPE_SELECTION = 2
+        private const val TYPE_PROGRESS = 3
+        private const val TYPE_NOTICE = 4
+
+        /** How far an inert row is dimmed: readable, plainly not tappable. */
+        private const val INERT_ALPHA = 0.45f
+
+        /** G2: the design's danger colour, for actions that take something away. */
+        private const val DESTRUCTIVE = 0xFFFF3366.toInt()
+        private const val TITLE = 0xFFF1F5F9.toInt()
 
         private fun tint(accent: Int, alpha: Int) = (accent and 0x00FFFFFF) or (alpha shl 24)
 
@@ -80,6 +138,8 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
 
     override fun getItemViewType(position: Int): Int = when (getItem(position)) {
         is SettingItem.Toggle -> TYPE_TOGGLE
+        is SettingItem.Progress -> TYPE_PROGRESS
+        is SettingItem.Notice -> TYPE_NOTICE
         else -> TYPE_SELECTION
     }
 
@@ -87,6 +147,8 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
             TYPE_TOGGLE -> ToggleViewHolder(ItemSettingsToggleBinding.inflate(inflater, parent, false))
+            TYPE_PROGRESS -> ProgressViewHolder(ItemSettingsProgressBinding.inflate(inflater, parent, false))
+            TYPE_NOTICE -> NoticeViewHolder(ItemSettingsNoticeBinding.inflate(inflater, parent, false))
             else -> SelectionViewHolder(ItemSettingsSelectionBinding.inflate(inflater, parent, false))
         }
     }
@@ -95,6 +157,8 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
         val item = getItem(position)
         when (holder) {
             is ToggleViewHolder -> holder.bind(item as SettingItem.Toggle, accent)
+            is ProgressViewHolder -> holder.bind(item as SettingItem.Progress)
+            is NoticeViewHolder -> holder.bind(item as SettingItem.Notice)
             is SelectionViewHolder -> when (item) {
                 is SettingItem.Selection -> holder.bindSelection(item, accent)
                 is SettingItem.Action -> holder.bindAction(item, accent)
@@ -102,6 +166,17 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
                 else -> {}
             }
         }
+        // After the bind, never inside it: every bind sets its own listeners and clickability, so
+        // this is the one place that can have the last word about a row that must not act.
+        applyInert(holder.itemView, item.id in inertKeys && item !is SettingItem.Notice)
+    }
+
+    private fun applyInert(row: View, inert: Boolean) {
+        row.alpha = if (inert) INERT_ALPHA else 1f
+        if (!inert) return
+        row.isClickable = false
+        row.isFocusable = false
+        row.isFocusableInTouchMode = false
     }
 
     // ── shared row styling ──
@@ -124,6 +199,32 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
                 setColor(tint(accent, 0x14))
                 setStroke((1 * d).toInt(), tint(accent, 0x2E))
             }
+        }
+    }
+
+    /** The amber strip. See [SettingItem.Notice]. */
+    class NoticeViewHolder(private val binding: ItemSettingsNoticeBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+
+        fun bind(item: SettingItem.Notice) {
+            binding.settingsNoticeCause.text = item.cause
+            binding.settingsNoticeFix.text = item.fix
+            val action = item.onAction
+            binding.settingsNoticeAction.isVisible = action != null && !item.actionLabel.isNullOrBlank()
+            binding.settingsNoticeAction.text = item.actionLabel.orEmpty()
+            binding.settingsNoticeAction.setOnClickListener { action?.invoke() }
+        }
+    }
+
+    /** The row while its job runs. See [SettingItem.Progress] for why it exists. */
+    class ProgressViewHolder(private val binding: ItemSettingsProgressBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+
+        fun bind(item: SettingItem.Progress) {
+            binding.settingsProgTitle.text = item.title
+            binding.settingsProgStage.text = item.stage
+            binding.settingsProgBar.progress = item.percent
+            binding.settingsProgCancel.setOnClickListener { item.onCancel() }
         }
     }
 
@@ -199,7 +300,11 @@ class SettingsDetailAdapter : ListAdapter<SettingItem, RecyclerView.ViewHolder>(
         }
 
         fun bindAction(item: SettingItem.Action, accent: Int) {
-            common(item.key, item.title, accent)
+            // G2: a destructive row wears the danger colour instead of its category's, so it is
+            // recognisable before it is tapped rather than only in the dialog afterwards.
+            val rowAccent = if (item.isDestructive) DESTRUCTIVE else accent
+            common(item.key, item.title, rowAccent)
+            binding.tvTitle.setTextColor(if (item.isDestructive) DESTRUCTIVE else TITLE)
             binding.tvDescription.isVisible = item.description.isNotBlank()
             binding.tvDescription.text = item.description
             binding.tvStatus.isVisible = false

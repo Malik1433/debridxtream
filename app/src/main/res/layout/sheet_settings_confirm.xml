@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PHONE destructive confirmation — a bottom sheet (G4).
+
+  The design's rule, and it is a good one: state the exact cost, then name what is KEPT. "Are you
+  sure?" tells somebody nothing they did not already know; "this removes your library and watch
+  history on this device — your account, your servers and your add-ons stay" lets them decide.
+
+  That matters more here than it used to. Sign Out now really does clear everything this account
+  left on the device, including the other servers' libraries.
+
+  The red button and Cancel carry equal weight and equal size: the sheet is not trying to talk
+  anybody out of it, only to make sure they meant it. Scrim tap and Back both cancel.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_phone_sheet"
+    android:orientation="vertical"
+    android:paddingBottom="16dp">
+
+    <View
+        android:layout_width="32dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="18dp"
+        android:background="@drawable/bg_phone_sheet_handle" />
+
+    <TextView
+        android:id="@+id/settings_confirm_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/outfit_bold"
+        android:paddingHorizontal="20dp"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="19sp"
+        tools:text="Sign out?" />
+
+    <!-- What it costs. -->
+    <TextView
+        android:id="@+id/settings_confirm_cost"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:fontFamily="@font/inter_regular"
+        android:lineSpacingMultiplier="1.4"
+        android:paddingHorizontal="20dp"
+        android:textColor="@color/phone_text_secondary"
+        android:textSize="14sp"
+        tools:text="This removes your library, Continue Watching and favourites from this device." />
+
+    <!-- And what survives it — the half that makes the decision possible. -->
+    <TextView
+        android:id="@+id/settings_confirm_kept"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:fontFamily="@font/inter_regular"
+        android:lineSpacingMultiplier="1.4"
+        android:paddingHorizontal="20dp"
+        android:textColor="@color/phone_text_muted"
+        android:textSize="13sp"
+        tools:text="Your account, your servers and your add-ons stay — signing back in restores them." />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="22dp"
+        android:orientation="horizontal"
+        android:paddingHorizontal="20dp">
+
+        <TextView
+            android:id="@+id/settings_confirm_cancel"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_marginEnd="10dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_phone_chip"
+            android:fontFamily="@font/outfit_semibold"
+            android:gravity="center"
+            android:text="@string/cancel"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/settings_confirm_go"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_phone_danger_button"
+            android:fontFamily="@font/outfit_bold"
+            android:gravity="center"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="14sp"
+            tools:text="Sign out" />
+    </LinearLayout>
+</LinearLayout>

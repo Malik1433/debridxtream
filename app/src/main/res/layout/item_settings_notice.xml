@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A category that cannot do its job yet, said out loud (G4).
+
+  The design's amber strip. It sits ABOVE the rows rather than replacing them, because hiding the
+  rows would answer the wrong question: the customer wants to know why "Movie Rows" does nothing,
+  and an empty panel does not tell them. Two lines — the cause, then the fix — and where the fix is
+  something this screen can do, a button that does it.
+
+  Not focusable on the television: it is a sign, not a control, and a D-pad must not have to step
+  over it. The action button below it takes the focus instead when it is shown.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="10dp"
+    android:background="@drawable/bg_settings_notice"
+    android:orientation="vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="14dp">
+
+    <TextView
+        android:id="@+id/settings_notice_cause"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:drawablePadding="10dp"
+        android:fontFamily="@font/outfit_semibold"
+        android:gravity="center_vertical"
+        android:textColor="@color/phone_amber"
+        android:textSize="14sp"
+        tools:text="Your library has not synced yet" />
+
+    <TextView
+        android:id="@+id/settings_notice_fix"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:fontFamily="@font/inter_regular"
+        android:lineSpacingMultiplier="1.35"
+        android:textColor="@color/phone_text_secondary"
+        android:textSize="13sp"
+        tools:text="These rows are built from your provider's categories. Refresh the catalogue and they will fill in." />
+
+    <TextView
+        android:id="@+id/settings_notice_action"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_phone_chip"
+        android:focusable="true"
+        android:fontFamily="@font/outfit_semibold"
+        android:gravity="center"
+        android:minWidth="120dp"
+        android:paddingHorizontal="18dp"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="14sp"
+        tools:text="Refresh now" />
+</LinearLayout>

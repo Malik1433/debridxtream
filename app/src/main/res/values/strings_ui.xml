@@ -435,4 +435,45 @@
          each one's library instead of rebuilding it. -->
     <string name="s_your_servers">Your servers</string>
     <string name="s_server_running_now">%1$s · running now</string>
+    <!-- Shown when the account carries no servers — the normal state for a device whose provider
+         was typed in by hand, since manual entry stays on the device by design. -->
+    <string name="s_no_servers_on_account">No servers on your account yet. Add them at %1$s and every device signed in to your account can use them.</string>
+
+    <!-- G1: the phone's Settings list says what each category actually holds, so somebody can see
+         what is set without opening anything. -->
+    <string name="s_summary_pair">%1$s · %2$s</string>
+    <!-- G3: commits a multi-select sheet. A single-choice sheet commits on the tap and has none. -->
+    <string name="phone_done">Done</string>
+
+    <!-- G4: a confirmation states the cost AND what survives it. "Are you sure?" told nobody
+         anything; these two sentences are what make the decision possible. -->
+    <string name="s_confirm_sign_out_title">Sign out of this device?</string>
+    <string name="s_confirm_sign_out_cost">Your library, Continue Watching, favourites and watched history are removed from this device — for every server you have used on it.</string>
+    <string name="s_confirm_sign_out_kept">Your account, your servers and your add-ons are safe. Signing back in downloads the library again.</string>
+    <string name="s_confirm_sign_out_go">Sign out</string>
+    <string name="s_confirm_clear_cache_title">Clear cached data?</string>
+    <string name="s_confirm_clear_cache_cost">Frees up storage by deleting downloaded images and temporary files.</string>
+    <string name="s_confirm_clear_cache_kept">Your library, Continue Watching and favourites are untouched.</string>
+    <string name="s_confirm_clear_cache_go">Clear</string>
+    <!-- G4: what a read-only row says when it has nothing to show. -->
+    <string name="s_not_signed_in">Not signed in</string>
+    <!-- G4: a category whose settings configure something that does not exist yet. Cause, then fix. -->
+    <string name="s_blocked_no_server_cause">No IPTV server on this device</string>
+    <string name="s_blocked_no_server_live_fix">Live TV, the guide and these settings all come from your provider. Sign in to a server from Account and they start working.</string>
+    <string name="s_blocked_no_server_home_fix">The row choosers list your provider\'s categories, so they stay empty until a server is signed in. App Language and App Layout still work.</string>
+    <string name="s_blocked_no_server_data_fix">There is no catalogue to refresh until a server is signed in from Account.</string>
+    <string name="s_blocked_no_catalogue_cause">Your library has not synced yet</string>
+    <string name="s_blocked_no_catalogue_fix">The row choosers are built from your provider\'s categories. Refresh the catalogue once and they fill in.</string>
+    <string name="s_blocked_refresh_now">Refresh now</string>
+    <string name="s_summary_live_resumes">Reopens your last channel</string>
+    <string name="s_summary_live_from_first">Opens on the first channel</string>
+    <string name="s_summary_rd_on">Real-Debrid on</string>
+    <plurals name="s_summary_addons">
+        <item quantity="one">%1$d add-on</item>
+        <item quantity="other">%1$d add-ons</item>
+    </plurals>
+    <plurals name="s_summary_servers">
+        <item quantity="one">%1$d server</item>
+        <item quantity="other">%1$d servers</item>
+    </plurals>
 </resources>

@@ -30,17 +30,20 @@ object SettingsServerPicker {
     }
 
     /**
-     * True when there is something to choose between.
+     * Always shown — owner's decision, 2026-08-16.
      *
-     * False while the account sync has not resolved yet, when the device is not claimed to an
-     * account, and when the account holds one server — a picker with a single entry is a row that
-     * does nothing, and the row above it already names the provider.
+     * It used to appear only when the account held more than one server, on the reasoning that a
+     * picker with a single entry does nothing. That reasoning was wrong in the case that actually
+     * matters: on a device whose servers were typed in by hand, the account holds none, the row
+     * vanished, and the customer went looking for a control that was not there. A row that says
+     * "nothing here yet, and here is where they come from" is worth more than a hidden one.
      */
-    fun hasChoice(): Boolean = AccountPlaylistSync.servers().size > 1
-
     fun show(activity: Activity) {
         val servers = AccountPlaylistSync.servers()
-        if (servers.isEmpty()) return
+        if (servers.isEmpty()) {
+            showNoServersYet(activity)
+            return
+        }
 
         val prefs = CredentialsPreferences(activity)
         val activeFingerprint = prefs.activeServerFingerprint
@@ -67,6 +70,27 @@ object SettingsServerPicker {
             .setNegativeButton(R.string.phone_close, null)
             .show()
     }
+
+    /**
+     * The account has no servers on it — which is the normal state for a device whose provider was
+     * typed in by hand, since manual entry deliberately stays on the device and is never written to
+     * the account.
+     *
+     * Says where servers come from instead of showing an empty list, because "empty" on its own
+     * reads as a fault. The provider this device IS running is named on the row above.
+     */
+    private fun showNoServersYet(activity: Activity) {
+        AlertDialog.Builder(activity)
+            .setTitle(R.string.s_your_servers)
+            .setMessage(activity.getString(R.string.s_no_servers_on_account, accountHome(activity)))
+            .setPositiveButton(R.string.phone_close, null)
+            .show()
+    }
+
+    /** The address the customer manages their account at, from the one string that owns it. */
+    private fun accountHome(activity: Activity): String =
+        activity.getString(R.string.companion_setup_url).trimEnd('/').removeSuffix("/link")
+            .removePrefix("https://").removePrefix("http://")
 
     private fun hostOf(url: String?): String =
         runCatching { android.net.Uri.parse(url).host }.getOrNull().orEmpty()

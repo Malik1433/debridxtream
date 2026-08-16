@@ -4,7 +4,9 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.addCallback
 import androidx.core.view.OneShotPreDrawListener
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -49,6 +51,22 @@ class SettingsFragment :
     private lateinit var dialogs: SettingsSelectorDialogs
     private lateinit var actions: SettingsMaintenanceActions
 
+    /** G1: what each category's row says it holds, on the phone's list. */
+    private lateinit var summaries: SettingsCategorySummaries
+
+    /**
+     * G1: the phone shows the categories and one category's settings as two PAGES in this one
+     * layout — the designer's "two panels become two destinations", with every bound id still
+     * present because the television inflates the same fragment.
+     *
+     * A television has both on screen at once, so it never opens or closes anything: the guard
+     * below is the whole difference between the two form factors.
+     */
+    private val isTwoPagePhone: Boolean
+        get() = !resources.getBoolean(R.bool.ui_uses_dpad_focus)
+
+    private var backPressHandler: androidx.activity.OnBackPressedCallback? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -76,6 +94,8 @@ class SettingsFragment :
 
         dialogs = SettingsSelectorDialogs(this, viewModel)
         actions = SettingsMaintenanceActions(this, viewModel, repository, serverDataReset)
+        summaries = SettingsCategorySummaries(requireContext())
+        setupTwoPageNavigation()
 
         setupAdapters()
         observeState()
@@ -87,6 +107,38 @@ class SettingsFragment :
         OneShotPreDrawListener.add(binding.rvSettingsCategories) { assertInitialRailFocus() }
         binding.rvSettingsCategories.postDelayed({ assertInitialRailFocus() }, 400L)
         binding.rvSettingsCategories.postDelayed({ assertInitialRailFocus() }, 1000L)
+    }
+
+    /**
+     * G1: Back closes the open category before it leaves Settings.
+     *
+     * Registered rather than relying on the fragment back stack, because both pages live in one
+     * fragment — without this, Back from a category would leave Settings entirely and the customer
+     * would have to come back in to change the next thing.
+     */
+    private fun setupTwoPageNavigation() {
+        if (!isTwoPagePhone) return
+        // Safe calls, not stub views on the television: these three exist only in the phone layout,
+        // so ViewBinding types them nullable — and that nullability IS the guard. Adding empty
+        // copies to the TV layout to satisfy the compiler would put views there that mean nothing.
+        binding.settingsDetailBack?.setOnClickListener { closeDetailPage() }
+        backPressHandler = requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner) {
+            if (binding.settingsDetailPage?.isVisible == true) closeDetailPage() else {
+                isEnabled = false
+                requireActivity().onBackPressedDispatcher.onBackPressed()
+            }
+        }
+    }
+
+    private fun openDetailPage() {
+        if (!isTwoPagePhone) return
+        binding.settingsDetailPage?.isVisible = true
+        binding.rvSettingsDetails.scrollToPosition(0)
+        backPressHandler?.isEnabled = true
+    }
+
+    private fun closeDetailPage() {
+        binding.settingsDetailPage?.isVisible = false
     }
 
     /** Focus the first rail item, but never steal — only acts while nothing else holds focus. */
@@ -107,22 +159,17 @@ class SettingsFragment :
                 // destructive dialog - "Logout" used to do exactly that straight from the rail.
                 viewModel.selectCategory(category)
                 categoryAdapter.setSelectedCategory(category)
+                openDetailPage()
             },
             showDebridCategory = com.tvonnet.debridxtreamiptv.data.licensing.Entitlements
-                .isDebridAllowed(requireContext())
+                .isDebridAllowed(requireContext()),
+            liveSubtitle = { category -> summaries.of(category) },
         )
         binding.rvSettingsCategories.apply {
-            // M6: a vertical rail beside the detail panel on TV, a top chip rail on the phone —
-            // two columns do not fit 411dp, which is why Settings was unreachable there at all.
-            layoutManager = LinearLayoutManager(
-                context,
-                if (resources.getBoolean(R.bool.settings_categories_are_horizontal)) {
-                    LinearLayoutManager.HORIZONTAL
-                } else {
-                    LinearLayoutManager.VERTICAL
-                },
-                false
-            )
+            // G1: a vertical rail beside the detail panel on TV; on the phone a vertical LIST that
+            // navigates. Both are vertical now — the horizontal chip rail was the previous phone
+            // attempt, and it was the TV's shape squeezed sideways rather than a phone screen.
+            layoutManager = LinearLayoutManager(context)
             adapter = categoryAdapter
         }
 
@@ -155,7 +202,33 @@ class SettingsFragment :
         }
         detailAdapter.accent = meta.accent
 
-        detailAdapter.submitList(itemsFor(state))
+        val items = itemsFor(state)
+        // G4: a category that cannot act yet says so, above rows that stay visible but inert.
+        val blocked = SettingsUnavailable.of(
+            context = requireContext(),
+            category = state.selectedCategory,
+            hasServer = !state.accountUsername.isNullOrBlank() && !state.accountServer.isNullOrBlank(),
+            // One stat() per category change, not per row: hasCache is a memory flag plus a
+            // File.exists on the scoped cache file.
+            hasCatalogue = repository.hasCache(),
+        )
+        detailAdapter.inertKeys =
+            blocked?.let { items.map { item -> item.id }.toSet() - it.liveKeys }.orEmpty()
+        detailAdapter.submitList(noticeFor(blocked) + items)
+    }
+
+    /** The amber strip as a row, or nothing. Refresh is the only fix this screen can perform itself. */
+    private fun noticeFor(blocked: SettingsUnavailable.Blocked?): List<SettingItem> {
+        if (blocked == null) return emptyList()
+        return listOf(
+            SettingItem.Notice(
+                key = "blocked_notice",
+                cause = blocked.cause,
+                fix = blocked.fix,
+                actionLabel = blocked.actionLabel,
+                onAction = blocked.actionLabel?.let { { actions.refreshIptvData() } },
+            )
+        )
     }
 
     // The rows for the selected category, verbatim — each arm's keys, labels and handlers
@@ -330,17 +403,18 @@ class SettingsFragment :
             )
         )
     private fun dataItems(state: SettingsUiState): List<SettingItem> = listOf(
-            SettingItem.Action(
-                key = "refresh_iptv",
-                title = getString(R.string.s_refresh_channels_catalog),
-                description = getString(R.string.s_fetch_live_channels_movies_and_series),
-                onClick = { actions.refreshIptvData() }
+            // G4: while the catalogue is downloading, this row IS the progress. Before, it showed
+            // a Toast and then looked untouched for minutes, so people tapped it again.
+            actions.refreshRow(
+                getString(R.string.s_refresh_channels_catalog),
+                getString(R.string.s_fetch_live_channels_movies_and_series),
             ),
             SettingItem.Action(
                 key = "clear_cache",
                 title = getString(R.string.s_clear_cached_data),
                 description = getString(R.string.s_free_up_storage_the_catalog_is),
-                onClick = { actions.showClearCacheDialog() }
+                onClick = { actions.showClearCacheDialog() },
+                isDestructive = true
             )
         )
     private fun aboutItems(state: SettingsUiState): List<SettingItem> = listOf(
@@ -356,25 +430,26 @@ class SettingsFragment :
             )
         )
     private fun accountItems(state: SettingsUiState): List<SettingItem> = listOfNotNull(
-            state.accountUsername?.takeIf { it.isNotBlank() }?.let { user ->
-                SettingItem.Info(key = "account_user", title = getString(R.string.s_signed_in_as), value = user)
-            },
+            // G4: a read-only row with nothing to show SAYS so. It used to vanish, which left the
+            // category looking broken rather than empty — and a customer who is not signed in is
+            // exactly the one who needs to be told what this screen is for.
+            SettingItem.Info(
+                key = "account_user",
+                title = getString(R.string.s_signed_in_as),
+                value = state.accountUsername?.takeIf { it.isNotBlank() }
+                    ?: getString(R.string.s_not_signed_in),
+            ),
             state.accountServer?.takeIf { it.isNotBlank() }?.let { server ->
                 SettingItem.Info(key = "account_server", title = getString(R.string.s_provider), value = serverHost(server))
             },
-            // A5: only when the account actually holds more than one server. On a single-server
-            // account the row above already names the provider, and a picker with one entry is a
-            // control that does nothing.
-            if (SettingsServerPicker.hasChoice()) {
-                SettingItem.Selection(
-                    key = "active_server",
-                    title = getString(R.string.s_your_servers),
-                    currentValue = SettingsServerPicker.currentLabel(requireActivity()),
-                    onClick = { SettingsServerPicker.show(requireActivity()) }
-                )
-            } else {
-                null
-            },
+            // A5: always present — owner's decision. Hiding it when the account had fewer than two
+            // servers meant it disappeared exactly where somebody would go looking for it.
+            SettingItem.Selection(
+                key = "active_server",
+                title = getString(R.string.s_your_servers),
+                currentValue = SettingsServerPicker.currentLabel(requireActivity()),
+                onClick = { SettingsServerPicker.show(requireActivity()) }
+            ),
             // D4: above Sign out on purpose. This is the row somebody is looking for when they want
             // to change something; the destructive one should not be the first Action they meet.
             SettingItem.Action(
@@ -387,7 +462,8 @@ class SettingsFragment :
                 key = "logout_account",
                 title = getString(R.string.s_sign_out),
                 description = getString(R.string.s_sign_out_of_this_provider_account),
-                onClick = { actions.showAccountLogoutConfirmation() }
+                onClick = { actions.showAccountLogoutConfirmation() },
+                isDestructive = true
             )
         )
 

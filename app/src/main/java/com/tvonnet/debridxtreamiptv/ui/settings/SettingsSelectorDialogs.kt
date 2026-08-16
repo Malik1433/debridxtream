@@ -24,42 +24,56 @@ class SettingsSelectorDialogs(
     private val context get() = fragment.requireContext()
 
     /**
+     * G3: one door for every single-choice picker — a bottom sheet on a phone, the dialog it has
+     * always been on a television.
+     *
+     * Routed here rather than at each of the eight call sites so the form-factor question is asked
+     * ONCE. Eight copies of the same branch is eight chances for the next picker to be added on the
+     * wrong side of it.
+     */
+    private fun singleChoice(
+        titleRes: Int,
+        labels: Array<String>,
+        checkedIndex: Int,
+        onPick: (Int) -> Unit,
+    ) {
+        if (context.resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
+            AlertDialog.Builder(context)
+                .setTitle(titleRes)
+                .setSingleChoiceItems(labels, checkedIndex) { dialog, which ->
+                    dialog.dismiss()
+                    onPick(which)
+                }
+                .show()
+            return
+        }
+        SettingsPickerSheet.single(fragment, context.getString(titleRes), labels, checkedIndex, onPick)
+    }
+
+
+    /**
      * The app's own language. `AppCompatDelegate` is used rather than the platform API on
      * purpose: it carries per-app locales back to older Androids, so a Fire TV — which has no
      * system per-app language screen at all — can change language here too. AppCompat persists
      * the choice itself and recreates the visible activities, so nothing else has to store it.
      */
     fun showAppLanguageSelector(current: String) {
-        AlertDialog.Builder(context)
-            .setTitle(R.string.c_app_language)
-            .setSingleChoiceItems(
-                SettingsOptionLabels.appLanguageLabels,
-                SettingsOptionLabels.appLanguageIndex(current)
-            ) { dialog, which ->
+        singleChoice(R.string.c_app_language, SettingsOptionLabels.appLanguageLabels, SettingsOptionLabels.appLanguageIndex(current)) { which ->
                 val tag = SettingsOptionLabels.appLanguageValues[which]
-                dialog.dismiss()
-                androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(
+                                androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(
                     if (tag == "system") {
                         androidx.core.os.LocaleListCompat.getEmptyLocaleList()
                     } else {
                         androidx.core.os.LocaleListCompat.forLanguageTags(tag)
                     }
                 )
-            }
-            .show()
+        }
     }
 
     fun showPreferredAudioLangSelector(current: String) {
-        AlertDialog.Builder(context)
-            .setTitle(R.string.c_preferred_audio_language)
-            .setSingleChoiceItems(
-                SettingsOptionLabels.audioLangLabels,
-                SettingsOptionLabels.audioLangIndex(current)
-            ) { dialog, which ->
+        singleChoice(R.string.c_preferred_audio_language, SettingsOptionLabels.audioLangLabels, SettingsOptionLabels.audioLangIndex(current)) { which ->
                 viewModel.setPreferredAudioLang(SettingsOptionLabels.audioLangValues[which])
-                dialog.dismiss()
-            }
-            .show()
+        }
     }
 
     /**
@@ -67,83 +81,41 @@ class SettingsSelectorDialogs(
      * rather than leaving the user on a half-switched screen.
      */
     fun showUiModeSelector(current: String) {
-        AlertDialog.Builder(context)
-            .setTitle(R.string.c_app_layout)
-            .setSingleChoiceItems(
-                SettingsOptionLabels.uiModeLabels,
-                SettingsOptionLabels.uiModeIndex(current)
-            ) { dialog, which ->
+        singleChoice(R.string.c_app_layout, SettingsOptionLabels.uiModeLabels, SettingsOptionLabels.uiModeIndex(current)) { which ->
                 viewModel.setUiMode(SettingsOptionLabels.uiModeValues[which])
-                dialog.dismiss()
-            }
-            .show()
+        }
     }
 
     /** H9: the fallback priority — used when the primary language is not in a source. */
     fun showPreferredAudioLang2Selector(current: String) {
-        AlertDialog.Builder(context)
-            .setTitle(R.string.c_secondary_audio_language)
-            .setSingleChoiceItems(
-                SettingsOptionLabels.audioLang2Labels,
-                SettingsOptionLabels.audioLang2Index(current)
-            ) { dialog, which ->
+        singleChoice(R.string.c_secondary_audio_language, SettingsOptionLabels.audioLang2Labels, SettingsOptionLabels.audioLang2Index(current)) { which ->
                 viewModel.setPreferredAudioLang2(SettingsOptionLabels.audioLang2Values[which])
-                dialog.dismiss()
-            }
-            .show()
+        }
     }
 
     fun showEpgIntervalSelector(current: String) {
-        AlertDialog.Builder(context)
-            .setTitle(R.string.c_select_epg_sync_interval)
-            .setSingleChoiceItems(
-                SettingsOptionLabels.epgIntervalLabels,
-                SettingsOptionLabels.epgIntervalIndex(current)
-            ) { dialog, which ->
+        singleChoice(R.string.c_select_epg_sync_interval, SettingsOptionLabels.epgIntervalLabels, SettingsOptionLabels.epgIntervalIndex(current)) { which ->
                 viewModel.setEpgSyncInterval(SettingsOptionLabels.epgIntervalValues[which])
-                dialog.dismiss()
-            }
-            .show()
+        }
     }
 
     fun showLiveTvStyleSelector(current: String) {
-        AlertDialog.Builder(context)
-            .setTitle(R.string.c_live_tv_layout)
-            .setSingleChoiceItems(
-                SettingsOptionLabels.liveTvStyleLabels,
-                SettingsOptionLabels.liveTvStyleIndex(current)
-            ) { dialog, which ->
+        singleChoice(R.string.c_live_tv_layout, SettingsOptionLabels.liveTvStyleLabels, SettingsOptionLabels.liveTvStyleIndex(current)) { which ->
                 viewModel.setLiveTvStyle(SettingsOptionLabels.liveTvStyleValues[which])
-                dialog.dismiss()
-                Toast.makeText(context, context.getString(R.string.c_applies_next_time_you_open), Toast.LENGTH_SHORT).show()
-            }
-            .show()
+                                Toast.makeText(context, context.getString(R.string.c_applies_next_time_you_open), Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun showEpgZoomSelector(current: String) {
-        AlertDialog.Builder(context)
-            .setTitle(R.string.c_tv_guide_timeline_zoom)
-            .setSingleChoiceItems(
-                SettingsOptionLabels.epgZoomLabels,
-                SettingsOptionLabels.epgZoomIndex(current)
-            ) { dialog, which ->
+        singleChoice(R.string.c_tv_guide_timeline_zoom, SettingsOptionLabels.epgZoomLabels, SettingsOptionLabels.epgZoomIndex(current)) { which ->
                 viewModel.setEpgTimelineZoom(SettingsOptionLabels.epgZoomValues[which])
-                dialog.dismiss()
-            }
-            .show()
+        }
     }
 
     fun showEpgDensitySelector(current: String) {
-        AlertDialog.Builder(context)
-            .setTitle(R.string.c_tv_guide_row_density)
-            .setSingleChoiceItems(
-                SettingsOptionLabels.epgDensityLabels,
-                SettingsOptionLabels.epgDensityIndex(current)
-            ) { dialog, which ->
+        singleChoice(R.string.c_tv_guide_row_density, SettingsOptionLabels.epgDensityLabels, SettingsOptionLabels.epgDensityIndex(current)) { which ->
                 viewModel.setEpgRowDensity(SettingsOptionLabels.epgDensityValues[which])
-                dialog.dismiss()
-            }
-            .show()
+        }
     }
 
     // ── Stremio addons (the primary addon path) ──────────────────────────────

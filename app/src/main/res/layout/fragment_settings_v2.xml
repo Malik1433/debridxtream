@@ -1,14 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  PHONE Settings — portrait.
+  PHONE Settings — portrait, to the "DX Play Settings" design (G1).
 
-  The television version is untouched in layout-television/: a 330dp category rail beside a detail
-  panel is right at three metres. On a 411dp phone those two columns cost 144dp of width before a
-  single setting is visible, which is how this screen became unusable in the hand.
+  The television version is untouched in layout-television/: a category rail beside a detail panel,
+  read from three metres. The previous phone attempt kept that shape and turned the rail sideways
+  into a chip row — it fitted, but it was still the TV screen wearing a smaller coat, which is
+  exactly what the owner said did not match a phone.
 
-  Same ids, same kinds, one column: a 56dp app bar, the categories as a chip rail across the top
-  (the code already switches the rail's orientation on `settings_categories_are_horizontal`), the
-  panel's own heading, and the settings themselves filling everything below.
+  **The designer's Decision 1: the TV's two panels become two DESTINATIONS, and every bound id
+  survives.** So both views live here, in one layout, as two pages: the category list fills the
+  screen, tapping a category slides the detail page over it, and Back returns. One fragment, one
+  binding, every id present — the television shares this code and a missing id crashes it.
+
+  The list rows carry a live subtitle of their own state ("4 add-ons · Real-Debrid on") rather than
+  a fixed caption, so the list answers "what is set" before you open anything.
 -->
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -18,12 +23,13 @@
     android:layout_height="match_parent"
     android:background="@color/phone_home_bg">
 
+    <!-- ══════════════ PAGE 1 — the categories ══════════════ -->
     <LinearLayout
+        android:id="@+id/settings_list_page"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- ══ APP BAR ══ the same 56dp bar every other phone screen wears. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="56dp"
@@ -31,97 +37,122 @@
             android:orientation="horizontal"
             android:paddingHorizontal="16dp">
 
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_settings"
-                app:tint="@color/phone_cyan" />
-
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
                 android:layout_weight="1"
                 android:fontFamily="@font/outfit_extrabold"
                 android:letterSpacing="-0.02"
                 android:text="@string/settings"
                 android:textColor="@color/phone_text_primary"
-                android:textSize="19sp" />
-
-            <TextView
-                android:id="@+id/tv_settings_version"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="@font/share_tech_mono"
-                android:letterSpacing="0.1"
-                android:maxLines="1"
-                android:textColor="@color/phone_text_muted"
-                android:textSize="11sp"
-                tools:text="DX PLAY · v2.6.6" />
+                android:textSize="22sp" />
         </LinearLayout>
 
-        <!-- ══ CATEGORIES ══ a chip rail, because a column of them would take the screen. -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_settings_categories"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:clipToPadding="false"
             android:overScrollMode="never"
             android:paddingHorizontal="16dp"
-            android:paddingBottom="8dp"
+            android:paddingBottom="12dp"
             android:scrollbars="none" />
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/phone_panel" />
-
-        <!-- ══ WHAT THIS SECTION IS ══ -->
-        <LinearLayout
+        <!-- The build, at the foot of the list where the design puts it — out of the way of the
+             settings themselves, but never more than one scroll from the person reporting a bug. -->
+        <TextView
+            android:id="@+id/tv_settings_version"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="@font/share_tech_mono"
+            android:letterSpacing="0.1"
+            android:maxLines="1"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="20dp"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="11sp"
+            tools:text="DX PLAY 2.7.3 · BUILD 87" />
+    </LinearLayout>
+
+    <!-- ══════════════ PAGE 2 — one category's settings ══════════════
+         Above the list and hidden until a category is chosen. The heading carries the same
+         `v_panel_dot` / `tv_panel_title` / `tv_panel_desc` the television binds, so one adapter
+         and one fragment serve both shapes. -->
+    <LinearLayout
+        android:id="@+id/settings_detail_page"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/phone_home_bg"
+        android:orientation="vertical"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="16dp"
-            android:paddingTop="16dp">
+            android:paddingStart="4dp"
+            android:paddingEnd="16dp">
 
-            <View
-                android:id="@+id/v_panel_dot"
-                android:layout_width="3dp"
-                android:layout_height="16dp"
-                android:background="@color/phone_cyan" />
+            <!-- 48dp, because Back must be a real target and not only a gesture. -->
+            <ImageView
+                android:id="@+id/settings_detail_back"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:contentDescription="@string/live_nav_back"
+                android:focusable="true"
+                android:padding="14dp"
+                android:src="@drawable/ic_stremio_chevron_left"
+                app:tint="@color/phone_text_primary" />
 
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="9dp"
-                android:orientation="vertical">
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/tv_panel_title"
+                <View
+                    android:id="@+id/v_panel_dot"
+                    android:layout_width="3dp"
+                    android:layout_height="16dp"
+                    android:background="@color/phone_cyan" />
+
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:fontFamily="@font/outfit_bold"
-                    android:maxLines="1"
-                    android:textColor="@color/phone_text_primary"
-                    android:textSize="16sp"
-                    tools:text="Playback" />
+                    android:layout_marginStart="9dp"
+                    android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/tv_panel_desc"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="3dp"
-                    android:ellipsize="end"
-                    android:fontFamily="@font/share_tech_mono"
-                    android:letterSpacing="0.08"
-                    android:maxLines="1"
-                    android:textColor="@color/phone_text_muted"
-                    android:textSize="11.5sp"
-                    tools:text="AUDIO · LANGUAGE" />
+                    <TextView
+                        android:id="@+id/tv_panel_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/outfit_bold"
+                        android:maxLines="1"
+                        android:textColor="@color/phone_text_primary"
+                        android:textSize="18sp"
+                        tools:text="Playback" />
+
+                    <TextView
+                        android:id="@+id/tv_panel_desc"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:letterSpacing="0.08"
+                        android:maxLines="1"
+                        android:textColor="@color/phone_text_muted"
+                        android:textSize="11sp"
+                        tools:text="AUDIO · LANGUAGE" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
@@ -129,7 +160,6 @@
             android:id="@+id/rv_settings_details"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_marginTop="8dp"
             android:layout_weight="1"
             android:clipToPadding="false"
             android:overScrollMode="never"

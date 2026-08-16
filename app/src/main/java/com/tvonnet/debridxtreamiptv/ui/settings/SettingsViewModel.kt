@@ -16,6 +16,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 
 data class SettingsUiState(
     val selectedCategory: SettingCategory = SettingCategory.PLAYBACK,
+    /** G4: bumped by [SettingsViewModel.refreshUi] to force a rebuild when nothing else changed. */
+    val revision: Int = 0,
     val accountUsername: String? = null,
     val accountServer: String? = null,
     val isDebridAuthenticated: Boolean = false,
@@ -109,6 +111,17 @@ class SettingsViewModel @Inject constructor(
 
     fun selectCategory(category: SettingCategory) {
         _uiState.update { it.copy(selectedCategory = category) }
+    }
+
+    /**
+     * G4: re-emit so the screen rebuilds its rows, without any setting having changed.
+     *
+     * The refresh progress lives on the row, and the row is rebuilt from this state — so something
+     * has to say "ask again". A counter rather than a copy of the same values: `update` on an equal
+     * object emits nothing, and the progress would freeze at whatever it read first.
+     */
+    fun refreshUi() {
+        _uiState.update { it.copy(revision = it.revision + 1) }
     }
 
     fun toggleSoftwareAudio(enabled: Boolean) {
@@ -210,6 +223,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
     
+    /** What the customer already chose, so the sheet opens with those ticked (G3/G4). */
+    fun getSelectedCategories(type: String): Set<String> = when (type) {
+        "movie" -> homePrefs.getSelectedMovieCategories()
+        "series" -> homePrefs.getSelectedSeriesCategories()
+        "live" -> homePrefs.getSelectedLiveCategories()
+        else -> emptySet()
+    }
+
     fun saveCategories(type: String, ids: Set<String>) {
         when (type) {
             "movie" -> homePrefs.setSelectedMovieCategories(ids)

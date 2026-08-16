@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A long job, reported on its own row (G4).
+
+  "Refresh Channels & Catalog" used to show a Toast and then nothing: the catalogue took minutes,
+  and for all those minutes the screen looked exactly as it had before the tap. People tapped it
+  again. The row itself now carries the work — which stage, how far, how long — and Settings stays
+  open and scrollable behind it, because there is nothing to wait in front of.
+
+  Cancel is 48dp and a real target: a job you cannot stop is a job you cannot start with confidence.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    android:background="@drawable/bg_phone_card"
+    android:minHeight="72dp"
+    android:orientation="vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/settings_prog_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="@font/outfit_semibold"
+            android:maxLines="1"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="16sp"
+            tools:text="Refresh Channels &amp; Catalog" />
+
+        <TextView
+            android:id="@+id/settings_prog_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center"
+            android:minWidth="72dp"
+            android:fontFamily="@font/outfit_semibold"
+            android:text="@string/cancel"
+            android:textColor="@color/phone_red"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- Which stage, and how long it has been going. Mono, because the numbers change. -->
+    <TextView
+        android:id="@+id/settings_prog_stage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:fontFamily="@font/share_tech_mono"
+        android:letterSpacing="0.04"
+        android:maxLines="1"
+        android:textColor="@color/phone_text_secondary"
+        android:textSize="12.5sp"
+        tools:text="DOWNLOADING MOVIES · 50% · 1:24" />
+
+    <ProgressBar
+        android:id="@+id/settings_prog_bar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_marginTop="10dp"
+        android:max="100"
+        android:progressDrawable="@drawable/bg_phone_button_progress"
+        tools:progress="50" />
+</LinearLayout>

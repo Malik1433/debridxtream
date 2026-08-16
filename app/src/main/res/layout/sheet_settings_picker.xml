@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PHONE settings picker — a bottom sheet (G3).
+
+  The phone rulebook has always said pickers are sheets, not centre panels; the eight settings
+  choosers were the last centre dialogs left, and the design named them. A sheet is thumb-reachable,
+  the scrim is a dismiss target, and there is room for a search field when the list is long.
+
+  One layout serves both variants the design asks for: the search box only appears when the list is
+  long enough to need it (Preferred Audio Language is ~90 entries; TV Guide Row Density is three).
+
+  Television never inflates this — it keeps its dialogs, which are correct at three metres.
+
+  The 24dp bottom padding is clearance for the gesture pill: at full list height the Done button
+  otherwise finished within a few pixels of it.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_phone_sheet"
+    android:orientation="vertical"
+    android:paddingBottom="24dp">
+
+    <!-- 32x4, the design's handle. Decorative: the sheet's own title names it. -->
+    <View
+        android:layout_width="32dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="14dp"
+        android:background="@drawable/bg_phone_sheet_handle" />
+
+    <TextView
+        android:id="@+id/settings_pick_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/outfit_bold"
+        android:paddingHorizontal="20dp"
+        android:textColor="@color/phone_text_primary"
+        android:textSize="17sp"
+        tools:text="Preferred Audio Language" />
+
+    <EditText
+        android:id="@+id/settings_pick_search"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginTop="14dp"
+        android:autofillHints=""
+        android:background="@drawable/bg_phone_search_field"
+        android:fontFamily="@font/inter_regular"
+        android:hint="@string/phone_search"
+        android:imeOptions="actionSearch"
+        android:inputType="text"
+        android:maxLines="1"
+        android:paddingHorizontal="14dp"
+        android:textColor="@color/phone_text_primary"
+        android:textColorHint="@color/phone_text_muted"
+        android:textSize="14sp"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <!--
+      A RECYCLER, not a scrolling column of every row.
+
+      It was the column first, and a provider with several hundred categories measured every one of
+      them on the main thread when the sheet opened — seconds of frozen UI, and an ANR in
+      TextView.onMeasure on a slow device. A RecyclerView measures what is on screen.
+
+      The height is capped IN CODE (see SettingsPickerSheet.capListHeight): android:maxHeight is a
+      View attribute that neither ScrollView nor RecyclerView honours, and without a cap a long
+      list pushed the Done button off the bottom of the screen — tickable, not committable.
+    -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/settings_pick_list"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingHorizontal="12dp"
+        android:paddingBottom="8dp"
+        android:scrollbars="none" />
+
+    <TextView
+        android:id="@+id/settings_pick_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/inter_regular"
+        android:gravity="center"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="26dp"
+        android:textColor="@color/phone_text_muted"
+        android:textSize="13sp"
+        android:visibility="gone"
+        tools:text="Nothing matches “xyz”"
+        tools:visibility="visible" />
+
+    <!-- Multi-select only: a single-choice sheet commits on the tap and needs no button. -->
+    <TextView
+        android:id="@+id/settings_pick_done"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_phone_primary_button"
+        android:fontFamily="@font/outfit_bold"
+        android:gravity="center"
+        android:text="@string/phone_done"
+        android:textColor="@color/phone_on_accent"
+        android:textSize="14sp"
+        android:visibility="gone"
+        tools:visibility="visible" />
+</LinearLayout>
