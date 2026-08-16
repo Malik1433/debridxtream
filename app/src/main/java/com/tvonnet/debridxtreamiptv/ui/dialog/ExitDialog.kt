@@ -28,16 +28,20 @@ class ExitDialog : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        view.findViewById<View>(R.id.btn_cancel).setOnClickListener {
+        val cancel = view.findViewById<View>(R.id.btn_cancel)
+
+        cancel.setOnClickListener {
             dismiss()
         }
 
         view.findViewById<View>(R.id.btn_exit).setOnClickListener {
             activity?.finish()
         }
-        
-        // Focus the Cancel button by default for safety
-        view.findViewById<View>(R.id.btn_cancel).requestFocus()
+
+        // Focus the safe action by default. Posted rather than called inline: on TV the dialog
+        // window has not taken focus yet at onViewCreated, so an immediate requestFocus() can be
+        // dropped and the user lands on the destructive button instead.
+        cancel.post { cancel.requestFocus() }
     }
 
     override fun onStart() {

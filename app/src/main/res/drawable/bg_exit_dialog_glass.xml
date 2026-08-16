@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Exit dialog surface. Replaces the CardView: the card could not draw the hairline edge that
+    makes this read as glass on top of the Home hero, and its elevation shadow fought the
+    translucency. Same reasoning as bg_resume_choice_glass.
+
+    Near-opaque (FA) rather than a real blur: the dialog sits over a moving hero, and a live blur
+    on TV hardware is not affordable.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#FA0D1420"
+                android:endColor="#FA06090E" />
+            <corners android:radius="20dp" />
+            <stroke android:width="1dp" android:color="#1FFFFFFF" />
+        </shape>
+    </item>
+    <!-- Cyan hairline along the top edge only: the app's accent, without tinting the whole card. -->
+    <item android:gravity="top" android:height="2dp" android:left="20dp" android:right="20dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#5900F0FF" />
+            <corners android:radius="1dp" />
+        </shape>
+    </item>
+</layer-list>
