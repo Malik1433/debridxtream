@@ -51,9 +51,16 @@ internal class StremioLibrarySection(
     private var saved: List<DebridContentItem> = emptyList()
     private var active = "watching"
 
+    /**
+     * Two buckets, because two are what this app can actually fill.
+     *
+     * "Completed" was a third tab whose contents were a hard-coded empty list — it could never show
+     * anything, whatever the customer watched. A tab that cannot fill is not a feature, it is a
+     * dead end with a label, so it is gone rather than mocked. When finished-watching state is
+     * readable per debrid title, it comes back with real rows behind it.
+     */
     private val tabs = listOf(
         Triple("watching", "Watching", R.drawable.ic_stremio_clock),
-        Triple("completed", "Completed", R.drawable.ic_stremio_check),
         Triple("saved", "Saved", R.drawable.ic_stremio_bookmark)
     )
 
@@ -115,7 +122,16 @@ internal class StremioLibrarySection(
             val isActive = key == active
             val fg = if (isActive) 0xFF041014.toInt() else 0xFF94A3B8.toInt()
             (tab.getChildAt(0) as ImageView).setColorFilter(if (isActive) 0xFF041014.toInt() else 0xFF64748B.toInt())
-            (tab.getChildAt(1) as TextView).apply { text = label; setTextColor(fg); StremioFonts.apply(this, R.font.outfit_semibold) }
+            // The count rides in the tab on a phone: how much is in each bucket is the question
+            // this screen exists to answer, and asking the customer to switch tabs to find out is
+            // one tap too many.
+            val itemCount = if (key == "watching") watching.size else saved.size
+            val text = if (isPhone) "$label  $itemCount" else label
+            (tab.getChildAt(1) as TextView).apply {
+                this.text = text
+                setTextColor(fg)
+                StremioFonts.apply(this, R.font.outfit_semibold)
+            }
             tab.background = if (isActive) {
                 StremioGradients.diagonal(0xFF0077FF.toInt(), 0xFF00F0FF.toInt(), tabMetrics.radius, d)
             } else {
@@ -131,12 +147,17 @@ internal class StremioLibrarySection(
     private fun rebuild() {
         val bucket = when (active) {
             "watching" -> LibBucket(watching, "WATCHING", 0xFFF1F5F9.toInt(), 0xCC0077FF.toInt())
-            "saved" -> LibBucket(saved, "SAVED", 0xFF041014.toInt(), 0xFFA78BFA.toInt())
-            else -> LibBucket(emptyList(), "DONE", 0xFF041014.toInt(), 0xFF00FF88.toInt())
+            else -> LibBucket(saved, "SAVED", 0xFF041014.toInt(), 0xFFA78BFA.toInt())
         }
+        styleTabs()
         count.text = count.context.getString(R.string.f_titles_count, bucket.items.size)
         empty.visibility = if (bucket.items.isEmpty()) View.VISIBLE else View.GONE
-        empty.text = if (active == "completed") "No completed titles yet" else "Nothing here yet"
+        // An empty bucket says what would fill it. "Nothing here yet" alone leaves the customer to
+        // guess whether the app is broken or they simply have not done the thing.
+        empty.setText(
+            if (active == "watching") R.string.phone_library_empty_watching
+            else R.string.phone_library_empty_saved
+        )
         adapter.submit(bucket.items.map { item ->
             val progress = if ((item.durationMs ?: 0L) > 0L)
                 ((item.resumePositionMs ?: 0L) * 100 / (item.durationMs ?: 1L)).toInt() else 0

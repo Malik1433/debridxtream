@@ -472,6 +472,11 @@
     <string name="phone_debrid_addons_only">Add-ons only</string>
     <string name="phone_debrid_not_connected">Nothing connected yet</string>
     <string name="phone_debrid_addons_hint">Add your debrid links to start</string>
+    <!-- The two library buckets, each saying what would fill it. -->
+    <string name="phone_library_empty_watching">Nothing in progress. Start something and it waits for you here.</string>
+    <string name="phone_library_empty_saved">Nothing saved yet. The bookmark on any title puts it here.</string>
+    <string name="phone_discover_movies">Movies</string>
+    <string name="phone_discover_series">Series</string>
     <string name="s_summary_live_resumes">Reopens your last channel</string>
     <string name="s_summary_live_from_first">Opens on the first channel</string>
     <string name="s_summary_rd_on">Real-Debrid on</string>

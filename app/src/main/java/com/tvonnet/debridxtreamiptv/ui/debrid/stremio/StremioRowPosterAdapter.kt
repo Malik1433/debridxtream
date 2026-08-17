@@ -107,13 +107,19 @@ internal class StremioRowPosterAdapter(
             card.setOnClickListener { onClick(item) }
         }
 
-        /** The TMDB score, in the badge corner. Blank scores are hidden rather than shown as 0.0. */
+        /**
+         * The TMDB score, in the badge corner. Blank scores are hidden rather than shown as 0.0,
+         * and the number is rounded to ONE decimal: TMDB returns 7.877, which is three digits of
+         * precision nobody reads and a badge half a poster wide.
+         */
         private fun bindRating(item: DebridContentItem) {
             val rating = item.rating?.trim().orEmpty()
             val hasRating = rating.isNotEmpty() && rating != "0" && rating != "0.0"
             quality.isVisible = hasRating
             if (!hasRating) return
-            quality.text = rating
+            quality.text = rating.toDoubleOrNull()
+                ?.let { String.format(java.util.Locale.US, "%.1f", it) }
+                ?: rating
             quality.background = GradientDrawable().apply {
                 cornerRadius = 2f * density
                 setColor(0xFFFFAA00.toInt())

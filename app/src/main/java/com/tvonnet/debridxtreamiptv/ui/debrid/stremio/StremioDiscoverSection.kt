@@ -61,7 +61,13 @@ internal class StremioDiscoverSection(
     private val expandPanel: LinearLayout = root.findViewById(R.id.filterExpandPanel)
     private val tagsRow: LinearLayout = root.findViewById(R.id.activeTagsRow)
     private val gridLabel: TextView = root.findViewById(R.id.discoverGridLabel)
-    private val top10Rv: RecyclerView = root.findViewById(R.id.discoverTop10)
+    /**
+     * Owner decision (2026-08-17): the phone's Discover carries no Top 10. It was a second,
+     * competing list on a screen whose job is one grid and the filters over it, and it pushed that
+     * grid off the bottom. The television keeps its column — its layout still declares the view,
+     * this one does not, so every use below is null-safe.
+     */
+    private val top10Rv: RecyclerView? = root.findViewById(R.id.discoverTop10)
     private val gridRv: RecyclerView = root.findViewById(R.id.discoverGrid)
 
     private val top10Adapter = StremioDiscoverTop10Adapter { it.onClick() }
@@ -73,10 +79,14 @@ internal class StremioDiscoverSection(
 
     private val pills = listOf("source", "region", "genre", "year")
 
+    /** Phone only — the movies/series switch above the filters. Absent on the television. */
+    private val typeSwitch: LinearLayout? = root.findViewById(R.id.discoverTypeSwitch)
+    private var activeType = "movie"
+
     init {
-        top10Rv.layoutManager = LinearLayoutManager(ctx)
-        top10Rv.adapter = top10Adapter
-        top10Rv.itemAnimator = null
+        top10Rv?.layoutManager = LinearLayoutManager(ctx)
+        top10Rv?.adapter = top10Adapter
+        top10Rv?.itemAnimator = null
         // real multi-row grid; span from screen width (grid sits right of the 140dp Top-10 column)
         val screenW = ctx.resources.displayMetrics.widthPixels
         // Phone: full width minus the 16dp gutters, 124dp cards with a 12dp gap — the Top-10
@@ -102,13 +112,67 @@ internal class StremioDiscoverSection(
                 }
             }
         })
+        buildTypeSwitch()
         buildPills()
+    }
+
+    /**
+     * Movies or series — the one question a customer answers every single time they open this
+     * screen. It was buried as a value inside the "source" dropdown, which meant two taps and a
+     * read to find out which one you were even looking at. Two chips, always visible, one tap.
+     */
+    private fun buildTypeSwitch() {
+        val row = typeSwitch ?: return
+        row.removeAllViews()
+        listOf("movie" to R.string.phone_discover_movies, "series" to R.string.phone_discover_series)
+            .forEach { (key, labelRes) ->
+                val chip = TextView(ctx).apply {
+                    text = ctx.getString(labelRes)
+                    textSize = 13f
+                    gravity = Gravity.CENTER
+                    includeFontPadding = false
+                    isFocusable = true
+                    isClickable = true
+                    setPadding((20 * d).toInt(), 0, (20 * d).toInt(), 0)
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        (44 * d).toInt(),
+                    ).apply { marginEnd = (8 * d).toInt() }
+                    StremioFonts.apply(this, R.font.outfit_semibold)
+                    setOnClickListener {
+                        if (activeType == key) return@setOnClickListener
+                        activeType = key
+                        styleTypeSwitch()
+                        vm.setType(key)
+                    }
+                }
+                row.addView(chip)
+            }
+        styleTypeSwitch()
+    }
+
+    private fun styleTypeSwitch() {
+        val row = typeSwitch ?: return
+        listOf("movie", "series").forEachIndexed { i, key ->
+            val chip = row.getChildAt(i) as? TextView ?: return@forEachIndexed
+            val on = key == activeType
+            chip.setTextColor(if (on) 0xFF041014.toInt() else 0xFF94A3B8.toInt())
+            chip.background = if (on) {
+                StremioGradients.diagonal(0xFF0077FF.toInt(), 0xFF00F0FF.toInt(), 10f, d)
+            } else {
+                GradientDrawable().apply {
+                    cornerRadius = 10 * d
+                    setColor(0x0DFFFFFF)
+                    setStroke((1 * d).toInt(), 0x1AFFFFFF)
+                }
+            }
+        }
     }
 
     fun onShown() { gridRv.post { wireFocus() } }
 
     fun firstFocusable(): View? =
-        if (pillsRow.childCount > 0) pillsRow.getChildAt(0) else top10Rv
+        if (pillsRow.childCount > 0) pillsRow.getChildAt(0) else (top10Rv ?: gridRv)
 
     /**
      * Deterministic D-pad routing for the two-column Discover layout so focus follows standard rules
@@ -121,11 +185,13 @@ internal class StremioDiscoverSection(
             p.nextFocusDownId = gridRv.id   // DOWN off a pill → the poster grid
         }
         val firstPill = pillsRow.getChildAt(0)
-        firstPill?.nextFocusLeftId = top10Rv.id       // leftmost pill LEFT → Top 10 list
+        firstPill?.nextFocusLeftId = top10Rv?.id ?: gridRv.id  // leftmost pill LEFT → Top 10 (TV)
         gridRv.nextFocusUpId = firstPill?.id ?: View.NO_ID  // grid top row UP → pills
-        gridRv.nextFocusLeftId = top10Rv.id           // grid leftmost col LEFT → Top 10 list
-        top10Rv.nextFocusRightId = gridRv.id          // Top 10 RIGHT → grid
-        top10Rv.nextFocusUpId = R.id.navTabDiscover   // Top 10 top UP → nav
+        top10Rv?.let { top10 ->
+            gridRv.nextFocusLeftId = top10.id         // grid leftmost col LEFT → Top 10 list
+            top10.nextFocusRightId = gridRv.id        // Top 10 RIGHT → grid
+            top10.nextFocusUpId = R.id.navTabDiscover // Top 10 top UP → nav
+        }
     }
 
     fun setGenres(list: List<TmdbGenre>) { genres = list }

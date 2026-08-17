@@ -49,42 +49,18 @@
                     android:textColor="#F1F5F9"
                     android:textSize="20sp" />
 
+                <!--
+                  The count lives in the TABS on a phone ("Watching 3", "Saved 12"), so a separate
+                  line under the title would say the same number twice. Kept as a zero-sized view
+                  because the television's copy still writes it.
+                -->
                 <TextView
                     android:id="@+id/lib_count"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:fontFamily="@font/share_tech_mono"
-                    android:textColor="#64748B"
-                    android:textSize="12sp" />
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:visibility="gone" />
             </LinearLayout>
 
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="48dp"
-                android:background="@drawable/bg_phone_chip"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingHorizontal="14dp">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_marginEnd="6dp"
-                    android:contentDescription="@null"
-                    android:src="@drawable/ic_stremio_sort"
-                    app:tint="#94A3B8" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/outfit_semibold"
-                    android:text="@string/ui_sort"
-                    android:textColor="#94A3B8"
-                    android:textSize="13sp" />
-            </LinearLayout>
         </LinearLayout>
 
         <!--

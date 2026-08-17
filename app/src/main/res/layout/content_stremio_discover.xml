@@ -7,8 +7,9 @@
   column takes a third of the width and leaves the grid two posters wide, and every label is a
   10-foot size. This is the screen the owner called messy, and the mess is that shape.
 
-  Same ids and kinds — StremioDiscoverSection binds either — but stacked the way a phone reads:
-  filters at the top where a thumb starts, then Top 10 as a horizontal rail, then the endless grid.
+  Same ids and kinds — StremioDiscoverSection binds either — but stacked the way a phone reads, and
+  cut to what the screen is for (owner, 2026-08-17): a movies/series switch, the filters, one grid.
+  No Top 10 here — it was a second list competing with the grid for the same screen.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -26,7 +27,19 @@
         android:paddingStart="16dp"
         android:paddingEnd="16dp">
 
-        <!-- Filters first: on a phone this is the control the thumb reaches for. -->
+        <!--
+          One switch, then the filters. Movies-or-series is the question a customer answers first
+          and the only one they answer every time, so it is a switch of its own rather than a fifth
+          dropdown to open.
+        -->
+        <LinearLayout
+            android:id="@+id/discoverTypeSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal" />
+
+        <!-- Then the filters: on a phone this is the control the thumb reaches for. -->
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -60,49 +73,12 @@
             android:orientation="horizontal"
             android:visibility="gone" />
 
-        <!-- Top 10, as a rail rather than a column that eats a third of the width. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingTop="20dp"
-            android:paddingBottom="12dp">
-
-            <View
-                android:layout_width="3dp"
-                android:layout_height="14dp"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/stremio_accent_bar_amber" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/outfit_bold"
-                android:text="@string/ui_top_10_this_week"
-                android:textColor="#F1F5F9"
-                android:textSize="15sp" />
-        </LinearLayout>
-
-        <!--
-          Capped, and scrolling inside itself. Ten full-width rows are 720dp on a 914dp screen: at
-          wrap_content the Top 10 ate the page and the grid below it was unreachable without
-          scrolling past all ten. Three rows show, the rest are a flick away, and the grid keeps the
-          screen it needs.
-        -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/discoverTop10"
-            android:layout_width="match_parent"
-            android:layout_height="216dp"
-            android:clipToPadding="false"
-            android:nestedScrollingEnabled="true" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingTop="24dp"
             android:paddingBottom="12dp">
 
             <View

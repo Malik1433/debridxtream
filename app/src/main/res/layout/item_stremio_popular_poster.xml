@@ -80,6 +80,7 @@
         android:fontFamily="@font/outfit_semibold"
         android:lineSpacingMultiplier="1.25"
         android:maxLines="2"
+        android:minLines="2"
         android:textColor="#F1F5F9"
         android:textSize="13sp" />
 
