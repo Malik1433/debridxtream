@@ -111,7 +111,13 @@ internal class StremioHeroManager(
         titleView.text = MediaTitleCleaner.clean(item.title)
         val hasRating = !item.rating.isNullOrBlank() && item.rating != "0" && item.rating != "0.0"
         ratingView.visibility = if (hasRating) View.VISIBLE else View.GONE
-        if (hasRating) ratingView.text = "⭐ ${item.rating}"
+        // One decimal, like everywhere else: TMDB returns 6.924 and the hero printed all of it.
+        if (hasRating) {
+            val score = item.rating?.trim()?.toDoubleOrNull()
+                ?.let { String.format(java.util.Locale.US, "%.1f", it) }
+                ?: item.rating
+            ratingView.text = "⭐ $score"
+        }
         metaView.text = item.meta
         badge4k.visibility = View.GONE
         badgeDolby.visibility = View.GONE
