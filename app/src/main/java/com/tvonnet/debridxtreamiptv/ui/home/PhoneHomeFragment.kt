@@ -315,6 +315,16 @@ class PhoneHomeFragment : Fragment(), HomeRouterHost, com.tvonnet.debridxtreamip
                 backdropUrl = item.iconUrl,
                 description = null,
                 streamUrl = null,
+                // Which world the id belongs to. A debrid favourite's id is a TMDB id and means
+                // nothing to the IPTV detail screens; sent down the IPTV route it opened a page
+                // for a stream this provider has never heard of.
+                sourceType = if (item.source ==
+                    com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.SOURCE_DEBRID
+                ) {
+                    com.tvonnet.debridxtreamiptv.data.model.SourceType.TMDB
+                } else {
+                    com.tvonnet.debridxtreamiptv.data.model.SourceType.IPTV
+                },
             )
         )
     }

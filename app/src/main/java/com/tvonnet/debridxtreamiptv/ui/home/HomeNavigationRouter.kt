@@ -90,14 +90,17 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
     fun onFeaturedItemClick(item: FeaturedItem) {
         val h = host ?: return
         h.onRouterHeroSelected(item)
-        openFeatured(h, item)
+        openFeaturedDetails(item)
     }
 
-    private fun openFeatured(h: HomeRouterHost, item: FeaturedItem) {
-        val frag = h.routerFragment
-        if (item.sourceType == SourceType.TMDB) {
-            val context = frag.context ?: return
-            if (item.contentType == ContentType.MOVIE) {
+    /**
+     * The DEBRID half: a TMDB id, so the detail screens are the activity ones and the movie one is
+     * told it is looking at debrid content.
+     */
+    private fun openDebridDetails(frag: Fragment, item: FeaturedItem) {
+        val context = frag.context ?: return
+        when (item.contentType) {
+            ContentType.MOVIE -> {
                 val intent = Intent(context, MovieDetailActivity::class.java).apply {
                     putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.contentId)
                     putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
@@ -106,7 +109,8 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
                     putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
                 }
                 startActivityPreservingContentFocus(intent)
-            } else if (item.contentType == ContentType.SERIES) {
+            }
+            ContentType.SERIES -> {
                 val intent = Intent(context, SeriesDetailActivity::class.java).apply {
                     putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, item.contentId)
                     putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.title)
@@ -115,42 +119,8 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
                     putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
                 }
                 startActivityPreservingContentFocus(intent)
-            } else {
-                showHomeActionUnavailable()
             }
-        } else {
-            when (item.contentType) {
-                ContentType.MOVIE -> {
-                    val detailFragment = DetailScreens.movie(
-                        context = frag.requireContext(),
-                        
-                        streamId = item.contentId,
-                        title = item.title,
-                        backdropUrl = item.backdropUrl,
-                        posterUrl = item.posterUrl,
-                        plot = item.description,
-                        directSource = item.streamUrl,
-                        trailer = item.trailerValue
-                    )
-                    navigateToFragment(detailFragment)
-                }
-                ContentType.SERIES -> {
-                    val detailFragment = DetailScreens.series(
-                        context = frag.requireContext(),
-                        
-                        seriesId = item.contentId,
-                        title = item.title,
-                        backdropUrl = item.backdropUrl,
-                        posterUrl = item.posterUrl,
-                        trailer = item.trailerValue
-                    )
-                    navigateToFragment(detailFragment)
-                }
-                ContentType.LIVE_TV -> {
-                    launchLiveStream(item.contentId, item.title, item.posterUrl, item.streamUrl)
-                }
-                else -> showHomeActionUnavailable()
-            }
+            else -> showHomeActionUnavailable()
         }
     }
 
@@ -158,30 +128,7 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
         val h = host ?: return
         val frag = h.routerFragment
         if (item.sourceType == SourceType.TMDB) {
-            val context = frag.context ?: return
-            when (item.contentType) {
-                ContentType.MOVIE -> {
-                    val intent = Intent(context, MovieDetailActivity::class.java).apply {
-                        putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, item.contentId)
-                        putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, item.title)
-                        putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, item.posterUrl)
-                        putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, item.backdropUrl)
-                        putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
-                    }
-                    startActivityPreservingContentFocus(intent)
-                }
-                ContentType.SERIES -> {
-                    val intent = Intent(context, SeriesDetailActivity::class.java).apply {
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, item.contentId)
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, item.title)
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, item.posterUrl)
-                        putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, item.backdropUrl)
-                        putExtra(SeriesDetailActivity.EXTRA_IS_DEBRID, true)
-                    }
-                    startActivityPreservingContentFocus(intent)
-                }
-                else -> showHomeActionUnavailable()
-            }
+            openDebridDetails(frag, item)
         } else {
             when (item.contentType) {
                 ContentType.MOVIE -> {
@@ -210,6 +157,13 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
                     )
                     navigateToFragment(detailFragment)
                 }
+                // A favourited CHANNEL arrives here, and this arm did not exist: it fell into
+                // "not available" below, which is why a favourite could be saved and never
+                // opened. The hero's own click path had the arm all along — there were two
+                // near-identical copies of this routing and only one of them knew about Live.
+                ContentType.LIVE_TV -> launchLiveStream(
+                    item.contentId, item.title, item.posterUrl, item.streamUrl
+                )
                 else -> showHomeActionUnavailable()
             }
         }
