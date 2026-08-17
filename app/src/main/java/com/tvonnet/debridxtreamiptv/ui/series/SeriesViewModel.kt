@@ -32,6 +32,7 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import com.tvonnet.debridxtreamiptv.util.FAVORITES_CATEGORY_ID
+import com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity
 
 data class SeriesUiState(
     val categories: List<XtreamCategory> = emptyList(),
@@ -188,6 +189,8 @@ class SeriesViewModel @Inject constructor(
     }.flatMapLatest { q ->
         if (q.categoryId == FAVORITES_CATEGORY_ID) {
             repository.getFavoritesByType("series")
+                // IPTV favourites only — see the same guard in VodViewModel.
+                .map { all -> all.filter { it.source == WatchedStateEntity.SOURCE_XTREAM } }
                 .map { favorites ->
                     val items = sortSeries(
                         filterByGenre(buildFavoriteSeries(favorites, q.searchQuery), q.genre),

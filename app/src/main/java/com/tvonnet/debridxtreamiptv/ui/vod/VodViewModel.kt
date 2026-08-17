@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.tvonnet.debridxtreamiptv.util.FAVORITES_CATEGORY_ID
+import com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity
 
 data class VodUiState(
     val categories: List<XtreamCategory> = emptyList(),
@@ -137,6 +138,10 @@ class VodViewModel @Inject constructor(
     }.flatMapLatest { q ->
         if (q.categoryId == FAVORITES_CATEGORY_ID) {
             repository.getFavoritesByType("vod")
+                // IPTV favourites only. The table is shared with the Debrid section, and a debrid
+                // favourite's id is a TMDB id: listed here it became a card with no stream behind
+                // it, which opened a detail page this provider cannot answer for.
+                .map { all -> all.filter { it.source == WatchedStateEntity.SOURCE_XTREAM } }
                 .map { favorites ->
                     val items = sortMovies(
                         filterByGenre(buildFavoriteMovies(favorites, q.searchQuery), q.genre),

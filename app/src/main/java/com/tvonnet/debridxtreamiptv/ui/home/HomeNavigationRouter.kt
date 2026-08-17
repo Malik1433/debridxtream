@@ -120,7 +120,7 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
                 }
                 startActivityPreservingContentFocus(intent)
             }
-            else -> showHomeActionUnavailable()
+            else -> showHomeActionUnavailable("debrid type=${item.contentType}")
         }
     }
 
@@ -164,7 +164,7 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
                 ContentType.LIVE_TV -> launchLiveStream(
                     item.contentId, item.title, item.posterUrl, item.streamUrl
                 )
-                else -> showHomeActionUnavailable()
+                else -> showHomeActionUnavailable("type=${item.contentType}")
             }
         }
     }
@@ -193,7 +193,7 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
                 ContentType.SERIES -> openContinueWatchingDetail(item)
                 else -> {
                     Log.w("HISTORY_DEBUG", "Unsupported content type for resume: ${item.contentType}")
-                    showHomeActionUnavailable()
+                    showHomeActionUnavailable("resume type=${item.contentType}")
                 }
             }
         }
@@ -306,7 +306,7 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
                 }
             }
             ContentType.SERIES -> openContinueWatchingSeries(context, item, isDebrid)
-            else -> showHomeActionUnavailable()
+            else -> showHomeActionUnavailable("cw type=${item.contentType}")
         }
     }
 
@@ -353,7 +353,7 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
             resolveIptvSeriesIdForContinueWatching(item) ?: item.contentId
         }
         if (seriesId == null) {
-            showHomeActionUnavailable()
+            showHomeActionUnavailable("no series id")
             return
         }
         if (isDebrid) {
@@ -473,10 +473,21 @@ internal class HomeNavigationRouter(private var host: HomeRouterHost?) {
         frag.startActivity(intent)
     }
 
-    fun showHomeActionUnavailable() {
+    /**
+     * The dead end, and WHY.
+     *
+     * It used to be a bare "Not available", which is the least useful sentence a screen can say:
+     * it took three rounds of guessing to learn that a favourited CHANNEL was reaching it. The
+     * reason is appended in every build, release included — this arm is only ever reached when
+     * something is already wrong, and "Not available (type=EPISODE)" costs the customer nothing
+     * while turning the next report into a diagnosis instead of another round of guessing.
+     */
+    fun showHomeActionUnavailable(reason: String? = null) {
         val h = host ?: return
         val frag = h.routerFragment
         if (!frag.isAdded) return
-        Toast.makeText(frag.requireContext(), frag.requireContext().getString(R.string.c_not_available), Toast.LENGTH_SHORT).show()
+        val text = frag.requireContext().getString(R.string.c_not_available) +
+            if (reason != null) " ($reason)" else ""
+        Toast.makeText(frag.requireContext(), text, Toast.LENGTH_SHORT).show()
     }
 }
