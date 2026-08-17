@@ -22,6 +22,25 @@ internal class StremioLibrarySection(
     private val d = root.resources.displayMetrics.density
     private val ctx = root.context
 
+    /** The two rulebooks meet here: a 23dp pill with an 8sp label is a 10-foot control. */
+    private val isPhone = !root.resources.getBoolean(R.bool.ui_uses_dpad_focus)
+
+    /** Tab geometry, chosen once, so the builder below carries no device branches inside it. */
+    private data class TabMetrics(
+        val height: Int,
+        val padH: Int,
+        val gap: Int,
+        val icon: Float,
+        val text: Float,
+        val radius: Float,
+    )
+
+    private val tabMetrics = if (isPhone) {
+        TabMetrics(height = 48, padH = 16, gap = 8, icon = 16f, text = 13f, radius = 10f)
+    } else {
+        TabMetrics(height = 23, padH = 11, gap = 2, icon = 6.5f, text = 8f, radius = 5f)
+    }
+
     private val tabsRow: LinearLayout = root.findViewById(R.id.libTabsRow)
     private val count: TextView = root.findViewById(R.id.lib_count)
     private val grid: RecyclerView = root.findViewById(R.id.libraryGrid)
@@ -40,7 +59,12 @@ internal class StremioLibrarySection(
 
     init {
         val screenW = ctx.resources.displayMetrics.widthPixels
-        val span = ((screenW - 70 * d) / (81 * d)).toInt().coerceAtLeast(1)
+        // Phone: 16dp gutters and 124dp cards with a 12dp gap. Television: its own old maths.
+        val span = if (isPhone) {
+            ((screenW - 32 * d) / (136 * d)).toInt().coerceAtLeast(2)
+        } else {
+            ((screenW - 70 * d) / (81 * d)).toInt().coerceAtLeast(1)
+        }
         grid.layoutManager = GridLayoutManager(ctx, span)
         grid.adapter = adapter
         grid.itemAnimator = null
@@ -60,16 +84,22 @@ internal class StremioLibrarySection(
         tabs.forEach { (key, label, icon) ->
             val tab = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                setPadding((11 * d).toInt(), 0, (11 * d).toInt(), 0)
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, (23 * d).toInt())
-                    .apply { marginEnd = (2 * d).toInt() }
+                setPadding((tabMetrics.padH * d).toInt(), 0, (tabMetrics.padH * d).toInt(), 0)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    (tabMetrics.height * d).toInt(),
+                ).apply { marginEnd = (tabMetrics.gap * d).toInt() }
                 isFocusable = true
                 addView(ImageView(ctx).apply {
                     setImageResource(icon)
-                    layoutParams = LinearLayout.LayoutParams((6.5f * d).toInt(), (6.5f * d).toInt())
-                        .apply { marginEnd = (4 * d).toInt() }
+                    val size = (tabMetrics.icon * d).toInt()
+                    layoutParams = LinearLayout.LayoutParams(size, size)
+                        .apply { marginEnd = (6 * d).toInt() }
                 })
-                addView(TextView(ctx).apply { textSize = 8f; includeFontPadding = false })
+                addView(TextView(ctx).apply {
+                    textSize = tabMetrics.text
+                    includeFontPadding = false
+                })
                 setOnClickListener { active = key; styleTabs(); rebuild() }
             }
             StremioFocus.attach(tab, 1.05f)
@@ -86,8 +116,15 @@ internal class StremioLibrarySection(
             val fg = if (isActive) 0xFF041014.toInt() else 0xFF94A3B8.toInt()
             (tab.getChildAt(0) as ImageView).setColorFilter(if (isActive) 0xFF041014.toInt() else 0xFF64748B.toInt())
             (tab.getChildAt(1) as TextView).apply { text = label; setTextColor(fg); StremioFonts.apply(this, R.font.outfit_semibold) }
-            tab.background = if (isActive) StremioGradients.diagonal(0xFF0077FF.toInt(), 0xFF00F0FF.toInt(), 5f, d)
-            else GradientDrawable().apply { cornerRadius = 5 * d; setColor(0x0DFFFFFF); setStroke((1 * d).toInt(), 0x1AFFFFFF) }
+            tab.background = if (isActive) {
+                StremioGradients.diagonal(0xFF0077FF.toInt(), 0xFF00F0FF.toInt(), tabMetrics.radius, d)
+            } else {
+                GradientDrawable().apply {
+                    cornerRadius = tabMetrics.radius * d
+                    setColor(0x0DFFFFFF)
+                    setStroke((1 * d).toInt(), 0x1AFFFFFF)
+                }
+            }
         }
     }
 

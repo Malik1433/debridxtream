@@ -30,6 +30,33 @@ internal class StremioDiscoverSection(
     private val d = root.resources.displayMetrics.density
     private val ctx = root.context
 
+    /**
+     * A 25dp pill with an 8sp label and a 16dp option chip at 6sp are 10-foot controls. On a phone
+     * the filters are the FIRST thing a thumb reaches for, so they are 48dp with 13sp labels.
+     */
+    private val isPhone = !root.resources.getBoolean(R.bool.ui_uses_dpad_focus)
+
+    /** Filter geometry, chosen once so the builders below carry no device branches. */
+    private data class FilterMetrics(
+        val pillHeight: Int,
+        val pillMinWidth: Int,
+        val pillPadH: Int,
+        val pillGap: Int,
+        val chevron: Int,
+        val chevronGap: Int,
+        val text: Float,
+        val chipHeight: Int,
+        val chipPadH: Int,
+        val chipGap: Int,
+        val chipText: Float,
+    )
+
+    private val filterMetrics = if (isPhone) {
+        FilterMetrics(48, 96, 14, 8, 14, 6, 13f, 44, 14, 8, 13f)
+    } else {
+        FilterMetrics(25, 70, 11, 5, 7, 0, 8f, 16, 7, 4, 6f)
+    }
+
     private val pillsRow: LinearLayout = root.findViewById(R.id.filterPillsRow)
     private val expandPanel: LinearLayout = root.findViewById(R.id.filterExpandPanel)
     private val tagsRow: LinearLayout = root.findViewById(R.id.activeTagsRow)
@@ -52,7 +79,13 @@ internal class StremioDiscoverSection(
         top10Rv.itemAnimator = null
         // real multi-row grid; span from screen width (grid sits right of the 140dp Top-10 column)
         val screenW = ctx.resources.displayMetrics.widthPixels
-        val span = ((screenW - 245 * d) / (129 * d)).toInt().coerceIn(3, 6)
+        // Phone: full width minus the 16dp gutters, 124dp cards with a 12dp gap — the Top-10
+        // column that used to steal 154dp of it is a horizontal rail above the grid now.
+        val span = if (isPhone) {
+            ((screenW - 32 * d) / (136 * d)).toInt().coerceIn(2, 3)
+        } else {
+            ((screenW - 245 * d) / (129 * d)).toInt().coerceIn(3, 6)
+        }
         gridRv.layoutManager = androidx.recyclerview.widget.GridLayoutManager(ctx, span)
         gridRv.adapter = gridAdapter
         gridRv.itemAnimator = null
@@ -142,18 +175,23 @@ internal class StremioDiscoverSection(
         pills.forEach { key ->
             val pill = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                minimumWidth = (70 * d).toInt()
-                setPadding((11 * d).toInt(), 0, (11 * d).toInt(), 0)
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, (25 * d).toInt())
-                    .apply { marginEnd = (5 * d).toInt() }
+                minimumWidth = (filterMetrics.pillMinWidth * d).toInt()
+                setPadding((filterMetrics.pillPadH * d).toInt(), 0, (filterMetrics.pillPadH * d).toInt(), 0)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    (filterMetrics.pillHeight * d).toInt(),
+                ).apply { marginEnd = (filterMetrics.pillGap * d).toInt() }
                 isFocusable = true
                 addView(TextView(ctx).apply {
-                    textSize = 8f; includeFontPadding = false
+                    textSize = filterMetrics.text
+                    includeFontPadding = false
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 })
                 addView(ImageView(ctx).apply {
                     setImageResource(R.drawable.ic_stremio_chevron_down)
-                    layoutParams = LinearLayout.LayoutParams((7 * d).toInt(), (7 * d).toInt())
+                    val size = (filterMetrics.chevron * d).toInt()
+                    layoutParams = LinearLayout.LayoutParams(size, size)
+                        .apply { marginStart = (filterMetrics.chevronGap * d).toInt() }
                 })
                 setOnClickListener {
                     expanded = if (expanded == key) "" else key
@@ -258,11 +296,19 @@ internal class StremioDiscoverSection(
     private fun buildOptionChip(label: String, onSel: () -> Unit, activePill: View?): TextView {
         val restingBg = GradientDrawable().apply { cornerRadius = 4 * d; setColor(0x0FFFFFFF); setStroke((1 * d).toInt(), 0x1AFFFFFF) }
         return TextView(ctx).apply {
-            text = label; textSize = 6f; gravity = Gravity.CENTER; includeFontPadding = false
+            text = label
+            textSize = filterMetrics.chipText
+            gravity = Gravity.CENTER
+            includeFontPadding = false
             setTextColor(0xFF94A3B8.toInt())
-            setPadding((7 * d).toInt(), 0, (7 * d).toInt(), 0)
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, (16 * d).toInt())
-                .apply { marginEnd = (4 * d).toInt(); bottomMargin = (4 * d).toInt() }
+            setPadding((filterMetrics.chipPadH * d).toInt(), 0, (filterMetrics.chipPadH * d).toInt(), 0)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                (filterMetrics.chipHeight * d).toInt(),
+            ).apply {
+                marginEnd = (filterMetrics.chipGap * d).toInt()
+                bottomMargin = (filterMetrics.chipGap * d).toInt()
+            }
             isFocusable = true
             background = restingBg
             nextFocusUpId = activePill?.id ?: View.NO_ID   // UP from an option → its pill

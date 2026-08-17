@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stremio Discover tab: Top10 list + moods + filters + editorial + poster grid -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/discover_content"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:visibility="gone"
+    android:clipChildren="true"
+    android:clipToPadding="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:paddingStart="35dp"
+        android:paddingEnd="35dp"
+        android:clipChildren="true">
+
+        <!-- LEFT: Top 10 This Week (280px/2=140dp) -->
+        <LinearLayout
+            android:layout_width="140dp"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:layout_marginEnd="14dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="7dp">
+
+                <View
+                    android:layout_width="1.5dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/stremio_accent_bar_amber"
+                    android:layout_marginEnd="5dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/outfit_bold"
+                    android:textSize="8sp"
+                    android:textColor="#F1F5F9"
+                    android:text="@string/ui_top_10_this_week" />
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/discoverTop10"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="false" />
+        </LinearLayout>
+
+        <!-- RIGHT: filters + content -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:clipChildren="true">
+
+            <!-- Filter pills -->
+            <LinearLayout
+                android:id="@+id/filterPillsRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical" />
+
+            <LinearLayout
+                android:id="@+id/filterExpandPanel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@drawable/stremio_expand_panel"
+                android:padding="8dp"
+                android:layout_marginTop="5dp"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/activeTagsRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="5dp"
+                android:visibility="gone" />
+
+            <!-- Poster grid header -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="6dp">
+
+                <View
+                    android:layout_width="1.5dp"
+                    android:layout_height="7dp"
+                    android:background="@drawable/stremio_accent_bar_blue"
+                    android:layout_marginEnd="4dp" />
+
+                <TextView
+                    android:id="@+id/discoverGridLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/outfit_bold"
+                    android:textSize="7.5sp"
+                    android:textColor="#F1F5F9"
+                    android:text="@string/ui_trending_everywhere" />
+
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1" />
+
+                <!-- D3/DB-10: this "See all" was never wired. It has no id, no click listener
+                     anywhere in the codebase, and is not focusable — so it was dead on the TV as
+                     well as the phone, decoration copied from the design mockup. It is gone rather
+                     than wired because the grid below it ALREADY pages endlessly (see
+                     StremioDiscoverSection's MIN_GRID_FILL + its scroll listener), so a "See all"
+                     has nowhere more complete to go. A control that ignores every tap is worse than
+                     no control. -->
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/discoverGrid"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipChildren="true"
+                android:clipToPadding="true"
+                android:paddingBottom="16dp"
+                android:nestedScrollingEnabled="true" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>
