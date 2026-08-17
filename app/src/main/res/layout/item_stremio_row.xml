@@ -1,72 +1,82 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One Stremio-styled catalog row: header (accent + title + See all) + horizontal posters -->
+<!--
+  PHONE Debrid rail — one catalogue row (design "DX Play Debrid Phone.dc.html", frame 1a).
+
+  The television's copy is in layout-television/ and is untouched: 35dp gutters, 11sp titles and an
+  8.5sp "See all" chip, all sized to read from three metres. In the hand those are unreadable, so
+  the phone gets the design's own numbers — 16dp gutter, a 3dp cyan bar, a 15sp Outfit title and
+  the count in mono on the right, where the eye is not looking for it.
+
+  Same ids and same view kinds as the television file, so StremioRowAdapter binds either without
+  knowing which it got. The header's "See all" chip stays for the television; on the phone the
+  affordance is the dashed card at the END of the row (see item_stremio_see_all_card), because a
+  thumb is already travelling that way.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:paddingStart="35dp"
-    android:paddingEnd="35dp"
-    android:layout_marginBottom="12dp"
+    android:layout_marginBottom="4dp"
     android:clipChildren="false"
-    android:clipToPadding="false">
+    android:clipToPadding="false"
+    android:orientation="vertical"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="6dp">
+        android:orientation="horizontal"
+        android:paddingTop="24dp"
+        android:paddingBottom="12dp">
 
         <View
-            android:layout_width="2dp"
-            android:layout_height="11dp"
-            android:background="@drawable/stremio_accent_bar_cyan"
-            android:layout_marginEnd="6dp" />
+            android:layout_width="3dp"
+            android:layout_height="14dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/stremio_accent_bar_cyan" />
 
         <TextView
             android:id="@+id/row_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/outfit_bold"
-            android:textSize="11sp"
-            android:textColor="#F1F5F9"
-            android:maxLines="1"
-            android:ellipsize="end" />
-
-        <Space
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1" />
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="@font/outfit_bold"
+            android:maxLines="1"
+            android:textColor="#F1F5F9"
+            android:textSize="15sp" />
 
+        <!-- The row's count. Kept as the "see all" target too: the whole header is the second way
+             in, and it is the one a screen reader reaches first. -->
         <LinearLayout
             android:id="@+id/row_see_all"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
             android:gravity="center_vertical"
-            android:background="@drawable/stremio_see_all_selector"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp"
-            android:focusable="true">
+            android:minHeight="48dp"
+            android:orientation="horizontal"
+            android:paddingStart="8dp">
 
             <TextView
+                android:id="@+id/row_count"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/outfit_medium"
-                android:textSize="8.5sp"
-                android:textColor="#00F0FF"
-                android:text="@string/ui_see_all_2"
-                android:layout_marginEnd="3dp" />
+                android:fontFamily="@font/share_tech_mono"
+                android:textColor="#64748B"
+                android:textSize="12sp" />
 
             <ImageView
-                android:layout_width="8dp"
-                android:layout_height="8dp"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginStart="4dp"
+                android:contentDescription="@null"
                 android:src="@drawable/ic_stremio_chevron_right"
-                app:tint="#00F0FF"
-                android:contentDescription="@null" />
+                app:tint="#64748B" />
         </LinearLayout>
     </LinearLayout>
 
@@ -74,7 +84,7 @@
         android:id="@+id/rv_stremio_row_items"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:clipToPadding="false"
         android:clipChildren="false"
+        android:clipToPadding="false"
         android:nestedScrollingEnabled="false" />
 </LinearLayout>

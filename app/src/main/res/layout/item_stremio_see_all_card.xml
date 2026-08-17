@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  "See all", as the last card in a phone rail (design frame 1a).
+
+  The television puts this in the row header, where a D-pad reaches it on the way down. A thumb
+  travels along the row instead, so on a phone the affordance waits at the end of the journey it is
+  already making. Dashed rather than filled: it is a door, not a title.
+
+  104dp wide against the posters' 124dp so it reads as a different kind of thing, and 186dp tall so
+  the row's art line stays unbroken.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/see_all_card"
+    android:layout_width="104dp"
+    android:layout_height="186dp"
+    android:background="@drawable/bg_phone_see_all_card"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center"
+    android:orientation="vertical">
+
+    <ImageView
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_stremio_chevron_right"
+        app:tint="@color/phone_cyan" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:fontFamily="@font/outfit_semibold"
+        android:text="@string/ui_see_all_2"
+        android:textColor="@color/phone_cyan"
+        android:textSize="13sp" />
+</LinearLayout>

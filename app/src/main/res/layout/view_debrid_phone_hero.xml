@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PHONE Debrid header — hero + provider strip (design "DX Play Debrid Phone.dc.html", frame 1a).
+
+  ⭐ This REVERSES the 2026-08-10 decision that a phone never shows this hero. That decision was
+  right about the old hero: it was the television's, fixed above the rows, and it ate ~70% of a
+  411dp screen leaving one row peeking. The designer's phone hero is a different object — 392dp,
+  its own type scale, and it SCROLLS AWAY, because it is the first item of the rows list rather
+  than a fixed band above it. Nothing stays eaten.
+
+  Every hero id the television file carries is here, so StremioHeroManager binds this view instead
+  of the fragment root and none of its logic changes.
+
+  The provider strip below it answers the question this section raises and nothing else does: is
+  the debrid account actually connected, and how many add-ons are searching. It is bound from what
+  the device really knows — see StremioProviderStrip; nothing here is invented.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:id="@+id/heroBanner"
+        android:layout_width="match_parent"
+        android:layout_height="392dp">
+
+        <FrameLayout
+            android:id="@+id/hero_backdrop_clip"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ImageView
+                android:id="@+id/iv_hero_background"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:scaleType="centerCrop" />
+        </FrameLayout>
+
+        <!-- Kept for the hero manager's binder; the phone's readability comes from the scrim below. -->
+        <View
+            android:id="@+id/hero_fade_lr"
+            android:layout_width="0dp"
+            android:layout_height="0dp" />
+
+        <View
+            android:id="@+id/hero_fade_bottom"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_phone_hero_scrim" />
+
+        <LinearLayout
+            android:id="@+id/heroContentContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="16dp">
+
+            <LinearLayout
+                android:id="@+id/hero_label_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/hero_pulse_dot"
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/stremio_hero_dot_active" />
+
+                <TextView
+                    android:id="@+id/hero_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/share_tech_mono"
+                    android:letterSpacing="0.16"
+                    android:textColor="@color/phone_cyan"
+                    android:textSize="12sp"
+                    tools:text="FEATURED TODAY" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/heroTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:ellipsize="end"
+                android:fontFamily="@font/outfit_extrabold"
+                android:letterSpacing="-0.03"
+                android:lineSpacingMultiplier="1.05"
+                android:maxLines="2"
+                android:shadowColor="#D9000000"
+                android:shadowDx="0"
+                android:shadowDy="2"
+                android:shadowRadius="20"
+                android:textColor="@color/phone_text_primary"
+                android:textSize="32sp"
+                tools:text="Nightfall" />
+
+            <LinearLayout
+                android:id="@+id/hero_badges_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/hero_rating"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_phone_rating_chip"
+                    android:fontFamily="@font/share_tech_mono"
+                    android:paddingHorizontal="7dp"
+                    android:paddingVertical="3dp"
+                    android:textColor="@color/phone_amber"
+                    android:textSize="12sp"
+                    tools:text="★ 8.5" />
+
+                <TextView
+                    android:id="@+id/hero_meta"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/share_tech_mono"
+                    android:maxLines="1"
+                    android:textColor="@color/phone_text_secondary"
+                    android:textSize="12sp"
+                    tools:text="2025 · 2h 12m · Thriller" />
+
+                <TextView
+                    android:id="@+id/hero_badge_4k"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_phone_badge_cyan"
+                    android:fontFamily="@font/share_tech_mono"
+                    android:paddingHorizontal="7dp"
+                    android:paddingVertical="3dp"
+                    android:textColor="#04121A"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    tools:text="4K HDR"
+                    tools:visibility="visible" />
+
+                <!-- Bound by the hero manager; the phone has no room for a second badge. -->
+                <TextView
+                    android:id="@+id/hero_badge_dolby"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- Genre chips are the television's; the phone carries genres inside hero_meta. -->
+            <LinearLayout
+                android:id="@+id/hero_genres_row"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:orientation="horizontal"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/hero_description"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:ellipsize="end"
+                android:fontFamily="@font/inter_regular"
+                android:lineSpacingMultiplier="1.6"
+                android:maxLines="2"
+                android:textColor="@color/phone_text_secondary"
+                android:textSize="12.5sp"
+                tools:text="A blackout strands two strangers on opposite sides of a city that has stopped answering." />
+
+            <LinearLayout
+                android:id="@+id/hero_dots"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:id="@+id/heroPlayBtn"
+                    android:layout_width="0dp"
+                    android:layout_height="52dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_phone_primary_button"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginEnd="8dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_stremio_play"
+                        app:tint="#04121A" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/outfit_bold"
+                        android:text="@string/phone_watch_now"
+                        android:textColor="#04121A"
+                        android:textSize="15sp" />
+                </LinearLayout>
+
+                <!-- Kept for the hero manager's binder. The television's trailer button has no phone
+                     twin yet: it would open the same detail this hero's primary button opens, and a
+                     second control that does the first one's job is worse than no control. -->
+                <LinearLayout
+                    android:id="@+id/heroTrailerBtn"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:orientation="horizontal"
+                    android:visibility="gone" />
+
+                <FrameLayout
+                    android:id="@+id/heroWatchlistBtn"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:layout_marginStart="10dp"
+                    android:background="@drawable/bg_phone_glass_button"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:id="@+id/hero_watchlist_icon"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@string/a11y_favorite"
+                        android:src="@drawable/ic_stremio_bookmark"
+                        app:tint="@color/phone_text_primary" />
+                </FrameLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- ══ PROVIDER STRIP ══ -->
+    <LinearLayout
+        android:id="@+id/debrid_provider_strip"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/bg_phone_card"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="14dp">
+
+        <View
+            android:id="@+id/provider_dot"
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/bg_phone_dot_green" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/provider_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="@font/outfit_semibold"
+                android:maxLines="1"
+                android:textColor="@color/phone_text_primary"
+                android:textSize="13sp"
+                tools:text="Real-Debrid · connected" />
+
+            <TextView
+                android:id="@+id/provider_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:ellipsize="end"
+                android:fontFamily="@font/share_tech_mono"
+                android:maxLines="1"
+                android:textColor="@color/phone_text_muted"
+                android:textSize="12sp"
+                tools:text="6 add-ons" />
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_stremio_chevron_right"
+            app:tint="@color/phone_text_muted" />
+    </LinearLayout>
+</LinearLayout>

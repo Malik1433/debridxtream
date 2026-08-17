@@ -1,87 +1,96 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Poster card — shared app poster size 128 x 192 dp (2:3), home cyan focus. -->
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  PHONE Debrid poster card (design "DX Play Debrid Phone.dc.html", frame 1a).
+
+  124 x 186 art, then the title and meta BELOW it. The television's card writes both over the
+  poster's bottom edge, which works at 128 x 192 across a room and fails in the hand: 9sp on a busy
+  still is unreadable, and the art it covers is the only thing that identifies the title. That copy
+  is untouched in layout-television/.
+
+  Same ids, same kinds — StremioRowPosterAdapter binds either. The progress bar and the quality
+  badge stay ON the art, where they belong to the image rather than to the label.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/poster_card"
-    android:layout_width="@dimen/poster_top_10_width"
-    android:layout_height="@dimen/poster_top_10_height"
-    android:layout_marginEnd="9dp"
+    android:layout_width="124dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="12dp"
+    android:clickable="true"
     android:focusable="true"
-    android:clipChildren="true"
-    android:foreground="@drawable/card_focus_cinematic">
+    android:orientation="vertical">
 
-    <ImageView
-        android:id="@+id/poster_image"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:contentDescription="@null" />
-
-    <View
-        android:id="@+id/poster_overlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-
-    <!-- quality badge top-right 9px/2=4.5dp -->
-    <TextView
-        android:id="@+id/poster_quality"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top|end"
-        android:layout_marginTop="4.5dp"
-        android:layout_marginEnd="4.5dp"
-        android:paddingStart="4dp"
-        android:paddingEnd="4dp"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp"
-        android:fontFamily="@font/share_tech_mono"
-        android:textSize="6.5sp"
-        android:textColor="#041014"
-        android:textStyle="bold" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:orientation="vertical"
-        android:layout_marginStart="5dp"
-        android:layout_marginEnd="5dp"
-        android:layout_marginBottom="5dp">
-
-        <TextView
-            android:id="@+id/poster_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/outfit_semibold"
-            android:textSize="9sp"
-            android:textColor="#F1F5F9"
-            android:maxLines="1"
-            android:ellipsize="end" />
-
-        <TextView
-            android:id="@+id/poster_year"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/share_tech_mono"
-            android:textSize="6.5sp"
-            android:textColor="#64748B"
-            android:layout_marginTop="1.5dp"
-            android:maxLines="1"
-            android:ellipsize="end" />
-    </LinearLayout>
-
-    <!-- Continue Watching progress bar (gone unless CW) -->
     <FrameLayout
-        android:id="@+id/poster_progress_wrap"
-        android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:layout_gravity="bottom"
-        android:background="@drawable/stremio_progress_track"
-        android:visibility="gone">
+        android:id="@+id/poster_art"
+        android:layout_width="124dp"
+        android:layout_height="186dp"
+        android:background="@drawable/bg_phone_poster"
+        android:clipToOutline="true"
+        android:foreground="@drawable/card_focus_cinematic">
+
+        <ImageView
+            android:id="@+id/poster_image"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:scaleType="centerCrop" />
 
         <View
-            android:id="@+id/poster_progress_fill"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:background="@drawable/stremio_progress_fill" />
+            android:id="@+id/poster_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <TextView
+            android:id="@+id/poster_quality"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/bg_phone_badge_cyan"
+            android:fontFamily="@font/share_tech_mono"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:textColor="#04121A"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <FrameLayout
+            android:id="@+id/poster_progress_wrap"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_gravity="bottom"
+            android:background="@drawable/stremio_progress_track"
+            android:visibility="gone">
+
+            <View
+                android:id="@+id/poster_progress_fill"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:background="@drawable/stremio_progress_fill" />
+        </FrameLayout>
     </FrameLayout>
-</FrameLayout>
+
+    <TextView
+        android:id="@+id/poster_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/outfit_semibold"
+        android:lineSpacingMultiplier="1.25"
+        android:maxLines="2"
+        android:textColor="#F1F5F9"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/poster_year"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/share_tech_mono"
+        android:maxLines="1"
+        android:textColor="#64748B"
+        android:textSize="12sp" />
+</LinearLayout>

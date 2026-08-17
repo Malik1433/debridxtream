@@ -38,7 +38,7 @@ internal class StremioDiscoverSection(
     private val gridRv: RecyclerView = root.findViewById(R.id.discoverGrid)
 
     private val top10Adapter = StremioDiscoverTop10Adapter { it.onClick() }
-    private val gridAdapter = StremioRowPosterAdapter { actions.click(it) }
+    private val gridAdapter = StremioRowPosterAdapter(onClick = { actions.click(it) })
 
     private var genres: List<TmdbGenre> = emptyList()
     private var expanded = ""

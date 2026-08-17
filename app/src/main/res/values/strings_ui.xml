@@ -465,6 +465,13 @@
     <string name="s_blocked_no_catalogue_cause">Your library has not synced yet</string>
     <string name="s_blocked_no_catalogue_fix">The row choosers are built from your provider\'s categories. Refresh the catalogue once and they fill in.</string>
     <string name="s_blocked_refresh_now">Refresh now</string>
+    <!-- The Debrid hero's primary control (phone). -->
+    <string name="phone_watch_now">Watch Now</string>
+    <!-- Provider strip on the phone Debrid header. -->
+    <string name="phone_debrid_connected">Real-Debrid · connected</string>
+    <string name="phone_debrid_addons_only">Add-ons only</string>
+    <string name="phone_debrid_not_connected">Nothing connected yet</string>
+    <string name="phone_debrid_addons_hint">Add your debrid links to start</string>
     <string name="s_summary_live_resumes">Reopens your last channel</string>
     <string name="s_summary_live_from_first">Opens on the first channel</string>
     <string name="s_summary_rd_on">Real-Debrid on</string>

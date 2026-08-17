@@ -10,14 +10,17 @@ import com.tvonnet.debridxtreamiptv.ui.debrid.DebridRow
 internal class StremioHomeSection(
     private val fragment: StremioHomeFragment,
     private val root: View,
-    private val actions: StremioDebridActions
+    private val actions: StremioDebridActions,
+    /** The phone's hero + provider strip, scrolling as this list's first item. Null on television. */
+    private val header: View? = null,
 ) {
     private val ctx = root.context
     private val rowsRv: RecyclerView = root.findViewById(R.id.homeRows)
 
     private val rowAdapter = StremioRowAdapter(
         onItemClick = { actions.click(it) },
-        onSeeAll = { actions.seeAll(it) }
+        onSeeAll = { actions.seeAll(it) },
+        header = header,
     )
 
     init {

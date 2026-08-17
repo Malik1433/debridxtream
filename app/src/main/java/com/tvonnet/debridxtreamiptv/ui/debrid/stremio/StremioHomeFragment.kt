@@ -57,6 +57,10 @@ class StremioHomeFragment :
     internal lateinit var router: StremioNavigationRouter
     internal lateinit var actions: StremioDebridActions
     internal lateinit var heroManager: StremioHeroManager
+
+    /** Phone only — the scrolling hero + provider strip. Null on television. */
+    private var phoneHeader: View? = null
+    private var providerStrip: StremioProviderStrip? = null
     internal var homeSection: StremioHomeSection? = null
     internal var discoverSection: StremioDiscoverSection? = null
     internal var librarySection: StremioLibrarySection? = null
@@ -92,15 +96,30 @@ class StremioHomeFragment :
         discoverContent = view.findViewById(R.id.discover_content)
         libraryContent = view.findViewById(R.id.library_content)
 
-        heroManager = StremioHeroManager(this, view)
-        heroManager.setup()
+        // PHONE: the hero and the provider strip are the first item of the rows list, so they
+        // scroll away instead of standing on 392dp of a 914dp screen for ever (design frame 1a).
+        // The hero manager binds THAT view, not the fragment root — same ids, same manager.
+        phoneHeader = if (resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
+            null
+        } else {
+            com.tvonnet.debridxtreamiptv.ui.live.phone.PhoneUi.unscaled(this, layoutInflater)
+                .inflate(R.layout.view_debrid_phone_hero, null, false)
+        }
 
-        homeSection = StremioHomeSection(this, view, actions)
+        heroManager = StremioHeroManager(this, phoneHeader ?: view)
+        heroManager.setup()
+        phoneHeader?.let { providerStrip = StremioProviderStrip(this, it) }
+
+        homeSection = StremioHomeSection(this, view, actions, header = phoneHeader)
         discoverSection = StremioDiscoverSection(this, view, discoverVm, actions)
         librarySection = StremioLibrarySection(this, view, actions)
         searchOverlay = StremioSearchOverlay(this, view, catalogRepo, actions)
 
         view.findViewById<View>(R.id.searchBar).setOnClickListener { searchOverlay?.open() }
+        // The settings icon in this app bar did nothing at all until now.
+        view.findViewById<View>(R.id.nav_profile)?.setOnClickListener {
+            com.tvonnet.debridxtreamiptv.ui.nav.SectionNavigator.navigate(this, "settings")
+        }
         wireHeroKeys(view)
 
         tickClock()
@@ -158,6 +177,8 @@ class StremioHomeFragment :
 
     override fun onResume() {
         super.onResume()
+
+        providerStrip?.refresh()
         isNavigatingAway = false
         debridVm.refreshContinueWatching()
         if (heroAllowed()) heroManager.onResumeTimer()
@@ -285,6 +306,10 @@ class StremioHomeFragment :
     private fun applyHeroVisibility(view: View, showHero: Boolean) {
         view.findViewById<View>(R.id.heroBanner)?.isVisible = showHero
         if (showHero) heroManager.onResumeTimer() else heroManager.onPauseTimer()
+        // PHONE: the hero is the list's first item, so the list always starts directly under the
+        // chrome. Reserving the television's 318dp here left a black band the height of a hero
+        // ABOVE the hero — the one thing moving it into the list was meant to end.
+        if (phoneHeader != null) return
         view.findViewById<View>(R.id.content_host)?.let { host ->
             (host.layoutParams as ViewGroup.MarginLayoutParams).let { lp ->
                 // With the hero: the TV's 318dp (the old literal, now a qualified dimen).
@@ -388,11 +413,16 @@ class StremioHomeFragment :
         tv.text = String.format(java.util.Locale.US, "%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
     }
 
+    /**
+     * The television's painted chrome. Every lookup is null-safe on purpose: the phone's hero moved
+     * into the scrolling header (view_debrid_phone_hero), so its fade views are not in this root any
+     * more — and a hard findViewById here crashed the whole section the moment they left.
+     */
     private fun applyGradients(view: View) {
-        view.findViewById<View>(R.id.ambient_glow).background = StremioGradients.ambientGlow()
-        view.findViewById<View>(R.id.hero_fade_lr).background = StremioGradients.heroFadeLr()
-        view.findViewById<View>(R.id.hero_fade_bottom).background = StremioGradients.heroFadeBottom()
-        view.findViewById<View>(R.id.top_nav_bar).background = StremioGradients.navBarBg()
+        view.findViewById<View>(R.id.ambient_glow)?.background = StremioGradients.ambientGlow()
+        view.findViewById<View>(R.id.hero_fade_lr)?.background = StremioGradients.heroFadeLr()
+        view.findViewById<View>(R.id.hero_fade_bottom)?.background = StremioGradients.heroFadeBottom()
+        view.findViewById<View>(R.id.top_nav_bar)?.background = StremioGradients.navBarBg()
     }
 
     fun handleBackPress(): Boolean {

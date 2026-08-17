@@ -118,5 +118,10 @@
       takes ~70% of a 411dp-tall screen and leaves ONE content row peeking at the bottom edge.
       On a phone the hero is gone entirely and the rows own the page; the TV keeps its hero.
     -->
-    <bool name="debrid_home_shows_hero">false</bool>
+    <!--
+      TRUE again on the phone (2026-08-17, designer's "DX Play Debrid Phone" frame 1a). The 2026-08-10
+      false was right about the OLD hero — the television's, fixed above the rows, eating ~70% of a
+      411dp screen. The phone's own hero scrolls away with the rows, so it costs nothing to leave.
+    -->
+    <bool name="debrid_home_shows_hero">true</bool>
 </resources>
