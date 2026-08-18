@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PHONE Debrid loading state (design "DX Play Debrid Phone.dc.html", frame 1c).
+
+  It replaces one centred word — "Loading…" — with the SHAPE of the page that is coming: the
+  hero's 392dp, a row header, three poster footprints, then a second header with nothing under it.
+  That last part is the designer's and worth keeping: a poster block sliced in half by the dock
+  reads as a layout fault, where a bare header reads as "more is coming".
+
+  Phone only. The television keeps its status line, which is readable from three metres and has a
+  remote in the customer's hand; this file is never inflated there.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/debrid_skeleton"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/phone_home_bg"
+    android:clickable="true"
+    android:focusable="false"
+    android:orientation="vertical"
+    android:visibility="gone"
+    tools:visibility="visible">
+
+    <!-- The hero's footprint. -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="392dp"
+        android:background="#0AFFFFFF" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_margin="16dp"
+        android:background="@drawable/bg_phone_skeleton_block" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp">
+
+        <View
+            android:layout_width="3dp"
+            android:layout_height="14dp"
+            android:background="#6600F0FF" />
+
+        <View
+            android:layout_width="150dp"
+            android:layout_height="13dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_skeleton_pill" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp">
+
+        <View
+            android:layout_width="124dp"
+            android:layout_height="186dp"
+            android:background="@drawable/bg_phone_skeleton_card" />
+
+        <View
+            android:layout_width="124dp"
+            android:layout_height="186dp"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/bg_phone_skeleton_card" />
+
+        <View
+            android:layout_width="124dp"
+            android:layout_height="186dp"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/bg_phone_skeleton_card" />
+    </LinearLayout>
+
+    <!-- Header only, on purpose. See the note above. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp">
+
+        <View
+            android:layout_width="3dp"
+            android:layout_height="14dp"
+            android:background="#6600F0FF" />
+
+        <View
+            android:layout_width="180dp"
+            android:layout_height="13dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_skeleton_pill" />
+    </LinearLayout>
+
+</LinearLayout>

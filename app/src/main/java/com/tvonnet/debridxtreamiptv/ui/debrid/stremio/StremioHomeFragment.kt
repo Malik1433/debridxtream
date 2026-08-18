@@ -58,6 +58,9 @@ class StremioHomeFragment :
     internal lateinit var actions: StremioDebridActions
     internal lateinit var heroManager: StremioHeroManager
 
+    /** Not connected, loading and failed — design frames 1b, 1c, 1d. */
+    private lateinit var stateViews: StremioStateViews
+
     /** Phone only — the scrolling hero. Null on television. */
     private var phoneHeader: View? = null
     internal var homeSection: StremioHomeSection? = null
@@ -116,6 +119,7 @@ class StremioHomeFragment :
         heroManager = StremioHeroManager(this, phoneHeader ?: view)
         heroManager.setup()
 
+        stateViews = StremioStateViews(this, view)
         homeSection = StremioHomeSection(this, view, actions, header = phoneHeader)
         discoverSection = StremioDiscoverSection(this, view, discoverVm, actions)
         librarySection = StremioLibrarySection(this, view, actions)
@@ -136,17 +140,9 @@ class StremioHomeFragment :
         debridVm.checkAuthStatus()
         discoverVm  // touch to init
         view.post { view.findViewById<View>(R.id.navTabHome)?.requestFocus() }
-        showSetupGuideIfNoDebridService(view)
+        showSetupGuideIfNoDebridService()
     }
 
-    /**
-     * With one tier, every device may open Debrid — but it does nothing until the customer adds
-     * their own addons. Rather than leaving them on rows that never fill, say what is missing and
-     * how to fix it (Qadam 3).
-     *
-     * Re-checked in [onResume] because addons can arrive while this screen sits in the background:
-     * from the phone, or from Settings on this TV.
-     */
     /**
      * The phone's own tab bar. This section is a destination in it, so leaving must be one tap —
      * on the television the left rail does that job and this bar does not exist.
@@ -165,16 +161,19 @@ class StremioHomeFragment :
         }
     }
 
-    private fun showSetupGuideIfNoDebridService(view: View) {
-        val configured = com.tvonnet.debridxtreamiptv.data.licensing.Entitlements
-            .isDebridConfigured(requireContext())
-        view.findViewById<View>(R.id.debrid_setup_overlay)?.visibility =
-            if (configured) View.GONE else View.VISIBLE
-        // D3/DB-7: the gate ends in a "BACK · RETURN" D-pad legend. Third offender after M14b's
-        // home and M16a's series detail; the phone rulebook bans them by name.
-        if (!resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
-            view.findViewById<View>(R.id.debrid_setup_hint)?.visibility = View.GONE
-        }
+    /**
+     * With one tier, every device may open Debrid — but it does nothing until the customer adds
+     * their own addons. Rather than leaving them on rows that never fill, say what is missing and
+     * how to fix it.
+     *
+     * Re-asked in [onResume] because addons can arrive while this screen sits in the background:
+     * from the phone, or from Settings on this TV.
+     */
+    private fun showSetupGuideIfNoDebridService() {
+        stateViews.setConnected(
+            com.tvonnet.debridxtreamiptv.data.licensing.Entitlements
+                .isDebridConfigured(requireContext())
+        )
     }
 
     // The rotation timer only runs where the hero is actually on screen.
@@ -187,7 +186,7 @@ class StremioHomeFragment :
         isNavigatingAway = false
         debridVm.refreshContinueWatching()
         if (heroAllowed()) heroManager.onResumeTimer()
-        view?.let { showSetupGuideIfNoDebridService(it) }
+        if (view != null) showSetupGuideIfNoDebridService()
     }
 
     override fun onPause() {
@@ -216,8 +215,9 @@ class StremioHomeFragment :
     private val statusOverlay: View? get() = view?.findViewById(R.id.stremio_status_overlay)
 
     private fun onDebridState(state: DebridUiState) {
+        stateViews.onState(state)
         when (state) {
-            is DebridUiState.Loading -> setStatus(true, "Loading…")
+            is DebridUiState.Loading -> setStatus(true, getString(R.string.debrid_syncing))
             is DebridUiState.NotAuthenticated -> {
                 setStatus(false, null)
                 if (!isNavigatingAway && isAdded && !parentFragmentManager.isStateSaved) {
@@ -231,6 +231,8 @@ class StremioHomeFragment :
             is DebridUiState.Error -> setStatus(false, null)
             is DebridUiState.Content -> {
                 setStatus(false, null)
+                // Bound even when the refresh behind them failed: rows the customer can already
+                // use must not blink out so that a panel can be shown over the gap.
                 bindRows(state.rows)
             }
             else -> setStatus(false, null)

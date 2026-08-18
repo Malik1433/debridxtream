@@ -336,4 +336,36 @@
     <string name="debrid_setup_companion_body">Open the address below, sign in, and paste your addon links there. This app picks them up on its own.</string>
     <string name="debrid_setup_here_title">Or right here</string>
     <string name="debrid_setup_here_path">Settings › Addons › Stremio Addons › Add Addon</string>
+
+    <!-- The three states the phone Debrid section can be in besides "here are your rows"
+         (design "DX Play Debrid Phone.dc.html", frames 1b, 1c and 1d). -->
+
+    <!-- 1b · not connected. The designer drew Real-Debrid's own device-pairing flow — a code
+         typed into real-debrid.com/device. This product does not work that way: access comes
+         from addon links saved to the customer's ACCOUNT, so the shape is the designer's
+         (status, what the tab is for, numbered steps, two real actions) and the steps are
+         this app's. That difference is also good news, and the last line says so: on the
+         designer's flow a key is per device, here adding it once covers every device. -->
+    <string name="debrid_state_not_connected">NOT CONNECTED</string>
+    <string name="debrid_connect_title">Connect your debrid service</string>
+    <string name="debrid_connect_body">Cached streams, instant playback and your saved library all live on this tab. None of it works until your add-on links are on your account.</string>
+    <string name="debrid_step_one_label">STEP 1 · OPEN ON ANY DEVICE</string>
+    <string name="debrid_step_two_label">STEP 2 · PASTE YOUR ADD-ON LINKS</string>
+    <string name="debrid_step_two_body">Sign in with the same account this app is on, and paste the links your debrid provider gave you.</string>
+    <string name="debrid_addons_follow_account">Add-ons are saved to your account, so adding them once covers every device you sign in on — including your TV.</string>
+    <string name="debrid_connect_recheck">I\'ve added them</string>
+    <string name="debrid_connect_settings">Add them here instead</string>
+    <string name="debrid_still_not_connected">No add-ons found on this account yet</string>
+
+    <!-- 1d · error. Two wordings, one panel: the first when nothing loaded, the second when a
+         refresh failed over rows that are already on screen. -->
+    <string name="debrid_catalog_unavailable">CATALOG UNAVAILABLE</string>
+    <string name="debrid_error_title">Couldn\'t reach your add-ons</string>
+    <string name="debrid_stale_kicker">SHOWING SAVED</string>
+    <string name="debrid_stale_title">Couldn\'t refresh</string>
+    <string name="debrid_stale_body">These rows are the last ones that loaded successfully. Retry when you have a connection.</string>
+    <string name="debrid_addons_button">Add-ons</string>
+
+    <!-- 1c · loading. The app bar says what the blank shapes are waiting for. -->
+    <string name="debrid_syncing">SYNCING</string>
 </resources>

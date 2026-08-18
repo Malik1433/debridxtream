@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A poster's footprint, not a poster: the same 10dp corner as bg_phone_poster, so nothing
+     shifts sideways when the real art replaces it. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="10dp" />
+    <solid android:color="#0FFFFFFF" />
+    <stroke android:width="1dp" android:color="#12FFFFFF" />
+</shape>

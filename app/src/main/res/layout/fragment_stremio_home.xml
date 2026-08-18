@@ -33,17 +33,43 @@
     -->
 
     <!-- ══ THE ROWS ══ everything this section actually is on a phone. The three sections are
-         the SAME includes the television uses, so every row, card and adapter is shared. -->
+         the SAME includes the television uses, so every row, card and adapter is shared.
+
+         The error panel is a SIBLING ABOVE them rather than an overlay on top of them, because
+         design 1d wants the rows that already loaded to stay usable while it is showing. As a
+         real row in a vertical stack it pushes them down by exactly its own height; nothing has
+         to be measured and nothing ends up hidden underneath it. -->
+    <LinearLayout
+        android:id="@+id/content_stack"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="112dp"
+        android:layout_marginBottom="64dp"
+        android:orientation="vertical">
+
+        <include layout="@layout/view_debrid_phone_error" />
+
+        <FrameLayout
+            android:id="@+id/content_host"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <include layout="@layout/content_stremio_home" />
+            <include layout="@layout/content_stremio_discover" />
+            <include layout="@layout/content_stremio_library" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- The loading state (design 1c). It covers the rows but NOT the chrome, so the app bar can
+         say SYNCING and the dock still leaves the section in one tap. -->
     <FrameLayout
-        android:id="@+id/content_host"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_marginTop="112dp"
         android:layout_marginBottom="64dp">
 
-        <include layout="@layout/content_stremio_home" />
-        <include layout="@layout/content_stremio_discover" />
-        <include layout="@layout/content_stremio_library" />
+        <include layout="@layout/view_debrid_phone_skeleton" />
     </FrameLayout>
 
     <!-- ══ CHROME ══ a 56dp app bar, then the three tabs as a chip row. -->
@@ -77,6 +103,21 @@
                 android:layout_width="0dp"
                 android:layout_height="0dp"
                 android:visibility="gone" />
+
+            <!-- Design 1c: while the page is blank shapes, the bar says what they are waiting
+                 for. Nothing else in this app can answer "is it stuck, or is it working?". -->
+            <TextView
+                android:id="@+id/debrid_sync_state"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:fontFamily="@font/share_tech_mono"
+                android:letterSpacing="0.14"
+                android:text="@string/debrid_syncing"
+                android:textColor="@color/phone_cyan"
+                android:textSize="12sp"
+                android:visibility="gone"
+                tools:visibility="visible" />
 
             <LinearLayout
                 android:id="@+id/searchBar"
@@ -142,8 +183,20 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- The "add your debrid service" gate, which on a phone must fit a phone. -->
-    <FrameLayout
+    <!--
+      1b · NOT CONNECTED.
+
+      What was here said "Add your debrid service to use this section" and offered Settings. True,
+      but it answers neither question a customer arriving on an empty tab actually has: what is
+      this for, and what exactly do I do. The design's answer is a status, a reason, numbered
+      steps and two real actions — which is what this is now.
+
+      The steps are this product's, not the designer's: he drew Real-Debrid's device-pairing
+      screen (a code typed into real-debrid.com/device), and this app has no such flow — access
+      comes from addon links saved to the ACCOUNT. Building his literal card would have been
+      building a door that opens onto nothing.
+    -->
+    <ScrollView
         android:id="@+id/debrid_setup_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -151,60 +204,165 @@
         android:background="@color/phone_home_bg"
         android:clickable="true"
         android:focusable="true"
+        android:fillViewport="true"
         android:visibility="gone"
         tools:visibility="visible">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
             android:orientation="vertical"
-            android:paddingHorizontal="24dp">
+            android:paddingHorizontal="16dp"
+            android:paddingTop="72dp"
+            android:paddingBottom="24dp">
 
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/share_tech_mono"
-                android:letterSpacing="0.12"
-                android:text="@string/nav_debrid_label"
-                android:textAllCaps="true"
-                android:textColor="@color/phone_cyan"
-                android:textSize="12sp" />
+                android:background="@drawable/bg_phone_card"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:background="@drawable/bg_phone_dot_amber" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:letterSpacing="0.16"
+                        android:text="@string/debrid_state_not_connected"
+                        android:textColor="@color/phone_amber"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:fontFamily="@font/outfit_extrabold"
+                    android:letterSpacing="-0.02"
+                    android:text="@string/debrid_connect_title"
+                    android:textColor="@color/phone_text_primary"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:id="@+id/debrid_setup_hint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:fontFamily="@font/inter_regular"
+                    android:lineSpacingMultiplier="1.65"
+                    android:text="@string/debrid_connect_body"
+                    android:textColor="@color/phone_text_secondary"
+                    android:textSize="13sp" />
+
+                <!-- The steps, in a well of their own so the address and the actions never blur
+                     into one wall of text. -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:background="@drawable/bg_phone_dashed_panel"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:letterSpacing="0.14"
+                        android:text="@string/debrid_step_one_label"
+                        android:textColor="@color/phone_text_muted"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/debrid_setup_url"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:textColor="@color/phone_cyan"
+                        android:textIsSelectable="true"
+                        android:textSize="15sp"
+                        tools:text="dxplay.xyz/account/manage" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginVertical="14dp"
+                        android:background="#14FFFFFF" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/share_tech_mono"
+                        android:letterSpacing="0.14"
+                        android:text="@string/debrid_step_two_label"
+                        android:textColor="@color/phone_text_muted"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="@font/inter_regular"
+                        android:lineSpacingMultiplier="1.55"
+                        android:text="@string/debrid_step_two_body"
+                        android:textColor="@color/phone_text_secondary"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/debrid_setup_recheck"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/bg_phone_primary_button"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:fontFamily="@font/outfit_bold"
+                    android:gravity="center"
+                    android:text="@string/debrid_connect_recheck"
+                    android:textColor="#04121A"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/debrid_setup_action"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_phone_btn_secondary"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:fontFamily="@font/outfit_semibold"
+                    android:gravity="center"
+                    android:text="@string/debrid_connect_settings"
+                    android:textColor="@color/phone_text_primary"
+                    android:textSize="14sp" />
+            </LinearLayout>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:fontFamily="@font/outfit_extrabold"
-                android:text="@string/ui_add_your_debrid_service_to"
-                android:textColor="@color/phone_text_primary"
-                android:textSize="22sp" />
-
-            <TextView
-                android:id="@+id/debrid_setup_hint"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="16dp"
                 android:fontFamily="@font/inter_regular"
-                android:lineSpacingMultiplier="1.5"
-                android:text="@string/debrid_setup_companion_body"
-                android:textColor="@color/phone_text_secondary"
-                android:textSize="13sp" />
-
-            <TextView
-                android:id="@+id/debrid_setup_action"
-                android:layout_width="wrap_content"
-                android:layout_height="48dp"
-                android:layout_marginTop="20dp"
-                android:background="@drawable/bg_phone_chip_active"
-                android:fontFamily="@font/outfit_semibold"
-                android:gravity="center"
-                android:paddingHorizontal="18dp"
-                android:text="@string/settings"
-                android:textColor="@color/phone_cyan"
-                android:textSize="13sp" />
+                android:lineSpacingMultiplier="1.6"
+                android:paddingHorizontal="4dp"
+                android:text="@string/debrid_addons_follow_account"
+                android:textColor="@color/phone_text_muted"
+                android:textSize="12sp" />
         </LinearLayout>
-    </FrameLayout>
+    </ScrollView>
 
     <!-- Debrid is one of the five tabs, so it carries the bar its siblings carry. LAST on purpose:
          the setup gate above is a full-screen clickable, so anything drawn after it is unreachable.
