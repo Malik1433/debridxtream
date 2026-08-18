@@ -86,7 +86,15 @@ class StremioHomeFragment :
         super.onViewCreated(view, savedInstanceState)
         credentialsPrefs = CredentialsPreferences(requireContext())
         router = StremioNavigationRouter(this)
-        actions = StremioDebridActions(this, playbackResolver, view.findViewById(R.id.stremio_status_overlay))
+        // The phone gets the cancelable "Resolving source" overlay (design 1g); the television
+        // keeps the status line it has always had, which is readable at three metres and needs no
+        // Cancel because BACK is right there on the remote.
+        actions = StremioDebridActions(
+            this,
+            playbackResolver,
+            view.findViewById(R.id.debrid_resolving_overlay)
+                ?: view.findViewById(R.id.stremio_status_overlay),
+        )
 
         applyGradients(view)
         setupNav(view)

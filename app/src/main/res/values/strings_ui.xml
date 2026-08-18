@@ -477,6 +477,13 @@
     <string name="phone_library_empty_saved">Nothing saved yet. The bookmark on any title puts it here.</string>
     <string name="phone_discover_movies">Movies</string>
     <string name="phone_discover_series">Series</string>
+    <!-- The source picker, in the customer's terms rather than ours: what the wait will be. -->
+    <string name="phone_source_instant">INSTANT</string>
+    <string name="phone_source_fetch_first">FETCH FIRST</string>
+    <string name="phone_source_cache_note">Instant links play straight away. The rest have to be fetched by your debrid provider first.</string>
+    <!-- The wait between "play" and the first frame — and the way out of it. -->
+    <string name="phone_resolving_title">Resolving source</string>
+    <string name="phone_resolving_subtitle">Asking your debrid provider for a playable link.</string>
     <string name="s_summary_live_resumes">Reopens your last channel</string>
     <string name="s_summary_live_from_first">Opens on the first channel</string>
     <string name="s_summary_rd_on">Real-Debrid on</string>

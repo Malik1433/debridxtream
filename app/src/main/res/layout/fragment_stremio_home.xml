@@ -220,6 +220,10 @@
 
     <include layout="@layout/overlay_stremio_search" />
 
+    <!-- The cancelable wait (design 1g). Declared before the status overlay so a status line can
+         still be shown over it if something else needs to speak. -->
+    <include layout="@layout/view_debrid_resolving" />
+
     <FrameLayout
         android:id="@+id/stremio_status_overlay"
         android:layout_width="match_parent"

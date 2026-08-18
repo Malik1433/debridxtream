@@ -11,12 +11,14 @@ import com.tvonnet.debridxtreamiptv.data.debrid.repository.ResolutionResult
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlaybackSource
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerActivity
+import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.ui.debrid.DebridContentItem
 import com.tvonnet.debridxtreamiptv.ui.debrid.DebridItemType
 import com.tvonnet.debridxtreamiptv.ui.debrid.DebridRow
 import com.tvonnet.debridxtreamiptv.ui.debrid.seeall.DebridSeeAllActivity
 import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
 import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -30,6 +32,23 @@ internal class StremioDebridActions(
 ) {
     private var resolving = false
 
+    /**
+     * The resolve in flight, so the customer can stop it.
+     *
+     * Resolving a debrid link on cellular takes as long as it takes, and until now the only way
+     * out was to leave the screen — the coroutine kept running and could still throw the player up
+     * afterwards. Cancelling the job unwinds the whole chain, because every stage inside it is a
+     * suspending call.
+     */
+    private var resolveJob: Job? = null
+
+    private fun cancelResolve() {
+        resolveJob?.cancel()
+        resolveJob = null
+        resolving = false
+        resolutionOverlay.isVisible = false
+    }
+
     fun click(item: DebridContentItem) {
         if (item.type == "see_all") return
         if (item.isContinueWatching) { resume(item); return }
@@ -40,7 +59,8 @@ internal class StremioDebridActions(
         if (resolving) return
         resolving = true
         val resumePosition = item.resumePositionMs ?: 0L
-        fragment.viewLifecycleOwner.lifecycleScope.launch {
+        resolutionOverlay.findViewById<View>(R.id.resolving_cancel)?.setOnClickListener { cancelResolve() }
+        resolveJob = fragment.viewLifecycleOwner.lifecycleScope.launch {
             resolutionOverlay.isVisible = true
             val result = playbackResolver.resolve(
                 source = item.source,
@@ -54,6 +74,7 @@ internal class StremioDebridActions(
             )
             resolutionOverlay.isVisible = false
             resolving = false
+            resolveJob = null
             if (!fragment.isAdded) return@launch
             when (result) {
                 is ResolutionResult.Success -> launchPlayer(item, result.url, resumePosition)

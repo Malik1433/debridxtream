@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PHONE "Resolving source" (design "DX Play Debrid Phone.dc.html", frame 1g).
+
+  What this replaces is one line of mono text at the bottom of the screen. Resolving a debrid link
+  on cellular is not instant and not rare: the customer taps Continue Watching and then waits with
+  no idea whether anything is happening or how to stop it. So the wait says what it is doing — and,
+  more importantly, it can be STOPPED. A wait you cannot leave is the worst kind.
+
+  Cancel is 48dp and a real target. The scrim swallows taps so nothing behind it fires mid-resolve.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/debrid_resolving_overlay"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#D904070C"
+    android:clickable="true"
+    android:focusable="true"
+    android:visibility="gone"
+    tools:visibility="visible">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingHorizontal="32dp">
+
+        <ProgressBar
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:indeterminateTint="@color/phone_cyan" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:fontFamily="@font/outfit_bold"
+            android:text="@string/phone_resolving_title"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="19sp" />
+
+        <TextView
+            android:id="@+id/resolving_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="@font/share_tech_mono"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.4"
+            android:text="@string/phone_resolving_subtitle"
+            android:textColor="@color/phone_text_secondary"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/resolving_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:layout_marginTop="26dp"
+            android:background="@drawable/bg_phone_chip"
+            android:fontFamily="@font/outfit_semibold"
+            android:gravity="center"
+            android:minWidth="140dp"
+            android:paddingHorizontal="24dp"
+            android:text="@string/cancel"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="14sp" />
+    </LinearLayout>
+</FrameLayout>

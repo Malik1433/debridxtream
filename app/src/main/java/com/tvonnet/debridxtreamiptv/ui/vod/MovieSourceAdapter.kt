@@ -2,6 +2,7 @@ package com.tvonnet.debridxtreamiptv.ui.vod
 
 import android.content.res.ColorStateList
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.view.isVisible
@@ -151,19 +152,33 @@ class MovieSourceAdapter(
             }
         }
 
+        /**
+         * Whether this link plays NOW.
+         *
+         * It used to read "DIRECT" or "TORRENT" — words about our plumbing, not about the
+         * customer's next thirty seconds. On a phone, on cellular, the only question that matters
+         * is whether the provider already holds the file, so the badge says INSTANT or FETCH
+         * FIRST, and a green/amber dot on the leading edge says the same thing before the eye
+         * even reaches the badge. IPTV rows are neither: they are a stream, not a debrid link.
+         */
         private fun bindTypeBadge(source: MovieSource) {
-            val typeLabel = when {
-                source.sourceType == "IPTV" -> "IPTV"
-                source.cacheStatus == DebridCacheStatus.NOT_CACHED -> "TORRENT"
-                else -> "DIRECT"
+            val isIptv = source.sourceType == "IPTV"
+            val instant = !isIptv && source.cacheStatus != DebridCacheStatus.NOT_CACHED
+            binding.tvType.text = when {
+                isIptv -> "IPTV"
+                instant -> binding.root.context.getString(R.string.phone_source_instant)
+                else -> binding.root.context.getString(R.string.phone_source_fetch_first)
             }
-            binding.tvType.text = typeLabel
-            if (typeLabel == "DIRECT") {
-                binding.tvType.setBackgroundResource(R.drawable.cin_pill_cached)
-                binding.tvType.setTextColor(binding.root.context.getColor(R.color.white))
-            } else {
-                binding.tvType.setBackgroundResource(R.drawable.cin_pill_uncached)
-                binding.tvType.setTextColor(binding.root.context.getColor(R.color.white))
+            binding.tvType.setBackgroundResource(
+                if (instant) R.drawable.cin_pill_cached else R.drawable.cin_pill_uncached
+            )
+            binding.tvType.setTextColor(binding.root.context.getColor(R.color.white))
+            // Phone only — the television row has no dot in its layout.
+            binding.root.findViewById<View>(R.id.v_cache_dot)?.apply {
+                isVisible = !isIptv
+                setBackgroundResource(
+                    if (instant) R.drawable.bg_phone_dot_green else R.drawable.bg_phone_dot_amber
+                )
             }
         }
 
