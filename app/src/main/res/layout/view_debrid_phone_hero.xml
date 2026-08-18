@@ -11,9 +11,9 @@
   Every hero id the television file carries is here, so StremioHeroManager binds this view instead
   of the fragment root and none of its logic changes.
 
-  The provider strip below it answers the question this section raises and nothing else does: is
-  the debrid account actually connected, and how many add-ons are searching. It is bound from what
-  the device really knows — see StremioProviderStrip; nothing here is invented.
+  There was a provider strip under it — "Real-Debrid · connected · 6 add-ons", opening Settings.
+  The owner's call (2026-08-17): this screen is for watching, and an add-ons door does not belong
+  on it; Settings already answers that question where the keys and the add-ons actually live.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -255,62 +255,4 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- ══ PROVIDER STRIP ══ -->
-    <LinearLayout
-        android:id="@+id/debrid_provider_strip"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="16dp"
-        android:background="@drawable/bg_phone_card"
-        android:clickable="true"
-        android:focusable="true"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="14dp">
-
-        <View
-            android:id="@+id/provider_dot"
-            android:layout_width="8dp"
-            android:layout_height="8dp"
-            android:layout_marginEnd="10dp"
-            android:background="@drawable/bg_phone_dot_green" />
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/provider_title"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="@font/outfit_semibold"
-                android:maxLines="1"
-                android:textColor="@color/phone_text_primary"
-                android:textSize="13sp"
-                tools:text="Real-Debrid · connected" />
-
-            <TextView
-                android:id="@+id/provider_subtitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:ellipsize="end"
-                android:fontFamily="@font/share_tech_mono"
-                android:maxLines="1"
-                android:textColor="@color/phone_text_muted"
-                android:textSize="12sp"
-                tools:text="6 add-ons" />
-        </LinearLayout>
-
-        <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:contentDescription="@null"
-            android:src="@drawable/ic_stremio_chevron_right"
-            app:tint="@color/phone_text_muted" />
-    </LinearLayout>
 </LinearLayout>

@@ -114,6 +114,10 @@
                 tools:text="120"
                 tools:visibility="visible" />
 
+            <!--
+              Dark text on the solid cyan chip. It was cyan ON cyan: the badge was drawn, its
+              text was invisible, and the best row simply wore a blank cyan block.
+            -->
             <TextView
                 android:id="@+id/tv_best_badge"
                 android:text="@string/ui_best"
@@ -124,7 +128,7 @@
                 android:fontFamily="@font/share_tech_mono"
                 android:paddingHorizontal="7dp"
                 android:paddingVertical="2dp"
-                android:textColor="@color/phone_cyan"
+                android:textColor="#04121A"
                 android:textSize="10.5sp"
                 android:visibility="gone"
                 tools:text="★ BEST"

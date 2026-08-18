@@ -58,9 +58,8 @@ class StremioHomeFragment :
     internal lateinit var actions: StremioDebridActions
     internal lateinit var heroManager: StremioHeroManager
 
-    /** Phone only — the scrolling hero + provider strip. Null on television. */
+    /** Phone only — the scrolling hero. Null on television. */
     private var phoneHeader: View? = null
-    private var providerStrip: StremioProviderStrip? = null
     internal var homeSection: StremioHomeSection? = null
     internal var discoverSection: StremioDiscoverSection? = null
     internal var librarySection: StremioLibrarySection? = null
@@ -104,9 +103,9 @@ class StremioHomeFragment :
         discoverContent = view.findViewById(R.id.discover_content)
         libraryContent = view.findViewById(R.id.library_content)
 
-        // PHONE: the hero and the provider strip are the first item of the rows list, so they
-        // scroll away instead of standing on 392dp of a 914dp screen for ever (design frame 1a).
-        // The hero manager binds THAT view, not the fragment root — same ids, same manager.
+        // PHONE: the hero is the first item of the rows list, so it scrolls away instead of
+        // standing on 392dp of a 914dp screen for ever (design frame 1a). The hero manager binds
+        // THAT view, not the fragment root — same ids, same manager.
         phoneHeader = if (resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
             null
         } else {
@@ -116,7 +115,6 @@ class StremioHomeFragment :
 
         heroManager = StremioHeroManager(this, phoneHeader ?: view)
         heroManager.setup()
-        phoneHeader?.let { providerStrip = StremioProviderStrip(this, it) }
 
         homeSection = StremioHomeSection(this, view, actions, header = phoneHeader)
         discoverSection = StremioDiscoverSection(this, view, discoverVm, actions)
@@ -186,7 +184,6 @@ class StremioHomeFragment :
     override fun onResume() {
         super.onResume()
 
-        providerStrip?.refresh()
         isNavigatingAway = false
         debridVm.refreshContinueWatching()
         if (heroAllowed()) heroManager.onResumeTimer()
@@ -246,6 +243,16 @@ class StremioHomeFragment :
         if (text != null) ov.findViewById<TextView>(R.id.stremio_status_text)?.text = text
     }
 
+    /**
+     * What is currently ON SCREEN — not merely what the ViewModel last emitted.
+     *
+     * The difference is the whole bug: leaving this screen (Settings, a detail page, anything that
+     * replaces the fragment) destroys the VIEWS but keeps the fragment, so on the way back the
+     * adapters are empty while the ViewModel replays the identical state. The guard then read
+     * "same rows, nothing to do" and drew nothing — the customer came back from Settings to a
+     * Debrid home with no posters on it. Cleared in onDestroyView, because that is the moment the
+     * thing it describes stops existing.
+     */
     private var lastBoundRows: List<DebridRow> = emptyList()
 
     private fun bindRows(rows: List<DebridRow>) {
@@ -440,6 +447,9 @@ class StremioHomeFragment :
     }
 
     override fun onDestroyView() {
+        // The views these rows were bound INTO are about to go. Anything the next onCreateView
+        // inflates starts empty, so the next identical emission must be allowed to fill it.
+        lastBoundRows = emptyList()
         clockHandler.removeCallbacks(clockRunnable)
         heroManager.cleanup()
         router.cleanup()
