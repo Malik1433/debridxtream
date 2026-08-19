@@ -271,7 +271,8 @@ class StremioHomeFragment :
                 meta = listOfNotNull(item.year, if (DebridItemType.isSeries(item.type)) "Series" else "Movie").joinToString(" · "),
                 desc = item.overview,
                 backdropUrl = item.backdropUrl ?: item.posterUrl,
-                onPlay = { actions.navigateToDetail(item) }
+                onPlay = { actions.navigateToDetail(item) },
+                isSeries = DebridItemType.isSeries(item.type)
             )
         })
 

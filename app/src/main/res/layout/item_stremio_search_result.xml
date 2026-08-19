@@ -1,101 +1,139 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Search result card — "Search Page.dc.html". Poster 178x264 px / 2 = 89 x 132 dp. -->
+<!--
+  PHONE search result — a ROW (design "DX Play Debrid Phone.dc.html", frame 1e).
+
+  The television's answer is a poster grid with 5–7sp captions: right at three metres, useless in
+  the hand. On a phone a search result is read, not browsed — you already know what you typed — so
+  the design gives it a 72dp row with a thumbnail, a real title, a meta line and the type badge.
+
+  Same ids as the television card (sr_card, sr_image, sr_overlay, sr_type, sr_live, sr_title,
+  sr_meta), so StremioSearchResultAdapter binds either without knowing which it got.
+
+  The chevron on the right is an AFFORDANCE, not a second control: the whole row is the tap target
+  (one tap acts), and a button that repeats what the row already does is worse than no button.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/sr_card"
-    android:layout_width="wrap_content"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="3dp"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
     android:focusable="true"
-    android:foreground="@drawable/card_focus_cinematic">
+    android:gravity="center_vertical"
+    android:minHeight="72dp"
+    android:orientation="horizontal"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="8dp">
 
     <FrameLayout
-        android:layout_width="@dimen/poster_top_10_width"
-        android:layout_height="@dimen/poster_top_10_height"
-        android:clipChildren="true">
+        android:layout_width="56dp"
+        android:layout_height="80dp">
 
         <ImageView
             android:id="@+id/sr_image"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:contentDescription="@null" />
+            android:background="@drawable/bg_phone_poster"
+            android:clipToOutline="true"
+            android:contentDescription="@null"
+            android:scaleType="centerCrop" />
 
+        <!-- The television tints the poster on focus; on a phone it stays a plain thumbnail, but
+             the view must exist for the shared binder. -->
         <View
             android:id="@+id/sr_overlay"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
 
         <TextView
-            android:id="@+id/sr_type"
-            android:layout_width="wrap_content"
+            android:id="@+id/sr_title"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="top|start"
+            android:ellipsize="end"
+            android:fontFamily="@font/outfit_semibold"
+            android:maxLines="2"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="14sp"
+            tools:text="Nightfall" />
+
+        <TextView
+            android:id="@+id/sr_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginTop="5dp"
-            android:layout_marginStart="5dp"
-            android:paddingStart="4dp"
-            android:paddingEnd="4dp"
-            android:paddingTop="1dp"
-            android:paddingBottom="1dp"
+            android:ellipsize="end"
             android:fontFamily="@font/share_tech_mono"
-            android:textSize="5sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.06" />
+            android:maxLines="1"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="12sp"
+            tools:text="2025 · ⭐8.5" />
 
         <LinearLayout
-            android:id="@+id/sr_live"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="top|end"
-            android:layout_marginTop="5dp"
-            android:layout_marginEnd="5dp"
-            android:orientation="horizontal"
+            android:layout_marginTop="6dp"
             android:gravity="center_vertical"
-            android:background="@drawable/stremio_live_badge"
-            android:paddingStart="3dp"
-            android:paddingEnd="3dp"
-            android:paddingTop="1dp"
-            android:paddingBottom="1dp"
-            android:visibility="gone">
-
-            <View
-                android:layout_width="2dp"
-                android:layout_height="2dp"
-                android:layout_marginEnd="2dp"
-                android:background="@drawable/stremio_live_dot" />
+            android:orientation="horizontal">
 
             <TextView
+                android:id="@+id/sr_type"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/share_tech_mono"
-                android:textSize="4.5sp"
+                android:letterSpacing="0.06"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp"
+                android:textSize="12sp"
                 android:textStyle="bold"
-                android:textColor="#FFFFFF"
-                android:text="@string/livev2_live_badge" />
+                tools:text="MOVIE" />
+
+            <LinearLayout
+                android:id="@+id/sr_live"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/stremio_live_badge"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <View
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="@drawable/stremio_live_dot" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/share_tech_mono"
+                    android:text="@string/livev2_live_badge"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
-    </FrameLayout>
+    </LinearLayout>
 
-    <TextView
-        android:id="@+id/sr_title"
-        android:layout_width="@dimen/poster_top_10_width"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
-        android:fontFamily="@font/outfit_semibold"
-        android:textSize="7sp"
-        android:textColor="#E2E8F0"
-        android:maxLines="1"
-        android:ellipsize="end" />
+    <ImageView
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="8dp"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_stremio_chevron_right"
+        app:tint="@color/phone_text_muted" />
 
-    <TextView
-        android:id="@+id/sr_meta"
-        android:layout_width="@dimen/poster_top_10_width"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:fontFamily="@font/share_tech_mono"
-        android:textSize="5.5sp"
-        android:textColor="#64748B"
-        android:letterSpacing="0.04"
-        android:maxLines="1"
-        android:ellipsize="end" />
 </LinearLayout>

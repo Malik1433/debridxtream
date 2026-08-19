@@ -368,4 +368,16 @@
 
     <!-- 1c · loading. The app bar says what the blank shapes are waiting for. -->
     <string name="debrid_syncing">SYNCING</string>
+
+    <!-- 1e · phone search. The television drives a 36-key on-screen grid with a remote; a handset
+         has a keyboard of its own, so the phone layout has a real field and these are its words. -->
+    <string name="a11y_back">Back</string>
+    <string name="phone_search_no_results_body">Try a shorter title, or switch the filter above — Live channels are searched separately from your add-on catalogue.</string>
+    <string name="phone_search_try">TRY ONE OF THESE</string>
+    <!-- The full "Search for channels, movies, series…" is the television's: on a 411dp
+         phone the field clips it mid-word, and a hint you cannot read is not a hint. -->
+    <string name="phone_search_hint">Search titles and channels</string>
+    <!-- The Debrid hero eyebrow. Says what the title IS, never a decorative claim. -->
+    <string name="hero_eyebrow_featured">FEATURED TODAY</string>
+    <string name="hero_eyebrow_series">TOP SERIES</string>
 </resources>

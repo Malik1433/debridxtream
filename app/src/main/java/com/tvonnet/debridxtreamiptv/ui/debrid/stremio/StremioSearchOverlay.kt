@@ -13,6 +13,7 @@ import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.flexbox.FlexboxLayout
 import com.tvonnet.debridxtreamiptv.R
@@ -47,8 +48,9 @@ internal class StremioSearchOverlay(
     private val caret: View = root.findViewById(R.id.search_caret)
     private val countTv: TextView = root.findViewById(R.id.search_count)
     private val scopesBox: LinearLayout = root.findViewById(R.id.search_scopes)
-    private val keysBox: LinearLayout = root.findViewById(R.id.search_keys)
-    private val actionsBox: LinearLayout = root.findViewById(R.id.search_actions)
+    // The remote's keyboard. Absent on the phone, which has one of its own.
+    private val keysBox: LinearLayout? = root.findViewById(R.id.search_keys)
+    private val actionsBox: LinearLayout? = root.findViewById(R.id.search_actions)
     private val trendingWrap: View = root.findViewById(R.id.search_trending_wrap)
     private val trendingBox: FlexboxLayout = root.findViewById(R.id.search_trending)
     private val resultsAccent: View = root.findViewById(R.id.search_results_accent)
@@ -56,6 +58,15 @@ internal class StremioSearchOverlay(
     private val resultsRv: RecyclerView = root.findViewById(R.id.search_results)
     private val noResults: View = root.findViewById(R.id.search_noresults)
     private val noResultsTitle: TextView = root.findViewById(R.id.search_noresults_title)
+
+    private val isPhone = !root.resources.getBoolean(R.bool.ui_uses_dpad_focus)
+
+    /** The phone's native field; [StremioSearchInput.isPresent] is false on the television. */
+    private val input = StremioSearchInput(
+        root,
+        onQuery = { typed -> query = typed.take(32); onQueryChanged() },
+        onBack = { close() },
+    )
 
     private val adapter = StremioSearchResultAdapter()
     private val handler = Handler(Looper.getMainLooper())
@@ -75,15 +86,20 @@ internal class StremioSearchOverlay(
 
     init {
         queryBar.background = roundRect(6f, 0xB30C111B.toInt(), 0x14FFFFFF, 1)
-        resultsRv.layoutManager = GridLayoutManager(ctx, computeSpan())
+        // A phone reads its results; a television browses them. Same adapter either way — the
+        // row and the poster card carry the same ids in their own layout folders.
+        resultsRv.layoutManager =
+            if (isPhone) LinearLayoutManager(ctx) else GridLayoutManager(ctx, computeSpan())
         resultsRv.adapter = adapter
         resultsRv.itemAnimator = null
 
         buildScopes()
-        buildKeys()
-        buildActions()
+        if (!isPhone) {
+            buildKeys()
+            buildActions()
+            startCaretBlink()
+        }
         buildTrending()
-        startCaretBlink()
         updateQueryUi()
     }
 
@@ -106,10 +122,12 @@ internal class StremioSearchOverlay(
         restyleScopes()
         updateQueryUi()
         runSearch(query, ++searchToken)
-        overlay.post { (firstKey ?: overlay).requestFocus() }
+        if (isPhone) input.setText("") else overlay.post { (firstKey ?: overlay).requestFocus() }
+        if (isPhone) input.focusAndShowKeyboard()
     }
 
     fun close() {
+        input.hideKeyboard()
         overlay.isVisible = false
         query = ""
         setBackgroundFocusable(true)
@@ -132,7 +150,13 @@ internal class StremioSearchOverlay(
     private fun onSpace() { if (query.length < 32 && query.isNotEmpty()) { query += " "; onQueryChanged() } }
     private fun onDel() { if (query.isNotEmpty()) { query = query.dropLast(1); onQueryChanged() } }
     private fun onClear() { if (query.isNotEmpty()) { query = ""; onQueryChanged() } }
-    private fun pickTerm(term: String) { query = term.uppercase().take(32); onQueryChanged() }
+    private fun pickTerm(term: String) {
+        // On the phone the term goes INTO the field: a suggestion the customer cannot then edit
+        // is a dead end, and the field is where they would look for it.
+        if (isPhone) { input.setText(term); return }
+        query = term.uppercase().take(32)
+        onQueryChanged()
+    }
 
     private fun onQueryChanged() {
         updateQueryUi()
@@ -142,6 +166,8 @@ internal class StremioSearchOverlay(
     }
 
     private fun updateQueryUi() {
+        // The phone's EditText draws its own text, hint and caret; there is nothing to mirror.
+        if (isPhone) return
         val has = query.isNotEmpty()
         hintTv.isVisible = !has
         queryTv.isVisible = has
@@ -239,28 +265,55 @@ internal class StremioSearchOverlay(
 
     private fun meta(release: String?, rating: String?): String {
         val year = release?.takeIf { it.length >= 4 }?.substring(0, 4)
-        val star = rating?.takeIf { it.isNotBlank() }?.let { "⭐$it" }
+        // TMDB hands these over as 7.725. One decimal is what a rating means to a reader; three
+        // is a database field leaking onto the screen (the hero had the same defect).
+        val star = rating?.takeIf { it.isNotBlank() }?.let { raw ->
+            val n = raw.toDoubleOrNull()
+            "⭐" + if (n != null) String.format(java.util.Locale.US, "%.1f", n) else raw
+        }
         return listOfNotNull(year, star).joinToString(" · ")
     }
 
     // ── keyboard / chips builders ──
+    /**
+     * The chips are the same four filters on both devices; only the viewing distance differs.
+     * The television spreads them across a fixed strip at 6.5sp — correct at three metres and
+     * illegible in the hand — while the phone gives each one its own 12sp pill with a real
+     * touch target and lets the row scroll.
+     */
+    private data class ScopeMetrics(
+        val textSize: Float,
+        val width: Int,
+        val weight: Float,
+        val gap: Int,
+        val padH: Int,
+    )
+
+    private fun scopeMetrics(): ScopeMetrics = if (isPhone) {
+        ScopeMetrics(12f, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, (6 * d).toInt(), (14 * d).toInt())
+    } else {
+        ScopeMetrics(6.5f, 0, 1f, (5 * d).toInt(), 0)
+    }
+
     private fun buildScopes() {
         scopesBox.removeAllViews()
         scopeChips.clear()
+        val m = scopeMetrics()
         SCOPES.forEachIndexed { i, (key, label) ->
             val chip = TextView(ctx).apply {
                 text = label
-                textSize = 6.5f
+                textSize = m.textSize
                 gravity = Gravity.CENTER
                 includeFontPadding = false
+                if (m.padH > 0) setPadding(m.padH, 0, m.padH, 0)
                 tag = key
                 isFocusable = true
                 StremioFonts.apply(this, R.font.outfit_semibold)
                 setOnClickListener { selectScope(key) }
                 setOnFocusChangeListener { v, has -> styleScope(v as TextView, has) }
             }
-            val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
-            if (i < SCOPES.size - 1) lp.marginEnd = (5 * d).toInt()
+            val lp = LinearLayout.LayoutParams(m.width, LinearLayout.LayoutParams.MATCH_PARENT, m.weight)
+            if (i < SCOPES.size - 1) lp.marginEnd = m.gap
             scopesBox.addView(chip, lp)
             scopeChips.add(chip)
             styleScope(chip, false)
@@ -278,14 +331,19 @@ internal class StremioSearchOverlay(
 
     private fun styleScope(tv: TextView, focused: Boolean) {
         val on = tv.tag == scope
+        val r = if (isPhone) 16f else 4.5f
+        // A phone has no focus to show, so the SELECTED chip is filled rather than merely outlined
+        // — on a touchscreen the only question a chip answers is "is this the one".
         when {
-            focused -> { tv.background = roundRect(4.5f, 0x1A00F0FF, 0xFF00F0FF.toInt(), 1); tv.setTextColor(0xFF00F0FF.toInt()) }
-            on -> { tv.background = roundRect(4.5f, 0x1A00F0FF, 0x5900F0FF, 1); tv.setTextColor(0xFF00F0FF.toInt()) }
-            else -> { tv.background = roundRect(4.5f, 0x08FFFFFF, 0x0FFFFFFF, 1); tv.setTextColor(0xFF94A3B8.toInt()) }
+            on && isPhone -> { tv.background = roundRect(r, 0xFF00F0FF.toInt(), 0xFF00F0FF.toInt(), 1); tv.setTextColor(0xFF04121A.toInt()) }
+            focused -> { tv.background = roundRect(r, 0x1A00F0FF, 0xFF00F0FF.toInt(), 1); tv.setTextColor(0xFF00F0FF.toInt()) }
+            on -> { tv.background = roundRect(r, 0x1A00F0FF, 0x5900F0FF, 1); tv.setTextColor(0xFF00F0FF.toInt()) }
+            else -> { tv.background = roundRect(r, 0x08FFFFFF, 0x24FFFFFF, 1); tv.setTextColor(0xFF94A3B8.toInt()) }
         }
     }
 
     private fun buildKeys() {
+        val keysBox = keysBox ?: return
         keysBox.removeAllViews()
         val rowH = (34 * d).toInt()
         KEYS.toList().chunked(6).forEachIndexed { rowIdx, rowChars ->
@@ -326,6 +384,7 @@ internal class StremioSearchOverlay(
     }
 
     private fun buildActions() {
+        val actionsBox = actionsBox ?: return
         actionsBox.removeAllViews()
         val items = listOf(
             Triple("SPACE", 2f, 0xFF00F0FF.toInt()),
@@ -369,28 +428,32 @@ internal class StremioSearchOverlay(
         TRENDING.forEach { term ->
             val chip = TextView(ctx).apply {
                 text = term
-                textSize = 8f
+                textSize = if (isPhone) 13f else 8f
                 gravity = Gravity.CENTER_VERTICAL
                 includeFontPadding = false
-                setPadding((10 * d).toInt(), 0, (10 * d).toInt(), 0)
+                val padH = (if (isPhone) 16 else 10) * d
+                setPadding(padH.toInt(), 0, padH.toInt(), 0)
                 isFocusable = true
                 StremioFonts.apply(this, R.font.inter_regular)
                 setOnClickListener { pickTerm(term) }
                 setOnFocusChangeListener { v, has -> styleTrending(v as TextView, has) }
             }
             styleTrending(chip, false)
-            val lp = FlexboxLayout.LayoutParams(FlexboxLayout.LayoutParams.WRAP_CONTENT, (24 * d).toInt())
-                .apply { setMargins(0, 0, (6 * d).toInt(), (6 * d).toInt()) }
+            // 24dp is a chip you point a remote at; a finger needs something it can actually hit.
+            val h = if (isPhone) (44 * d).toInt() else (24 * d).toInt()
+            val lp = FlexboxLayout.LayoutParams(FlexboxLayout.LayoutParams.WRAP_CONTENT, h)
+                .apply { setMargins(0, 0, (8 * d).toInt(), (8 * d).toInt()) }
             trendingBox.addView(chip, lp)
         }
     }
 
     private fun styleTrending(tv: TextView, focused: Boolean) {
+        val r = if (isPhone) 22f else 12f
         if (focused) {
-            tv.background = roundRect(12f, 0x0F00F0FF, 0xFF00F0FF.toInt(), 1)
+            tv.background = roundRect(r, 0x0F00F0FF, 0xFF00F0FF.toInt(), 1)
             tv.setTextColor(0xFF00F0FF.toInt())
         } else {
-            tv.background = roundRect(12f, 0xB30C111B.toInt(), 0x14FFFFFF, 1)
+            tv.background = roundRect(r, 0xB30C111B.toInt(), 0x24FFFFFF, 1)
             tv.setTextColor(0xFFCBD5E1.toInt())
         }
     }

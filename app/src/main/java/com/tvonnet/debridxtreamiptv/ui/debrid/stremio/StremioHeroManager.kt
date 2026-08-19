@@ -22,7 +22,9 @@ internal data class StremioHeroSlide(
     val meta: String,
     val desc: String?,
     val backdropUrl: String?,
-    val onPlay: () -> Unit
+    val onPlay: () -> Unit,
+    /** True for a series. Decides the eyebrow, which must not call a film a series. */
+    val isSeries: Boolean = false,
 )
 
 /**
@@ -33,7 +35,15 @@ internal class StremioHeroManager(
     private val fragment: StremioHomeFragment,
     private val root: View
 ) {
-    private val labels = arrayOf("FEATURED TODAY", "TOP SERIES", "NOW IN 4K", "NEW RELEASE", "TRENDING")
+    /**
+     * The eyebrow used to be five decorative strings cycled by SLIDE POSITION, so a film landing
+     * in slot 2 was announced as "TOP SERIES" and one in slot 3 as "NOW IN 4K" whether or not it
+     * was either. A label above a title is read as a fact about that title — so it now says the
+     * one thing we actually know.
+     */
+    private fun labelFor(item: StremioHeroSlide): String = root.context.getString(
+        if (item.isSeries) R.string.hero_eyebrow_series else R.string.hero_eyebrow_featured
+    )
 
     private val backdrop: ImageView = root.findViewById(R.id.iv_hero_background)
     private val pulseDot: View = root.findViewById(R.id.hero_pulse_dot)
@@ -107,7 +117,7 @@ internal class StremioHeroManager(
 
     private fun apply(animated: Boolean) {
         val item = items.getOrNull(index) ?: return
-        labelView.text = labels[index % labels.size]
+        labelView.text = labelFor(item)
         titleView.text = MediaTitleCleaner.clean(item.title)
         val hasRating = !item.rating.isNullOrBlank() && item.rating != "0" && item.rating != "0.0"
         ratingView.visibility = if (hasRating) View.VISIBLE else View.GONE
