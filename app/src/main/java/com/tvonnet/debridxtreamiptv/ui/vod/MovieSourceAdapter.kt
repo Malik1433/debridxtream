@@ -156,10 +156,14 @@ class MovieSourceAdapter(
          * Whether this link plays NOW.
          *
          * It used to read "DIRECT" or "TORRENT" — words about our plumbing, not about the
-         * customer's next thirty seconds. On a phone, on cellular, the only question that matters
-         * is whether the provider already holds the file, so the badge says INSTANT or FETCH
-         * FIRST, and a green/amber dot on the leading edge says the same thing before the eye
-         * even reaches the badge. IPTV rows are neither: they are a stream, not a debrid link.
+         * customer's next thirty seconds. The only question that matters is whether the provider
+         * already holds the file, so the badge says so, and on the phone a green/amber dot on the
+         * leading edge says the same thing before the eye even reaches the badge. IPTV rows are
+         * neither: they are a stream, not a debrid link.
+         *
+         * The WORDS are qualified per device. The phone has room for INSTANT / FETCH FIRST; the
+         * television's badge column is 48dp at 8sp and shipped reading "IN-" until
+         * values-television/strings_sources.xml gave it CACHED / FETCH.
          */
         private fun bindTypeBadge(source: MovieSource) {
             val isIptv = source.sourceType == "IPTV"

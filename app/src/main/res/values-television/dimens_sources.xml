@@ -15,7 +15,9 @@
     <dimen name="source_provider_height">20dp</dimen>
     <dimen name="source_lang_col_width">52dp</dimen>
     <dimen name="source_quality_width">38dp</dimen>
-    <dimen name="source_type_width">48dp</dimen>
+    <!-- 48dp fitted "DIRECT" and clipped the cache word to "CACHE". The title column beside
+         it is weighted, so the ten dp come out of a line that was ellipsised anyway. -->
+    <dimen name="source_type_width">58dp</dimen>
     <dimen name="source_badge_height">17dp</dimen>
     <dimen name="source_play_size">22dp</dimen>
 </resources>

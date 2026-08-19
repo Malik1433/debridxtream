@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The source row's cache badge, in the television's words.
+
+  The phone says INSTANT / FETCH FIRST — it is the right wording there, because on cellular the
+  only question a customer has is whether this link plays now or makes them wait. But the phone
+  wording was applied to BOTH devices, and the television's badge column is 48dp at 8sp: "DIRECT"
+  fitted, "INSTANT" did not. It shipped reading "IN-", with the rest of the word off the edge.
+
+  Same fact, shorter words. Both fit the column with room to spare.
+-->
+<resources>
+    <string name="phone_source_instant">CACHED</string>
+    <string name="phone_source_fetch_first">FETCH</string>
+</resources>
