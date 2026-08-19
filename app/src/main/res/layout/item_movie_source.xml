@@ -1,9 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  PHONE source row. Same ids and kinds as the television row in layout-television/, so
-  MovieSourceAdapter binds either — but stacked instead of columned: five side-by-side columns
-  need 900dp to breathe, and this screen has 411. Release name on top, then the facts as a chip
-  line, with a 56dp play target on the right.
+  PHONE source row (design "DX Play Debrid Phone.dc.html", frame 1f). Same ids and kinds as the
+  television row in layout-television/, so MovieSourceAdapter binds either.
+
+  ⭐ ORDER IS THE POINT. This row used to open with the release name — sixty dotted characters
+  wrapping to two lines — and put the quality underneath. But nobody picks a stream by its
+  filename: they pick by "will it play now" and "how good is it", and both of those were below
+  the fold of the row. The design leads with them, so this does too:
+
+      ● 1080P  INSTANT  ★ BEST                                  ▶
+        Spider-Man.Brand.New.Day.2026.2160p.WEB-DL
+        RD · |EN| · 14.2 GB ▬▬▬▬▭▭▭▭
+
+  The release name stays, on ONE line — it carries the language tags and the edition, which this
+  audience really does choose by — but it can no longer eat the row.
+
+  The dot is a mark, not a control: green means the provider already holds the file, amber means
+  it has to be fetched first, and on cellular that is the difference between playing and waiting.
+  The whole row is the tap target; the play glyph is an affordance, not a second control.
 -->
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -34,56 +48,42 @@
             app:layout_constraintTop_toTopOf="parent"
             tools:visibility="visible" />
 
-        <!--
-          The cache dot. On a phone an uncached pick means a wait on cellular, so whether this
-          link plays NOW is the first thing the eye should meet — green for instant, amber for
-          fetch-first. It is a mark, not a control: the row is the target.
-        -->
+        <!-- marginStart clears the 3dp BEST accent: the bar and the row's first glyph were
+             sharing the same pixels. -->
         <View
             android:id="@+id/v_cache_dot"
             android:layout_width="8dp"
             android:layout_height="8dp"
+            android:layout_marginStart="9dp"
             android:layout_marginEnd="10dp"
             android:background="@drawable/bg_phone_dot_green"
-            app:layout_constraintBottom_toBottomOf="@id/tv_release_name"
+            app:layout_constraintBottom_toBottomOf="@id/layout_badges"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@id/tv_release_name" />
+            app:layout_constraintTop_toTopOf="@id/layout_badges" />
 
-        <TextView
-            android:id="@+id/tv_release_name"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:fontFamily="@font/inter_regular"
-            android:maxLines="2"
-            android:textColor="@color/phone_text_primary"
-            android:textSize="13.5sp"
-            app:layout_constraintEnd_toStartOf="@id/iv_play"
-            app:layout_constraintStart_toEndOf="@id/v_cache_dot"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:text="Spider-Man.Brand.New.Day.2026.2160p.WEB-DL" />
-
+        <!-- Line 1 — what the choice is actually made on. -->
         <LinearLayout
             android:id="@+id/layout_badges"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             app:layout_constraintEnd_toStartOf="@id/iv_play"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_release_name">
+            app:layout_constraintStart_toEndOf="@id/v_cache_dot"
+            app:layout_constraintTop_toTopOf="parent">
 
+            <!-- The pill's colour is set in code — gold for 4K, blue for 1080p — and that colour
+                 is read faster than the word. It leads the row for the same reason. -->
             <TextView
                 android:id="@+id/tv_quality"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_phone_badge_cyan"
                 android:fontFamily="@font/share_tech_mono"
-                android:paddingHorizontal="7dp"
-                android:paddingVertical="2dp"
-                android:textColor="@color/phone_cyan"
-                android:textSize="10.5sp"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                tools:background="@drawable/bg_phone_badge_cyan"
                 tools:text="1080P" />
 
             <TextView
@@ -91,13 +91,32 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
-                android:background="@drawable/bg_phone_badge_green"
                 android:fontFamily="@font/share_tech_mono"
-                android:paddingHorizontal="7dp"
-                android:paddingVertical="2dp"
-                android:textColor="@color/phone_green"
-                android:textSize="10.5sp"
-                tools:text="DIRECT" />
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:textSize="11.5sp"
+                tools:background="@drawable/bg_phone_badge_green"
+                tools:text="INSTANT" />
+
+            <!--
+              Dark text on the solid cyan chip. It was cyan ON cyan: the badge was drawn, its
+              text was invisible, and the best row simply wore a blank cyan block.
+            -->
+            <TextView
+                android:id="@+id/tv_best_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_phone_best_chip"
+                android:fontFamily="@font/share_tech_mono"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:text="@string/ui_best"
+                android:textColor="#04121A"
+                android:textSize="11.5sp"
+                android:visibility="gone"
+                tools:text="★ BEST"
+                tools:visibility="visible" />
 
             <TextView
                 android:id="@+id/tv_badge_seeders"
@@ -106,48 +125,44 @@
                 android:layout_marginStart="6dp"
                 android:background="@drawable/bg_phone_badge_neutral"
                 android:fontFamily="@font/share_tech_mono"
-                android:paddingHorizontal="7dp"
-                android:paddingVertical="2dp"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
                 android:textColor="@color/phone_text_secondary"
-                android:textSize="10.5sp"
+                android:textSize="11.5sp"
                 android:visibility="gone"
                 tools:text="120"
                 tools:visibility="visible" />
-
-            <!--
-              Dark text on the solid cyan chip. It was cyan ON cyan: the badge was drawn, its
-              text was invisible, and the best row simply wore a blank cyan block.
-            -->
-            <TextView
-                android:id="@+id/tv_best_badge"
-                android:text="@string/ui_best"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:background="@drawable/bg_phone_best_chip"
-                android:fontFamily="@font/share_tech_mono"
-                android:paddingHorizontal="7dp"
-                android:paddingVertical="2dp"
-                android:textColor="#04121A"
-                android:textSize="10.5sp"
-                android:visibility="gone"
-                tools:text="★ BEST"
-                tools:visibility="visible" />
         </LinearLayout>
 
-        <!-- Provider, languages and size share the third line. -->
+        <!-- Line 2 — the release name, one line, never two. -->
+        <TextView
+            android:id="@+id/tv_release_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/inter_regular"
+            android:maxLines="1"
+            android:textColor="@color/phone_text_secondary"
+            android:textSize="12.5sp"
+            app:layout_constraintEnd_toStartOf="@id/iv_play"
+            app:layout_constraintStart_toStartOf="@id/layout_badges"
+            app:layout_constraintTop_toBottomOf="@id/layout_badges"
+            tools:text="Spider-Man.Brand.New.Day.2026.2160p.WEB-DL" />
+
+        <!-- Line 3 — provider, languages and size. -->
         <TextView
             android:id="@+id/tv_provider"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="7dp"
             android:clickable="false"
             android:focusable="false"
             android:fontFamily="@font/share_tech_mono"
             android:textColor="@color/phone_text_muted"
             android:textSize="11sp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/layout_badges"
+            app:layout_constraintStart_toStartOf="@id/layout_badges"
+            app:layout_constraintTop_toBottomOf="@id/tv_release_name"
             tools:text="RD" />
 
         <LinearLayout

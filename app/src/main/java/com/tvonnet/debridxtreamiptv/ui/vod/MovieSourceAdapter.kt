@@ -174,8 +174,13 @@ class MovieSourceAdapter(
             )
             binding.tvType.setTextColor(binding.root.context.getColor(R.color.white))
             // Phone only — the television row has no dot in its layout.
+            //
+            // INVISIBLE, not GONE, for an IPTV row: the whole line is anchored to this dot, so
+            // collapsing it slid the badges and the title onto the BEST accent bar and the row
+            // read "PTV" with its first letter under the stripe. A mark with nothing to say
+            // should go quiet, not take the layout with it.
             binding.root.findViewById<View>(R.id.v_cache_dot)?.apply {
-                isVisible = !isIptv
+                visibility = if (isIptv) View.INVISIBLE else View.VISIBLE
                 setBackgroundResource(
                     if (instant) R.drawable.bg_phone_dot_green else R.drawable.bg_phone_dot_amber
                 )
