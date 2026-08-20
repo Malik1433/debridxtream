@@ -244,14 +244,52 @@ class LivePlaybackLauncher(
         onUpdateFavoriteButton(returnedStream)
         viewModel.onEvent(LiveEvent.RememberPreviewStream(returnedStream))
 
-        val index = channelPagingAdapter.snapshot().items.indexOfFirst { it.stream_id == streamId }
-        if (index >= 0) {
-            onFocusChannelAt(index)
-        } else {
-            onRestoreChannelFocus()
+        // Come back to the channel that is PLAYING, in ITS list.
+        //
+        // The old code looked for the returned channel in whatever list was still loaded and, when
+        // it was not there, restored the previous focus — so changing category inside fullscreen
+        // handed the customer back to the channel they had left from, and clicking it played that
+        // old channel instead of the one they had been watching.
+        val loadedIndex = channelPagingAdapter.snapshot().items.indexOfFirst { it.stream_id == streamId }
+        val currentCategoryId = viewModel.uiState.value.selectedCategoryId
+        when {
+            loadedIndex >= 0 -> onFocusChannelAt(loadedIndex)
+            !categoryId.isNullOrBlank() && categoryId != currentCategoryId -> {
+                // The list has to be fetched before it can be focused; [focusReturnedChannelIfPending]
+                // finishes the job when it arrives.
+                pendingReturnFocusStreamId = streamId
+                android.util.Log.i(
+                    "LIVE_HANDOFF",
+                    "return: category $currentCategoryId -> $categoryId, will focus id=$streamId when loaded",
+                )
+                viewModel.onEvent(LiveEvent.SelectCategory(categoryId))
+            }
+            else -> onRestoreChannelFocus()
         }
         // Shrink the cover back onto the preview (reveals the live video once done).
         zoom?.shrink()
+    }
+
+    /**
+     * The channel we returned to, waiting for its category's list to load.
+     *
+     * Null whenever there is nothing outstanding, which is almost always — it is set only when a
+     * customer changed category inside fullscreen.
+     */
+    private var pendingReturnFocusStreamId: String? = null
+
+    /**
+     * Called every time the channel list settles. Focuses the returned channel once its list is
+     * actually there, then forgets it — so this costs one list scan on the load after a return,
+     * and nothing at all the rest of the time.
+     */
+    fun focusReturnedChannelIfPending() {
+        val streamId = pendingReturnFocusStreamId ?: return
+        val index = channelPagingAdapter.snapshot().items.indexOfFirst { it.stream_id == streamId }
+        if (index < 0) return
+        pendingReturnFocusStreamId = null
+        android.util.Log.i("LIVE_HANDOFF", "return: focused id=$streamId at index=$index")
+        onFocusChannelAt(index)
     }
 
     private suspend fun resolveLiveChannelIds(

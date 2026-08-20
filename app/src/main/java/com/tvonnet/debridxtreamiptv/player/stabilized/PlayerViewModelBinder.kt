@@ -53,6 +53,10 @@ internal class PlayerViewModelBinder(
                     liveOsd?.setChannelNumber(state?.let { it.index + 1 })
                     state?.let {
                         liveOsd?.setZapState(it.categoryId, it.categoryName, it.channels, it.index)
+                        // The category the player is on NOW. It used to be read once from the
+                        // launch intent and never updated, so a customer who changed category in
+                        // here was handed back to the list still showing the one they left from.
+                        activity.liveCategoryId = it.categoryId
                         viewModel.refreshSurfEpg()
                     }
                 }

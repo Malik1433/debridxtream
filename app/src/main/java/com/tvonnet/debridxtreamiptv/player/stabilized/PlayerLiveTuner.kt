@@ -133,6 +133,11 @@ internal class PlayerLiveTuner(
         // channel starts with a full budget.
         resetReconnectBudget()
         hideReconnectingBanner()
+        // …and the same for the health verdict. A live channel changes HERE, not in
+        // initializePlayer — the warm zap reuses the player — so a diagnosis pinned to the old
+        // channel would otherwise follow the customer through every channel they tried, saying
+        // "this channel is slow" about channels it had never measured.
+        activity.streamHealth.reset()
         retryCount = 0
         audioSinkRecoveryCount = 0
         endedReconnects = 0

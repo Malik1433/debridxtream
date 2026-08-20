@@ -332,6 +332,13 @@ internal class PlayerEventListener(
     override fun onPlayerError(error: PlaybackException) {
         isSwitching = false
         timeoutHandler.removeCallbacks(timeoutRunnable)
+        // What the provider actually SAID. A 429 or a 403 is a fact about this account, so the
+        // health verdict prefers it over anything it could infer from timing — but only if it is
+        // told, which is what this line does.
+        activity.streamHealth.noteHttpStatus(
+            (error.cause as? androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException)
+                ?.responseCode
+        )
         recovery.handlePlaybackError(error)
     }
 

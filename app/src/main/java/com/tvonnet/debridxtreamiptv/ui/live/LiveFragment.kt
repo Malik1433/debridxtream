@@ -614,6 +614,8 @@ class LiveFragment : Fragment() {
                         if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@collectLatest
 
                         renderChannelLoadState(loadStates)
+                        // A return from fullscreen may still be waiting for THIS list.
+                        playbackLauncher?.focusReturnedChannelIfPending()
                     } catch (e: Exception) {
                         android.util.Log.e("LiveFragment", "Error handling load state", e)
                     }
