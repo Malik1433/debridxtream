@@ -239,7 +239,15 @@ class StremioHomeFragment :
         }
     }
 
+    /**
+     * The television's status line, bottom-aligned.
+     *
+     * PHONE: silent. The phone answers this question twice otherwise — the app bar's SYNCING
+     * readout AND this line — and the line is bottom-aligned, so its second "SYNCING" landed on
+     * top of the dock's "Movies" label. One screen, one answer; [stateViews] owns the phone's.
+     */
     private fun setStatus(loading: Boolean, text: String?) {
+        if (!resources.getBoolean(R.bool.ui_uses_dpad_focus)) return
         val ov = statusOverlay ?: return
         ov.isVisible = loading
         if (text != null) ov.findViewById<TextView>(R.id.stremio_status_text)?.text = text
