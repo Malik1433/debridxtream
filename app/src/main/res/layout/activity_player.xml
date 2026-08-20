@@ -66,8 +66,51 @@
             android:fontFamily="monospace"
             android:letterSpacing="0.06"
             android:textColor="@color/neon_cyan"
-            android:textSize="7.5sp"
+            android:textSize="@dimen/stream_health_text_size"
             tools:text="RECONNECTING… (1/4)" />
+    </LinearLayout>
+
+    <!--
+      Why playback keeps stopping. ONE pill, and it never speaks over the reconnecting one —
+      diagnoseStreamHealth returns OK while that is showing, so the two cannot both be on screen.
+
+      A statement, not a control: nothing here is focusable, so on the television it can never
+      take focus from the OSD, and on a phone there is nothing to tap by mistake. It sits below
+      the reconnect pill so that if the two ever did overlap the older one still reads.
+    -->
+    <LinearLayout
+        android:id="@+id/stream_health_banner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal|top"
+        android:layout_marginTop="56dp"
+        android:background="@drawable/bg_live_toast"
+        android:elevation="11dp"
+        android:focusable="false"
+        android:gravity="center_vertical"
+        android:maxWidth="420dp"
+        android:orientation="horizontal"
+        android:paddingHorizontal="11dp"
+        android:paddingVertical="6.5dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <View
+            android:id="@+id/stream_health_dot"
+            android:layout_width="7dp"
+            android:layout_height="7dp"
+            android:background="@drawable/bg_phone_dot_amber" />
+
+        <TextView
+            android:id="@+id/stream_health_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.04"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="@dimen/stream_health_text_size"
+            tools:text="THIS CHANNEL IS SLOW RIGHT NOW" />
     </LinearLayout>
 
     <include

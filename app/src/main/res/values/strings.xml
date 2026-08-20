@@ -374,6 +374,17 @@
     <string name="a11y_back">Back</string>
     <string name="phone_search_no_results_body">Try a shorter title, or switch the filter above — Live channels are searched separately from your add-on catalogue.</string>
     <string name="phone_search_try">TRY ONE OF THESE</string>
+
+    <!--
+      Why playback keeps stopping. "Buffering" is one symptom with several causes, and only the
+      customer can act on most of them — but only if they are told WHICH one. Each line names the
+      cause and, where there is one, the thing they can actually do about it.
+    -->
+    <string name="health_server_slow">This channel is slow right now · try another source</string>
+    <string name="health_network_slow">Your connection is slow right now</string>
+    <string name="health_wifi_weak">Weak Wi‑Fi signal · move closer to the router</string>
+    <string name="health_rate_limited">Your provider is limiting this device</string>
+    <string name="health_connection_limit">This account is already streaming on another device</string>
     <!-- The full "Search for channels, movies, series…" is the television's: on a 411dp
          phone the field clips it mid-word, and a hint you cannot read is not a hint. -->
     <string name="phone_search_hint">Search titles and channels</string>

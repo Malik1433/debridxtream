@@ -59,7 +59,11 @@ import com.tvonnet.debridxtreamiptv.ui.sources.SessionSourcePreference
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences
 import com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
+import com.tvonnet.debridxtreamiptv.data.network.NetworkQualityManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import okhttp3.OkHttpClient
@@ -537,6 +541,58 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     // subsystem triggers a reconnect; hidden on the first rendered frame / READY.
     private var reconnectingBanner: View? = null
     private var reconnectingBannerText: TextView? = null
+    private var streamHealthBanner: View? = null
+    private var streamHealthText: TextView? = null
+
+    /**
+     * Why playback keeps stopping, said out loud.
+     *
+     * Separate from [stallMonitor], which is a watchdog: that one RECOVERS from a hard stall, this
+     * one EXPLAINS a pattern of soft ones. The probe is bounded and runs on the IO dispatcher, and
+     * the whole thing is a child of the view's scope, so leaving the player cancels it.
+     */
+    internal val streamHealth: StreamHealthMonitor by lazy {
+        StreamHealthMonitor(
+            scope = viewLifecycleOwner.lifecycleScope,
+            now = { SystemClock.elapsedRealtime() },
+            probe = {
+                withContext(Dispatchers.IO) {
+                    withTimeoutOrNull(HEALTH_PROBE_TIMEOUT_MS) {
+                        NetworkQualityManager(requireContext(), okHttpClient).probeControlKbps()
+                    }
+                }
+            },
+            environment = {
+                NetworkEnvironmentReader.read(
+                    requireContext(),
+                    isReconnecting = reconnectingBanner?.isVisible == true,
+                )
+            },
+            onVerdict = ::showStreamHealth,
+        )
+    }
+
+    /**
+     * One pill, one sentence. It never appears while the reconnect pill is up — the rule returns
+     * OK in that case, so the two cannot both speak.
+     */
+    private fun showStreamHealth(verdict: StreamHealth) {
+        val banner = streamHealthBanner ?: return
+        val message = when (verdict) {
+            StreamHealth.OK -> null
+            StreamHealth.SERVER_SLOW -> R.string.health_server_slow
+            StreamHealth.LOCAL_NETWORK_SLOW -> R.string.health_network_slow
+            StreamHealth.WIFI_WEAK -> R.string.health_wifi_weak
+            StreamHealth.PROVIDER_RATE_LIMITED -> R.string.health_rate_limited
+            StreamHealth.PROVIDER_CONNECTION_LIMIT -> R.string.health_connection_limit
+        }
+        if (message == null) {
+            banner.isVisible = false
+            return
+        }
+        streamHealthText?.setText(message)
+        banner.isVisible = true
+    }
 
     /** P10: shared reconnect budget + its "RECONNECTING…" banner + network-quality reclassification. */
     private val reconnectManager: PlayerReconnectManager by lazy {
@@ -558,6 +614,8 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         // Player implementation constants (the EXTRA_* launch-contract keys + createIntent
         // stay on the thin host PlayerActivity; these are pure playback tuning values).
         private const val TIMEOUT_MS = 25000L
+        /** A verdict nobody waited for is no verdict; the probe gets four seconds. */
+        private const val HEALTH_PROBE_TIMEOUT_MS = 4_000L
         private const val PROGRESS_SAVE_INTERVAL_MS = 30_000L
         private const val MEDIAFUSION_TIMEOUT_MS = 35000L
         // Live viewers zap away from dead streams fast — detect failure fast too.
@@ -671,6 +729,8 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         tvDebugInfo = findViewById(R.id.tv_debug_info)
         reconnectingBanner = findViewById(R.id.reconnecting_banner)
         reconnectingBannerText = findViewById(R.id.reconnecting_banner_text)
+        streamHealthBanner = findViewById(R.id.stream_health_banner)
+        streamHealthText = findViewById(R.id.stream_health_text)
 
         PlayerLaunchArgs.readInto(this, session)
     }
@@ -1087,6 +1147,11 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
             Log.w("PlayerActivity", "initializePlayer aborted: Activity is finishing or destroyed")
             return
         }
+        // A new stream is a new question — and without this the diagnosis would libel the app.
+        // Every channel change goes BUFFERING→READY exactly as a stall does, so zapping three
+        // channels in a minute looked identical to three stalls and would have put "this channel
+        // is slow" on screen for a customer who was simply browsing.
+        streamHealth.reset()
         try {
             // RULE: Prevent Memory Leaks. ALWAYS release existing player before creating new one.
             if (player != null) {

@@ -102,6 +102,7 @@ internal class PlayerEventListener(
             timeoutHandler.postDelayed(timeoutRunnable, timeoutMs)
             armWatchdogBaseline()
             if (lastBufferingStartMs == 0L) lastBufferingStartMs = SystemClock.elapsedRealtime()
+            activity.streamHealth.onBufferingStarted()
         } else if (playbackState == Player.STATE_ENDED || playbackState == Player.STATE_IDLE) {
             timeoutHandler.removeCallbacks(timeoutRunnable)
             lastBufferingStartMs = 0L
@@ -116,6 +117,8 @@ internal class PlayerEventListener(
          // BUFFERING→READY: refresh the session network-quality estimate
          // (QA fix 7) using the passive bandwidth meter, debounced.
          if (lastBufferingStartMs != 0L) maybeUpdateNetworkQuality()
+         // …and one stall is now measurable, so the health verdict can be re-asked.
+         activity.streamHealth.onPlaybackResumed()
          // Keep the resume target alive while a debrid re-resolve is in flight:
          // clearing it here would make the upcoming seamless switch start from 0.
          if (!isResolvingDebrid && player?.currentPosition ?: 0L > 1000) startPositionMs = 0L

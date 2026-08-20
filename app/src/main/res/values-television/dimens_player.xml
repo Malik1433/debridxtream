@@ -13,4 +13,6 @@
     <dimen name="live_osd_fav_size">28dp</dimen>
     <dimen name="live_osd_fav_icon_size">12dp</dimen>
     <dimen name="live_min_left_width">46dp</dimen>
+    <!-- The player's status pills (reconnecting, stream health). -->
+    <dimen name="stream_health_text_size">7.5sp</dimen>
 </resources>

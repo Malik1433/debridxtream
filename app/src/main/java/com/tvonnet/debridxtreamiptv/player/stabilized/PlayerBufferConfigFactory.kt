@@ -65,6 +65,24 @@ object PlayerBufferConfigFactory {
 
     private fun isHlsUrl(url: String): Boolean = url.contains(".m3u8", ignoreCase = true)
 
+    /**
+     * On a slow line, buffer continuously instead of in bursts.
+     *
+     * With min well below max, ExoPlayer fills to max, stops, drains to min, then fetches hard
+     * again — and every one of those gaps is a chance for a slow line to fall behind. Setting the
+     * two equal keeps the pipe always slightly hungry, which the ExoPlayer team measured as
+     * "significantly" fewer rebuffers for a small battery cost (via Akamai's write-up of their
+     * buffering strategy).
+     *
+     * VOD ONLY, and that limit is the point. A live stream is produced in real time: the server
+     * cannot hand over sixty seconds of a channel that has not happened yet, so a bigger MINIMUM
+     * there is aspiration, not policy — it would only delay the start. The lever that would
+     * actually help live is how much to re-accumulate after a stall, and that number should be
+     * changed against a measurement on a real stalling channel, not from a blog post.
+     */
+    private fun dripLoad(config: BufferConfig): BufferConfig =
+        config.copy(minBufferMs = config.maxBufferMs)
+
     private fun capMaxBufferForDevice(context: Context, maxBufferMs: Int): Int {
         return if (DeviceProfile.isLowRamDevice(context)) {
             maxBufferMs.coerceAtMost(LOW_RAM_MAX_BUFFER_MS)
@@ -145,7 +163,7 @@ object PlayerBufferConfigFactory {
         }
         val cappedForDevice = config.copy(
             maxBufferMs = capMaxBufferForDevice(context, config.maxBufferMs)
-        )
+        ).let { if (quality == NetworkQuality.SLOW) dripLoad(it) else it }
         return if (isHls) {
             cappedForDevice.copy(
                 maxBufferMs = cappedForDevice.maxBufferMs.coerceAtMost(

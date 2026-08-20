@@ -16,4 +16,6 @@
     <dimen name="live_osd_fav_icon_size">20dp</dimen>
     <!-- "55 MIN LEFT" at 1.6x fontScale needs ~70dp; the TV's 46dp clips it. -->
     <dimen name="live_min_left_width">84dp</dimen>
+    <!-- The player's status pills (reconnecting, stream health). -->
+    <dimen name="stream_health_text_size">12sp</dimen>
 </resources>
