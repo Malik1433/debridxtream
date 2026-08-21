@@ -100,6 +100,19 @@ internal class PlayerExitController(
         if (redirected) {
             return
         }
+        // LIVE: before telling the customer to "try another channel or source", try one. The
+        // provider carries the same channel several times, and the app is in a far better position
+        // to find the next feed than someone holding a remote in front of a dead picture. It gives
+        // up honestly — through the very error below — the moment there is nothing left to try.
+        if (contentType == ContentType.LIVE_TV &&
+            activity.tryLiveAlternateSource { showTerminalError(reason) }
+        ) {
+            return
+        }
+        showTerminalError(reason)
+    }
+
+    private fun showTerminalError(reason: String) {
         if (!finishWithReturnToSources(autoPlayNext = true, reason = reason)) {
             val isHttpError = reason.contains("HTTP", ignoreCase = true)
             activity.showError(

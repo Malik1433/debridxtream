@@ -122,6 +122,10 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     @Inject
     lateinit var settingsPreferences: SettingsPreferences
 
+    /** Live failover searches the catalogue for the other feeds of the current channel. */
+    @Inject
+    lateinit var xtreamRepository: com.tvonnet.debridxtreamiptv.data.repository.XtreamRepository
+
     @Inject
     lateinit var watchedStateRepository: WatchedStateRepository
 
@@ -572,6 +576,70 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         )
     }
 
+    /** Feeds of this channel already tried in this sitting, so failover cannot go round in a circle. */
+    private val triedLiveStreamIds = mutableSetOf<String>()
+    private var liveFailoverInFlight = false
+
+    /**
+     * Try the next feed of the SAME channel before giving up on it.
+     *
+     * @param onExhausted called when there is nothing left to try — the caller's normal error path.
+     * @return true when an attempt was started, so the caller must not also show an error. The
+     *   search is asynchronous, which is why the give-up path is a callback rather than a return
+     *   value: the honest answer is not known yet.
+     */
+    internal fun tryLiveAlternateSource(onExhausted: () -> Unit): Boolean {
+        if (liveFailoverInFlight || isFinishing || isDestroyed) return false
+        val name = pendingChannelName ?: tvChannelName?.text?.toString()
+        val term = LiveAlternateSources.searchTerm(name)
+        if (term.isBlank()) return false
+
+        liveFailoverInFlight = true
+        contentId?.let { triedLiveStreamIds += it }
+        viewLifecycleOwner.lifecycleScope.launch {
+            val alternate = try {
+                // Bounded: a search that has not answered in five seconds is no use to someone
+                // watching a frozen picture.
+                val found = withTimeoutOrNull(LIVE_ALTERNATE_SEARCH_MS) {
+                    withContext(Dispatchers.IO) { xtreamRepository.searchLive(term) }
+                } ?: emptyList()
+                LiveAlternateSources.rank(name, contentId, found, triedLiveStreamIds).firstOrNull()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("PlayerActivity", "Live failover search failed: ${e.javaClass.simpleName}")
+                null
+            }
+            liveFailoverInFlight = false
+            if (!isAdded || isFinishing || isDestroyed) return@launch
+
+            val serverUrl = baseServerUrl ?: prefs.getServerUrl() ?: ""
+            val url = alternate?.toLiveStreamUrl(
+                serverUrl, prefs.getUsername().orEmpty(), prefs.getPassword().orEmpty()
+            )
+            if (alternate?.stream_id == null || url.isNullOrBlank()) {
+                Log.i("PlayerActivity", "Live failover: no untried feed left for \"$term\"")
+                onExhausted()
+                return@launch
+            }
+            Log.i("PlayerActivity", "Live failover: switching to ${alternate.stream_id} for \"$term\"")
+            triedLiveStreamIds += alternate.stream_id!!
+            showToast(getString(R.string.live_trying_another_source))
+            // The channel is the SAME channel — only the feed changed — so the name, the number
+            // and the EPG stay as they are. Swapping those too would tell the customer they had
+            // changed channel when they had not.
+            streamHealth.reset()
+            // The alternate has not failed at anything yet: carrying the dead feed's exhausted
+            // counters across would make it look broken before it had been given a chance.
+            retryCount = 0
+            resetReconnectBudget()
+            contentId = alternate.stream_id
+            currentUrl = url
+            liveTuner.performSeamlessSwitch(url)
+        }
+        return true
+    }
+
     /**
      * One pill, one sentence. It never appears while the reconnect pill is up — the rule returns
      * OK in that case, so the two cannot both speak.
@@ -616,6 +684,8 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         private const val TIMEOUT_MS = 25000L
         /** A verdict nobody waited for is no verdict; the probe gets four seconds. */
         private const val HEALTH_PROBE_TIMEOUT_MS = 4_000L
+        /** A failover search that has not answered by now is no use to a frozen picture. */
+        private const val LIVE_ALTERNATE_SEARCH_MS = 5_000L
         private const val PROGRESS_SAVE_INTERVAL_MS = 30_000L
         private const val MEDIAFUSION_TIMEOUT_MS = 35000L
         // Live viewers zap away from dead streams fast — detect failure fast too.

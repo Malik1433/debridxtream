@@ -375,6 +375,10 @@
     <string name="phone_search_no_results_body">Try a shorter title, or switch the filter above — Live channels are searched separately from your add-on catalogue.</string>
     <string name="phone_search_try">TRY ONE OF THESE</string>
 
+    <!-- Live failover: the provider carries the same channel more than once, so a dead feed is
+         answered by trying the next one instead of asking the customer to go and find it. -->
+    <string name="live_trying_another_source">Trying another source for this channel…</string>
+
     <!--
       Why playback keeps stopping. "Buffering" is one symptom with several causes, and only the
       customer can act on most of them — but only if they are told WHICH one. Each line names the
