@@ -597,47 +597,59 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         liveFailoverInFlight = true
         contentId?.let { triedLiveStreamIds += it }
         viewLifecycleOwner.lifecycleScope.launch {
-            val alternate = try {
-                // Bounded: a search that has not answered in five seconds is no use to someone
-                // watching a frozen picture.
-                val found = withTimeoutOrNull(LIVE_ALTERNATE_SEARCH_MS) {
-                    withContext(Dispatchers.IO) { xtreamRepository.searchLive(term) }
-                } ?: emptyList()
-                LiveAlternateSources.rank(name, contentId, found, triedLiveStreamIds).firstOrNull()
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w("PlayerActivity", "Live failover search failed: ${e.javaClass.simpleName}")
-                null
-            }
+            val alternate = findLiveAlternate(name, term)
             liveFailoverInFlight = false
             if (!isAdded || isFinishing || isDestroyed) return@launch
-
-            val serverUrl = baseServerUrl ?: prefs.getServerUrl() ?: ""
-            val url = alternate?.toLiveStreamUrl(
-                serverUrl, prefs.getUsername().orEmpty(), prefs.getPassword().orEmpty()
-            )
-            if (alternate?.stream_id == null || url.isNullOrBlank()) {
+            if (alternate == null) {
                 Log.i("PlayerActivity", "Live failover: no untried feed left for \"$term\"")
                 onExhausted()
-                return@launch
+            } else {
+                switchToLiveAlternate(alternate)
             }
-            Log.i("PlayerActivity", "Live failover: switching to ${alternate.stream_id} for \"$term\"")
-            triedLiveStreamIds += alternate.stream_id!!
-            showToast(getString(R.string.live_trying_another_source))
-            // The channel is the SAME channel — only the feed changed — so the name, the number
-            // and the EPG stay as they are. Swapping those too would tell the customer they had
-            // changed channel when they had not.
-            streamHealth.reset()
-            // The alternate has not failed at anything yet: carrying the dead feed's exhausted
-            // counters across would make it look broken before it had been given a chance.
-            retryCount = 0
-            resetReconnectBudget()
-            contentId = alternate.stream_id
-            currentUrl = url
-            liveTuner.performSeamlessSwitch(url)
         }
         return true
+    }
+
+    /** Bounded: a search that has not answered in five seconds is no use to a frozen picture. */
+    private suspend fun findLiveAlternate(name: String?, term: String): XtreamStream? = try {
+        val found = withTimeoutOrNull(LIVE_ALTERNATE_SEARCH_MS) {
+            withContext(Dispatchers.IO) { xtreamRepository.searchLive(term) }
+        } ?: emptyList()
+        LiveAlternateSources.rank(name, contentId, found, triedLiveStreamIds)
+            .firstOrNull { !buildLiveUrl(it).isNullOrBlank() }
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.w("PlayerActivity", "Live failover search failed: ${e.javaClass.simpleName}")
+        null
+    }
+
+    private fun buildLiveUrl(stream: XtreamStream): String? {
+        if (stream.stream_id.isNullOrBlank()) return null
+        val serverUrl = baseServerUrl ?: prefs.getServerUrl() ?: ""
+        return stream.toLiveStreamUrl(
+            serverUrl, prefs.getUsername().orEmpty(), prefs.getPassword().orEmpty()
+        )
+    }
+
+    /**
+     * The channel is the SAME channel — only the feed changed — so the name, the number and the
+     * EPG stay as they are. Swapping those too would tell the customer they had changed channel
+     * when they had not.
+     */
+    private fun switchToLiveAlternate(alternate: XtreamStream) {
+        val url = buildLiveUrl(alternate) ?: return
+        Log.i("PlayerActivity", "Live failover: switching to ${alternate.stream_id}")
+        alternate.stream_id?.let { triedLiveStreamIds += it }
+        showToast(getString(R.string.live_trying_another_source))
+        streamHealth.reset()
+        // The alternate has not failed at anything yet: carrying the dead feed's exhausted
+        // counters across would make it look broken before it had been given a chance.
+        retryCount = 0
+        resetReconnectBudget()
+        contentId = alternate.stream_id
+        currentUrl = url
+        liveTuner.performSeamlessSwitch(url)
     }
 
     /**

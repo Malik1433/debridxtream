@@ -244,19 +244,27 @@ class LivePlaybackLauncher(
         onUpdateFavoriteButton(returnedStream)
         viewModel.onEvent(LiveEvent.RememberPreviewStream(returnedStream))
 
-        // Come back to the channel that is PLAYING, in ITS list.
-        //
-        // The old code looked for the returned channel in whatever list was still loaded and, when
-        // it was not there, restored the previous focus — so changing category inside fullscreen
-        // handed the customer back to the channel they had left from, and clicking it played that
-        // old channel instead of the one they had been watching.
+        selectReturnedChannelInList(streamId, categoryId)
+        // Shrink the cover back onto the preview (reveals the live video once done).
+        zoom?.shrink()
+    }
+
+    /**
+     * Come back to the channel that is PLAYING, in ITS list.
+     *
+     * The old code looked for the returned channel in whatever list was still loaded and, when it
+     * was not there, restored the previous focus — so changing category inside fullscreen handed
+     * the customer back to the channel they had left from, and clicking it played that old channel
+     * instead of the one they had been watching.
+     */
+    private fun selectReturnedChannelInList(streamId: String, categoryId: String?) {
         val loadedIndex = channelPagingAdapter.snapshot().items.indexOfFirst { it.stream_id == streamId }
         val currentCategoryId = viewModel.uiState.value.selectedCategoryId
         when {
             loadedIndex >= 0 -> onFocusChannelAt(loadedIndex)
             !categoryId.isNullOrBlank() && categoryId != currentCategoryId -> {
-                // The list has to be fetched before it can be focused; [focusReturnedChannelIfPending]
-                // finishes the job when it arrives.
+                // The list has to be fetched before it can be focused;
+                // [focusReturnedChannelIfPending] finishes the job when it arrives.
                 pendingReturnFocusStreamId = streamId
                 android.util.Log.i(
                     "LIVE_HANDOFF",
@@ -266,8 +274,6 @@ class LivePlaybackLauncher(
             }
             else -> onRestoreChannelFocus()
         }
-        // Shrink the cover back onto the preview (reveals the live video once done).
-        zoom?.shrink()
     }
 
     /**
