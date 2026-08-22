@@ -60,6 +60,34 @@ class NetworkQualityManager @Inject constructor(
         }.getOrNull()
     }
 
+    /**
+     * Is the customer's OWN provider answering?
+     *
+     * Asked of `player_api.php`, not of a second stream. This account has a connection limit, so
+     * opening another stream to test the first can be refused with a 403 — and could cost the
+     * customer the stream they are watching. The API call takes no streaming slot.
+     *
+     * ANY HTTP reply counts as "answering", including 403 and 429: a server that refuses us is a
+     * server that is up, and the refusal itself is reported separately. Only a timeout or a dead
+     * connection means the server is not there.
+     *
+     * @return true/false, or null when there are no credentials to ask with.
+     */
+    suspend fun probeProviderAlive(
+        serverUrl: String?,
+        username: String?,
+        password: String?,
+    ): Boolean? = withContext(Dispatchers.IO) {
+        if (serverUrl.isNullOrBlank() || username.isNullOrBlank() || password.isNullOrBlank()) {
+            return@withContext null
+        }
+        val base = serverUrl.trimEnd('/')
+        val url = "$base/player_api.php?username=$username&password=$password&action=login"
+        runCatching {
+            okHttpClient.newCall(Request.Builder().url(url).build()).execute().use { true }
+        }.getOrElse { false }
+    }
+
     suspend fun runSpeedTest(): NetworkQuality = withContext(Dispatchers.IO) {
         Log.d(TAG, "Starting background speed test...")
         val startTime = System.currentTimeMillis()

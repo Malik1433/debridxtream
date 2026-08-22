@@ -16,9 +16,11 @@ class StreamHealthTest {
         lastHttpCode: Int? = null,
         isWifi: Boolean = true,
         wifiRssiDbm: Int? = -50,
+        providerApiOk: Boolean? = null,
         isReconnecting: Boolean = false,
     ) = StreamHealthSignals(
-        stalls, longestStallMs, controlKbps, lastHttpCode, isWifi, wifiRssiDbm, isReconnecting
+        stalls, longestStallMs, controlKbps, lastHttpCode, isWifi, wifiRssiDbm,
+        providerApiOk, isReconnecting,
     )
 
     @Test
@@ -36,17 +38,36 @@ class StreamHealthTest {
     }
 
     @Test
-    fun `stalling while an unrelated host is fast blames the server`() {
+    fun `a fast line and a provider that answers means this CHANNEL is the problem`() {
+        // The server is up — it just answered its own API — so the fault is this feed, and
+        // another feed of the same channel is worth trying.
+        assertEquals(
+            StreamHealth.CHANNEL_SLOW,
+            diagnoseStreamHealth(signals(stalls = 3, controlKbps = 50_000, providerApiOk = true)),
+        )
+    }
+
+    @Test
+    fun `a fast line and a provider that will not answer blames the server`() {
         assertEquals(
             StreamHealth.SERVER_SLOW,
-            diagnoseStreamHealth(signals(stalls = 3, controlKbps = 50_000)),
+            diagnoseStreamHealth(signals(stalls = 3, controlKbps = 50_000, providerApiOk = false)),
+        )
+    }
+
+    @Test
+    fun `an unmeasured server is never blamed`() {
+        // Accusing a whole server takes evidence; without it we say the thing we can stand behind.
+        assertEquals(
+            StreamHealth.CHANNEL_SLOW,
+            diagnoseStreamHealth(signals(stalls = 3, controlKbps = 50_000, providerApiOk = null)),
         )
     }
 
     @Test
     fun `one long freeze is a pattern on its own`() {
         assertEquals(
-            StreamHealth.SERVER_SLOW,
+            StreamHealth.CHANNEL_SLOW,
             diagnoseStreamHealth(signals(stalls = 1, longestStallMs = 12_000, controlKbps = 50_000)),
         )
     }

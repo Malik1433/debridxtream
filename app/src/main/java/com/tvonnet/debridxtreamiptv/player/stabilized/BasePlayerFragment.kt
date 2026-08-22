@@ -566,6 +566,15 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
                     }
                 }
             },
+            providerProbe = {
+                withContext(Dispatchers.IO) {
+                    withTimeoutOrNull(HEALTH_PROBE_TIMEOUT_MS) {
+                        NetworkQualityManager(requireContext(), okHttpClient).probeProviderAlive(
+                            prefs.getServerUrl(), prefs.getUsername(), prefs.getPassword()
+                        )
+                    }
+                }
+            },
             environment = {
                 NetworkEnvironmentReader.read(
                     requireContext(),
@@ -660,6 +669,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         val banner = streamHealthBanner ?: return
         val message = when (verdict) {
             StreamHealth.OK -> null
+            StreamHealth.CHANNEL_SLOW -> R.string.health_channel_slow
             StreamHealth.SERVER_SLOW -> R.string.health_server_slow
             StreamHealth.LOCAL_NETWORK_SLOW -> R.string.health_network_slow
             StreamHealth.WIFI_WEAK -> R.string.health_wifi_weak

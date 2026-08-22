@@ -18,7 +18,10 @@ enum class StreamHealth {
     /** Slow AND the Wi-Fi signal is weak, which is the cause far more often than the ISP is. */
     WIFI_WEAK,
 
-    /** The line is fine and this stream still cannot keep up: the provider's server. */
+    /** The line is fine, the provider's server answers — so it is THIS channel's feed. */
+    CHANNEL_SLOW,
+
+    /** The line is fine and the provider's own server will not answer at all. */
     SERVER_SLOW,
 
     /** HTTP 429 — the provider is deliberately holding this device back. */
@@ -44,6 +47,16 @@ data class StreamHealthSignals(
     val isWifi: Boolean,
     /** Wi-Fi signal in dBm; null off Wi-Fi. Weaker than about -70 is where video starts to suffer. */
     val wifiRssiDbm: Int?,
+    /**
+     * Did the PROVIDER's own server answer, just now?
+     *
+     * Asked of its API rather than of a second stream: this account has a connection limit, and
+     * opening a second stream to test the first could be refused with a 403 — or worse, cost the
+     * customer the stream they are watching. The API call takes no streaming slot.
+     *
+     * Null when it was not measured, and an unmeasured server is never blamed.
+     */
+    val providerApiOk: Boolean?,
     /** True while the reconnect banner is already explaining itself. */
     val isReconnecting: Boolean,
 )
@@ -93,12 +106,25 @@ fun diagnoseStreamHealth(signals: StreamHealthSignals): StreamHealth {
     val control = signals.controlKbps ?: return StreamHealth.OK // no probe, no verdict
     return when {
         control < CONTROL_SLOW_KBPS -> localCause(signals)
-        control >= CONTROL_HEALTHY_KBPS -> StreamHealth.SERVER_SLOW
+        control >= CONTROL_HEALTHY_KBPS -> providerCause(signals)
         // Between the two thresholds nothing can be said honestly: the line is mediocre and the
         // stream might legitimately need more than it has.
         else -> StreamHealth.OK
     }
 }
+
+/**
+ * The line is fine, so the fault is on the provider's side — but WHERE on it?
+ *
+ * A server that still answers its own API while one stream starves is up: the fault is that feed,
+ * and another feed of the same channel is worth trying. A server that will not answer at all is a
+ * different problem, and no amount of switching feeds will help.
+ *
+ * When it was not measured we say the CHANNEL, because that is the claim we can stand behind and
+ * the advice is the same either way. Accusing a whole server needs evidence.
+ */
+private fun providerCause(signals: StreamHealthSignals): StreamHealth =
+    if (signals.providerApiOk == false) StreamHealth.SERVER_SLOW else StreamHealth.CHANNEL_SLOW
 
 private fun isStruggling(signals: StreamHealthSignals): Boolean =
     signals.stalls >= STALL_COUNT_THRESHOLD || signals.longestStallMs >= LONG_STALL_MS

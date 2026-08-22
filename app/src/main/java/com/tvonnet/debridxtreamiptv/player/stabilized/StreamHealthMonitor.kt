@@ -20,6 +20,8 @@ internal class StreamHealthMonitor(
     private val now: () -> Long,
     /** Throughput to an unrelated host in kbps, or null if it could not be measured. */
     private val probe: suspend () -> Long?,
+    /** Whether the PROVIDER's own server answers; null if it could not be asked. */
+    private val providerProbe: suspend () -> Boolean?,
     private val environment: () -> Environment,
     private val onVerdict: (StreamHealth) -> Unit,
 ) {
@@ -80,7 +82,7 @@ internal class StreamHealthMonitor(
         if (stallsAt.isEmpty()) longestStallMs = 0L
     }
 
-    private fun signals(controlKbps: Long?): StreamHealthSignals {
+    private fun signals(controlKbps: Long?, providerApiOk: Boolean? = null): StreamHealthSignals {
         val env = environment()
         return StreamHealthSignals(
             stalls = stallsAt.size,
@@ -89,6 +91,7 @@ internal class StreamHealthMonitor(
             lastHttpCode = lastHttpCode,
             isWifi = env.isWifi,
             wifiRssiDbm = env.wifiRssiDbm,
+            providerApiOk = providerApiOk,
             isReconnecting = env.isReconnecting,
         )
     }
@@ -110,7 +113,11 @@ internal class StreamHealthMonitor(
         probing = true
         scope.launch {
             try {
-                publish(diagnoseStreamHealth(signals(controlKbps = probe())))
+                // Both measurements answer the same question from different sides, so they are
+                // taken together: the line, and the provider's own server.
+                val control = probe()
+                val providerOk = providerProbe()
+                publish(diagnoseStreamHealth(signals(control, providerOk)))
             } finally {
                 probing = false
             }

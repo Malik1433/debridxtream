@@ -384,7 +384,8 @@
       customer can act on most of them — but only if they are told WHICH one. Each line names the
       cause and, where there is one, the thing they can actually do about it.
     -->
-    <string name="health_server_slow">This channel is slow right now · try another source</string>
+    <string name="health_channel_slow">This channel is slow right now · try another source</string>
+    <string name="health_server_slow">Provider server is not responding</string>
     <string name="health_network_slow">Your connection is slow right now</string>
     <string name="health_wifi_weak">Weak Wi‑Fi signal · move closer to the router</string>
     <string name="health_rate_limited">Your provider is limiting this device</string>
