@@ -455,6 +455,12 @@ class MovieDetailFragmentV2 : Fragment() {
         val buttons = listOf(
             binding.btnPlay, binding.btnTrailer, binding.btnFavorite, binding.btnMarkWatched
         )
+        // ⭐ The LEADING button grows from its left edge, not its centre — see
+        // MovieDetailActivity.setupFocusAnimations for the full reasoning. In short: a television
+        // overscans, this content margin already sits close to what the panel shows, and a centred
+        // scale pushed the first button OUTSIDE it. Only on focus, only that button, and invisible
+        // to a screenshot, because the framebuffer keeps what the screen throws away.
+        binding.btnPlay.pivotX = 0f
         buttons.forEach { view ->
             view.alpha = 0.9f
             view.setOnFocusChangeListener { v, hasFocus ->

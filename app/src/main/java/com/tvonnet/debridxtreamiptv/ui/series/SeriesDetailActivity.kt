@@ -396,6 +396,12 @@ class SeriesDetailActivity : AppCompatActivity() {
 
     private fun setupFocusAnimations() {
         val focusTargets = listOf<View>(btnWatchNow, btnWatchTrailer, btnAddFavorite, btnSeasonSelector)
+        // ⭐ The LEADING button grows from its left edge, not its centre — see
+        // MovieDetailActivity.setupFocusAnimations for the full reasoning. In short: a television
+        // overscans, this content margin already sits close to what the panel shows, and a centred
+        // scale pushed the first button OUTSIDE it. Only on focus, only that button, and invisible
+        // to a screenshot, because the framebuffer keeps what the screen throws away.
+        btnWatchNow.pivotX = 0f
         focusTargets.forEach { view ->
             view.setOnFocusChangeListener { v, hasFocus ->
                 val scale = if (hasFocus) 1.05f else 1.0f
