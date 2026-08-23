@@ -654,6 +654,18 @@ class MovieDetailActivity : AppCompatActivity() {
 
     private fun setupFocusAnimations() {
         val focusViews: List<View> = listOf(btnPlay, btnTrailer, btnFavorite, btnBack)
+        // ⭐ The FIRST button grows from its left edge, not its centre.
+        //
+        // A televison overscans: this panel eats roughly the outer 3-5% of the picture, and at
+        // 320dpi the 44dp content margin is 88px — 4.6% — which survives. A centred 1.05 scale
+        // pushed this button's left edge out to about 3%, INTO the part the screen never shows,
+        // so the customer saw it shaved on focus while the text above it, at the same margin,
+        // looked perfect. That mismatch is why a screenshot could not reproduce it: the
+        // framebuffer had the whole button; the panel did not.
+        //
+        // Anchoring the pivot at x=0 means the left edge simply never moves. Only this button
+        // needs it — the others are further right, with room to spare.
+        btnPlay.pivotX = 0f
         focusViews.forEach { view ->
             view.setOnFocusChangeListener { v, hasFocus ->
                 if (hasFocus) {
