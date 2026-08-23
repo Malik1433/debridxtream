@@ -164,15 +164,27 @@
          defect M16a fixed there — a 0dp-tall LinearLayout runs past its own bottom, and with
          `clipChildren="false"` on the root that overflow is PAINTED OVER the similar rail. Same
          recipe: the column scrolls, `group_details` keeps its id and kind, and the root now clips. -->
+    <!--
+      ⭐ The 16dp start padding is FOCUS ROOM, and the width and margin are adjusted by the same
+      16dp so nothing moves: content still begins 44dp in and is still 480dp wide.
+
+      Watch Now grows to 1.05 when focused. container_actions already carried padding and a
+      negative margin to make space for that, but the trick only works if nothing clips first —
+      and this scroll view clips its children at its own edge, which is exactly where the button
+      sat. So the button was shaved on its left every time it took focus. Room INSIDE the bounds
+      fixes it without unclipping a scrolling container, which would let content paint over the
+      bar above it.
+    -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scroll_details"
-        android:layout_width="480dp"
+        android:layout_width="496dp"
         android:layout_height="0dp"
-        android:layout_marginStart="44dp"
+        android:layout_marginStart="28dp"
+        android:paddingStart="16dp"
         android:layout_marginTop="6dp"
         android:layout_marginBottom="@dimen/detail_column_margin_bottom"
         android:clipChildren="true"
-        android:clipToPadding="true"
+        android:clipToPadding="false"
         android:overScrollMode="never"
         app:layout_constraintTop_toBottomOf="@id/layout_top_bar"
         app:layout_constraintBottom_toTopOf="@id/layout_similar_row"
