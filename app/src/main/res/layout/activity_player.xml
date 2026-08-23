@@ -211,15 +211,25 @@
             android:paddingStart="48dp"
             android:paddingEnd="48dp">
 
-            <!-- Auto-sizing so long titles shrink to fit two lines instead of being cut,
-                 and stay within bounds even while the breathing scale is applied.
-                 Vertical padding + clipChildren=false give the drop shadow, font
-                 descenders and the 1.05x breathing scale room so the last line is not
-                 clipped from the bottom. -->
+            <!--
+              Auto-sizing so long titles shrink to fit two lines instead of being cut.
+
+              ⭐ The height is DEFINITE on purpose. Android's own guidance for
+              autoSizeTextType is not to use wrap_content, "as it may produce unexpected
+              results" — and it did: the view was measured against one text size while the
+              text was drawn at another, so the last line lost its descenders. The symptom
+              was subtle enough to survive months, because it only shows on a title that
+              HAS a descender: "Greenland 2-Migration" was clipped under the g while
+              "Greenland 2" beside it looked perfect, having no descender at all.
+
+              A fixed box also stops the loader bar hopping up and down as titles change
+              between one and two lines.
+            -->
             <TextView
                 android:id="@+id/tv_resolving_status"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="@dimen/loader_title_height"
+                android:includeFontPadding="true"
                 android:gravity="center"
                 android:maxLines="2"
                 android:ellipsize="end"
@@ -236,7 +246,7 @@
                 android:shadowRadius="8"
                 android:autoSizeTextType="uniform"
                 android:autoSizeMinTextSize="22sp"
-                android:autoSizeMaxTextSize="52sp"
+                android:autoSizeMaxTextSize="48sp"
                 android:autoSizeStepGranularity="1sp" />
 
             <!-- Clean indeterminate loader: a cyan segment sweeps smoothly back and forth

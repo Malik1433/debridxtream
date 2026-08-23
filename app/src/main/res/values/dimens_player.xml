@@ -18,4 +18,7 @@
     <dimen name="live_min_left_width">84dp</dimen>
     <!-- The player's status pills (reconnecting, stream health). -->
     <dimen name="stream_health_text_size">12sp</dimen>
+    <!-- Two lines at the autosize maximum, plus room for descenders. Definite, because
+         autosize and wrap_content together clip the last line. -->
+    <dimen name="loader_title_height">112dp</dimen>
 </resources>
