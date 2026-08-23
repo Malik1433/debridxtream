@@ -21,6 +21,16 @@ class LiveChannelIdentityTest {
     }
 
     @Test
+    fun `the owner's own case - Sony Max and Sony Max HD are one channel`() {
+        // Reported live: heavy freezing on Sony Max while a Sony Max HD sits in the same list.
+        // This is the pair failover exists for.
+        assertTrue(LiveChannelIdentity.isSameChannel("Sony Max", "Sony Max HD"))
+        assertTrue(LiveChannelIdentity.isSameChannel("IN: SONY MAX", "IN | Sony Max FHD"))
+        // …and not with its sibling channel, which differs by a digit.
+        assertFalse(LiveChannelIdentity.isSameChannel("Sony Max", "Sony Max 2"))
+    }
+
+    @Test
     fun `different channels are never merged`() {
         // Both live in the same category and both end in SPORTS.
         assertFalse(LiveChannelIdentity.isSameChannel("PK: PTV SPORTS", "PK: A SPORTS HD"))

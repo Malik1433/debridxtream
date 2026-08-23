@@ -142,5 +142,33 @@ private fun localCause(signals: StreamHealthSignals): StreamHealth {
     }
 }
 
+/** How long a verdict stays on screen. Long enough to read twice, not long enough to nag. */
+const val HEALTH_VISIBLE_MS = 8_000L
+
+/** …and how long before the SAME verdict may say it again. */
+const val HEALTH_RESHOW_MS = 120_000L
+
+/**
+ * Should this verdict go on screen now?
+ *
+ * A banner that arrives and stays becomes part of the wallpaper: the customer stops reading it
+ * within a minute and it is still sitting on their picture an hour later. So a verdict appears,
+ * says its piece, and leaves — and if the trouble is still there two minutes on, it says it again.
+ * A CHANGED verdict always shows, because it is news.
+ *
+ * @param lastShown the verdict last put on screen, or null if none
+ * @param lastShownAt when that happened
+ */
+fun shouldShowHealth(
+    verdict: StreamHealth,
+    lastShown: StreamHealth?,
+    lastShownAt: Long,
+    now: Long,
+): Boolean = when {
+    verdict == StreamHealth.OK -> false
+    verdict != lastShown -> true
+    else -> now - lastShownAt >= HEALTH_RESHOW_MS
+}
+
 private const val HTTP_FORBIDDEN = 403
 private const val HTTP_RATE_LIMITED = 429

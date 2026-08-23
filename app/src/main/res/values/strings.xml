@@ -384,7 +384,10 @@
       customer can act on most of them — but only if they are told WHICH one. Each line names the
       cause and, where there is one, the thing they can actually do about it.
     -->
-    <string name="health_channel_slow">This channel is slow right now · try another source</string>
+    <!-- No longer an instruction: the app switches feed itself now, so this only says what is
+         happening. Telling someone in front of a freezing picture to go and find another
+         source was asking them to do the one thing we are better placed to do. -->
+    <string name="health_channel_slow">This channel is struggling right now</string>
     <string name="health_server_slow">Provider server is not responding</string>
     <string name="health_network_slow">Your connection is slow right now</string>
     <string name="health_wifi_weak">Weak Wi‑Fi signal · move closer to the router</string>

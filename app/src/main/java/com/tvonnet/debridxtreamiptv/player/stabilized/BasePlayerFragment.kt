@@ -582,7 +582,29 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
                 )
             },
             onVerdict = ::showStreamHealth,
+            onDiagnosis = ::actOnStreamHealth,
         )
+    }
+
+    /**
+     * Do something about it, rather than asking the customer to.
+     *
+     * CHANNEL_SLOW is the one verdict the app can act on: the line is fine and the provider's own
+     * server is answering, so it is THIS feed that cannot keep up — and this provider carries the
+     * same channel more than once. Telling someone staring at a freezing picture to "try another
+     * source" was asking them to do the one thing we are better placed to do.
+     *
+     * Deliberately not on the others: a slow line or a dead server is not fixed by switching feed,
+     * and a rate limit would only be deepened by opening another connection.
+     *
+     * Switching is disruptive, so it is driven by the DIAGNOSIS rather than by the banner: it
+     * happens as soon as the evidence is in, not on whatever cadence we happen to be speaking at.
+     * LiveAlternateSources remembers every feed tried in this sitting, so this cannot loop.
+     */
+    private fun actOnStreamHealth(verdict: StreamHealth) {
+        if (verdict != StreamHealth.CHANNEL_SLOW) return
+        if (contentType != ContentType.LIVE_TV) return
+        tryLiveAlternateSource { /* nothing left to try: the banner has already said why */ }
     }
 
     /** Feeds of this channel already tried in this sitting, so failover cannot go round in a circle. */

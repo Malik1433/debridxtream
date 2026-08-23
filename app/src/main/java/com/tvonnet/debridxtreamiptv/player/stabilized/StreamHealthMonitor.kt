@@ -2,6 +2,8 @@ package com.tvonnet.debridxtreamiptv.player.stabilized
 
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -24,6 +26,11 @@ internal class StreamHealthMonitor(
     private val providerProbe: suspend () -> Boolean?,
     private val environment: () -> Environment,
     private val onVerdict: (StreamHealth) -> Unit,
+    /**
+     * Every non-OK verdict, whether or not it is put on screen — this is what ACTS on the
+     * diagnosis (the live failover), and acting must not depend on how often we choose to speak.
+     */
+    private val onDiagnosis: (StreamHealth) -> Unit = {},
 ) {
 
     /** What the device knows about itself at the moment of a stall. */
@@ -40,6 +47,9 @@ internal class StreamHealthMonitor(
     private var lastProbeAt = 0L
     private var probing = false
     private var published: StreamHealth = StreamHealth.OK
+    private var lastShown: StreamHealth? = null
+    private var lastShownAt = 0L
+    private var hideJob: Job? = null
 
     /** The player entered BUFFERING. */
     fun onBufferingStarted() {
@@ -69,6 +79,10 @@ internal class StreamHealthMonitor(
 
     /** A new channel or a new source is a new question. */
     fun reset() {
+        hideJob?.cancel()
+        hideJob = null
+        lastShown = null
+        lastShownAt = 0L
         stallsAt.clear()
         longestStallMs = 0L
         bufferingStartedAt = 0L
@@ -133,13 +147,39 @@ internal class StreamHealthMonitor(
         return diagnoseStreamHealth(signals(controlKbps = PROBE_WORTH_IT_PROBE)) != StreamHealth.OK
     }
 
+    /**
+     * Say it, then stop saying it.
+     *
+     * A banner that arrives and never leaves becomes wallpaper — read once, ignored after a
+     * minute, and still sitting on the picture an hour later. So a verdict shows for
+     * [HEALTH_VISIBLE_MS] and goes; if the trouble is still there [HEALTH_RESHOW_MS] later it
+     * says so again. A verdict that CHANGED always shows, because that is news.
+     */
     private fun publish(verdict: StreamHealth) {
         if (verdict == published) return
         published = verdict
-        // Logged as well as shown: the pill is a sentence for the customer, this line is the
-        // evidence behind it — and it is what a support conversation will actually need.
+
+        if (verdict == StreamHealth.OK) {
+            hideJob?.cancel()
+            hideJob = null
+            onVerdict(StreamHealth.OK)
+            return
+        }
+
+        // Logged whatever the screen decides: the pill is a sentence for the customer, this line
+        // is the evidence behind it, and it is what a support conversation will actually need.
         Log.i(TAG, "stream health: $verdict (stalls=${stallsAt.size}, longest=${longestStallMs}ms, http=$lastHttpCode)")
+        onDiagnosis(verdict)
+
+        if (!shouldShowHealth(verdict, lastShown, lastShownAt, now())) return
+        lastShown = verdict
+        lastShownAt = now()
         onVerdict(verdict)
+        hideJob?.cancel()
+        hideJob = scope.launch {
+            delay(HEALTH_VISIBLE_MS)
+            onVerdict(StreamHealth.OK)
+        }
     }
 
     private companion object {

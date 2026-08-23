@@ -1,6 +1,8 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -127,6 +129,49 @@ class StreamHealthTest {
             StreamHealth.OK,
             diagnoseStreamHealth(signals(stalls = 5, controlKbps = 4_500)),
         )
+    }
+
+    // ── how OFTEN it is allowed to speak ─────────────────────────────────────────
+
+    @Test
+    fun `a verdict shows the first time it happens`() {
+        assertTrue(shouldShowHealth(StreamHealth.CHANNEL_SLOW, null, 0L, now = 10_000L))
+    }
+
+    @Test
+    fun `the same verdict does not repeat itself straight away`() {
+        // The banner that never leaves becomes wallpaper; this is what stops it.
+        assertFalse(
+            shouldShowHealth(
+                StreamHealth.CHANNEL_SLOW, StreamHealth.CHANNEL_SLOW,
+                lastShownAt = 10_000L, now = 20_000L,
+            )
+        )
+    }
+
+    @Test
+    fun `it says it again if the trouble is still there two minutes later`() {
+        assertTrue(
+            shouldShowHealth(
+                StreamHealth.CHANNEL_SLOW, StreamHealth.CHANNEL_SLOW,
+                lastShownAt = 10_000L, now = 10_000L + HEALTH_RESHOW_MS,
+            )
+        )
+    }
+
+    @Test
+    fun `a CHANGED verdict is news and shows at once`() {
+        assertTrue(
+            shouldShowHealth(
+                StreamHealth.WIFI_WEAK, StreamHealth.CHANNEL_SLOW,
+                lastShownAt = 10_000L, now = 10_500L,
+            )
+        )
+    }
+
+    @Test
+    fun `OK is never shown, it is the absence of a message`() {
+        assertFalse(shouldShowHealth(StreamHealth.OK, null, 0L, now = 10_000L))
     }
 
     @Test
