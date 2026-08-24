@@ -21,6 +21,21 @@ class LiveChannelIdentityTest {
     }
 
     @Test
+    fun `every Sony Max feed in the owner's real catalogue, sorted correctly`() {
+        // These are the exact names from his live list, read off the screen.
+        val watching = "IN | Sony Max HD"
+        // Same channel, other feeds — what failover may switch to:
+        assertTrue(LiveChannelIdentity.isSameChannel(watching, "IN | Sony Max [FHD]"))
+        assertTrue(LiveChannelIdentity.isSameChannel(watching, "SONY MAX (4K)"))
+        assertTrue(LiveChannelIdentity.isSameChannel(watching, "IN | Sony Max (TATAPLAY)"))
+        // Different channels, which it must never switch to:
+        assertFalse(LiveChannelIdentity.isSameChannel(watching, "UK: SONY MAX 2 uk"))
+        assertFalse(LiveChannelIdentity.isSameChannel(watching, "USA Asian: Sony Max 2"))
+        // A regional feed is its own channel: a customer on the Indian feed does not want the UK one.
+        assertFalse(LiveChannelIdentity.isSameChannel(watching, "UK: Sony Max UK"))
+    }
+
+    @Test
     fun `the owner's own case - Sony Max and Sony Max HD are one channel`() {
         // Reported live: heavy freezing on Sony Max while a Sony Max HD sits in the same list.
         // This is the pair failover exists for.

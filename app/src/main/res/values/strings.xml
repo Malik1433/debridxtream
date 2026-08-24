@@ -388,6 +388,10 @@
          happening. Telling someone in front of a freezing picture to go and find another
          source was asking them to do the one thing we are better placed to do. -->
     <string name="health_channel_slow">This channel is struggling right now</string>
+    <!-- Said only after every other feed of the channel has been tried and was no better.
+         It is the provider having a bad day with this channel, and nothing the customer or
+         the app can mend — so it says that instead of hinting at a fix. -->
+    <string name="health_channel_all_feeds">All sources for this channel are struggling</string>
     <string name="health_server_slow">Provider server is not responding</string>
     <string name="health_network_slow">Your connection is slow right now</string>
     <string name="health_wifi_weak">Weak Wi‑Fi signal · move closer to the router</string>

@@ -21,6 +21,15 @@ enum class StreamHealth {
     /** The line is fine, the provider's server answers — so it is THIS channel's feed. */
     CHANNEL_SLOW,
 
+    /**
+     * Every feed of this channel has now been tried and they are all struggling.
+     *
+     * A different sentence because it calls for a different response: there is nothing left for
+     * the app to switch to, and nothing the customer can do to their own equipment either. The
+     * channel is bad at the provider right now.
+     */
+    CHANNEL_ALL_FEEDS_SLOW,
+
     /** The line is fine and the provider's own server will not answer at all. */
     SERVER_SLOW,
 
@@ -57,6 +66,8 @@ data class StreamHealthSignals(
      * Null when it was not measured, and an unmeasured server is never blamed.
      */
     val providerApiOk: Boolean?,
+    /** Every other feed of this channel has been tried already and none of them helped. */
+    val alternatesExhausted: Boolean,
     /** True while the reconnect banner is already explaining itself. */
     val isReconnecting: Boolean,
 )
@@ -123,8 +134,14 @@ fun diagnoseStreamHealth(signals: StreamHealthSignals): StreamHealth {
  * When it was not measured we say the CHANNEL, because that is the claim we can stand behind and
  * the advice is the same either way. Accusing a whole server needs evidence.
  */
-private fun providerCause(signals: StreamHealthSignals): StreamHealth =
-    if (signals.providerApiOk == false) StreamHealth.SERVER_SLOW else StreamHealth.CHANNEL_SLOW
+private fun providerCause(signals: StreamHealthSignals): StreamHealth = when {
+    signals.providerApiOk == false -> StreamHealth.SERVER_SLOW
+    // Switching feed is the answer only while there is a feed left to switch to. Once they have
+    // all been tried and all been bad, saying "this channel is struggling" again would invite the
+    // customer to keep waiting for a fix that is not coming from here.
+    signals.alternatesExhausted -> StreamHealth.CHANNEL_ALL_FEEDS_SLOW
+    else -> StreamHealth.CHANNEL_SLOW
+}
 
 private fun isStruggling(signals: StreamHealthSignals): Boolean =
     signals.stalls >= STALL_COUNT_THRESHOLD || signals.longestStallMs >= LONG_STALL_MS

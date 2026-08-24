@@ -19,10 +19,11 @@ class StreamHealthTest {
         isWifi: Boolean = true,
         wifiRssiDbm: Int? = -50,
         providerApiOk: Boolean? = null,
+        alternatesExhausted: Boolean = false,
         isReconnecting: Boolean = false,
     ) = StreamHealthSignals(
         stalls, longestStallMs, controlKbps, lastHttpCode, isWifi, wifiRssiDbm,
-        providerApiOk, isReconnecting,
+        providerApiOk, alternatesExhausted, isReconnecting,
     )
 
     @Test
@@ -46,6 +47,29 @@ class StreamHealthTest {
         assertEquals(
             StreamHealth.CHANNEL_SLOW,
             diagnoseStreamHealth(signals(stalls = 3, controlKbps = 50_000, providerApiOk = true)),
+        )
+    }
+
+    @Test
+    fun `once every feed has been tried and none helped, it says so`() {
+        // The owner's Sony Max case: the HD and FHD feeds are no better than the SD one. Repeating
+        // "this channel is struggling" would keep implying a switch is about to fix it.
+        assertEquals(
+            StreamHealth.CHANNEL_ALL_FEEDS_SLOW,
+            diagnoseStreamHealth(
+                signals(stalls = 3, controlKbps = 50_000, providerApiOk = true, alternatesExhausted = true)
+            ),
+        )
+    }
+
+    @Test
+    fun `a dead server outranks having run out of feeds`() {
+        // No feed of any channel will help if the provider itself stopped answering.
+        assertEquals(
+            StreamHealth.SERVER_SLOW,
+            diagnoseStreamHealth(
+                signals(stalls = 3, controlKbps = 50_000, providerApiOk = false, alternatesExhausted = true)
+            ),
         )
     }
 

@@ -32,6 +32,21 @@ object LiveChannelIdentity {
         "h264", "h265", "hevc", "raw", "backup", "alt", "vip", "multi", "fps50", "50fps",
     )
 
+    /**
+     * WHICH CARRIER delivers the feed, not which channel it is.
+     *
+     * The catalogue carries "Sony Max HD", "Sony Max [FHD]" and "Sony Max (TATAPLAY)" — one
+     * channel down three routes. The carrier one is the most valuable alternate of all,
+     * because it is genuinely independent: a different platform, a different path, unlikely to
+     * be having the same bad day.
+     *
+     * Only DISTRIBUTOR names belong here. None of them can fuse two different channels, which
+     * is the one mistake this object exists to prevent.
+     */
+    private val PLATFORM_TOKENS = setOf(
+        "tataplay", "tata", "airtel", "jio", "dish", "d2h", "videocon", "sundirect",
+    )
+
     private val NON_ALNUM = Regex("""[^a-z0-9 ]""")
     private val MULTI_SPACE = Regex("""\s{2,}""")
 
@@ -45,7 +60,8 @@ object LiveChannelIdentity {
         val withoutCountry = COUNTRY_PREFIX.replace(cleaned, "")
         val plain = MULTI_SPACE.replace(NON_ALNUM.replace(withoutCountry, " "), " ").trim()
         if (plain.isEmpty()) return ""
-        val words = plain.split(' ').filter { it.isNotBlank() && it !in QUALITY_TOKENS }
+        val words = plain.split(' ')
+            .filter { it.isNotBlank() && it !in QUALITY_TOKENS && it !in PLATFORM_TOKENS }
         // A name made only of quality words identifies nothing.
         return words.joinToString(" ")
     }

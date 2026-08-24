@@ -44,6 +44,7 @@ internal class StreamHealthMonitor(
     private var longestStallMs = 0L
     private var bufferingStartedAt = 0L
     private var lastHttpCode: Int? = null
+    private var alternatesExhausted = false
     private var lastProbeAt = 0L
     private var probing = false
     private var published: StreamHealth = StreamHealth.OK
@@ -77,6 +78,18 @@ internal class StreamHealthMonitor(
         if (code != null) lastHttpCode = code
     }
 
+    /**
+     * Every other feed of this channel has been tried and none of them helped, so the verdict
+     * stops recommending a switch and says what is actually true.
+     */
+    fun noteAlternatesExhausted() {
+        if (alternatesExhausted) return
+        alternatesExhausted = true
+        // Re-ask now: the answer has changed even though nothing about the network has.
+        published = StreamHealth.OK
+        evaluate()
+    }
+
     /** A new channel or a new source is a new question. */
     fun reset() {
         hideJob?.cancel()
@@ -87,6 +100,7 @@ internal class StreamHealthMonitor(
         longestStallMs = 0L
         bufferingStartedAt = 0L
         lastHttpCode = null
+        alternatesExhausted = false
         publish(StreamHealth.OK)
     }
 
@@ -106,6 +120,7 @@ internal class StreamHealthMonitor(
             isWifi = env.isWifi,
             wifiRssiDbm = env.wifiRssiDbm,
             providerApiOk = providerApiOk,
+            alternatesExhausted = alternatesExhausted,
             isReconnecting = env.isReconnecting,
         )
     }

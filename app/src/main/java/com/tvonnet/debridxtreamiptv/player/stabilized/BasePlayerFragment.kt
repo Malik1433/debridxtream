@@ -604,7 +604,11 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     private fun actOnStreamHealth(verdict: StreamHealth) {
         if (verdict != StreamHealth.CHANNEL_SLOW) return
         if (contentType != ContentType.LIVE_TV) return
-        tryLiveAlternateSource { /* nothing left to try: the banner has already said why */ }
+        tryLiveAlternateSource {
+            // Nothing left to switch to, and everything tried was just as bad: stop implying a
+            // fix is one button away and name the real situation.
+            streamHealth.noteAlternatesExhausted()
+        }
     }
 
     /** Feeds of this channel already tried in this sitting, so failover cannot go round in a circle. */
@@ -692,6 +696,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         val message = when (verdict) {
             StreamHealth.OK -> null
             StreamHealth.CHANNEL_SLOW -> R.string.health_channel_slow
+            StreamHealth.CHANNEL_ALL_FEEDS_SLOW -> R.string.health_channel_all_feeds
             StreamHealth.SERVER_SLOW -> R.string.health_server_slow
             StreamHealth.LOCAL_NETWORK_SLOW -> R.string.health_network_slow
             StreamHealth.WIFI_WEAK -> R.string.health_wifi_weak
