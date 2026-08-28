@@ -13,6 +13,8 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.ui.live.phone.PhoneUi
+import com.tvonnet.debridxtreamiptv.util.PortraitScreen
 import com.tvonnet.debridxtreamiptv.utils.FocusCoordinator
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -20,9 +22,14 @@ import kotlinx.coroutines.launch
 /**
  * Fragment for Real-Debrid device-code authentication
  * Shows device code, verification URL, and polls for user authorization
+ *
+ * A [PortraitScreen], since it has a portrait design: `layout/fragment_debrid_auth` is the phone
+ * form and the 10-foot original moved to `layout-television/`. Until that split this screen was
+ * one of the last two a phone could reach that MainActivity still had to spin to landscape — it
+ * wore the television layout, and squeezing that into a 411dp column would have been worse.
  */
 @AndroidEntryPoint
-class DebridAuthFragment : Fragment() {
+class DebridAuthFragment : Fragment(), PortraitScreen {
     
     private val viewModel: DebridAuthViewModel by viewModels()
     
@@ -44,7 +51,12 @@ class DebridAuthFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        return inflater.inflate(R.layout.fragment_debrid_auth, container, false)
+        // Unscaled, like every other screen drawn at real phone sizes: MainActivity multiplies
+        // every sp by 1.6 to rescue the screens still wearing the 10-foot layout, and this one no
+        // longer is. The user's OWN accessibility scale survives — only our multiplier is dropped.
+        // On a television it is an identity, because nothing scales there in the first place.
+        return PhoneUi.unscaled(this, inflater)
+            .inflate(R.layout.fragment_debrid_auth, container, false)
     }
     
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

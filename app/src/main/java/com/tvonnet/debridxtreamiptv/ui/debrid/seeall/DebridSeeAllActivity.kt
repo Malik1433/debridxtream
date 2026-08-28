@@ -20,7 +20,7 @@ import com.tvonnet.debridxtreamiptv.ui.series.SeriesDetailActivity
 import com.tvonnet.debridxtreamiptv.ui.vod.MovieDetailActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
+import com.tvonnet.debridxtreamiptv.util.usePortraitOnTouchDevices
 import com.tvonnet.debridxtreamiptv.ui.debrid.DebridItemType
 
 @AndroidEntryPoint
@@ -36,19 +36,26 @@ class DebridSeeAllActivity : AppCompatActivity() {
 
     private var lastFocusedPosition = -1
 
-    // D1: the M13 phone font scale reached only MainActivity and the two detail activities, so
-    // this screen rendered at the TV's px÷2 sizes — 6-9sp — in the hand. Same one-liner as there.
+    // NOT phoneScaledContext. D1 added that 1.6x to rescue the TV layout's 6-9sp type while this
+    // screen was still wearing it; it has a real phone layout in layout/ now (the television file
+    // moved to layout-television/), authored in true dp and sp, and scaling that would blow it
+    // apart. Same call MovieDetailActivity makes for the same reason.
     override fun attachBaseContext(newBase: android.content.Context) {
-        super.attachBaseContext(com.tvonnet.debridxtreamiptv.util.phoneScaledContext(newBase))
+        super.attachBaseContext(newBase)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // D1: the manifest already pins this activity to landscape, but going through
-        // the M13 helper keeps every screen on ONE mechanism — a future change to the
-        // orientation rule would otherwise miss the two Debrid activities silently.
-        lockLandscapeOnTouchDevices()
+        // BEFORE super.onCreate, so the orientation is settled before the first inflate. Portrait
+        // now, because the phone layout IS portrait: the landscape lock was the price of wearing
+        // the 10-foot screen, and this was the last phone-reachable page still paying it. The
+        // manifest is `unspecified` so the window is never BUILT landscape and swung round after.
+        usePortraitOnTouchDevices()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_debrid_see_all)
+
+        // The phone app bar's Back. Null on the television, which has neither the button nor a
+        // need for one — BACK is a key there.
+        findViewById<android.view.View>(R.id.btnBack)?.setOnClickListener { finish() }
 
         val rowId = intent.getStringExtra(EXTRA_ROW_ID) ?: ""
         val rowTitle = intent.getStringExtra(EXTRA_ROW_TITLE) ?: ""
@@ -60,7 +67,11 @@ class DebridSeeAllActivity : AppCompatActivity() {
         val progressBar = findViewById<android.widget.ProgressBar>(R.id.progressBar)
         val tvError = findViewById<TextView>(R.id.tvError)
 
-        val layoutManager = GridLayoutManager(this, 6)
+        // Six across a television, three in the hand — the same count PhoneBrowseFragment settled
+        // on: two waste a third of a screen whose whole job is density, four drop the poster to
+        // 88dp where titles stop being legible.
+        val columns = if (resources.getBoolean(R.bool.ui_uses_dpad_focus)) 6 else 3
+        val layoutManager = GridLayoutManager(this, columns)
         recyclerView.layoutManager = layoutManager
         recyclerView.setHasFixedSize(true)
         recyclerView.descendantFocusability = android.view.ViewGroup.FOCUS_AFTER_DESCENDANTS

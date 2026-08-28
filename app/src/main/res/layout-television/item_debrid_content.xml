@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root_card"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:padding="8dp"
+    android:focusable="true"
+    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
+    android:clipToPadding="false"
+    android:clipChildren="false">
+
+    <!-- Focus Glow Layer (Invisible by default) -->
+    <View
+        android:id="@+id/glow_focus"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_margin="-12dp"
+        android:background="@drawable/bg_movie_card_glow"
+        android:alpha="0"
+        app:layout_constraintTop_toTopOf="@id/card_poster"
+        app:layout_constraintBottom_toBottomOf="@id/card_poster"
+        app:layout_constraintStart_toStartOf="@id/card_poster"
+        app:layout_constraintEnd_toEndOf="@id/card_poster" />
+
+    <!-- Poster Image Container -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_poster"
+        android:layout_width="@dimen/poster_top_10_width"
+        android:layout_height="@dimen/poster_top_10_height"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:cardCornerRadius="4dp"
+        app:cardElevation="0dp"
+        android:duplicateParentState="true"
+        android:foreground="@drawable/card_focus_cinematic"
+        app:cardBackgroundColor="@color/card_background">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ImageView
+                android:id="@+id/iv_poster"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/placeholder_poster"
+                android:contentDescription="@null" />
+
+            <!-- Rating Badge (Top Right) -->
+            <TextView
+                android:id="@+id/tv_rating_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|end"
+                android:layout_margin="8dp"
+                android:background="@drawable/bg_rating_badge"
+                android:textColor="#FFC107"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/plus_jakarta_sans"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:visibility="gone"
+                tools:text="⭐ 8.5" />
+
+            <!-- Metadata Overlay (Bottom Aligned) -->
+            <LinearLayout
+                android:id="@+id/metadata_overlay"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:background="@drawable/bg_gradient_bottom_overlay"
+                android:orientation="vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="@dimen/debrid_card_overlay_padding_top"
+                android:paddingBottom="12dp"
+                android:alpha="1.0">
+
+                <TextView
+                    android:id="@+id/tv_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:textColor="@android:color/white"
+                    android:textSize="@dimen/debrid_card_title_size"
+                    android:textStyle="bold"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:letterSpacing="0.01" />
+
+                <TextView
+                    android:id="@+id/tv_year"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#cccccc"
+                    android:textSize="@dimen/debrid_card_year_size"
+                    android:fontFamily="@font/plus_jakarta_sans"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
+
+            <!-- Continue Watching Progress -->
+            <ProgressBar
+                android:id="@+id/progress_watch"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_gravity="bottom"
+                android:progressDrawable="@drawable/progress_bar_cinematic"
+                android:visibility="gone" />
+        </FrameLayout>
+    </androidx.cardview.widget.CardView>
+</androidx.constraintlayout.widget.ConstraintLayout>

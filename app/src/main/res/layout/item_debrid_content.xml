@@ -1,43 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  PHONE poster card for the Debrid grids (See All).
+
+  The television card moved to layout-television/ unchanged: it is a FIXED 128x192 tile with the
+  title painted ON the art behind a gradient, sized so a focus scale of 1.15 has room to grow. None
+  of that is a phone card. Here the tile fills its grid column, so three of them fit any handset
+  width, and the title sits UNDER the art like every other phone poster in this app
+  (item_phone_poster) — a busy poster never eats the text.
+
+  Every id the television file carries is carried here too, so DebridDiscoverAdapter binds either
+  without knowing which it got. `glow_focus` stays as a gone view: the adapter animates its alpha
+  on focus, which a touchscreen never delivers, and animating a gone view is a no-op.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/root_card"
-    android:layout_width="wrap_content"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="8dp"
-    android:focusable="true"
-    android:focusableInTouchMode="@bool/rows_focusable_in_touch_mode"
-    android:clipToPadding="false"
-    android:clipChildren="false">
+    android:layout_marginHorizontal="5dp"
+    android:layout_marginBottom="18dp"
+    android:clickable="true"
+    android:focusable="true">
 
-    <!-- Focus Glow Layer (Invisible by default) -->
     <View
         android:id="@+id/glow_focus"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_margin="-12dp"
-        android:background="@drawable/bg_movie_card_glow"
-        android:alpha="0"
-        app:layout_constraintTop_toTopOf="@id/card_poster"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="@id/card_poster"
+        app:layout_constraintEnd_toEndOf="@id/card_poster"
         app:layout_constraintStart_toStartOf="@id/card_poster"
-        app:layout_constraintEnd_toEndOf="@id/card_poster" />
+        app:layout_constraintTop_toTopOf="@id/card_poster" />
 
-    <!-- Poster Image Container -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_poster"
-        android:layout_width="@dimen/poster_top_10_width"
-        android:layout_height="@dimen/poster_top_10_height"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:cardCornerRadius="4dp"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:cardBackgroundColor="@color/phone_panel"
+        app:cardCornerRadius="10dp"
         app:cardElevation="0dp"
-        android:duplicateParentState="true"
-        android:foreground="@drawable/card_focus_cinematic"
-        app:cardBackgroundColor="@color/card_background">
+        app:layout_constraintDimensionRatio="2:3"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
         <FrameLayout
             android:layout_width="match_parent"
@@ -47,66 +54,25 @@
                 android:id="@+id/iv_poster"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:contentDescription="@null"
                 android:scaleType="centerCrop"
-                android:src="@drawable/placeholder_poster"
-                android:contentDescription="@null" />
+                android:src="@drawable/placeholder_poster" />
 
-            <!-- Rating Badge (Top Right) -->
             <TextView
                 android:id="@+id/tv_rating_badge"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="top|end"
-                android:layout_margin="8dp"
-                android:background="@drawable/bg_rating_badge"
-                android:textColor="#FFC107"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                android:fontFamily="@font/plus_jakarta_sans"
-                android:paddingStart="6dp"
-                android:paddingEnd="6dp"
-                android:paddingTop="3dp"
-                android:paddingBottom="3dp"
+                android:layout_margin="6dp"
+                android:background="@drawable/bg_phone_quality_badge"
+                android:fontFamily="@font/share_tech_mono"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp"
+                android:textColor="@color/phone_on_accent"
+                android:textSize="12sp"
                 android:visibility="gone"
-                tools:text="⭐ 8.5" />
+                tools:text="8.5" />
 
-            <!-- Metadata Overlay (Bottom Aligned) -->
-            <LinearLayout
-                android:id="@+id/metadata_overlay"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
-                android:background="@drawable/bg_gradient_bottom_overlay"
-                android:orientation="vertical"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="@dimen/debrid_card_overlay_padding_top"
-                android:paddingBottom="12dp"
-                android:alpha="1.0">
-
-                <TextView
-                    android:id="@+id/tv_title"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:maxLines="2"
-                    android:ellipsize="end"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/debrid_card_title_size"
-                    android:textStyle="bold"
-                    android:fontFamily="@font/plus_jakarta_sans"
-                    android:letterSpacing="0.01" />
-
-                <TextView
-                    android:id="@+id/tv_year"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="#cccccc"
-                    android:textSize="@dimen/debrid_card_year_size"
-                    android:fontFamily="@font/plus_jakarta_sans"
-                    android:layout_marginTop="2dp" />
-            </LinearLayout>
-
-            <!-- Continue Watching Progress -->
             <ProgressBar
                 android:id="@+id/progress_watch"
                 style="@android:style/Widget.ProgressBar.Horizontal"
@@ -117,4 +83,39 @@
                 android:visibility="gone" />
         </FrameLayout>
     </androidx.cardview.widget.CardView>
+
+    <LinearLayout
+        android:id="@+id/metadata_overlay"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/card_poster">
+
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="@font/outfit_semibold"
+            android:lineSpacingMultiplier="1.25"
+            android:maxLines="2"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="13sp"
+            tools:text="Dune: Part Two" />
+
+        <TextView
+            android:id="@+id/tv_year"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/share_tech_mono"
+            android:maxLines="1"
+            android:textColor="@color/phone_text_muted"
+            android:textSize="12sp"
+            tools:text="2024" />
+    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

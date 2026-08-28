@@ -1,74 +1,100 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  PHONE "See All" — portrait, the drill-down behind a Debrid row's See All.
+
+  The television answer moved to layout-television/ unchanged. This one exists because the TV file
+  is a 10-foot screen in every dimension a phone cares about: 58dp overscan gutters, a six-column
+  grid and a backdrop wash that only a FOCUSED card can paint — and a touchscreen never focuses
+  anything. Wearing it was what kept this screen locked to landscape.
+
+  Chrome is the same 56dp app bar Home, Live TV and Detail use, so a drill-down looks like every
+  other drill-down. No bottom nav: this is a page you came INTO, and Back is how you leave.
+
+  The ids are the television file's ids, so DebridSeeAllActivity binds either without asking which
+  it got. `ivBackdrop` is kept for exactly that reason — it stays empty here (nothing focuses), and
+  the activity's Glide call would have nowhere to land without it.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/black">
+    android:background="@color/phone_home_bg">
 
     <ImageView
         android:id="@+id/ivBackdrop"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:alpha="0.15"
-        android:scaleType="centerCrop"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:src="@drawable/bg_tab_button_focused"
-        android:contentDescription="@null" />
+        android:contentDescription="@null"
+        android:scaleType="centerCrop" />
 
-    <TextView
-        android:id="@+id/textViewTitle"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="58dp"
-        android:layout_marginTop="27dp"
-        android:layout_marginEnd="58dp"
-        android:textColor="@color/white"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:text="Category Title" />
-
+    <!-- 11dp + the cards' own 5dp margin = the 16dp page gutter, with 10dp between columns. -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewItems"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:paddingStart="58dp"
-        android:paddingEnd="58dp"
-        android:paddingBottom="27dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textViewTitle" />
+        android:overScrollMode="never"
+        android:paddingHorizontal="11dp"
+        android:paddingTop="64dp"
+        android:paddingBottom="24dp"
+        android:scrollbars="none"
+        tools:listitem="@layout/item_debrid_content" />
 
     <ProgressBar
         android:id="@+id/progressBar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_gravity="center"
+        android:indeterminateTint="@color/phone_cyan"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/tvError"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="@color/white"
-        android:textSize="18sp"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:paddingHorizontal="32dp"
+        android:fontFamily="@font/outfit_semibold"
+        android:lineSpacingMultiplier="1.35"
+        android:textColor="@color/phone_text_secondary"
+        android:textSize="14sp"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:text="An error occurred" />
+        tools:text="An error occurred"
+        tools:visibility="visible" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <!-- ══ APP BAR ══ pinned; the grid scrolls under it. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/phone_bar_scrim"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="4dp">
+
+        <ImageView
+            android:id="@+id/btnBack"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/a11y_back"
+            android:padding="14dp"
+            android:src="@drawable/ic_stremio_chevron_left"
+            app:tint="@color/phone_text_primary" />
+
+        <TextView
+            android:id="@+id/textViewTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="4dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="@font/outfit_bold"
+            android:maxLines="1"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="16sp"
+            tools:text="Trending Movies" />
+    </LinearLayout>
+</FrameLayout>

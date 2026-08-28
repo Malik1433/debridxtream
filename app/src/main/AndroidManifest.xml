@@ -171,18 +171,25 @@
             android:exported="false"
             android:screenOrientation="landscape" />
 
+        <!--
+          `unspecified`, like the two detail activities, because this screen decides its own
+          orientation in code. It has a portrait phone layout now (the 10-foot one moved to
+          layout-television/), and a manifest orientation is applied when the activity record is
+          created — declared landscape here, the window would be BUILT landscape and then swung to
+          portrait a moment later, which is the flash those two already documented.
+        -->
         <activity
             android:name=".ui.debrid.seeall.DebridSeeAllActivity"
             android:label="See All"
             android:theme="@style/AppTheme"
             android:exported="false"
-            android:screenOrientation="landscape" />
+            android:screenOrientation="unspecified" />
 
 
 
         <activity
             android:name=".ui.recovery.RecoveryActivity"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="unspecified"
             android:label="Recovery Mode"
             android:theme="@style/AppTheme"
             android:exported="false" />

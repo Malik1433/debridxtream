@@ -14,13 +14,17 @@ import android.widget.TextView
 import com.tvonnet.debridxtreamiptv.ui.MainActivity
 import java.io.File
 import kotlin.system.exitProcess
-import com.tvonnet.debridxtreamiptv.util.lockLandscapeOnTouchDevices
+import com.tvonnet.debridxtreamiptv.util.usePortraitOnTouchDevices
 
 class RecoveryActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // M13: one orientation for the whole app on a phone — landscape, like the TV.
-        lockLandscapeOnTouchDevices()
+        // Portrait on a phone. M13 locked this landscape with everything else, but the reason that
+        // rule existed — a screen wearing the television's wide layout — never applied here: this
+        // one has no layout file at all. It is a centred vertical column built in code, so it is
+        // already the portrait shape, and a crash screen that arrives sideways on a handset is the
+        // worst possible moment to break the platform's conventions.
+        usePortraitOnTouchDevices()
         super.onCreate(savedInstanceState)
         
         val layout = LinearLayout(this).apply {
