@@ -19,7 +19,7 @@ import com.tvonnet.debridxtreamiptv.R
 /**
  * Fullscreen "Connect via Phone / QR" pairing overlay on the login screen.
  *
- * Reuses the CompanionSetupActivity pairing mechanism: a persistent 6-digit sync code,
+ * The pairing mechanism: a persistent 6-digit sync code,
  * a QR of the companion setup URL, and a Firestore `device_codes/<code>` listener.
  * On a completed sync the payload is applied via [CompanionConfigApplier] and
  * [onPaired] fires so the login screen can auto-login.
@@ -146,7 +146,18 @@ class LoginQrOverlayController(
         val baseUrl = context.getString(R.string.companion_setup_url)
         val setupUrl = if (baseUrl.contains("?")) "$baseUrl&code=$code" else "$baseUrl?code=$code"
         try {
-            val bitmap = BarcodeEncoder().encodeBitmap(setupUrl, BarcodeFormat.QR_CODE, 400, 400)
+            // Error correction H, because this code has a LOGO ON TOP of it: the DX badge sits in
+            // the middle of the modules, and zxing's default is L — 7%, which the badge plus the
+            // sweeping scanline ate. The owner's phone camera could not read it, and neither could
+            // OpenCV off a pixel-perfect screenshot. H tolerates 30%, which is what every
+            // logo-in-the-middle QR in the wild relies on. MARGIN keeps a real quiet zone inside
+            // the bitmap itself rather than trusting the card's padding.
+            val hints = mapOf(
+                com.google.zxing.EncodeHintType.ERROR_CORRECTION to
+                    com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.H,
+                com.google.zxing.EncodeHintType.MARGIN to 2,
+            )
+            val bitmap = BarcodeEncoder().encodeBitmap(setupUrl, BarcodeFormat.QR_CODE, 800, 800, hints)
             overlay.findViewById<ImageView>(R.id.iv_qr_code).setImageBitmap(bitmap)
         } catch (e: Exception) {
             android.util.Log.e("LoginQrOverlay", "QR generation failed", e)
