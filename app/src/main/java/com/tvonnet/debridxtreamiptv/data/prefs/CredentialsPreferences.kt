@@ -252,24 +252,41 @@ class CredentialsPreferences(private val context: Context) {
         const val DEFAULT_PREFERRED_AUDIO_LANG_2 = "NONE"
         private const val KEY_IPTV_EXP_DATE = "iptv_exp_date"
         private const val KEY_IPTV_EXP_CACHED_AT = "iptv_exp_cached_at"
-        private const val IPTV_EXP_TTL_MS = 12L * 60 * 60 * 1000 // 12h
+        private const val KEY_IPTV_EXP_FOR = "iptv_exp_fingerprint"
+        // The floor between background revalidations, NOT a validity window. The chip paints from
+        // cache instantly and refreshes behind it; this only stops a browse session that hops
+        // Home ↔ sections every few seconds from firing a `login` call per hop — some Xtream
+        // panels rate-limit exactly that call.
+        private const val IPTV_EXP_REFRESH_FLOOR_MS = 15L * 60 * 1000
     }
 
     /**
-     * ST-4: cache the Xtream account expiry (epoch seconds) so Home doesn't fire a
-     * `login` network call on every view creation just to render the expiry chip.
-     * Returns the cached value only while younger than [IPTV_EXP_TTL_MS].
+     * The cached Xtream account expiry (epoch seconds) — ONLY if it belongs to the provider the
+     * credentials currently point at. It used to be a bare 12h TTL, and a server switch inside
+     * that window showed the OLD provider's date on the new provider's Home for up to 12 hours
+     * (the owner caught it live). Keyed by [activeServerFingerprint] a switch misses the cache by
+     * construction and the new server is asked immediately.
      */
     fun getCachedIptvExpiry(): Long? {
-        val cachedAt = prefs.getLong(KEY_IPTV_EXP_CACHED_AT, 0L)
-        if (cachedAt == 0L || System.currentTimeMillis() - cachedAt > IPTV_EXP_TTL_MS) return null
+        if (prefs.getString(KEY_IPTV_EXP_FOR, null) != activeServerFingerprint) return null
         return prefs.getLong(KEY_IPTV_EXP_DATE, 0L).takeIf { it > 0L }
     }
+
+    /**
+     * True while the last refresh is younger than [IPTV_EXP_REFRESH_FLOOR_MS] — the caller may
+     * skip the background revalidate, nothing more. An extension on the SAME server therefore
+     * shows within one Home visit after at most 15 minutes, instead of the old 12 hours.
+     */
+    fun isIptvExpiryFresh(): Boolean =
+        prefs.getString(KEY_IPTV_EXP_FOR, null) == activeServerFingerprint &&
+            System.currentTimeMillis() - prefs.getLong(KEY_IPTV_EXP_CACHED_AT, 0L) <
+            IPTV_EXP_REFRESH_FLOOR_MS
 
     fun saveIptvExpiry(expEpochSeconds: Long) {
         prefs.edit()
             .putLong(KEY_IPTV_EXP_DATE, expEpochSeconds)
             .putLong(KEY_IPTV_EXP_CACHED_AT, System.currentTimeMillis())
+            .putString(KEY_IPTV_EXP_FOR, activeServerFingerprint)
             .apply()
     }
 }

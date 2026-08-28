@@ -392,19 +392,21 @@ class HomeFragment : Fragment(), HomeRouterHost {
     private fun loadIptvExpiry() {
         val username = credentialsPrefs.getUsername() ?: return
         val password = credentialsPrefs.getPassword() ?: return
-        // ST-4: use the cached expiry (12h TTL) instead of a `login` network call on
-        // every Home view creation. Only hit the network when the cache is stale.
-        credentialsPrefs.getCachedIptvExpiry()?.let { cached ->
-            applyIptvExpiry(cached)
-            return
-        }
+        // Stale-while-revalidate, not a validity TTL. The cached value paints the chip instantly —
+        // and it is fingerprint-keyed, so after a server switch there IS no cached value and the
+        // new provider is asked straight away. Then, unless a refresh ran in the last 15 minutes,
+        // the server is re-asked in the background so an extension bought on the portal shows up
+        // on the next Home visit instead of hiding behind the old 12h TTL.
+        val cached = credentialsPrefs.getCachedIptvExpiry()
+        cached?.let { applyIptvExpiry(it) }
+        if (cached != null && credentialsPrefs.isIptvExpiryFresh()) return
         if (!repository.isInitialized()) return
         viewLifecycleOwner.lifecycleScope.launch {
             val result = repository.login(username, password)
             val expSeconds = (result as? com.tvonnet.debridxtreamiptv.data.Result.Success)
                 ?.data?.user_info?.exp_date?.toLongOrNull() ?: return@launch
             credentialsPrefs.saveIptvExpiry(expSeconds)
-            if (view != null) applyIptvExpiry(expSeconds)
+            if (view != null && expSeconds != cached) applyIptvExpiry(expSeconds)
         }
     }
 
