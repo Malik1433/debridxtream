@@ -19,7 +19,7 @@ import javax.inject.Inject
  * ViewModel for the Debrid Discover screen.
  *
  * Manages 4-way filter state (Type, Catalogue, Genre, Year) and exposes
- * a unified UI state for consumption by [DebridDiscoverActivity].
+ * a unified UI state for the Stremio home's Discover tab (StremioDiscoverSection).
  */
 @HiltViewModel
 class DebridDiscoverViewModel @Inject constructor(

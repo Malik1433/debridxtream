@@ -22,8 +22,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
- * Click + resume behavior for Debrid catalog items — mirrors
- * [com.tvonnet.debridxtreamiptv.ui.debrid.DebridFragment.onContentItemClick]/`tryResumeDebrid`.
+ * Click + resume behavior for Debrid catalog items. (Originally mirrored the legacy
+ * DebridFragment's onContentItemClick/tryResumeDebrid; that fragment is deleted and
+ * this is now the only copy.)
  */
 internal class StremioDebridActions(
     private val fragment: Fragment,

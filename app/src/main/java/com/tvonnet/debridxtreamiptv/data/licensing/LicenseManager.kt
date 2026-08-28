@@ -38,7 +38,7 @@ sealed class LicenseState {
 /**
  * Device licensing gate. Source of truth is Firestore `licenses/{installId}`; the
  * device only ever READS its status (never activates itself). Mirrors the proven
- * companion-pairing Firestore pattern (ui/companion/CompanionSetupActivity + a
+ * companion-pairing Firestore pattern (the login QR overlay's `device_codes` doc + an
  * document + addSnapshotListener), keyed by the stable install id from
  * [IdentityPreferences]. Results are mirrored into [LicensePreferences] so the
  * MainActivity gate can decide instantly and survive brief network outages.

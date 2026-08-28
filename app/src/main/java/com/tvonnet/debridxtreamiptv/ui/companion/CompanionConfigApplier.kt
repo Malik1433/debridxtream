@@ -7,8 +7,8 @@ import com.tvonnet.debridxtreamiptv.network.CompanionUrlValidator
 
 /**
  * Applies a companion-sync payload (the Firestore `device_codes/<code>` document data)
- * to local preferences. Shared by [CompanionSetupActivity] and the login screen's
- * inline QR pairing overlay.
+ * to local preferences, for the login screen's inline QR pairing overlay
+ * ([LoginQrOverlayController]).
  */
 object CompanionConfigApplier {
 

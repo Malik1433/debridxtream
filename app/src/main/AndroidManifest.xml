@@ -62,13 +62,6 @@
                 android:resource="@xml/update_file_paths" />
         </provider>
         
-        <activity
-            android:name=".ui.companion.CompanionSetupActivity"
-            android:label="Connect Companion App"
-            android:theme="@style/AppTheme"
-            android:exported="false"
-            android:screenOrientation="landscape" />
-
         <!--
           `unspecified`, because this screen decides its own orientation in code — and on a fresh
           install it is the FIRST thing a customer ever sees. Declared landscape here, the window
@@ -155,21 +148,6 @@
             android:exported="false" />
 
 
-
-        <activity
-            android:name=".ui.debrid.search.DebridSearchActivity"
-            android:screenOrientation="sensorLandscape"
-            android:label="Search Debrid Content"
-            android:theme="@style/AppTheme"
-            android:exported="false"
-            android:windowSoftInputMode="stateVisible|adjustResize" />
-
-        <activity
-            android:name=".ui.debrid.discover.DebridDiscoverActivity"
-            android:label="Discover"
-            android:theme="@style/AppTheme"
-            android:exported="false"
-            android:screenOrientation="landscape" />
 
         <!--
           `unspecified`, like the two detail activities, because this screen decides its own
