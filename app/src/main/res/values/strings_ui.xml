@@ -371,6 +371,8 @@
     <string name="phone_filter_active">%1$d ACTIVE</string>
     <string name="phone_filter_counting">COUNTING…</string>
     <string name="phone_search">Search</string>
+    <!-- Home app-bar IPTV expiry chip: %1$s is the formatted expiry date. -->
+    <string name="phone_expiry_expired">EXPIRED · %1$s</string>
     <string name="phone_filters">Filters</string>
     <string name="phone_categories">Categories</string>
     <string name="phone_all_prefix">All</string>

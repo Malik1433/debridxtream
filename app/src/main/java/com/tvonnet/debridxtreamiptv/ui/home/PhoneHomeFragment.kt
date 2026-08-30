@@ -157,6 +157,55 @@ class PhoneHomeFragment : Fragment(), HomeRouterHost, com.tvonnet.debridxtreamip
             router.navigateToSection(SectionNavigator.SECTION_SETTINGS)
         }
         view.findViewById<TextView>(R.id.phone_avatar_initial)?.text = accountInitial()
+        loadIptvExpiry(view)
+    }
+
+    /**
+     * The same stale-while-revalidate the TV Home chip runs (HomeFragment.loadIptvExpiry — kept
+     * inline there too, deliberately, so neither screen's QA gates the other's): paint the
+     * fingerprint-keyed cached date instantly, then re-ask the server in the background unless a
+     * refresh ran in the last 15 minutes. A server switch misses the cache by construction, so
+     * this chip can never show the previous provider's date.
+     */
+    private fun loadIptvExpiry(view: View) {
+        val username = credentialsPrefs.getUsername() ?: return
+        val password = credentialsPrefs.getPassword() ?: return
+        val cached = credentialsPrefs.getCachedIptvExpiry()
+        cached?.let { renderIptvExpiry(view, it) }
+        if (cached != null && credentialsPrefs.isIptvExpiryFresh()) return
+        if (!repository.isInitialized()) return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = repository.login(username, password)
+            val expSeconds = (result as? com.tvonnet.debridxtreamiptv.data.Result.Success)
+                ?.data?.user_info?.exp_date?.toLongOrNull() ?: return@launch
+            credentialsPrefs.saveIptvExpiry(expSeconds)
+            if (getView() != null && expSeconds != cached) renderIptvExpiry(requireView(), expSeconds)
+        }
+    }
+
+    /** The DATE, not remaining time (owner requirement) — same colour semantics as the TV chip. */
+    private fun renderIptvExpiry(view: View, expEpochSeconds: Long) {
+        val chip = view.findViewById<TextView>(R.id.phone_iptv_expiry) ?: return
+        val daysLeft = kotlin.math.ceil(
+            (expEpochSeconds - System.currentTimeMillis() / 1000L) / 86_400.0
+        ).toInt()
+        val dateFmt = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+        val expiryDate = dateFmt.format(java.util.Date(expEpochSeconds * 1000L)).uppercase()
+        chip.text = if (daysLeft < 0) {
+            getString(R.string.phone_expiry_expired, expiryDate)
+        } else {
+            expiryDate
+        }
+        chip.setTextColor(
+            color(
+                when {
+                    daysLeft < 0 -> R.color.phone_red
+                    daysLeft <= 30 -> R.color.phone_amber
+                    else -> R.color.phone_green
+                }
+            )
+        )
+        chip.isVisible = true
     }
 
     private fun accountInitial(): String {
