@@ -36,6 +36,12 @@ object ServerSwitch {
     fun restartInto(activity: Activity) {
         Log.i(TAG, "Restarting into the provider this device now points at")
 
+        // Every credentials/choice setter persists via apply(), and Runtime.exit(0) below does
+        // NOT wait for apply()'s background queue. Without this synchronous flush the switch the
+        // customer just made could die with the process, and the restart came back on the SAME
+        // server (owner hit it live, 2026-08-30).
+        com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences(activity).flushBeforeRestart()
+
         val intent = Intent(activity, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             .putExtra(EXTRA_SWITCHED, true)

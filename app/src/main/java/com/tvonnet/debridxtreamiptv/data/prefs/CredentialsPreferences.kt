@@ -122,6 +122,22 @@ class CredentialsPreferences(private val context: Context) {
     }
 
     /**
+     * Forces BOTH preference files to disk synchronously, for the one caller that is about to
+     * kill the process ([com.tvonnet.debridxtreamiptv.ui.ServerSwitch.restartInto]).
+     *
+     * Every setter here uses `apply()`, which persists on a background queue — and
+     * `Runtime.getRuntime().exit(0)` does not wait for that queue. Without this flush the
+     * credentials and playlist choice the customer just switched to could die with the process,
+     * and the restart came back on the SAME server (owner hit it live, 2026-08-30). A `commit()`
+     * writes the file's complete current in-memory state, so it also lands every earlier
+     * apply()-ed change on that file.
+     */
+    fun flushBeforeRestart() {
+        prefs.edit().putLong(KEY_FLUSHED_AT, System.currentTimeMillis()).commit()
+        credsPrefs.edit().putLong(KEY_FLUSHED_AT, System.currentTimeMillis()).commit()
+    }
+
+    /**
      * Existing installs have no record of which server their data came from, and it is theirs —
      * they have only ever had one. Adopting it once, silently, is what stops an app UPDATE from
      * reading as a server switch and wiping every user's catalogue and Continue Watching.
@@ -243,6 +259,8 @@ class CredentialsPreferences(private val context: Context) {
         const val KEY_SYNC_CODE = "sync_code"
         /** Fingerprint of the provider the on-device data belongs to. Plain prefs: it is a digest. */
         const val KEY_SYNCED_SERVER = "synced_server_fingerprint"
+        /** Written by [flushBeforeRestart] purely to force a synchronous full-file commit. */
+        private const val KEY_FLUSHED_AT = "flushed_at"
         const val KEY_SERVER_LABEL = "server_label"
         const val KEY_CHOSEN_PLAYLIST = "chosen_playlist_id"
         const val KEY_DEVICE_ID = "device_id"
