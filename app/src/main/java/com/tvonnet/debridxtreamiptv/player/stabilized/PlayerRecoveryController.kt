@@ -274,17 +274,36 @@ internal class PlayerRecoveryController(
             retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, AUDIO_SINK_COOLOFF_MS)
             return
         }
-        // The single recovery didn't help → the audio output is saturated (leaked
-        // AudioTracks the firmware won't reclaim). Release OUR track so we stop
-        // holding a slot, and stop retrying — more re-inits only leak more. Tell the
-        // user the one thing that actually clears it.
+        // The single recovery didn't help → the primary output is saturated or wedged.
+        // Before going terminal, try the 5.1 upmix escape once: multichannel PCM cannot
+        // land on the stereo primary mixer, so the policy opens a fresh DIRECT HAL
+        // output that bypasses the saturated/wedged thread entirely (device-verified —
+        // see AudioWedgeEscape).
+        if (!AudioWedgeEscape.engaged) {
+            AudioWedgeEscape.engage()
+            Log.w("PlayerActivity", "Audio sink exhausted — engaging 5.1 upmix escape onto a DIRECT output")
+            PlaybackDiagnosticsRecorder.record(
+                activity,
+                "audio_wedge_escape",
+                diagnosticsPlaybackFields() + mapOf("errorCode" to error.errorCode)
+            )
+            player?.release(); player = null
+            retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, AUDIO_SINK_COOLOFF_MS)
+            return
+        }
+        // Escape already tried → release OUR track so we stop holding a slot, and stop
+        // retrying — more re-inits only leak more. Tell the user the one thing that
+        // actually clears it.
         player?.release(); player = null
         PlaybackDiagnosticsRecorder.record(
             activity,
             "audio_sink_exhausted",
             diagnosticsPlaybackFields() + mapOf("errorCode" to error.errorCode)
         )
-        handleTerminalPlaybackFailure("Audio unavailable — please restart your Fire TV (the device ran out of audio channels)")
+        // TV off/on renegotiates HDMI audio and rebuilds the HAL outputs — that is the
+        // reset that actually clears a wedged/saturated primary (device-verified); a
+        // Fire TV restart is NOT needed.
+        handleTerminalPlaybackFailure("Audio unavailable — turn your TV off and on (the TV's audio connection stopped responding)")
     }
 
     // The three fail-fast HTTP branches, in their original order. True = handled.

@@ -166,7 +166,9 @@ internal class PlayerEngineFactory(
         } else {
             DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
         }
-        return DefaultRenderersFactory(context)
+        // WedgeEscapeRenderersFactory = DefaultRenderersFactory + the 5.1 upmix escape
+        // for the wedged-HDMI-primary-mixer freeze (inert until a wedge is detected).
+        return WedgeEscapeRenderersFactory(context)
             .setExtensionRendererMode(extensionMode)
             // If the primary hardware decoder fails to initialize (e.g. HEVC on a busy or
             // incapable SoC), fall back to a lower-priority decoder instead of erroring.

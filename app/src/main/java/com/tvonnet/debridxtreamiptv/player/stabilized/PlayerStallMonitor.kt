@@ -36,6 +36,8 @@ internal class PlayerStallMonitor(
             stallHandler.postDelayed(this, 3000)
         }
     }
+    private val fastWedgeRunnable = Runnable { checkFastWedge() }
+    private var readyBaselinePositionMs = 0L
 
     private var player: ExoPlayer?
         get() = activity.player
@@ -65,9 +67,30 @@ internal class PlayerStallMonitor(
         stallDetector.reset(player?.currentPosition ?: 0L, SystemClock.elapsedRealtime())
         freezeDetector.reset()
         stallHandler.removeCallbacks(stallRunnable); stallHandler.postDelayed(stallRunnable, 5000)
+        // Fast path for the wedged-primary freeze: a READY player whose position has
+        // not moved AT ALL a few seconds after READY is already pathological (network
+        // pauses go through BUFFERING, not READY), so the escape doesn't have to wait
+        // for the generic 12s+strikes stall verdict. One-shot; only while unengaged.
+        stallHandler.removeCallbacks(fastWedgeRunnable)
+        if (!AudioWedgeEscape.engaged) {
+            readyBaselinePositionMs = player?.currentPosition ?: 0L
+            stallHandler.postDelayed(fastWedgeRunnable, FAST_WEDGE_CHECK_MS)
+        }
     }
 
-    fun stopStallMonitor() = stallHandler.removeCallbacks(stallRunnable)
+    fun stopStallMonitor() {
+        stallHandler.removeCallbacks(stallRunnable)
+        stallHandler.removeCallbacks(fastWedgeRunnable)
+    }
+
+    private fun checkFastWedge() {
+        val p = player ?: return
+        if (AudioWedgeEscape.engaged) return
+        if (!p.playWhenReady || p.playbackState != Player.STATE_READY) return
+        val pos = p.currentPosition
+        if (pos - readyBaselinePositionMs >= FAST_WEDGE_MIN_PROGRESS_MS) return
+        tryAudioWedgeEscape(p, pos)
+    }
 
     private fun checkForStall() {
         val p = player ?: return
@@ -99,6 +122,7 @@ internal class PlayerStallMonitor(
                 )
             )
             StallVerdict.STALLED -> {
+                if (tryAudioWedgeEscape(p, currentPos)) return
                 PlaybackDiagnosticsRecorder.record(
                     activity.requireContext(),
                     "stall_triggered",
@@ -110,6 +134,40 @@ internal class PlayerStallMonitor(
                 recovery.handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
             }
         }
+    }
+
+    /**
+     * READY + position frozen + mono/stereo PCM audio = the wedged-HDMI-primary-mixer
+     * freeze (device-verified 2026-08-27: the primary thread blocks in write() and the
+     * playback clock stops on frame 1 with NO exception — see [AudioWedgeEscape]).
+     * One-shot per process: engage the 5.1 upmix escape and rebuild the player so the
+     * audio reopens on a fresh DIRECT HAL output. If the rebuild stalls again the flag
+     * is already set, so the normal stall recovery path takes over.
+     */
+    private fun tryAudioWedgeEscape(p: ExoPlayer, currentPos: Long): Boolean {
+        if (AudioWedgeEscape.engaged) return false
+        val channels = p.audioFormat?.channelCount ?: return false
+        if (channels > 2) return false
+        AudioWedgeEscape.engage()
+        Log.w(
+            "PlayerActivity",
+            "READY-stall with ${channels}ch audio — engaging 5.1 upmix escape (wedged primary HDMI mixer suspected)"
+        )
+        PlaybackDiagnosticsRecorder.record(
+            activity.requireContext(),
+            "audio_wedge_escape",
+            diagnosticsPlaybackFields() + mapOf(
+                "positionMs" to currentPos,
+                "audioChannels" to channels
+            )
+        )
+        // Deliberately SILENT (owner decision 2026-08-30): the escape repairs audio in
+        // ~1-2s, so a toast only advertises a problem the viewer barely experiences.
+        // The log line + audio_wedge_escape diagnostic remain the audit trail.
+        if (contentType != ContentType.LIVE_TV && currentPos > 1000L) startPositionMs = currentPos
+        player?.release(); player = null
+        retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, 250L)
+        return true
     }
 
     /**
@@ -200,6 +258,9 @@ internal class PlayerStallMonitor(
     }
 
     private companion object {
+        // Fast wedge check: 3s after READY with <250ms of progress = frozen clock.
+        const val FAST_WEDGE_CHECK_MS = 3000L
+        const val FAST_WEDGE_MIN_PROGRESS_MS = 250L
         const val VIDEO_FREEZE_THRESHOLD_MS = 8000L
         // Live viewers zap within seconds — catch a frozen first frame fast.
         const val LIVE_VIDEO_FREEZE_THRESHOLD_MS = 4000L

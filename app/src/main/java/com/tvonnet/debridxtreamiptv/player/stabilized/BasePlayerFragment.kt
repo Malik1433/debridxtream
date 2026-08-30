@@ -1418,7 +1418,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     // Re-arm history for the new foreground segment: onStop's exit-save latches
     // hasRecordedHistory=true, and without this reset a Home→return session would
     // silently skip both the 30s progress heartbeat and the final exit save.
-    override fun onStart() { super.onStart(); hasRecordedHistory = false; recovery.registerNetworkCallback(); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() }; vodControls.onStart(); progressSaveHandler.removeCallbacks(progressSaveRunnable); progressSaveHandler.postDelayed(progressSaveRunnable, PROGRESS_SAVE_INTERVAL_MS) }
+    override fun onStart() { super.onStart(); AudioWedgeEscape.maybeProbeAsync(requireContext()); hasRecordedHistory = false; recovery.registerNetworkCallback();if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStart() }; vodControls.onStart(); progressSaveHandler.removeCallbacks(progressSaveRunnable); progressSaveHandler.postDelayed(progressSaveRunnable, PROGRESS_SAVE_INTERVAL_MS) }
     override fun onPause() { super.onPause(); if (::historyManager.isInitialized) historyManager.saveProgressSnapshot(); wasPlayingBeforePause = player?.isPlaying == true; player?.pause(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor() }
     override fun onStop() {
         super.onStop(); dismissActiveTrackDialog(); debugOverlay.stop(); timeoutHandler.removeCallbacks(timeoutRunnable); stopStallMonitor(); vodControls.onStop(); progressSaveHandler.removeCallbacks(progressSaveRunnable); if (::nextEpisodeManager.isInitialized) { nextEpisodeManager.onStop() }; recovery.unregisterNetworkCallback(); historyManager.recordPlaybackHistoryIfNeeded()

@@ -29,8 +29,10 @@ import com.tvonnet.debridxtreamiptv.data.model.XtreamStream
 import com.tvonnet.debridxtreamiptv.data.model.toLiveStreamUrl
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
+import com.tvonnet.debridxtreamiptv.player.stabilized.AudioWedgeEscape
 import com.tvonnet.debridxtreamiptv.player.stabilized.LivePlaybackLoadErrorPolicy
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerBufferConfigFactory
+import com.tvonnet.debridxtreamiptv.player.stabilized.WedgeEscapeRenderersFactory
 import com.tvonnet.debridxtreamiptv.util.DeviceProfile
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -221,10 +223,15 @@ class PreviewPlayerPanel(
     // ZERO reconnect (one provider connection, no 403 on max_connections=1 accounts)
     // while still being fully tuned.
     private fun buildTunedPreviewPlayer(streamUrl: String): ExoPlayer {
+        // Proactive wedge probe so a frozen primary mixer is known before (or shortly
+        // after) the first preview starts — see AudioWedgeEscape.
+        AudioWedgeEscape.maybeProbeAsync(context)
         val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
             .setUserAgent("IPTVSmartersPlayer")
         val settings = SettingsPreferences(context)
-        val renderersFactory = DefaultRenderersFactory(context)
+        // Same 5.1-upmix escape as the main player (inert until a wedge is detected),
+        // so an adopted preview instance is never stuck on the wedged primary mixer.
+        val renderersFactory = WedgeEscapeRenderersFactory(context)
             .setExtensionRendererMode(
                 if (settings.isSoftwareAudioEnabled())
                     DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
