@@ -87,6 +87,31 @@ class EpisodesAdapterV2(
                 }
             }
 
+            // D-pad containment at the strip's right edge (owner bug 2026-08-31): at the
+            // last laid-out card RIGHT finds no focusable neighbour — the next position's
+            // view is not laid out yet, or the season truly ends here — and the framework's
+            // focus search then escapes the strip up to the Play button. If a next item
+            // exists, scroll it in and focus it ourselves; at the true end, stay put.
+            // LEFT/UP/DOWN are untouched — leaving the strip vertically stays possible.
+            binding.root.setOnKeyListener { v, keyCode, event ->
+                if (keyCode != android.view.KeyEvent.KEYCODE_DPAD_RIGHT ||
+                    event.action != android.view.KeyEvent.ACTION_DOWN
+                ) return@setOnKeyListener false
+                val pos = bindingAdapterPosition
+                if (pos == RecyclerView.NO_POSITION) return@setOnKeyListener false
+                if (pos + 1 >= itemCount) return@setOnKeyListener true // true end: focus stays
+                val rv = binding.root.parent as? RecyclerView ?: return@setOnKeyListener false
+                val next = rv.layoutManager?.findViewByPosition(pos + 1)
+                if (next != null && next.isFocusable) return@setOnKeyListener false // normal move
+                // The manual move below bypasses the framework's focus navigation, which is
+                // what normally plays the remote's click tick — play it ourselves or the
+                // strip goes silent at the loading edge (owner caught it, 2026-08-31).
+                v.playSoundEffect(android.view.SoundEffectConstants.NAVIGATION_RIGHT)
+                rv.scrollToPosition(pos + 1)
+                rv.post { rv.findViewHolderForAdapterPosition(pos + 1)?.itemView?.requestFocus() }
+                true
+            }
+
             binding.root.setOnLongClickListener {
                 val item = getItem(bindingAdapterPosition)
                 if (item != null) {

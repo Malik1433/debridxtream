@@ -3,11 +3,13 @@ package com.tvonnet.debridxtreamiptv.features.seriesv2.ui
 import com.tvonnet.debridxtreamiptv.R
 
 import android.view.View
+import androidx.core.view.OneShotPreDrawListener
 import androidx.paging.CombinedLoadStates
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.tvonnet.debridxtreamiptv.databinding.FragmentSeriesDetailV2Binding
 import com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2
+import com.tvonnet.debridxtreamiptv.utils.isFocusInsideThis
 
 /**
  * C4: the episodes strip — its adapter, the loading/empty decision, the shimmer skeleton and
@@ -57,6 +59,24 @@ class SeriesEpisodesStripUi(
             LinearLayoutManager(binding.root.context, LinearLayoutManager.HORIZONTAL, false)
         binding.rvEpisodes.adapter = created
         binding.rvEpisodes.itemAnimator = null
+
+        // CC-1 for the PAGING strip: a Room-driven refresh (get_series_info clear+insert, its
+        // fallback strategies, a season switch) lands WHILE the user is D-padding the strip.
+        // When the diff removes/re-adds the focused card, the framework hands focus to the
+        // first focusable ABOVE the strip — the "focus jumps up to the header" bug. At
+        // pages-updated time the outgoing child still holds focus, so "the user was in the
+        // strip" is captured here; after the layout that applies the update, focus having
+        // LEFT the strip can only mean the update took it (nobody D-pads during a layout
+        // pass) — so it is put back on the same episode. A user focused elsewhere (header,
+        // seasons) trips the first check and nothing is touched: no focus-steal.
+        created.addOnPagesUpdatedListener {
+            val rv = binding.rvEpisodes
+            if (!rv.isFocusInsideThis()) return@addOnPagesUpdatedListener
+            if (lastFocusedEpisodeId == null) return@addOnPagesUpdatedListener
+            OneShotPreDrawListener.add(rv) {
+                if (page.isViewAlive() && !rv.isFocusInsideThis()) restoreFocus()
+            }
+        }
 
         pageOpenedAt = android.os.SystemClock.elapsedRealtime()
         // Re-evaluate once the grace window lapses so a genuinely-dead listing flips

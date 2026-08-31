@@ -267,8 +267,13 @@ class SeriesDetailFragmentV2 : Fragment() {
                 launch { viewModel.selectedSeason.collect { actions?.updateSeasonButton(it) } }
                 launch {
                     viewModel.episodes.collectLatest { data ->
+                        // Focus restoration is NOT done here: submitData suspends while the
+                        // PagingData presents and only returns when it is invalidated, so a
+                        // restore after it ran exactly at generation swaps — against a stale
+                        // or empty snapshot, stealing or dropping focus. The strip's
+                        // addOnPagesUpdatedListener (setup()) restores focus at the right
+                        // moment instead.
                         episodesStrip?.adapter?.submitData(data)
-                        if (episodesStrip?.lastFocusedEpisodeId != null) episodesStrip?.restoreFocus()
                     }
                 }
                 launch { viewModel.streamPanel.collect { streamPanel?.render(it) } }
