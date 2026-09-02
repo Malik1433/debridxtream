@@ -43,6 +43,8 @@ internal class PlayerRecoveryController(
     interface RecoveryHost {
         fun peekPlayer(): ExoPlayer?
         fun assignPlayer(player: ExoPlayer?)
+        /** Release the MediaSession mirror — must run BEFORE the player it mirrors is released. */
+        fun unbindMediaSession()
         fun initializePlayer(streamUrl: String)
         fun requestSeamlessSwitch(newUrl: String)
         fun canAttemptReconnect(): Boolean
@@ -161,6 +163,7 @@ internal class PlayerRecoveryController(
                 return
             }
             if (contentType != ContentType.LIVE_TV && playerSnapshot.currentPosition > 1000L) startPositionMs = playerSnapshot.currentPosition
+            host.unbindMediaSession()
             playerSnapshot.release()
             player = null
             initializePlayer(url)
@@ -270,6 +273,7 @@ internal class PlayerRecoveryController(
             if (contentType != ContentType.LIVE_TV && (player?.currentPosition ?: 0L) > 1000L) {
                 startPositionMs = player!!.currentPosition
             }
+            host.unbindMediaSession()
             player?.release(); player = null
             retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, AUDIO_SINK_COOLOFF_MS)
             return
@@ -287,6 +291,7 @@ internal class PlayerRecoveryController(
                 "audio_wedge_escape",
                 diagnosticsPlaybackFields() + mapOf("errorCode" to error.errorCode)
             )
+            host.unbindMediaSession()
             player?.release(); player = null
             retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, AUDIO_SINK_COOLOFF_MS)
             return

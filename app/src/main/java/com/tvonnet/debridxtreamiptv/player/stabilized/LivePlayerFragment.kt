@@ -199,6 +199,7 @@ class LivePlayerFragment : BasePlayerFragment() {
         debugListener = null
         stopStallMonitor()
         timeoutHandler.removeCallbacks(timeoutRunnable)
+        mediaSession.unbind() // the guide's preview must not keep answering the remote
         playerView.player = null
         player = null
         LiveSharedPlayer.offer(p, currentUrl, contentId, frame)

@@ -143,6 +143,8 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
 
     /** P9: PiP capability + entry. */
     private val pipController by lazy { PlayerPipController(requireActivity()) }
+    /** The platform mirror of the live player — bound after every init/adopt, unbound before every release. */
+    internal val mediaSession by lazy { PlayerMediaSessionManager(requireContext().applicationContext) }
 
     internal var player: ExoPlayer? = null
     internal lateinit var playerView: PlayerView
@@ -377,6 +379,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
 
     // ── C1 RecoveryHost bridge: the recovery controller reaches back through these ──
     override fun peekPlayer(): ExoPlayer? = player
+    override fun unbindMediaSession() = mediaSession.unbind()
     override fun assignPlayer(player: ExoPlayer?) { this.player = player }
     override fun requestSeamlessSwitch(newUrl: String) = liveTuner.performSeamlessSwitch(newUrl)
     override fun isAutoReconnectEnabled(): Boolean = settingsPreferences.isAutoReconnectEnabled()
@@ -1290,6 +1293,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
             if (!adoptSharedLivePlayerIfPresent(streamUrl)) {
                 coldStartPlayer(streamUrl)
             }
+            player?.let { mediaSession.bind(it, originalTitle) }
             player?.playWhenReady = true
             // player?.play() removed as playWhenReady=true is sufficient
             startStallMonitor()
@@ -1461,6 +1465,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         playerListener?.let { player?.removeListener(it) }; playerListener = null
         debugListener?.let { player?.removeListener(it) }; debugListener = null
         qoeTracker?.flushSessionSummary(); qoeTracker = null // LP-D-2: emit session QoE
+        mediaSession.unbind() // media3: the session goes BEFORE its player
         player?.stop(); player?.release(); player = null; playerView.player = null
     }
 
@@ -1712,6 +1717,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
             diagnosticsPlaybackFields() + mapOf("positionMs" to p.currentPosition)
         )
         if (p.currentPosition > 1000L) startPositionMs = p.currentPosition
+        mediaSession.unbind()
         player?.release(); player = null
         retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, 250L)
     }
