@@ -164,6 +164,10 @@ fix2_*.xml
 # Legacy evidence folder (kept in git history; do not re-add)
 /artifacts/
 
+# On-disk scratch twin of the session scratchpad. 52 QA captures were tracked here until
+# 2026-09-02 because the hygiene check only matched at the repo root. Never committed again.
+/scratch/
+
 # Scratch / diagnostic working directories (kept in git history; do not re-add)
 /temp_diagnostics/
 /temp_qa/

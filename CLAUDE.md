@@ -185,19 +185,23 @@ watched going down.
 - **Theme: the app is dark-only and there is no `values-night`.** That may well be right for a
   10-foot media app, but it is currently an accident rather than a decision. **Treat dark-only as
   the decision, and do not add a half-built light theme** — a partial one is worse than none.
-- **Performance budget: ✅ SET AND MEASURABLE 2026-08-11 — and the app is currently just over it.**
+- **Performance budget: ✅ SET AND MEASURABLE 2026-08-11 — the number on file is STALE.**
   Run `./scripts/perf_check.sh` (defaults to the Fire TV at `192.168.178.64:5555`); it exits
   non-zero on a FAIL so it can gate a release. **The budget: cold-start median of 3 runs ≤ 5000ms,
-  zero ANRs, and jank reported for the record.** Baseline on the shipped DEBUG build, 2026-08-11:
-  **median 5207ms (5098 / 5207 / 6172) — FAIL by 200ms**, 0 ANRs, 87% janky frames.
+  zero ANRs, and jank reported for the record.** The only recorded baseline —
+  **median 5207ms (5098 / 5207 / 6172), FAIL by 200ms**, 0 ANRs, 87% janky frames — was taken on
+  the DEBUG build on 2026-08-11 and has never been re-run on what actually ships.
   **The emulator cannot be used for timing** — under host memory pressure it reported a 27s launch
   for what the Fire TV does in 5.
-  ⭐ **The obvious win is real but NOT free: we ship the DEBUG build.** A release build is 15.7MB
-  against the debug 37.9MB, but R8 **crashes it at startup** —
-  `java.lang.IllegalStateException @ f6.a.<init>`, an obfuscated class, i.e. missing keep rules.
-  Anyone measuring a release build must confirm the app actually REACHES HOME before believing the
-  number: the crash loop reports a 242ms "cold start" because it is timing RecoveryActivity, not
-  the app. Making release-type shippable (keep rules + full device QA) is its own batch.
+  ⭐ **What ships is the release-signed, R8-minified build — since versionCode 73** (2026-08-16;
+  the first release-type smoke measured 1213ms cold start at 15.6MB, against the debug 37.9MB).
+  The R8 startup crash that once blocked this (`IllegalStateException @ f6.a.<init>`, missing
+  keep rules) is FIXED; do not re-read older notes as "release is broken". Two rules survive it:
+  (1) anyone quoting a startup number must confirm the app actually REACHES HOME — a crash loop
+  reports a 242ms "cold start" because it is timing RecoveryActivity, not the app; (2) a release
+  smoke must reach a Hilt ViewModel screen, because an orphaned `@HiltViewModel` only crashes
+  under R8 (see the memory note). **Open item: re-run `perf_check.sh` on the shipped release
+  build and replace the 5207ms figure above — the budget has never been graded against it.**
 - **No crash-free target.** Crashlytics ships and is wired, but nothing states what "healthy"
   is. Suggested: **crash-free sessions ≥ 99.5%**, checked per release.
 - **Testing policy is a COUNT, not a rule.** `WORLD_CLASS_ROADMAP.md` E4/E5 track 17 instrumented

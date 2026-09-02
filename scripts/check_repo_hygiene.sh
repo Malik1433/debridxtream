@@ -31,10 +31,22 @@ fi
 
 # 2) Scratch output that must never be committed again (patterns also in .gitignore, but a
 #    `git add -f` or a renamed variant would slip past it).
-junk="$(git ls-files | grep -iE '^(build_log|build_output|assemble-|compile-|compile_test|kapt_log|app_log|logcat|temp_logs|filtered_logcat|qa[0-9_]|view_|window_).*\.(txt|png|xml)$|\.(sqlite|db|patch|diff)$|^artifacts/' || true)"
+#    The name patterns match the BASENAME at any depth — `(^|/)`, not `^`. Anchoring to the start
+#    of the full path is how 52 QA captures under scratch/ sat committed for weeks while this
+#    check printed OK (2026-09-02). app/src is exempt because half the layouts are `view_*.xml`.
+junk="$(git ls-files | grep -v '^app/src/' | grep -iE '(^|/)(build_log|build_output|assemble-|compile-|compile_test|kapt_log|app_log|logcat|temp_logs|filtered_logcat|qa[0-9_]|view_|window_).*\.(txt|png|xml)$|\.(sqlite|db|patch|diff)$|^artifacts/' || true)"
 if [ -n "$junk" ]; then
     fail "committed scratch/debug output ($(echo "$junk" | wc -l | tr -d ' ') file(s)):"
     echo "$junk" | head -20 | sed 's/^/    /' >&2
+fi
+
+# 2b) Nothing under scratch/ is ever tracked, whatever it is called. That directory is the
+#     on-disk twin of the session scratchpad: fine to exist, never part of the repo.
+scratch_tracked="$(git ls-files scratch | head -20 || true)"
+if [ -n "$scratch_tracked" ]; then
+    fail "tracked file(s) under scratch/ — that directory is never committed:"
+    echo "$scratch_tracked" | sed 's/^/    /' >&2
+    echo "    Untrack them: git rm -r --cached scratch" >&2
 fi
 
 # 3) Unexpected files in the repo ROOT. The root is a curated list — everything else belongs in a

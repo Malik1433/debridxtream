@@ -1,9 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext stays ON: IPTV providers serve Xtream APIs and MPEG-TS streams over plain http.
+
+  Trust anchors are SYSTEM ONLY in every shipped build. Trusting user-installed CAs here would let
+  any proxy CA on the device (mitmproxy/Charles, or one a "helper" installed) read every TLS
+  request the app makes - the Real-Debrid token, the Xtream username/password, the addon URLs.
+  Android's own default since 7.0 is system-only; the user store is re-enabled below for DEBUG
+  builds only, where inspecting traffic is the point.
+-->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
 </network-security-config>
