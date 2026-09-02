@@ -16,3 +16,10 @@ SwallowedException=0
 PrintStackTrace=0
 ExplicitGarbageCollectionCall=0
 ImplicitDefaultLocale=0
+
+# File-size ceilings (2026-09-02). detekt's LargeClass counts CLASSES at 600 and only what is
+# baselined, so a file can grow past the limit in CLAUDE.md without a single new baseline ID -
+# BasePlayerFragment went 1491 -> 1771 that way. These count Kotlin FILES under app/src/main/java
+# by line (awk NR / readLines), measured by both front-ends. Same rule: only ever LOWERED.
+KotlinFilesOver600Lines=16
+KotlinFilesOver500Lines=34

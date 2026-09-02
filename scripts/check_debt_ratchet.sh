@@ -22,6 +22,11 @@ ledger="$repo_root/config/detekt/debt-ledger.txt"
 # `set -euo pipefail` would abort the script exactly when a rule reaches 0 (i.e. on success).
 count_total() { grep -c "<ID>" "$baseline" || true; }
 count_rule()  { { grep -o "<ID>$1:" "$baseline" || true; } | wc -l | tr -d ' '; }
+# Kotlin files under app/src/main/java longer than $1 lines. `awk END{NR}` counts a final line
+# with no trailing newline, which is what Groovy's readLines() does too - both gates must agree.
+count_files_over() {
+  find "$repo_root/app/src/main/java" -name '*.kt' -exec awk -v n="$1" 'END{if(NR>n)print FILENAME}' {} \; | wc -l | tr -d ' '
+}
 
 status=0
 lowered=0
@@ -32,11 +37,12 @@ while IFS='=' read -r key max; do
   max="$(echo "$max" | tr -d '[:space:]')"
   [ -n "$key" ] && [ -n "$max" ] || continue
 
-  if [ "$key" = "TOTAL" ]; then
-    actual="$(count_total)"
-  else
-    actual="$(count_rule "$key")"
-  fi
+  case "$key" in
+    TOTAL)                    actual="$(count_total)" ;;
+    KotlinFilesOver600Lines)  actual="$(count_files_over 600)" ;;
+    KotlinFilesOver500Lines)  actual="$(count_files_over 500)" ;;
+    *)                        actual="$(count_rule "$key")" ;;
+  esac
 
   if [ "$actual" -gt "$max" ]; then
     echo "RATCHET FAIL: $key = $actual, ceiling is $max (+$((actual - max)))." >&2

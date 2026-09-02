@@ -20,7 +20,8 @@ The app is "world-class" for this project's purposes when **all** of these are t
 | # | Criterion | Today | Target |
 |---|---|---:|---:|
 | E1 | detekt suppressions (`config/detekt/detekt-baseline.xml`) | **298** | **0** |
-| E2 | `LargeClass` violations | **7** | **0** |
+| E2 | `LargeClass` violations | **1** (C9, won't-do) | **0** |
+| E2f | Kotlin files > 600 / > 500 lines (the ratchet the class rule cannot see — added 2026-09-02) | **16 / 34** | only ever down |
 | E3 | `SwallowedException` (errors silently hidden) | **0 ✅ MET** | **0** |
 | E4 | Instrumented (on-device) tests — **counted as test methods**, `run_instrumented.sh` reports it | **17 ✅ MET** (3 classes) | **≥ 15** covering Live/Player/VOD/Series core flows |
 | E5 | Unit test files | **81 ✅ MET** | ≥ 80, with every new collaborator tested |
@@ -32,7 +33,7 @@ The app is "world-class" for this project's purposes when **all** of these are t
 | E11 | Locales shipped beyond English | **0** | ⏸ DEFERRED — owner decides |
 | E12 | Images with no `contentDescription` (of 185 total) | **120** | 0 |
 | E13 | Crash-free sessions (Crashlytics, per release) | not tracked | ≥ 99.5% |
-| E14 | Cold start to first content on the Fire TV | not measured | < 3s |
+| E14 | Cold start to first content on the Fire TV | **1447ms ✅ MET** (release 3.0.6 on `.64`, 2026-09-02; the 5207ms on file before was the DEBUG build) | < 3s |
 
 *E10-E14 were added 2026-08-09 after an audit found the roadmap graded code health but never graded
 the things a USER experiences: language, accessibility, stability and speed. The counts are

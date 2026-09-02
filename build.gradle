@@ -49,6 +49,17 @@ tasks.register('debtRatchet') {
 
         def baseline = baselineFile.getText('UTF-8')
         def total = (baseline =~ /<ID>/).count
+        // Kotlin files longer than N lines. readLines() counts a final line with no trailing
+        // newline, exactly like the shell gate's `awk END{NR}` - the two must never disagree.
+        def filesOver = { int n ->
+            int c = 0
+            if (sourceDir.isDirectory()) {
+                sourceDir.eachFileRecurse { f ->
+                    if (f.isFile() && f.name.endsWith('.kt') && f.readLines('UTF-8').size() > n) c++
+                }
+            }
+            c
+        }
         def failures = []
         def improvements = []
 
@@ -60,7 +71,13 @@ tasks.register('debtRatchet') {
             if (key.isEmpty() || !max.isInteger()) return
 
             def ceiling = max.toInteger()
-            def actual = (key == 'TOTAL') ? total : (baseline =~ /<ID>${java.util.regex.Pattern.quote(key)}:/).count
+            def actual
+            switch (key) {
+                case 'TOTAL':                   actual = total; break
+                case 'KotlinFilesOver600Lines': actual = filesOver(600); break
+                case 'KotlinFilesOver500Lines': actual = filesOver(500); break
+                default:                        actual = (baseline =~ /<ID>${java.util.regex.Pattern.quote(key)}:/).count
+            }
 
             if (actual > ceiling) {
                 failures << "RATCHET FAIL: ${key} = ${actual}, ceiling is ${ceiling} (+${actual - ceiling})."

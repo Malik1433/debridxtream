@@ -8,7 +8,7 @@
 - NEVER save working files or tests to root — use `/src`, `/tests`, `/docs`, `/config`, `/scripts`
 - ALWAYS read a file before editing it
 - NEVER commit secrets, credentials, or .env files
-- Keep files under 500 lines — enforced by detekt, see "Code structure" below
+- Keep files under 500 lines — the debt ratchet counts Kotlin files over 500 and over 600 lines (`KotlinFilesOver500Lines` / `KotlinFilesOver600Lines` in `config/detekt/debt-ledger.txt`); those counts may only go DOWN, so a new file over the line, or an old one growing past it, fails the commit and the build
 - Validate input at system boundaries
 
 ## Code structure & decomposition
@@ -200,8 +200,10 @@ watched going down.
   (1) anyone quoting a startup number must confirm the app actually REACHES HOME — a crash loop
   reports a 242ms "cold start" because it is timing RecoveryActivity, not the app; (2) a release
   smoke must reach a Hilt ViewModel screen, because an orphaned `@HiltViewModel` only crashes
-  under R8 (see the memory note). **Open item: re-run `perf_check.sh` on the shipped release
-  build and replace the 5207ms figure above — the budget has never been graded against it.**
+  under R8 (see the memory note). **Re-measured on the shipped release build 3.0.6 (vC 117),
+  2026-09-02: cold-start median 1447ms (1519 / 1408 / 1447) — PASS, 0 ANRs, 69.6% janky
+  frames.** The budget is met; the debug-build 5207ms is history. Jank is still only reported,
+  not gated — the number to watch next.
 - **No crash-free target.** Crashlytics ships and is wired, but nothing states what "healthy"
   is. Suggested: **crash-free sessions ≥ 99.5%**, checked per release.
 - **Testing policy is a COUNT, not a rule.** `WORLD_CLASS_ROADMAP.md` E4/E5 track 17 instrumented
