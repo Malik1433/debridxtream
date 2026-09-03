@@ -93,6 +93,7 @@ internal class PlayerStallMonitor(
     }
 
     private fun checkForStall() {
+        PlaybackDiagnosticsRecorder.maybeRecordMemorySample(activity.requireContext()) // G1: throttled to 30s inside
         val p = player ?: return
         val now = SystemClock.elapsedRealtime()
         val isLowRamDevice = DeviceProfile.isLowRamDevice(activity.requireContext())

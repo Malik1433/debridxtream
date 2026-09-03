@@ -1,7 +1,9 @@
 package com.tvonnet.debridxtreamiptv.debug
 
+import android.app.ActivityManager
 import android.content.Context
 import android.net.Uri
+import android.os.Debug
 import com.tvonnet.debridxtreamiptv.BuildConfig
 import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import java.io.File
@@ -18,7 +20,17 @@ import org.json.JSONObject
 object PlaybackDiagnosticsRecorder {
     private const val DIRECTORY_NAME = "playback-diagnostics"
     private const val ENABLE_MARKER = ".enabled"
-    private const val SCHEMA_VERSION = 1
+    private const val SCHEMA_VERSION = 2
+
+    // G1 (2026-09-03): bounded on disk. A 3-hour Live session used to grow one file without
+    // limit; now a session file rotates at [MAX_SESSION_FILE_BYTES] (its summary goes into the
+    // `session_rotated` event) and the directory is pruned oldest-first past [MAX_FILES] /
+    // [MAX_DIRECTORY_BYTES] whenever a new session file is opened.
+    internal const val MAX_SESSION_FILE_BYTES = 2L * 1024 * 1024
+    internal const val MAX_FILES = 30
+    internal const val MAX_DIRECTORY_BYTES = 24L * 1024 * 1024
+    internal const val MEMORY_SAMPLE_INTERVAL_MS = 30_000L
+    private const val BYTES_PER_MB = 1024L * 1024
 
     private val lock = Any()
     private var sessionId: String? = null
@@ -26,6 +38,9 @@ object PlaybackDiagnosticsRecorder {
     private var sessionSalt: ByteArray? = null
     private var sessionStartMs: Long = 0L
     private var eventSeq: Long = 0L
+    private val countsByType = HashMap<String, Int>()
+    private var peakJavaHeapMb: Long = 0L
+    private var lastMemorySampleMs: Long = 0L
 
     fun record(context: Context, eventType: String, fields: Map<String, Any?> = emptyMap()) {
         if (!isEnabled(context)) return
@@ -39,12 +54,89 @@ object PlaybackDiagnosticsRecorder {
         if (!BuildConfig.DEBUG) return
         synchronized(lock) {
             val file = sessionFile ?: return
-            writeEvent(file, "session_finished", mapOf("reasonCode" to sanitizeReason(reason)))
-            sessionId = null
-            sessionFile = null
-            sessionSalt = null
-            sessionStartMs = 0L
-            eventSeq = 0L
+            // The finish reason is a code-set lifecycle constant ("activity_destroyed"), never
+            // provider data - sanitizeReason() would flatten every one of them to UNKNOWN.
+            val reasonCode = reason.lowercase(Locale.US).replace(Regex("[^a-z0-9_]"), "_").take(40)
+            writeEvent(file, "session_finished", summaryFields() + mapOf("reasonCode" to reasonCode))
+            resetSession(keepSalt = false)
+        }
+    }
+
+    /**
+     * A memory data point into the same timeline, at most once per [MEMORY_SAMPLE_INTERVAL_MS].
+     * Called from the stall monitor's 3-second tick, so a long session yields the growth curve
+     * the retained-player OOM question (roadmap B2.5 / G1) was waiting for. No-op when the
+     * recorder is off or no session is open - it never opens one by itself.
+     */
+    fun maybeRecordMemorySample(context: Context) {
+        if (!isEnabled(context)) return
+        synchronized(lock) {
+            val file = sessionFile ?: return
+            val now = System.currentTimeMillis()
+            if (now - lastMemorySampleMs < MEMORY_SAMPLE_INTERVAL_MS) return
+            lastMemorySampleMs = now
+            val runtime = Runtime.getRuntime()
+            val javaUsedMb = (runtime.totalMemory() - runtime.freeMemory()) / BYTES_PER_MB
+            if (javaUsedMb > peakJavaHeapMb) peakJavaHeapMb = javaUsedMb
+            val info = ActivityManager.MemoryInfo().also {
+                (context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)?.getMemoryInfo(it)
+            }
+            writeEvent(
+                file,
+                "memory_sample",
+                mapOf(
+                    "javaHeapUsedMb" to javaUsedMb,
+                    "javaHeapMaxMb" to runtime.maxMemory() / BYTES_PER_MB,
+                    "nativeHeapMb" to Debug.getNativeHeapAllocatedSize() / BYTES_PER_MB,
+                    "systemAvailMb" to info.availMem / BYTES_PER_MB,
+                    "systemLowMemory" to info.lowMemory
+                )
+            )
+        }
+    }
+
+    /** What a `session_finished` / `session_rotated` event carries, so no reader has to re-count. */
+    private fun summaryFields(): Map<String, Any?> {
+        val now = System.currentTimeMillis()
+        return mapOf(
+            "durationMs" to if (sessionStartMs > 0L) now - sessionStartMs else 0L,
+            "eventCount" to eventSeq,
+            "stallWarnings" to (countsByType["stall_warning"] ?: 0),
+            "stalls" to (countsByType["stall_triggered"] ?: 0),
+            "retries" to (countsByType["retry_triggered"] ?: 0),
+            "playerErrors" to (countsByType["player_error"] ?: 0),
+            "firstFrames" to (countsByType["first_frame_rendered"] ?: 0),
+            "releases" to (countsByType["release_player"] ?: 0),
+            "memorySamples" to (countsByType["memory_sample"] ?: 0),
+            "peakJavaHeapMb" to peakJavaHeapMb,
+            "countsByType" to countsByType.toMap() // a Map: sanitizeValue turns it into a JSON object (a JSONObject would be stringified)
+        )
+    }
+
+    private fun resetSession(keepSalt: Boolean) {
+        sessionId = null
+        sessionFile = null
+        if (!keepSalt) sessionSalt = null
+        sessionStartMs = 0L
+        eventSeq = 0L
+        countsByType.clear()
+        peakJavaHeapMb = 0L
+        lastMemorySampleMs = 0L
+    }
+
+    /**
+     * Oldest-first, until the directory has room for the file about to be opened: after this
+     * plus one new session file, the count is <= [MAX_FILES] and the bytes <= [MAX_DIRECTORY_BYTES].
+     */
+    private fun pruneDirectory(dir: File) {
+        val files = dir.listFiles { f -> f.isFile && f.name.startsWith("session-") && f.name.endsWith(".jsonl") }
+            ?.sortedBy { it.lastModified() }
+            ?.toMutableList() ?: return
+        var total = files.sumOf { it.length() }
+        while (files.isNotEmpty() && (files.size >= MAX_FILES || total > MAX_DIRECTORY_BYTES)) {
+            val oldest = files.removeAt(0)
+            total -= oldest.length()
+            runCatching { oldest.delete() }
         }
     }
 
@@ -197,6 +289,7 @@ object PlaybackDiagnosticsRecorder {
 
         val dir = context.getExternalFilesDir(DIRECTORY_NAME) ?: return null
         if (!dir.exists() && !dir.mkdirs()) return null
+        pruneDirectory(dir)
 
         val timestamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
@@ -210,7 +303,10 @@ object PlaybackDiagnosticsRecorder {
         sessionSalt = sessionSalt ?: ByteArray(16).also { SecureRandom().nextBytes(it) }
         sessionStartMs = System.currentTimeMillis()
         eventSeq = 0L
-        writeEvent(file, "session_started", mapOf("directory" to DIRECTORY_NAME))
+        countsByType.clear()
+        peakJavaHeapMb = 0L
+        lastMemorySampleMs = 0L
+        writeEvent(file, "session_started", mapOf("directory" to DIRECTORY_NAME, "maxFileBytes" to MAX_SESSION_FILE_BYTES))
         return file
     }
 
@@ -224,8 +320,16 @@ object PlaybackDiagnosticsRecorder {
             .put("elapsedMs", if (sessionStartMs > 0L) now - sessionStartMs else 0L)
             .put("eventType", eventType)
             .put("fields", JSONObject(sanitizeMap(fields)))
+        countsByType[eventType] = (countsByType[eventType] ?: 0) + 1
         runCatching {
             file.appendText(json.toString() + "\n")
+        }
+        // Rotation: the cap is checked AFTER the write so the closing event always lands in
+        // the file it summarises. The next record() opens a fresh file; the salt is kept so
+        // identifier fingerprints stay comparable across the two halves of one viewing.
+        if (eventType != "session_rotated" && file.length() >= MAX_SESSION_FILE_BYTES) {
+            writeEvent(file, "session_rotated", summaryFields())
+            resetSession(keepSalt = true)
         }
     }
 
