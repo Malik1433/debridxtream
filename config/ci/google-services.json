@@ -1,0 +1,30 @@
+{
+  "_comment": "CI STUB - not a real Firebase config. The google-services Gradle plugin refuses to build without a file, and the real one is git-ignored (it carries the project's API key). This one has the right package name and syntactically valid placeholders, which is all the plugin needs to generate its resources; nothing built from it can reach Firebase. Never ship an APK built with this file.",
+  "project_info": {
+    "project_number": "000000000000",
+    "project_id": "ci-stub",
+    "storage_bucket": "ci-stub.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "android_client_info": {
+          "package_name": "com.debridxtream.tv"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCIStubCIStubCIStubCIStubCIStubCIStu"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

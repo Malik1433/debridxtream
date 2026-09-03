@@ -1,0 +1,59 @@
+# The quality gate, off this machine (roadmap E9 was "pre-commit + gradlew check" - both local;
+# a hook can be bypassed with --no-verify and a laptop can be lost). Every push and pull request
+# to main now runs the same four checks the pre-commit hook and `gradlew check` run here:
+#
+#   1. repo hygiene         scripts/check_repo_hygiene.sh   (no stray/zero-byte/scratch files)
+#   2. unit tests           :app:testDebugUnitTest          (846 at the time of writing)
+#   3. detekt + the ratchet :app:detekt debtRatchet          (config/detekt/debt-ledger.txt ceilings)
+#   4. the debug APK builds :app:assembleDebug
+#
+# What CI deliberately does NOT do: sign a release (keystore.properties is local-only, so the
+# release build falls back to the debug key - useless), run instrumented tests (Fire TV only),
+# or talk to Firebase (see the google-services stub below).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Repo hygiene
+        run: bash scripts/check_repo_hygiene.sh
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The google-services plugin refuses to configure without a config file, and the real one
+      # is git-ignored (it carries the project's API key). The stub has the right package name
+      # and valid placeholders - enough to generate resources, useless for reaching Firebase.
+      - name: Firebase config stub
+        run: cp config/ci/google-services.json app/google-services.json
+
+      - name: Unit tests, detekt, debt ratchet, debug APK
+        run: ./gradlew :app:testDebugUnitTest :app:detekt debtRatchet :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: app/build/test-results/testDebugUnitTest/*.xml
+          if-no-files-found: ignore
+          retention-days: 14

@@ -75,6 +75,8 @@ captures/
 
 # Google Services (e.g. APIs or Firebase)
 google-services.json
+# ...except the CI stub, which holds no real key (see .github/workflows/ci.yml)
+!config/ci/google-services.json
 
 # Version control
 vcs.xml
