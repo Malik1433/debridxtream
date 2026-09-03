@@ -31,6 +31,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import androidx.paging.map
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import com.tvonnet.debridxtreamiptv.ui.browse.VirtualCategoryNames
 
 /**
  * PHONE Browse — the Movies and Series tabs, portrait, built to the "DX Play Browse" handoff.
@@ -363,7 +364,7 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
                 panel.isVisible = true
                 states.emptyCategory(
                     categoryName = categories.firstOrNull { it.category_id == selectedCategoryId }
-                        ?.category_name.orEmpty(),
+                        ?.let { VirtualCategoryNames.displayName(requireContext(), it) }.orEmpty(),
                     onAll = { categories.firstOrNull()?.category_id?.let { selectCategory(it) } },
                     onRetry = { adapter.refresh() },
                 )
@@ -382,7 +383,7 @@ class PhoneBrowseFragment : Fragment(), PortraitScreen {
 
     /** The name of the category being browsed; the quality badge falls back to it. */
     private fun currentCategoryName(): String? =
-        categories.firstOrNull { it.category_id == selectedCategoryId }?.category_name
+        categories.firstOrNull { it.category_id == selectedCategoryId }?.let { VirtualCategoryNames.displayName(requireContext(), it) }
 
     private fun selectCategory(id: String) {
         if (isSeries) series.onEvent(SeriesEvent.SelectCategory(id))

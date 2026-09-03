@@ -276,7 +276,7 @@ class StremioHomeFragment :
             StremioHeroSlide(
                 title = item.title,
                 rating = item.rating,
-                meta = listOfNotNull(item.year, if (DebridItemType.isSeries(item.type)) "Series" else "Movie").joinToString(" · "),
+                meta = listOfNotNull(item.year, getString(if (DebridItemType.isSeries(item.type)) R.string.code_type_series else R.string.code_type_movie)).joinToString(" · "),
                 desc = item.overview,
                 backdropUrl = item.backdropUrl ?: item.posterUrl,
                 onPlay = { actions.navigateToDetail(item) },
@@ -295,9 +295,9 @@ class StremioHomeFragment :
 
     private fun setupNav(view: View) {
         val tabs = listOf(
-            Triple(view.findViewById<View>(R.id.navTabHome), R.drawable.ic_stremio_home, "Home"),
-            Triple(view.findViewById<View>(R.id.navTabDiscover), R.drawable.ic_stremio_discover, "Discover"),
-            Triple(view.findViewById<View>(R.id.navTabLibrary), R.drawable.ic_stremio_library, "My Library")
+            Triple(view.findViewById<View>(R.id.navTabHome), R.drawable.ic_stremio_home, getString(R.string.code_tab_home)),
+            Triple(view.findViewById<View>(R.id.navTabDiscover), R.drawable.ic_stremio_discover, getString(R.string.code_tab_discover)),
+            Triple(view.findViewById<View>(R.id.navTabLibrary), R.drawable.ic_stremio_library, getString(R.string.code_row_my_library))
         )
         tabs.forEachIndexed { i, (tab, icon, label) ->
             tab.findViewById<ImageView>(R.id.nav_tab_icon).setImageResource(icon)

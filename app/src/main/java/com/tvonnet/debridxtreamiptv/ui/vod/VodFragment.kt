@@ -545,8 +545,8 @@ class VodFragment : Fragment() {
         val id = state.selectedCategoryId ?: return
         val title = when (id) {
             FAVORITES_CATEGORY_ID -> getString(R.string.favorites)
-            VodViewModel.ALL_MOVIES_CATEGORY_ID -> "All Movies"
-            VodViewModel.RECENTLY_ADDED_VOD_CATEGORY_ID -> "Recently Added"
+            VodViewModel.ALL_MOVIES_CATEGORY_ID -> getString(R.string.code_cat_all_movies)
+            VodViewModel.RECENTLY_ADDED_VOD_CATEGORY_ID -> getString(R.string.code_cat_recently_added)
             else -> state.categories.find { it.category_id == id }?.category_name ?: "Movies"
         }
         currentCategoryName = title
@@ -558,8 +558,8 @@ class VodFragment : Fragment() {
     private fun buildSidebarCategories(categories: List<XtreamCategory>): List<XtreamCategory> {
         // Build the two virtual rows locally so they ALWAYS render (top two rows), even on
         // the first frame. Order: [All Movies, Recently Added] → Favorites → real.
-        val allMovies = XtreamCategory(VodViewModel.ALL_MOVIES_CATEGORY_ID, "All Movies", null)
-        val recentlyAdded = XtreamCategory(VodViewModel.RECENTLY_ADDED_VOD_CATEGORY_ID, "Recently Added", null)
+        val allMovies = XtreamCategory(VodViewModel.ALL_MOVIES_CATEGORY_ID, getString(R.string.code_cat_all_movies), null)
+        val recentlyAdded = XtreamCategory(VodViewModel.RECENTLY_ADDED_VOD_CATEGORY_ID, getString(R.string.code_cat_recently_added), null)
         val favorites = XtreamCategory(FAVORITES_CATEGORY_ID, getString(R.string.favorites), null)
         val virtualIds = setOf(
             VodViewModel.ALL_MOVIES_CATEGORY_ID,

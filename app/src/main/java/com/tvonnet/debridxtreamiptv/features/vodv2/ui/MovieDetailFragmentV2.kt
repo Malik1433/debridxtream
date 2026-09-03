@@ -330,7 +330,7 @@ class MovieDetailFragmentV2 : Fragment() {
                         repository.addFavorite(
                             streamId = id,
                             type = "vod",
-                            name = movieTitle ?: "Movie",
+                            name = movieTitle ?: getString(R.string.code_type_movie),
                             iconUrl = com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(posterUrl)
                         )
                         Toast.makeText(requireContext(), requireContext().getString(R.string.movie_detail_added_to_favorites), Toast.LENGTH_SHORT).show()

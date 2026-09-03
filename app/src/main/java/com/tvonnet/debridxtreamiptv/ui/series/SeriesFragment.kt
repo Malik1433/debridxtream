@@ -484,9 +484,9 @@ class SeriesFragment : Fragment() {
         val id = state.selectedCategoryId ?: return
         val title = when (id) {
             FAVORITES_CATEGORY_ID -> getString(R.string.favorites)
-            SeriesViewModel.ALL_SERIES_CATEGORY_ID -> "All Series"
-            SeriesViewModel.RECENTLY_ADDED_CATEGORY_ID -> "Recently Added"
-            else -> state.categories.find { it.category_id == id }?.category_name ?: "Series"
+            SeriesViewModel.ALL_SERIES_CATEGORY_ID -> getString(R.string.code_cat_all_series)
+            SeriesViewModel.RECENTLY_ADDED_CATEGORY_ID -> getString(R.string.code_cat_recently_added)
+            else -> state.categories.find { it.category_id == id }?.category_name ?: getString(R.string.code_type_series)
         }
         currentCategoryName = title
         if (focus.lastFocusTarget == SeriesFocusController.FocusTarget.CATEGORIES) {
@@ -498,8 +498,8 @@ class SeriesFragment : Fragment() {
         // Build the two virtual rows locally so they ALWAYS render (top two rows), even on
         // the first frame before the ViewModel's category list has propagated. Order:
         // [All Series, Recently Added] → Favorites → real.
-        val allSeries = XtreamCategory(SeriesViewModel.ALL_SERIES_CATEGORY_ID, "All Series", null)
-        val recentlyAdded = XtreamCategory(SeriesViewModel.RECENTLY_ADDED_CATEGORY_ID, "Recently Added", null)
+        val allSeries = XtreamCategory(SeriesViewModel.ALL_SERIES_CATEGORY_ID, getString(R.string.code_cat_all_series), null)
+        val recentlyAdded = XtreamCategory(SeriesViewModel.RECENTLY_ADDED_CATEGORY_ID, getString(R.string.code_cat_recently_added), null)
         val favorites = XtreamCategory(FAVORITES_CATEGORY_ID, getString(R.string.favorites), null)
         val virtualIds = setOf(
             SeriesViewModel.ALL_SERIES_CATEGORY_ID,

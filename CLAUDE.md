@@ -162,7 +162,7 @@ are the things a world-class app also needs that this codebase does **not** have
 carries the number measured on 2026-08-09 so nobody has to re-derive it — and so the number can be
 watched going down.
 
-- **Localisation: extraction ✅ DONE 2026-08-10 — translation folders still to come.** All 427
+- **Localisation: extraction ✅ DONE 2026-08-10; DE/ES/FR/IT/PT shipped, second pass 2026-09-03 (844 of 952 keys each — the rest are brand names, URLs, sample placeholders and pure format strings, kept English on purpose; the in-app App Language picker works on the Fire TV too).** All 427
   literal `android:text`/`android:hint`/`android:contentDescription` strings were extracted
   (273 new entries in `values/strings_ui.xml`, 36 reused existing names; glyph-only separators
   stayed inline — they are not language). **Zero word-literals remain in layouts**, so adding a

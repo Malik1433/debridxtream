@@ -116,7 +116,7 @@ internal class StremioDebridActions(
         val ctx = fragment.context ?: return
         val intent = Intent(ctx, DebridSeeAllActivity::class.java).apply {
             putExtra(DebridSeeAllActivity.EXTRA_ROW_ID, row.id)
-            putExtra(DebridSeeAllActivity.EXTRA_ROW_TITLE, row.title)
+            putExtra(DebridSeeAllActivity.EXTRA_ROW_TITLE, StremioRowTitles.displayTitle(ctx, row))
         }
         fragment.startActivity(intent)
     }

@@ -6,6 +6,7 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
+import com.tvonnet.debridxtreamiptv.ui.browse.VirtualCategoryNames
 
 /**
  * The two controls pinned above the grid: the category rail and the filter chip.
@@ -57,7 +58,7 @@ class PhoneBrowseChrome(
                 val chip = inflater.inflate(R.layout.item_phone_category_chip, rail, false)
                 val selected = category.category_id == selectedId
                 chip.findViewById<TextView>(R.id.phone_chip_name).apply {
-                    text = category.category_name
+                    text = VirtualCategoryNames.displayName(context, category)
                     setTextColor(
                         ContextCompat.getColor(
                             context,
@@ -66,7 +67,7 @@ class PhoneBrowseChrome(
                     )
                 }
                 chip.findViewById<TextView>(R.id.phone_chip_count).text =
-                    counts[category.category_id]?.let { "%,d TITLES".format(it) }.orEmpty()
+                    counts[category.category_id]?.let { chip.context.getString(R.string.code_titles_count, "%,d".format(it)) }.orEmpty()
                 chip.setBackgroundResource(
                     if (selected) R.drawable.bg_phone_chip_active else R.drawable.bg_phone_chip
                 )

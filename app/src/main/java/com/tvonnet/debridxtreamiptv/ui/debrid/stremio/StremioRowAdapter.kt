@@ -97,7 +97,7 @@ internal class StremioRowAdapter(
 
         fun bind(row: DebridRow) {
             boundRow = row
-            title.text = row.title
+            title.text = StremioRowTitles.displayTitle(title.context, row)
             // On the phone the header carries the COUNT — how much is in this rail is the question
             // a header answers — and it opens the full list only when there is one to open.
             count?.text = row.items.count { it.type != "see_all" }.toString()

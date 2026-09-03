@@ -117,4 +117,17 @@
     <string name="c_seek_back_badge">◀◀  %1$d s</string>
     <!-- Phone Home. The eyebrow above the hero title. -->
     <string name="section_trending_today">#1 TRENDING TODAY</string>
+
+    <!-- 2026-09-03: labels that were set from Kotlin (Stremio tabs and rows, the virtual categories, the phone chip count) -->
+    <string name="code_type_movie">Movie</string>
+    <string name="code_type_series">Series</string>
+    <string name="code_titles_count">%1$s TITLES</string>
+    <string name="code_row_my_library">My Library</string>
+    <string name="code_row_trending_movies">Trending Movies</string>
+    <string name="code_row_trending_series">Trending Series</string>
+    <string name="code_cat_all_movies">All Movies</string>
+    <string name="code_cat_all_series">All Series</string>
+    <string name="code_cat_recently_added">Recently Added</string>
+    <string name="code_tab_home">Home</string>
+    <string name="code_tab_discover">Discover</string>
 </resources>

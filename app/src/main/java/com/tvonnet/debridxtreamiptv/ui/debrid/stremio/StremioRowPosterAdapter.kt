@@ -91,7 +91,7 @@ internal class StremioRowPosterAdapter(
                 null
             }
             title.text = MediaTitleCleaner.clean(item.title)
-            val fallback = if (DebridItemType.isSeries(item.type)) "Series" else "Movie"
+            val fallback = year.context.getString(if (DebridItemType.isSeries(item.type)) R.string.code_type_series else R.string.code_type_movie)
             val upcoming = ReleaseInfo.isUpcoming(item.releaseDate)
             year.text = ReleaseInfo.metaLabel(item.year, item.releaseDate, fallback)
             // Highlight an unreleased title's date in amber so it reads as "coming soon".

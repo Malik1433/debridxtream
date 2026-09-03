@@ -13,6 +13,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.XtreamCategory
 import com.tvonnet.debridxtreamiptv.ui.live.phone.PhoneUi
+import com.tvonnet.debridxtreamiptv.ui.browse.VirtualCategoryNames
 
 /**
  * The two sheets Browse opens.
@@ -59,7 +60,7 @@ object PhoneBrowseSheets {
                 val row = inflater.inflate(R.layout.item_phone_browse_category_row, listBox, false)
                 val selected = category.category_id == selectedId
                 row.findViewById<TextView>(R.id.phone_bcat_name).apply {
-                    text = category.category_name
+                    text = VirtualCategoryNames.displayName(context, category)
                     setTextColor(
                         androidx.core.content.ContextCompat.getColor(
                             context,
