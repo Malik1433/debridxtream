@@ -720,7 +720,7 @@ permanently, and better than a one-off manual pass. Only claim "device-only" whe
   anomaly list (stall/retry/error/terminal, slow first frame, no first frame, reconnect loop,
   low memory, heap growth); exits 2 on anomalies. 4 unit tests on real files; analyser proven on
   a synthetic session that trips every rule, **and on a real session from the debug build on the
-  `Phone_Pixel` emulator (`52b…`): first frame at 4 s, `memory_sample` every 30 s (22 → 34 → 40 MB),
+  `Phone_Pixel` emulator (session `9922c1ef`): first frame at 4 s, `memory_sample` every 30 s (22 → 34 → 40 MB),
   `session_finished reasonCode=activity_destroyed`, 0 anomalies after the reconnect-loop rule
   learned to ignore lifecycle releases (a clean exit releases three times).**
 - **G2 — reach release builds, opt-in.** Route a *summary* (not the raw timeline) into Crashlytics
