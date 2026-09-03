@@ -723,14 +723,18 @@ permanently, and better than a one-off manual pass. Only claim "device-only" whe
   `Phone_Pixel` emulator (session `9922c1ef`): first frame at 4 s, `memory_sample` every 30 s (22 → 34 → 40 MB),
   `session_finished reasonCode=activity_destroyed`, 0 anomalies after the reconnect-loop rule
   learned to ignore lifecycle releases (a clean exit releases three times).**
-- **G2 — reach release builds, opt-in.** Route a *summary* (not the raw timeline) into Crashlytics
-  custom keys + non-fatals, which already ship. Sampled, redacted, bounded.
-- **G3 — real-user telemetry. NEEDS OWNER DECISIONS, do not start without them:** an explicit
-  **consent** screen (this app holds provider credentials — silent behavioural upload is not
-  acceptable and may be unlawful), what is collected vs never collected, sampling rate, retention
-  period, and where it lands (Firebase is already in the project for licensing). Cheap and honest
-  first step: a Settings toggle "Send diagnostics", default OFF, plus a "Share diagnostics" button
-  that lets a user hand over one session file on request.
+- ✅ **G2 — DONE 2026-09-03.** `PlaybackQoeTracker.flushSessionSummary` sets seven `pb_*` Crashlytics
+  custom keys per session (mode, seconds, rebuffers, dropped frames, errors, first frame, TTFF — numbers
+  and a mode word, never a title/URL/account) so the next crash arrives with "how was playback going";
+  only an UNHEALTHY session (errors > 0, ≥ 3 rebuffers, or no frame after 20 s) files a non-fatal of
+  its own (`SessionSummaryPolicy`, pure, 4 tests). Bounded: once per session.
+- ✅ **G3 — DONE 2026-09-03 (owner: "sab kar do").** The audit found the QoE events and non-fatals
+  were already leaving every device with no way to say no. `DiagnosticsConsent` is now the one switch:
+  Settings › Data & Storage › "Send diagnostics & crash reports" (default ON — the crash-free target
+  needs the reports — with a description that says exactly what is and is not collected); OFF turns
+  off Crashlytics AND Firebase Analytics collection immediately and the tracker asks before every
+  emit. Applied at app start from the stored choice. What stays out of scope: a first-launch consent
+  screen and a "share one session file" button (the recorder is DEBUG-only).
 
 *Sequencing note:* G1 pays for itself immediately (it is how we would diagnose the next "why did it
 reload?" without a live session). G3 is a product/legal decision, not a coding task.
@@ -960,6 +964,8 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-09-03 | **CI (`d4d62b8c`) — the gate leaves the laptop.** `.github/workflows/ci.yml` on every push/PR to main: repo hygiene → unit tests → detekt + debt ratchet → debug APK, JDK 17, Gradle cache, test XML uploaded. The runner needed a `google-services.json` stub (`config/ci/`, real package name, placeholder values — proven locally against the plugin) and `+x` on `gradlew` and the scripts (they were 100644). First run: [33758412779](https://github.com/Malik1433/debridxtream/actions/runs/33758412779) green in 9 m 15 s, every step. Not in CI on purpose: release signing (keystore is local-only), instrumented tests (Fire TV), anything Firebase. E9 now reads "in place" for real. **Watch Next / TvContract deferred with a written reason (§4)**: Fire OS ignores it; Amazon's row is a catalog-integration/business decision. | 8 | 1 | 0 | 47 | `d4d62b8c` |
 
 | 2026-09-03 | **Parental controls (`aa8d4fd0`).** Adult categories (provider spellings XXX/ADULT/18+/… in six languages, whole-token) hidden at the ONE facade choke point (categories, all-channels, raw cache) while a 4-digit PIN gate is on; salted SHA-256, constant-time compare, ASCII-only digits (a test caught `Char.isDigit()` accepting ١٢٣٤); 30-min session unlock. Settings › Account: toggle / Change PIN / Show-for-session / Hide-now. TV = D-pad digit wheel (`PinWheelState`, pure), phone = native numeric keyboard. 13 unit tests. Device QA: phone flow on the emulator, wheel flow on `.64` release (unlock → lock → off), 0 FATAL. Neither test provider has an adult category, so the hiding is pinned by tests + the count log. Facade held at 500 lines; ledger 8. | 8 | 1 | 0 | 47 | `aa8d4fd0` |
+
+| 2026-09-03 | **G2 + G3 (`29145f96`) — TIER G COMPLETE.** The audit found the QoE tracker's Analytics events and Crashlytics non-fatals leaving every device with no way to say no. `DiagnosticsConsent` is the one switch (Settings › Data & Storage › "Send diagnostics & crash reports", six languages, default ON with a description that says exactly what is and is not collected); OFF turns off Crashlytics AND Analytics collection at once, the tracker asks before every emit, the stored choice is applied at app start. G2: seven `pb_*` custom keys per session; only an unhealthy session (error / ≥ 3 rebuffers / no frame after 20 s) files a non-fatal (`SessionSummaryPolicy`, pure, 4 tests). **Proof:** on the emulator, Crashlytics' own pref `firebase_crashlytics_collection_enabled` went true → false → true with the toggle; the row is on the Fire TV; landmine L2–L6 PASS on 3.1.1. Ledger 8. | 8 | 1 | 0 | 47 | `29145f96` |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
 
