@@ -710,11 +710,17 @@ permanently, and better than a one-off manual pass. Only claim "device-only" whe
 | `FirebaseCrashlytics` | Wired in `GlobalCrashHandler` (crashes) + `PlaybackQoeTracker` (QoE) — **already reaches real users** | Carries crashes/metrics, not the behavioural timeline |
 | `SensitiveLogRedactor` | Redacts stream URLs/credentials | Must be applied to anything uploaded |
 
-- **G1 — make it usable for OUR debugging (low risk, do first).** Keep the DEBUG gate, add: size cap +
-  rotation (a 3-hour session must not fill the stick), a `finishSession` summary event, and
-  `scripts/analyze_diagnostics.sh` that turns a pulled JSONL into a readable timeline + anomaly list
-  (repeated reconnects, 429s, stalls, memory growth). **This also answers the OOM soak** — the memory
-  samples land in the same log.
+- ✅ **G1 — DONE 2026-09-03 (`9bb6a0d6`).** DEBUG gate kept. Session files rotate at 2 MB (the
+  closing `session_rotated` event lands in the file it summarises), the directory is pruned to
+  ≤ 30 files / 24 MB, `session_finished` carries the summary (stalls, retries, errors, first
+  frames, releases, peak heap, counts by type), and `maybeRecordMemorySample` (30 s throttle, from
+  the stall monitor's tick) writes the heap/native/system-avail curve into the same timeline —
+  **the OOM soak's data source.** `scripts/analyze_diagnostics.sh` (`--enable`/`--disable`/pull/local,
+  `--timeline`) prints per session: closed-or-died, memory curve, summary, events by type, and an
+  anomaly list (stall/retry/error/terminal, slow first frame, no first frame, reconnect loop,
+  low memory, heap growth); exits 2 on anomalies. 4 unit tests on real files; analyser proven on
+  a synthetic session that trips every rule. On-device memory-sample capture still to be seen on a
+  debug build (the Fire TV carries release; the logged-in emulator wedged mid-QA).
 - **G2 — reach release builds, opt-in.** Route a *summary* (not the raw timeline) into Crashlytics
   custom keys + non-fatals, which already ship. Sampled, redacted, bounded.
 - **G3 — real-user telemetry. NEEDS OWNER DECISIONS, do not start without them:** an explicit
@@ -728,8 +734,13 @@ permanently, and better than a one-off manual pass. Only claim "device-only" whe
 reload?" without a live session). G3 is a product/legal decision, not a coding task.
 
 ### Tier F — owner-facing quality pass
-- **F1** — The scripted device QA checklist (E6) covering the known landmines: `.ts` freeze, tunneling,
-  AudioTrack first-frame, `max_connections=1` hand-off, D-pad focus theft, EPG correctness.
+- ✅ **F1 — DONE 2026-09-03 (`9bb6a0d6`) — `scripts/landmine_check.sh`.** Automated on a real Fire TV:
+  L1 cold-start budget, L2 decode continuity 30 s (catches the `.ts` freeze, the AudioTrack
+  first-frame wedge and a black tunneled surface), L3 MediaSession pause/play via the system path,
+  L4 AudioSink/AudioTrack failures, L5 FATAL/ANR, L6 session gone on exit, L7 Live hand-back keeps
+  the shared preview decoding. Manual list printed for the eyes-on five (raw `.ts`, 4K mid-stream
+  switch, focus theft, EPG overlap, final-episode END). First runs on `.64` / release 3.0.7:
+  VOD L2–L6 PASS, Live (adopt path) L2–L7 PASS. **Run it before quoting a release.**
 - **F2** — The outstanding owner QA reminder: series **final-episode END** (ghost-advance + next-episode
   prompt), still unverified.
 
@@ -933,6 +944,8 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-09-02 | **File-size ratchet + E14 on the release build (`cc0c8d78`).** The class-level `LargeClass` rule never saw files grow — `BasePlayerFragment` 1491→1771, `LiveFragment` 764→913 after their "done" phases. Two new ledger ceilings, `KotlinFilesOver600Lines=16` / `KotlinFilesOver500Lines=34`, counted identically by the shell gate (`awk END{NR}`) and the Gradle `debtRatchet` task (`readLines`), mutation-checked (ceiling 15 → both fail with the same line). **E14 finally measured on what ships:** release 3.0.6 on `.64`, cold-start 1519/1408/1447ms, **median 1447ms PASS** (budget 5000; the old 5207 was the debug build), 0 ANRs, 69.6% jank (reported, not gated). CLAUDE.md's file-size rule now names the gate; §1 gains E2f. Ledger unchanged at 8. | 8 | 1 | 0 | 47 | `cc0c8d78` |
 
 | 2026-09-03 | **MediaSession (`8937311a`) — the platform finally knows what is playing.** Before: no session of any kind (remote play/pause only while the player window held the key, Assistant "pause" went nowhere, no Now Playing). `PlayerMediaSessionManager` mirrors the live player: one bind after the adopt-or-cold branch (with the launch title), unbind BEFORE all 8 teardown paths (releasePlayer, black-video rebuild, 3 recovery rebuilds via `RecoveryHost.unbindMediaSession`, Live hand-back). NEXT/PREV not offered, STOP = pause, live advertises no seek. **Landmine found on the way (now in §4):** media3-session 1.5.0 crashed the player on the first system media key on Fire OS (`packageName should be nonempty`) — shipped on the framework `MediaSession` instead, zero new dependency. 12 unit tests (fake platform session + pure state mapping). Device QA `.64`, release, TV rulebook: VOD + Live (adopt path) — `media dispatch pause/play` via the SYSTEM path → state 2/3, process alive, actions=519 on live, session gone after exit/hand-back, preview still decoding, 0 FATAL. Ledger unchanged at 8. | 8 | 1 | 0 | 47 | `8937311a` |
+
+| 2026-09-03 | **G1 + F1 (`9bb6a0d6`, gate speed-up `5ab951ac`).** Recorder bounded (2 MB rotation with the summary in the closed file, ≤ 30 files / 24 MB pruning), `session_finished` summary, 30 s memory samples from the stall tick, readable finish reasons (were flattened to UNKNOWN); `scripts/analyze_diagnostics.sh` = pull + timeline + anomaly list (exit 2 on anomalies), proven on a synthetic session; 4 unit tests on real files. `scripts/landmine_check.sh` = the E6 checklist as a script — L1–L7 automated on the Fire TV, M1–M5 printed; **`.64` release 3.0.7: VOD L2–L6 PASS, Live adopt L2–L7 PASS**, and its first version's L7 bug (adopt detected after `logcat -c`) is why L7 is proven. Ratchet's file-size count went from 485 awk processes to one pass per batch (2 min under load → 7 s; first single-pass version under-counted 1/3 — xargs batches, now summed). Ledger unchanged at 8. | 8 | 1 | 0 | 47 | `9bb6a0d6` |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
 

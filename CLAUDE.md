@@ -213,7 +213,11 @@ watched going down.
 - **Release discipline was only ever written in session memory.** It belongs here:
   **bump `versionCode` AND `versionName` together; copy the APK to
   `admin-panel/DebridXtream-latest.apk`; `firebase deploy --only hosting`; then DOWNLOAD the
-  published file back and `aapt2 dump badging` it before quoting the link.** Announcing a
+  published file back and `aapt2 dump badging` it before quoting the link.** Before the bump,
+  run `./scripts/landmine_check.sh` against the release build on the Fire TV (L1–L7 automated,
+  M1–M5 eyes-on) — it is the E6 checklist and exits non-zero on a FAIL. When a session
+  misbehaved without anyone watching, `./scripts/analyze_diagnostics.sh` (debug build +
+  `--enable`) turns the recorder's JSONL into a timeline and an anomaly list. Announcing a
   `versionCode` you have not built is an update LOOP. The panel number and the APK must agree.
 
 **How to use this list:** it is a standing audit, not a backlog to clear in one go. When a batch
