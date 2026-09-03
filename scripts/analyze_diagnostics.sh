@@ -18,6 +18,9 @@
 # build this pulls nothing - install a debug build first (the emulator is fine for this).
 # Env overrides: ADB=<path to adb>  DEVICE=<serial>
 set -uo pipefail
+# Git Bash rewrites /sdcard/... into C:/Program Files/Git/sdcard/... before adb ever sees it;
+# every device path in this script would silently point at the wrong place without this.
+export MSYS_NO_PATHCONV=1
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEVICE="${DEVICE:-192.168.178.64:5555}"
@@ -50,14 +53,18 @@ case "$mode" in
         stamp="$(date +%Y%m%d-%H%M%S)"
         target="$OUT_ROOT/$stamp"
         mkdir -p "$target"
-        if ! "$ADB" -s "$DEVICE" pull "$REMOTE_DIR" "$target" >/dev/null 2>&1; then
+        # adb.exe is a Windows program: the LOCAL side must be a Windows path, not the /e/... form
+        # Git Bash uses internally (with path conversion off, that form is what $PWD yields).
+        local_target="$(cygpath -m "$target" 2>/dev/null || echo "$target")"
+        if ! "$ADB" -s "$DEVICE" pull "$REMOTE_DIR" "$local_target"; then
             echo "analyze_diagnostics: nothing to pull from $DEVICE:$REMOTE_DIR (debug build + --enable first?)" >&2
             exit 1
         fi
         echo "pulled to $target" ;;
 esac
 
-python - "$target" "$timeline" <<'PY'
+# python is a Windows program too: hand it the Windows form of the path (pull or local mode).
+python - "$(cygpath -m "$target" 2>/dev/null || echo "$target")" "$timeline" <<'PY'
 import glob, json, os, sys
 from collections import Counter
 
@@ -69,6 +76,7 @@ if not files:
 ANOMALY_TYPES = {"stall_warning", "stall_triggered", "retry_triggered", "player_error", "terminal_failure",
                  "buffer_timeout", "video_freeze_detected", "audio_sink_exhausted", "audio_wedge_escape",
                  "black_video_tunneling_retry", "return_to_sources"}
+LIFECYCLE_RELEASES = {"unspecified", "on_stop", "on_destroy", "on_pause", "activity_destroyed", "finish", "exit", None}
 KEY_FIELDS = ("reasonCode", "errorCode", "httpStatus", "positionMs", "playbackState", "releaseReason",
               "stallStrikeCount", "javaHeapUsedMb", "systemAvailMb", "durationMs", "eventCount")
 
@@ -105,7 +113,11 @@ for path in files:
             first_frame_seen = True
             ttff = el - launch_ms
             if ttff > 8000: anomalies.append((el, f"slow first frame: {ttff} ms after launch"))
-        if t == "release_player": releases.append((el, f.get("releaseReason")))
+        # A normal exit releases up to three times (finish -> on_stop -> on_destroy); only
+        # rebuild-type releases count towards a reconnect loop. Learned from the first real
+        # session, which flagged a clean exit.
+        if t == "release_player" and f.get("releaseReason") not in LIFECYCLE_RELEASES:
+            releases.append((el, f.get("releaseReason")))
         if t in ANOMALY_TYPES:
             detail = ", ".join(f"{k}={f[k]}" for k in KEY_FIELDS if k in f)
             anomalies.append((el, f"{t}  {detail}"))

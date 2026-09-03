@@ -719,8 +719,10 @@ permanently, and better than a one-off manual pass. Only claim "device-only" whe
   `--timeline`) prints per session: closed-or-died, memory curve, summary, events by type, and an
   anomaly list (stall/retry/error/terminal, slow first frame, no first frame, reconnect loop,
   low memory, heap growth); exits 2 on anomalies. 4 unit tests on real files; analyser proven on
-  a synthetic session that trips every rule. On-device memory-sample capture still to be seen on a
-  debug build (the Fire TV carries release; the logged-in emulator wedged mid-QA).
+  a synthetic session that trips every rule, **and on a real session from the debug build on the
+  `Phone_Pixel` emulator (`52b…`): first frame at 4 s, `memory_sample` every 30 s (22 → 34 → 40 MB),
+  `session_finished reasonCode=activity_destroyed`, 0 anomalies after the reconnect-loop rule
+  learned to ignore lifecycle releases (a clean exit releases three times).**
 - **G2 — reach release builds, opt-in.** Route a *summary* (not the raw timeline) into Crashlytics
   custom keys + non-fatals, which already ship. Sampled, redacted, bounded.
 - **G3 — real-user telemetry. NEEDS OWNER DECISIONS, do not start without them:** an explicit

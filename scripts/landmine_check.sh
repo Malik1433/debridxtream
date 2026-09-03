@@ -31,6 +31,9 @@
 #
 # Env overrides: ADB=<path to adb>  DEVICE=<serial>
 set -uo pipefail
+# Git Bash rewrites /sdcard/... into C:/Program Files/Git/sdcard/... before adb ever sees it;
+# every device path in this script would silently point at the wrong place without this.
+export MSYS_NO_PATHCONV=1
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEVICE="${DEVICE:-192.168.178.64:5555}"
