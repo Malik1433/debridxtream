@@ -28,7 +28,7 @@ The app is "world-class" for this project's purposes when **all** of these are t
 | E6 | Crash-free playback landmines re-verified after each phase | ad hoc | scripted device checklist |
 | E7 | Open P1 findings from the 2026-07-19 audits | **0 ✅ MET** (D1: 11 of 14 were already fixed, 3 done) | 0 |
 | E8 | Stale/contradictory docs at repo root | 0 ✅ | 0 |
-| E9 | CI/pre-commit gate enforcing the ratchet | none | in place |
+| E9 | CI/pre-commit gate enforcing the ratchet | **pre-commit + `gradlew check` (2026-07-27) + GitHub Actions on every push/PR (2026-09-03)** | in place |
 | E10 | User-facing strings extractable (`android:text` literals in layouts) | **477** | 0 |
 | E11 | Locales shipped beyond English | **5 ✅** (DE/ES/FR/IT/PT; 844+ of 952 keys each after the 2026-09-03 second pass — the rest are brand/URL/sample/format, English on purpose) | ≥ 1 |
 | E12 | Images with no `contentDescription` (of 185 total) | **120** | 0 |
@@ -812,6 +812,10 @@ Carried from hard-won incidents; every phase must respect them.
 - `max_connections=1`: the Live fullscreen path hands the **running player** over (`LiveSharedPlayer`);
   never re-introduce release-then-reconnect. The zoom bridge must never be `visibility=gone`.
 - Never re-add `TsExtractor` `DETECT_ACCESS_UNITS` / `NON_IDR` flags; never set `LiveConfiguration` on raw TS.
+- **Do not build Android-TV home channels / Watch Next (`TvContract`) for this app** (decision 2026-09-03).
+  Fire OS ignores them; Amazon's "Recent / Continue Watching" row needs Amazon catalog integration and a
+  launcher feed — a store/business decision — and neither of the owner's Fire TVs can verify either.
+  Build it only if a Google-TV device becomes a target.
 - **Never put media3-session (`androidx.media3:media3-session`) on the player** (2026-09-02). Its legacy
   stub asserts the caller's package name is non-empty, and Fire OS dispatches system media keys with an
   EMPTY one — `IllegalArgumentException: packageName should be nonempty`, a hard crash on the first
@@ -952,6 +956,8 @@ Carried from hard-won incidents; every phase must respect them.
 | 2026-09-03 | **l10n second pass (`40f85728`, `954a5dcf`).** 229 + 3 + 11 strings per locale — the Debrid tab, the phone screens, source health, settings summaries, the status-bar labels — every one placeholder-checked against EN; 108 deliberately English (brand/URL/`ui_*` samples/format/badges). Eleven labels had been Kotlin literals (Stremio tabs and rows, "Movie/Series", the virtual categories, the row/chip counts) — now `strings_code.xml` in six languages, resolved at the RENDER site by id (`VirtualCategoryNames`, `StremioRowTitles`, 3 tests) because a ViewModel has no Activity context and the Application context ignores the in-app language below API 33. Verified: emulator `de-DE` per-app locale (Debrid "Start / Entdecken / Meine Bibliothek", "2026 · Film", "Alle Filme · 142.037 TITEL"), Fire TV `.64` via the in-app picker (Home "#1 IM TREND HEUTE · Jetzt abspielen · Beliebte Filme · CODE · NAVIGIEREN/WÄHLEN/ZURÜCK/BEENDEN", detail "SPIELFILM · Jetzt ansehen"), landmine L2–L6 PASS on 3.0.8 in German; TV restored to System default. 846 tests, ledger 8. | 8 | 1 | 0 | 47 | `40f85728` |
 
 | 2026-09-03 | **In-app language now survives a cold start below API 33 (`c32e6c56`).** `AppLocalesMetadataHolderService` + `autoStoreLocales` were missing, so every Fire TV reverted to the device language at each launch — the picker only ever worked until the next start. Proven on `.64`, release 3.0.9: Deutsch → force-stop → relaunch → still German; System default restored and it survives too. | 8 | 1 | 0 | 47 | `c32e6c56` |
+
+| 2026-09-03 | **CI (`d4d62b8c`) — the gate leaves the laptop.** `.github/workflows/ci.yml` on every push/PR to main: repo hygiene → unit tests → detekt + debt ratchet → debug APK, JDK 17, Gradle cache, test XML uploaded. The runner needed a `google-services.json` stub (`config/ci/`, real package name, placeholder values — proven locally against the plugin) and `+x` on `gradlew` and the scripts (they were 100644). First run: [33758412779](https://github.com/Malik1433/debridxtream/actions/runs/33758412779) green in 9 m 15 s, every step. Not in CI on purpose: release signing (keystore is local-only), instrumented tests (Fire TV), anything Firebase. E9 now reads "in place" for real. **Watch Next / TvContract deferred with a written reason (§4)**: Fire OS ignores it; Amazon's row is a catalog-integration/business decision. | 8 | 1 | 0 | 47 | `d4d62b8c` |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
 
