@@ -24,8 +24,14 @@ count_total() { grep -c "<ID>" "$baseline" || true; }
 count_rule()  { { grep -o "<ID>$1:" "$baseline" || true; } | wc -l | tr -d ' '; }
 # Kotlin files under app/src/main/java longer than $1 lines. `awk END{NR}` counts a final line
 # with no trailing newline, which is what Groovy's readLines() does too - both gates must agree.
+# One awk process over every file (FNR resets per file; ENDFILE is gawk-only, so the count is
+# taken when the next file starts and once more at END). The first version spawned one awk per
+# file - 485 processes - which blew the "under a second" pre-commit promise the moment the CPU
+# was busy (a 2-minute hook timeout during an emulator boot, 2026-09-03).
+# xargs may split 485 paths into several awk runs (Windows command-line limit), each printing
+# its own count - so the counts are summed.
 count_files_over() {
-  find "$repo_root/app/src/main/java" -name '*.kt' -exec awk -v n="$1" 'END{if(NR>n)print FILENAME}' {} \; | wc -l | tr -d ' '
+  find "$repo_root/app/src/main/java" -name '*.kt' -print0     | xargs -0 awk -v n="$1" 'FNR==1 && NR>1 { if (prev>n) c++ } { prev=FNR } END { if (prev>n) c++; print c+0 }'     | awk '{ s += $1 } END { print s+0 }'
 }
 
 status=0
