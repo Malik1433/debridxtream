@@ -872,4 +872,26 @@
     <string name="code_cat_recently_added">Añadidos recientemente</string>
     <string name="code_tab_home">Inicio</string>
     <string name="code_tab_discover">Descubrir</string>
+
+    <!-- Parental controls (2026-09-03) -->
+    <string name="s_parental_title">Control parental</string>
+    <string name="s_parental_desc">Ocultar las categorías para adultos en todas partes hasta introducir el PIN</string>
+    <string name="s_parental_change_pin">Cambiar PIN</string>
+    <string name="s_parental_change_pin_desc">Cuatro dígitos. Necesario para desbloquear o desactivar</string>
+    <string name="s_parental_unlock">Mostrar categorías para adultos en esta sesión</string>
+    <string name="s_parental_unlock_desc">Introduce el PIN. Se ocultan de nuevo a los 30 minutos o al cerrar la app</string>
+    <string name="s_parental_lock_now">Ocultar categorías para adultos ahora</string>
+    <string name="s_parental_lock_now_desc">Desbloqueadas en esta sesión</string>
+    <string name="s_pin_set_title">Crear un PIN</string>
+    <string name="s_pin_confirm_title">Vuelve a introducir el PIN</string>
+    <string name="s_pin_enter_title">Introduce el PIN</string>
+    <string name="s_pin_current_title">Introduce el PIN actual</string>
+    <string name="s_pin_mismatch">Los dos PIN no coinciden</string>
+    <string name="s_pin_wrong">PIN incorrecto</string>
+    <string name="s_pin_saved">El control parental está activado</string>
+    <string name="s_pin_off">El control parental está desactivado</string>
+    <string name="s_pin_unlocked">Categorías para adultos visibles 30 minutos</string>
+    <string name="s_pin_wheel_hint">▲▼ dígito   ◀▶ siguiente   OK confirmar</string>
+    <string name="s_pin_hint">4 dígitos</string>
+    <string name="a11y_pin_digit">Dígito %1$d del PIN</string>
 </resources>

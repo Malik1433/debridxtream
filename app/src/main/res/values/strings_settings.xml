@@ -55,4 +55,26 @@
     <string name="s_tint_channels_and_programmes_by_genre">Tint channels and programmes by genre in the TV guide</string>
     <string name="s_tv_guide_genre_colours">TV Guide Genre Colours</string>
     <string name="s_update_tv_guide_now">Update TV Guide Now</string>
+
+    <!-- Parental controls (2026-09-03): the Account rows, the PIN dialogs -->
+    <string name="s_parental_title">Parental controls</string>
+    <string name="s_parental_desc">Hide adult categories everywhere until the PIN is entered</string>
+    <string name="s_parental_change_pin">Change PIN</string>
+    <string name="s_parental_change_pin_desc">Four digits. Needed to unlock adult categories or turn this off</string>
+    <string name="s_parental_unlock">Show adult categories for this session</string>
+    <string name="s_parental_unlock_desc">Enter the PIN. They hide again after 30 minutes or when the app closes</string>
+    <string name="s_parental_lock_now">Hide adult categories now</string>
+    <string name="s_parental_lock_now_desc">Unlocked for this session</string>
+    <string name="s_pin_set_title">Set a PIN</string>
+    <string name="s_pin_confirm_title">Enter the PIN again</string>
+    <string name="s_pin_enter_title">Enter PIN</string>
+    <string name="s_pin_current_title">Enter the current PIN</string>
+    <string name="s_pin_mismatch">The two PINs did not match</string>
+    <string name="s_pin_wrong">Wrong PIN</string>
+    <string name="s_pin_saved">Parental controls are on</string>
+    <string name="s_pin_off">Parental controls are off</string>
+    <string name="s_pin_unlocked">Adult categories shown for 30 minutes</string>
+    <string name="s_pin_wheel_hint">▲▼ digit   ◀▶ next   OK confirm</string>
+    <string name="s_pin_hint">4 digits</string>
+    <string name="a11y_pin_digit">PIN digit %1$d</string>
 </resources>

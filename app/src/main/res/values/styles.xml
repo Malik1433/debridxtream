@@ -70,4 +70,19 @@
         <item name="android:backgroundDimAmount">0.45</item>
     </style>
 
+    <!-- Parental PIN digit box for the D-pad wheel (dialog_pin_wheel.xml, 2026-09-03). The
+         selected box is drawn by the dialog (cyan text); the boxes themselves never take focus,
+         the row does, so one D-pad handler owns all four. -->
+    <style name="PinWheelDigit">
+        <item name="android:layout_width">56dp</item>
+        <item name="android:layout_height">64dp</item>
+        <item name="android:layout_marginStart">6dp</item>
+        <item name="android:layout_marginEnd">6dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textSize">30sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">#E2E8F0</item>
+        <item name="android:background">#1E293B</item>
+        <item name="android:focusable">false</item>
+    </style>
 </resources>

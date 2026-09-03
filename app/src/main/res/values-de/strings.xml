@@ -873,4 +873,26 @@
     <string name="code_cat_recently_added">Zuletzt hinzugefügt</string>
     <string name="code_tab_home">Start</string>
     <string name="code_tab_discover">Entdecken</string>
+
+    <!-- Parental controls (2026-09-03) -->
+    <string name="s_parental_title">Kindersicherung</string>
+    <string name="s_parental_desc">Erwachsenen-Kategorien überall ausblenden, bis die PIN eingegeben wird</string>
+    <string name="s_parental_change_pin">PIN ändern</string>
+    <string name="s_parental_change_pin_desc">Vier Ziffern. Nötig zum Freischalten oder Ausschalten</string>
+    <string name="s_parental_unlock">Erwachsenen-Kategorien für diese Sitzung anzeigen</string>
+    <string name="s_parental_unlock_desc">PIN eingeben. Nach 30 Minuten oder beim Schließen der App wieder ausgeblendet</string>
+    <string name="s_parental_lock_now">Erwachsenen-Kategorien jetzt ausblenden</string>
+    <string name="s_parental_lock_now_desc">Für diese Sitzung freigeschaltet</string>
+    <string name="s_pin_set_title">PIN festlegen</string>
+    <string name="s_pin_confirm_title">PIN erneut eingeben</string>
+    <string name="s_pin_enter_title">PIN eingeben</string>
+    <string name="s_pin_current_title">Aktuelle PIN eingeben</string>
+    <string name="s_pin_mismatch">Die PINs stimmen nicht überein</string>
+    <string name="s_pin_wrong">Falsche PIN</string>
+    <string name="s_pin_saved">Kindersicherung ist aktiv</string>
+    <string name="s_pin_off">Kindersicherung ist aus</string>
+    <string name="s_pin_unlocked">Erwachsenen-Kategorien 30 Minuten sichtbar</string>
+    <string name="s_pin_wheel_hint">▲▼ Ziffer   ◀▶ Weiter   OK bestätigen</string>
+    <string name="s_pin_hint">4 Ziffern</string>
+    <string name="a11y_pin_digit">PIN-Ziffer %1$d</string>
 </resources>

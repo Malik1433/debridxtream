@@ -29,6 +29,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import com.tvonnet.debridxtreamiptv.data.local.relation.SeriesWithSeasonsAndEpisodes
 import com.google.gson.Gson
+import com.tvonnet.debridxtreamiptv.data.parental.ParentalControls
 
 /**
  * Week 7: Integrated with CacheManager for multi-level caching
@@ -51,7 +52,8 @@ class XtreamRepository @Inject constructor(
     private val vodDao: VodDao,
     private val seriesDao: SeriesDao,
     private val favoritesCache: FavoritesCache,
-    private val memoryManager: MemoryManager
+    private val memoryManager: MemoryManager,
+    private val parental: ParentalControls? = null // hides adult categories + their streams here; null only in unit tests
 ) {
     // Phase 7: provider session (creds + built service + URL) extracted into XtreamSession. The four
     // former fields are now read-only views onto it, so every existing read site is unchanged.
@@ -188,7 +190,7 @@ class XtreamRepository @Inject constructor(
     
     // Phase 7B-3: Live TV domain moved to LiveRepository; the repository delegates its public API.
     // fetchLiveCategoriesAndStreams stays reachable for syncContent via liveRepository (below).
-    suspend fun ensureLiveCategories(): List<XtreamCategory> = liveRepository.ensureLiveCategories()
+    suspend fun ensureLiveCategories(): List<XtreamCategory> = liveRepository.ensureLiveCategories().let { parental?.categories(it) ?: it }
 
     suspend fun fetchLiveStreamsForCategory(categoryId: String): Result<List<XtreamStream>> =
         liveRepository.fetchLiveStreamsForCategory(categoryId)
@@ -219,11 +221,11 @@ class XtreamRepository @Inject constructor(
     suspend fun fetchVodStreamsForCategory(categoryId: String): Result<List<XtreamVodInfo>> =
         vodRepository.fetchVodStreamsForCategory(categoryId)
 
-    suspend fun ensureVodCategories(): List<XtreamCategory> = vodRepository.ensureVodCategories()
+    suspend fun ensureVodCategories(): List<XtreamCategory> = vodRepository.ensureVodCategories().let { parental?.categories(it) ?: it }
 
     // Phase 7B-5: Series domain moved to SeriesRepository; the repository delegates its public API.
     // fetchSeriesCategoriesAndStreams/fetchLatestSeriesStreams stay reachable for syncContent via seriesRepository.
-    suspend fun ensureSeriesCategories(): List<XtreamCategory> = seriesRepository.ensureSeriesCategories()
+    suspend fun ensureSeriesCategories(): List<XtreamCategory> = seriesRepository.ensureSeriesCategories().let { parental?.categories(it) ?: it }
 
     suspend fun getMovieSources(
         streamId: String?,
@@ -239,7 +241,7 @@ class XtreamRepository @Inject constructor(
         seriesRepository.getSeriesCategoryStatus(categoryId)
 
     suspend fun refreshSeriesCategories(): Result<List<XtreamCategory>> =
-        seriesRepository.refreshSeriesCategories()
+        seriesRepository.refreshSeriesCategories().let { r -> if (r is Result.Success && parental != null) Result.Success(parental.categories(r.data)) else r }
 
     suspend fun fetchSeriesDetail(seriesId: String, forceRefresh: Boolean = false): Result<XtreamSeriesDetailResponse> =
         seriesRepository.fetchSeriesDetail(seriesId, forceRefresh)
@@ -256,12 +258,12 @@ class XtreamRepository @Inject constructor(
     fun readCache(): IptvCache? {
         // Return from memory cache if available (avoid repeated Gson parsing)
         if (memoryCache != null) {
-            return memoryCache
+            return parental?.cache(memoryCache) ?: memoryCache
         }
 
         // Otherwise read from file and cache in memory
         memoryCache = cacheHelper.readCache()
-        return memoryCache
+        return parental?.cache(memoryCache) ?: memoryCache
     }
 
     /**
@@ -472,7 +474,7 @@ class XtreamRepository @Inject constructor(
 
     suspend fun searchLive(query: String): List<XtreamStream> = liveRepository.searchLive(query)
 
-    suspend fun getAllLiveChannels(): List<XtreamStream> = liveRepository.getAllLiveChannels()
+    suspend fun getAllLiveChannels(): List<XtreamStream> = liveRepository.getAllLiveChannels().let { parental?.liveStreams(it) ?: it }
 
     suspend fun countAllLiveChannels(): Int = liveRepository.countAllLiveChannels()
 

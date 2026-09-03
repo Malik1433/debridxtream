@@ -872,4 +872,26 @@
     <string name="code_cat_recently_added">Ajouts récents</string>
     <string name="code_tab_home">Accueil</string>
     <string name="code_tab_discover">Découvrir</string>
+
+    <!-- Parental controls (2026-09-03) -->
+    <string name="s_parental_title">Contrôle parental</string>
+    <string name="s_parental_desc">Masquer les catégories adultes partout jusqu\'à la saisie du code</string>
+    <string name="s_parental_change_pin">Modifier le code</string>
+    <string name="s_parental_change_pin_desc">Quatre chiffres. Nécessaire pour déverrouiller ou désactiver</string>
+    <string name="s_parental_unlock">Afficher les catégories adultes pour cette session</string>
+    <string name="s_parental_unlock_desc">Saisissez le code. Elles sont masquées de nouveau après 30 minutes ou à la fermeture</string>
+    <string name="s_parental_lock_now">Masquer les catégories adultes maintenant</string>
+    <string name="s_parental_lock_now_desc">Déverrouillées pour cette session</string>
+    <string name="s_pin_set_title">Définir un code</string>
+    <string name="s_pin_confirm_title">Saisissez le code à nouveau</string>
+    <string name="s_pin_enter_title">Saisir le code</string>
+    <string name="s_pin_current_title">Saisissez le code actuel</string>
+    <string name="s_pin_mismatch">Les deux codes ne correspondent pas</string>
+    <string name="s_pin_wrong">Code incorrect</string>
+    <string name="s_pin_saved">Le contrôle parental est activé</string>
+    <string name="s_pin_off">Le contrôle parental est désactivé</string>
+    <string name="s_pin_unlocked">Catégories adultes affichées 30 minutes</string>
+    <string name="s_pin_wheel_hint">▲▼ chiffre   ◀▶ suivant   OK valider</string>
+    <string name="s_pin_hint">4 chiffres</string>
+    <string name="a11y_pin_digit">Chiffre %1$d du code</string>
 </resources>

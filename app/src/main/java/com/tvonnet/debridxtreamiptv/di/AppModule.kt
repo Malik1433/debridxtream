@@ -119,7 +119,8 @@ object AppModule {
         vodDao: VodDao,
         seriesDao: SeriesDao,
         favoritesCache: FavoritesCache,
-        memoryManager: MemoryManager
+        memoryManager: MemoryManager,
+        parental: com.tvonnet.debridxtreamiptv.data.parental.ParentalControls
     ): XtreamRepository {
         return XtreamRepository(
             context,
@@ -130,7 +131,8 @@ object AppModule {
             vodDao,
             seriesDao,
             favoritesCache,
-            memoryManager
+            memoryManager,
+            parental
         )
     }
     

@@ -38,6 +38,9 @@ class SettingsFragment :
 
     @Inject
     lateinit var repository: XtreamRepository
+    @Inject
+    lateinit var parental: com.tvonnet.debridxtreamiptv.data.parental.ParentalControls
+    private val parentalRows by lazy { SettingsParentalRows(requireContext(), parental) { updateDetails(viewModel.uiState.value) } }
 
     @Inject
     lateinit var serverDataReset: ServerDataReset
@@ -458,6 +461,7 @@ class SettingsFragment :
                 description = getString(R.string.s_manage_on_your_phone_desc),
                 onClick = { SettingsManageQrDialog.show(requireContext()) }
             ),
+        ) + parentalRows.items() + listOf(
             SettingItem.Action(
                 key = "logout_account",
                 title = getString(R.string.s_sign_out),
