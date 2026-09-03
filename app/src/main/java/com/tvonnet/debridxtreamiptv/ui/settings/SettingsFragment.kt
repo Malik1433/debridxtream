@@ -412,6 +412,13 @@ class SettingsFragment :
                 getString(R.string.s_refresh_channels_catalog),
                 getString(R.string.s_fetch_live_channels_movies_and_series),
             ),
+            SettingItem.Toggle(
+                key = "diagnostics",
+                title = getString(R.string.s_diagnostics_title),
+                description = getString(R.string.s_diagnostics_desc),
+                isChecked = state.isDiagnosticsEnabled,
+                onToggle = { viewModel.toggleDiagnostics(it) }
+            ),
             SettingItem.Action(
                 key = "clear_cache",
                 title = getString(R.string.s_clear_cached_data),

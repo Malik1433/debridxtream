@@ -27,6 +27,7 @@ data class SettingsUiState(
     val isEpgAutoSyncEnabled: Boolean = true,
     val epgSyncIntervalHours: String = "6",
     val isSoftwareAudioEnabled: Boolean = true,
+    val isDiagnosticsEnabled: Boolean = true,
     val preferredAudioLang: String = "EN",
     val preferredAudioLang2: String = "NONE",
     /** M0: "auto" | "tv" | "mobile" — which layout the app renders. */
@@ -77,6 +78,7 @@ class SettingsViewModel @Inject constructor(
                 isEpgAutoSyncEnabled = defaultPrefs.getBoolean("epg_auto_sync", true),
                 epgSyncIntervalHours = defaultPrefs.getString("epg_sync_interval", "6") ?: "6",
                 isSoftwareAudioEnabled = audioPrefs.isSoftwareAudioEnabled(),
+                isDiagnosticsEnabled = audioPrefs.isDiagnosticsEnabled(),
                 preferredAudioLang = credentialsPrefs.preferredAudioLang,
                 preferredAudioLang2 = credentialsPrefs.preferredAudioLang2,
                 uiMode = audioPrefs.getUiModeOverride(),
@@ -122,6 +124,12 @@ class SettingsViewModel @Inject constructor(
      */
     fun refreshUi() {
         _uiState.update { it.copy(revision = it.revision + 1) }
+    }
+
+    /** G3: crash reports + anonymous playback summaries - applied to both SDKs at once. */
+    fun toggleDiagnostics(enabled: Boolean) {
+        com.tvonnet.debridxtreamiptv.util.DiagnosticsConsent.set(context, enabled)
+        _uiState.update { it.copy(isDiagnosticsEnabled = enabled) }
     }
 
     fun toggleSoftwareAudio(enabled: Boolean) {

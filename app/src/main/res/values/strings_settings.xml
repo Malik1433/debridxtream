@@ -77,4 +77,8 @@
     <string name="s_pin_wheel_hint">▲▼ digit   ◀▶ next   OK confirm</string>
     <string name="s_pin_hint">4 digits</string>
     <string name="a11y_pin_digit">PIN digit %1$d</string>
+
+    <!-- Diagnostics consent (2026-09-03), Data & Storage -->
+    <string name="s_diagnostics_title">Send diagnostics &amp; crash reports</string>
+    <string name="s_diagnostics_desc">Anonymous: crash reports and a per-session playback summary (start-up time, rebuffers, errors). Never what you watched, your account or your provider</string>
 </resources>

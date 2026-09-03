@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.tvonnet.debridxtreamiptv.util.DiagnosticsConsent
 
 /**
  * LP-D-2: QoE / playback analytics. One instance per ExoPlayer build, attached via
@@ -27,7 +28,9 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics
 @UnstableApi
 class PlaybackQoeTracker(
     context: Context,
-    private val modeProvider: () -> String
+    /** G3: nothing leaves the device unless the Settings switch says so - asked on every emit. */
+    private val consent: () -> Boolean = { DiagnosticsConsent.isEnabled(context) },
+    private val modeProvider: () -> String,
 ) : AnalyticsListener {
 
     private val analytics: FirebaseAnalytics = FirebaseAnalytics.getInstance(context.applicationContext)
@@ -41,6 +44,9 @@ class PlaybackQoeTracker(
     private var droppedFrames = 0
     private var sessionStartedAtMs = SystemClock.elapsedRealtime()
     private var summaryFlushed = false
+    private var errorCount = 0
+    private var firstFrameSeen = false
+    private var firstTtffMs: Long? = null
 
     /** Call right before prepare()/seamless-switch so TTFF measures this source. */
     fun markPrepareStart() {
@@ -57,6 +63,9 @@ class PlaybackQoeTracker(
         if (ttffReported || prepareStartedAtMs == 0L) return
         ttffReported = true
         val ttffMs = SystemClock.elapsedRealtime() - prepareStartedAtMs
+        firstFrameSeen = true
+        if (firstTtffMs == null) firstTtffMs = ttffMs
+        if (!consent()) return
         analytics.logEvent("playback_ttff", Bundle().apply {
             putLong("ttff_ms", ttffMs)
             putString("mode", modeProvider())
@@ -90,6 +99,8 @@ class PlaybackQoeTracker(
     }
 
     override fun onPlayerError(eventTime: AnalyticsListener.EventTime, error: PlaybackException) {
+        errorCount++
+        if (!consent()) return
         analytics.logEvent("playback_error", Bundle().apply {
             putString("error_code", error.errorCodeName)
             putString("mode", modeProvider())
@@ -106,6 +117,7 @@ class PlaybackQoeTracker(
     fun flushSessionSummary() {
         if (summaryFlushed) return
         summaryFlushed = true
+        if (!consent()) return
         val sessionSec = (SystemClock.elapsedRealtime() - sessionStartedAtMs) / 1000L
         analytics.logEvent("playback_session", Bundle().apply {
             putLong("session_sec", sessionSec)
@@ -113,7 +125,27 @@ class PlaybackQoeTracker(
             putInt("dropped_frames", droppedFrames)
             putString("mode", modeProvider())
         })
+        // G2: the summary rides along with the NEXT crash report as custom keys; only an
+        // unhealthy session files a non-fatal of its own (see SessionSummaryPolicy).
+        val summary = SessionSummaryPolicy.Summary(
+            mode = modeProvider(), sessionSec = sessionSec, rebufferCount = rebufferCount,
+            droppedFrames = droppedFrames, errorCount = errorCount, firstFrameSeen = firstFrameSeen, ttffMs = firstTtffMs
+        )
+        SessionSummaryPolicy.keys(summary).forEach { (k, v) ->
+            when (v) {
+                is Boolean -> crashlytics.setCustomKey(k, v)
+                is Int -> crashlytics.setCustomKey(k, v)
+                is Long -> crashlytics.setCustomKey(k, v)
+                else -> crashlytics.setCustomKey(k, v.toString())
+            }
+        }
+        if (SessionSummaryPolicy.isUnhealthy(summary)) {
+            crashlytics.recordException(PlaybackSessionSummary(SessionSummaryPolicy.message(summary)))
+        }
     }
+
+    /** Named so Crashlytics groups unhealthy-session reports apart from playback errors. */
+    private class PlaybackSessionSummary(message: String) : Exception(message)
 
     /** Named exception type so Crashlytics groups playback non-fatals together. */
     private class PlaybackQoeException(message: String) : Exception(message)

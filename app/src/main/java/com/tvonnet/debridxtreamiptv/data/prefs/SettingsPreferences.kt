@@ -32,6 +32,17 @@ class SettingsPreferences(private val context: Context) {
     fun saveAutoReconnect(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_AUTO_RECONNECT, enabled).apply()
     }
+
+    /**
+     * G3 (2026-09-03): may the app send crash reports and anonymous playback summaries?
+     * Default ON - the crash-free target depends on it - but it is one switch away, and the
+     * Settings row says exactly what is and is not collected. Read by DiagnosticsConsent.
+     */
+    fun isDiagnosticsEnabled(): Boolean = prefs.getBoolean(KEY_DIAGNOSTICS, true)
+
+    fun saveDiagnosticsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DIAGNOSTICS, enabled).apply()
+    }
     
     fun isAutoReconnectEnabled(): Boolean {
         return prefs.getBoolean(KEY_AUTO_RECONNECT, true)
@@ -261,6 +272,7 @@ class SettingsPreferences(private val context: Context) {
         private const val DEFAULT_REFRESH_INTERVAL = 24
         private const val KEY_NETWORK_QUALITY = "network_quality"
         private const val KEY_AUTO_RECONNECT = "auto_reconnect_enabled"
+        private const val KEY_DIAGNOSTICS = "diagnostics_enabled"
         private const val KEY_SUPPORT_URL = "support_url"
         private const val KEY_PREFERRED_AUDIO = "pref_audio_lang"
         private const val KEY_PREFERRED_SUBTITLE = "pref_subtitle_lang"

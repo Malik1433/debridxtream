@@ -894,4 +894,8 @@
     <string name="s_pin_wheel_hint">▲▼ dígito   ◀▶ seguinte   OK confirmar</string>
     <string name="s_pin_hint">4 dígitos</string>
     <string name="a11y_pin_digit">Dígito %1$d do PIN</string>
+
+    <!-- Diagnostics consent (2026-09-03) -->
+    <string name="s_diagnostics_title">Enviar diagnósticos e relatórios de falhas</string>
+    <string name="s_diagnostics_desc">Anónimo: relatórios de falhas e um resumo de reprodução por sessão (tempo de arranque, rebuffering, erros). Nunca o que viste, a tua conta ou o teu fornecedor</string>
 </resources>

@@ -894,4 +894,8 @@
     <string name="s_pin_wheel_hint">▲▼ cifra   ◀▶ avanti   OK conferma</string>
     <string name="s_pin_hint">4 cifre</string>
     <string name="a11y_pin_digit">Cifra %1$d del PIN</string>
+
+    <!-- Diagnostics consent (2026-09-03) -->
+    <string name="s_diagnostics_title">Invia diagnostica e segnalazioni di arresto</string>
+    <string name="s_diagnostics_desc">Anonimo: segnalazioni di arresto e un riepilogo di riproduzione per sessione (tempo di avvio, rebuffering, errori). Mai cosa hai guardato, il tuo account o il tuo provider</string>
 </resources>

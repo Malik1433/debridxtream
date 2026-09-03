@@ -26,6 +26,8 @@ class MainApplication : Application(), Configuration.Provider {
         super.onCreate()
         
         com.tvonnet.debridxtreamiptv.util.GlobalCrashHandler.init(this)
+        // G3: the diagnostics switch decides whether Crashlytics/Analytics collect at all.
+        com.tvonnet.debridxtreamiptv.util.DiagnosticsConsent.applyStored(this)
 
         registerSystemBarInsetPadding()
 

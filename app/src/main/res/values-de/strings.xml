@@ -895,4 +895,8 @@
     <string name="s_pin_wheel_hint">▲▼ Ziffer   ◀▶ Weiter   OK bestätigen</string>
     <string name="s_pin_hint">4 Ziffern</string>
     <string name="a11y_pin_digit">PIN-Ziffer %1$d</string>
+
+    <!-- Diagnostics consent (2026-09-03) -->
+    <string name="s_diagnostics_title">Diagnose &amp; Absturzberichte senden</string>
+    <string name="s_diagnostics_desc">Anonym: Absturzberichte und eine Wiedergabe-Zusammenfassung pro Sitzung (Startzeit, Nachpuffern, Fehler). Nie, was du gesehen hast, dein Konto oder dein Anbieter</string>
 </resources>

@@ -894,4 +894,8 @@
     <string name="s_pin_wheel_hint">▲▼ chiffre   ◀▶ suivant   OK valider</string>
     <string name="s_pin_hint">4 chiffres</string>
     <string name="a11y_pin_digit">Chiffre %1$d du code</string>
+
+    <!-- Diagnostics consent (2026-09-03) -->
+    <string name="s_diagnostics_title">Envoyer diagnostics et rapports de plantage</string>
+    <string name="s_diagnostics_desc">Anonyme : rapports de plantage et un résumé de lecture par session (temps de démarrage, remises en mémoire tampon, erreurs). Jamais ce que vous avez regardé, votre compte ni votre fournisseur</string>
 </resources>
