@@ -368,13 +368,13 @@ class HomeFragment : Fragment(), HomeRouterHost {
 
     private fun updateSectionCounts(state: HomeUiState) {
         view?.findViewById<TextView>(R.id.tv_count_top_10_movies)?.text =
-            if (state.top10Movies.isNotEmpty()) "${state.top10Movies.size} TITLES" else ""
+            if (state.top10Movies.isNotEmpty()) getString(R.string.code_titles_count, state.top10Movies.size.toString()) else ""
         view?.findViewById<TextView>(R.id.tv_count_top_10_series)?.text =
-            if (state.top10Series.isNotEmpty()) "${state.top10Series.size} TITLES" else ""
+            if (state.top10Series.isNotEmpty()) getString(R.string.code_titles_count, state.top10Series.size.toString()) else ""
         view?.findViewById<TextView>(R.id.tv_count_recent_live)?.text =
-            if (state.recentLiveChannels.isNotEmpty()) "${state.recentLiveChannels.size} TITLES" else ""
+            if (state.recentLiveChannels.isNotEmpty()) getString(R.string.code_titles_count, state.recentLiveChannels.size.toString()) else ""
         view?.findViewById<TextView>(R.id.tv_count_continue_watching)?.text =
-            if (state.continueWatching.isNotEmpty()) "${state.continueWatching.size} TITLES" else ""
+            if (state.continueWatching.isNotEmpty()) getString(R.string.code_titles_count, state.continueWatching.size.toString()) else ""
     }
 
     private fun updateHistoryRowVisibility(state: HomeUiState) {
