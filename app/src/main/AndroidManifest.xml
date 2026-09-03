@@ -171,6 +171,23 @@
             android:label="Recovery Mode"
             android:theme="@style/AppTheme"
             android:exported="false" />
+
+        <!--
+          The in-app language (AppCompatDelegate.setApplicationLocales) is stored by the SYSTEM on
+          API 33+, but below that AppCompat only keeps it if this service is declared with
+          autoStoreLocales - without it the choice lived until the next cold start and every Fire TV
+          (API 25/28) reverted to the device language at every launch (found 2026-09-03 while
+          verifying the German pass). The service never runs; it is a metadata holder.
+        -->
+        <service
+            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false"
+            android:exported="false">
+            <meta-data
+                android:name="autoStoreLocales"
+                android:value="true" />
+        </service>
+
     </application>
 
 </manifest>
