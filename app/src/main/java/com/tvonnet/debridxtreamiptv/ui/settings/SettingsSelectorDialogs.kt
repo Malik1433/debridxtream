@@ -200,18 +200,4 @@ class SettingsSelectorDialogs(
             .setNegativeButton(android.R.string.cancel) { dialog, _ -> dialog.dismiss() }
             .show()
     }
-
-    /** Legacy Real-Debrid raw-magnet fallback — not the account logout. */
-    fun showDebridLogoutConfirmation() {
-        AlertDialog.Builder(context)
-            .setTitle(R.string.c_log_out_of_legacy_real)
-            .setMessage(R.string.c_you_will_lose_access_to)
-            .setPositiveButton(R.string.c_log_out) { dialog, _ ->
-                viewModel.logoutDebrid()
-                dialog.dismiss()
-                Toast.makeText(context, context.getString(R.string.c_logged_out_of_legacy_fallback), Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton(android.R.string.cancel) { dialog, _ -> dialog.dismiss() }
-            .show()
-    }
 }

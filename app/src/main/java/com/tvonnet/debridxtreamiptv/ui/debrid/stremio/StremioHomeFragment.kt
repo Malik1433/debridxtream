@@ -218,16 +218,6 @@ class StremioHomeFragment :
         stateViews.onState(state)
         when (state) {
             is DebridUiState.Loading -> setStatus(true, getString(R.string.debrid_syncing))
-            is DebridUiState.NotAuthenticated -> {
-                setStatus(false, null)
-                if (!isNavigatingAway && isAdded && !parentFragmentManager.isStateSaved) {
-                    isNavigatingAway = true
-                    parentFragmentManager.commit {
-                        replace(R.id.content_container, com.tvonnet.debridxtreamiptv.ui.debrid.DebridAuthFragment())
-                        addToBackStack(null)
-                    }
-                }
-            }
             is DebridUiState.Error -> setStatus(false, null)
             is DebridUiState.Content -> {
                 setStatus(false, null)

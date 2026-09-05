@@ -492,8 +492,6 @@
     <string name="c_iptv_data_refreshed_successfully">IPTV-Daten erfolgreich aktualisiert</string>
     <string name="c_live_tv_layout">Live-TV-Layout</string>
     <string name="c_loading_categories">Kategorien werden geladen…</string>
-    <string name="c_log_out_of_legacy_real">Vom alten Real-Debrid-Fallback abmelden?</string>
-    <string name="c_logged_out_of_legacy_fallback">Vom alten Fallback abgemeldet</string>
     <string name="c_missing_credentials">Zugangsdaten fehlen</string>
     <string name="c_no_categories_found_sync_active">Keine Kategorien gefunden. Läuft die Synchronisierung?</string>
     <string name="c_no_episodes">Keine Folgen</string>
@@ -505,7 +503,6 @@
     <string name="c_phone_connected_syncing">✓ HANDY VERBUNDEN · SYNCHRONISIERUNG…</string>
     <string name="c_pick_the_layout_that_fits">Wähle das passende Layout. Du kannst es später in den Einstellungen ändern.</string>
     <string name="c_please_connect_to_the_internet">Bitte mit dem Internet verbinden</string>
-    <string name="c_please_enter_api_key">Bitte API-Schlüssel eingeben</string>
     <string name="c_preferred_audio_language">Bevorzugte Audiosprache</string>
     <string name="c_real_debrid_not_configured">Real-Debrid nicht konfiguriert</string>
     <string name="c_refresh_failed_please_try_again">Aktualisierung fehlgeschlagen. Bitte erneut versuchen.</string>
@@ -541,7 +538,6 @@
     <string name="c_update_available">Update verfügbar</string>
     <string name="c_update_failed">Update fehlgeschlagen</string>
     <string name="c_you_need_to_configure_real">Zum Abspielen müssen die Real-Debrid-Einstellungen konfiguriert werden. Jetzt konfigurieren?</string>
-    <string name="c_you_will_lose_access_to">Du verlierst den Zugriff auf den Roh-Magnet-Fallback. Bist du sicher?</string>
     <string name="c_your_free_trial_has_ended">Deine kostenlose Testphase ist beendet</string>
     <string name="c_your_subscription_has_expired">Dein Abo ist abgelaufen</string>
     <string name="c_app_language">App-Sprache</string>
@@ -596,7 +592,6 @@
     <string name="s_open_live_tv_on_the_channel">Live-TV mit dem zuletzt gesehenen Sender öffnen statt mit dem ersten</string>
     <string name="s_tv_guide_genre_colours">TV-Programm: Genre-Farben</string>
     <string name="s_tint_channels_and_programmes_by_genre">Sender und Sendungen im Programm nach Genre einfärben</string>
-    <string name="s_real_debrid_fallback">Real-Debrid-Fallback</string>
     <!-- l10n tail: formatted strings + guide canvas (2026-08-11) -->
     <string name="f_play_label">%1$s abspielen</string>
     <string name="f_available_in_categories">IN %1$d KATEGORIEN · MULTI-SOURCE</string>
@@ -639,13 +634,7 @@
     <string name="debrid_login_title">Alter Real-Debrid-Fallback</string>
     <string name="debrid_login_message">Optionaler Fallback für die Wiedergabe roher Magnet-Links. Stremio-Add-on-URLs sind der Hauptweg.</string>
     <string name="debrid_login_button">Alten Fallback öffnen</string>
-    <string name="debrid_auth_title">Alte Real-Debrid-Einrichtung</string>
-    <string name="debrid_auth_start_message">Nur verwenden, wenn du den rohen Magnet-Fallback brauchst.</string>
-    <string name="debrid_auth_fetching">Gerätecode wird abgerufen…</string>
-    <string name="debrid_auth_instructions">Öffne die URL unten auf Handy oder Computer und gib diesen Code ein:</string>
     <string name="debrid_auth_start">Alte Einrichtung starten</string>
-    <string name="debrid_auth_success">Altes Real-Debrid erfolgreich eingerichtet!</string>
-    <string name="debrid_auth_error_format">Fehler bei der alten Einrichtung: %1$s</string>
     <string name="label_iptv">IPTV</string>
     <string name="label_debrid">Debrid</string>
     <string name="debrid_state_not_connected">NICHT VERBUNDEN</string>
@@ -856,7 +845,6 @@
     <string name="phone_resolving_subtitle">Dein Debrid-Anbieter wird nach einem abspielbaren Link gefragt.</string>
     <string name="s_summary_live_resumes">Öffnet deinen letzten Sender</string>
     <string name="s_summary_live_from_first">Startet beim ersten Sender</string>
-    <string name="s_summary_rd_on">Real-Debrid an</string>
     <string name="ui_epg_guide">EPG-GUIDE</string>
     <string name="ui_key">CODE</string>
     <string name="ui_iptv_debrid_4k">LIVE-TV · FILME · SERIEN</string>

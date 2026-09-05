@@ -42,7 +42,6 @@
     <string name="s_movie_rows">Movie Rows</string>
     <string name="s_open_live_tv_on_the_channel">Open Live TV on the channel you watched last instead of the first</string>
     <string name="s_provider">Provider</string>
-    <string name="s_real_debrid_fallback">Real-Debrid Fallback</string>
     <string name="s_refresh_channels_catalog">Refresh Channels &amp; Catalog</string>
     <string name="s_refresh_the_guide_in_the_background">Refresh the guide in the background</string>
     <string name="s_resume_last_channel">Resume Last Channel</string>

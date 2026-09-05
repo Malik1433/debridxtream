@@ -958,6 +958,40 @@ with anything else — if it regresses, the bisect has to land on media3 and not
 
 ---
 
+### Tier K — removing Real-Debrid *(owner decision, 2026-09-05)*
+
+The owner does not use Real-Debrid any more. Addons are added as a config/manifest LINK that the
+addon site (AIO, StremThru…) generates from your API key, so the app itself stores no per-service
+key and needs no RD account. RD survived only as the **raw-magnet fallback**.
+
+⚠️ **This is a capability removal, not dead-code cleanup, and that is why it is phased.** Mapping it
+first turned up two things that “just delete it” would have broken:
+
+- `DebridLinkResolver` uses RD to turn a raw magnet into a playable link — `addMagnet`,
+  `getTorrentInfo`, `deleteTorrent`, plus `RealDebridRateLimiter`. Inert only because the addons in
+  use return direct links.
+- `DebridAuthFragment` was **not** orphaned: the Debrid home routed to it on `NotAuthenticated`, so
+  the empty state pushed people into setting up the one service the product no longer wants.
+
+**K1 — the user-facing surface. DONE.** Settings’ “Real-Debrid Fallback” row, its logout dialog and
+the RD suffix on the Add-ons summary are gone; `DebridAuthFragment` **and `DebridAuthViewModel`
+together** (an orphaned `@HiltViewModel` is this project’s known R8 release crash — see §4) plus both
+`fragment_debrid_auth` layouts are deleted. `NotAuthenticated` was only ever produced by that
+logout, so the state went with it; the Debrid home already had the right empty state, driven by
+`Entitlements.isDebridConfigured` at `showSetupGuideIfNoDebridService()`. 14 orphaned string keys
+removed across all six locales — `StringResourceParityTest` is what makes that safe to do in bulk.
+**Account logout still clears the stored token**, so K1 changes the UI and nothing about the data.
+
+**K2 — the resolver and its storage. NOT STARTED, and it needs its own device pass.** `RealDebrid*`
+api/model/source/rate-limiter, `DebridAccountRepository`, the auth-state keys in
+`DebridPreferences`, and the RD arms inside `DebridLinkResolver` / `DebridCacheVerifier` /
+`DebridPlaybackRepository` / `UnifiedSourceProvider`. The gate before starting: confirm on the
+device that **no addon in use ever returns a magnet** rather than a direct link — if one does,
+removing this stops those sources resolving, and the failure would look like “sources are broken”
+rather than “RD is gone”.
+
+---
+
 ## 4. Known landmines — never regress these
 
 Carried from hard-won incidents; every phase must respect them.

@@ -229,13 +229,7 @@
     <string name="debrid_refreshing">Updating catalog...</string>
     <string name="debrid_refresh_failed">Update failed. Showing cached results.</string>
     <string name="content_poster">Content Poster</string>
-    <string name="debrid_auth_title">Legacy Real-Debrid Setup</string>
-    <string name="debrid_auth_start_message">Use this only if you need raw magnet fallback.</string>
-    <string name="debrid_auth_fetching">Fetching device code…</string>
-    <string name="debrid_auth_instructions">Visit the URL below on your phone or computer and enter this code:</string>
     <string name="debrid_auth_start">Start Legacy Setup</string>
-    <string name="debrid_auth_success">Legacy Real-Debrid configured successfully!</string>
-    <string name="debrid_auth_error_format">Legacy setup error: %1$s</string>
     <string name="cancel">Cancel</string>
     <string name="content_backdrop">Content backdrop image</string>
     <string name="play">Play</string>

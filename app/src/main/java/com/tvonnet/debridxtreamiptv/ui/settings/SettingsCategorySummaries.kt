@@ -63,13 +63,7 @@ class SettingsCategorySummaries(private val context: Context) {
     /** How many sources this device can actually search, which is the whole of what Add-ons is for. */
     private fun addons(): String {
         val count = debrid.getStremioAddonUrls().size + debrid.getAddonRegistryUrls().size
-        val realDebrid = !debrid.getRealDebridToken().isNullOrBlank()
-        val addonsText = context.resources.getQuantityString(R.plurals.s_summary_addons, count, count)
-        return if (realDebrid) {
-            context.getString(R.string.s_summary_pair, addonsText, context.getString(R.string.s_summary_rd_on))
-        } else {
-            addonsText
-        }
+        return context.resources.getQuantityString(R.plurals.s_summary_addons, count, count)
     }
 
     /** Who is signed in, and how many servers they could switch between. */

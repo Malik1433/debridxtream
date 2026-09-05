@@ -45,8 +45,6 @@
     <string name="c_iptv_data_refreshed_successfully">IPTV data refreshed successfully</string>
     <string name="c_live_tv_layout">Live TV Layout</string>
     <string name="c_loading_categories">Loading Categories...</string>
-    <string name="c_log_out_of_legacy_real">Log Out of Legacy Real-Debrid Fallback?</string>
-    <string name="c_logged_out_of_legacy_fallback">Logged out of legacy fallback</string>
     <string name="c_missing_credentials">Missing credentials</string>
     <string name="c_no_categories_found_sync_active">No categories found. Sync active?</string>
     <string name="c_no_episodes">No episodes</string>
@@ -58,7 +56,6 @@
     <string name="c_phone_connected_syncing">✓ PHONE CONNECTED · SYNCING…</string>
     <string name="c_pick_the_layout_that_fits">Pick the layout that fits. You can change it later in Settings.</string>
     <string name="c_please_connect_to_the_internet">Please connect to the internet</string>
-    <string name="c_please_enter_api_key">Please enter API Key</string>
     <string name="c_preferred_audio_language">Preferred Audio Language</string>
     <string name="c_real_debrid_not_configured">Real-Debrid Not Configured</string>
     <string name="c_refresh_failed_please_try_again">Refresh failed. Please try again.</string>
@@ -94,7 +91,6 @@
     <string name="c_update_available">Update available</string>
     <string name="c_update_failed">Update failed</string>
     <string name="c_you_need_to_configure_real">You need to configure Real-Debrid settings to play this content. Do you want to configure it now?</string>
-    <string name="c_you_will_lose_access_to">You will lose access to the raw magnet fallback. Are you sure?</string>
     <string name="c_your_free_trial_has_ended">Your free trial has ended</string>
     <string name="c_your_subscription_has_expired">Your subscription has expired</string>
     <!-- Hero blurb shown when the catalogue gives a title no description of its own. Naming the

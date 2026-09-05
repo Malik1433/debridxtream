@@ -197,7 +197,10 @@ class SettingsMaintenanceActions(
             // Written AFTER the credentials are gone: the device now belongs to no provider, so
             // the next sign-in is a change of provider and the switch path runs for it too.
             CredentialsPreferences(appContext).markServerDataSynced()
-            viewModel.logoutDebrid()
+            // Phase 1 of removing Real-Debrid: the Settings row and the auth screen are gone, but
+            // the stored token is still cleared here so account logout behaves exactly as before.
+            // Phase 2 deletes the storage itself and this line with it.
+            com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences(appContext).clearRealDebridToken()
             navigateToLogin(activity)
         }
     }

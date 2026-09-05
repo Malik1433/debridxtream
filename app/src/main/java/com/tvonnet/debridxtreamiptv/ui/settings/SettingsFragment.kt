@@ -385,25 +385,6 @@ class SettingsFragment :
                 },
                 onClick = { dialogs.showManageStremioAddonsDialog(state.stremioAddonUrls) }
             ),
-            SettingItem.Action(
-                key = "manage_debrid",
-                title = getString(R.string.s_real_debrid_fallback),
-                description = if (state.isDebridAuthenticated) {
-                    "Authorised - used only for raw magnet links"
-                } else {
-                    "Not connected - optional raw magnet fallback"
-                },
-                onClick = {
-                    if (state.isDebridAuthenticated) {
-                        dialogs.showDebridLogoutConfirmation()
-                    } else {
-                        parentFragmentManager.beginTransaction()
-                            .replace(R.id.content_container, com.tvonnet.debridxtreamiptv.ui.debrid.DebridAuthFragment())
-                            .addToBackStack(null)
-                            .commit()
-                    }
-                }
-            )
         )
     private fun dataItems(state: SettingsUiState): List<SettingItem> = listOf(
             // G4: while the catalogue is downloading, this row IS the progress. Before, it showed

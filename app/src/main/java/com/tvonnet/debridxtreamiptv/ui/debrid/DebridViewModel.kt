@@ -196,13 +196,6 @@ class DebridViewModel @Inject constructor(
         }
     }
     
-    fun logout() {
-        viewModelScope.launch {
-            debridPrefs.clearRealDebridToken()
-            _uiState.value = DebridUiState.NotAuthenticated
-        }
-    }
-
     private fun isAuthError(error: Throwable?): Boolean {
         if (error is HttpException) {
             if (error.code() == 401 || error.code() == 403) return true
@@ -421,7 +414,6 @@ class DebridViewModel @Inject constructor(
  */
 sealed class DebridUiState {
     object Loading : DebridUiState()
-    object NotAuthenticated : DebridUiState()
     object Authenticated : DebridUiState()
     data class Content(
         val rows: List<DebridRow>,

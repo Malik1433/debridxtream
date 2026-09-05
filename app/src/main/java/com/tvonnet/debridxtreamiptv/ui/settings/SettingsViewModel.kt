@@ -20,7 +20,6 @@ data class SettingsUiState(
     val revision: Int = 0,
     val accountUsername: String? = null,
     val accountServer: String? = null,
-    val isDebridAuthenticated: Boolean = false,
     val addonRegistryUrl: String = "",
     val addonRegistryUrls: Set<String> = emptySet(),
     val stremioAddonUrls: Set<String> = emptySet(),
@@ -71,7 +70,6 @@ class SettingsViewModel @Inject constructor(
             it.copy(
                 accountUsername = credentialsPrefs.getUsername(),
                 accountServer = credentialsPrefs.getServerUrl(),
-                isDebridAuthenticated = prefs.getRealDebridToken() != null,
                 addonRegistryUrl = prefs.getAddonRegistryUrl(),
                 addonRegistryUrls = prefs.getAddonRegistryUrls(),
                 stremioAddonUrls = prefs.getStremioAddonUrls(),
@@ -162,11 +160,6 @@ class SettingsViewModel @Inject constructor(
     fun toggleResumeLastLive(enabled: Boolean) {
         com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences(context).setResumeLastLiveEnabled(enabled)
         _uiState.update { it.copy(resumeLastLive = enabled) }
-    }
-
-    fun logoutDebrid() {
-        prefs.clearRealDebridToken()
-        _uiState.update { it.copy(isDebridAuthenticated = false) }
     }
 
     fun setAddonRegistryUrl(url: String) {

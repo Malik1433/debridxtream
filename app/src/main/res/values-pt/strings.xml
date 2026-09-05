@@ -491,8 +491,6 @@
     <string name="c_iptv_data_refreshed_successfully">Dados IPTV atualizados com sucesso</string>
     <string name="c_live_tv_layout">Esquema da TV em direto</string>
     <string name="c_loading_categories">A carregar categorias…</string>
-    <string name="c_log_out_of_legacy_real">Terminar sessão do antigo recurso Real-Debrid?</string>
-    <string name="c_logged_out_of_legacy_fallback">Sessão terminada do antigo recurso</string>
     <string name="c_missing_credentials">Faltam credenciais</string>
     <string name="c_no_categories_found_sync_active">Nenhuma categoria encontrada. Sincronização ativa?</string>
     <string name="c_no_episodes">Sem episódios</string>
@@ -504,7 +502,6 @@
     <string name="c_phone_connected_syncing">✓ TELEMÓVEL LIGADO · A SINCRONIZAR…</string>
     <string name="c_pick_the_layout_that_fits">Escolhe o esquema adequado. Podes mudá-lo depois nas definições.</string>
     <string name="c_please_connect_to_the_internet">Liga-te à Internet</string>
-    <string name="c_please_enter_api_key">Introduz a chave API</string>
     <string name="c_preferred_audio_language">Idioma de áudio preferido</string>
     <string name="c_real_debrid_not_configured">Real-Debrid não configurado</string>
     <string name="c_refresh_failed_please_try_again">Falha na atualização. Tenta novamente.</string>
@@ -540,7 +537,6 @@
     <string name="c_update_available">Atualização disponível</string>
     <string name="c_update_failed">Falha na atualização</string>
     <string name="c_you_need_to_configure_real">Precisas de configurar o Real-Debrid para reproduzir este conteúdo. Configurar agora?</string>
-    <string name="c_you_will_lose_access_to">Perderás o acesso ao recurso de magnet direto. Tens a certeza?</string>
     <string name="c_your_free_trial_has_ended">O teu período de teste terminou</string>
     <string name="c_your_subscription_has_expired">A tua subscrição expirou</string>
     <string name="c_app_language">Idioma da app</string>
@@ -595,7 +591,6 @@
     <string name="s_open_live_tv_on_the_channel">Abrir a TV em direto no último canal visto em vez do primeiro</string>
     <string name="s_tv_guide_genre_colours">Guia TV: cores por género</string>
     <string name="s_tint_channels_and_programmes_by_genre">Colorir canais e programas por género no guia</string>
-    <string name="s_real_debrid_fallback">Recurso Real-Debrid</string>
     <!-- l10n tail: formatted strings + guide canvas (2026-08-11) -->
     <string name="f_play_label">Reproduzir %1$s</string>
     <string name="f_available_in_categories">EM %1$d CATEGORIAS · MULTIFONTE</string>
@@ -638,13 +633,7 @@
     <string name="debrid_login_title">Alternativa antiga Real-Debrid</string>
     <string name="debrid_login_message">Alternativa opcional para reproduzir magnets em bruto. Os URL de add-ons Stremio são o caminho principal.</string>
     <string name="debrid_login_button">Abrir alternativa antiga</string>
-    <string name="debrid_auth_title">Configuração antiga Real-Debrid</string>
-    <string name="debrid_auth_start_message">Usa isto apenas se precisares da alternativa de magnet em bruto.</string>
-    <string name="debrid_auth_fetching">A obter o código do dispositivo…</string>
-    <string name="debrid_auth_instructions">Abre o URL abaixo no telemóvel ou computador e introduz este código:</string>
     <string name="debrid_auth_start">Iniciar configuração antiga</string>
-    <string name="debrid_auth_success">Real-Debrid antigo configurado com sucesso!</string>
-    <string name="debrid_auth_error_format">Erro na configuração antiga: %1$s</string>
     <string name="label_iptv">IPTV</string>
     <string name="label_debrid">Debrid</string>
     <string name="debrid_state_not_connected">NÃO LIGADO</string>
@@ -855,7 +844,6 @@
     <string name="phone_resolving_subtitle">A pedir ao teu fornecedor debrid um link reproduzível.</string>
     <string name="s_summary_live_resumes">Reabre o teu último canal</string>
     <string name="s_summary_live_from_first">Abre no primeiro canal</string>
-    <string name="s_summary_rd_on">Real-Debrid ligado</string>
     <string name="ui_epg_guide">GUIA EPG</string>
     <string name="ui_key">CHAVE</string>
     <string name="ui_iptv_debrid_4k">TV EM DIRETO · FILMES · SÉRIES</string>

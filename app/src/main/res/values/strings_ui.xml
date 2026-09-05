@@ -488,7 +488,6 @@
     <string name="phone_resolving_subtitle">Asking your debrid provider for a playable link.</string>
     <string name="s_summary_live_resumes">Reopens your last channel</string>
     <string name="s_summary_live_from_first">Opens on the first channel</string>
-    <string name="s_summary_rd_on">Real-Debrid on</string>
     <plurals name="s_summary_addons">
         <item quantity="one">%1$d add-on</item>
         <item quantity="other">%1$d add-ons</item>
